@@ -156,8 +156,9 @@ the base branch is found there.
 3. **A new remote branch isn't checked against the remote's history.**
    When `push` creates a branch for a subtree that changed, it sends the
    subtree's split history. For a subtree that was never added through
-   `git subtree`, that history shares nothing with the remote's other
-   branches.
+   `git subtree` or `git subtrees init`, that history shares nothing with
+   the remote's other branches. (`init` records a sync point even for a
+   folder copied in by hand, as long as its content equals the remote's.)
 4. **Stacked branches compare with the base, not their parent.** A branch
    cut from `feature-1` (not from the base branch) counts everything
    `feature-1` changed as its own, unless you pass `--base feature-1`.

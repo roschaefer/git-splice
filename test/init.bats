@@ -3,6 +3,7 @@ setup() {
   load_lib
   load 'scenarios/init-unrelated-content/setup'
   load 'scenarios/init-on-feature-branch/setup'
+  load 'scenarios/init-copied-content/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -304,4 +305,77 @@ setup() {
   [[ "$output" == *"vendor/a: base branch 'mian' not found, or it shares no history with 'feature'"* ]]
   [[ "$output" != *"nothing to add"* ]]
   [ ! -e vendor/a ]
+}
+
+@test "init: records the sync point for a folder copied in with the remote's content" {
+  hermetic_git_config
+  scenario_init_copied_content "$monorepo" "$upstream"
+  cd "$monorepo"
+  local tree_before
+  tree_before="$(git rev-parse 'HEAD^{tree}')"
+
+  run cmd_init "vendor/a" "$upstream"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"content matches 'main' on the remote -- recorded it as the last sync"* ]]
+  [ "$(git rev-parse 'HEAD^{tree}')" = "$tree_before" ]
+  [ -z "$(git status --porcelain)" ]
+
+  local sync
+  sync="$(find_sync_commit vendor/a)"
+  [ -n "$sync" ]
+  [ "$(sync_split_sha "$sync")" = "$(git -C "$upstream" rev-parse main)" ]
+  classify_subtree "vendor/a" "main"
+  [ "$SUBTREE_STATE" = "up-to-date" ]
+}
+
+@test "init: a second run on an adopted folder changes nothing" {
+  hermetic_git_config
+  scenario_init_copied_content "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_init "vendor/a" "$upstream"
+  local head
+  head="$(git rev-parse HEAD)"
+
+  run cmd_init "vendor/a" "$upstream"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"already initialized"* ]]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+}
+
+@test "init: after adopting a copied folder, a new remote branch builds on the remote's history" {
+  hermetic_git_config
+  scenario_init_copied_content "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_init "vendor/a" "$upstream"
+  git checkout -q -b feature
+  echo "feature change" >>vendor/a/file.txt
+  git commit -q -am "feature change"
+
+  run push_one "vendor/a" "feature" "main"
+  [ "$status" -eq 0 ]
+  git -C "$upstream" merge-base --is-ancestor main feature
+}
+
+@test "init: the first push after adopting a folder doesn't publish the folder's earlier history" {
+  hermetic_git_config
+  scenario_init_copied_content "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "TOP SECRET" >vendor/a/secret.txt
+  git add vendor/a/secret.txt
+  git commit -q -m "oops, a secret"
+  local secret
+  secret="$(git rev-parse HEAD:vendor/a/secret.txt)"
+  git rm -q vendor/a/secret.txt
+  git commit -q -m "remove the secret again"
+
+  cmd_init "vendor/a" "$upstream"
+  git checkout -q -b feature
+  echo "feature change" >>vendor/a/file.txt
+  git commit -q -am "feature change"
+  run push_one "vendor/a" "feature" "main"
+  [ "$status" -eq 0 ]
+
+  run git -C "$upstream" cat-file -e "$secret"
+  [ "$status" -ne 0 ]
+  [ "$(git -C "$upstream" log --format=%s feature)" = $'feature change\nseed' ]
 }

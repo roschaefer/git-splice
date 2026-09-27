@@ -73,6 +73,29 @@ base_branch_name() {
   printf '%s\n' "$name"
 }
 
+# Records the remote commit at <target-ref> as the last sync of <path>,
+# whose content already equals it, without touching any file: the same two
+# commits `git subtree add --squash` would create -- a squash commit with the
+# remote's tree and git-subtree-dir/git-subtree-split trailers, merged into
+# HEAD -- except that the merge keeps HEAD's tree. git-subtree itself
+# refuses both `add` (the folder exists) and `merge` (it was never added).
+# The merge also carries git-subtree-mainline/-split trailers, as a
+# `split --rejoin` merge does: they tell split that HEAD's folder already
+# equals the remote commit, so a push never sends the folder's history
+# from before the adoption.
+adopt_subtree() {
+  local path="$1" target_ref="$2" split squash head merge
+  split="$(git rev-parse "$target_ref^{commit}")"
+  squash="$(git commit-tree "$target_ref^{tree}" \
+    -m "Squashed '$path/' content from commit ${split:0:7}" \
+    -m "git-subtree-dir: $path"$'\n'"git-subtree-split: $split")"
+  head="$(git rev-parse HEAD)"
+  merge="$(git commit-tree "HEAD^{tree}" -p "$head" -p "$squash" \
+    -m "Merge commit '$squash' as '$path'" \
+    -m "git-subtree-dir: $path"$'\n'"git-subtree-mainline: $head"$'\n'"git-subtree-split: $split")"
+  git update-ref -m "git subtrees init: adopt $path" HEAD "$merge" "$head"
+}
+
 cmd_init() {
   parse_base_args usage_init "$@"
   local base="$BASE_ARG"
@@ -143,7 +166,15 @@ cmd_init() {
 
   case "$SUBTREE_STATE" in
     up-to-date | push | pull | diverged)
-      log_ok "$path: already initialized"
+      # Equal content alone reads as up-to-date, even for a folder copied in
+      # by hand. Without a sync point, a later push would send a history
+      # that shares nothing with the remote's, so record one first.
+      if [[ -z "$(find_sync_commit "$path")" ]]; then
+        adopt_subtree "$path" "$SUBTREE_TARGET_REF"
+        log_ok "$path: content matches '$branch' on the remote -- recorded it as the last sync"
+      else
+        log_ok "$path: already initialized"
+      fi
       ;;
     unrelated-history)
       log_err "$path: directory exists with content unrelated to $url"

@@ -61,6 +61,8 @@ remote's content. On a branch the remote doesn't have yet, it adds the
 remote's base branch instead (found like for `push`), and your first `push`
 creates your branch on top of it. If the remote has neither (e.g. it's
 still empty), `init` only registers the remote. If `<path>` already has
+exactly the remote's content, e.g. copied in by hand, `init` records that
+as the last sync, so later pushes build on the remote's history. If it has
 content that isn't related to the remote, `init` stops and asks you to move
 the folder aside and merge it back by hand.
 
@@ -82,6 +84,8 @@ state.
 
 More scenarios:
 
+- [`init-copied-content`](test/scenarios/init-copied-content/README.md):
+  `init` on a folder copied in by hand with exactly the remote's content.
 - [`init-on-feature-branch`](test/scenarios/init-on-feature-branch/README.md):
   `init` on a branch the remote doesn't have yet.
 - [`init-unrelated-content`](test/scenarios/init-unrelated-content/README.md):
