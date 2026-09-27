@@ -1,8 +1,9 @@
 # Covers the completions for all three shells. bash's completion function is
 # called directly, the way bash calls it: with the command line split into
-# COMP_WORDS, including bash's split at "=". zsh and fish run the real shell.
-# The zsh and fish tests skip when that shell isn't installed (the compat
-# matrix only has bash); `nix develop` provides both.
+# COMP_WORDS, including bash's split at "=". The "interactive bash" tests
+# also run the real bash, driven through zsh; zsh and fish run the real shell.
+# Tests needing zsh or fish skip when it isn't installed; `nix develop`
+# provides both, and the compat matrix provides zsh.
 
 setup() {
   load 'helpers/fixtures'
@@ -140,6 +141,14 @@ zsh_complete() {
     "$BATS_TEST_DIRNAME/../completions/git-subtrees.zsh" "$1"
 }
 
+# Completes a command line with one Tab in a real interactive bash, runs
+# it, and prints the arguments git-subtrees receives, as "[arg][arg]...".
+# The harness drives bash through zsh's pty module.
+bash_tab_enter() {
+  zsh "$BATS_TEST_DIRNAME/helpers/bash-complete.zsh" \
+    "$BATS_TEST_DIRNAME/../completions/git-subtrees.bash" "$1"
+}
+
 # Prints what fish completes for a command line, one candidate per line.
 fish_complete() {
   LINE="$1" fish --no-config -c 'source $argv[1]; complete -C "$LINE"' \
@@ -212,4 +221,38 @@ fish_complete() {
   require_shell fish
   run fish_complete "git-subtrees init --base ma"
   [[ "$output" == *"main"* ]]
+}
+
+@test "interactive bash: Tab completes a subtree path" {
+  require_shell zsh
+  run bash_tab_enter "git-subtrees push vend"
+  [ "$output" = "[push][vendor/a]" ]
+}
+
+@test "interactive bash: Tab completes the branch in all three --base forms" {
+  require_shell zsh
+  run bash_tab_enter "git-subtrees push --base ma"
+  [ "$output" = "[push][--base][main]" ]
+  run bash_tab_enter "git-subtrees push --base=ma"
+  [ "$output" = "[push][--base=main]" ]
+  run bash_tab_enter "git-subtrees push --base="
+  [ "$output" = "[push][--base=main]" ]
+  run bash_tab_enter "git-subtrees init --base=ma"
+  [ "$output" = "[init][--base=main]" ]
+}
+
+@test "interactive bash: a completed branch name with a command substitution runs neither on Tab nor on Enter" {
+  require_shell zsh
+  git update-ref 'refs/heads/x$(touch${IFS}pwned)' HEAD
+  run bash_tab_enter "git-subtrees push --base x"
+  [ ! -e pwned ]
+  [ "$output" = '[push][--base][x$(touch${IFS}pwned)]' ]
+}
+
+@test "interactive bash: a completed directory with a command substitution isn't run" {
+  require_shell zsh
+  mkdir 'z$(touch${IFS}pwned)'
+  run bash_tab_enter "git-subtrees init z"
+  [ ! -e pwned ]
+  [ "$output" = '[init][z$(touch${IFS}pwned)]' ]
 }

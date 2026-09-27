@@ -61,6 +61,7 @@ jobs:
             "github:NixOS/nixpkgs/$BASH_REV#bashInteractive" \
             "github:NixOS/nixpkgs/$GIT_REV#git" \
             "nixpkgs#bats" \
+            "nixpkgs#zsh" \
             --command bash -c '
               set -e
               bash_version="${BASH_VERSION%%(*}"
