@@ -117,6 +117,14 @@ explains how the states are worked out and lists known limitations.
 
 ## Installation
 
+With [Nix](https://nixos.org/download/), which brings its own Bash, Git and
+shell completions:
+
+    nix profile install github:roschaefer/git-subtrees
+    nix run github:roschaefer/git-subtrees -- status   # or try it first
+
+Otherwise, clone it:
+
     git clone https://github.com/roschaefer/git-subtrees.git
     mkdir -p ~/.local/bin
     ln -s "$(pwd)/git-subtrees/git-subtrees" ~/.local/bin/git-subtrees
@@ -135,10 +143,9 @@ Requires:
 ### Shell completions
 
 `completions/` has completions for bash, zsh and fish. They complete
-subcommands and subtree paths.
+subcommands and subtree paths. The Nix package installs them; for a clone:
 
-    # bash: source from ~/.bashrc (git's dispatch to _git_subtrees needs
-    # the function defined up front, so lazy loading doesn't work)
+    # bash: source from ~/.bashrc
     source /path/to/git-subtrees/completions/git-subtrees.bash
 
     # zsh: install as `_git-subtrees` on your $fpath, then restart the shell

@@ -25,6 +25,10 @@ jobs:
       - name: test
         run: nix develop --command just test
 
+      # Builds the package and runs it through `git subtrees` in the sandbox.
+      - name: nix flake check
+        run: nix flake check -L
+
   compat-matrix:
     # Named after the versions under test rather than the nixpkgs revisions
     # they come from. The test step fails first if a label drifts from what
