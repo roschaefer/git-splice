@@ -5,7 +5,11 @@
       "release-type": "simple",
       "package-name": "git-subtrees",
       "bump-minor-pre-major": true,
-      "extra-files": ["git-subtrees"]
+      "extra-files": [
+        "git-subtrees"
+      ],
+      "initial-version": "0.1.0"
     }
-  }
+  },
+  "bootstrap-sha": "353e86b46a2d517b678862c21d9388a53c9d3322"
 }
