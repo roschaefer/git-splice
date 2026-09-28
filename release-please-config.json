@@ -8,7 +8,8 @@
       "extra-files": [
         "git-subtrees"
       ],
-      "initial-version": "0.1.0"
+      "initial-version": "0.1.0",
+      "include-component-in-tag": false
     }
   },
   "bootstrap-sha": "353e86b46a2d517b678862c21d9388a53c9d3322"
