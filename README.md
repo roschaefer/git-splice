@@ -162,6 +162,11 @@ Scenario fixtures for the tests are in `test/scenarios/`, each with a
 README. Pull requests out of draft get a benchmark against their base in
 the job summary of the Benchmark workflow.
 
+Releases come from [release-please](https://github.com/googleapis/release-please):
+it keeps a release PR open with the next version and changelog, built from
+the Conventional Commits on `main`. Merging it tags and publishes the
+release.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).

@@ -7,6 +7,8 @@
 # subtree remote.
 set -euo pipefail
 
+VERSION=0.0.0 # x-release-please-version
+
 if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4))); then
   printf '!!   git-subtrees requires Bash >= 4.4 (found %s)\n' "$BASH_VERSION" >&2
   exit 1
@@ -53,7 +55,8 @@ Commands:
   push [--base <b>] [path...]    push local subtree changes upstream
   status [--base <b>] [path...]  show sync state of every remote
 
-Run 'git subtrees <command> -h' for command-specific help.
+Run 'git subtrees <command> -h' for command-specific help, and
+'git subtrees --version' for the version.
 EOF
 }
 
@@ -66,6 +69,10 @@ main() {
   case "$1" in
     -h | --help)
       top_usage
+      exit 0
+      ;;
+    --version)
+      printf 'git subtrees version %s\n' "$VERSION"
       exit 0
       ;;
     diff)

@@ -81,7 +81,7 @@ _git_subtrees() {
   [[ "${COMP_WORDS[0]}" == git ]] && start=2
 
   if ((COMP_CWORD == start)); then
-    mapfile -t COMPREPLY < <(compgen -W "diff init fetch merge pull prune push status -h --help" -- "$cur")
+    mapfile -t COMPREPLY < <(compgen -W "diff init fetch merge pull prune push status -h --help --version" -- "$cur")
     return
   fi
 

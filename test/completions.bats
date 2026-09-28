@@ -25,6 +25,11 @@ complete_words() {
   printf '%s\n' "${COMPREPLY[@]}"
 }
 
+@test "completion: --version at the top level" {
+  run complete_words git-subtrees --v
+  [ "$output" = "--version" ]
+}
+
 @test "completion: push completes subtree paths" {
   run complete_words git-subtrees push vend
   [ "$output" = "vendor/a" ]
@@ -161,6 +166,14 @@ fish_complete() {
   [[ "$output" == *"pull"* && "$output" == *"push"* ]]
 }
 
+@test "zsh completion: --version at the top level, but no options before a -" {
+  require_shell zsh
+  run zsh_complete "git-subtrees --v"
+  [[ "$output" == *"--version"* ]]
+  run zsh_complete "git-subtrees pu"
+  [[ "$output" != *"--version"* ]]
+}
+
 @test "zsh completion: push completes subtree paths" {
   require_shell zsh
   run zsh_complete "git-subtrees push vendor/"
@@ -193,6 +206,12 @@ fish_complete() {
   require_shell fish
   run fish_complete "git-subtrees pu"
   [[ "$output" == *"pull"* && "$output" == *"push"* ]]
+}
+
+@test "fish completion: --version at the top level" {
+  require_shell fish
+  run fish_complete "git-subtrees --v"
+  [ "$output" = "--version" ]
 }
 
 @test "fish completion: push completes subtree paths" {

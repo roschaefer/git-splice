@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   lint-test:
     runs-on: ubuntu-latest
@@ -75,54 +78,47 @@ jobs:
               bats --recursive test
             '
 
-  edge-release:
+  release-please:
     needs: [lint-test, compat-matrix]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    # One at a time: two runs could both find a tarball missing, and the
+    # second upload would fail on the asset the first one just added.
     concurrency:
-      group: edge-release
-      cancel-in-progress: true
+      group: release-please
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      # concurrency above only takes effect once this job starts, which is
-      # after lint-test/compat-matrix finish -- an older push's prerequisite
-      # jobs can still finish after a newer push has already published, so
-      # this re-checks that github.sha is still main's tip before publishing
-      # to avoid force-moving edge backward.
-      - name: Verify this commit is still the tip of main
-        id: check
-        run: |
-          git fetch origin main
-          current_tip="$(git rev-parse origin/main)"
-          if [[ "$current_tip" != "${{ github.sha }}" ]]; then
-            echo "main has moved on to $current_tip; skipping edge release for ${{ github.sha }}"
-            echo "is_latest=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_latest=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build tarball
-        if: steps.check.outputs.is_latest == 'true'
-        run: |
-          mkdir -p dist
-          git archive --format=tar.gz --prefix=git-subtrees/ -o dist/git-subtrees-edge.tar.gz HEAD
-
-      - name: Move edge tag to HEAD
-        if: steps.check.outputs.is_latest == 'true'
-        run: |
-          git tag -f edge
-          git push origin edge --force
-
-      - name: Publish edge release
-        if: steps.check.outputs.is_latest == 'true'
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+      # A fine-grained token rather than GITHUB_TOKEN, whose pull requests
+      # and tags trigger no workflows, so the release PR would get no CI.
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
         with:
-          tag_name: edge
-          name: "Edge (rolling)"
-          body: "Rolling build of the latest commit on main (${{ github.sha }})."
-          prerelease: true
-          make_latest: false
-          files: dist/git-subtrees-edge.tar.gz
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      # Not gated on release_created: a rerun after a failed upload sees the
+      # release as already created, so this checks every release for what's
+      # missing instead.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Attach tarballs to releases that lack one
+        # Explicit, so the step runs with pipefail: a failing `gh release
+        # list` must not look like there are no releases.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName --jq '.[].tagName' |
+            while read -r tag; do
+              asset="git-subtrees-$tag.tar.gz"
+              has_asset="$(gh release view "$tag" --json assets --jq "any(.assets[]; .name == \"$asset\")")"
+              if [[ "$has_asset" == true ]]; then
+                continue
+              fi
+              git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag"
+              git archive --format=tar.gz --prefix=git-subtrees/ -o "$asset" "$tag"
+              gh release upload "$tag" "$asset"
+            done

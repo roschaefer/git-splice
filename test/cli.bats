@@ -165,3 +165,16 @@ setup() {
   [[ "$output" == *"push [--base <b>]"* ]]
   [[ "$output" == *"status [--base <b>]"* ]]
 }
+
+@test "cli: --version prints VERSION" {
+  local version
+  version="$(sed -n 's/^VERSION=\([^ ]*\).*/\1/p' "$entrypoint")"
+
+  run "$entrypoint" --version
+  [ "$status" -eq 0 ]
+  [ "$output" = "git subtrees version $version" ]
+}
+
+@test "cli: VERSION carries the marker release-please bumps it by" {
+  grep -qx 'VERSION=[0-9.]* # x-release-please-version' "$BATS_TEST_DIRNAME/../git-subtrees"
+}

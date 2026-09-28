@@ -31,7 +31,7 @@ __git_subtrees_branches() {
 
 _git-subtrees() {
   local curcontext="$curcontext" state line
-  local -a commands paths
+  local -a commands options paths
 
   commands=(
     'diff:show file changes that push would send'
@@ -44,8 +44,18 @@ _git-subtrees() {
     'status:show sync state of every remote'
   )
 
+  options=(
+    '-h:show usage'
+    '--help:show usage'
+    '--version:show version'
+  )
+
   if ((CURRENT == 2)); then
-    _describe -t commands 'git subtrees command' commands
+    if [[ $PREFIX == -* ]]; then
+      _describe -t options 'option' options
+    else
+      _describe -t commands 'git subtrees command' commands
+    fi
     return
   fi
 

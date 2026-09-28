@@ -59,6 +59,7 @@ complete -c git-subtrees -n "not __fish_seen_subcommand_from $commands" -a prune
 complete -c git-subtrees -n "not __fish_seen_subcommand_from $commands" -a push -d 'push local subtree changes'
 complete -c git-subtrees -n "not __fish_seen_subcommand_from $commands" -a status -d 'show sync state'
 complete -c git-subtrees -n "not __fish_seen_subcommand_from $commands" -s h -l help -d 'show usage'
+complete -c git-subtrees -n "not __fish_seen_subcommand_from $commands" -l version -d 'show version'
 
 complete -c git-subtrees -n "__fish_seen_subcommand_from diff fetch merge pull push status" -a "(__git_subtrees_paths)" -d 'subtree path'
 complete -c git-subtrees -n "__fish_seen_subcommand_from diff fetch merge pull push status" -s h -l help -d 'show usage'
