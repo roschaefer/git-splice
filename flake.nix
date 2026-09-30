@@ -58,6 +58,32 @@
             platforms = lib.platforms.unix;
           };
         };
+        # Runs the walkthroughs (`just docs-check`). Not in
+        # nixpkgs yet, so this uses the upstream release binaries.
+        scrut =
+          let
+            version = "0.4.3";
+            platforms = {
+              x86_64-linux = { name = "linux-x86_64"; hash = "sha256-au+wv/KbRQ+9GwQIPu/q5DiNbJMC4x0aJLeqnt0DuzU="; };
+              aarch64-linux = { name = "linux-aarch64"; hash = "sha256-pnEX9DINEpx9cHOl5mfbrSXnqD8xSApjMQglD+QGndU="; };
+              x86_64-darwin = { name = "macos-x86_64"; hash = "sha256-JYlzAFESfhFOIBSRblHn6s6wH1nqe/sqpZvzbI+izJ4="; };
+              aarch64-darwin = { name = "macos-aarch64"; hash = "sha256-PAvI1FX92zguHpCZ9fSk4LjpJbGfpYjCF2vARjg9mrw="; };
+            };
+            platform = platforms.${system};
+          in
+          pkgs.stdenv.mkDerivation {
+            pname = "scrut";
+            inherit version;
+            src = pkgs.fetchurl {
+              url = "https://github.com/facebookincubator/scrut/releases/download/v${version}/scrut-v${version}-${platform.name}.tar.gz";
+              inherit (platform) hash;
+            };
+            sourceRoot = "scrut-${platform.name}";
+            nativeBuildInputs = lib.optionals pkgs.stdenv.isLinux [ pkgs.autoPatchelfHook ];
+            buildInputs = lib.optionals pkgs.stdenv.isLinux [ pkgs.stdenv.cc.cc.lib ];
+            installPhase = "install -Dm755 scrut $out/bin/scrut";
+            meta.platforms = builtins.attrNames platforms;
+          };
       in
       {
         packages.default = git-subtrees;
@@ -114,6 +140,9 @@
             pkgs.bashInteractive
             pkgs.just
             pkgs.hyperfine
+            # Renders the walkthrough chapters in the walkthrough shell.
+            pkgs.glow
+            scrut
             # Only for test/completions.bats: the zsh and fish completions.
             pkgs.zsh
             pkgs.fish
@@ -121,7 +150,7 @@
 
           shellHook = ''
             repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            export PATH="$repo_root:$repo_root/playground:$PATH"
+            export PATH="$repo_root:$repo_root/walkthrough:$PATH"
           '';
         };
       });

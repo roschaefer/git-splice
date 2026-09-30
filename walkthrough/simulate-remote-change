@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Playground helper: pushes a new commit to a connected subtree's remote,
+# Walkthrough helper: pushes a new commit to a connected subtree's remote,
 # simulating upstream activity so 'git subtrees status'/'pull' have
 # something real to show. On PATH inside `nix develop` (see flake.nix),
-# so it's usable by bare name from inside a playground sandbox monorepo.
+# so it's usable by bare name from inside a walkthrough sandbox monorepo.
 set -euo pipefail
 
 if [[ $# -lt 1 || "$1" == "-h" || "$1" == "--help" ]]; then
@@ -12,7 +12,7 @@ usage: simulate-remote-change <path> [message]
 Simulates new upstream activity on subtree <path>'s remote: clones it,
 adds one commit, and pushes -- so 'git subtrees status'/'fetch'/'pull'
 have something real to react to. Run this from inside a git-subtrees
-monorepo (playground or otherwise) where <path> is a registered remote.
+monorepo (walkthrough sandbox or otherwise) where <path> is a registered remote.
 
   <path>      a registered remote name (e.g. vendor/pkg-a)
   [message]   commit message (default: "simulated upstream change ...")
@@ -37,8 +37,8 @@ tmp="$(mktemp -d)"
 git clone -q "$remote_url" "$tmp" 2>/dev/null
 (
   cd "$tmp"
-  git config user.name "Playground"
-  git config user.email "playground@example.com"
+  git config user.name "Walkthrough"
+  git config user.email "walkthrough@example.com"
   echo "$message" >>file.txt
   git add file.txt
   git commit -q -m "$message"

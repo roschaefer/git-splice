@@ -25,6 +25,9 @@ jobs:
       - name: test
         run: nix develop --command just test
 
+      - name: docs-check
+        run: nix develop --command just docs-check
+
       # Builds the package and runs it through `git subtrees` in the sandbox.
       - name: nix flake check
         run: nix flake check -L

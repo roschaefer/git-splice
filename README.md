@@ -1,8 +1,8 @@
 # git-subtrees
 
-Keep several `git subtree` folders of a monorepo in sync with their own
-repositories: publish a package, mirror a library, or keep a vendored copy
-up to date. You don't need a config file.
+Manage multiple git subtrees in a monorepo: keep each folder in sync with
+its own repository, to publish a package, mirror a library, or keep a
+vendored copy up to date. You don't need a config file.
 
 ## The contract
 
@@ -42,6 +42,13 @@ Other tools keep a config of their own, and most don't follow your branch:
 | [splitsh-lite](https://github.com/splitsh/lite) | One way only: it publishes read-only mirrors. |
 | [Josh](https://github.com/josh-project/josh) | The opposite model: the monorepo is authoritative, and people work in filtered views of it. |
 | [Copybara](https://github.com/google/copybara) | One repository is the source of truth. Syncing back needs a second, reverse workflow. |
+
+## Example
+
+[A walkthrough of every command](walkthrough/README.md) shows what each one
+prints, on a throwaway monorepo whose subtree remotes live on the same
+machine. To follow along, run `just walkthrough` in a clone of this
+repository.
 
 ## Commands
 
@@ -162,8 +169,8 @@ With [Nix](https://nixos.org/download/) and
 [flakes](https://wiki.nixos.org/wiki/Flakes), run in the clone:
 
     nix develop      # shell with the dev tools and this checkout on PATH
-    just --list      # lint, fmt, test, ci, bench, playground, ...
-    just playground  # try commands by hand in a throwaway monorepo
+    just --list      # lint, fmt, test, ci, bench, walkthrough, ...
+    just walkthrough # try commands by hand in a throwaway monorepo
 
 Scenario fixtures for the tests are in `test/scenarios/`, each with a
 README. Pull requests out of draft get a benchmark against their base in

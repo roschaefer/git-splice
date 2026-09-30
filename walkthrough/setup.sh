@@ -10,7 +10,7 @@ no_shell=0
 
 usage() {
   cat <<'EOF'
-usage: playground/setup.sh [--dir <path>] [--no-shell]
+usage: walkthrough/setup.sh [--dir <path>] [--no-shell]
 
 Builds a scratch monorepo plus fixture bare "upstream" repos for manually
 running git-subtrees commands against realistic state. When run
@@ -47,10 +47,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$dir" ]]; then
-  dir="$(mktemp -d "${TMPDIR:-/tmp}/git-subtrees-playground.XXXXXX")"
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/git-subtrees-walkthrough.XXXXXX")"
 fi
 
 mkdir -p "$dir"
+dir="$(cd "$dir" && pwd)"
 upstream_dir="$dir/upstream"
 mono_dir="$dir/monorepo"
 mkdir -p "$upstream_dir"
@@ -61,8 +62,8 @@ seed_bare_repo() {
   git clone -q "$repo" "$tmp" 2>/dev/null
   (
     cd "$tmp"
-    git config user.name "Playground"
-    git config user.email "playground@example.com"
+    git config user.name "Walkthrough"
+    git config user.email "walkthrough@example.com"
     echo "$msg" >>file.txt
     git add file.txt
     git commit -q -m "$msg"
@@ -72,18 +73,18 @@ seed_bare_repo() {
 }
 
 echo "=== building fixture upstream repos ==="
-git init -q --bare "$upstream_dir/pkg-a.git"
+git init -q --bare --initial-branch=main "$upstream_dir/pkg-a.git"
 seed_bare_repo "$upstream_dir/pkg-a.git" "pkg-a: seed"
 
-git init -q --bare "$upstream_dir/pkg-b.git"
+git init -q --bare --initial-branch=main "$upstream_dir/pkg-b.git"
 seed_bare_repo "$upstream_dir/pkg-b.git" "pkg-b: seed"
 
 echo "=== building monorepo ==="
-git init -q "$mono_dir"
+git init -q --initial-branch=main "$mono_dir"
 (
   cd "$mono_dir"
-  git config user.name "Playground"
-  git config user.email "playground@example.com"
+  git config user.name "Walkthrough"
+  git config user.email "walkthrough@example.com"
   git commit -q --allow-empty -m "initial commit"
 
   git remote add vendor/pkg-a "$upstream_dir/pkg-a.git"
@@ -103,9 +104,23 @@ git init -q "$mono_dir"
 # 'git subtrees status'/'pull' show a genuine "pull available" state right
 # away rather than everything starting out already in sync. status never
 # fetches on its own, so fetch once here too -- otherwise the freshly
-# built playground would still report "up to date" until the user fetches.
+# built sandbox would still report "up to date" until the user fetches.
 seed_bare_repo "$upstream_dir/pkg-a.git" "pkg-a: a second commit, after connecting"
 git -C "$mono_dir" fetch -q vendor/pkg-a
+
+# Commands that open each chapter of the walkthrough, rendered by glow
+# (in `nix develop`) or as plain Markdown in less.
+print_chapters() {
+  local docs reader=less chapter
+  docs="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if command -v glow >/dev/null; then
+    reader="glow -p"
+  fi
+  echo "Read the walkthrough alongside, one chapter at a time:"
+  for chapter in README feature-branches diverged; do
+    printf '  %s %q\n' "$reader" "$docs/$chapter.md"
+  done
+}
 
 print_reminder() {
   if [[ $dir_given -eq 0 ]]; then
@@ -117,47 +132,38 @@ print_reminder() {
 if [[ $no_shell -eq 0 && -t 0 && -t 1 ]]; then
   cat <<EOF
 
-=== playground ready: $mono_dir ===
+=== walkthrough ready: $mono_dir ===
 
-Try:
+$(print_chapters)
+
+Or start with:
   git subtrees status
-  git subtrees init vendor/pkg-b $upstream_dir/pkg-b.git
-  git subtrees fetch
-  git subtrees pull
-  simulate-remote-change vendor/pkg-a   # simulate more upstream activity
-  git subtrees status
-  git subtrees pull
-  echo "local edit" >> vendor/pkg-a/file.txt && git add vendor/pkg-a && git commit -m "local edit"
-  git subtrees push
-  git subtrees status
+  git subtrees init vendor/pkg-b "\$WALKTHROUGH/upstream/pkg-b.git"
+  simulate-remote-change vendor/pkg-a   # push a commit upstream, as if someone else had
 
 Dropping you into a shell there now -- 'exit' to leave it.
 EOF
   print_reminder
   cd "$mono_dir"
-  exec "${SHELL:-bash}"
+  WALKTHROUGH="$dir" exec "${SHELL:-bash}"
 fi
 
 # Non-interactive (piped, scripted, or --no-shell): print the path instead
 # of exec'ing into it, so the caller can still find and use the sandbox.
 cat <<EOF
 
-=== playground ready ===
+=== walkthrough ready ===
 $mono_dir
 
-  cd $mono_dir
+  cd $(printf '%q' "$mono_dir")
+  export WALKTHROUGH=$(printf '%q' "$dir")
 
-Try:
+$(print_chapters)
+
+Or start with:
   git subtrees status
-  git subtrees init vendor/pkg-b $upstream_dir/pkg-b.git
-  git subtrees fetch
-  git subtrees pull
-  simulate-remote-change vendor/pkg-a   # simulate more upstream activity
-  git subtrees status
-  git subtrees pull
-  echo "local edit" >> vendor/pkg-a/file.txt && git add vendor/pkg-a && git commit -m "local edit"
-  git subtrees push
-  git subtrees status
+  git subtrees init vendor/pkg-b "\$WALKTHROUGH/upstream/pkg-b.git"
+  simulate-remote-change vendor/pkg-a   # push a commit upstream, as if someone else had
 EOF
 
 print_reminder
