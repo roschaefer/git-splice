@@ -111,6 +111,10 @@ cmd_init() {
   local branch
   branch="$(current_branch)"
   usable_with_git_subtree "$branch" || die "$branch: git-subtree cannot use a branch name starting with '-' -- rename it and re-run"
+  # `git subtree add` merges into HEAD, and fails on a branch without one
+  # with "working tree has modifications".
+  git rev-parse --quiet --verify "HEAD^{commit}" >/dev/null ||
+    die "branch '$branch' has no commits yet -- create one and re-run: git commit --allow-empty -m 'initial commit'"
 
   discover_subtrees
   local nested
