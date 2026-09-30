@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/roschaefer/git-subtrees/compare/v0.1.0...v0.1.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **init:** refuse a monorepo without commits up front ([#46](https://github.com/roschaefer/git-subtrees/issues/46)) ([098ca03](https://github.com/roschaefer/git-subtrees/commit/098ca03a7179f28526b39f5ec7023a661a9b6fe7)), closes [#45](https://github.com/roschaefer/git-subtrees/issues/45)
+
 ## 0.1.0 (2026-09-28)
 
 First release. `git subtrees` keeps the `git subtree` folders of a monorepo
