@@ -8,8 +8,25 @@ cut from `main`.
   a new `feature` branch with no further commits.
 - **Remote**: only has `main`, at `seed`. No `feature` branch.
 
-Expected `classify_subtree "vendor/a" "feature"` result: `missing-at-head`.
-Expected `changes_vs_base "vendor/a" main` result: `no`. `push` must not
-create `feature` on the remote.
+## Output
 
-Built by `scenario_feature_branch_unchanged` in `setup.bash`.
+`scenario_feature_branch_unchanged` in [`setup.bash`](setup.bash)
+builds this state. [How scenarios work](../README.md).
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_feature_branch_unchanged
+```
+-->
+
+The scenario sets no base branch, so the commands pass `--base main`:
+
+```scrut
+$ git subtrees status --base main
+ok   vendor/a -> $UPSTREAM (no 'feature' branch on remote; unchanged since 'main')
+```
+
+```scrut
+$ git subtrees push --base main
+ok   vendor/a: nothing to push (remote has no 'feature' branch; unchanged since 'main')
+```

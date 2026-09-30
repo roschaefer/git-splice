@@ -28,9 +28,45 @@ folder's history from before the adoption, and the first push would
 publish it -- including files deleted since, such as a secret committed
 by mistake. `init.bats` covers that case.
 
-Expected result: `init` reports that it recorded the last sync, the
-worktree and `HEAD`'s tree are unchanged, the squash commit's
-`git-subtree-split:` trailer names the remote's `main`, and a `push` from a
-feature branch creates a remote branch descending from `main`.
+`init.bats` also checks that `HEAD`'s tree is unchanged, that the squash
+commit's `git-subtree-split:` trailer names the remote's `main`, and that a
+`push` from a feature branch creates a remote branch descending from `main`.
 
-Built by `scenario_init_copied_content` in `setup.bash`.
+## Output
+
+`scenario_init_copied_content` in [`setup.bash`](setup.bash)
+builds this state. [How scenarios work](../README.md).
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_init_copied_content
+```
+-->
+
+```scrut
+$ git subtrees init vendor/a "$UPSTREAM"
+===  vendor/a: registering remote -> $UPSTREAM
+===  vendor/a: fetching
+ok   vendor/a fetched
+ok   vendor/a: content matches 'main' on the remote -- recorded it as the last sync
+```
+
+The worktree is unchanged, and the history gains the two commits:
+
+```scrut
+$ git status --short
+```
+
+```scrut
+$ git log --oneline --graph
+*   8a4a412 Merge commit '1b35566e1b5044c8fce97445616726d9f2a3cc2c' as 'vendor/a'
+|\  
+| * 1b35566 Squashed 'vendor/a/' content from commit bde4164
+* e3f7e4b copy vendor/a by hand
+* 4d732bc initial commit
+```
+
+```scrut
+$ git subtrees status
+ok   vendor/a -> $UPSTREAM (up to date)
+```

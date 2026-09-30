@@ -30,8 +30,28 @@ vendor/pkg/extra` keeps `refs/remotes/vendor/pkg/extra/*`, since the outer
 remote's fetch refspec covers them too, and they'd then look like branches
 of `vendor/pkg`. The error message includes the command that deletes them.
 
-Expected result: every command fails with "nested subtrees are not
-supported" before doing anything and prints the two ways to fix it, and
-`git subtrees init` refuses to register a nested remote.
+Every command fails before doing anything and prints the ways to fix it.
+`git subtrees init` also refuses to register a nested remote (`init.bats`).
 
-Built by `scenario_nested_subtrees` in `setup.bash`.
+## Output
+
+`scenario_nested_subtrees` in [`setup.bash`](setup.bash)
+builds this state. [How scenarios work](../README.md).
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_nested_subtrees
+```
+-->
+
+```scrut
+$ git subtrees status
+!!   nested subtrees are not supported: 'vendor/pkg' and 'vendor/pkg/extra' overlap -- fix it with one of:
+
+  git remote remove vendor/pkg
+
+  git remote remove vendor/pkg/extra
+  git for-each-ref --format='delete %(refname)' refs/remotes/vendor/pkg/extra/ | git update-ref --no-deref --stdin
+
+[1]
+```

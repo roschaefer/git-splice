@@ -17,6 +17,65 @@ the same branch:
   as non-fast-forward by the remote, just like a push from a stale clone;
   nothing gets overwritten. Pull it, then push again.
 
-Expected `classify_subtree` result for both: `up-to-date`.
+## Output
 
-Built by `scenario_shared_remote_url` in `setup.bash`.
+`scenario_shared_remote_url` in [`setup.bash`](setup.bash)
+builds this state. [How scenarios work](../README.md).
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_shared_remote_url
+```
+-->
+
+```scrut
+$ git subtrees status
+ok   vendor/a -> $UPSTREAM (up to date)
+ok   vendor/b -> $UPSTREAM (up to date)
+```
+
+A push from `vendor/a` shows up as `pull` for `vendor/b`:
+
+```scrut
+$ echo "change from a" >>vendor/a/file.txt && git commit -qam "change vendor/a"
+```
+
+```scrut
+$ git subtrees push
+git push using:  vendor/a main
+To $UPSTREAM
+   bde4164..7f225db  7f225db71d6934878a4c2a7109dc44e4467b433a -> main
+ok   vendor/a: pushed
+ok   vendor/b: nothing to push
+```
+
+```scrut
+$ git subtrees fetch
+ok   vendor/a fetched
+ok   vendor/b fetched (main moved bde4164..7f225db)
+```
+
+```scrut
+$ git subtrees status
+ok   vendor/a -> $UPSTREAM (up to date)
+ok   vendor/b -> $UPSTREAM (pull)
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+```
+
+```scrut
+$ git subtrees pull
+ok   vendor/a fetched
+ok   vendor/a: nothing to pull
+ok   vendor/b fetched
+Merge made by the 'ort' strategy.
+ vendor/b/file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+ok   vendor/b: pulled
+```
+
+```scrut
+$ git subtrees status
+ok   vendor/a -> $UPSTREAM (up to date)
+ok   vendor/b -> $UPSTREAM (up to date)
+```

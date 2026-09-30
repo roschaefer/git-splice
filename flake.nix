@@ -58,7 +58,7 @@
             platforms = lib.platforms.unix;
           };
         };
-        # Runs the walkthroughs (`just docs-check`). Not in
+        # Runs the walkthroughs and scenario READMEs (`just docs-check`). Not in
         # nixpkgs yet, so this uses the upstream release binaries.
         scrut =
           let

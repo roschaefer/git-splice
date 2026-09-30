@@ -8,6 +8,18 @@ yet.
   vendor/a <upstream>` has been run, but `git fetch` never has.
 - **Remote**: has a `seed` commit, but we don't know that locally yet.
 
-Expected `classify_subtree` result: `not-connected`.
+## Output
 
-Built by `scenario_not_connected` in `setup.bash`.
+`scenario_not_connected` in [`setup.bash`](setup.bash)
+builds this state. [How scenarios work](../README.md).
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_not_connected
+```
+-->
+
+```scrut
+$ git subtrees status
+??   vendor/a -> $UPSTREAM (never fetched -- run 'git subtrees fetch vendor/a')
+```
