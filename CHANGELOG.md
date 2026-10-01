@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/roschaefer/git-subtrees/compare/v0.1.1...v0.1.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* **pull:** treat a remote without the current branch as nothing to pull ([#49](https://github.com/roschaefer/git-subtrees/issues/49)) ([cfb3608](https://github.com/roschaefer/git-subtrees/commit/cfb3608b0ed84f21ef77d9f73ba5c5e054459bc7)), closes [#52](https://github.com/roschaefer/git-subtrees/issues/52)
+
 ## [0.1.1](https://github.com/roschaefer/git-subtrees/compare/v0.1.0...v0.1.1) (2026-09-30)
 
 
