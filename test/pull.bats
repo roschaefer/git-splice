@@ -46,7 +46,29 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "pull: fails when the current branch was deleted upstream" {
+@test "pull: a remote without the current branch has nothing to pull, not a failed fetch" {
+  local up_b="$BATS_TEST_TMPDIR/upstream-b.git"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  make_bare_repo "$up_b"
+  seed_bare_repo "$up_b" "b seed"
+  seed_bare_repo "$up_b" "b feature change" "feature"
+  init_monorepo "$monorepo"
+  add_subtree "$monorepo" "$upstream" "vendor/a"
+  add_subtree "$monorepo" "$up_b" "vendor/b"
+  cd "$monorepo"
+  git checkout -q -b feature
+
+  run cmd_pull
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: remote has no 'feature' branch -- nothing to pull"* ]]
+  [[ "$output" == *"vendor/b: pulled"* ]]
+  [[ "$output" != *"couldn't find remote ref"* ]]
+  [[ "$output" != *"fetch failed"* ]]
+}
+
+@test "pull: a branch deleted upstream has nothing to pull, and its stale tracking ref goes" {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "feature seed" "feature"
   init_monorepo "$monorepo"
@@ -62,13 +84,51 @@ setup() {
 
   run cmd_pull vendor/a
 
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"couldn't find remote ref refs/heads/feature"* ]]
-  [[ "$output" == *"Failed: vendor/a"* ]]
-  run git show-ref --verify --quiet refs/remotes/vendor/a/feature
   [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: remote has no 'feature' branch -- nothing to pull"* ]]
+  [[ "$output" != *"couldn't find remote ref"* ]]
+  run git show-ref --verify --quiet refs/remotes/vendor/a/feature
+  [ "$status" -ne 0 ]
   run git show-ref --verify --quiet refs/tags/local-only
   [ "$status" -eq 0 ]
+}
+
+@test "pull: fails when the stale tracking ref of a branch deleted upstream can't be removed" {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "feature seed" "feature"
+  init_monorepo "$monorepo"
+  (
+    cd "$monorepo"
+    git checkout -q -b feature
+  )
+  add_subtree "$monorepo" "$upstream" "vendor/a" "feature"
+  cd "$monorepo"
+  git pack-refs --all
+  git -C "$upstream" update-ref -d refs/heads/feature
+  mkdir -p .git/refs/remotes/vendor/a
+  touch .git/refs/remotes/vendor/a/feature.lock
+
+  run cmd_pull vendor/a
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"cannot lock ref 'refs/remotes/vendor/a/feature'"* ]]
+  [[ "$output" == *"Failed: vendor/a"* ]]
+  [[ "$output" != *"nothing to pull"* ]]
+}
+
+@test "pull: still fails when the remote can't be reached" {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  init_monorepo "$monorepo"
+  add_subtree "$monorepo" "$upstream" "vendor/a"
+  cd "$monorepo"
+  git remote set-url vendor/a "$BATS_TEST_TMPDIR/missing.git"
+
+  run cmd_pull vendor/a
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"does not appear to be a git repository"* ]]
+  [[ "$output" == *"Failed: vendor/a"* ]]
 }
 
 @test "pull: ordinary conflict leaves MERGE_HEAD, resolved via plain git commit" {

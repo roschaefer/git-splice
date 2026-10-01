@@ -22,26 +22,10 @@ EOF
 # Fetches <branch> of remote <path> for init. Returns 0 on success and 2 if
 # the remote has no such branch; dies on any other fetch failure.
 init_fetch() {
-  local path="$1" branch="$2"
-  # Deferred: `git fetch` and fetch_one's own log_err already write a fatal
-  # diagnostic to stderr the moment the branch fetch fails, before we get a
-  # chance to check whether that's actually the missing-branch case.
-  # Capture it instead of letting it print immediately, and only replay it
-  # once remote_missing_branch has ruled that out -- otherwise a successful
-  # (exit 0) no-op still leaves a misleading "fetch failed" on stderr.
-  local fetch_err fetch_status=0
-  {
-    fetch_err="$(fetch_one "$path" "$branch" 2>&1 1>&3)" || fetch_status=$?
-  } 3>&1
-  ((fetch_status == 0)) && return 0
-  if remote_missing_branch "$path" "$branch"; then
-    # A tracking ref left from an earlier fetch would make status and push
-    # compare against a branch the remote no longer has.
-    git update-ref -d "$(target_ref_for "$path" "$branch")" 2>/dev/null || true
-    return 2
-  fi
-  printf '%s\n' "$fetch_err" >&2
-  die "$path: fetch failed"
+  local path="$1" branch="$2" rc=0
+  fetch_branch_or_missing "$path" "$branch" || rc=$?
+  ((rc == 1)) && die "$path: fetch failed"
+  return "$rc"
 }
 
 # Prints the name the monorepo's base branch has on a subtree remote: "main"

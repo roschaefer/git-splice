@@ -99,6 +99,16 @@ ok   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (no 'feature' branch on rem
 ok   vendor/pkg-b -> $WALKTHROUGH/upstream/pkg-b.git (up to date)
 ```
 
+`pull` on `feature` pulls from `pkg-b`'s `feature` branch. `pkg-a`'s
+remote has no `feature` branch, so there's nothing to pull from it:
+
+```scrut
+$ git subtrees pull
+ok   vendor/pkg-a: remote has no 'feature' branch -- nothing to pull
+ok   vendor/pkg-b fetched
+ok   vendor/pkg-b: nothing to pull
+```
+
 ## After the merge
 
 The feature gets merged on both sides: on `pkg-b`'s remote, which then

@@ -28,10 +28,22 @@ pull_one() {
   require_usable_names "$path" "$branch" || return 1
 
   if [[ -z "$skip_fetch" ]]; then
-    fetch_one "$path" "$branch" || return 1
+    local rc=0
+    fetch_branch_or_missing "$path" "$branch" || rc=$?
+    if ((rc == 2)); then
+      log_no_branch_to_pull "$path" "$branch"
+      return 0
+    fi
+    ((rc == 0)) || return 1
   fi
 
   merge_one "$path" "$branch" pull
+}
+
+# Said for a remote that has no branch like the current one, e.g. a feature
+# branch that was never pushed to it, or that was deleted there after a merge.
+log_no_branch_to_pull() {
+  log_ok "$1: remote has no '$2' branch -- nothing to pull"
 }
 
 cmd_pull() {
@@ -68,6 +80,10 @@ cmd_pull() {
     print_fetch_output "$i"
 
     fetch_failed_for_path "$path" && continue
+    if fetch_missing_for_path "$path"; then
+      log_no_branch_to_pull "$path" "$branch"
+      continue
+    fi
 
     if merge_in_progress; then
       skipped+=("$path")

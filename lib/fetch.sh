@@ -67,16 +67,40 @@ fetch_branch() {
 # True if <remote>'s <branch> is absent upstream -- an ls-remote miss,
 # distinct from a transport/auth failure. Only probed after fetch_branch
 # already failed, so the common (branch exists) case never pays this
-# extra round trip. init uses this to preserve its documented no-op when
-# bootstrapping against a not-yet-pushed branch; pull deliberately does
-# not -- see fix(pull): fail on missing selected branch.
+# extra round trip.
 remote_missing_branch() {
   local remote="$1" branch="$2"
   git ls-remote --exit-code --heads -- "$remote" "refs/heads/$branch" >/dev/null 2>&1
   [[ $? -eq 2 ]]
 }
 
+# Like fetch_one <remote> <branch>, but returns 2 if the remote has no such
+# branch (e.g. a feature branch not pushed there yet), and 1 only on any
+# other failure.
+fetch_branch_or_missing() {
+  local remote="$1" branch="$2"
+  # Deferred: `git fetch` and fetch_one's own log_err already write a fatal
+  # diagnostic to stderr the moment the branch fetch fails, before we get a
+  # chance to check whether that's actually the missing-branch case.
+  # Capture it instead of letting it print immediately, and only replay it
+  # once remote_missing_branch has ruled that out.
+  local fetch_err fetch_status=0
+  {
+    fetch_err="$(fetch_one "$remote" "$branch" 2>&1 1>&3)" || fetch_status=$?
+  } 3>&1
+  ((fetch_status == 0)) && return 0
+  if remote_missing_branch "$remote" "$branch"; then
+    # A tracking ref left from an earlier fetch would make status and push
+    # compare against a branch the remote no longer has.
+    git update-ref -d "$(target_ref_for "$remote" "$branch")" || return 1
+    return 2
+  fi
+  printf '%s\n' "$fetch_err" >&2
+  return 1
+}
+
 declare -ga FETCH_FAILURES=()
+declare -ga FETCH_MISSING=()
 declare -ga FETCH_PATHS=()
 declare -ga FETCH_OUTPUT=()
 declare -ga FETCH_STDERR=()
@@ -85,6 +109,14 @@ fetch_failed_for_path() {
   local path="$1" failed_path
   for failed_path in "${FETCH_FAILURES[@]}"; do
     [[ "$failed_path" == "$path" ]] && return 0
+  done
+  return 1
+}
+
+fetch_missing_for_path() {
+  local path="$1" missing_path
+  for missing_path in "${FETCH_MISSING[@]}"; do
+    [[ "$missing_path" == "$path" ]] && return 0
   done
   return 1
 }
@@ -98,7 +130,8 @@ print_fetch_output() {
 
 # Fetches every given path's remote in parallel. Sets FETCH_PATHS to the
 # deduplicated job list, FETCH_FAILURES to the paths whose fetch failed,
-# and FETCH_OUTPUT/FETCH_STDERR to each job's captured stdout/stderr.
+# FETCH_MISSING to the paths whose remote has no given branch, and
+# FETCH_OUTPUT/FETCH_STDERR to each job's captured stdout/stderr.
 #
 # A path repeated in the argument list (e.g. `pull vendor/a vendor/a`)
 # spawns only one `git fetch` job for it -- two concurrent fetches of the
@@ -112,6 +145,7 @@ fetch_all_parallel_for_branch() {
   shift
 
   FETCH_FAILURES=()
+  FETCH_MISSING=()
   FETCH_PATHS=()
   FETCH_OUTPUT=()
   FETCH_STDERR=()
@@ -129,14 +163,19 @@ fetch_all_parallel_for_branch() {
 
   local pids=() i=0
   for path in "${FETCH_PATHS[@]}"; do
-    fetch_one "$path" "$branch" >"$tmp_dir/$i.out" 2>"$tmp_dir/$i.err" &
+    if [[ -n "$branch" ]]; then
+      fetch_branch_or_missing "$path" "$branch" >"$tmp_dir/$i.out" 2>"$tmp_dir/$i.err" &
+    else
+      fetch_one "$path" >"$tmp_dir/$i.out" 2>"$tmp_dir/$i.err" &
+    fi
     pids+=("$!")
     i=$((i + 1))
   done
 
-  local job_failed=() idx=0 pid
+  local job_status=() idx=0 pid
   for pid in "${pids[@]}"; do
-    wait "$pid" || job_failed[$idx]=1
+    job_status[idx]=0
+    wait "$pid" || job_status[idx]=$?
     idx=$((idx + 1))
   done
 
@@ -146,7 +185,11 @@ fetch_all_parallel_for_branch() {
     err="$(cat "$tmp_dir/$i.err")"
     FETCH_OUTPUT+=("$out")
     FETCH_STDERR+=("$err")
-    [[ -n "${job_failed[$i]:-}" ]] && failures+=("${FETCH_PATHS[$i]}")
+    case "${job_status[i]}" in
+      0) ;;
+      2) FETCH_MISSING+=("${FETCH_PATHS[$i]}") ;;
+      *) failures+=("${FETCH_PATHS[$i]}") ;;
+    esac
   done
   rm -rf "$tmp_dir"
 
