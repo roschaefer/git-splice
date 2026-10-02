@@ -125,10 +125,13 @@ splice_in() {
   base="$(git commit-tree --no-gpg-sign "$base_tree" -m "base for $message")" || return 1
   theirs="$(git commit-tree --no-gpg-sign "$new_tree" -p "$base" -m "$message")" || return 1
 
-  if output="$(git cherry-pick "$theirs" 2>&1)"; then
+  # Git's own hints would suggest `cherry-pick --continue` or `--skip`;
+  # the message below says what fits a splice instead.
+  if output="$(git -c advice.mergeConflict=false -c advice.resolveConflict=false cherry-pick "$theirs" 2>&1)"; then
     return 0
   fi
-  printf '%s\n' "$output" >&2
+  # "could not apply <T>" names the throwaway commit: no use to anyone.
+  printf '%s\n' "$output" | grep -v '^error: could not apply ' >&2
   if git rev-parse --quiet --verify CHERRY_PICK_HEAD >/dev/null 2>&1; then
     log_err "$path: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)"
   fi
