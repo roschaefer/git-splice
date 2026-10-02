@@ -119,9 +119,16 @@ rebuild_splice() {
   synced=""
   [[ -n "$boundary" ]] && synced="$(splice_config "$path" commit "$boundary")"
 
-  if [[ -n "$synced" ]]; then
-    git cat-file -e "$synced^{commit}" 2>/dev/null ||
+  if [[ -n "$synced" ]] && ! git cat-file -e "$synced^{commit}" 2>/dev/null; then
+    # push --force sets REBUILD_WITHOUT_SYNCED: the upstream no longer has
+    # the synced commit, and the monorepo's side replaces its history
+    # anyway, so the folder's whole history is rebuilt instead.
+    [[ -n "${REBUILD_WITHOUT_SYNCED:-}" ]] ||
       die "$path: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch $path'"
+    synced=""
+  fi
+
+  if [[ -n "$synced" ]]; then
     prev="$synced"
     prev_tree="$(git rev-parse "$synced^{tree}")"
     content_tree "$boundary" "$path"

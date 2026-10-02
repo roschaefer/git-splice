@@ -54,6 +54,9 @@ cmd_clone() {
     die "nested splices are not supported: '$path' and '$other' overlap"
   fi
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
+  if git cat-file -e "HEAD:$path" 2>/dev/null && [[ -z "$(folder_tree HEAD "$path")" ]]; then
+    die "$path is a file, not a folder"
+  fi
 
   log_step "$path: fetching $url"
   git fetch --quiet --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:refs/splices/$path/*" ||
@@ -66,6 +69,10 @@ cmd_clone() {
   monorepo_default="$(monorepo_default_branch)"
   if [[ -n "$upstream_default" && -n "$monorepo_default" && "$upstream_default" != "$monorepo_default" ]]; then
     default_branch="$upstream_default"
+  elif [[ -n "$upstream_default" && -z "$monorepo_default" && "$upstream_default" != "$branch" ]]; then
+    # Without the monorepo's default branch, the splice couldn't map it to
+    # upstream's: it would look for '$branch' upstream from the start.
+    die "$path: upstream's default branch is '$upstream_default', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
   fi
 
   local upstream_branch="$branch"

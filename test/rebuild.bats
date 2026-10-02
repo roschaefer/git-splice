@@ -203,3 +203,23 @@ split() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"synced commit 1234567 isn't available locally"* ]]
 }
+
+@test "rebuild: a commit that only changes .splice adds nothing upstream" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(rebuild_splice vendor/a)"
+  git config --file vendor/a/.splice splice.url "$upstream/../moved.git"
+  git commit -q -am "the upstream moved"
+  [ "$(rebuild_splice vendor/a)" = "$before" ]
+}
+
+@test "rebuild: a commit that only changes .splice after a push leaves the state up to date" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice push vendor/a >/dev/null 2>&1
+  git config --file vendor/a/.splice splice.default-branch main
+  git commit -q -am "record the default branch"
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = up-to-date ]
+}

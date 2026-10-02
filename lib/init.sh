@@ -60,6 +60,8 @@ cmd_init() {
   monorepo_default="$(monorepo_default_branch)"
   if [[ -n "$upstream_default" && -n "$monorepo_default" && "$upstream_default" != "$monorepo_default" ]]; then
     default_branch="$upstream_default"
+  elif [[ -n "$upstream_default" && -z "$monorepo_default" && "$upstream_default" != "$(current_branch)" ]]; then
+    die "$path: upstream's default branch is '$upstream_default', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
   fi
 
   git cat-file blob "$(state_blob "$path" "url=$url" "default-branch=$default_branch")" >"$path/$STATE_FILE"

@@ -53,7 +53,7 @@ push_one() {
         print_unrelated_history_guidance "$path"
         return 1
       fi
-      [[ -n "$SPLICE_REBUILT" ]] || SPLICE_REBUILT="$(rebuild_splice "$path" HEAD)"
+      [[ -n "$SPLICE_REBUILT" ]] || SPLICE_REBUILT="$(REBUILD_WITHOUT_SYNCED=1 rebuild_splice "$path" HEAD)"
       ;;
     missing-branch)
       changes_vs_base "$path" "$base"

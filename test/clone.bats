@@ -142,3 +142,24 @@ new_upstream() {
   [[ "$output" == *"nested splices are not supported"* ]]
 }
 
+@test "clone: refuses a path that is a file" {
+  new_upstream
+  echo x >vendor
+  git add vendor && git commit -q -m "a file"
+  run cmd_clone "$upstream" vendor
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor is a file, not a folder"* ]]
+  ! git rev-parse --quiet --verify CHERRY_PICK_HEAD
+}
+
+@test "clone: asks for the monorepo's default branch when upstream's is named differently" {
+  new_upstream master
+  git config --unset init.defaultBranch
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream's default branch is 'master', and the monorepo's can't be determined"* ]]
+  git config init.defaultBranch main
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+}
+

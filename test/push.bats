@@ -91,6 +91,25 @@ setup() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
+@test "push: --force works after upstream lost the synced commit" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  # Upstream is rebuilt from scratch, so the synced commit is gone for good,
+  # as in a fresh clone of the monorepo.
+  rm -rf "$upstream"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "brand new unrelated history"
+  cd "$monorepo"
+  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
+  git reflog expire --expire=now --all && git gc -q --prune=now
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  ! git cat-file -e "$(splice_config vendor/a commit)^{commit}" 2>/dev/null
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = unrelated-history ]
+  run cmd_push --force vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
+}
+
 @test "push: refuses unrelated history, --force overwrites it" {
   scenario_diverged_unrelated_history "$monorepo" "$upstream"
   cd "$monorepo"
