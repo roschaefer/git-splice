@@ -34,8 +34,8 @@ latter).
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> feature (no such branch upstream; unchanged since 'main')
-ok   vendor/pkg-b -> feature (no such branch upstream; unchanged since 'main')
+ok   vendor/pkg-a -> feature (upstream has no such branch; unchanged since 'main')
+ok   vendor/pkg-b -> feature (upstream has no such branch; unchanged since 'main')
 ```
 
 ## Changing one splice
@@ -46,8 +46,8 @@ $ echo "a new option" >>vendor/pkg-b/file.txt && git commit -qam "pkg-b: add an 
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> feature (no such branch upstream; unchanged since 'main')
-ok   vendor/pkg-b -> feature (no such branch upstream; changed since 'main' -- push would create it)
+ok   vendor/pkg-a -> feature (upstream has no such branch; unchanged since 'main')
+ok   vendor/pkg-b -> feature (upstream has no such branch; changed since 'main' -- push would create it)
  file.txt | 1 +
  1 file changed, 1 insertion(+)
 ```
@@ -78,7 +78,7 @@ ok   vendor/pkg-b: pushed 5023101 to feature
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> feature (no such branch upstream; unchanged since 'main')
+ok   vendor/pkg-a -> feature (upstream has no such branch; unchanged since 'main')
 ok   vendor/pkg-b -> feature (up to date)
 ```
 

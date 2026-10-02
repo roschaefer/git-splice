@@ -23,24 +23,24 @@ format_missing_branch_line() {
   changes_vs_base "$path" "$base"
   case "$SPLICE_CHANGES_VS_BASE" in
     no)
-      log_ok "$prefix (no such branch upstream; unchanged since '$SPLICE_BASE_BRANCH')"
+      log_ok "$prefix (upstream has no such branch; unchanged since '$SPLICE_BASE_BRANCH')"
       ;;
     yes)
-      log_ok "$prefix (no such branch upstream; changed since '$SPLICE_BASE_BRANCH' -- push would create it)"
+      log_ok "$prefix (upstream has no such branch; changed since '$SPLICE_BASE_BRANCH' -- push would create it)"
       mapfile -t pathspec < <(content_pathspec "$path")
       git --no-pager diff --stat --relative="$path" "$SPLICE_BASE_MERGE_BASE" HEAD -- "${pathspec[@]}" 2>/dev/null || true
       ;;
     self)
-      status_warn "$prefix (no such branch upstream -- push would create it)"
+      status_warn "$prefix (upstream has no such branch -- push would create it)"
       ;;
     error)
-      status_warn "$prefix (no such branch upstream; could not compare with base branch '$SPLICE_BASE_BRANCH')"
+      status_warn "$prefix (upstream has no such branch; could not compare with base branch '$SPLICE_BASE_BRANCH')"
       ;;
     unresolved)
       if [[ -n "$base" ]]; then
-        status_warn "$prefix (no such branch upstream; base branch '$base' not found, or it shares no history)"
+        status_warn "$prefix (upstream has no such branch; base branch '$base' not found, or it shares no history)"
       else
-        status_warn "$prefix (no such branch upstream; monorepo base branch unknown -- pass --base <branch>)"
+        status_warn "$prefix (upstream has no such branch; monorepo base branch unknown -- pass --base <branch>)"
       fi
       ;;
   esac

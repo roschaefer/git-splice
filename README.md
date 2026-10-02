@@ -122,7 +122,7 @@ that state.
 | pull | Only the upstream changed. ([example](test/scenarios/pull-ahead/README.md)) | Run `git splice pull`. |
 | diverged | Both sides changed since they last matched. ([example](test/scenarios/diverged-common-ancestor/README.md)) | Run `git splice pull`, then `push`. On a conflict, resolve it and `git commit` first. |
 | unrelated history | Both sides changed and share no history, e.g. the upstream was rebuilt from scratch. ([example](test/scenarios/diverged-unrelated-history/README.md)) | Pick a side. `merge`, `pull` and `push` refuse to guess and print the commands to keep either side, or both. |
-| no such branch upstream | The upstream has no branch with your branch's name. ([unchanged](test/scenarios/feature-branch-unchanged/README.md), [changed](test/scenarios/feature-branch-changed/README.md)) | Run `git splice push`. It creates the branch only if the splice changed (see *Pushing a new branch*). |
+| upstream has no such branch | The upstream has no branch with your branch's name. ([unchanged](test/scenarios/feature-branch-unchanged/README.md), [changed](test/scenarios/feature-branch-changed/README.md)) | Run `git splice push`. It creates the branch only if the splice changed (see *Pushing a new branch*). |
 
 More scenarios:
 

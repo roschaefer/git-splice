@@ -28,7 +28,7 @@ ok   vendor/a: cloned bde4164 from main
 
 ```scrut
 $ git splice status
-ok   vendor/a -> feature (no such branch upstream; changed since 'main' -- push would create it)
+ok   vendor/a -> feature (upstream has no such branch; changed since 'main' -- push would create it)
  file.txt | 1 +
  1 file changed, 1 insertion(+)
 ```

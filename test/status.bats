@@ -109,11 +109,11 @@ assert_state() {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
-  [[ "${lines[0]}" == *"(no such branch upstream; changed since 'main' -- push would create it)" ]]
+  [[ "${lines[0]}" == *"(upstream has no such branch; changed since 'main' -- push would create it)" ]]
   [[ "$output" == *"file.txt | 1 +"* ]]
   git checkout -q -b other main
   run cmd_status
-  [[ "$output" == *"(no such branch upstream; unchanged since 'main')" ]]
+  [[ "$output" == *"(upstream has no such branch; unchanged since 'main')" ]]
 }
 
 @test "status: says how to start without splices" {

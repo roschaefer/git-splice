@@ -23,7 +23,7 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_feature_branch
 
 ```scrut
 $ git splice status
-ok   vendor/a -> feature (no such branch upstream; unchanged since 'main')
+ok   vendor/a -> feature (upstream has no such branch; unchanged since 'main')
 ```
 
 ```scrut
