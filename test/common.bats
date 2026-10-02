@@ -27,12 +27,30 @@ setup() {
   [ ${#ALL_PATHS[@]} -eq 0 ]
 }
 
-@test "discover_splices refuses nested splices" {
+@test "discover_splices: a .splice inside a splice is content, not a splice" {
   scenario_nested_splices "$monorepo" "$upstream"
   cd "$monorepo"
+  discover_splices
+  [ "${ALL_PATHS[*]}" = "vendor/pkg" ]
+}
+
+@test "discover_splices reads HEAD, not the index" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  git rm -q --cached vendor/b/.splice
+  mkdir -p vendor/c && echo "[splice]" >vendor/c/.splice && git add vendor/c/.splice
+  discover_splices
+  [ "${ALL_PATHS[*]}" = "vendor/a vendor/b" ]
+}
+
+@test "discover_splices refuses a path that can't be part of a ref" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir -p "my lib" && echo "[splice]" >"my lib/.splice"
+  git add "my lib" && git commit -q -m "a splice by hand"
   run discover_splices
   [ "$status" -eq 1 ]
-  [[ "$output" == *"nested splices are not supported: 'vendor/pkg' and 'vendor/pkg/extra' overlap"* ]]
+  [[ "$output" == *"'my lib' can't be part of a Git ref name"* ]]
 }
 
 @test "discover_splices refuses a .splice at the repository root" {
@@ -40,6 +58,7 @@ setup() {
   cd "$monorepo"
   echo x >.splice
   git add .splice
+  git commit -q -m "a .splice at the root"
   run discover_splices
   [ "$status" -eq 1 ]
   [[ "$output" == *"must be a folder"* ]]

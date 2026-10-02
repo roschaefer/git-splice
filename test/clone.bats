@@ -115,3 +115,30 @@ new_upstream() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"has no commits yet"* ]]
 }
+
+@test "clone: refuses a path that can't be part of a ref, before fetching" {
+  new_upstream
+  run cmd_clone "$upstream" "my lib"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'my lib' can't be part of a Git ref name"* ]]
+  [ -z "$(git for-each-ref refs/splices/)" ]
+}
+
+@test "clone and merge: refuse an upstream with a .splice at its root" {
+  new_upstream
+  seed_bare_repo "$upstream" "[splice]" main .splice
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream has a .splice at its root"* ]]
+}
+
+@test "clone: a splice inside or around an existing one is refused" {
+  load 'scenarios/nested-splices/setup'
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_clone "$upstream" vendor/pkg/extra
+  [[ "$output" == *"nested splices are not supported"* ]]
+  run cmd_clone "$upstream" vendor
+  [[ "$output" == *"nested splices are not supported"* ]]
+}
+

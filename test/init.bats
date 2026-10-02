@@ -58,3 +58,16 @@ setup() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"can't reach"* ]]
 }
+
+@test "init: records an empty upstream's default branch when it's named differently" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  rm -rf "$upstream"
+  make_bare_repo "$upstream" master
+  cd "$monorepo"
+  cmd_init lib/a "$upstream"
+  [ "$(splice_config lib/a default-branch)" = master ]
+  cmd_push lib/a
+  [ "$(git -C "$upstream" log -1 --format=%s master)" = "second version" ]
+  ! git -C "$upstream" rev-parse --verify --quiet main
+}
+

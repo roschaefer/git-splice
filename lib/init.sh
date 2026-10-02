@@ -12,6 +12,19 @@ If <url> has commits already, use 'git splice clone --merge <url> <path>'.
 EOF
 }
 
+# Prints the branch the HEAD of empty repository <url> names, e.g.
+# "master". ls-remote shows nothing for an empty repository, but a clone
+# learns its unborn HEAD -- and there is nothing to download.
+empty_upstream_default_branch() {
+  local tmp name=""
+  tmp="$(mktemp -d)"
+  if git clone --quiet --bare --no-tags -- "$1" "$tmp/probe" 2>/dev/null; then
+    name="$(git -C "$tmp/probe" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  fi
+  rm -rf "$tmp"
+  printf '%s\n' "$name"
+}
+
 cmd_init() {
   parse_args usage_init "" "$@"
   [[ -z "$ALL_ARG" && -z "$BASE_ARG" ]] || die "init takes no --all or --base"
@@ -21,6 +34,8 @@ cmd_init() {
     exit 1
   fi
   path="$(normalize_path "$path")"
+  usable_splice_path "$path" ||
+    die "'$path' can't be part of a Git ref name, so it can't be a splice -- rename the folder (e.g. no spaces)"
 
   cd_to_repo_root
   require_head_commit
@@ -38,7 +53,16 @@ cmd_init() {
   [[ -z "$heads" ]] ||
     die "$url has commits already -- to combine them with $path, use 'git splice clone --merge $(shell_quote "$url") $(shell_quote "$path")'"
 
-  git cat-file blob "$(state_blob "$path" "url=$url")" >"$path/$STATE_FILE"
+  # Map the monorepo's default branch to the upstream's, as clone does.
+  # An empty repository has no branch yet, but its HEAD still names one.
+  local upstream_default monorepo_default default_branch=""
+  upstream_default="$(empty_upstream_default_branch "$url")"
+  monorepo_default="$(monorepo_default_branch)"
+  if [[ -n "$upstream_default" && -n "$monorepo_default" && "$upstream_default" != "$monorepo_default" ]]; then
+    default_branch="$upstream_default"
+  fi
+
+  git cat-file blob "$(state_blob "$path" "url=$url" "default-branch=$default_branch")" >"$path/$STATE_FILE"
   git add -- "$path/$STATE_FILE"
   git commit --quiet -m "splice: init $path" -- "$path/$STATE_FILE"
   log_ok "$path: initialized -- 'git splice push $(shell_quote "$path")' publishes it"

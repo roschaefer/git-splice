@@ -2,7 +2,9 @@
 
 A brand-new monorepo without any commits.
 
-A clone is a commit on top of HEAD, so it needs one to exist.
+A clone is a commit on top of HEAD, so it needs one to exist. And a
+splice's path ends up in refs, `refs/splices/<path>/<branch>`, so it must
+work in a Git ref name: no spaces, for example.
 
 ## Output
 
@@ -25,4 +27,10 @@ $ git splice clone "$UPSTREAM" vendor/a
 $ git commit -q --allow-empty -m "initial commit" && git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
 ok   vendor/a: cloned bde4164 from main
+```
+
+```scrut
+$ git splice clone "$UPSTREAM" "my lib"
+!!   'my lib' can't be part of a Git ref name, so it can't be a splice -- choose another folder name (e.g. no spaces)
+[1]
 ```

@@ -15,8 +15,8 @@ feature branch doesn't spawn empty branches upstream. The base branch is
 --base, else the monorepo's default branch (origin/HEAD, else
 init.defaultBranch); if none resolves, push refuses and asks for --base.
 
---force overwrites the upstream branch, e.g. to keep the monorepo's side
-when the two share no history.
+--force overwrites the upstream branch with the monorepo's side: when the
+two share no history, or to discard commits only upstream has.
 EOF
 }
 
@@ -37,8 +37,10 @@ push_one() {
       return 0
       ;;
     pull)
-      log_ok "$path: nothing to push (upstream is ahead -- 'git splice pull $path' brings it in)"
-      return 0
+      if [[ -z "$force" ]]; then
+        log_ok "$path: nothing to push (upstream is ahead -- 'git splice pull $path' brings it in)"
+        return 0
+      fi
       ;;
     diverged)
       if [[ -z "$force" ]]; then
@@ -97,7 +99,10 @@ push_one() {
     return 1
   fi
   # Pushing to a URL updates no ref here, so record what upstream has now.
-  git update-ref "$(splice_ref "$path" "$upstream_branch")" "$SPLICE_REBUILT"
+  if ! git update-ref "$(splice_ref "$path" "$upstream_branch")" "$SPLICE_REBUILT"; then
+    log_err "$path: pushed, but couldn't record it in $(splice_ref "$path" "$upstream_branch") -- run 'git splice fetch $path'"
+    return 1
+  fi
   log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $upstream_branch"
 }
 

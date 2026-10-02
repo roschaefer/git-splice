@@ -81,6 +81,16 @@ setup() {
   [[ "$output" == *"upstream is ahead"* ]]
 }
 
+@test "push: --force discards commits only upstream has" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push --force vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "seed" ]
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = up-to-date ]
+}
+
 @test "push: refuses unrelated history, --force overwrites it" {
   scenario_diverged_unrelated_history "$monorepo" "$upstream"
   cd "$monorepo"

@@ -9,11 +9,19 @@
 # Install:
 #   ln -s /path/to/git-splice.fish ~/.config/fish/completions/git-splice.fish
 
-# Splice paths: folders with a committed .splice file. Mirrors
-# discover_splices() in lib/common.sh.
+# Splice paths: folders with a .splice committed in HEAD, outermost only.
+# Mirrors discover_splices() in lib/common.sh.
 function __git_splice_paths
-    for file in (git ls-files -- ':(glob)**/.splice' 2>/dev/null)
-        string replace -r '/\.splice$' '' -- $file
+    set -l paths
+    for file in (git ls-tree -r --name-only HEAD 2>/dev/null | string match -r '.*/\.splice$')
+        set -a paths (string replace -r '/\.splice$' '' -- $file)
+    end
+    for path in $paths
+        set -l nested 0
+        for outer in $paths
+            string match -q -- "$outer/*" $path; and set nested 1
+        end
+        test $nested = 0; and echo $path
     end
 end
 

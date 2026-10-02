@@ -179,6 +179,21 @@ split() {
   [ "$(git rev-parse "$rebuilt^")" = "$(git rev-parse refs/splices/vendor/a/feature)" ]
 }
 
+@test "rebuild: a move with git mv keeps the commits from before it" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir -p libs
+  git mv vendor/a libs/a
+  git commit -q -m "reorganize folders"
+  local rebuilt
+  rebuilt="$(rebuild_splice libs/a)"
+  # The move changes nothing upstream sees; the local change keeps its
+  # own commit, on top of the synced one.
+  [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
+  [ "$(git rev-parse "$rebuilt^")" = "$(splice_config libs/a commit)" ]
+  [ "$rebuilt" = "$(rebuild_splice vendor/a HEAD^)" ]
+}
+
 @test "rebuild: a synced commit that isn't available locally is an error" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"

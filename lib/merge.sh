@@ -56,6 +56,10 @@ merge_one() {
   # synced commit, or a later one this branch pushed since.
   local target merge_base base_folder base_blob new_blob
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
+  if ! upstream_state_file_free "$target"; then
+    log_err "$path: upstream has a $STATE_FILE at its root, which would collide with the splice's own"
+    return 1
+  fi
   merge_base="$(git merge-base "$SPLICE_REBUILT" "$target")"
   base_folder="$(git rev-parse "$merge_base^{tree}")"
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"

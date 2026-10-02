@@ -52,6 +52,23 @@ splice_boundary() {
   git log --first-parent -1 --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
 }
 
+# Prints where splice <path> was in the first parent of commit <rev>: the
+# same path, or, if <rev> moved the folder (`git mv`), the one Git detects
+# its state file was renamed from. Nothing if the splice didn't exist.
+path_before() {
+  local rev="$1" path="$2" status from to
+  if [[ -n "$(folder_tree "$rev^1" "$path")" ]]; then
+    printf '%s\n' "$path"
+    return
+  fi
+  while IFS= read -r -d '' status && IFS= read -r -d '' from && IFS= read -r -d '' to; do
+    if [[ "$to" == "$path/$STATE_FILE" ]]; then
+      printf '%s\n' "${from%/"$STATE_FILE"}"
+      return
+    fi
+  done < <(git diff --name-status -z -M --diff-filter=R "$rev^1" "$rev" -- ":(top,glob)**/$STATE_FILE")
+}
+
 # Prints a new commit with tree <tree> and parents <parent>... that copies
 # author and committer -- names, emails and dates -- and the message of
 # monorepo commit <source>, the way `git subtree split` does. Never signed:
@@ -110,16 +127,28 @@ rebuild_splice() {
     content_tree "$boundary" "$path"
     tree="$CONTENT_TREE"
     if [[ -n "$tree" && "$tree" != "$prev_tree" ]]; then
-      local before parents=()
+      local before before_path parents=()
       before=""
-      git rev-parse --verify --quiet "$boundary^1" >/dev/null &&
-        before="$(rebuild_splice "$path" "$boundary^1")"
-      if [[ -n "$before" ]] && ! git merge-base --is-ancestor "$before" "$synced" 2>/dev/null; then
-        parents=("$before" "$synced")
-      else
-        parents=("$synced")
+      if git rev-parse --verify --quiet "$boundary^1" >/dev/null; then
+        before_path="$(path_before "$boundary" "$path")"
+        [[ -n "$before_path" ]] && before="$(rebuild_splice "$before_path" "$boundary^1")"
       fi
-      prev="$(copy_commit "$boundary" "$tree" "${parents[@]}")"
+      if [[ -z "$before" ]] || git merge-base --is-ancestor "$before" "$synced"; then
+        # Nothing unpushed before B: B's changes go on top of U.
+        parents=("$synced")
+      elif git merge-base --is-ancestor "$synced" "$before"; then
+        # What came before already contains U, e.g. B only moved the
+        # folder: continue from there.
+        parents=("$before")
+      else
+        # A pull merged a divergence: join both sides, as git pull would.
+        parents=("$before" "$synced")
+      fi
+      if [[ ${#parents[@]} -eq 1 && "$tree" == "$(git rev-parse "${parents[0]}^{tree}")" ]]; then
+        prev="${parents[0]}"
+      else
+        prev="$(copy_commit "$boundary" "$tree" "${parents[@]}")"
+      fi
       prev_tree="$tree"
     fi
     range="$boundary..$rev"

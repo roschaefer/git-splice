@@ -9,13 +9,19 @@
 #   source /path/to/git-splice.bash        # e.g. from ~/.bashrc
 #   cp /path/to/git-splice.bash /etc/bash_completion.d/git-splice
 
-# Splice paths: folders with a committed .splice file. Mirrors
-# discover_splices() in lib/common.sh.
+# Splice paths: folders with a .splice committed in HEAD, outermost only.
+# Mirrors discover_splices() in lib/common.sh.
 __git_splice_paths() {
-  local file
-  while IFS= read -r -d '' file; do
-    printf '%s\n' "${file%/.splice}"
-  done < <(git ls-files -z -- ':(glob)**/.splice' 2>/dev/null)
+  local file path outer paths=()
+  while IFS= read -r file; do
+    paths+=("${file%/.splice}")
+  done < <(git ls-tree -r --name-only HEAD 2>/dev/null | grep -e '/\.splice$')
+  for path in "${paths[@]}"; do
+    for outer in "${paths[@]}"; do
+      [[ "$path" == "$outer"/* ]] && continue 2
+    done
+    printf '%s\n' "$path"
+  done
 }
 
 # Sets COMPREPLY to the lines on stdin that start with $1, shell-quoted.

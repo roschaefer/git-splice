@@ -41,6 +41,8 @@ cmd_clone() {
   [[ -n "$path" ]] || path="$(default_clone_path "$url")"
   path="$(normalize_path "$path")"
   [[ -n "$path" && "$path" != . && "$path" != /* ]] || die "'$path' isn't a folder inside the repository"
+  usable_splice_path "$path" ||
+    die "'$path' can't be part of a Git ref name, so it can't be a splice -- choose another folder name (e.g. no spaces)"
 
   cd_to_repo_root
   require_head_commit
@@ -76,6 +78,8 @@ cmd_clone() {
 
   local target local_folder
   target="$(git rev-parse "$(splice_ref "$path" "$upstream_branch")^{commit}")"
+  upstream_state_file_free "$target" ||
+    die "$path: upstream has a $STATE_FILE at its root, which would collide with the splice's own"
   local_folder="$(folder_tree HEAD "$path")"
   if [[ -n "$local_folder" && "$local_folder" != "$(git rev-parse "$target^{tree}")" && -z "$merge" ]]; then
     die "$path exists and differs from '$upstream_branch' upstream -- '--merge' keeps both, and every file that differs becomes a conflict to resolve"
