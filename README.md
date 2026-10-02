@@ -85,6 +85,17 @@ send the whole monorepo to one by mistake, not even a plain `git push` with
 `push.autoSetupRemote`. `url.<base>.insteadOf` and `pushInsteadOf` apply as
 usual.
 
+**Looking at an upstream.** `fetch` keeps each upstream's complete history
+in the monorepo, so every Git command can read it as of the last fetch, as
+`splices/<path>/<branch>`. Nothing needs to be cloned:
+
+    git log --oneline splices/vendor/lib/main
+    git show splices/vendor/lib/main:README.md
+    git worktree add --detach ../lib-upstream splices/vendor/lib/main
+
+`git log --all` and `gitk --all` show those histories too; add
+`--exclude='refs/splices/*'` before `--all` to leave them out.
+
 **One commit per pull.** A pull is an ordinary commit that changes the
 splice and its `.splice`; upstream's history stays upstream. A conflict
 stops it like any merge: resolve it and run `git commit`.

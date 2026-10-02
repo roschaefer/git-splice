@@ -107,6 +107,40 @@ $ git splice log
 > b937c4f pkg-b: add a feature  (Walkthrough <walkthrough@example.com>)
 ```
 
+## Looking at an upstream
+
+`fetch` keeps each upstream's complete history in the monorepo, under
+`refs/splices/<path>/<branch>`. Every Git command reads it as
+`splices/<path>/<branch>`, so there's nothing to clone:
+
+```scrut
+$ git log --oneline splices/vendor/pkg-b/main
+b937c4f pkg-b: add a feature
+9b3cb02 pkg-b: seed
+```
+
+```scrut
+$ git show splices/vendor/pkg-b/main:file.txt
+pkg-b: seed
+pkg-b: add a feature
+```
+
+For a checkout of the upstream, without a network round trip, add a
+worktree, and remove it when you're done. Commits made there don't reach
+upstream; changes belong in the monorepo, and `push` publishes them.
+
+```scrut
+$ git worktree add -q --detach ../pkg-b-upstream splices/vendor/pkg-b/main && ls ../pkg-b-upstream
+file.txt
+```
+
+```scrut
+$ git worktree remove ../pkg-b-upstream
+```
+
+`git log --all` shows the upstreams' histories too;
+`git log --exclude='refs/splices/*' --all` leaves them out.
+
 ## merge
 
 `merge` splices in what was fetched, without contacting the upstream, as
