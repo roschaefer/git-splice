@@ -71,3 +71,30 @@ setup() {
   ! git -C "$upstream" rev-parse --verify --quiet main
 }
 
+@test "init: the first push publishes even from a feature branch where the folder didn't change" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  git checkout -q -b feature
+  cmd_init lib/a "$upstream"
+  run cmd_status
+  [[ "$output" == *"push would create it"* ]]
+  run cmd_push lib/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log --format=%s feature)" = "second version"$'\n'"first version" ]
+}
+
+@test "init: refuses a detached HEAD and a conflict in progress" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  git checkout -q --detach
+  run cmd_init lib/a "$upstream"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"detached HEAD"* ]]
+  git checkout -q main
+  git update-ref CHERRY_PICK_HEAD HEAD
+  run cmd_init lib/a "$upstream"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"in progress"* ]]
+  [ -z "$(git status --porcelain lib/a)" ]
+}
+

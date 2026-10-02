@@ -38,7 +38,9 @@ cmd_init() {
     die "'$path' can't be part of a Git ref name, so it can't be a splice -- rename the folder (e.g. no spaces)"
 
   cd_to_repo_root
+  current_branch >/dev/null
   require_head_commit
+  splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
   discover_splices
   local other heads
   is_splice_path "$path" && die "$path is a splice already"

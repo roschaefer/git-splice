@@ -30,15 +30,15 @@ $ git splice merge vendor/a
 ??   vendor/a: upstream and the splice share no history -- pick a side:
 
   # keep the upstream version, discarding local changes under vendor/a:
-  git rm -r -q vendor/a && git commit -m 'remove vendor/a'
-  git splice clone $UPSTREAM vendor/a
+  git rm -r -q -- vendor/a && git commit -m 'remove vendor/a'
+  git splice clone -- $UPSTREAM vendor/a
 
   # OR: keep both, resolving every file that differs as a conflict:
-  git rm -q vendor/a/.splice && git commit -m 'unsplice vendor/a'
-  git splice clone --merge $UPSTREAM vendor/a
+  git rm -q -- vendor/a/.splice && git commit -m 'unsplice vendor/a'
+  git splice clone --merge -- $UPSTREAM vendor/a
 
   # OR: keep the monorepo version, overwriting upstream's branch:
-  git splice push --force vendor/a
+  git splice push --force -- vendor/a
 
 !!   Failed: vendor/a
 [1]
@@ -49,15 +49,15 @@ $ git splice push vendor/a
 ??   vendor/a: upstream and the splice share no history -- pick a side:
 
   # keep the upstream version, discarding local changes under vendor/a:
-  git rm -r -q vendor/a && git commit -m 'remove vendor/a'
-  git splice clone $UPSTREAM vendor/a
+  git rm -r -q -- vendor/a && git commit -m 'remove vendor/a'
+  git splice clone -- $UPSTREAM vendor/a
 
   # OR: keep both, resolving every file that differs as a conflict:
-  git rm -q vendor/a/.splice && git commit -m 'unsplice vendor/a'
-  git splice clone --merge $UPSTREAM vendor/a
+  git rm -q -- vendor/a/.splice && git commit -m 'unsplice vendor/a'
+  git splice clone --merge -- $UPSTREAM vendor/a
 
   # OR: keep the monorepo version, overwriting upstream's branch:
-  git splice push --force vendor/a
+  git splice push --force -- vendor/a
 
 !!   Failed: vendor/a
 [1]

@@ -20,7 +20,7 @@ status_warn() { printf '??   %s\n' "$*"; }
 # current one: what changed on this branch compared with the base branch.
 format_missing_branch_line() {
   local path="$1" base="$2" prefix="$1 -> $SPLICE_UPSTREAM_BRANCH" pathspec=()
-  changes_vs_base "$path" "$base"
+  missing_branch_changes "$path" "$base"
   case "$SPLICE_CHANGES_VS_BASE" in
     no)
       log_ok "$prefix (upstream has no such branch; unchanged since '$SPLICE_BASE_BRANCH')"

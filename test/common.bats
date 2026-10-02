@@ -273,8 +273,11 @@ add_monorepo_origin() {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   run print_unrelated_history_guidance "vendor/a"
-  [[ "$output" == *"git splice push --force vendor/a"* ]]
-  [[ "$output" == *"git rm -q vendor/a/.splice"* ]]
+  [[ "$output" == *"git splice push --force -- vendor/a"* ]]
+  [[ "$output" == *"git rm -q -- vendor/a/.splice"* ]]
   run print_unrelated_history_guidance "x;id"
-  [[ "$output" == *"git splice push --force 'x;id'"* ]]
+  [[ "$output" == *"git splice push --force -- 'x;id'"* ]]
+  run print_unrelated_history_guidance "-foo"
+  [[ "$output" == *"git rm -r -q -- -foo"* ]]
+  [[ "$output" == *"git splice clone -- "*" -foo"* ]]
 }

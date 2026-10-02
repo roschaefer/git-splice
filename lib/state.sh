@@ -30,8 +30,10 @@ classify_splice() {
 
   if ! splice_fetched "$path"; then
     # Without a synced commit, the splice came from init: its upstream
-    # was empty, so a fetch that brings nothing is the expected state.
-    if [[ -z "$SPLICE_SYNCED" ]]; then
+    # was empty, so a fetch that brings nothing is the expected state. With
+    # one that's here, a fetch happened, and the upstream has no branches
+    # left. Only a fresh clone of the monorepo has neither refs nor commit.
+    if [[ -z "$SPLICE_SYNCED" ]] || git cat-file -e "$SPLICE_SYNCED^{commit}" 2>/dev/null; then
       SPLICE_STATE="missing-branch"
     else
       SPLICE_STATE="never-fetched"
@@ -75,6 +77,21 @@ classify_splice() {
     SPLICE_STATE="diverged"
   else
     SPLICE_STATE="unrelated-history"
+  fi
+}
+
+# For a splice in the "missing-branch" state: changes_vs_base, except that
+# a splice that never synced (made by init) always counts as changed. Its
+# upstream has nothing yet, so the first push publishes it from any
+# branch, even if the folder is unchanged since the base branch.
+missing_branch_changes() {
+  if [[ -z "$SPLICE_SYNCED" ]]; then
+    SPLICE_CHANGES_VS_BASE="self"
+    SPLICE_BASE_REF=""
+    SPLICE_BASE_BRANCH=""
+    SPLICE_BASE_MERGE_BASE=""
+  else
+    changes_vs_base "$@"
   fi
 }
 
@@ -149,15 +166,15 @@ print_unrelated_history_guidance() {
   cat >&2 <<EOF
 
   # keep the upstream version, discarding local changes under $path:
-  git rm -r -q $q_path && git commit -m $(shell_quote "remove $path")
-  git splice clone $q_url $q_path
+  git rm -r -q -- $q_path && git commit -m $(shell_quote "remove $path")
+  git splice clone -- $q_url $q_path
 
   # OR: keep both, resolving every file that differs as a conflict:
-  git rm -q $(shell_quote "$path/$STATE_FILE") && git commit -m $(shell_quote "unsplice $path")
-  git splice clone --merge $q_url $q_path
+  git rm -q -- $(shell_quote "$path/$STATE_FILE") && git commit -m $(shell_quote "unsplice $path")
+  git splice clone --merge -- $q_url $q_path
 
   # OR: keep the monorepo version, overwriting upstream's branch:
-  git splice push --force $q_path
+  git splice push --force -- $q_path
 
 EOF
 }

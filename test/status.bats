@@ -122,3 +122,18 @@ assert_state() {
   run cmd_status
   [[ "$output" == *"no splices"* ]]
 }
+
+@test "classify_splice: missing-branch, not never-fetched, after upstream deleted its last branch" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  git -C "$upstream" symbolic-ref HEAD refs/heads/gone
+  git -C "$upstream" branch -D main >/dev/null
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  [ -z "$(git for-each-ref refs/splices/)" ]
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = missing-branch ]
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
+}
+
