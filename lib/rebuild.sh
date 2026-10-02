@@ -9,30 +9,39 @@
 # file. The same folder tree recurs in every commit that doesn't touch it.
 declare -gA CONTENT_TREE_CACHE=()
 
-# Sets CONTENT_TREE to the tree of splice <path> in commit <rev>, without
-# its state file, or to nothing if the folder doesn't exist there. Sets a
+# Sets CONTENT_TREE to folder tree <tree> without its state file. Sets a
 # global rather than printing, so the cache survives: a $(...) call would
 # fill it in a subshell.
 CONTENT_TREE=""
-content_tree() {
-  local rev="$1" path="$2" tree entry
-  CONTENT_TREE=""
-  tree="$(folder_tree "$rev" "$path")"
-  [[ -n "$tree" ]] || return 0
+strip_state_tree() {
+  local tree="$1" entry entries=() stripped=() found=""
   if [[ -z "${CONTENT_TREE_CACHE[$tree]:-}" ]]; then
-    if git cat-file -e "$tree:$STATE_FILE" 2>/dev/null; then
-      CONTENT_TREE_CACHE[$tree]="$(
-        git ls-tree -z "$tree" |
-          while IFS= read -r -d '' entry; do
-            [[ "${entry#*$'\t'}" == "$STATE_FILE" ]] || printf '%s\0' "$entry"
-          done |
-          git mktree -z
-      )"
+    # NUL-separated throughout: a file name may contain anything but NUL.
+    mapfile -d '' entries < <(git ls-tree -z "$tree")
+    for entry in "${entries[@]}"; do
+      if [[ "${entry#*$'\t'}" == "$STATE_FILE" ]]; then
+        found=1
+      else
+        stripped+=("$entry")
+      fi
+    done
+    if [[ -n "$found" ]]; then
+      CONTENT_TREE_CACHE[$tree]="$(printf '%s\0' "${stripped[@]}" | git mktree -z)"
     else
       CONTENT_TREE_CACHE[$tree]="$tree"
     fi
   fi
   CONTENT_TREE="${CONTENT_TREE_CACHE[$tree]}"
+}
+
+# Sets CONTENT_TREE to the tree of splice <path> in commit <rev>, without
+# its state file, or to nothing if the folder doesn't exist there.
+content_tree() {
+  local tree
+  CONTENT_TREE=""
+  tree="$(folder_tree "$1" "$2")"
+  [[ -n "$tree" ]] || return 0
+  strip_state_tree "$tree"
 }
 
 # Prints the newest first-parent commit reachable from <rev> that changed
@@ -125,19 +134,59 @@ rebuild_splice() {
 # "B..HEAD"), on top of upstream commit <start> (nothing: a new root):
 # one commit per first-parent commit whose folder differs from the one
 # before. A merge in the monorepo becomes one ordinary commit.
+#
+# Each commit is copied like copy_commit does, but the metadata of all of
+# them comes from one `git log`, and their folder trees from one `git
+# cat-file --batch-check`: the rebuild spawns about one process per commit
+# instead of eight.
 rebuild_walk() {
-  local path="$1" prev="$2" range="$3" prev_tree="" tree commit
+  local path="$1" prev="$2" range="$3" prev_tree="" i
   [[ -n "$prev" ]] && prev_tree="$(git rev-parse "$prev^{tree}")"
-  for commit in $(git rev-list --reverse --first-parent "$range" -- ":(top,literal)$path"); do
-    content_tree "$commit" "$path"
-    tree="$CONTENT_TREE"
-    [[ -z "$tree" || "$tree" == "$prev_tree" ]] && continue
-    if [[ -n "$prev" ]]; then
-      prev="$(copy_commit "$commit" "$tree" "$prev")"
-    else
-      prev="$(copy_commit "$commit" "$tree")"
-    fi
-    prev_tree="$tree"
+
+  local -a hashes=() authors=() emails=() dates=() cnames=() cemails=() cdates=() messages=()
+  local hash an ae ad cn ce cd message
+  # Every field ends with a NUL; tformat adds a newline after each commit,
+  # which then starts the next hash.
+  while IFS= read -r -d '' hash && IFS= read -r -d '' an && IFS= read -r -d '' ae &&
+    IFS= read -r -d '' ad && IFS= read -r -d '' cn && IFS= read -r -d '' ce &&
+    IFS= read -r -d '' cd && IFS= read -r -d '' message; do
+    hashes+=("${hash#$'\n'}")
+    authors+=("$an")
+    emails+=("$ae")
+    dates+=("$ad")
+    cnames+=("$cn")
+    cemails+=("$ce")
+    cdates+=("$cd")
+    messages+=("$message")
+  done < <(git log --reverse --first-parent --no-show-signature \
+    --pretty=tformat:'%H%x00%an%x00%ae%x00%aD%x00%cn%x00%ce%x00%cD%x00%B%x00' \
+    "$range" -- ":(top,literal)$path")
+
+  if [[ ${#hashes[@]} -eq 0 ]]; then
+    printf '%s\n' "$prev"
+    return
+  fi
+
+  local -a folders=()
+  local object type
+  while read -r object type _; do
+    [[ "$type" == tree ]] || object=""
+    folders+=("$object")
+  done < <(printf "%s:$path\n" "${hashes[@]}" | git cat-file --batch-check='%(objectname) %(objecttype)')
+
+  local parents=()
+  for i in "${!hashes[@]}"; do
+    [[ -n "${folders[$i]}" ]] || continue
+    strip_state_tree "${folders[$i]}"
+    [[ "$CONTENT_TREE" == "$prev_tree" ]] && continue
+    parents=()
+    [[ -n "$prev" ]] && parents=(-p "$prev")
+    # printf '%s', not <<<, which would add a newline to the message.
+    prev="$(printf '%s' "${messages[$i]}" |
+      GIT_AUTHOR_NAME="${authors[$i]}" GIT_AUTHOR_EMAIL="${emails[$i]}" GIT_AUTHOR_DATE="${dates[$i]}" \
+        GIT_COMMITTER_NAME="${cnames[$i]}" GIT_COMMITTER_EMAIL="${cemails[$i]}" GIT_COMMITTER_DATE="${cdates[$i]}" \
+        git commit-tree --no-gpg-sign "$CONTENT_TREE" "${parents[@]}")"
+    prev_tree="$CONTENT_TREE"
   done
   printf '%s\n' "$prev"
 }

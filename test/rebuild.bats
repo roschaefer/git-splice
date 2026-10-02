@@ -78,6 +78,22 @@ split() {
   [ "$(git rev-parse "$ours^{tree}")" = "$(git rev-parse "$theirs^{tree}")" ]
 }
 
+@test "rebuild: keeps file names with newlines, quotes and non-ASCII characters" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local name
+  for name in $'line\nbreak' '"quoted' 'tab\there' 'ünïcode'; do
+    echo x >"vendor/a/$name"
+  done
+  git add vendor/a
+  git commit -q -m "odd names"
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  # The only difference to the monorepo's folder is the state file.
+  [ "$(git diff --name-only "$rebuilt" HEAD:vendor/a)" = ".splice" ]
+  [ "$(git ls-tree --name-only -z "$rebuilt" | tr -cd '\0' | wc -c)" -eq 5 ]
+}
+
 @test "rebuild: is deterministic, even when commits would be signed" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
