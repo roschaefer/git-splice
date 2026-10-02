@@ -3,14 +3,14 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "git-subtrees",
+      "package-name": "git-splice",
       "bump-minor-pre-major": true,
       "extra-files": [
-        "git-subtrees"
+        "git-splice"
       ],
       "initial-version": "0.1.0",
       "include-component-in-tag": false
     }
   },
-  "bootstrap-sha": "353e86b46a2d517b678862c21d9388a53c9d3322"
+  "bootstrap-sha": "f5ba99f61c564da045c022c7a349c3c3875a7964"
 }

@@ -1,5 +1,5 @@
 {
-  description = "git subtrees -- manage multiple git subtree prefixes with zero config";
+  description = "git splice -- keep folders of a monorepo in sync with their own repositories";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
@@ -12,16 +12,16 @@
         pkgs = nixpkgs.legacyPackages.${system};
         lib = pkgs.lib;
 
-        git-subtrees = pkgs.stdenvNoCC.mkDerivation {
-          pname = "git-subtrees";
+        git-splice = pkgs.stdenvNoCC.mkDerivation {
+          pname = "git-splice";
           # release-please bumps VERSION in the entrypoint; read it from there.
           version = builtins.head
-            (builtins.match ".*\nVERSION=([^ ]+) .*" (builtins.readFile ./git-subtrees));
+            (builtins.match ".*\nVERSION=([^ ]+) .*" (builtins.readFile ./git-splice));
 
           src = lib.fileset.toSource {
             root = ./.;
             fileset = lib.fileset.unions [
-              ./git-subtrees
+              ./git-splice
               ./lib
               ./completions
               ./LICENSE
@@ -34,27 +34,27 @@
           dontBuild = true;
 
           # The entrypoint finds lib/ next to itself, so both go to share/
-          # and bin/ gets a wrapper that puts a git with `git subtree` on
-          # PATH.
+          # and bin/ gets a wrapper that puts git and the tools the scripts
+          # call on PATH.
           installPhase = ''
             runHook preInstall
-            mkdir -p $out/share/git-subtrees
-            cp -R git-subtrees lib $out/share/git-subtrees/
-            makeWrapper $out/share/git-subtrees/git-subtrees $out/bin/git-subtrees \
+            mkdir -p $out/share/git-splice
+            cp -R git-splice lib $out/share/git-splice/
+            makeWrapper $out/share/git-splice/git-splice $out/bin/git-splice \
               --prefix PATH : ${lib.makeBinPath [ pkgs.git pkgs.coreutils pkgs.gnused pkgs.gnugrep ]}
-            install -Dm644 LICENSE $out/share/licenses/git-subtrees/LICENSE
-            installShellCompletion --cmd git-subtrees \
-              --bash completions/git-subtrees.bash \
-              --zsh completions/git-subtrees.zsh \
-              --fish completions/git-subtrees.fish
+            install -Dm644 LICENSE $out/share/licenses/git-splice/LICENSE
+            installShellCompletion --cmd git-splice \
+              --bash completions/git-splice.bash \
+              --zsh completions/git-splice.zsh \
+              --fish completions/git-splice.fish
             runHook postInstall
           '';
 
           meta = {
-            description = "Keep the git subtree folders of a monorepo in sync, with zero config";
-            homepage = "https://github.com/roschaefer/git-subtrees";
+            description = "Keep folders of a monorepo in sync with their own repositories, in both directions";
+            homepage = "https://github.com/roschaefer/git-splice";
             license = lib.licenses.mit;
-            mainProgram = "git-subtrees";
+            mainProgram = "git-splice";
             platforms = lib.platforms.unix;
           };
         };
@@ -86,12 +86,12 @@
           };
       in
       {
-        packages.default = git-subtrees;
+        packages.default = git-splice;
 
-        # Runs the installed package the way users do, through `git subtrees`,
-        # against a subtree whose remote got a new commit.
-        checks.default = pkgs.runCommand "git-subtrees-smoke"
-          { nativeBuildInputs = [ git-subtrees pkgs.git ]; } ''
+        # Runs the installed package the way users do, through `git splice`,
+        # against a splice whose upstream got a new commit.
+        checks.default = pkgs.runCommand "git-splice-smoke"
+          { nativeBuildInputs = [ git-splice pkgs.git ]; } ''
           export HOME=$TMPDIR
           git config --global user.name smoke
           git config --global user.email smoke@example.com
@@ -107,26 +107,30 @@
           git init -q monorepo
           cd monorepo
           git commit -q --allow-empty -m initial
-          git subtrees --version
-          git subtrees init vendor/a ../upstream.git
+          git splice --version
+          git splice clone ../upstream.git vendor/a
 
           echo two >>../seed/file.txt
           git -C ../seed commit -q -am two
           git -C ../seed push -q origin main
 
-          git subtrees fetch
-          git subtrees status | tee status.txt
+          git splice fetch
+          git splice status | tee status.txt
           grep -qF "(pull)" status.txt
-          git subtrees pull
+          git splice pull vendor/a
           grep -q two vendor/a/file.txt
+          echo three >>vendor/a/file.txt
+          git commit -q -am three
+          git splice push vendor/a
+          git -C ../upstream.git log -1 --format=%s main | grep -qx three
 
           # bash: git's completion loads ours on demand through
           # bash-completion, from the package's share/.
-          XDG_DATA_DIRS=${git-subtrees}/share ${pkgs.bashInteractive}/bin/bash --norc -i -c '
+          XDG_DATA_DIRS=${git-splice}/share ${pkgs.bashInteractive}/bin/bash --norc -i -c '
             source ${pkgs.bash-completion}/share/bash-completion/bash_completion
             source ${pkgs.git}/share/bash-completion/completions/git
-            __git_complete_command subtrees
-            declare -F _git_subtrees
+            __git_complete_command splice
+            declare -F _git_splice
           '
           touch $out
         '';
