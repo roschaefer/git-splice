@@ -5,19 +5,19 @@ usage() {
   cat <<'EOF'
 usage: bench/setup.sh <dir>
 
-Builds a synthetic monorepo for bench/run.sh in <dir>/monorepo: subtrees
+Builds a synthetic monorepo for bench/run.sh in <dir>/monorepo: splices
 packages/sub1, packages/sub2, ..., each with local commits since it was
-added. Halfway through, every subtree was pushed, so each remote holds the
-monorepo's own push and the monorepo has changed since -- the usual state
-after working on a branch for a while.
+cloned. Halfway through, every splice was pushed, so each upstream holds
+the monorepo's own push and the monorepo has changed since -- the usual
+state after working on a branch for a while.
 
-Every remote is reached through git's ext:: transport with a delay per
+Every upstream is reached through git's ext:: transport with a delay per
 connection, so network round trips cost something, as they do over SSH.
-With plain local remotes, fetching would look free.
+With plain local paths, fetching would look free.
 
 Environment (defaults in brackets):
-  BENCH_SUBTREES  number of subtrees [5]
-  BENCH_COMMITS   local commits per subtree since it was added [10]
+  BENCH_SPLICES   number of splices [5]
+  BENCH_COMMITS   local commits per splice since it was cloned [10]
   BENCH_LATENCY   seconds of delay per remote connection [0.2]
 EOF
 }
@@ -32,7 +32,7 @@ EOF
 }
 
 dir="$1"
-subtrees="${BENCH_SUBTREES:-5}"
+splices="${BENCH_SPLICES:-5}"
 commits="${BENCH_COMMITS:-10}"
 latency="${BENCH_LATENCY:-0.2}"
 
@@ -53,12 +53,15 @@ rm -rf "$dir"
 mkdir -p "$dir/upstream"
 dir="$(cd "$dir" && pwd)"
 
+splice="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/git-splice"
+
 git init -q -b main "$dir/monorepo"
 cd "$dir/monorepo"
 git config protocol.ext.allow always
+git config init.defaultBranch main
 git commit -q --allow-empty -m "initial commit"
 
-for ((i = 1; i <= subtrees; i++)); do
+for ((i = 1; i <= splices; i++)); do
   upstream="$dir/upstream/sub$i.git"
   git init -q --bare -b main "$upstream"
   seed="$(mktemp -d)"
@@ -69,16 +72,14 @@ for ((i = 1; i <= subtrees; i++)); do
   git -C "$seed" push -q "$upstream" main
   rm -rf "$seed"
 
-  git remote add "packages/sub$i" "ext::sh -c sleep% $latency;% exec% %S% $(ext_quote "$upstream")"
-  git fetch -q "packages/sub$i" 2>/dev/null
-  git subtree add -q --prefix="packages/sub$i" "packages/sub$i" main --squash >/dev/null 2>&1
+  "$splice" clone "ext::sh -c sleep% $latency;% exec% %S% $(ext_quote "$upstream")" "packages/sub$i" >/dev/null
 done
 
-# One commit per subtree per round, plus unrelated work in between, so the
-# history since each sync interleaves all subtrees like a real monorepo.
+# One commit per splice per round, plus unrelated work in between, so the
+# history since each sync interleaves all splices like a real monorepo.
 commit_round() {
   local round="$1" i
-  for ((i = 1; i <= subtrees; i++)); do
+  for ((i = 1; i <= splices; i++)); do
     echo "round $round" >>"packages/sub$i/README"
     git add "packages/sub$i/README"
     git commit -q -m "sub$i: round $round"
@@ -91,10 +92,7 @@ commit_round() {
 for ((round = 1; round <= commits / 2; round++)); do
   commit_round "$round"
 done
-for ((i = 1; i <= subtrees; i++)); do
-  git subtree push -q --prefix="packages/sub$i" "packages/sub$i" main >/dev/null 2>&1
-done
-git fetch -q --all
+"$splice" push --all >/dev/null 2>&1
 for ((round = commits / 2 + 1; round <= commits; round++)); do
   commit_round "$round"
 done

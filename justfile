@@ -2,20 +2,19 @@ set shell := ["bash", "-c"]
 
 # Run shellcheck
 lint:
-    shellcheck -x git-subtrees
-    shellcheck -x docs/last-synced-commit/walkthrough.sh
+    shellcheck -x git-splice docs/design/pull-prototype.sh docs/design/rebuild-prototype.sh
     shellcheck walkthrough/setup.sh walkthrough/simulate-remote-change
-    shellcheck completions/git-subtrees.bash
+    shellcheck completions/git-splice.bash
     shellcheck bench/setup.sh bench/run.sh
     shellcheck -x walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh
 
 # Format with shfmt
 fmt:
-    shfmt -w -i 2 -ci git-subtrees lib/*.sh docs/last-synced-commit/walkthrough.sh walkthrough/setup.sh walkthrough/simulate-remote-change completions/git-subtrees.bash bench/setup.sh bench/run.sh walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh
+    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh walkthrough/setup.sh walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh
 
 # Check formatting with shfmt
 fmt-check:
-    shfmt -d -i 2 -ci git-subtrees lib/*.sh docs/last-synced-commit/walkthrough.sh walkthrough/setup.sh walkthrough/simulate-remote-change completions/git-subtrees.bash bench/setup.sh bench/run.sh walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh
+    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh walkthrough/setup.sh walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh
 
 # Run the bats tests
 test:

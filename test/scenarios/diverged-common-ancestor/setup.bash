@@ -4,13 +4,8 @@ scenario_diverged_common_ancestor() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
-  (
-    cd "$monorepo"
-    echo "local change" >>vendor/a/file.txt
-    git add vendor/a/file.txt
-    git commit -q -m "local change"
-  )
+  add_splice "$monorepo" "$upstream" "vendor/a"
+  commit_local "$monorepo" "vendor/a" "local change"
   seed_bare_repo "$upstream" "upstream change"
-  (cd "$monorepo" && git fetch -q vendor/a)
+  fetch_splice "$monorepo" "$upstream" "vendor/a"
 }

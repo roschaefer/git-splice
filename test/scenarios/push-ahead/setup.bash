@@ -4,11 +4,6 @@ scenario_push_ahead() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
-  (
-    cd "$monorepo"
-    echo "local change" >>vendor/a/file.txt
-    git add vendor/a/file.txt
-    git commit -q -m "local change"
-  )
+  add_splice "$monorepo" "$upstream" "vendor/a"
+  commit_local "$monorepo" "vendor/a" "local change"
 }

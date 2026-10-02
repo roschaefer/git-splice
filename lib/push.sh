@@ -1,124 +1,125 @@
-# Assumes lib/common.sh is already sourced.
+# Assumes lib/common.sh, lib/rebuild.sh and lib/state.sh are already sourced.
 
 usage_push() {
   cat <<'EOF'
-usage: git subtrees push [--base <branch>] [path...]
+usage: git splice push [--base <branch>] [--force] (<path>... | --all)
 
-Pushes local subtree changes upstream. Defaults to every discovered
-subtree with changes when no paths are given. Shares one SSH connection
-(ControlMaster/ControlPersist) across pushes to the same host.
+Publishes each splice's local changes: rebuilds the commits that changed
+it since the last sync, without its .splice file, and pushes them to its
+upstream URL. Nothing is written to the monorepo.
 
-If the remote has no branch named like the current one, push creates it --
-but only for a subtree that changed on this branch compared with the
+If the upstream has no branch named like the current one, push creates it
+-- but only for a splice that changed on this branch compared with the
 monorepo's base branch (the branch this one was cut from), so working on a
-feature branch doesn't spawn empty branches on every remote. The base
-branch is taken from --base, else from origin/HEAD, else from
-init.defaultBranch; if none of those resolves, push refuses and asks for
---base. On the base branch itself there is nothing to compare, and push
-creates the missing branch.
+feature branch doesn't spawn empty branches upstream. The base branch is
+--base, else the monorepo's default branch (origin/HEAD, else
+init.defaultBranch); if none resolves, push refuses and asks for --base.
 
-On an unrelated-history divergence (no shared ancestor at all), push does
-not attempt to push -- it prints manual recovery commands instead.
+--force overwrites the upstream branch, e.g. to keep the monorepo's side
+when the two share no history.
 EOF
 }
 
-# Pushes a single subtree path. Factored out from cmd_push's loop so bats
-# can exercise one path directly. $3 is an explicit --base branch, if any.
+# Pushes one splice. $3 is an explicit --base branch, if any; $4 is
+# "force" for --force.
 push_one() {
-  local path="$1" branch="$2" base="${3:-}"
+  local path="$1" branch="$2" base="${3:-}" force="${4:-}"
 
-  if ! usable_with_git_subtree "$path"; then
-    log_err "$path: git-subtree cannot use a name starting with '-' -- rename it and re-run"
-    return 1
-  fi
-  if ! usable_with_git_subtree "$branch"; then
-    log_err "$branch: git-subtree cannot use a branch name starting with '-' -- rename it and re-run"
-    return 1
-  fi
-
-  classify_subtree "$path" "$branch"
-
-  case "$SUBTREE_STATE" in
-    not-connected)
-      log_warn "$path: not fetched -- run 'git subtrees fetch $path' first"
+  classify_splice "$path" "$branch"
+  local upstream_branch="$SPLICE_UPSTREAM_BRANCH"
+  case "$SPLICE_STATE" in
+    never-fetched)
+      log_warn "$path: not fetched -- run 'git splice fetch $path' first"
       return 1
       ;;
-    up-to-date | pull)
+    up-to-date)
       log_ok "$path: nothing to push"
       return 0
       ;;
-    unrelated-history)
-      print_unrelated_history_guidance "$path" "$branch"
-      return 1
+    pull)
+      log_ok "$path: nothing to push (upstream is ahead -- 'git splice pull $path' brings it in)"
+      return 0
       ;;
-    missing-at-head)
+    diverged)
+      if [[ -z "$force" ]]; then
+        log_err "$path: upstream has commits this branch lacks -- run 'git splice pull $path' first"
+        return 1
+      fi
+      ;;
+    unrelated-history)
+      if [[ -z "$force" ]]; then
+        print_unrelated_history_guidance "$path"
+        return 1
+      fi
+      [[ -n "$SPLICE_REBUILT" ]] || SPLICE_REBUILT="$(rebuild_splice "$path" HEAD)"
+      ;;
+    missing-branch)
       changes_vs_base "$path" "$base"
-      case "$SUBTREE_CHANGES_VS_BASE" in
+      case "$SPLICE_CHANGES_VS_BASE" in
         no)
-          log_ok "$path: nothing to push (remote has no '$branch' branch; unchanged since '$SUBTREE_BASE_BRANCH')"
+          log_ok "$path: nothing to push (upstream has no '$upstream_branch' branch; unchanged since '$SPLICE_BASE_BRANCH')"
           return 0
           ;;
         unresolved)
           if [[ -n "$base" ]]; then
             log_err "$path: base branch '$base' not found, or it shares no history with '$branch'"
           else
-            log_err "$path: remote has no '$branch' branch and the monorepo's base branch can't be determined -- re-run with --base <branch>"
+            log_err "$path: upstream has no '$upstream_branch' branch and the monorepo's base branch can't be determined -- re-run with --base <branch>"
           fi
           return 1
           ;;
         error)
-          log_err "$path: could not compare with base branch '$SUBTREE_BASE_BRANCH' -- not creating '$branch'"
+          log_err "$path: could not compare with base branch '$SPLICE_BASE_BRANCH' -- not creating '$upstream_branch'"
           return 1
           ;;
         yes)
-          log_warn "$path: remote has no '$branch' branch yet -- this push will create it (changed since '$SUBTREE_BASE_BRANCH')"
+          log_warn "$path: upstream has no '$upstream_branch' branch yet -- this push creates it (changed since '$SPLICE_BASE_BRANCH')"
           ;;
         self)
-          log_warn "$path: remote has no '$branch' branch yet -- this push will create it"
+          log_warn "$path: upstream has no '$upstream_branch' branch yet -- this push creates it"
           ;;
       esac
+      SPLICE_REBUILT="$(rebuild_splice "$path" HEAD)"
       ;;
-    push | diverged) ;;
+    push) ;;
   esac
 
-  if ! git subtree push --prefix="$path" "$path" "$branch"; then
+  if [[ -z "$SPLICE_REBUILT" ]]; then
+    log_ok "$path: nothing to push (no content)"
+    return 0
+  fi
+
+  local url force_flag=()
+  url="$(splice_config "$path" url)"
+  [[ -n "$force" ]] && force_flag=(--force)
+  if ! git push "${force_flag[@]}" --quiet -- "$url" "$SPLICE_REBUILT:refs/heads/$upstream_branch"; then
     log_err "$path: push failed"
     return 1
   fi
-  log_ok "$path: pushed"
+  # Pushing to a URL updates no ref here, so record what upstream has now.
+  git update-ref "$(splice_ref "$path" "$upstream_branch")" "$SPLICE_REBUILT"
+  log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $upstream_branch"
 }
 
 cmd_push() {
-  parse_base_args usage_push "$@"
-  local base="$BASE_ARG"
-  local paths=("${PATH_ARGS[@]}")
-
+  parse_args usage_push "--force" "$@"
+  local base="$BASE_ARG" force=""
+  has_flag --force && force=force
   cd_to_repo_root
-  discover_subtrees
-  local branch
+  require_head_commit
+  discover_splices
+  select_paths explicit push
+  local branch path failures=()
   branch="$(current_branch)"
 
-  if [[ ${#paths[@]} -eq 0 ]]; then
-    paths=("${ALL_PATHS[@]}")
-  fi
-  if [[ ${#paths[@]} -eq 0 ]]; then
-    die "no subtrees discovered -- nothing to push"
-  fi
-
-  local path
-  for path in "${paths[@]}"; do
-    is_subtree_path "$path" || die "not a subtree path: $path"
-  done
-
+  # Pushes to the same host share one SSH connection.
   local ssh_control_dir
   ssh_control_dir="$(mktemp -d)"
-  export GIT_SSH_COMMAND="ssh -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$ssh_control_dir/%r@%h:%p"
+  export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$ssh_control_dir/%r@%h:%p"
 
-  local failures=()
-  for path in "${paths[@]}"; do
-    push_one "$path" "$branch" "$base" || failures+=("$path")
+  for path in "${SELECTED_PATHS[@]}"; do
+    push_one "$path" "$branch" "$base" "$force" || failures+=("$path")
   done
-
   rm -rf "$ssh_control_dir"
 
   if [[ ${#failures[@]} -gt 0 ]]; then

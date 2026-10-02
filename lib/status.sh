@@ -1,121 +1,99 @@
-# Assumes lib/common.sh is already sourced.
+# Assumes lib/common.sh, lib/rebuild.sh and lib/state.sh are already sourced.
 
 usage_status() {
   cat <<'EOF'
-usage: git subtrees status [--base <branch>] [path...]
+usage: git splice status [--base <branch>] [path...]
 
-Shows the sync state of every subtree, plus every registered remote that
-has no matching directory ("no mapping"). Purely local -- run 'git subtrees
-fetch' first for up-to-date results. Defaults to every discovered subtree
-when no paths are given.
+Shows the sync state of every splice. Purely local -- run 'git splice
+fetch' first for up-to-date results. Defaults to every splice when no
+paths are given.
 
-For a subtree whose remote has no branch named like the current one, the
-state is whether the subtree changed on this branch compared with the
-monorepo's base branch (--base, else origin/HEAD, else init.defaultBranch).
+For a splice whose upstream has no branch named like the current one, the
+state is whether the splice changed on this branch compared with the
+monorepo's base branch (--base, else the monorepo's default branch).
 EOF
 }
 
 status_warn() { printf '??   %s\n' "$*"; }
 
-# Prints the status of a subtree whose remote has no branch like the current
-# one: what changed on this branch compared with the monorepo's base branch.
+# Prints the status of a splice whose upstream has no branch like the
+# current one: what changed on this branch compared with the base branch.
 format_missing_branch_line() {
-  local path="$1" branch="$2" base="$3"
+  local path="$1" base="$2" prefix="$1 -> $SPLICE_UPSTREAM_BRANCH" pathspec=()
   changes_vs_base "$path" "$base"
-  case "$SUBTREE_CHANGES_VS_BASE" in
+  case "$SPLICE_CHANGES_VS_BASE" in
     no)
-      log_ok "$path -> $SUBTREE_URL (no '$branch' branch on remote; unchanged since '$SUBTREE_BASE_BRANCH')"
+      log_ok "$prefix (no such branch upstream; unchanged since '$SPLICE_BASE_BRANCH')"
       ;;
     yes)
-      log_ok "$path -> $SUBTREE_URL (no '$branch' branch on remote; changed since '$SUBTREE_BASE_BRANCH' -- push would create it)"
-      git --no-pager diff --stat "$SUBTREE_BASE_MERGE_BASE" HEAD -- "$path" 2>/dev/null || true
+      log_ok "$prefix (no such branch upstream; changed since '$SPLICE_BASE_BRANCH' -- push would create it)"
+      mapfile -t pathspec < <(content_pathspec "$path")
+      git --no-pager diff --stat --relative="$path" "$SPLICE_BASE_MERGE_BASE" HEAD -- "${pathspec[@]}" 2>/dev/null || true
       ;;
     self)
-      status_warn "$path -> $SUBTREE_URL (remote has no '$branch' branch)"
+      status_warn "$prefix (no such branch upstream -- push would create it)"
       ;;
     error)
-      status_warn "$path -> $SUBTREE_URL (no '$branch' branch on remote; could not compare with base branch '$SUBTREE_BASE_BRANCH')"
+      status_warn "$prefix (no such branch upstream; could not compare with base branch '$SPLICE_BASE_BRANCH')"
       ;;
     unresolved)
       if [[ -n "$base" ]]; then
-        status_warn "$path -> $SUBTREE_URL (no '$branch' branch on remote; base branch '$base' not found, or it shares no history)"
+        status_warn "$prefix (no such branch upstream; base branch '$base' not found, or it shares no history)"
       else
-        status_warn "$path -> $SUBTREE_URL (no '$branch' branch on remote; monorepo base branch unknown -- pass --base <branch>)"
+        status_warn "$prefix (no such branch upstream; monorepo base branch unknown -- pass --base <branch>)"
       fi
       ;;
   esac
 }
 
-# Classifies and prints the status of one subtree path.
+# Classifies and prints the status of one splice.
 format_status_line() {
-  local path="$1" branch="$2" base="${3:-}"
-  classify_subtree "$path" "$branch"
+  local path="$1" branch="$2" base="${3:-}" local_tree
+  classify_splice "$path" "$branch"
+  local prefix="$path -> $SPLICE_UPSTREAM_BRANCH"
 
-  case "$SUBTREE_STATE" in
-    not-connected)
-      status_warn "$path -> $SUBTREE_URL (never fetched -- run 'git subtrees fetch $path')"
+  case "$SPLICE_STATE" in
+    never-fetched)
+      status_warn "$prefix (never fetched -- run 'git splice fetch $path')"
       ;;
-    missing-at-head)
-      format_missing_branch_line "$path" "$branch" "$base"
+    missing-branch)
+      format_missing_branch_line "$path" "$base"
       ;;
     up-to-date)
-      log_ok "$path -> $SUBTREE_URL (up to date)"
+      log_ok "$prefix (up to date)"
       ;;
     push | pull | diverged)
-      log_ok "$path -> $SUBTREE_URL ($SUBTREE_STATE)"
-      local local_tree
-      local_tree="$(git rev-parse "HEAD:$path" 2>/dev/null || true)"
+      log_ok "$prefix ($SPLICE_STATE)"
+      content_tree HEAD "$path"
+      local_tree="$CONTENT_TREE"
       # Diff order follows what the pending operation would apply, so
-      # insertions in the diffstat always mean "content gained": push
-      # diffs remote->local (what push would add to remote), pull diffs
-      # local->remote (what pull would add to local). diverged has no
-      # single right direction; remote->local is picked for consistency.
-      case "$SUBTREE_STATE" in
-        pull) git --no-pager diff --stat "$local_tree" "$SUBTREE_TARGET_REF" 2>/dev/null || true ;;
-        *) git --no-pager diff --stat "$SUBTREE_TARGET_REF" "$local_tree" 2>/dev/null || true ;;
+      # insertions always mean "content gained": push diffs upstream to
+      # local, pull local to upstream. diverged has no single right
+      # direction; upstream to local is picked for consistency.
+      case "$SPLICE_STATE" in
+        pull) git --no-pager diff --stat "$local_tree" "$SPLICE_TARGET_REF" 2>/dev/null || true ;;
+        *) git --no-pager diff --stat "$SPLICE_TARGET_REF" "$local_tree" 2>/dev/null || true ;;
       esac
       ;;
     unrelated-history)
-      status_warn "$path -> $SUBTREE_URL (unrelated history -- see 'git subtrees pull $path' for options)"
+      status_warn "$prefix (unrelated history -- see 'git splice merge $path' for options)"
       ;;
   esac
 }
 
-format_unmapped_remote_line() {
-  local remote="$1"
-  printf '??   %s -> (no mapping)\n' "$remote"
-}
-
 cmd_status() {
-  parse_base_args usage_status "$@"
-  local base="$BASE_ARG"
-  local paths=("${PATH_ARGS[@]}")
-
+  parse_args usage_status "" "$@"
+  local base="$BASE_ARG" branch path
   cd_to_repo_root
-  discover_subtrees
-  local branch
+  require_head_commit
+  discover_splices
+  if [[ ${#ALL_PATHS[@]} -eq 0 && ${#PATH_ARGS[@]} -eq 0 ]]; then
+    log_ok "no splices -- 'git splice clone <url> <path>' adds one"
+    return 0
+  fi
+  select_paths overview status
   branch="$(current_branch)"
-
-  local explicit_paths=0
-  if [[ ${#paths[@]} -eq 0 ]]; then
-    paths=("${ALL_PATHS[@]}")
-  else
-    explicit_paths=1
-  fi
-
-  local path
-  for path in "${paths[@]}"; do
-    is_subtree_path "$path" || die "not a subtree path: $path"
-  done
-
-  if ((explicit_paths == 0)); then
-    local remote
-    for remote in "${ALL_REMOTES[@]}"; do
-      is_subtree_path "$remote" || format_unmapped_remote_line "$remote"
-    done
-  fi
-
-  for path in "${paths[@]}"; do
+  for path in "${SELECTED_PATHS[@]}"; do
     format_status_line "$path" "$branch" "$base"
   done
 }

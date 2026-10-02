@@ -1,176 +1,124 @@
 setup() {
   load 'helpers/fixtures'
   load_lib
-  load 'scenarios/up-to-date/setup'
-  load 'scenarios/push-ahead/setup'
-  load 'scenarios/pull-ahead/setup'
-  load 'scenarios/diverged-common-ancestor/setup'
-  load 'scenarios/diverged-unrelated-history/setup'
-  load 'scenarios/not-connected/setup'
-  load 'scenarios/feature-branch-unchanged/setup'
-  load 'scenarios/feature-branch-changed/setup'
-  load 'scenarios/diverged-then-pulled/setup'
+  hermetic_git_config
+  local scenario
+  for scenario in up-to-date push-ahead pull-ahead diverged-common-ancestor \
+    diverged-unrelated-history never-fetched feature-branch-unchanged \
+    feature-branch-changed diverged-then-pulled pushed-then-changed \
+    squash-merged-pull merge-in-monorepo default-branch init-new-upstream; do
+    load "scenarios/$scenario/setup"
+  done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
-@test "status: reports up-to-date" {
-  scenario_up_to_date "$monorepo" "$upstream"
+# Runs scenario $1, then checks that vendor/a classifies as state $2.
+assert_state() {
+  "scenario_${1//-/_}" "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a"*"(up to date)"* ]]
+  classify_splice vendor/a "$(current_branch)"
+  echo "state: $SPLICE_STATE" >&2
+  [ "$SPLICE_STATE" = "$2" ]
 }
 
-@test "status: reports push" {
+@test "classify_splice: up-to-date" { assert_state up-to-date up-to-date; }
+@test "classify_splice: push" { assert_state push-ahead push; }
+@test "classify_splice: pull" { assert_state pull-ahead pull; }
+@test "classify_splice: diverged" { assert_state diverged-common-ancestor diverged; }
+@test "classify_splice: unrelated-history" { assert_state diverged-unrelated-history unrelated-history; }
+@test "classify_splice: never-fetched" { assert_state never-fetched never-fetched; }
+@test "classify_splice: missing-branch" { assert_state feature-branch-unchanged missing-branch; }
+@test "classify_splice: push after pulling a divergence" { assert_state diverged-then-pulled push; }
+@test "classify_splice: push after our own push and another local change" { assert_state pushed-then-changed push; }
+@test "classify_splice: push after a pull on a squash-merged branch" { assert_state squash-merged-pull push; }
+@test "classify_splice: missing-branch after a merge in the monorepo" { assert_state merge-in-monorepo missing-branch; }
+@test "classify_splice: push on the default branch, synced with upstream's master" { assert_state default-branch push; }
+
+@test "classify_splice: up-to-date after our own push" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
-  [[ "$output" == *"(push)"* ]]
+  splice push vendor/a >/dev/null 2>&1
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = up-to-date ]
 }
 
-@test "status: reports pull" {
-  scenario_pull_ahead "$monorepo" "$upstream"
+@test "classify_splice: push after our own push and its revert" {
+  scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
-  [[ "$output" == *"(pull)"* ]]
+  splice push vendor/a >/dev/null 2>&1
+  git revert --no-edit HEAD >/dev/null
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = push ]
 }
 
-@test "status: reports diverged with a diffstat" {
+@test "classify_splice: diverged when someone else committed on top of our push" {
+  scenario_pushed_then_changed "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "someone else"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = diverged ]
+}
+
+@test "classify_splice: someone else's commit with our content isn't taken for our push" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "local change"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  classify_splice vendor/a main
+  # Equal content: nothing to push or pull.
+  [ "$SPLICE_STATE" = up-to-date ]
+}
+
+@test "classify_splice: missing-branch, not never-fetched, for an init'd splice whose upstream is empty" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null
+  classify_splice lib/a main
+  [ "$SPLICE_STATE" = missing-branch ]
+}
+
+@test "status: prints each state" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
-  [[ "$output" == *"(diverged)"* ]]
-  [[ "$output" == *"file.txt"*"changed"* ]]
-}
-
-@test "status: reports unrelated-history distinctly from diverged" {
-  scenario_diverged_unrelated_history "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_status
-  [[ "$output" == *"unrelated history"* ]]
-  [[ "$output" != *"(diverged)"* ]]
-}
-
-@test "status: local changes still pending after pulling a divergence report push" {
-  scenario_diverged_then_pulled "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_status
-  [[ "$output" == *"(push)"* ]]
-  [[ "$output" == *"local.txt"* ]]
-}
-
-@test "status: reports not-connected" {
-  scenario_not_connected "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_status
-  [[ "$output" == *"never fetched"* ]]
-}
-
-@test "status: reports not-connected on stdout" {
-  scenario_not_connected "$monorepo" "$upstream"
-  cd "$monorepo"
-  local stderr="$BATS_TEST_TMPDIR/status.stderr"
-
-  run bash -c '"$1" status 2>"$2"' _ "$BATS_TEST_DIRNAME/../git-subtrees" "$stderr"
-
   [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a"* ]]
-  [[ "$output" == *"never fetched"* ]]
-  [[ ! -s "$stderr" ]]
+  [[ "${lines[0]}" == "ok   vendor/a -> main (diverged)" ]]
+  [[ "$output" == *"file.txt | 2 +-"* ]]
 }
 
-@test "status: shows no mapping for a remote with no matching directory" {
-  make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "seed"
-  init_monorepo "$monorepo"
+@test "status: names upstream's branch when it differs" {
+  scenario_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
-  git remote add ghost "$upstream"
   run cmd_status
-  [[ "$output" == *"ghost -> (no mapping)"* ]]
+  [[ "${lines[0]}" == "ok   vendor/a -> master (push)" ]]
 }
 
-@test "status: does not print unmapped remote URL" {
-  init_monorepo "$monorepo"
+@test "status: covers every splice by default and takes paths" {
+  load 'scenarios/shared-remote-url/setup'
+  scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
-  git remote add origin "https://user:token@example.com/repo.git"
-
   run cmd_status
-
-  [[ "$output" == *"origin -> (no mapping)"* ]]
-  [[ "$output" != *"token"* ]]
-  [[ "$output" != *"example.com"* ]]
+  [ "${#lines[@]}" -eq 2 ]
+  run cmd_status vendor/b
+  [ "$output" = "ok   vendor/b -> main (up to date)" ]
 }
 
-@test "status: path arguments restrict output to those paths" {
-  make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "seed"
-  init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
-  local upstream_b="$BATS_TEST_TMPDIR/upstream-b.git"
-  make_bare_repo "$upstream_b"
-  seed_bare_repo "$upstream_b" "seed-b"
-  add_subtree "$monorepo" "$upstream_b" "vendor/b"
-  local unmapped="$BATS_TEST_TMPDIR/unmapped.git"
-  make_bare_repo "$unmapped"
-  cd "$monorepo"
-  git remote add ghost "$unmapped"
-
-  run cmd_status vendor/a
-  [[ "$output" == *"vendor/a"* ]]
-  [[ "$output" != *"vendor/b"* ]]
-  [[ "$output" != *"ghost"* ]]
-}
-
-@test "status: run from inside a subtree directory reports the same as from the root" {
-  scenario_up_to_date "$monorepo" "$upstream"
-  cd "$monorepo/vendor/a"
-  run cmd_status
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a"*"(up to date)"* ]]
-  [[ "$output" != *"no mapping"* ]]
-}
-
-@test "status: a branch missing on the remote, unchanged since the base branch" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_status --base main
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a"*"(no 'feature' branch on remote; unchanged since 'main')"* ]]
-}
-
-@test "status: a branch missing on the remote, changed since the base branch, with a diffstat" {
-  hermetic_git_config
-  scenario_feature_branch_changed "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_status --base main
-  [[ "$output" == *"changed since 'main' -- push would create it"* ]]
-  [[ "$output" == *"file.txt"* ]]
-}
-
-@test "status: finds the base branch through init.defaultBranch" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git config init.defaultBranch main
-  run cmd_status
-  [[ "$output" == *"unchanged since 'main'"* ]]
-}
-
-@test "status: without a base branch it asks for --base" {
-  hermetic_git_config
+@test "status: missing branch, unchanged and changed" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
-  [[ "$output" == *"monorepo base branch unknown -- pass --base <branch>"* ]]
+  [[ "${lines[0]}" == *"(no such branch upstream; changed since 'main' -- push would create it)" ]]
+  [[ "$output" == *"file.txt | 1 +"* ]]
+  git checkout -q -b other main
+  run cmd_status
+  [[ "$output" == *"(no such branch upstream; unchanged since 'main')" ]]
 }
 
-@test "status: an empty --base is an error" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
+@test "status: says how to start without splices" {
+  init_monorepo "$monorepo"
   cd "$monorepo"
-  run cmd_status --base=
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"--base needs a branch name"* ]]
+  run cmd_status
+  [[ "$output" == *"no splices"* ]]
 }

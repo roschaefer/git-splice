@@ -4,12 +4,7 @@ scenario_feature_branch_changed() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
-  (
-    cd "$monorepo"
-    git checkout -q -b feature
-    echo "local change" >>vendor/a/file.txt
-    git add vendor/a/file.txt
-    git commit -q -m "local change"
-  )
+  add_splice "$monorepo" "$upstream" "vendor/a"
+  git -C "$monorepo" checkout -q -b feature
+  commit_local "$monorepo" "vendor/a" "local change"
 }

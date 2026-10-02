@@ -4,7 +4,7 @@
 #
 # Completion widgets only run inside a live line editor, so this starts an
 # interactive zsh in a pseudo-terminal (zsh/zpty), installs <completion-file>
-# as _git-subtrees, types <line> and asks for the list of choices. The
+# as _git-splice, types <line> and asks for the list of choices. The
 # candidates are what zsh prints between the typed line and its redraw.
 
 zmodload zsh/zpty
@@ -32,7 +32,7 @@ main() {
   local comp_file=$1 line=$2 rc_dir output="" candidates
   rc_dir=$(mktemp -d)
   mkdir "$rc_dir/fpath"
-  cp "$comp_file" "$rc_dir/fpath/_git-subtrees"
+  cp "$comp_file" "$rc_dir/fpath/_git-splice"
   cat >"$rc_dir/.zshrc" <<RC
 PS1='> '
 setopt no_beep

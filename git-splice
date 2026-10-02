@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# git splice -- keep folders of a monorepo in sync with their own upstream
+# repositories, in both directions.
+#
+# A splice is a folder with a committed .splice file that names its
+# upstream URL and the upstream commit it last matched. Every splice syncs
+# with the upstream branch named like the monorepo's current branch. See
+# docs/design/README.md.
+set -euo pipefail
+
+VERSION=0.1.0 # x-release-please-version
+
+if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4))); then
+  printf '!!   git-splice requires Bash >= 4.4 (found %s)\n' "$BASH_VERSION" >&2
+  exit 1
+fi
+
+# Git 2.40 is the oldest version the tests run against.
+git_version="$(git --version | sed -n 's/^git version \([0-9]*\)\.\([0-9]*\).*/\1 \2/p')"
+read -r git_major git_minor <<<"$git_version"
+if ((git_major < 2 || (git_major == 2 && git_minor < 40))); then
+  printf '!!   git-splice requires Git >= 2.40 (found %s)\n' "$(git --version)" >&2
+  exit 1
+fi
+
+real_path="$(readlink -f "${BASH_SOURCE[0]}")"
+script_dir="$(cd "$(dirname "$real_path")" && pwd)"
+
+# shellcheck source=lib/common.sh
+source "$script_dir/lib/common.sh"
+# shellcheck source=lib/rebuild.sh
+source "$script_dir/lib/rebuild.sh"
+# shellcheck source=lib/state.sh
+source "$script_dir/lib/state.sh"
+# shellcheck source=lib/pager.sh
+source "$script_dir/lib/pager.sh"
+# shellcheck source=lib/clone.sh
+source "$script_dir/lib/clone.sh"
+# shellcheck source=lib/init.sh
+source "$script_dir/lib/init.sh"
+# shellcheck source=lib/fetch.sh
+source "$script_dir/lib/fetch.sh"
+# shellcheck source=lib/merge.sh
+source "$script_dir/lib/merge.sh"
+# shellcheck source=lib/pull.sh
+source "$script_dir/lib/pull.sh"
+# shellcheck source=lib/push.sh
+source "$script_dir/lib/push.sh"
+# shellcheck source=lib/status.sh
+source "$script_dir/lib/status.sh"
+# shellcheck source=lib/diff.sh
+source "$script_dir/lib/diff.sh"
+# shellcheck source=lib/log.sh
+source "$script_dir/lib/log.sh"
+
+top_usage() {
+  cat <<'EOF'
+usage: git splice <command> [<args>]
+
+A splice is a folder of this repository that has its own upstream
+repository, recorded in <path>/.splice. Every splice syncs with the
+upstream branch named like the current branch.
+
+Splicing in or out -- name the splices, or pass --all:
+  clone [--merge] <url> [<path>]      splice an existing repository in
+  init <path> <url>                   make a folder a splice of an empty repository
+  merge (<path>... | --all)           splice in already-fetched upstream changes
+  pull (<path>... | --all)            fetch, then merge
+  push [--base <b>] [--force] (<path>... | --all)
+                                      publish local changes upstream
+
+Looking -- every splice unless paths are given:
+  status [--base <b>] [path...]       show each splice's sync state
+  diff [--base <b>] [path...]         show the file changes push would send
+  log [path...]                       show the commits push and pull would move
+  fetch [path...]                     fetch the upstreams
+
+Run 'git splice <command> -h' for command-specific help, and
+'git splice --version' for the version.
+EOF
+}
+
+main() {
+  if [[ $# -eq 0 ]]; then
+    top_usage >&2
+    exit 1
+  fi
+
+  local command="$1"
+  shift
+  case "$command" in
+    -h | --help)
+      top_usage
+      ;;
+    --version)
+      printf 'git splice version %s\n' "$VERSION"
+      ;;
+    clone | init | fetch | merge | pull | push | status | diff | log)
+      "cmd_$command" "$@"
+      ;;
+    *)
+      log_err "unknown command: $command"
+      top_usage >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

@@ -1,277 +1,142 @@
 setup() {
   load 'helpers/fixtures'
   load_lib
+  hermetic_git_config
   load 'scenarios/up-to-date/setup'
   load 'scenarios/push-ahead/setup'
-  load 'scenarios/pull-ahead/setup'
-  load 'scenarios/diverged-common-ancestor/setup'
-  load 'scenarios/diverged-unrelated-history/setup'
-  load 'scenarios/not-connected/setup'
+  load 'scenarios/shared-remote-url/setup'
+  load 'scenarios/nested-splices/setup'
   load 'scenarios/feature-branch-unchanged/setup'
   load 'scenarios/feature-branch-changed/setup'
-  load 'scenarios/pushed-then-changed/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
-@test "discover_subtrees finds only remotes matching a directory" {
-  make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "seed"
+@test "discover_splices finds every folder with a committed .splice" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir -p untracked && echo x >untracked/.splice
+  discover_splices
+  [ "${ALL_PATHS[*]}" = "vendor/a vendor/b" ]
+}
+
+@test "discover_splices is empty without .splice files" {
   init_monorepo "$monorepo"
   cd "$monorepo"
-  mkdir -p vendor/a
-  git remote add vendor/a "$upstream"
-  git remote add ghost "$upstream" # no matching dir
-
-  discover_subtrees
-
-  [[ " ${ALL_REMOTES[*]} " == *" vendor/a "* ]]
-  [[ " ${ALL_REMOTES[*]} " == *" ghost "* ]]
-  [[ " ${ALL_PATHS[*]} " == *" vendor/a "* ]]
-  [[ " ${ALL_PATHS[*]} " != *" ghost "* ]]
+  discover_splices
+  [ ${#ALL_PATHS[@]} -eq 0 ]
 }
 
-@test "discover_subtrees finds nested sibling remotes" {
-  make_bare_repo "$upstream"
+@test "discover_splices refuses nested splices" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  run discover_splices
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nested splices are not supported: 'vendor/pkg' and 'vendor/pkg/extra' overlap"* ]]
+}
+
+@test "discover_splices refuses a .splice at the repository root" {
   init_monorepo "$monorepo"
   cd "$monorepo"
-  mkdir -p packages/alpha packages/bravo packages/charlie
-  git remote add packages/alpha "$upstream"
-  git remote add packages/bravo "$upstream"
-  git remote add packages/charlie "$upstream"
-
-  discover_subtrees
-
-  [[ " ${ALL_PATHS[*]} " == *" packages/alpha "* ]]
-  [[ " ${ALL_PATHS[*]} " == *" packages/bravo "* ]]
-  [[ " ${ALL_PATHS[*]} " == *" packages/charlie "* ]]
+  echo x >.splice
+  git add .splice
+  run discover_splices
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"must be a folder"* ]]
 }
 
-@test "discover_subtrees is empty with zero remotes" {
-  init_monorepo "$monorepo"
+@test "select_paths: splicing in or out needs paths or --all" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
-  discover_subtrees
-  [[ ${#ALL_REMOTES[@]} -eq 0 ]]
-  [[ ${#ALL_PATHS[@]} -eq 0 ]]
+  discover_splices
+  PATH_ARGS=() ALL_ARG=""
+  run select_paths explicit push
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"which splice?"*"vendor/a vendor/b"* ]]
+  ALL_ARG=1
+  select_paths explicit push
+  [ "${SELECTED_PATHS[*]}" = "vendor/a vendor/b" ]
 }
 
-@test "is_subtree_path is false for an unmatched directory and an unmatched remote" {
-  init_monorepo "$monorepo"
+@test "select_paths: looking covers every splice by default" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
-  mkdir -p not-a-subtree
-  discover_subtrees
-  run is_subtree_path "not-a-subtree"
+  discover_splices
+  PATH_ARGS=() ALL_ARG=""
+  select_paths overview status
+  [ "${SELECTED_PATHS[*]}" = "vendor/a vendor/b" ]
+}
+
+@test "select_paths: normalizes and deduplicates paths, and refuses others" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  discover_splices
+  PATH_ARGS=(./vendor/b/ vendor/b) ALL_ARG=""
+  select_paths explicit push
+  [ "${SELECTED_PATHS[*]}" = "vendor/b" ]
+  PATH_ARGS=(vendor)
+  run select_paths explicit push
   [ "$status" -eq 1 ]
-  run is_subtree_path "vendor/nonexistent"
+  [[ "$output" == *"not a splice: vendor"* ]]
+}
+
+@test "select_paths: paths and --all together are refused" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  discover_splices
+  PATH_ARGS=(vendor/a) ALL_ARG=1
+  run select_paths explicit push
   [ "$status" -eq 1 ]
 }
 
-@test "usable_with_git_subtree is false only for a name starting with '-'" {
-  run usable_with_git_subtree "vendor/a"
-  [ "$status" -eq 0 ]
-  run usable_with_git_subtree "-n"
+@test "parse_args: refuses options the command doesn't take" {
+  usage() { echo usage; }
+  run parse_args usage "--merge" --force vendor/a
   [ "$status" -eq 1 ]
-  run usable_with_git_subtree "--dry-run"
-  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown option: --force"* ]]
+  parse_args usage "--merge" --merge --base main -- --odd-path
+  has_flag --merge
+  [ "$BASE_ARG" = main ]
+  [ "${PATH_ARGS[*]}" = "--odd-path" ]
 }
 
-@test "classify_subtree: up-to-date" {
+@test "state_blob sets and unsets keys of the committed .splice" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "up-to-date" ]
+  local blob
+  blob="$(state_blob vendor/a commit=abc default-branch=master)"
+  [ "$(git config --blob "$blob" splice.commit)" = abc ]
+  [ "$(git config --blob "$blob" splice.default-branch)" = master ]
+  [ "$(git config --blob "$blob" splice.url)" = "$upstream" ]
+  blob="$(state_blob vendor/a default-branch=)"
+  ! git config --blob "$blob" splice.default-branch
 }
 
-@test "classify_subtree: push" {
-  scenario_push_ahead "$monorepo" "$upstream"
+@test "upstream_branch_for maps only the monorepo's default branch to default-branch" {
+  scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "push" ]
+  [ "$(upstream_branch_for vendor/a main)" = main ]
+  git config --file vendor/a/.splice splice.default-branch master
+  git commit -q -am "upstream calls it master"
+  [ "$(upstream_branch_for vendor/a main)" = master ]
+  [ "$(upstream_branch_for vendor/a feature)" = feature ]
 }
 
-@test "classify_subtree: push after our own push and another local change" {
-  scenario_pushed_then_changed "$monorepo" "$upstream"
+@test "folder_tree is empty for a missing folder or a file" {
+  scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "push" ]
+  [ -n "$(folder_tree HEAD vendor/a)" ]
+  [ -z "$(folder_tree HEAD vendor/nope)" ]
+  [ -z "$(folder_tree HEAD vendor/a/file.txt)" ]
 }
 
-@test "classify_subtree: diverged when someone else committed on top of our push" {
-  scenario_pushed_then_changed "$monorepo" "$upstream"
-  seed_bare_repo "$upstream" "their change"
-  cd "$monorepo"
-  git fetch -q vendor/a
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "diverged" ]
+@test "shell_quote leaves plain words alone and quotes everything else as one word" {
+  [ "$(shell_quote vendor/a)" = "vendor/a" ]
+  [ "$(shell_quote "it's x;y")" = "'it'\\''s x;y'" ]
 }
 
-@test "classify_subtree: pull when someone else committed on top of our push and local didn't change" {
-  scenario_pushed_then_changed "$monorepo" "$upstream"
-  seed_bare_repo "$upstream" "their change"
-  cd "$monorepo"
-  git reset -q --hard HEAD~1
-  git fetch -q vendor/a
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "pull" ]
-}
-
-@test "classify_subtree: someone else's commit with our content isn't taken for our push" {
-  scenario_pushed_then_changed "$monorepo" "$upstream"
-  cd "$monorepo"
-  # Replace the remote's tip with a commit of the same tree but other
-  # metadata, as if someone else had made the same change independently.
-  local theirs
-  theirs="$(GIT_AUTHOR_DATE='2001-01-01T00:00:00' GIT_COMMITTER_DATE='2001-01-01T00:00:00' \
-    git commit-tree 'vendor/a/main^{tree}' -p 'vendor/a/main~1' -m "their change")"
-  git push -q --force vendor/a "$theirs:refs/heads/main"
-  git fetch -q vendor/a
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "diverged" ]
-}
-
-@test "classify_subtree: pull without splitting when local didn't change" {
-  scenario_pull_ahead "$monorepo" "$upstream"
-  cd "$monorepo"
-  git() {
-    if [[ "$1" == subtree && "$2" == split ]]; then
-      return 1
-    fi
-    command git "$@"
-  }
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "pull" ]
-}
-
-@test "classify_subtree: push after our own push and its revert" {
-  scenario_pushed_then_changed "$monorepo" "$upstream"
-  cd "$monorepo"
-  # Back to the sync point's content, but split still has the pushed
-  # commit and the reverts on top of it.
-  git revert --no-edit HEAD HEAD~1 >/dev/null
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "push" ]
-}
-
-@test "classify_subtree: push when the remote was rewound behind the sync point" {
-  make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "seed"
-  seed_bare_repo "$upstream" "second"
-  init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
-  git -C "$upstream" update-ref refs/heads/main main~1
-  cd "$monorepo"
-  git fetch -q --force vendor/a
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "push" ]
-}
-
-@test "classify_subtree: a failing split is an error, not a state" {
-  scenario_pushed_then_changed "$monorepo" "$upstream"
-  cd "$monorepo"
-  git() {
-    if [[ "$1" == subtree && "$2" == split ]]; then
-      echo "fatal: disk full" >&2
-      return 1
-    fi
-    command git "$@"
-  }
-  run classify_subtree "vendor/a" "main"
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"disk full"* ]]
-  [[ "$output" == *"vendor/a: git subtree split failed"* ]]
-}
-
-@test "classify_subtree: pull" {
-  scenario_pull_ahead "$monorepo" "$upstream"
-  cd "$monorepo"
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "pull" ]
-}
-
-@test "classify_subtree: diverged (common ancestor)" {
-  scenario_diverged_common_ancestor "$monorepo" "$upstream"
-  cd "$monorepo"
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "diverged" ]
-}
-
-@test "classify_subtree: unrelated-history (never subtree-added)" {
-  make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "seed"
-  init_monorepo "$monorepo"
-  cd "$monorepo"
-  mkdir -p vendor/a
-  echo "pre-existing" >vendor/a/other.txt
-  git add vendor/a && git commit -q -m "pre-existing"
-  git remote add vendor/a "$upstream"
-  git fetch -q vendor/a
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "unrelated-history" ]
-}
-
-@test "classify_subtree: unrelated-history (remote history replaced after sync)" {
-  scenario_diverged_unrelated_history "$monorepo" "$upstream"
-  cd "$monorepo"
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "unrelated-history" ]
-}
-
-@test "classify_subtree: resolves the URL of a remote named like a flag" {
-  make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "seed"
-  init_monorepo "$monorepo"
-  cd "$monorepo"
-  mkdir -p -- -n
-  git remote add -- -n "$upstream"
-  git fetch -q -- -n
-
-  classify_subtree "-n" "main"
-  [ "$SUBTREE_URL" = "$upstream" ]
-}
-
-@test "classify_subtree: not-connected" {
-  scenario_not_connected "$monorepo" "$upstream"
-  cd "$monorepo"
-  classify_subtree "vendor/a" "main"
-  [ "$SUBTREE_STATE" = "not-connected" ]
-}
-
-@test "classify_subtree: missing-at-head" {
-  make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "seed"
-  init_monorepo "$monorepo"
-  cd "$monorepo"
-  git remote add vendor/a "$upstream"
-  git fetch -q vendor/a
-  git checkout -q -b feature
-  mkdir -p vendor/a
-  classify_subtree "vendor/a" "feature"
-  [ "$SUBTREE_STATE" = "missing-at-head" ]
-}
-
-@test "resolve_base_ref: prefers an explicit branch over the configured one" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git branch other main
-  git config init.defaultBranch other
-  run resolve_base_ref main
-  [ "$status" -eq 0 ]
-  [ "$output" = "refs/heads/main" ]
-}
-
-@test "resolve_base_ref: falls back to init.defaultBranch" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git config init.defaultBranch main
-  run resolve_base_ref
-  [ "$status" -eq 0 ]
-  [ "$output" = "refs/heads/main" ]
-}
-
-# Gives the monorepo an "origin" of its own (not a subtree remote), with
-# origin/HEAD pointing at main.
+# Gives the monorepo an "origin" of its own, with origin/HEAD pointing at
+# main.
 add_monorepo_origin() {
   local origin="$BATS_TEST_TMPDIR/monorepo-origin.git"
   make_bare_repo "$origin"
@@ -281,82 +146,49 @@ add_monorepo_origin() {
   git remote set-head origin main
 }
 
+@test "resolve_base_ref: prefers an explicit branch over the default branch" {
+  scenario_feature_branch_unchanged "$monorepo" "$upstream"
+  cd "$monorepo"
+  git branch other main
+  git config init.defaultBranch other
+  run resolve_base_ref main
+  [ "$output" = "refs/heads/main" ]
+}
+
 @test "resolve_base_ref: uses origin/HEAD before init.defaultBranch" {
-  hermetic_git_config
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   git branch trunk main
   git config init.defaultBranch trunk
   add_monorepo_origin
   run resolve_base_ref
-  [ "$status" -eq 0 ]
-  [ "$output" = "refs/heads/main" ]
-}
-
-@test "resolve_base_ref: accepts origin/<name> when there is no local branch" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  add_monorepo_origin
-  git branch -q -D main
-  run resolve_base_ref
-  [ "$status" -eq 0 ]
-  [ "$output" = "refs/remotes/origin/main" ]
-}
-
-@test "resolve_base_ref: accepts a remote-tracking branch or a full ref as --base" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  add_monorepo_origin
-  run resolve_base_ref origin/main
-  [ "$status" -eq 0 ]
-  [ "$output" = "refs/remotes/origin/main" ]
-  run resolve_base_ref refs/heads/main
-  [ "$status" -eq 0 ]
   [ "$output" = "refs/heads/main" ]
 }
 
 @test "resolve_base_ref: a stale local branch doesn't hide the fresher origin/<name>" {
-  hermetic_git_config
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   add_monorepo_origin
   local stale
   stale="$(git rev-parse main)"
   git checkout -q main
-  echo "changed on main" >>vendor/a/file.txt
-  git commit -q -am "change on main"
+  commit_local "$monorepo" "vendor/a" "changed on main"
   git push -q origin main
   git checkout -q -b fresh origin/main
   git branch -q -f main "$stale"
-  git config init.defaultBranch main
   run resolve_base_ref
-  [ "$status" -eq 0 ]
   [ "$output" = "refs/remotes/origin/main" ]
-  changes_vs_base "vendor/a"
-  [ "$SUBTREE_CHANGES_VS_BASE" = "no" ]
 }
 
 @test "resolve_base_ref: fails when nothing names a base branch" {
-  hermetic_git_config
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
+  git config --unset init.defaultBranch
   run resolve_base_ref
-  [ "$status" -eq 1 ]
-  [ -z "$output" ]
-}
-
-@test "resolve_base_ref: fails for a branch that does not exist" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  run resolve_base_ref nope
   [ "$status" -eq 1 ]
 }
 
 @test "resolve_base_ref: rejects a branch that shares no history with HEAD" {
-  hermetic_git_config
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q --orphan orphan
@@ -366,93 +198,64 @@ add_monorepo_origin() {
   [ "$status" -eq 1 ]
 }
 
-@test "changes_vs_base: no when the subtree is untouched on this branch" {
-  hermetic_git_config
+@test "changes_vs_base: no when the splice is untouched on this branch" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
-  changes_vs_base "vendor/a" main
-  [ "$SUBTREE_CHANGES_VS_BASE" = "no" ]
-  [ "$SUBTREE_BASE_BRANCH" = "main" ]
+  changes_vs_base vendor/a
+  [ "$SPLICE_CHANGES_VS_BASE" = no ]
+  [ "$SPLICE_BASE_BRANCH" = main ]
 }
 
-@test "changes_vs_base: yes when the subtree changed on this branch" {
-  hermetic_git_config
+@test "changes_vs_base: yes when the splice changed on this branch" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  changes_vs_base "vendor/a" main
-  [ "$SUBTREE_CHANGES_VS_BASE" = "yes" ]
-  [ "$SUBTREE_BASE_MERGE_BASE" = "$(git rev-parse main)" ]
+  changes_vs_base vendor/a
+  [ "$SPLICE_CHANGES_VS_BASE" = yes ]
+  [ "$SPLICE_BASE_MERGE_BASE" = "$(git rev-parse main)" ]
 }
 
-@test "changes_vs_base: yes for a subtree added on this branch" {
-  hermetic_git_config
+@test "changes_vs_base: a change to .splice alone doesn't count" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  local upstream_b="$BATS_TEST_TMPDIR/upstream-b.git"
-  make_bare_repo "$upstream_b"
-  seed_bare_repo "$upstream_b" "seed"
-  add_subtree "$monorepo" "$upstream_b" "vendor/b"
   cd "$monorepo"
-  changes_vs_base "vendor/b" main
-  [ "$SUBTREE_CHANGES_VS_BASE" = "yes" ]
+  git config --file vendor/a/.splice splice.default-branch other
+  git commit -q -am "only .splice"
+  changes_vs_base vendor/a
+  [ "$SPLICE_CHANGES_VS_BASE" = no ]
 }
 
 @test "changes_vs_base: changes made on the base branch after the cut don't count" {
-  hermetic_git_config
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q main
-  echo "later, on main" >>vendor/a/file.txt
-  git commit -q -am "change on main"
+  commit_local "$monorepo" "vendor/a" "later, on main"
   git checkout -q feature
-  changes_vs_base "vendor/a" main
-  [ "$SUBTREE_CHANGES_VS_BASE" = "no" ]
-}
-
-@test "changes_vs_base: changes already on the base branch don't count" {
-  hermetic_git_config
-  scenario_push_ahead "$monorepo" "$upstream"
-  cd "$monorepo"
-  git checkout -q -b feature
-  changes_vs_base "vendor/a" main
-  [ "$SUBTREE_CHANGES_VS_BASE" = "no" ]
+  changes_vs_base vendor/a
+  [ "$SPLICE_CHANGES_VS_BASE" = no ]
 }
 
 @test "changes_vs_base: self on the base branch itself" {
-  hermetic_git_config
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q main
-  changes_vs_base "vendor/a" main
-  [ "$SUBTREE_CHANGES_VS_BASE" = "self" ]
-}
-
-@test "changes_vs_base: a git failure is reported as error, never as changed" {
-  hermetic_git_config
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  changes_vs_base ":(bogus)vendor/a" main
-  [ "$SUBTREE_CHANGES_VS_BASE" = "error" ]
+  changes_vs_base vendor/a
+  [ "$SPLICE_CHANGES_VS_BASE" = self ]
 }
 
 @test "changes_vs_base: unresolved without a base branch" {
-  hermetic_git_config
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
-  changes_vs_base "vendor/a"
-  [ "$SUBTREE_CHANGES_VS_BASE" = "unresolved" ]
-  [ -z "$SUBTREE_BASE_REF" ]
-}
-
-@test "shell_quote leaves plain words alone and quotes everything else as one word" {
-  [ "$(shell_quote vendor/a)" = "vendor/a" ]
-  [ "$(shell_quote 'x;id')" = "'x;id'" ]
-  local quoted
-  quoted="$(shell_quote "it's \$HOME")"
-  [ "$(eval "printf '%s' $quoted")" = "it's \$HOME" ]
+  git config --unset init.defaultBranch
+  changes_vs_base vendor/a
+  [ "$SPLICE_CHANGES_VS_BASE" = unresolved ]
+  [ -z "$SPLICE_BASE_REF" ]
 }
 
 @test "print_unrelated_history_guidance quotes names with shell metacharacters" {
-  run print_unrelated_history_guidance 'vendor/x;id' main
-  [[ "$output" == *"git rm -r 'vendor/x;id'"* ]]
-  [[ "$output" == *"git push --force 'vendor/x;id' 'tmp-split-x;id:main'"* ]]
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run print_unrelated_history_guidance "vendor/a"
+  [[ "$output" == *"git splice push --force vendor/a"* ]]
+  [[ "$output" == *"git rm -q vendor/a/.splice"* ]]
+  run print_unrelated_history_guidance "x;id"
+  [[ "$output" == *"git splice push --force 'x;id'"* ]]
 }

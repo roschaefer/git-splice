@@ -4,6 +4,6 @@ scenario_shared_remote_url() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
-  add_subtree "$monorepo" "$upstream" "vendor/b"
+  add_splice "$monorepo" "$upstream" "vendor/a"
+  add_splice "$monorepo" "$upstream" "vendor/b"
 }

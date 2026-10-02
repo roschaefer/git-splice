@@ -1,10 +1,10 @@
-# Prints the arguments git-subtrees receives when a command line is
+# Prints the arguments git-splice receives when a command line is
 # completed and run in a real interactive bash, as "[arg][arg]...".
 #
 #   zsh test/helpers/bash-complete.zsh <completion-file> <line>
 #
 # Starts the bash on PATH in a pseudo-terminal (zsh/zpty), sources
-# <completion-file>, replaces git-subtrees with a function printing its
+# <completion-file>, replaces git-splice with a function printing its
 # arguments, types <line>, presses Tab once, then Enter. Unlike calling the
 # completion function with hand-made COMP_WORDS, this covers how bash
 # splits the line into words, how readline inserts the completion, and what
@@ -33,7 +33,7 @@ main() {
   zpty -w b "source '$comp_file'"
   # The markers are spelled differently in the typed commands than in their
   # output, so a terminal echoing the input can't match them early.
-  zpty -w b "git-subtrees() { printf '__AR''GS__'; printf '[%s]' \"\$@\"; printf '__E''ND__\\n'; }"
+  zpty -w b "git-splice() { printf '__AR''GS__'; printf '[%s]' \"\$@\"; printf '__E''ND__\\n'; }"
   zpty -w b "echo __READY\"\"__"
   read_until __READY__ || { zpty -d b; return 1; }
 

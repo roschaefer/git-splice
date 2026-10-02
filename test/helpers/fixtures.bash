@@ -2,14 +2,18 @@
 # Named scenarios compose these into the specific history shapes bats
 # tests exercise -- see each scenario folder's README.md.
 
+FIXTURES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 make_bare_repo() {
-  git init -q --bare --initial-branch=main "$1"
+  git init -q --bare --initial-branch="${2:-main}" "$1"
 }
 
-# Clones $1, appends line $2 to file.txt (creating it if needed), commits
-# with message $2, and pushes to branch $3 (default: main).
+# Clones $1, appends line $2 to file $4 (default: file.txt, created if
+# needed), commits with message $2, and pushes to branch $3 (default:
+# main). A missing branch is created from the remote's HEAD, or as the
+# first commit of an empty repository.
 seed_bare_repo() {
-  local repo="$1" msg="$2" branch="${3:-main}" tmp
+  local repo="$1" msg="$2" branch="${3:-main}" file="${4:-file.txt}" tmp
   tmp="$(mktemp -d)"
   git clone -q "$repo" "$tmp" 2>/dev/null
   (
@@ -22,8 +26,9 @@ seed_bare_repo() {
     else
       git checkout -q -B "$branch"
     fi
-    echo "$msg" >>file.txt
-    git add file.txt
+    mkdir -p "$(dirname "$file")"
+    echo "$msg" >>"$file"
+    git add "$file"
     git commit -q -m "$msg"
     git push -q origin "HEAD:$branch"
   )
@@ -31,29 +36,59 @@ seed_bare_repo() {
 }
 
 # Initializes a monorepo working tree at $1 with local git identity (CI
-# runners have no global one) and one initial commit. Does not cd --
-# callers use their own cwd or a subshell.
+# runners have no global one), main as its default branch, and one
+# initial commit. Does not cd -- callers use their own cwd or a subshell.
 init_monorepo() {
   git init -q -b main "$1"
   (
     cd "$1"
     git config user.name "Test"
     git config user.email "test@example.com"
+    git config init.defaultBranch main
     git commit -q --allow-empty -m "initial commit"
   )
 }
 
-# Adds bare repo $2 to $3 inside monorepo $1 via raw git plumbing --
-# deliberately NOT via cmd_init, so other commands' tests don't depend on
-# init's own correctness or implementation order.
-add_subtree() {
-  local monorepo="$1" remote_url="$2" path="$3" branch="${4:-main}"
+# Fetches every branch of upstream $2 into monorepo $1's refs for splice
+# $3, like `git splice fetch` does.
+fetch_splice() {
+  local monorepo="$1" url="$2" path="$3"
+  git -C "$monorepo" fetch -q --no-tags --prune -- "$url" "+refs/heads/*:refs/splices/$path/*"
+}
+
+# Splices branch $4 (default: main) of upstream $2 into $3 inside monorepo
+# $1 via raw git plumbing -- deliberately NOT via cmd_clone, so other
+# commands' tests don't depend on clone's own correctness.
+add_splice() {
+  local monorepo="$1" url="$2" path="$3" branch="${4:-main}" commit
+  fetch_splice "$monorepo" "$url" "$path"
   (
     cd "$monorepo"
-    git remote add "$path" "$remote_url"
-    git fetch -q "$path"
-    git subtree add -q --prefix="$path" "$path" "$branch" --squash
+    commit="$(git rev-parse "refs/splices/$path/$branch")"
+    git read-tree --prefix="$path/" -u "$commit"
+    printf '[splice]\n\turl = %s\n\tcommit = %s\n' "$url" "$commit" >"$path/.splice"
+    git add "$path"
+    git commit -q -m "add $path"
   )
+}
+
+# Appends line $3 to <path>/file.txt in monorepo $1 (path $2) and commits
+# it with message $3.
+commit_local() {
+  local monorepo="$1" path="$2" msg="$3" file="${4:-file.txt}"
+  (
+    cd "$monorepo"
+    mkdir -p "$(dirname "$path/$file")"
+    echo "$msg" >>"$path/$file"
+    git add "$path/$file"
+    git commit -q -m "$msg"
+  )
+}
+
+# Runs the real git-splice entrypoint, for scenarios whose history needs
+# a command's own result (e.g. an earlier push).
+splice() {
+  "$FIXTURES_DIR/../../git-splice" "$@"
 }
 
 # Ignores the developer's own git config (e.g. a global init.defaultBranch),
@@ -66,23 +101,9 @@ hermetic_git_config() {
 # Sources every lib/*.sh file so tests can call functions directly, mirroring
 # the order the real entrypoint uses.
 load_lib() {
-  local lib_dir="$BATS_TEST_DIRNAME/../lib"
-  # shellcheck disable=SC1091
-  source "$lib_dir/common.sh"
-  # shellcheck disable=SC1091
-  source "$lib_dir/init.sh"
-  # shellcheck disable=SC1091
-  source "$lib_dir/fetch.sh"
-  # shellcheck disable=SC1091
-  source "$lib_dir/merge.sh"
-  # shellcheck disable=SC1091
-  source "$lib_dir/pull.sh"
-  # shellcheck disable=SC1091
-  source "$lib_dir/prune.sh"
-  # shellcheck disable=SC1091
-  source "$lib_dir/push.sh"
-  # shellcheck disable=SC1091
-  source "$lib_dir/diff.sh"
-  # shellcheck disable=SC1091
-  source "$lib_dir/status.sh"
+  local lib_dir="$BATS_TEST_DIRNAME/../lib" file
+  for file in common rebuild state pager clone init fetch merge pull push status diff log; do
+    # shellcheck disable=SC1090
+    source "$lib_dir/$file.sh"
+  done
 }
