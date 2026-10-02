@@ -20,8 +20,8 @@ cd "$WALKTHROUGH/monorepo" || return
 
 # The walkthroughs show what a terminal shows, stderr included, with the
 # sandbox's random path as $WALKTHROUGH, as `just walkthrough` exports it.
-# git subtree split's progress counter rewrites itself with \r; only what
-# follows the last \r of a line stays.
+# Git's progress counters rewrite themselves with \r; only what follows
+# the last \r of a line stays.
 git() {
   command git "$@" 2>&1 |
     sed -E "s#\r\$##; s#.*\r##; s#$WALKTHROUGH#\$WALKTHROUGH#g"

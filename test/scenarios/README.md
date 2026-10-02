@@ -1,14 +1,15 @@
 # Scenarios
 
-Each folder here is one state a subtree and its remote can be in, such as
-"only the remote changed" or "both sides changed". The root README's
-[sync states](../../README.md#sync-states) link to them as examples.
+Each folder here is one state a splice and its upstream can be in, such as
+"only upstream changed" or "both sides changed", or one situation a command
+has to handle. The root README's [sync states](../../README.md#sync-states)
+link to them as examples.
 
 A scenario folder has two files:
 
 - `setup.bash` defines one function, named after the folder
   (`scenario_pull_ahead` in `pull-ahead/`). Given two paths, it builds a
-  monorepo and a bare repository as its remote in that state, out of the
+  monorepo and a bare repository as its upstream in that state, out of the
   helpers in [`test/helpers/fixtures.bash`](../helpers/fixtures.bash). The
   bats tests in `test/*.bats` call these functions to get into a state.
 - `README.md` describes the state and why it matters, and shows what the
@@ -29,7 +30,7 @@ scenario's function, so the README runs in the state the bats tests use:
 
 [`readme-setup.sh`](readme-setup.sh) also fixes the commit dates and
 ignores your git config, so commit hashes are the same on every run. The
-subtree is `vendor/a` unless the README says otherwise, and the remote's
+splice is `vendor/a` unless the README says otherwise, and the upstream's
 path shows as `$UPSTREAM`.
 
 ## Adding a scenario

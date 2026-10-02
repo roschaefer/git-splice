@@ -1,6 +1,6 @@
 # Diverged history
 
-A subtree has diverged when both the monorepo and the remote changed it
+A splice has diverged when both the monorepo and the upstream changed it
 since the last sync. This walkthrough, in the [sandbox](README.md), makes
 both sides change the same line, then resolves the conflict.
 
@@ -13,17 +13,14 @@ $ source "$TESTDIR/scrut-setup.sh"
 First, bring `vendor/pkg-a` up to date:
 
 ```scrut
-$ git subtrees pull vendor/pkg-a
+$ git splice pull vendor/pkg-a
 ok   vendor/pkg-a fetched
-Merge made by the 'ort' strategy.
- vendor/pkg-a/file.txt | 1 +
- 1 file changed, 1 insertion(+)
-ok   vendor/pkg-a: pulled
+ok   vendor/pkg-a: pulled 703b936
 ```
 
 ## Both sides change
 
-The monorepo and the remote each append a line to the same file:
+The monorepo and the upstream each append a line to the same file:
 
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
@@ -32,53 +29,53 @@ $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local 
 ```scrut
 $ simulate-remote-change vendor/pkg-a "pkg-a: an upstream fix"
 ok   vendor/pkg-a: pushed a new commit upstream ('pkg-a: an upstream fix')
-     git subtrees status   # to see it
-     git subtrees pull     # to bring it in
+     git splice status         # to see it
+     git splice pull vendor/pkg-a   # to bring it in
 ```
 
-Once fetched, `status` reports the subtree as `diverged`:
+Once fetched, `status` reports the splice as `diverged`, and `log` shows
+both sides:
 
 ```scrut
-$ git subtrees fetch
-ok   vendor/pkg-a fetched (main moved 2db2a00..96a8153)
+$ git splice fetch
+ok   vendor/pkg-a fetched (main moved 703b936..4527a78)
 ```
 
 ```scrut
-$ git subtrees status vendor/pkg-a
-ok   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (diverged)
+$ git splice status
+ok   vendor/pkg-a -> main (diverged)
  file.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 ```
 
+```scrut
+$ git splice log
+===  vendor/pkg-a (main)
+< 2d02eb8 pkg-a: a local fix  (Walkthrough <walkthrough@example.com>)
+> 4527a78 pkg-a: an upstream fix  (Walkthrough <walkthrough@example.com>)
+```
+
 ## Pull first
 
-The remote refuses a push that would drop its commit:
+`push` refuses to drop upstream's commit:
 
 ```scrut
-$ git subtrees push
-git push using:  vendor/pkg-a main
-To $WALKTHROUGH/upstream/pkg-a.git
- ! [rejected]        3549b6217763c17429b62d22c3b945b83641a14c -> main (non-fast-forward)
-error: failed to push some refs to '$WALKTHROUGH/upstream/pkg-a.git'
-hint: Updates were rejected because the tip of your current branch is behind
-hint: its remote counterpart. If you want to integrate the remote changes,
-hint: use 'git pull' before pushing again.
-hint: See the 'Note about fast-forwards' in 'git push --help' for details.
-!!   vendor/pkg-a: push failed
+$ git splice push vendor/pkg-a
+!!   vendor/pkg-a: upstream has commits this branch lacks -- run 'git splice pull vendor/pkg-a' first
 !!   Failed: vendor/pkg-a
 [1]
 ```
 
-`pull` squash-merges the remote's side. The same line changed on both
-sides, so git stops with a conflict:
+`pull` splices upstream's side in. The same line changed on both sides, so
+it stops with a conflict, like any merge:
 
 ```scrut
-$ git subtrees pull
+$ git splice pull vendor/pkg-a
 ok   vendor/pkg-a fetched
 Auto-merging vendor/pkg-a/file.txt
 CONFLICT (content): Merge conflict in vendor/pkg-a/file.txt
-Automatic merge failed; fix conflicts and then commit the result.
-!!   vendor/pkg-a: pull failed -- resolve any conflicts, 'git commit', then re-run pull
+!!   vendor/pkg-a: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
+!!   vendor/pkg-a: pull failed
 !!   Failed: vendor/pkg-a
 [1]
 ```
@@ -86,12 +83,12 @@ Automatic merge failed; fix conflicts and then commit the result.
 ```scrut
 $ cat vendor/pkg-a/file.txt
 pkg-a: seed
-pkg-a: a second commit, after connecting
+pkg-a: a second commit, after the clone
 <<<<<<< HEAD
 a local fix
 =======
 pkg-a: an upstream fix
->>>>>>> 19a53603156c8f97afb99c1ab336081c0481fc7c
+>>>>>>> 89201a2 (splice: pull vendor/pkg-a from main at 4527a78)
 ```
 
 ## Resolve and push
@@ -99,43 +96,39 @@ pkg-a: an upstream fix
 Resolve it as for any merge: keep both lines, then commit.
 
 ```scrut
-$ cat >vendor/pkg-a/file.txt <<'EOF'
-> pkg-a: seed
-> pkg-a: a second commit, after connecting
-> a local fix
-> pkg-a: an upstream fix
-> EOF
+$ printf '%s\n' "pkg-a: seed" "pkg-a: a second commit, after the clone" "a local fix" "pkg-a: an upstream fix" >vendor/pkg-a/file.txt
 ```
 
 ```scrut
-$ git add vendor/pkg-a/file.txt && git commit --no-edit
-[main 12f4691] Merge commit '19a53603156c8f97afb99c1ab336081c0481fc7c'
+$ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline -1
+ccd9894 splice: pull vendor/pkg-a from main at 4527a78
 ```
 
-The merge commit contains the remote's side, so only the local fix is
-left to push:
+Only the local fix is left to push. Upstream gets it as its own commit,
+joined with upstream's fix by a merge:
 
 ```scrut
-$ git subtrees status vendor/pkg-a
-ok   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (push)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+$ git splice push vendor/pkg-a
+ok   vendor/pkg-a: pushed 610288c to main
 ```
 
 ```scrut
-$ git subtrees push
-git push using:  vendor/pkg-a main
-To $WALKTHROUGH/upstream/pkg-a.git
-   96a8153..e6220d3  e6220d3065a466d29641e09a6dde23451bc734e2 -> main
-ok   vendor/pkg-a: pushed
+$ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --graph --format=%s main
+*   splice: pull vendor/pkg-a from main at 4527a78
+|\  
+| * pkg-a: an upstream fix
+* | pkg-a: a local fix
+|/  
+* pkg-a: a second commit, after the clone
+* pkg-a: seed
 ```
 
 ```scrut
-$ git subtrees status vendor/pkg-a
-ok   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (up to date)
+$ git splice status
+ok   vendor/pkg-a -> main (up to date)
 ```
 
-If the two sides share no history at all, e.g. because the remote was
+If the two sides share no history at all, e.g. because the upstream was
 rebuilt from scratch, `merge`, `pull` and `push` don't try to merge. They
 print the commands to keep either side instead; see the
 [`diverged-unrelated-history`](../test/scenarios/diverged-unrelated-history/README.md)

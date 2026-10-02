@@ -1,13 +1,9 @@
 # Scenario: up-to-date
 
-A subtree freshly added via `git subtree add --squash` and never
-touched again on either side.
+A splice freshly cloned and never touched again on either side.
 
-- **Monorepo (`vendor/a`)**: one commit (`seed`), added, no local
-  changes since.
-- **Remote**: one commit (`seed`), unchanged since add.
-- **Common ancestor**: yes -- they were just added; the tree contents
-  are identical.
+- **Monorepo (`vendor/a`)**: cloned at `seed`, no local changes since.
+- **Upstream**: `seed`, unchanged.
 
 ## Output
 
@@ -23,17 +19,17 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_up_to_date
 Nothing to do on either side:
 
 ```scrut
-$ git subtrees status
-ok   vendor/a -> $UPSTREAM (up to date)
+$ git splice status
+ok   vendor/a -> main (up to date)
 ```
 
 ```scrut
-$ git subtrees pull
+$ git splice push vendor/a
+ok   vendor/a: nothing to push
+```
+
+```scrut
+$ git splice pull vendor/a
 ok   vendor/a fetched
 ok   vendor/a: nothing to pull
-```
-
-```scrut
-$ git subtrees push
-ok   vendor/a: nothing to push
 ```

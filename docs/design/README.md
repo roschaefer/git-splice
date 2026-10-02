@@ -6,8 +6,9 @@ it follows the same core idea: switching branches in the monorepo switches
 the branch every folder syncs with. Unlike `git-subtrees`, it doesn't use
 `git subtree` or Git remotes.
 
-This page records the decisions made before writing the code. Two
-prototypes in this folder show the core mechanisms working:
+This page records the decisions behind the code, and where the
+implementation refined them ("Implemented as"). Two prototypes in this
+folder, written before the code, show the core mechanisms in a few lines:
 
 - [`pull-prototype.sh`](pull-prototype.sh): a pull as one ordinary commit,
   with normal conflict handling.
@@ -101,6 +102,9 @@ git fetch <url> '+refs/heads/*:refs/splices/<path>/*'
   on URLs.
 - A push goes to the URL, so `push` updates `refs/splices/<path>/<branch>`
   itself afterwards.
+- **Implemented as:** `fetch` passes `--prune`, so branches deleted
+  upstream disappear from `refs/splices/` too, and the `prune` command
+  `git-subtrees` had is gone.
 - **Nested splices are refused.** `refs/splices/vendor/a/b/main` would be
   ambiguous between splice `vendor/a` (branch `b/main`) and splice
   `vendor/a/b`. The outer splice's push would also publish the inner one.
@@ -113,7 +117,7 @@ splices a command acts on depends on what it does:
 | Kind | Commands | Without a path |
 |---|---|---|
 | Splices in or out: changes the monorepo or an upstream repository | `clone`, `init`, `merge`, `pull`, `push` | Refuses. Takes one or more paths, or `--all`. |
-| Looks or prepares: changes neither | `status`, `diff`, `log`, `fetch`, `prune` | Every splice; paths narrow it down. |
+| Looks or prepares: changes neither | `status`, `diff`, `log`, `fetch` | Every splice; paths narrow it down. |
 
 Splicing in writes a commit into the monorepo, and splicing out publishes
 commits upstream. Both should name their target, as `git push <remote>`
@@ -147,8 +151,8 @@ does. An overview such as `status` is only useful if it's complete.
 commit** in the monorepo, and never touches the network:
 
 1. Build two throwaway commits whose trees have the monorepo's layout:
-   - **base:** HEAD's tree, with `<path>/` replaced by U's tree and its
-     `.splice`.
+   - **base:** HEAD's tree, with `<path>/` replaced by the merge base's
+     tree and HEAD's `.splice`.
    - **T:** HEAD's tree, with `<path>/` replaced by the new upstream commit
      U2 and a `.splice` that records U2. T's parent is base.
 2. Run `git cherry-pick T`. That's a three-way merge with base as the merge
@@ -161,15 +165,21 @@ The `git subtree` way needs two commits per pull because it needs a merge
 base in history. Re-rooting the trees supplies that merge base explicitly
 instead.
 
+**Implemented as:** the merge base is `git merge-base R U2`, with R the
+push rebuild of HEAD (below), not U itself. Usually that's U. After a push
+it's the pushed commit, which spares the merge from replaying changes
+upstream already has.
+
 - **On a conflict:** resolve it, then run `git commit`. It finishes the
   cherry-pick and keeps the prepared message. Abort with
   `git cherry-pick --abort`. `git status` will say "cherry-picking" although
   you ran `merge`, so `merge` should mention both commands when it stops.
 - **base and T are never referenced** and get garbage-collected. Upstream
   commits stay in `refs/splices/` and never become ancestors of HEAD.
-- **A dry run** for `status` and `diff` uses
+- **A dry run** for `status` and `diff` can use
   `git merge-tree --write-tree --merge-base=<base> HEAD <T>`, which doesn't
-  touch the worktree. It needs Git 2.40.
+  touch the worktree. It needs Git 2.40. (Not used yet: `status` compares
+  by ancestry, see below.)
 
 ### `push`: the rebuild
 
@@ -181,6 +191,16 @@ commits. The rebuild is a function of B, U and HEAD:
 2. If `B:<path>` (without `.splice`) differs from U's tree, start with one
    synthetic commit on top of U with that tree. That happens when a squash
    merge mixed local edits into the commit that changed `.splice`.
+
+   **Implemented as:** a pull that merged a divergence has the same shape,
+   and a single synthetic commit would squash the local commits that were
+   never pushed. So B is rebuilt as a commit with B's folder whose parents
+   are what the rebuild had before B (the rebuild of B's first parent, the
+   same function, recursively) and U, unless the former is an ancestor of
+   U. Upstream then gets the unpushed commits as they were, joined with its
+   own by a merge -- what a plain `git pull` would have made. The
+   recursion stops at the first boundary whose folder equals its synced
+   commit, so it only costs something after pulls of divergences.
 3. For each commit in
    `git rev-list --reverse --first-parent B..HEAD -- <path>`, run
    `git commit-tree` with `<commit>:<path>` minus `.splice`. Copy author
@@ -201,7 +221,8 @@ add nothing. Leaving it out avoids the parent-mapping problems that `split`
 spent years fixing.
 
 **Costs** O(commits since the last sync), not O(all history), which fixes
-#30. The first push after `init` rebuilds the folder's whole history once.
+#30. A splice made by `init` has no synced commit until its first pull, so
+until then every rebuild walks the folder's whole history.
 
 **Never writes to the monorepo.** Recording each push as a sync point was
 tried in

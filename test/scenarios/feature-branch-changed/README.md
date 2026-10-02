@@ -1,11 +1,14 @@
 # Scenario: feature-branch-changed
 
-Like `feature-branch-unchanged`, but the subtree has local changes on the
-feature branch.
+The monorepo is on a branch upstream doesn't have, and the splice changed
+on it.
 
-- **Monorepo (`vendor/a`)**: added at `seed` on `main`, then a new
-  `feature` branch with one commit under `vendor/a`.
-- **Remote**: only has `main`, at `seed`. No `feature` branch.
+- **Monorepo (`vendor/a`)**: cloned at `seed` on `main`, then the branch
+  `feature` with a local commit.
+- **Upstream**: only `main`.
+
+"Changed" is measured against the monorepo's base branch: here `main`, the
+monorepo's default branch.
 
 ## Output
 
@@ -18,37 +21,28 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_feature_branch
 ```
 -->
 
-The scenario sets no base branch, so the commands pass `--base main`:
-
 ```scrut
-$ git subtrees status --base main
-ok   vendor/a -> $UPSTREAM (no 'feature' branch on remote; changed since 'main' -- push would create it)
- vendor/a/file.txt | 1 +
+$ git splice status
+ok   vendor/a -> feature (no such branch upstream; changed since 'main' -- push would create it)
+ file.txt | 1 +
  1 file changed, 1 insertion(+)
 ```
 
 ```scrut
-$ git subtrees diff --base main
-===  vendor/a
-diff --git a/file.txt b/file.txt
-index e31de1f..d939bfa 100644
---- a/file.txt
-+++ b/file.txt
-@@ -1 +1,2 @@
- seed
-+local change
+$ git splice log
+===  vendor/a (upstream has no 'feature' branch)
+< e859a6b local change  (Test <test@example.com>)
+```
+
+`push` creates `feature` upstream, on top of `main`:
+
+```scrut
+$ git splice push vendor/a
+??   vendor/a: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+ok   vendor/a: pushed e859a6b to feature
 ```
 
 ```scrut
-$ git subtrees push --base main
-??   vendor/a: remote has no 'feature' branch yet -- this push will create it (changed since 'main')
-git push using:  vendor/a feature
-To $UPSTREAM
- * [new branch]      e859a6b3f55b1e873e69f2dc39247c735e67df6a -> feature
-ok   vendor/a: pushed
-```
-
-```scrut
-$ git subtrees status
-ok   vendor/a -> $UPSTREAM (up to date)
+$ git splice status
+ok   vendor/a -> feature (up to date)
 ```

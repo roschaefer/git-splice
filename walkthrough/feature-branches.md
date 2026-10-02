@@ -1,9 +1,9 @@
 # Feature branches
 
-Every subtree syncs with the remote branch named like your current branch.
-This walkthrough starts a feature branch in the [sandbox](README.md),
-changes one subtree on it and pushes, and cleans up once the feature is
-merged on both sides.
+Every splice syncs with the upstream branch named like your current
+branch. This walkthrough starts a feature branch in the
+[sandbox](README.md), changes one splice on it and pushes, and cleans up
+once the feature is merged on both sides.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -11,64 +11,51 @@ $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
-First, bring both subtrees up to date, as at the end of the
+First, splice in `pkg-b` and bring both splices up to date, as in the
 [main walkthrough](README.md#pull):
 
 ```scrut
-$ git subtrees init vendor/pkg-b "$WALKTHROUGH/upstream/pkg-b.git" >/dev/null && git subtrees pull >/dev/null
+$ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null && git splice pull --all >/dev/null
 ```
 
 ## A new branch
 
-Neither remote has a `feature` branch.
+Neither upstream has a `feature` branch.
 
 ```scrut
 $ git switch -c feature
 Switched to a new branch 'feature'
 ```
 
-```scrut
-$ git subtrees status
-??   ghost -> (no mapping)
-??   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (no 'feature' branch on remote; monorepo base branch unknown -- pass --base <branch>)
-??   vendor/pkg-b -> $WALKTHROUGH/upstream/pkg-b.git (no 'feature' branch on remote; monorepo base branch unknown -- pass --base <branch>)
-```
-
-To tell whether a subtree changed on `feature`, git-subtrees compares it
-with the branch `feature` was cut from. It looks for `--base`, then
-`origin/HEAD`, then `init.defaultBranch`. The sandbox's monorepo was
-never cloned, so it has no `origin/HEAD`:
+To tell whether a splice changed on `feature`, git-splice compares it with
+the branch `feature` was cut from: `--base`, else the monorepo's default
+branch (`origin/HEAD`, else `init.defaultBranch`; the sandbox sets the
+latter).
 
 ```scrut
-$ git config init.defaultBranch main
+$ git splice status
+ok   vendor/pkg-a -> feature (no such branch upstream; unchanged since 'main')
+ok   vendor/pkg-b -> feature (no such branch upstream; unchanged since 'main')
 ```
 
-```scrut
-$ git subtrees status
-??   ghost -> (no mapping)
-ok   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (no 'feature' branch on remote; unchanged since 'main')
-ok   vendor/pkg-b -> $WALKTHROUGH/upstream/pkg-b.git (no 'feature' branch on remote; unchanged since 'main')
-```
-
-## Changing one subtree
+## Changing one splice
 
 ```scrut
 $ echo "a new option" >>vendor/pkg-b/file.txt && git commit -qam "pkg-b: add an option"
 ```
 
 ```scrut
-$ git subtrees status
-??   ghost -> (no mapping)
-ok   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (no 'feature' branch on remote; unchanged since 'main')
-ok   vendor/pkg-b -> $WALKTHROUGH/upstream/pkg-b.git (no 'feature' branch on remote; changed since 'main' -- push would create it)
- vendor/pkg-b/file.txt | 1 +
+$ git splice status
+ok   vendor/pkg-a -> feature (no such branch upstream; unchanged since 'main')
+ok   vendor/pkg-b -> feature (no such branch upstream; changed since 'main' -- push would create it)
+ file.txt | 1 +
  1 file changed, 1 insertion(+)
 ```
 
-With no remote branch to compare with, `diff` compares with `main`:
+With no upstream branch to compare with, `diff` compares with `main`:
 
 ```scrut
-$ git subtrees diff
+$ git splice diff
 ===  vendor/pkg-b
 diff --git a/file.txt b/file.txt
 index b041961..b509b97 100644
@@ -79,81 +66,64 @@ index b041961..b509b97 100644
 +a new option
 ```
 
-`push` creates `feature` on `pkg-b`'s remote only. `pkg-a` didn't change,
-so its remote doesn't get an empty branch.
+`push` creates `feature` on `pkg-b`'s upstream only. `pkg-a` didn't
+change, so its upstream doesn't get an empty branch.
 
 ```scrut
-$ git subtrees push
-ok   vendor/pkg-a: nothing to push (remote has no 'feature' branch; unchanged since 'main')
-??   vendor/pkg-b: remote has no 'feature' branch yet -- this push will create it (changed since 'main')
-git push using:  vendor/pkg-b feature
-To $WALKTHROUGH/upstream/pkg-b.git
- * [new branch]      502310105328ae670dd89312bacc0344a64febe6 -> feature
-ok   vendor/pkg-b: pushed
+$ git splice push --all
+ok   vendor/pkg-a: nothing to push (upstream has no 'feature' branch; unchanged since 'main')
+??   vendor/pkg-b: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+ok   vendor/pkg-b: pushed 5023101 to feature
 ```
 
 ```scrut
-$ git subtrees status
-??   ghost -> (no mapping)
-ok   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (no 'feature' branch on remote; unchanged since 'main')
-ok   vendor/pkg-b -> $WALKTHROUGH/upstream/pkg-b.git (up to date)
+$ git splice status
+ok   vendor/pkg-a -> feature (no such branch upstream; unchanged since 'main')
+ok   vendor/pkg-b -> feature (up to date)
 ```
 
 `pull` on `feature` pulls from `pkg-b`'s `feature` branch. `pkg-a`'s
-remote has no `feature` branch, so there's nothing to pull from it:
+upstream has no `feature` branch, so there's nothing to pull from it:
 
 ```scrut
-$ git subtrees pull
-ok   vendor/pkg-a: remote has no 'feature' branch -- nothing to pull
+$ git splice pull --all
+ok   vendor/pkg-a fetched
 ok   vendor/pkg-b fetched
+ok   vendor/pkg-a: upstream has no 'feature' branch -- nothing to pull
 ok   vendor/pkg-b: nothing to pull
 ```
 
 ## After the merge
 
-The feature gets merged on both sides: on `pkg-b`'s remote, which then
+The feature gets merged on both sides: on `pkg-b`'s upstream, which then
 deletes the branch, and in the monorepo.
 
 ```scrut
-$ git -C "$WALKTHROUGH/upstream/pkg-b.git" push . feature:main
-To .
-   9b3cb02..5023101  feature -> main
+$ git -C "$WALKTHROUGH/upstream/pkg-b.git" push -q . feature:main && git -C "$WALKTHROUGH/upstream/pkg-b.git" branch -q -D feature
 ```
 
 ```scrut
-$ git -C "$WALKTHROUGH/upstream/pkg-b.git" branch -D feature
-Deleted branch feature (was 5023101).
+$ git switch -q main && git merge -q --ff-only feature
 ```
 
-```scrut
-$ git switch -q main && git merge --ff-only feature
-Updating 928c613..7e6de95
-Fast-forward
- vendor/pkg-b/file.txt | 1 +
- 1 file changed, 1 insertion(+)
-```
-
-Back on `main`, `pull` sees that the monorepo already has what the remote
-merged, and `prune` removes the deleted branch's remote-tracking ref.
+Back on `main`, `pull` sees that the monorepo already has what upstream
+merged. Fetching pruned the deleted branch.
 
 ```scrut
-$ git subtrees pull
+$ git splice pull --all
 ok   vendor/pkg-a fetched
-ok   vendor/pkg-a: nothing to pull
 ok   vendor/pkg-b fetched (main moved 9b3cb02..5023101)
+ok   vendor/pkg-a: nothing to pull
 ok   vendor/pkg-b: nothing to pull
 ```
 
 ```scrut
-$ git subtrees prune
-Pruning vendor/pkg-b
-URL: $WALKTHROUGH/upstream/pkg-b.git
- * [pruned] vendor/pkg-b/feature
+$ git for-each-ref --format='%(refname)' refs/splices/vendor/pkg-b/
+refs/splices/vendor/pkg-b/main
 ```
 
 ```scrut
-$ git subtrees status
-??   ghost -> (no mapping)
-ok   vendor/pkg-a -> $WALKTHROUGH/upstream/pkg-a.git (up to date)
-ok   vendor/pkg-b -> $WALKTHROUGH/upstream/pkg-b.git (up to date)
+$ git splice status
+ok   vendor/pkg-a -> main (up to date)
+ok   vendor/pkg-b -> main (up to date)
 ```

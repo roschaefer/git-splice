@@ -1,25 +1,34 @@
-# Scenario: not-connected
+# Scenario: never-fetched
 
-A remote is registered and its name matches an existing directory, but it
-has never been fetched -- `refs/remotes/vendor/a/*` doesn't exist at all
-yet.
+A splice whose upstream hasn't been fetched in this clone yet, as right
+after cloning the monorepo: the commits are there, the private refs with
+upstream's branches aren't.
 
-- **Monorepo**: an empty `vendor/a` directory exists; `git remote add
-  vendor/a <upstream>` has been run, but `git fetch` never has.
-- **Remote**: has a `seed` commit, but we don't know that locally yet.
+- **Monorepo (`vendor/a`)**: cloned at `seed`.
+- **Upstream**: `seed`, never fetched here.
 
 ## Output
 
-`scenario_not_connected` in [`setup.bash`](setup.bash)
+`scenario_never_fetched` in [`setup.bash`](setup.bash)
 builds this state. [How scenarios work](../README.md).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_not_connected
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_never_fetched
 ```
 -->
 
 ```scrut
-$ git subtrees status
-??   vendor/a -> $UPSTREAM (never fetched -- run 'git subtrees fetch vendor/a')
+$ git splice status
+??   vendor/a -> main (never fetched -- run 'git splice fetch vendor/a')
+```
+
+```scrut
+$ git splice fetch
+ok   vendor/a fetched
+```
+
+```scrut
+$ git splice status
+ok   vendor/a -> main (up to date)
 ```

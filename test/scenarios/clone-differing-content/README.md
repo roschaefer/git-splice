@@ -1,32 +1,59 @@
-# Scenario: init-unrelated-content
+# Scenario: clone-differing-content
 
-A directory that will become a subtree already has content, and that
-content has nothing to do with the remote being added -- the "move it
-aside" case for `git subtrees init`.
+A folder maintained by hand, and an upstream with different content.
 
-- **Monorepo**: `vendor/a` exists with a locally-created file, committed,
-  never a subtree.
-- **Remote**: has its own unrelated `seed` commit.
-- **No remote is registered yet** -- `cmd_init` is expected to register it
-  itself as its first step.
+- **Monorepo (`vendor/a`)**: `file.txt` and `local.txt`.
+- **Upstream**: `file.txt` with other content, and `upstream.txt`.
+
+The two share no history, so there is no merge base but an empty folder.
+`clone` refuses, unless `--merge` is given: then every file that differs is
+a conflict, and nothing is lost.
 
 ## Output
 
-`scenario_init_unrelated_content` in [`setup.bash`](setup.bash)
+`scenario_clone_differing_content` in [`setup.bash`](setup.bash)
 builds this state. [How scenarios work](../README.md).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_init_unrelated_content
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_clone_differing_content
 ```
 -->
 
 ```scrut
-$ git subtrees init vendor/a "$UPSTREAM"
-===  vendor/a: registering remote -> $UPSTREAM
-===  vendor/a: fetching
-ok   vendor/a fetched
-!!   vendor/a: directory exists with content unrelated to $UPSTREAM
-!!   move it aside and re-run: mv vendor/a vendor/a.bak && git subtrees init vendor/a $UPSTREAM
+$ git splice clone "$UPSTREAM" vendor/a
+===  vendor/a: fetching $UPSTREAM
+!!   vendor/a exists and differs from 'main' upstream -- '--merge' keeps both, and every file that differs becomes a conflict to resolve
 [1]
+```
+
+```scrut
+$ git splice clone --merge "$UPSTREAM" vendor/a
+===  vendor/a: fetching $UPSTREAM
+Auto-merging vendor/a/file.txt
+CONFLICT (add/add): Merge conflict in vendor/a/file.txt
+!!   vendor/a: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
+!!   vendor/a: clone failed
+[1]
+```
+
+Files only one side has are kept, the file both have conflicts:
+
+```scrut
+$ git status --short
+A  vendor/a/.splice
+AA vendor/a/file.txt
+A  vendor/a/upstream.txt
+```
+
+```scrut
+$ echo "both versions" >vendor/a/file.txt && git add vendor/a/file.txt && git commit -q --no-edit
+```
+
+```scrut
+$ git splice status
+ok   vendor/a -> main (push)
+ file.txt  | 2 +-
+ local.txt | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
 ```

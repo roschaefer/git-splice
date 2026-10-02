@@ -16,7 +16,7 @@ export UPSTREAM
 source "$(dirname "${BASH_SOURCE[0]}")/../helpers/fixtures.bash"
 
 # Runs scenario function $1 from the README's setup.bash, the function the
-# bats tests call too, and cds into the monorepo it built. The remote is
+# bats tests call too, and cds into the monorepo it built. The upstream is
 # the bare repository $UPSTREAM.
 build_scenario() {
   # shellcheck disable=SC1091
@@ -27,9 +27,9 @@ build_scenario() {
 }
 
 # Once the scenario is built, the READMEs show what a terminal shows,
-# stderr included, with the remote's path as $UPSTREAM. git subtree
-# split's progress counter rewrites itself with \r; only what follows the
-# last \r of a line stays.
+# stderr included, with the upstream's path as $UPSTREAM. Git's progress
+# counters rewrite themselves with \r; only what follows the last \r of a
+# line stays.
 git() {
   if [[ -z "${scenario_built:-}" ]]; then
     command git "$@"
