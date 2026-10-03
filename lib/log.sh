@@ -78,5 +78,7 @@ cmd_log() {
   require_head_commit
   discover_splices
   select_paths overview log
-  page_git_output log_paths "$(current_branch)" "${SELECTED_PATHS[@]}"
+  local branch
+  branch="$(current_branch)"
+  page_git_output log_paths "$branch" "${SELECTED_PATHS[@]}"
 }

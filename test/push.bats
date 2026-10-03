@@ -154,6 +154,16 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "push: removes its SSH control folder and exits cleanly" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir "$BATS_TEST_TMPDIR/tmp"
+  TMPDIR="$BATS_TEST_TMPDIR/tmp" run splice push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: pushed $(git rev-parse --short=7 refs/splices/vendor/a/main) to main" ]
+  [ -z "$(ls -A "$BATS_TEST_TMPDIR/tmp")" ]
+}
+
 @test "push: on the default branch, pushes to upstream's default branch" {
   scenario_default_branch "$monorepo" "$upstream"
   cd "$monorepo"

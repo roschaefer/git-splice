@@ -120,6 +120,9 @@ cmd_push() {
   # Pushes to the same host share one SSH connection.
   local ssh_control_dir
   ssh_control_dir="$(mktemp -d)"
+  # Expanded now: the local is gone by the time the shell exits.
+  # shellcheck disable=SC2064
+  trap "rm -rf -- $(printf '%q' "$ssh_control_dir")" EXIT
   export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$ssh_control_dir/%r@%h:%p"
 
   for path in "${SELECTED_PATHS[@]}"; do

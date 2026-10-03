@@ -117,14 +117,19 @@ setup() {
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
-@test "cli: refuses a detached HEAD" {
+@test "cli: every command refuses a detached HEAD" {
   load 'scenarios/up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q --detach
-  run "$entrypoint" status
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"detached HEAD"* ]]
+  local cmd
+  for cmd in status diff log fetch "merge --all" "pull --all" "push --all"; do
+    # shellcheck disable=SC2086
+    run "$entrypoint" $cmd
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"detached HEAD"* ]]
+    [[ "$output" != *"ok "* ]]
+  done
 }
 
 @test "cli: --version prints VERSION" {

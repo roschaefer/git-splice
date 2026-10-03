@@ -103,5 +103,7 @@ cmd_merge() {
   discover_splices
   select_paths explicit merge
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
-  merge_paths "$(current_branch)" merge "${SELECTED_PATHS[@]}"
+  local branch
+  branch="$(current_branch)"
+  merge_paths "$branch" merge "${SELECTED_PATHS[@]}"
 }

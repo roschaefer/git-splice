@@ -98,10 +98,11 @@ diff_paths() {
 
 cmd_diff() {
   parse_args usage_diff "" "$@"
-  local base="$BASE_ARG"
+  local base="$BASE_ARG" branch
   cd_to_repo_root
   require_head_commit
   discover_splices
   select_paths overview diff
-  page_git_output diff_paths "$(current_branch)" "$base" "${SELECTED_PATHS[@]}"
+  branch="$(current_branch)"
+  page_git_output diff_paths "$branch" "$base" "${SELECTED_PATHS[@]}"
 }
