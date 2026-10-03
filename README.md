@@ -66,9 +66,7 @@ must also work in a Git ref name, so no spaces.
 
 ## How it compares
 
-`git-splice` grew out of
-[git-subtrees](https://github.com/roschaefer/git-subtrees), a layer on `git
-subtree`. [The design](docs/design/README.md) explains why it was rewritten.
+[The design](docs/design/README.md) explains the tradeoffs behind this model.
 
 | Tool | What is similar | Key difference |
 | --- | --- | --- |

@@ -4,86 +4,26 @@
 repositories, in both directions. Switching branches in the monorepo
 switches the branch every folder syncs with.
 
-The [README](../../README.md) says how to use it. This page says how it
-works and why it works that way: what led to the rewrite, the principles
-behind it, the vocabulary, the architecture, and how to write tests for
-it. Two prototypes in this folder, written before the code, show the two
-core mechanisms in a few lines each:
+## Design goals
 
-- [`pull-prototype.sh`](pull-prototype.sh): a pull as one ordinary commit,
-  with normal conflict handling.
-- [`rebuild-prototype.sh`](rebuild-prototype.sh): the history a push sends,
-  compared with `git subtree split`.
+### Keep configuration with the folder
 
-## Why a rewrite
+Cloning the monorepo should be enough to use every splice. Its URL and sync
+state live in a committed `.splice` file, not in `.git/config`. Fetching and
+pushing by URL also prevents a plain `git push` from sending the whole
+monorepo to a splice's upstream.
 
-`git splice` is the successor of
-[git-subtrees](https://github.com/roschaefer/git-subtrees), a layer on
-`git subtree` with the same goal. Three problems in that design couldn't
-be fixed on top of `git subtree`.
+### Make sync state explicit
 
-### 1. A Git remote is the wrong boundary for a folder
+`status` should not scan the monorepo's entire history or depend on a merge
+commit surviving a rebase or squash merge. Each splice records the upstream
+commit it last matched, so commands only inspect history since that point.
 
-In git-subtrees, every subtree was a Git remote. But a remote stands for a
-whole repository, and Git treats it that way: a plain `git push`, an IDE's
-sync button or `push.autoSetupRemote` can send the whole monorepo to a
-remote that should only ever see one folder
-([#50](https://github.com/roschaefer/git-subtrees/issues/50)). An invalid
-push URL could block that, but only as a workaround with side effects of
-its own.
+### Keep the histories separate
 
-The mapping between a folder and its upstream doesn't belong in
-`.git/config`. It belongs to the folder, and it should be committed, so
-every clone of the monorepo has it.
-
-### 2. Without its own sync state, a tool is slow and fragile
-
-`git subtree` stores nothing. To find out where a folder and its upstream
-last matched, it reads the monorepo's history:
-
-- **Slow:** `git subtree split` walks the monorepo's whole history for
-  every changed folder. On a monorepo with 670 commits and 11 subtrees,
-  `status` took 2.86 s for two changed subtrees
-  ([#30](https://github.com/roschaefer/git-subtrees/issues/30)), and it
-  only gets slower as history grows.
-- **Fragile:** the sync point is a squash commit that's only reachable
-  through a merge's second parent. When a branch that pulled gets
-  squash-merged, `main` loses it. `status` then reports `diverged` for a
-  purely local change, and after the recovery pull, `push` sends upstream
-  a duplicate of its own commit
-  ([#55](https://github.com/roschaefer/git-subtrees/issues/55)).
-
-So the folder has to record its sync state itself: which upstream commit
-it last matched. Then a push only needs to look at history since then.
-
-### 3. `git subtree` doesn't keep the monorepo's history linear
-
-Every `git subtree pull --squash` adds two commits: an orphan squash commit
-and a merge. Without `--squash`, it adds upstream's entire history. Either
-way, the monorepo's `main` can't stay linear, although its own pull
-requests are squash-merged.
-
-The monorepo should track its own history, and pull upstream changes in as
-**one ordinary commit**. Upstream's history stays upstream. When the
-monorepo changed the folder, a push rebuilds that part of the history for
-upstream.
-
-### Why not git-subrepo
-
-[git-subrepo](https://github.com/ingydotnet/git-subrepo) already has a
-committed state file, fetches by URL and pulls as one commit, which solves
-all three. Building on it wasn't an option:
-
-- Its `.gitrepo` records a monorepo SHA (`parent`), which squash merges and
-  rebases break. subrepo#464, #539, #600 and #617 have been open for
-  years.
-- It fixes each folder to one upstream branch, so the folders don't follow
-  the monorepo's branches.
-- Its push rebuild stamps the current date on every commit, so rebuilding
-  twice gives different commits (subrepo#670). A tool that needs to know
-  who is ahead without storing anything can't work with that.
-
-`git splice` takes subrepo's architecture and fixes those three points.
+Working in a monorepo should not import upstream's history. A pull creates one
+ordinary monorepo commit. A push rebuilds the commits that changed the folder
+as upstream commits. Changes cross the boundary; commits do not.
 
 ## Principles
 
@@ -352,15 +292,13 @@ message. Upstream doesn't know the monorepo's side branches, so a faithful
 merge shape would add nothing, and leaving it out avoids the
 parent-mapping problems `split` spent years fixing.
 
-**Costs** O(commits since the last sync), not O(all history), which fixes
-#30. The commit loop reads all commit metadata with one `git log` and all
-folder trees with one `git cat-file --batch-check`, so it spawns about one
-process per commit.
+**Costs** O(commits since the last sync), not O(all history). The commit loop
+reads all commit metadata with one `git log` and all folder trees with one
+`git cat-file --batch-check`, so it spawns about one process per commit.
 
-**Never writes to the monorepo.** Recording each push as a sync point was
-tried in [#28](https://github.com/roschaefer/git-subtrees/pull/28) and
-dropped: merging a branch that pushed brings its push record along,
-pointing at the wrong upstream branch.
+**Never writes to the monorepo.** Recording a push as a sync point would be
+incorrect: merging a branch that pushed would bring that record onto another
+upstream branch.
 
 **A new upstream branch** is created only if the splice changed on this
 branch, measured against the base. So starting a feature branch doesn't
@@ -388,9 +326,7 @@ rebuilding.
 
 - **`diff`** shows the file changes a push would send: `git diff T R`, or,
   for a missing upstream branch, from the merge base with the base branch.
-- **`log`**
-  ([git-subtrees#51](https://github.com/roschaefer/git-subtrees/issues/51))
-  shows commits in both directions:
+- **`log`** shows commits in both directions:
 
   ```
   git log --left-right --cherry-mark R...refs/splices/<path>/<branch>
@@ -426,8 +362,6 @@ These are known and accepted, each to keep the design simple:
   reach upstream folded into the move commit. Push before moving.
 - **A splice made by `init`** has no synced commit until its first pull, so
   until then every rebuild walks the folder's whole history.
-- **No migration from git-subtrees.** Push everything with the old tool,
-  then `clone` each folder again; identical content only adds `.splice`.
 - **Rare edge cases** are collected in
   [#2](https://github.com/roschaefer/git-splice/issues/2).
 
@@ -554,9 +488,3 @@ To keep the comparison fair:
    own.
 
 A new divergence needs a reason it's right, and a test like these.
-
-## Repository
-
-`git splice` lives in `roschaefer/git-splice`. It started as a branch of
-`roschaefer/git-subtrees`, so it carries over that tool's history, tests,
-scenarios and CI.
