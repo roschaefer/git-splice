@@ -146,12 +146,18 @@ More scenarios:
   its own commit.
 - [`squash-merged-pull`](test/scenarios/squash-merged-pull/README.md):
   a pull on a branch that was squash-merged.
-- [`merge-in-monorepo`](test/scenarios/merge-in-monorepo/README.md): a
-  merge in the monorepo reaches upstream as one commit.
+- [`merge-in-monorepo`](test/scenarios/merge-in-monorepo/README.md): unlike
+  `git subtree`, merges in the monorepo become ordinary upstream commits;
+  [repeated merges](test/scenarios/merge-in-monorepo/multiple-main-merges.md)
+  behave the same way.
+- [`copybara-contributor-workflow`](test/scenarios/copybara-contributor-workflow/README.md):
+  test an external contribution in the monorepo while keeping its merge in
+  the public upstream repository.
 - [`clone-copied-content`](test/scenarios/clone-copied-content/README.md),
   [`clone-differing-content`](test/scenarios/clone-differing-content/README.md),
   [`clone-on-feature-branch`](test/scenarios/clone-on-feature-branch/README.md),
-  [`clone-without-commits`](test/scenarios/clone-without-commits/README.md):
+  [`clone-without-commits`](test/scenarios/clone-without-commits/README.md),
+  and [invalid paths](test/scenarios/clone-without-commits/ref-friendly-path.md):
   `clone` where something is there already, or missing.
 - [`init-new-upstream`](test/scenarios/init-new-upstream/README.md):
   publishing a folder that grew in the monorepo.

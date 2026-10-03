@@ -1,4 +1,4 @@
-# Scenario: merge-in-monorepo
+# Scenario: `git subtree` preserves a monorepo merge
 
 Two lines of work under the splice, joined by a merge in the monorepo.
 
@@ -7,11 +7,11 @@ Two lines of work under the splice, joined by a merge in the monorepo.
   `feature` committed again.
 - **Upstream**: `seed` only.
 
-The rebuild follows first parents: the merge becomes one ordinary commit
-that carries `main`'s change, and `main work` isn't published as a commit
-of its own. Upstream doesn't know the monorepo's side branches, so their
-shape adds nothing there. `git subtree split` would keep the merge; this is
-an approved divergence from it.
+[`git subtree split`](https://github.com/git/git/blob/master/contrib/subtree/git-subtree.adoc#split-local-commit-repository)
+translates every commit that affected the folder, including the side branch
+and merge. `git splice` follows first parents from its recorded sync point
+instead. The merge becomes one ordinary upstream commit carrying `main`'s
+content; the monorepo's private branch topology is not published.
 
 ## Output
 
@@ -36,6 +36,24 @@ $ git log --graph --format=%s
 * initial commit
 ```
 
+`git subtree split` preserves the graph:
+
+```scrut
+$ git subtree split --quiet --prefix=vendor/a --branch subtree-result >/dev/null && echo "created subtree-result"
+created subtree-result
+```
+
+```scrut
+$ git log --graph --format=%s subtree-result | sed 's/ *$//'
+* after the merge
+*   Merge branch 'main' into feature
+|\
+| * main work
+* | feature work
+|/
+* add vendor/a
+```
+
 ```scrut
 $ git splice log
 ===  vendor/a (upstream has no 'feature' branch)
@@ -57,3 +75,6 @@ $ git -C "$UPSTREAM" log --graph --format=%s feature
 * feature work
 * seed
 ```
+
+The two results contain the same files, but deliberately not the same
+history shape.

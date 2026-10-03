@@ -117,7 +117,9 @@ new_upstream() {
 }
 
 @test "clone: refuses a path that can't be part of a ref, before fetching" {
-  new_upstream
+  scenario_clone_without_commits "$monorepo" "$upstream"
+  cd "$monorepo"
+  git commit -q --allow-empty -m "initial commit"
   run cmd_clone "$upstream" "my lib"
   [ "$status" -eq 1 ]
   [[ "$output" == *"'my lib' can't be part of a Git ref name"* ]]
@@ -184,4 +186,3 @@ new_upstream() {
   run cmd_clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
 }
-
