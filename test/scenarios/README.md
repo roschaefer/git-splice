@@ -16,38 +16,36 @@ A scenario folder has:
 - One or more `.md` files. Each describes one behavior and shows what the
   tool prints under "Output".
 
-## Scenario setups and documents
+## Table of contents
 
-Every setup implementation is linked directly here. Multiple document links
-in a row demonstrate scenarios that share one setup.
-
-| Scenario documents | Shared setup |
+| Scenario folder | Documents |
 | --- | --- |
-| [clone copied content](clone-copied-content/README.md) | [setup](clone-copied-content/setup.bash) |
-| [clone differing content](clone-differing-content/README.md) | [setup](clone-differing-content/setup.bash) |
-| [clone on a feature branch](clone-on-feature-branch/README.md) | [setup](clone-on-feature-branch/setup.bash) |
-| [clone without commits](clone-without-commits/README.md); [ref-friendly path](clone-without-commits/ref-friendly-path.md) | [setup](clone-without-commits/setup.bash) |
-| [external contributor workflow](copybara-contributor-workflow/README.md) | [setup](copybara-contributor-workflow/setup.bash) |
-| [default branch](default-branch/README.md) | [setup](default-branch/setup.bash) |
-| [diverged with a common ancestor](diverged-common-ancestor/README.md) | [setup](diverged-common-ancestor/setup.bash) |
-| [diverged, then pulled](diverged-then-pulled/README.md) | [setup](diverged-then-pulled/setup.bash) |
-| [diverged with unrelated history](diverged-unrelated-history/README.md) | [setup](diverged-unrelated-history/setup.bash) |
-| [changed feature branch](feature-branch-changed/README.md) | [setup](feature-branch-changed/setup.bash) |
-| [unchanged feature branch](feature-branch-unchanged/README.md) | [setup](feature-branch-unchanged/setup.bash) |
-| [initialize a new upstream](init-new-upstream/README.md) | [setup](init-new-upstream/setup.bash) |
-| [`git subtree` merge](merge-in-monorepo/README.md); [repeated `main` merges](merge-in-monorepo/multiple-main-merges.md) | [setup](merge-in-monorepo/setup.bash) |
-| [nested splices](nested-splices/README.md) | [setup](nested-splices/setup.bash) |
-| [never fetched](never-fetched/README.md) | [setup](never-fetched/setup.bash) |
-| [pull ahead](pull-ahead/README.md) | [setup](pull-ahead/setup.bash) |
-| [push ahead](push-ahead/README.md) | [setup](push-ahead/setup.bash) |
-| [pushed, then changed](pushed-then-changed/README.md) | [setup](pushed-then-changed/setup.bash) |
-| [shared remote URL](shared-remote-url/README.md) | [setup](shared-remote-url/setup.bash) |
-| [squash-merged pull](squash-merged-pull/README.md) | [setup](squash-merged-pull/setup.bash) |
-| [up to date](up-to-date/README.md) | [setup](up-to-date/setup.bash) |
+| [`clone-copied-content`](clone-copied-content/) | [Clone copied content](clone-copied-content/README.md) |
+| [`clone-differing-content`](clone-differing-content/) | [Clone differing content](clone-differing-content/README.md) |
+| [`clone-on-feature-branch`](clone-on-feature-branch/) | [Clone on a feature branch](clone-on-feature-branch/README.md) |
+| [`clone-without-commits`](clone-without-commits/) | [Clone without commits](clone-without-commits/README.md); [Ref-friendly path](clone-without-commits/ref-friendly-path.md) |
+| [`copybara-contributor-workflow`](copybara-contributor-workflow/) | [External contributor workflow](copybara-contributor-workflow/README.md) |
+| [`default-branch`](default-branch/) | [Default branch](default-branch/README.md) |
+| [`diverged-common-ancestor`](diverged-common-ancestor/) | [Diverged with a common ancestor](diverged-common-ancestor/README.md) |
+| [`diverged-then-pulled`](diverged-then-pulled/) | [Diverged, then pulled](diverged-then-pulled/README.md) |
+| [`diverged-unrelated-history`](diverged-unrelated-history/) | [Diverged with unrelated history](diverged-unrelated-history/README.md) |
+| [`feature-branch-changed`](feature-branch-changed/) | [Changed feature branch](feature-branch-changed/README.md) |
+| [`feature-branch-unchanged`](feature-branch-unchanged/) | [Unchanged feature branch](feature-branch-unchanged/README.md) |
+| [`init-new-upstream`](init-new-upstream/) | [Initialize a new upstream](init-new-upstream/README.md) |
+| [`merge-in-monorepo`](merge-in-monorepo/) | [`git subtree` merge](merge-in-monorepo/README.md); [Repeated `main` merges](merge-in-monorepo/multiple-main-merges.md) |
+| [`nested-splices`](nested-splices/) | [Nested splices](nested-splices/README.md) |
+| [`never-fetched`](never-fetched/) | [Never fetched](never-fetched/README.md) |
+| [`pull-ahead`](pull-ahead/) | [Pull ahead](pull-ahead/README.md) |
+| [`push-ahead`](push-ahead/) | [Push ahead](push-ahead/README.md) |
+| [`pushed-then-changed`](pushed-then-changed/) | [Pushed, then changed](pushed-then-changed/README.md) |
+| [`shared-remote-url`](shared-remote-url/) | [Shared remote URL](shared-remote-url/README.md) |
+| [`squash-merged-pull`](squash-merged-pull/) | [Squash-merged pull](squash-merged-pull/README.md) |
+| [`up-to-date`](up-to-date/) | [Up to date](up-to-date/README.md) |
 
-This check sources every linked folder's `setup.bash`, verifies its expected
-scenario function, and verifies every Markdown document links to and invokes
-that shared setup:
+This check verifies that every scenario folder and document is present in the
+table of contents, sources each folder's `setup.bash`, verifies its expected
+scenario function, and verifies every document links to and invokes that
+shared setup:
 
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/readme-setup.sh" && check_scenario_setups

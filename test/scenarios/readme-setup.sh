@@ -27,15 +27,17 @@ build_scenario() {
 }
 
 # Used by this directory's README to keep the executable documentation
-# contract honest: every scenario has one loadable setup, and every document
-# in that folder links to and invokes it.
+# contract honest: its table of contents includes every folder and document,
+# every scenario has one loadable setup, and every document links to and
+# invokes that setup.
 check_scenario_setups() {
-  local directory document name function documents
+  local directory document name function documents relative_document toc
+  toc="$(sed -n '/^## Table of contents$/,/^This check /p' "$TESTDIR/README.md")"
   for directory in "$TESTDIR"/*/; do
     [[ -f "$directory/setup.bash" ]] || return
     name="$(basename "$directory")"
     function="scenario_${name//-/_}"
-    grep -Fq "($name/setup.bash)" "$TESTDIR/README.md" || return
+    grep -Fq "($name/)" <<<"$toc" || return
     unset -f "$function"
     # shellcheck disable=SC1091
     source "$directory/setup.bash"
@@ -43,6 +45,8 @@ check_scenario_setups() {
     documents=0
     for document in "$directory"*.md; do
       [[ -f "$document" ]] || continue
+      relative_document="${document#"$TESTDIR/"}"
+      grep -Fq "($relative_document)" <<<"$toc" || return
       grep -Fq 'setup.bash`](setup.bash)' "$document" || return
       grep -Fq "build_scenario $function" "$document" || return
       ((documents += 1))
