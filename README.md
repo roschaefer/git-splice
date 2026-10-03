@@ -12,8 +12,8 @@ continuing to work in the monorepo. Changes must flow both ways so you can
 also merge dependency updates and outside contributions.
 
 Or you vendor a library to develop and test a patch with your application.
-Contributing it back means moving the commits from the monorepo into a fork
-of a repository you don't own.
+Contributing it back means getting those commits into a fork of the library,
+which shares no history with your monorepo.
 
 `git-splice` keeps a monorepo folder and a standalone repository in sync in
 both directions.
