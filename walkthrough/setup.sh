@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds a throwaway sandbox for manually exercising the dev version of
-# git-subtrees. Run this from inside `nix develop` (which puts the repo
+# git-splice. Run this from inside `nix develop` (which puts the repo
 # root, and so the dev entrypoint, on PATH).
 set -euo pipefail
 
@@ -13,7 +13,7 @@ usage() {
 usage: walkthrough/setup.sh [--dir <path>] [--no-shell]
 
 Builds a scratch monorepo plus fixture bare "upstream" repos for manually
-running git-subtrees commands against realistic state. When run
+running git-splice commands against realistic state. When run
 interactively, drops you straight into a shell inside the built monorepo
 -- there's no path to copy-paste.
 
@@ -47,7 +47,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$dir" ]]; then
-  dir="$(mktemp -d "${TMPDIR:-/tmp}/git-subtrees-walkthrough.XXXXXX")"
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/git-splice-walkthrough.XXXXXX")"
 fi
 
 mkdir -p "$dir"
@@ -72,6 +72,8 @@ seed_bare_repo() {
   rm -rf "$tmp"
 }
 
+splice="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/git-splice"
+
 echo "=== building fixture upstream repos ==="
 git init -q --bare --initial-branch=main "$upstream_dir/pkg-a.git"
 seed_bare_repo "$upstream_dir/pkg-a.git" "pkg-a: seed"
@@ -79,34 +81,39 @@ seed_bare_repo "$upstream_dir/pkg-a.git" "pkg-a: seed"
 git init -q --bare --initial-branch=main "$upstream_dir/pkg-b.git"
 seed_bare_repo "$upstream_dir/pkg-b.git" "pkg-b: seed"
 
+# Empty, as created for a folder that's about to be published.
+git init -q --bare --initial-branch=main "$upstream_dir/lib-c.git"
+
 echo "=== building monorepo ==="
 git init -q --initial-branch=main "$mono_dir"
 (
   cd "$mono_dir"
   git config user.name "Walkthrough"
   git config user.email "walkthrough@example.com"
+  # The branch feature branches are cut from; a clone of a real monorepo
+  # would find it as origin/HEAD.
+  git config init.defaultBranch main
+  # Realistic URLs that lead to the bare repositories next door. They also
+  # keep the URL in .splice, and so every commit id, the same from run to
+  # run.
+  git config "url.$upstream_dir/.insteadOf" "https://git.example.com/"
   git commit -q --allow-empty -m "initial commit"
 
-  git remote add vendor/pkg-a "$upstream_dir/pkg-a.git"
-  git fetch -q vendor/pkg-a
-  git subtree add -q --prefix=vendor/pkg-a vendor/pkg-a main --squash
+  "$splice" clone https://git.example.com/pkg-a.git vendor/pkg-a >/dev/null
 
-  # vendor/pkg-b: remote registered but deliberately NOT connected, so you
-  # can manually walk through 'git subtrees init' yourself.
-  git remote add vendor/pkg-b "$upstream_dir/pkg-b.git"
-
-  # A remote with no matching directory, to demonstrate status's
-  # "no mapping" line.
-  git remote add ghost "$upstream_dir/pkg-a.git"
+  # A folder that grew in the monorepo, for 'git splice init'.
+  mkdir -p libs/c
+  echo "lib-c: first version" >libs/c/file.txt
+  git add libs/c
+  git commit -q -m "lib-c: first version"
 )
 
-# A second pkg-a commit, made after the subtree was connected above, so
-# 'git subtrees status'/'pull' show a genuine "pull available" state right
-# away rather than everything starting out already in sync. status never
-# fetches on its own, so fetch once here too -- otherwise the freshly
-# built sandbox would still report "up to date" until the user fetches.
-seed_bare_repo "$upstream_dir/pkg-a.git" "pkg-a: a second commit, after connecting"
-git -C "$mono_dir" fetch -q vendor/pkg-a
+# A second pkg-a commit, made after the clone above, so 'git splice
+# status'/'pull' show a genuine "pull" state right away rather than
+# everything starting out in sync. status never fetches on its own, so
+# fetch once here too.
+seed_bare_repo "$upstream_dir/pkg-a.git" "pkg-a: a second commit, after the clone"
+(cd "$mono_dir" && "$splice" fetch >/dev/null)
 
 # Commands that open each chapter of the walkthrough, rendered by glow
 # (in `nix develop`) or as plain Markdown in less.
@@ -137,8 +144,8 @@ if [[ $no_shell -eq 0 && -t 0 && -t 1 ]]; then
 $(print_chapters)
 
 Or start with:
-  git subtrees status
-  git subtrees init vendor/pkg-b "\$WALKTHROUGH/upstream/pkg-b.git"
+  git splice status
+  git splice clone https://git.example.com/pkg-b.git vendor/pkg-b
   simulate-remote-change vendor/pkg-a   # push a commit upstream, as if someone else had
 
 Dropping you into a shell there now -- 'exit' to leave it.
@@ -161,8 +168,8 @@ $mono_dir
 $(print_chapters)
 
 Or start with:
-  git subtrees status
-  git subtrees init vendor/pkg-b "\$WALKTHROUGH/upstream/pkg-b.git"
+  git splice status
+  git splice clone https://git.example.com/pkg-b.git vendor/pkg-b
   simulate-remote-change vendor/pkg-a   # push a commit upstream, as if someone else had
 EOF
 

@@ -1,32 +1,35 @@
 #!/usr/bin/env bash
-# Walkthrough helper: pushes a new commit to a connected subtree's remote,
-# simulating upstream activity so 'git subtrees status'/'pull' have
+# Walkthrough helper: pushes a new commit to a splice's upstream,
+# simulating someone else's work so 'git splice status'/'pull' have
 # something real to show. On PATH inside `nix develop` (see flake.nix),
 # so it's usable by bare name from inside a walkthrough sandbox monorepo.
 set -euo pipefail
 
 if [[ $# -lt 1 || "$1" == "-h" || "$1" == "--help" ]]; then
-  cat <<'EOF'
+  cat <<'USAGE'
 usage: simulate-remote-change <path> [message]
 
-Simulates new upstream activity on subtree <path>'s remote: clones it,
-adds one commit, and pushes -- so 'git subtrees status'/'fetch'/'pull'
-have something real to react to. Run this from inside a git-subtrees
-monorepo (walkthrough sandbox or otherwise) where <path> is a registered remote.
+Simulates new upstream activity on splice <path>: clones its upstream,
+adds one commit to the branch named like the current one, and pushes --
+so 'git splice status'/'fetch'/'pull' have something real to react to.
+Run this from the monorepo's root.
 
-  <path>      a registered remote name (e.g. vendor/pkg-a)
+  <path>      a splice (e.g. vendor/pkg-a)
   [message]   commit message (default: "simulated upstream change ...")
-EOF
+USAGE
   exit 0
 fi
 
 path="$1"
 message="${2:-simulated upstream change at $(date -u +%H:%M:%S)}"
 
-remote_url="$(git remote get-url "$path" 2>/dev/null)" || {
-  echo "no remote named '$path' in $(pwd)" >&2
+url="$(git config --file "$path/.splice" splice.url 2>/dev/null)" || {
+  echo "no splice at '$path' in $(pwd)" >&2
   exit 1
 }
+# Applies the monorepo's url.<base>.insteadOf, which the clone below, run
+# outside the monorepo, wouldn't see.
+url="$(git ls-remote --get-url "$url")"
 
 branch="$(git symbolic-ref --quiet --short HEAD)" || {
   echo "not on a branch" >&2
@@ -34,11 +37,12 @@ branch="$(git symbolic-ref --quiet --short HEAD)" || {
 }
 
 tmp="$(mktemp -d)"
-git clone -q "$remote_url" "$tmp" 2>/dev/null
+git clone -q "$url" "$tmp" 2>/dev/null
 (
   cd "$tmp"
   git config user.name "Walkthrough"
   git config user.email "walkthrough@example.com"
+  git checkout -q -B "$branch" "origin/$branch" 2>/dev/null || git checkout -q -B "$branch"
   echo "$message" >>file.txt
   git add file.txt
   git commit -q -m "$message"
@@ -47,5 +51,5 @@ git clone -q "$remote_url" "$tmp" 2>/dev/null
 rm -rf "$tmp"
 
 echo "ok   $path: pushed a new commit upstream ('$message')"
-echo "     git subtrees status   # to see it"
-echo "     git subtrees pull     # to bring it in"
+echo "     git splice status         # to see it"
+echo "     git splice pull $path   # to bring it in"

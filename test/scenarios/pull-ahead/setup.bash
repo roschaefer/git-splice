@@ -4,7 +4,7 @@ scenario_pull_ahead() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
+  add_splice "$monorepo" "$upstream" "vendor/a"
   seed_bare_repo "$upstream" "upstream change"
-  (cd "$monorepo" && git fetch -q vendor/a)
+  fetch_splice "$monorepo" "$upstream" "vendor/a"
 }

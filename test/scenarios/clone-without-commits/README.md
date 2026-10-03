@@ -1,0 +1,36 @@
+# Scenario: clone-without-commits
+
+A brand-new monorepo without any commits.
+
+A clone is a commit on top of HEAD, so it needs one to exist. And a
+splice's path ends up in refs, `refs/splices/<path>/<branch>`, so it must
+work in a Git ref name: no spaces, for example.
+
+## Output
+
+`scenario_clone_without_commits` in [`setup.bash`](setup.bash)
+builds this state. [How scenarios work](../README.md).
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_clone_without_commits
+```
+-->
+
+```scrut
+$ git splice clone "$UPSTREAM" vendor/a
+!!   branch 'main' has no commits yet -- create one and re-run: git commit --allow-empty -m 'initial commit'
+[1]
+```
+
+```scrut
+$ git commit -q --allow-empty -m "initial commit" && git splice clone "$UPSTREAM" vendor/a
+===  vendor/a: fetching $UPSTREAM
+ok   vendor/a: cloned bde4164 from main
+```
+
+```scrut
+$ git splice clone "$UPSTREAM" "my lib"
+!!   'my lib' can't be part of a Git ref name, so it can't be a splice -- choose another folder name (e.g. no spaces)
+[1]
+```

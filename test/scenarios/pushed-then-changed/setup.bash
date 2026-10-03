@@ -4,16 +4,8 @@ scenario_pushed_then_changed() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
-  (
-    cd "$monorepo"
-    echo "pushed change" >>vendor/a/file.txt
-    git add vendor/a/file.txt
-    git commit -q -m "pushed change"
-    git subtree push -q --prefix=vendor/a vendor/a main >/dev/null 2>&1
-    git fetch -q vendor/a
-    echo "later change" >>vendor/a/file.txt
-    git add vendor/a/file.txt
-    git commit -q -m "later change"
-  )
+  add_splice "$monorepo" "$upstream" "vendor/a"
+  commit_local "$monorepo" "vendor/a" "pushed change"
+  (cd "$monorepo" && splice push vendor/a >/dev/null 2>&1)
+  commit_local "$monorepo" "vendor/a" "later change"
 }

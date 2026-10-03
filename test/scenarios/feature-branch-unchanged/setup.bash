@@ -4,6 +4,6 @@ scenario_feature_branch_unchanged() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
+  add_splice "$monorepo" "$upstream" "vendor/a"
   git -C "$monorepo" checkout -q -b feature
 }

@@ -1,12 +1,14 @@
 # Scenario: feature-branch-unchanged
 
-The monorepo is on a feature branch the subtree's remote has never heard
-of, and nothing under the subtree path has changed since the branch was
-cut from `main`.
+The monorepo is on a branch upstream doesn't have, and the splice didn't
+change on it.
 
-- **Monorepo (`vendor/a`)**: added at `seed` on `main`, then switched to
-  a new `feature` branch with no further commits.
-- **Remote**: only has `main`, at `seed`. No `feature` branch.
+- **Monorepo (`vendor/a`)**: cloned at `seed` on `main`, then the branch
+  `feature`, with no changes under `vendor/a`.
+- **Upstream**: only `main`.
+
+`push` creates a branch upstream only where a splice changed, so starting
+a feature branch doesn't spawn empty branches upstream.
 
 ## Output
 
@@ -19,14 +21,12 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_feature_branch
 ```
 -->
 
-The scenario sets no base branch, so the commands pass `--base main`:
-
 ```scrut
-$ git subtrees status --base main
-ok   vendor/a -> $UPSTREAM (no 'feature' branch on remote; unchanged since 'main')
+$ git splice status
+ok   vendor/a -> feature (upstream has no such branch; unchanged since 'main')
 ```
 
 ```scrut
-$ git subtrees push --base main
-ok   vendor/a: nothing to push (remote has no 'feature' branch; unchanged since 'main')
+$ git splice push vendor/a
+ok   vendor/a: nothing to push (upstream has no 'feature' branch; unchanged since 'main')
 ```

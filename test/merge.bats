@@ -1,148 +1,158 @@
 setup() {
   load 'helpers/fixtures'
   load_lib
+  hermetic_git_config
   load 'scenarios/up-to-date/setup'
+  load 'scenarios/push-ahead/setup'
   load 'scenarios/pull-ahead/setup'
-  load 'scenarios/not-connected/setup'
   load 'scenarios/diverged-common-ancestor/setup'
   load 'scenarios/diverged-unrelated-history/setup'
+  load 'scenarios/never-fetched/setup'
+  load 'scenarios/shared-remote-url/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
-@test "merge: merges already-fetched changes when the remote is ahead" {
+@test "merge: adds exactly one first-parent commit and no upstream ancestors" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
   run cmd_merge vendor/a
   [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a: merged"* ]]
-  run grep -qx "upstream change" vendor/a/file.txt
-  [ "$status" -eq 0 ]
+  [ "$(git rev-parse HEAD^)" = "$before" ]
+  [ "$(git rev-list --parents -1 HEAD | wc -w)" -eq 2 ]
+  ! git merge-base --is-ancestor refs/splices/vendor/a/main HEAD
+  [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from main at $(git rev-parse --short=7 refs/splices/vendor/a/main)" ]
 }
 
-@test "merge: never contacts the remote, so unfetched upstream changes are not merged" {
-  scenario_up_to_date "$monorepo" "$upstream"
-  seed_bare_repo "$upstream" "not fetched yet"
+@test "merge: brings upstream's content and records the synced commit" {
+  scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_merge vendor/a
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"nothing to merge"* ]]
-  run grep -qx "not fetched yet" vendor/a/file.txt
-  [ "$status" -eq 1 ]
+  cmd_merge vendor/a
+  [ "$(git rev-parse HEAD:vendor/a/file.txt)" = "$(git rev-parse refs/splices/vendor/a/main:file.txt)" ]
+  [ "$(splice_config vendor/a commit)" = "$(git rev-parse refs/splices/vendor/a/main)" ]
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = up-to-date ]
 }
 
-@test "merge: no-op when already up to date" {
-  scenario_up_to_date "$monorepo" "$upstream"
+@test "merge: refuses an upstream that brings in a .splice of its own" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "[splice]" main extra/.splice
   cd "$monorepo"
-  run cmd_merge
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a: nothing to merge"* ]]
-}
-
-@test "merge: a never-fetched remote fails and points at fetch" {
-  scenario_not_connected "$monorepo" "$upstream"
-  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  local before
+  before="$(git rev-parse HEAD)"
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"not fetched yet -- run 'git subtrees fetch' first"* ]]
-  [[ "$output" == *"Failed: vendor/a"* ]]
+  [[ "$output" == *"upstream has extra/.splice"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
-@test "merge: ordinary conflict leaves MERGE_HEAD, resolved via plain git commit" {
+@test "merge: keeps local changes when merging a divergence" {
+  scenario_diverged_common_ancestor "$monorepo" "$upstream"
+  cd "$monorepo"
+  # Make the two changes touch different files, so they merge cleanly.
+  git reset -q --hard HEAD^
+  commit_local "$monorepo" "vendor/a" "local change" local.txt
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/local.txt)" = "local change" ]
+  grep -q "upstream change" vendor/a/file.txt
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = push ]
+}
+
+@test "merge: a conflict is resolved like any other, and git commit finishes it" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
-  [ -f .git/MERGE_HEAD ]
-  [[ "$output" == *"merge failed"* ]]
-
+  [[ "$output" == *"CONFLICT"*"vendor/a/file.txt"* ]]
+  [[ "$output" == *"resolve it, then 'git commit'"* ]]
+  [ "$(git status --porcelain vendor/a/file.txt)" = "UU vendor/a/file.txt" ]
+  printf 'seed\nboth\n' >vendor/a/file.txt
   git add vendor/a/file.txt
   git commit -q --no-edit
-  [ ! -f .git/MERGE_HEAD ]
+  [[ "$(git log -1 --format=%s)" == "splice: merge vendor/a from main at "* ]]
+  [ "$(splice_config vendor/a commit)" = "$(git rev-parse refs/splices/vendor/a/main)" ]
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = push ]
 }
 
-@test "merge: unrelated-history does not attempt a merge, prints guidance" {
+@test "merge: stops at a conflict and doesn't start the next splice" {
+  scenario_diverged_common_ancestor "$monorepo" "$upstream"
+  add_splice "$monorepo" "$upstream" vendor/b
+  cd "$monorepo"
+  git -C "$monorepo" update-ref refs/splices/vendor/b/main "$(git rev-parse refs/splices/vendor/a/main~1)"
+  run cmd_merge --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Not merged yet: vendor/b"* ]]
+}
+
+@test "merge: nothing to do when up to date or only ahead" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nothing to merge"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge: refuses to guess on unrelated history" {
   scenario_diverged_unrelated_history "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
-  [ ! -f .git/MERGE_HEAD ]
-  [[ "$output" == *"share no history"* ]]
+  [[ "$output" == *"share no history -- pick a side"* ]]
 }
 
-@test "merge: rejects a path that is not a subtree" {
-  scenario_up_to_date "$monorepo" "$upstream"
+@test "merge: asks for a fetch first" {
+  scenario_never_fetched "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_merge nope
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"not a subtree path: nope"* ]]
-}
-
-@test "merge_one: refuses a branch git-subtree cannot use" {
-  init_monorepo "$monorepo"
-  cd "$monorepo"
-  run merge_one "vendor/a" "-n"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"git-subtree cannot use a branch name starting with '-'"* ]]
-}
-
-@test "merge: never fetches a missing split object, reports it instead" {
-  local monorepo_origin="$BATS_TEST_TMPDIR/monorepo-origin.git"
-  local fresh_monorepo="$BATS_TEST_TMPDIR/fresh-monorepo"
-  local rewrite="$BATS_TEST_TMPDIR/rewrite"
-  make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "seed"
-  init_monorepo "$monorepo"
-  add_subtree "$monorepo" "$upstream" "vendor/a"
-  # --no-local: a local clone would hardlink the whole object store,
-  # including the now-unreachable split commit we need to be missing.
-  git clone -q --no-local --bare "$monorepo" "$monorepo_origin"
-  git clone -q --no-local "$monorepo_origin" "$fresh_monorepo"
-  (
-    git clone -q "$upstream" "$rewrite"
-    cd "$rewrite"
-    git config user.name "Test"
-    git config user.email "test@example.com"
-    git checkout -q --orphan unrelated-main
-    rm -f file.txt
-    echo "brand new unrelated history" >file.txt
-    git add file.txt
-    git commit -q -m "brand new unrelated history"
-    git push -q --force origin HEAD:main
-  )
-  cd "$fresh_monorepo"
-  git config user.name "Test"
-  git config user.email "test@example.com"
-  git remote add vendor/a "$upstream"
-  git fetch -q vendor/a "+refs/heads/main:refs/remotes/vendor/a/main"
-  # The remote is gone: any attempt to reach it would fail loudly.
-  git remote set-url vendor/a "$BATS_TEST_TMPDIR/does-not-exist.git"
-
   run cmd_merge vendor/a
-
   [ "$status" -eq 1 ]
-  [[ "$output" == *"is not available locally"* ]]
-  [[ "$output" == *"git subtrees pull vendor/a"* ]]
-  [ ! -f .git/MERGE_HEAD ]
+  [[ "$output" == *"not fetched yet"* ]]
 }
 
-@test "merge: stops after a conflict instead of failing the remaining subtrees" {
-  local upstream_b="$BATS_TEST_TMPDIR/upstream-b.git"
-  scenario_diverged_common_ancestor "$monorepo" "$upstream"
-  make_bare_repo "$upstream_b"
-  seed_bare_repo "$upstream_b" "seed"
-  add_subtree "$monorepo" "$upstream_b" "vendor/b"
-  seed_bare_repo "$upstream_b" "upstream change"
+@test "merge: needs paths or --all" {
+  scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  git fetch -q vendor/b
-
-  run cmd_merge vendor/a vendor/b
-
+  run cmd_merge
   [ "$status" -eq 1 ]
-  [ -f .git/MERGE_HEAD ]
-  [[ "$output" == *"Failed: vendor/a"* ]]
-  [[ "$output" == *"Not merged: vendor/b"* ]]
-  [[ "$output" != *"working tree has modifications"* ]]
-  run grep -qx "upstream change" vendor/b/file.txt
+  [[ "$output" == *"which splice?"* ]]
+}
+
+@test "merge: leaves the worktree's other changes alone" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "work in progress" >wip.txt
+  cmd_merge vendor/a
+  [ "$(cat wip.txt)" = "work in progress" ]
+  [ "$(git status --porcelain)" = "?? wip.txt" ]
+}
+
+@test "pull: fetches, then merges" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  run cmd_pull vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a fetched (main moved"* ]]
+  [[ "$output" == *"vendor/a: pulled"* ]]
+  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from main at $(git rev-parse --short=7 refs/splices/vendor/a/main)" ]
+}
+
+@test "pull: a failed fetch is reported, the rest still merges" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  git config --file vendor/b/.splice splice.url "$BATS_TEST_TMPDIR/nowhere.git"
+  git commit -q -am "break vendor/b"
+  run cmd_pull --all
   [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: pulled"* ]]
+  [[ "$output" == *"Not fetched: vendor/b"* ]]
 }

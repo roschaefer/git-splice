@@ -1,12 +1,9 @@
 # Scenario: push-ahead
 
-Local made a commit under the subtree path since it was added; the remote
-hasn't moved.
+Only the monorepo changed since the clone.
 
-- **Monorepo (`vendor/a`)**: added at `seed`, then one more local
-  commit under `vendor/a`.
-- **Remote**: still at `seed`, unchanged.
-- **Common ancestor**: yes -- the add point (`seed`).
+- **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit.
+- **Upstream**: `seed`, unchanged.
 
 ## Output
 
@@ -20,33 +17,28 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_push_ahead
 -->
 
 ```scrut
-$ git subtrees status
-ok   vendor/a -> $UPSTREAM (push)
+$ git splice status
+ok   vendor/a -> main (push)
  file.txt | 1 +
  1 file changed, 1 insertion(+)
 ```
 
+`log` shows the commit a push would publish, and who wrote it:
+
 ```scrut
-$ git subtrees diff
-===  vendor/a
-diff --git a/file.txt b/file.txt
-index e31de1f..d939bfa 100644
---- a/file.txt
-+++ b/file.txt
-@@ -1 +1,2 @@
- seed
-+local change
+$ git splice log
+===  vendor/a (main)
+< e859a6b local change  (Test <test@example.com>)
+```
+
+`push` sends it. Nothing is written to the monorepo:
+
+```scrut
+$ git splice push vendor/a
+ok   vendor/a: pushed e859a6b to main
 ```
 
 ```scrut
-$ git subtrees push
-git push using:  vendor/a main
-To $UPSTREAM
-   bde4164..e859a6b  e859a6b3f55b1e873e69f2dc39247c735e67df6a -> main
-ok   vendor/a: pushed
-```
-
-```scrut
-$ git subtrees status
-ok   vendor/a -> $UPSTREAM (up to date)
+$ git splice status
+ok   vendor/a -> main (up to date)
 ```

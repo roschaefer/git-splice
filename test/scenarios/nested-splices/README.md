@@ -1,0 +1,41 @@
+# Scenario: nested-splices
+
+One splice inside another. Every command refuses this.
+
+- **Monorepo**: `vendor/pkg` and `vendor/pkg/extra`, each with a
+  `.splice`.
+
+The outer splice's content includes the inner one, so pushing `vendor/pkg`
+would publish `vendor/pkg/extra` too. And `refs/splices/vendor/pkg/extra/main`
+could name either the branch `extra/main` of `vendor/pkg` or the branch
+`main` of `vendor/pkg/extra`.
+
+## Output
+
+`scenario_nested_splices` in [`setup.bash`](setup.bash)
+builds this state. [How scenarios work](../README.md).
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_nested_splices
+```
+-->
+
+```scrut
+$ git splice status
+!!   nested splices are not supported: 'vendor/pkg' and 'vendor/pkg/extra' overlap -- remove one of their .splice files
+[1]
+```
+
+Removing one `.splice` fixes it:
+
+```scrut
+$ git rm -q vendor/pkg/extra/.splice && git commit -q -m "vendor/pkg/extra is part of vendor/pkg"
+```
+
+```scrut
+$ git splice status
+ok   vendor/pkg -> main (push)
+ extra/file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+```

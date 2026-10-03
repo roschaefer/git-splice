@@ -1,15 +1,9 @@
 # Scenario: pull-ahead
 
-The remote gained a commit since the subtree was added; the monorepo hasn't touched
-the subtree path.
+Only upstream changed since the clone.
 
-- **Monorepo (`vendor/a`)**: added at `seed`, no local changes since.
-- **Remote**: `seed`, then one more commit (`upstream change`).
-- **Common ancestor**: yes -- the add point (`seed`).
-
-The scenario also fetches once during setup, so `refs/remotes/vendor/a/*`
-already reflects the remote's new commit (mirroring what a real `status`
-run needs, since `status` never fetches on its own).
+- **Monorepo (`vendor/a`)**: cloned at `seed`, no local changes since.
+- **Upstream**: `seed`, then a commit, already fetched.
 
 ## Output
 
@@ -23,28 +17,35 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_pull_ahead
 -->
 
 ```scrut
-$ git subtrees status
-ok   vendor/a -> $UPSTREAM (pull)
+$ git splice status
+ok   vendor/a -> main (pull)
  file.txt | 1 +
  1 file changed, 1 insertion(+)
 ```
 
-There's nothing to push, so `diff` shows nothing:
+```scrut
+$ git splice log
+===  vendor/a (main)
+> 6045a98 upstream change  (Test <test@example.com>)
+```
+
+`merge` splices the change in as one ordinary commit, which also records the new synced commit in `vendor/a/.splice`:
 
 ```scrut
-$ git subtrees diff
+$ git splice merge vendor/a
+ok   vendor/a: merged 6045a98
+```
+
+The monorepo's history stays linear, and upstream's commits never become part of it:
+
+```scrut
+$ git log --format=%s
+splice: merge vendor/a from main at 6045a98
+add vendor/a
+initial commit
 ```
 
 ```scrut
-$ git subtrees pull
-ok   vendor/a fetched
-Merge made by the 'ort' strategy.
- vendor/a/file.txt | 1 +
- 1 file changed, 1 insertion(+)
-ok   vendor/a: pulled
-```
-
-```scrut
-$ git subtrees status
-ok   vendor/a -> $UPSTREAM (up to date)
+$ git splice status
+ok   vendor/a -> main (up to date)
 ```

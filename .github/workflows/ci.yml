@@ -28,7 +28,7 @@ jobs:
       - name: docs-check
         run: nix develop --command just docs-check
 
-      # Builds the package and runs it through `git subtrees` in the sandbox.
+      # Builds the package and runs it through `git splice` in the sandbox.
       - name: nix flake check
         run: nix flake check -L
 
@@ -44,7 +44,7 @@ jobs:
           - { version: 4.4.23, rev: nixos-21.05 }
           - { version: 5.2.37, rev: nixos-25.05 }
         git:
-          - { version: 2.31.1, rev: nixos-21.05 }
+          - { version: 2.40.1, rev: nixos-23.05 }
           - { version: 2.50.1, rev: nixos-25.05 }
     runs-on: ubuntu-latest
     steps:
@@ -57,7 +57,8 @@ jobs:
       # revisions -- prebuilt binaries from cache.nixos.org, no compiling --
       # so every {bash, git} pair in the matrix is exercised, not just
       # whatever pairing a single nixpkgs snapshot happens to ship.
-      # nixos-21.05 supplies bashInteractive 4.4, the documented floor.
+      # nixos-21.05 supplies bashInteractive 4.4 and nixos-23.05 git 2.40,
+      # the documented floors.
       - name: test
         env:
           BASH_REV: ${{ matrix.bash.rev }}
@@ -120,12 +121,12 @@ jobs:
         run: |
           gh release list --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName --jq '.[].tagName' |
             while read -r tag; do
-              asset="git-subtrees-$tag.tar.gz"
+              asset="git-splice-$tag.tar.gz"
               has_asset="$(gh release view "$tag" --json assets --jq "any(.assets[]; .name == \"$asset\")")"
               if [[ "$has_asset" == true ]]; then
                 continue
               fi
               git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag"
-              git archive --format=tar.gz --prefix=git-subtrees/ -o "$asset" "$tag"
+              git archive --format=tar.gz --prefix=git-splice/ -o "$asset" "$tag"
               gh release upload "$tag" "$asset"
             done

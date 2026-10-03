@@ -32,5 +32,10 @@ jobs:
             echo
             echo "\`this\` is this PR merged into its base, \`compared\` is the base alone (${BASE_SHA:0:7})."
             echo
-            nix develop --command bench/run.sh --compare "$RUNNER_TEMP/base/git-subtrees"
+            # The base predates git-splice until the rewrite has landed.
+            if [ -x "$RUNNER_TEMP/base/git-splice" ]; then
+              nix develop --command bench/run.sh --compare "$RUNNER_TEMP/base/git-splice"
+            else
+              nix develop --command bench/run.sh
+            fi
           } >>"$GITHUB_STEP_SUMMARY"
