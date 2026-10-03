@@ -7,29 +7,36 @@ branch it syncs with.
 
 ## The problem
 
-You want to publish a folder from a monorepo as its own repository, while
-continuing to work in the monorepo. Changes must flow both ways so you can
-also merge dependency updates and outside contributions.
+Some folders belong in a monorepo for development and testing, but also need
+their own repositories. You may want to publish one without publishing the
+whole monorepo, while still merging dependency updates and outside
+contributions back in.
 
 Or you vendor a library to develop and test a patch with your application.
-Contributing it back means getting those commits into a fork of the library,
-which shares no history with your monorepo.
+Contributing the patch back means getting those changes into a fork of the
+library, whose history is separate from the monorepo's.
 
-`git-splice` keeps a monorepo folder and a standalone repository in sync in
-both directions.
+Both cases need changes to cross between a monorepo folder and a standalone
+repository in either direction, without making either one the source of truth.
 
-## How it works
+## The solution
 
-Each folder records the upstream commit it last matched. This is a sync point,
-not the upstream commit to check out as it would be with a submodule.
+A **splice** is an ordinary folder in the monorepo with a committed `.splice`
+file. Like a subtree, its files live directly in the monorepo, where they can
+be changed and tested with everything else. Like a submodule, the monorepo
+records an upstream repository and one of its commits.
 
-From that point, `git-splice` lets Git do the work: cherry-pick new upstream
-changes, resolve conflicts, and rebuild the folder's local history for a push.
-The monorepo and upstream keep separate histories: changes cross the boundary,
-but commits do not. Unlike `git subtree`, making upstream commits part of the
-monorepo's history is not a goal.
+The commit has a different meaning than a submodule's gitlink. A submodule
+commit says which revision should be checked out. A splice commit is a sync
+point: the upstream revision the folder matched when changes were last spliced
+in. It does not determine the folder's current content; later monorepo commits
+can change it, and a push does not update the sync point.
 
-A **splice** is a folder with a committed `.splice` file:
+From that point, `git-splice` lets Git merge upstream changes and resolve
+conflicts, or rebuild the folder's monorepo commits for a push. Changes cross
+the boundary, but commits do not: both repositories keep their own histories.
+
+Create a splice with:
 
     git splice clone https://github.com/x/lib.git vendor/lib
 
@@ -40,9 +47,8 @@ $ cat vendor/lib/.splice
 	commit = 3f1c…
 ```
 
-`url` is the splice's upstream repository. `commit` is the upstream commit
-the folder last matched; `clone`, `merge` and `pull` update it, nothing
-else does.
+`url` identifies the upstream repository. `commit` is its sync point;
+`clone`, `merge` and `pull` update it, but `push` does not.
 Everything follows from two rules:
 
 1. **The folder carries its own state.** Move it with `git mv`, and the
@@ -62,20 +68,16 @@ must also work in a Git ref name, so no spaces.
 
 `git-splice` grew out of
 [git-subtrees](https://github.com/roschaefer/git-subtrees), a layer on `git
-subtree`. Four problems with `git subtree` led to this rewrite: `status`
-slowing down with the monorepo's whole history, a Git remote per folder that
-could receive the whole monorepo by accident, two commits for every pull,
-and squash merges that lost the sync point. [The design](docs/design/README.md)
-explains each decision.
+subtree`. [The design](docs/design/README.md) explains why it was rewritten.
 
-| Tool | Why it doesn't fit |
-| --- | --- |
-| `git subtree` | No state of its own: every operation splits the whole history, and a pull adds a squash commit and a merge. |
-| `git submodule` | `git switch` doesn't switch the submodules' branches. `--recurse-submodules` only checks out a pinned commit. |
-| [git-subrepo](https://github.com/ingydotnet/git-subrepo) | A fixed branch per folder, and its `.gitrepo` stores a monorepo commit that squash merges and rebases break. |
-| [splitsh-lite](https://github.com/splitsh/lite) | One way only: it publishes read-only mirrors. |
-| [Josh](https://github.com/josh-project/josh) | The opposite model: the monorepo is authoritative, and people work in filtered views of it. |
-| [Copybara](https://github.com/google/copybara) | One repository is the source of truth. Syncing back needs a second, reverse workflow. |
+| Tool | What is similar | Key difference |
+| --- | --- | --- |
+| `git submodule` | The monorepo commits an upstream URL and commit. | A submodule commit selects the revision in a separate worktree. A splice commit only marks an earlier sync point; the folder is ordinary monorepo content and may have changed since. |
+| `git subtree` | The files live in the monorepo and are developed there. | A subtree has no state file. Pulling imports upstream history or a squash commit and merge; a splice records its sync point and pulls as one ordinary monorepo commit. |
+| [git-subrepo](https://github.com/ingydotnet/git-subrepo) | It has a committed state file, fetches by URL and pulls as one commit. | It stores a monorepo commit that rebases and squash merges can invalidate, and fixes each folder to one branch. |
+| [splitsh-lite](https://github.com/splitsh/lite) | It publishes folders as repositories. | It creates read-only mirrors; changes only flow out. |
+| [Josh](https://github.com/josh-project/josh) | It exposes part of a monorepo as a repository. | The monorepo remains authoritative, and contributors work through filtered views of it. |
+| [Copybara](https://github.com/google/copybara) | It moves changes between repositories. | One repository is the source of truth; syncing back needs a separate reverse workflow. |
 
 ## Example
 
