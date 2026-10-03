@@ -7,22 +7,16 @@ branch it syncs with.
 
 ## The problem
 
-Suppose you work in a monorepo but don't want to publish the whole thing.
-You want to publish only some folders, each in its own repository. A one-way
-export is not enough: you also need to bring dependency updates and occasional
-open-source contributions back into the monorepo, without giving up the
-monorepo as your main place of work.
+You want to publish a folder from a monorepo as its own repository, while
+continuing to work in the monorepo. Changes must flow both ways so you can
+also merge dependency updates and outside contributions.
 
-Or suppose your application needs a custom feature or patch from a software
-library. You vendor the library's source into your monorepo so you can develop
-and integration-test the change alongside the application. Later, you want to
-contribute that change upstream. But you don't own the library's repository,
-and transferring the commits from a subfolder of your monorepo to a fork is
-cumbersome.
+Or you vendor a library to develop and test a patch with your application.
+Contributing it back means moving the commits from the monorepo into a fork
+of a repository you don't own.
 
-Both cases need the same thing: a folder in a monorepo and a standalone
-repository that can exchange changes in both directions. `git-splice` makes
-that relationship explicit and keeps it with the folder.
+`git-splice` keeps a monorepo folder and a standalone repository in sync in
+both directions.
 
 ## The contract
 
