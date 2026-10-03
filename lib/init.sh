@@ -49,7 +49,7 @@ cmd_init() {
   fi
   [[ -n "$(folder_tree HEAD "$path")" ]] ||
     die "$path: no committed folder here -- to splice in an existing repository, use 'git splice clone'"
-  [[ ! -e "$path/$STATE_FILE" ]] || die "$path/$STATE_FILE exists, but isn't committed -- remove it or commit it"
+  [[ ! -e "$path/$STATE_FILE" && ! -L "$path/$STATE_FILE" ]] || die "$path/$STATE_FILE exists, but isn't committed -- remove it or commit it"
 
   heads="$(git ls-remote --heads -- "$url")" || die "$path: can't reach $url"
   [[ -z "$heads" ]] ||
@@ -67,7 +67,9 @@ cmd_init() {
   fi
 
   git cat-file blob "$(state_blob "$path" "url=$url" "default-branch=$default_branch")" >"$path/$STATE_FILE"
-  git add -- "$path/$STATE_FILE"
+  # -f: an ignore rule matching .splice mustn't stop it, it's committed
+  # by definition.
+  git add -f -- "$path/$STATE_FILE"
   git commit --quiet -m "splice: init $path" -- "$path/$STATE_FILE"
   log_ok "$path: initialized -- 'git splice push $(shell_quote "$path")' publishes it"
 }

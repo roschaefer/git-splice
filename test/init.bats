@@ -86,3 +86,21 @@ setup() {
   [ -z "$(git status --porcelain lib/a)" ]
 }
 
+
+@test "init: commits .splice even when an ignore rule matches it" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo ".*" >.git/info/exclude
+  cmd_init lib/a "$upstream"
+  [ "$(splice_config lib/a url)" = "$upstream" ]
+}
+
+@test "init: refuses a .splice that is a dangling symlink, and writes nothing" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  ln -s "$BATS_TEST_TMPDIR/outside" lib/a/.splice
+  run cmd_init lib/a "$upstream"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"lib/a/.splice exists, but isn't committed"* ]]
+  [ ! -e "$BATS_TEST_TMPDIR/outside" ]
+}
