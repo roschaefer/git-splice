@@ -15,7 +15,7 @@ __git_splice_paths() {
   local file
   while IFS= read -r -d '' file; do
     printf '%s\n' "${file%/.splice}"
-  done < <(git ls-tree -r --name-only -z HEAD 2>/dev/null | grep -z -e '/\.splice$')
+  done < <(git diff-tree -r --name-only -z "$(git hash-object -t tree /dev/null)" HEAD -- ':(top,glob)*/**/.splice' 2>/dev/null)
 }
 
 # Sets COMPREPLY to the lines on stdin that start with $1, shell-quoted.

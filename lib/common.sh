@@ -19,9 +19,15 @@ STATE_FILE=.splice
 # inside it, and every command refuses nested splices.
 upstream_state_file() {
   local file
-  IFS= read -r -d '' file < <(git ls-tree -r --name-only -z "$1" | grep -z -e "^\\$STATE_FILE\$" -e "/\\$STATE_FILE\$") ||
-    return 1
+  IFS= read -r -d '' file < <(state_files "$1") || return 1
   printf '%s\n' "$file"
+}
+
+# Prints every state file in commit <commit>, at any depth, NUL-separated.
+# Git filters them (a diff from the empty tree lists every file), so
+# neither a file name with a newline nor a non-GNU grep gets in the way.
+state_files() {
+  git diff-tree -r --name-only -z "$(git hash-object -t tree /dev/null)" "$1" -- ":(top,glob)**/$STATE_FILE"
 }
 
 # Every splice path check and every tree lookup (HEAD:<path>) is only
@@ -141,7 +147,7 @@ discover_splices() {
     usable_splice_path "$path" ||
       die "'$path' can't be part of a Git ref name, so it can't be a splice -- rename the folder (e.g. no spaces)"
     ALL_PATHS+=("$path")
-  done < <(git ls-tree -r --name-only -z HEAD 2>/dev/null | grep -z -e "/\\$STATE_FILE\$" -e "^\\$STATE_FILE\$" || true)
+  done < <(state_files HEAD 2>/dev/null)
 
   local other
   for path in "${ALL_PATHS[@]}"; do

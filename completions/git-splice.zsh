@@ -15,7 +15,7 @@
 # discover_splices() in lib/common.sh.
 __git_splice_paths() {
   local -a paths
-  paths=("${(@f)$(git ls-tree -r --name-only HEAD 2>/dev/null | grep -e '/\.splice$')}")
+  paths=(${(0)"$(git diff-tree -r --name-only -z "$(git hash-object -t tree /dev/null)" HEAD -- ':(top,glob)*/**/.splice' 2>/dev/null)"})
   paths=("${(@)paths%/.splice}")
   _describe -t paths 'splice' paths
 }

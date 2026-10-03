@@ -12,7 +12,7 @@
 # Splice paths: folders with a .splice committed in HEAD. Mirrors
 # discover_splices() in lib/common.sh.
 function __git_splice_paths
-    for file in (git ls-tree -r --name-only HEAD 2>/dev/null | string match -r '.*/\.splice$')
+    for file in (git diff-tree -r --name-only -z (git hash-object -t tree /dev/null) HEAD -- ':(top,glob)*/**/.splice' 2>/dev/null | string split0)
         string replace -r '/\.splice$' '' -- $file
     end
 end
