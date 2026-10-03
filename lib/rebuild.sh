@@ -25,7 +25,11 @@ strip_state_tree() {
         stripped+=("$entry")
       fi
     done
-    if [[ -n "$found" ]]; then
+    if [[ -n "$found" && ${#stripped[@]} -eq 0 ]]; then
+      # Only the state file: the folder is empty upstream. printf would
+      # still print one NUL, which mktree refuses.
+      CONTENT_TREE_CACHE[$tree]="$(git mktree </dev/null)"
+    elif [[ -n "$found" ]]; then
       CONTENT_TREE_CACHE[$tree]="$(printf '%s\0' "${stripped[@]}" | git mktree -z)"
     else
       CONTENT_TREE_CACHE[$tree]="$tree"

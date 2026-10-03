@@ -292,11 +292,6 @@ upstream_default_branch() {
     sed -n 's#^ref: refs/heads/\(.*\)\tHEAD$#\1#p'
 }
 
-# False for a name starting with '-', which Git would take for an option.
-usable_name() {
-  [[ "$1" != -* ]]
-}
-
 # Prints $1 as one shell word for a ready-to-run command we print: as-is if
 # it only has characters no shell treats specially, else single-quoted.
 shell_quote() {

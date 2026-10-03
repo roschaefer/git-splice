@@ -145,6 +145,25 @@ new_upstream() {
   [ "$(cat vendor/a/xsplice)" = x ]
 }
 
+@test "clone: an upstream with only an empty commit works with every command" {
+  make_bare_repo "$upstream"
+  local tmp="$BATS_TEST_TMPDIR/seed"
+  git clone -q "$upstream" "$tmp" 2>/dev/null
+  git -C "$tmp" -c user.name=Test -c user.email=test@example.com commit -q --allow-empty -m init
+  git -C "$tmp" push -q origin HEAD:main
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  cmd_clone "$upstream" vendor/a
+  local cmd
+  for cmd in status diff log "push vendor/a" "merge vendor/a"; do
+    # shellcheck disable=SC2086
+    run splice $cmd
+    [ "$status" -eq 0 ]
+  done
+  run splice status
+  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+}
+
 @test "clone: refuses a path that is a file" {
   new_upstream
   echo x >vendor
