@@ -1,4 +1,4 @@
-# See README.md in this directory.
+# Shared by every Markdown scenario in this directory.
 scenario_clone_without_commits() {
   local monorepo="$1" upstream="$2"
   make_bare_repo "$upstream"

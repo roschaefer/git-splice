@@ -26,6 +26,37 @@ build_scenario() {
   scenario_built=1
 }
 
+# Used by this directory's README to keep the executable documentation
+# contract honest: its table of contents includes every folder and document,
+# every scenario has one loadable setup, and every document links to and
+# invokes that setup.
+check_scenario_setups() {
+  local directory document name function documents relative_document toc
+  toc="$(sed -n '/^## Table of contents$/,/^This check /p' "$TESTDIR/README.md")"
+  for directory in "$TESTDIR"/*/; do
+    [[ -f "$directory/setup.bash" ]] || return
+    name="$(basename "$directory")"
+    function="scenario_${name//-/_}"
+    grep -Fq "($name/)" <<<"$toc" || return
+    unset -f "$function"
+    # shellcheck disable=SC1091
+    source "$directory/setup.bash"
+    declare -F "$function" >/dev/null || return
+    documents=0
+    for document in "$directory"*.md; do
+      [[ -f "$document" ]] || continue
+      relative_document="${document#"$TESTDIR/"}"
+      grep -Fq "($relative_document)" <<<"$toc" || return
+      grep -Fq 'setup.bash`](setup.bash)' "$document" || return
+      grep -Fq "build_scenario $function" "$document" || return
+      ((documents += 1))
+    done
+    ((documents > 0)) || return
+    printf 'ok %s (%d document%s)\n' \
+      "$name" "$documents" "$([[ $documents -eq 1 ]] || printf s)"
+  done
+}
+
 # Once the scenario is built, the READMEs show what a terminal shows,
 # stderr included, with the upstream's path as $UPSTREAM. Git's progress
 # counters rewrite themselves with \r; only what follows the last \r of a
