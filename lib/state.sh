@@ -80,21 +80,6 @@ classify_splice() {
   fi
 }
 
-# For a splice in the "missing-branch" state: changes_vs_base, except that
-# a splice that never synced (made by init) always counts as changed. Its
-# upstream has nothing yet, so the first push publishes it from any
-# branch, even if the folder is unchanged since the base branch.
-missing_branch_changes() {
-  if [[ -z "$SPLICE_SYNCED" ]]; then
-    SPLICE_CHANGES_VS_BASE="self"
-    SPLICE_BASE_REF=""
-    SPLICE_BASE_BRANCH=""
-    SPLICE_BASE_MERGE_BASE=""
-  else
-    changes_vs_base "$@"
-  fi
-}
-
 # Prints a tree: HEAD's, with folder <path> replaced by <folder-tree>
 # (nothing: no folder) plus state file blob <blob> (nothing: none). Uses a
 # temporary index, so neither the worktree nor the real index changes.

@@ -56,7 +56,7 @@ push_one() {
       [[ -n "$SPLICE_REBUILT" ]] || SPLICE_REBUILT="$(REBUILD_WITHOUT_SYNCED=1 rebuild_splice "$path" HEAD)"
       ;;
     missing-branch)
-      missing_branch_changes "$path" "$base"
+      changes_vs_base "$path" "$base"
       case "$SPLICE_CHANGES_VS_BASE" in
         no)
           log_ok "$path: nothing to push (upstream has no '$upstream_branch' branch; unchanged since '$SPLICE_BASE_BRANCH')"

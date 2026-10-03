@@ -36,7 +36,7 @@ diff_one() {
       return 1
       ;;
     missing-branch)
-      missing_branch_changes "$path" "$base"
+      changes_vs_base "$path" "$base"
       case "$SPLICE_CHANGES_VS_BASE" in
         no)
           return 0
