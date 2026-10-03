@@ -55,9 +55,8 @@ as upstream commits. Changes cross the boundary; commits do not.
 - **Refuse rather than guess.** With unrelated histories, nested splices,
   or a path that can't be a ref name, the tool stops and says what to do.
 - **Weigh every fix against its complexity.** An easy, safe fix goes in.
-  A rare case gets documented, or collected in the
-  [edge-case issue](https://github.com/roschaefer/git-splice/issues/2). An
-  extreme one is ignored.
+  A rare case gets documented, or an issue labelled
+  [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22). An extreme one is ignored.
 
 ## Vocabulary
 
@@ -302,8 +301,10 @@ upstream branch.
 
 **A new upstream branch** is created only if the splice changed on this
 branch, measured against the base. So starting a feature branch doesn't
-create empty branches on every upstream. A splice made by `init` that
-never synced always counts as changed.
+create empty branches on every upstream. The same rule applies to a
+splice made by `init`, so its first push has to come from the default
+branch: on a feature branch where the folder didn't change, it publishes
+nothing ([#3](https://github.com/roschaefer/git-splice/issues/3)).
 
 ### `status`: the sync state
 
@@ -359,11 +360,14 @@ These are known and accepted, each to keep the design simple:
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
 - **Moving a splice with unpushed changes:** the `git mv` commit changes
   `.splice`, so it becomes the boundary, and the unpushed commits before it
-  reach upstream folded into the move commit. Push before moving.
+  reach upstream folded into the move commit. Push before moving
+  ([#4](https://github.com/roschaefer/git-splice/issues/4)). After a move,
+  run `git splice fetch <new path>`: the fetched refs stay under the old
+  path ([#21](https://github.com/roschaefer/git-splice/issues/21)).
 - **A splice made by `init`** has no synced commit until its first pull, so
   until then every rebuild walks the folder's whole history.
-- **Rare edge cases** are collected in
-  [#2](https://github.com/roschaefer/git-splice/issues/2).
+- **Rare edge cases** each have an issue labelled
+  [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22).
 
 ## Testing
 
