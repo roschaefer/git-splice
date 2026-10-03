@@ -18,7 +18,16 @@ which shares no history with your monorepo.
 `git-splice` keeps a monorepo folder and a standalone repository in sync in
 both directions.
 
-## The contract
+## How it works
+
+Each folder records the upstream commit it last matched. This is a sync point,
+not the upstream commit to check out as it would be with a submodule.
+
+From that point, `git-splice` lets Git do the work: cherry-pick new upstream
+changes, resolve conflicts, and rebuild the folder's local history for a push.
+The monorepo and upstream keep separate histories: changes cross the boundary,
+but commits do not. Unlike `git subtree`, making upstream commits part of the
+monorepo's history is not a goal.
 
 A **splice** is a folder with a committed `.splice` file:
 
