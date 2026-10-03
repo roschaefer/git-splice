@@ -136,6 +136,15 @@ new_upstream() {
   [ -z "$(git ls-files vendor/a)" ]
 }
 
+@test "clone: an upstream file whose name only resembles .splice is content" {
+  new_upstream
+  seed_bare_repo "$upstream" "x" main xsplice
+  seed_bare_repo "$upstream" "x" main docs/-splice
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/xsplice)" = x ]
+}
+
 @test "clone: refuses a path that is a file" {
   new_upstream
   echo x >vendor

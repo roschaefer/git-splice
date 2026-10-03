@@ -19,7 +19,7 @@ STATE_FILE=.splice
 # inside it, and every command refuses nested splices.
 upstream_state_file() {
   local file
-  IFS= read -r -d '' file < <(git ls-tree -r --name-only -z "$1" | grep -z -e "^$STATE_FILE\$" -e "/$STATE_FILE\$") ||
+  IFS= read -r -d '' file < <(git ls-tree -r --name-only -z "$1" | grep -z -e "^\\$STATE_FILE\$" -e "/\\$STATE_FILE\$") ||
     return 1
   printf '%s\n' "$file"
 }
@@ -141,7 +141,7 @@ discover_splices() {
     usable_splice_path "$path" ||
       die "'$path' can't be part of a Git ref name, so it can't be a splice -- rename the folder (e.g. no spaces)"
     ALL_PATHS+=("$path")
-  done < <(git ls-tree -r --name-only -z HEAD 2>/dev/null | grep -z -e "/$STATE_FILE\$" -e "^$STATE_FILE\$" || true)
+  done < <(git ls-tree -r --name-only -z HEAD 2>/dev/null | grep -z -e "/\\$STATE_FILE\$" -e "^\\$STATE_FILE\$" || true)
 
   local other
   for path in "${ALL_PATHS[@]}"; do

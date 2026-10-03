@@ -47,6 +47,15 @@ setup() {
   [[ "$output" != *"'phantom'"* ]]
 }
 
+@test "discover_splices matches .splice literally, not as a pattern" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir -p notes && echo x >notes/xsplice && echo x >vendor/a/-splice
+  git add . && git commit -q -m "files whose names only resemble .splice"
+  discover_splices
+  [ "${ALL_PATHS[*]}" = "vendor/a" ]
+}
+
 @test "discover_splices reads HEAD, not the index" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
