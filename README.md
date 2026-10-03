@@ -31,10 +31,10 @@ Everything follows from two rules:
    default branch, it syncs with the upstream's default branch, whatever
    its name ([example](test/scenarios/default-branch/README.md)).
 
-Only the outermost `.splice` counts: one deeper inside a splice is part of
-its content, e.g. because the upstream uses git splice itself
-([example](test/scenarios/nested-splices/README.md)). A splice's path must
-also work in a Git ref name, so no spaces.
+Splices can't be nested
+([why](test/scenarios/nested-splices/README.md)), so an upstream that
+contains a `.splice` of its own can't be cloned or merged. A splice's path
+must also work in a Git ref name, so no spaces.
 
 ## How it compares
 

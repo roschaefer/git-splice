@@ -1,20 +1,14 @@
 # Scenario: nested-splices
 
-A splice whose upstream uses git splice itself, so it brings a `.splice`
-of its own one level down.
+One splice inside another. Every command refuses this.
 
-- **Upstream**: `file.txt`, and `extra/.splice`: its folder `extra/` is
-  one of its own splices.
-- **Monorepo (`vendor/pkg`)**: cloned from it, so it has
-  `vendor/pkg/.splice` and `vendor/pkg/extra/.splice`.
+- **Monorepo**: `vendor/pkg` and `vendor/pkg/extra`, each with a
+  `.splice`.
 
-Only the outermost `.splice` makes a splice. The inner one is content of
-`vendor/pkg`, like any other file: the push rebuild only leaves out the
-`.splice` at the splice's root, so the upstream's own `.splice` travels
-both ways unchanged. A splice inside another one, or around one, can't be
-created: only the outer one would count, and
-`refs/splices/vendor/pkg/extra/main` could name either the branch
-`extra/main` of `vendor/pkg` or the branch `main` of `vendor/pkg/extra`.
+The outer splice's content includes the inner one, so pushing `vendor/pkg`
+would publish `vendor/pkg/extra` too. And `refs/splices/vendor/pkg/extra/main`
+could name either the branch `extra/main` of `vendor/pkg` or the branch
+`main` of `vendor/pkg/extra`.
 
 ## Output
 
@@ -28,32 +22,20 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_nested_splices
 -->
 
 ```scrut
-$ git ls-files vendor/pkg
-vendor/pkg/.splice
-vendor/pkg/extra/.splice
-vendor/pkg/file.txt
+$ git splice status
+!!   nested splices are not supported: 'vendor/pkg' and 'vendor/pkg/extra' overlap -- remove one of their .splice files
+[1]
+```
+
+Removing one `.splice` fixes it:
+
+```scrut
+$ git rm -q vendor/pkg/extra/.splice && git commit -q -m "vendor/pkg/extra is part of vendor/pkg"
 ```
 
 ```scrut
 $ git splice status
-ok   vendor/pkg -> main (up to date)
-```
-
-```scrut
-$ git splice clone "$UPSTREAM" vendor/pkg/extra
-!!   nested splices are not supported: 'vendor/pkg/extra' and 'vendor/pkg' overlap
-[1]
-```
-
-A local change pushed upstream keeps the upstream's own `.splice`:
-
-```scrut
-$ echo "local change" >>vendor/pkg/file.txt && git commit -qam "local change" && git splice push vendor/pkg
-ok   vendor/pkg: pushed 92d46d9 to main
-```
-
-```scrut
-$ git -C "$UPSTREAM" ls-tree -r --name-only main
-extra/.splice
-file.txt
+ok   vendor/pkg -> main (push)
+ extra/file.txt | 1 +
+ 1 file changed, 1 insertion(+)
 ```

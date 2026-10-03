@@ -11,20 +11,13 @@
 #
 # Then start a new shell (or run `compinit`).
 
-# Splice paths: folders with a .splice committed in HEAD, outermost only.
-# Mirrors discover_splices() in lib/common.sh.
+# Splice paths: folders with a .splice committed in HEAD. Mirrors
+# discover_splices() in lib/common.sh.
 __git_splice_paths() {
-  local -a files paths outermost
-  local p o
-  files=("${(@f)$(git ls-tree -r --name-only HEAD 2>/dev/null | grep -e '/\.splice$')}")
-  paths=("${(@)files%/.splice}")
-  for p in $paths; do
-    for o in $paths; do
-      [[ $p == $o/* ]] && continue 2
-    done
-    outermost+=("$p")
-  done
-  _describe -t paths 'splice' outermost
+  local -a paths
+  paths=("${(@f)$(git ls-tree -r --name-only HEAD 2>/dev/null | grep -e '/\.splice$')}")
+  paths=("${(@)paths%/.splice}")
+  _describe -t paths 'splice' paths
 }
 
 # Branches usable as --base: local and remote-tracking. Listed here rather

@@ -36,6 +36,19 @@ setup() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
+@test "merge: refuses an upstream that brings in a .splice of its own" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "[splice]" main extra/.splice
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream has extra/.splice"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "merge: keeps local changes when merging a divergence" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"

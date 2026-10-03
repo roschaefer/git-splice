@@ -13,11 +13,15 @@ declare -ga EXTRA_FLAGS=()
 # Name of the state file inside every splice folder.
 STATE_FILE=.splice
 
-# Succeeds unless upstream commit <commit> has a state file at its root:
-# the splice's own .splice would replace it in the monorepo, and a push
-# would then delete it upstream.
-upstream_state_file_free() {
-  ! git cat-file -e "$1:$STATE_FILE" 2>/dev/null
+# Prints the first state file in upstream commit <commit>, at its root or
+# deeper, e.g. because the upstream uses git splice itself. Fails if there
+# is none. Bringing one in would replace the splice's own, or nest a splice
+# inside it, and every command refuses nested splices.
+upstream_state_file() {
+  local file
+  IFS= read -r -d '' file < <(git ls-tree -r --name-only -z "$1" | grep -z -e "^$STATE_FILE\$" -e "/$STATE_FILE\$") ||
+    return 1
+  printf '%s\n' "$file"
 }
 
 # Every splice path check and every tree lookup (HEAD:<path>) is only
@@ -128,28 +132,22 @@ has_flag() {
 # splice. Committed, not staged: every command reads a splice's state from
 # HEAD, so a staged .splice isn't one yet, and a staged deletion doesn't end
 # one.
-#
-# Only the outermost .splice counts. One deeper inside a splice is part of
-# its content, e.g. because the upstream uses git splice itself, and travels
-# both ways unchanged.
 discover_splices() {
   ALL_PATHS=()
-  local file path candidates=() outer
-  # A path with a newline can't be a splice anyway: refs can't hold one.
-  while IFS= read -r file; do
+  local file path
+  while IFS= read -r -d '' file; do
     [[ "$file" == "$STATE_FILE" ]] && die "a $STATE_FILE at the repository root isn't supported -- a splice must be a folder"
-    # grep's "." matches any character; this doesn't.
-    [[ "$file" == */"$STATE_FILE" ]] || continue
-    candidates+=("${file%/"$STATE_FILE"}")
-  done < <(git ls-tree -r --name-only -z HEAD 2>/dev/null | tr '\0' '\n' | grep -e "/$STATE_FILE\$" -e "^$STATE_FILE\$" || true)
-
-  for path in "${candidates[@]}"; do
-    for outer in "${candidates[@]}"; do
-      [[ "$path" == "$outer"/* ]] && continue 2
-    done
+    path="${file%/"$STATE_FILE"}"
     usable_splice_path "$path" ||
       die "'$path' can't be part of a Git ref name, so it can't be a splice -- rename the folder (e.g. no spaces)"
     ALL_PATHS+=("$path")
+  done < <(git ls-tree -r --name-only -z HEAD 2>/dev/null | grep -z -e "/$STATE_FILE\$" -e "^$STATE_FILE\$" || true)
+
+  local other
+  for path in "${ALL_PATHS[@]}"; do
+    if other="$(overlapping_splice "$path")"; then
+      die "nested splices are not supported: '$path' and '$other' overlap -- remove one of their $STATE_FILE files"
+    fi
   done
 }
 
@@ -161,8 +159,8 @@ usable_splice_path() {
 }
 
 # Prints the first splice in ALL_PATHS nested inside, or containing, $1.
-# clone and init refuse to make such a splice: only the outer one would
-# count, and refs/splices/<outer>/<branch> could name a branch of either.
+# Nested splices are refused: the outer one's push would publish the inner
+# one, and refs/splices/<outer>/<branch> could name a branch of either.
 overlapping_splice() {
   local name="$1" path
   for path in "${ALL_PATHS[@]}"; do

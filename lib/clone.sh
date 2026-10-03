@@ -83,10 +83,11 @@ cmd_clone() {
     upstream_branch="$upstream_default"
   fi
 
-  local target local_folder
+  local target local_folder nested
   target="$(git rev-parse "$(splice_ref "$path" "$upstream_branch")^{commit}")"
-  upstream_state_file_free "$target" ||
-    die "$path: upstream has a $STATE_FILE at its root, which would collide with the splice's own"
+  if nested="$(upstream_state_file "$target")"; then
+    die "$path: upstream has $nested, and a splice can't contain another $STATE_FILE -- nested splices are not supported"
+  fi
   local_folder="$(folder_tree HEAD "$path")"
   if [[ -n "$local_folder" && "$local_folder" != "$(git rev-parse "$target^{tree}")" && -z "$merge" ]]; then
     die "$path exists and differs from '$upstream_branch' upstream -- '--merge' keeps both, and every file that differs becomes a conflict to resolve"

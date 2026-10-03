@@ -27,11 +27,24 @@ setup() {
   [ ${#ALL_PATHS[@]} -eq 0 ]
 }
 
-@test "discover_splices: a .splice inside a splice is content, not a splice" {
+@test "discover_splices refuses nested splices" {
   scenario_nested_splices "$monorepo" "$upstream"
   cd "$monorepo"
-  discover_splices
-  [ "${ALL_PATHS[*]}" = "vendor/pkg" ]
+  run discover_splices
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nested splices are not supported: 'vendor/pkg' and 'vendor/pkg/extra' overlap"* ]]
+}
+
+@test "discover_splices: a file name with a newline doesn't make a splice" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir -p $'notes\nphantom'
+  echo x >$'notes\nphantom/.splice'
+  git add . && git commit -q -m "a file name with a newline"
+  run discover_splices
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"can't be part of a Git ref name"* ]]
+  [[ "$output" != *"'phantom'"* ]]
 }
 
 @test "discover_splices reads HEAD, not the index" {

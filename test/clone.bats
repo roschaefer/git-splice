@@ -124,22 +124,16 @@ new_upstream() {
   [ -z "$(git for-each-ref refs/splices/)" ]
 }
 
-@test "clone and merge: refuse an upstream with a .splice at its root" {
+@test "clone: refuses an upstream that contains a .splice, at its root or deeper" {
   new_upstream
-  seed_bare_repo "$upstream" "[splice]" main .splice
+  seed_bare_repo "$upstream" "[splice]" main extra/.splice
   run cmd_clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"upstream has a .splice at its root"* ]]
-}
-
-@test "clone: a splice inside or around an existing one is refused" {
-  load 'scenarios/nested-splices/setup'
-  scenario_nested_splices "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_clone "$upstream" vendor/pkg/extra
-  [[ "$output" == *"nested splices are not supported"* ]]
-  run cmd_clone "$upstream" vendor
-  [[ "$output" == *"nested splices are not supported"* ]]
+  [[ "$output" == *"upstream has extra/.splice, and a splice can't contain another .splice"* ]]
+  seed_bare_repo "$upstream" "[splice]" main .splice
+  run cmd_clone "$upstream" vendor/a
+  [[ "$output" == *"upstream has .splice,"* ]]
+  [ -z "$(git ls-files vendor/a)" ]
 }
 
 @test "clone: refuses a path that is a file" {

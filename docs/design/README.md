@@ -108,11 +108,10 @@ git fetch <url> '+refs/heads/*:refs/splices/<path>/*'
 - **Nested splices are refused.** `refs/splices/vendor/a/b/main` would be
   ambiguous between splice `vendor/a` (branch `b/main`) and splice
   `vendor/a/b`. The outer splice's push would also publish the inner one.
-- **Implemented as:** only the outermost `.splice` makes a splice; one
-  deeper inside is content, e.g. because the upstream uses git splice
-  itself. Refusing those would put the monorepo in a state where every
-  command stops, just because of what an upstream contains. `clone` and
-  `init` still refuse to make a splice inside or around another one.
+- **An upstream can't bring in a `.splice`**, at its root or deeper
+  (e.g. because it uses git splice itself): `clone` and `merge` refuse
+  it. Otherwise what an upstream contains could nest splices and stop
+  every command.
 - **A splice's path must work in a ref name** (`git check-ref-format`):
   no spaces, no component ending in `.lock`, and so on.
 
@@ -351,10 +350,10 @@ from `split`, and their READMEs show both outputs side by side:
 
 - **Requirements:** Bash 4.4 and Git 2.40. No compilation: wherever Git
   can do a job, the tool calls Git.
-- **Not supported:** splices inside splices (a deeper `.splice` is
-  content); a faithful copy of the monorepo's
-  merge shapes upstream; migrating `git-subtrees` monorepos. To switch,
-  push everything, then `clone` each folder again.
+- **Not supported:** nested splices, including an upstream that contains
+  a `.splice`; a faithful copy of the monorepo's merge shapes upstream;
+  migrating `git-subtrees` monorepos. To switch, push everything, then
+  `clone` each folder again.
 
 ## Repository
 
