@@ -5,6 +5,25 @@ directions: to publish a package, mirror a library, or keep a vendored copy
 up to date. Switch branches in the monorepo, and every folder switches the
 branch it syncs with.
 
+## The problem
+
+Suppose you work in a monorepo but don't want to publish the whole thing.
+You want to publish only some folders, each in its own repository. A one-way
+export is not enough: you also need to bring dependency updates and occasional
+open-source contributions back into the monorepo, without giving up the
+monorepo as your main place of work.
+
+Or suppose your application needs a custom feature or patch from a software
+library. You vendor the library's source into your monorepo so you can develop
+and integration-test the change alongside the application. Later, you want to
+contribute that change upstream. But you don't own the library's repository,
+and transferring the commits from a subfolder of your monorepo to a fork is
+cumbersome.
+
+Both cases need the same thing: a folder in a monorepo and a standalone
+repository that can exchange changes in both directions. `git-splice` makes
+that relationship explicit and keeps it with the folder.
+
 ## The contract
 
 A **splice** is a folder with a committed `.splice` file:
