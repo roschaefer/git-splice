@@ -94,8 +94,10 @@ not an ancestor
 
 ### `fetch` moves the refs
 
-Someone else pushes to the upstream's `main`. `fetch` moves the ref, as
-`git fetch` moves a remote-tracking branch:
+Someone else pushes to the upstream's `main`.
+[`seed_bare_repo`](../../helpers/fixtures.bash) does that: it clones the
+upstream, appends a line to `file.txt`, commits and pushes. `fetch` moves
+the ref, as `git fetch` moves a remote-tracking branch:
 
 ```scrut
 $ seed_bare_repo "$UPSTREAM" "upstream change"
@@ -112,7 +114,9 @@ $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
 6045a98 refs/splices/vendor/a/main
 ```
 
-`pull` brings the change in. It moves no ref; it writes a monorepo commit:
+`pull` is `fetch`, then `merge`. Its fetch moves and prunes refs like the
+one above, here with nothing new to fetch. Its merge moves no splice ref;
+it writes a monorepo commit:
 
 ```scrut
 $ git splice pull vendor/a
@@ -126,7 +130,7 @@ A local change, pushed. Pushing to a URL updates no ref by itself, so
 `push` records what the upstream has now:
 
 ```scrut
-$ commit_local . vendor/a "local change"
+$ echo "local change" >>vendor/a/file.txt && git commit -q -a -m "local change"
 ```
 
 ```scrut
@@ -164,7 +168,7 @@ $ git switch -q -c rename-helper main
 ```
 
 ```scrut
-$ commit_local . vendor/a "rename helper"
+$ echo "rename helper" >>vendor/a/file.txt && git commit -q -a -m "rename helper"
 ```
 
 ```scrut
@@ -206,8 +210,13 @@ refs/splices/vendor/a/rename-helper
 
 The commit the ref named is still in the object store, but nothing points
 at it anymore. `git gc` deletes such commits, by default once they're two
-weeks old; `--prune=now` doesn't wait. Unlike branches, these refs keep no
-reflog, which would otherwise keep their old commits for another 90 days:
+weeks old; `--prune=now` doesn't wait.
+
+These refs keep no reflog. A branch's or remote-tracking branch's reflog
+keeps a commit it moved away from for another 30 days
+(`gc.reflogExpireUnreachable`), so that matters when a fetch moves a
+splice's ref after a force push upstream. A deleted ref's reflog is
+deleted with it, so here it makes no difference:
 
 ```scrut
 $ git cat-file -t "$fix_parser"
