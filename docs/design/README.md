@@ -341,9 +341,10 @@ upstream branch.
 **A new upstream branch** is created only if the splice changed on this
 branch, measured against the base. So starting a feature branch doesn't
 create empty branches on every upstream. The same rule applies to a
-splice made by `init`, so its first push has to come from the default
-branch: on a feature branch where the folder didn't change, it publishes
-nothing ([#3](https://github.com/roschaefer/git-splice/issues/3)).
+splice made by `init`: `.splice` doesn't count as a change, so on a
+feature branch where the folder's content didn't change, its first push
+publishes nothing. Push it from the default branch instead
+([#3](https://github.com/roschaefer/git-splice/issues/3)).
 
 ### `status`: the sync state
 

@@ -45,11 +45,11 @@ ok   vendor/lib: cloned e849115 from main
 (If `vendor/lib` already holds a changed copy, `clone --merge` keeps both,
 and every file that differs becomes a conflict to resolve.)
 
-From then on, `git splice pull` brings upstream changes in as one ordinary
-monorepo commit, and `git splice push` rebuilds the monorepo commits that
-touched `vendor/lib/` as commits of the library, containing only that
-folder. Both histories are shown as `git log --graph --oneline` shows them,
-newest first:
+From then on, `git splice pull vendor/lib` brings upstream changes in as
+one ordinary monorepo commit, and `git splice push vendor/lib` rebuilds the
+monorepo commits that touched `vendor/lib/` as commits of the library,
+containing only that folder. Both histories are shown as
+`git log --graph --oneline` shows them, newest first:
 
 ```text
   monorepo                                    github.com/x/lib
