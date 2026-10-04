@@ -69,7 +69,8 @@ The commit has a different meaning than a submodule's gitlink. A submodule
 commit says which revision should be checked out. A splice commit is a sync
 point: the upstream revision the folder matched when changes were last spliced
 in. It does not determine the folder's current content; later monorepo commits
-can change it, and a push does not update the sync point.
+can change it, and a push does not update the sync point
+([example](../../test/scenarios/pushed-then-pulled/README.md)).
 
 From that point, `git-splice` lets Git merge upstream changes and resolve
 conflicts, or rebuild the folder's monorepo commits for a push. Changes cross
