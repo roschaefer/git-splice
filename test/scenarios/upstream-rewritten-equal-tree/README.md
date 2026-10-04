@@ -64,7 +64,7 @@ A local change, and the splice has no history in common with the upstream
 anymore:
 
 ```scrut
-$ commit_local . vendor/a "local change"
+$ echo "local change" >>vendor/a/file.txt && git commit -q -a -m "local change"
 ```
 
 ```scrut
