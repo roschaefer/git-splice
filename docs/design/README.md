@@ -58,6 +58,34 @@ as upstream commits. Changes cross the boundary; commits do not.
   A rare case gets documented, or an issue labelled
   [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22). An extreme one is ignored.
 
+## The sync point
+
+A splice is an ordinary folder in the monorepo with a committed `.splice`
+file. Like a subtree, its files live directly in the monorepo, where they can
+be changed and tested with everything else. Like a submodule, the monorepo
+records an upstream repository and one of its commits.
+
+The commit has a different meaning than a submodule's gitlink. A submodule
+commit says which revision should be checked out. A splice commit is a sync
+point: the upstream revision the folder matched when changes were last spliced
+in. It does not determine the folder's current content; later monorepo commits
+can change it, and a push does not update the sync point.
+
+From that point, `git-splice` lets Git merge upstream changes and resolve
+conflicts, or rebuild the folder's monorepo commits for a push. Changes cross
+the boundary, but commits do not: both repositories keep their own histories.
+
+## How it compares
+
+| Tool | What is similar | Key difference |
+| --- | --- | --- |
+| `git submodule` | The monorepo commits an upstream URL and commit. | A submodule commit selects the revision in a separate worktree. A splice commit only marks an earlier sync point; the folder is ordinary monorepo content and may have changed since. |
+| `git subtree` | The files live in the monorepo and are developed there. | A subtree has no state file. Pulling imports upstream history or a squash commit and merge; a splice records its sync point and pulls as one ordinary monorepo commit, which a squash merge can't lose ([example](../../test/scenarios/squash-merged-pull/README.md)). A monorepo merge reaches upstream as one commit, not as the monorepo's side branches ([example](../../test/scenarios/merge-in-monorepo/README.md)). |
+| [git-subrepo](https://github.com/ingydotnet/git-subrepo) | It has a committed state file, fetches by URL and pulls as one commit. | It stores a monorepo commit that rebases and squash merges can invalidate, and fixes each folder to one branch. |
+| [splitsh-lite](https://github.com/splitsh/lite) | It publishes folders as repositories. | It creates read-only mirrors; changes only flow out. |
+| [Josh](https://github.com/josh-project/josh) | It exposes part of a monorepo as a repository. | The monorepo remains authoritative, and contributors work through filtered views of it. |
+| [Copybara](https://github.com/google/copybara) | It moves changes between repositories. | One repository is the source of truth; syncing back needs a separate reverse workflow ([example](../../test/scenarios/copybara-contributor-workflow/README.md)). |
+
 ## Vocabulary
 
 | Term | Meaning |
@@ -172,7 +200,16 @@ git fetch --prune <url> '+refs/heads/*:refs/splices/<path>/*'
 - `--prune` drops branches deleted upstream, so no `prune` command is
   needed.
 - Every Git command can read an upstream as `splices/<path>/<branch>`,
-  e.g. `git log splices/vendor/a/main`. No separate clone is needed.
+  as of the last fetch. No separate clone is needed:
+
+  ```
+  git log --oneline splices/vendor/a/main
+  git show splices/vendor/a/main:README.md
+  git worktree add --detach ../a-upstream splices/vendor/a/main
+  ```
+
+  `git log --all` and `gitk --all` show those histories too; add
+  `--exclude='refs/splices/*'` before `--all` to leave them out.
 
 Two rules follow from the ref layout:
 
