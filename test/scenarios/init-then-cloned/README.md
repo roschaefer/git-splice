@@ -17,8 +17,8 @@ records its synced commit, and a fresh clone says it was
 [never fetched](../never-fetched/README.md).
 
 Workaround: `git splice fetch` (or `pull`, which fetches) in the clone.
-Nothing is lost meanwhile: a push without a fetch is rejected by the
-upstream unless it fast-forwards.
+Nothing is lost meanwhile: the rebuild produces the commits the upstream
+already has, so a push without a fetch adds to them, or changes nothing.
 
 ## Output
 
@@ -65,6 +65,36 @@ $ git splice log
 ```scrut
 $ git splice merge lib/a
 ok   lib/a: upstream has no 'main' branch -- nothing to merge
+```
+
+`diff` shows the whole folder as a change to push:
+
+```scrut
+$ git splice diff
+===  lib/a
+diff --git a/file.txt b/file.txt
+new file mode 100644
+index 0000000..57be07d
+--- /dev/null
++++ b/file.txt
+@@ -0,0 +1,2 @@
++first version
++second version
+```
+
+`push` says it creates the branch, but sends nothing new: it rebuilds the
+same two commits the upstream has, and the upstream stays as it was:
+
+```scrut
+$ git splice push lib/a
+??   lib/a: upstream has no 'main' branch yet -- this push creates it
+ok   lib/a: pushed ef82a18 to main
+```
+
+```scrut
+$ git -C "$UPSTREAM" log --format=%s main
+second version
+first version
 ```
 
 After a fetch, the clone sees the upstream as it is:

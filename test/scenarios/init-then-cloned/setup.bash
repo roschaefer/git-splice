@@ -8,7 +8,6 @@ scenario_init_then_cloned() {
   (
     cd "$original"
     splice init lib/a "$upstream" >/dev/null 2>&1
-    git commit -q -m "make lib/a a splice"
     splice push lib/a >/dev/null 2>&1
   )
   commit_local "$original" "lib/a" "second version"
