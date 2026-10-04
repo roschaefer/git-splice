@@ -192,7 +192,7 @@ git fetch --prune <url> '+refs/heads/*:refs/splices/<path>/*'
 ```
 
 - No Git remote exists, so nothing can push the monorepo there by mistake.
-  That fixes #50 by design, not by intercepting it.
+  [Why that matters](accidental-monorepo-push.md).
 - `url.<base>.insteadOf` and `pushInsteadOf` still apply, since they work
   on URLs.
 - `push` goes to the URL, and then updates `refs/splices/<path>/<branch>`

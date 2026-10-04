@@ -8,7 +8,7 @@ A pull on a feature branch, squash-merged into `main`.
   `main` and deleted, then a local commit followed on `main`.
 
 A squash merge keeps the content and drops the history. With `git subtree`,
-that lost the sync point (git-subtrees#55). Here the squash merge itself
+that lost the sync point. Here the squash merge itself
 changed `.splice`, so it is the new boundary, and the rebuild starts at the
 pulled upstream commit: a push sends only the local commit.
 
