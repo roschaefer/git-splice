@@ -38,6 +38,7 @@ A scenario folder has:
 | [`pull-ahead`](pull-ahead/) | [Pull ahead](pull-ahead/README.md) |
 | [`push-ahead`](push-ahead/) | [Push ahead](push-ahead/README.md) |
 | [`pushed-then-changed`](pushed-then-changed/) | [Pushed, then changed](pushed-then-changed/README.md) |
+| [`pushed-then-pulled`](pushed-then-pulled/) | [Pushed, then pulled](pushed-then-pulled/README.md) |
 | [`shared-remote-url`](shared-remote-url/) | [Shared remote URL](shared-remote-url/README.md) |
 | [`squash-merged-pull`](squash-merged-pull/) | [Squash-merged pull](squash-merged-pull/README.md) |
 | [`up-to-date`](up-to-date/) | [Up to date](up-to-date/README.md) |
@@ -67,6 +68,7 @@ ok never-fetched (1 document)
 ok pull-ahead (1 document)
 ok push-ahead (1 document)
 ok pushed-then-changed (1 document)
+ok pushed-then-pulled (1 document)
 ok shared-remote-url (1 document)
 ok squash-merged-pull (1 document)
 ok up-to-date (1 document)
