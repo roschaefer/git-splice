@@ -9,7 +9,7 @@ also says where it is the better tool.
 - [`git submodule`](git-submodule.md): the monorepo doesn't see the
   library's files, every fix takes two commits and two pushes in the
   right order, and a second worktree has its own submodule clones but
-  shares their settings.
+  shares the monorepo's `submodule.*` settings for them.
 - [`git subtree`](git-subtree.md): either the library's whole history
   comes into the monorepo, or `split` walks the monorepo's whole history
   on every push. Either way, the history isn't linear.
@@ -22,7 +22,7 @@ also says where it is the better tool.
 | Library history in the monorepo | none | whole, or squashed into a merge | none, one commit per sync |
 | Monorepo history | linear | merges | linear |
 | Push walks | nothing, the library is its own repository | the monorepo's history since the last known library commit | the commits since the last sync |
-| Second worktree | initialize again, settings shared, can't be moved | works | works |
+| Second worktree | initialize again, `submodule.*` settings shared, can't be moved | works | works |
 | Best for | libraries kept apart, with their own access | moving a repository in for good, history included | changing a library in the monorepo and sending the changes back |
 
 The [design](../../docs/design/README.md#how-it-compares) compares more

@@ -148,12 +148,21 @@ fatal: Fetched in submodule path 'vendor/lib', but it did not contain a6152f5cee
 [128]
 ```
 
-The library's commit has to be pushed first. The submodule's checkout is
-on no branch, so that's `HEAD:main`:
+The library's commit has to be pushed first:
 
 ```scrut
-$ git -C vendor/lib push -q origin HEAD:main && rm -rf ../colleague && git clone -q --recurse-submodules ../origin.git ../colleague && echo cloned
+$ git -C vendor/lib push -q && rm -rf ../colleague && git clone -q --recurse-submodules ../origin.git ../colleague && echo cloned
 cloned
+```
+
+Here the submodule was on `main`, because `git submodule add` cloned it.
+In the colleague's clone, `git submodule update` checked out the
+monorepo's recorded commit, on no branch. A fix committed there needs a
+branch first (`git switch -c`), or a push as `HEAD:<branch>`:
+
+```scrut
+$ git -C ../colleague/vendor/lib status --short --branch
+## HEAD (no branch)
 ```
 
 A splice's files are part of the monorepo commit, so a colleague's clone
@@ -182,9 +191,10 @@ $ git -C ../feature submodule update -q --init && cat ../feature/vendor/lib/.git
 gitdir: ../../../monorepo/.git/worktrees/feature/modules/vendor/lib
 ```
 
-But the submodule's settings, like its URL, live in the monorepo's
-`.git/config`, which all worktrees share. A change in one worktree changes
-the others:
+The submodule's own repository, with its own `.git/config`, is separate
+in each worktree. But the monorepo's settings for the submodule,
+`submodule.<name>.*` like its URL, live in the monorepo's `.git/config`,
+which all worktrees share. A change in one worktree changes the others:
 
 ```scrut
 $ git -C ../feature config submodule.vendor/lib.url https://git.example.com/lib-fork.git && git config submodule.vendor/lib.url
