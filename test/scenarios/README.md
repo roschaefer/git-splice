@@ -32,6 +32,7 @@ A scenario folder has:
 | [`feature-branch-changed`](feature-branch-changed/) | [Changed feature branch](feature-branch-changed/README.md) |
 | [`feature-branch-unchanged`](feature-branch-unchanged/) | [Unchanged feature branch](feature-branch-unchanged/README.md) |
 | [`init-new-upstream`](init-new-upstream/) | [Initialize a new upstream](init-new-upstream/README.md) |
+| [`init-then-cloned`](init-then-cloned/) | [Init, then cloned](init-then-cloned/README.md) |
 | [`merge-in-monorepo`](merge-in-monorepo/) | [`git subtree` merge](merge-in-monorepo/README.md); [Repeated `main` merges](merge-in-monorepo/multiple-main-merges.md) |
 | [`nested-splices`](nested-splices/) | [Nested splices](nested-splices/README.md) |
 | [`never-fetched`](never-fetched/) | [Never fetched](never-fetched/README.md) |
@@ -62,6 +63,7 @@ ok diverged-unrelated-history (1 document)
 ok feature-branch-changed (1 document)
 ok feature-branch-unchanged (1 document)
 ok init-new-upstream (1 document)
+ok init-then-cloned (1 document)
 ok merge-in-monorepo (2 documents)
 ok nested-splices (1 document)
 ok never-fetched (1 document)
