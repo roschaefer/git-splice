@@ -10,7 +10,7 @@ no_shell=0
 
 usage() {
   cat <<'EOF'
-usage: walkthrough/setup.sh [--dir <path>] [--no-shell]
+usage: test/walkthrough/setup.sh [--dir <path>] [--no-shell]
 
 Builds a scratch monorepo plus fixture bare "upstream" repos for manually
 running git-splice commands against realistic state. When run
@@ -72,7 +72,7 @@ seed_bare_repo() {
   rm -rf "$tmp"
 }
 
-splice="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/git-splice"
+splice="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/git-splice"
 
 echo "=== building fixture upstream repos ==="
 git init -q --bare --initial-branch=main "$upstream_dir/pkg-a.git"

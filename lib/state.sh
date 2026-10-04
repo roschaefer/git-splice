@@ -57,8 +57,8 @@ classify_splice() {
   fi
 
   if [[ -n "$SPLICE_SYNCED" ]] && ! git cat-file -e "$SPLICE_SYNCED^{commit}" 2>/dev/null; then
-    # The upstream no longer has the commit the splice last matched, e.g.
-    # after a force push: nothing to compare with.
+    # The commit the splice last matched isn't here, e.g. a fresh clone
+    # fetched after upstream force-pushed it away: nothing to compare with.
     SPLICE_STATE="unrelated-history"
     return
   fi

@@ -5,23 +5,79 @@ directions: to publish a package, mirror a library, or keep a vendored copy
 up to date. Switch branches in the monorepo, and every folder switches the
 branch it syncs with.
 
-## The contract
+## The problem
 
-A **splice** is a folder with a committed `.splice` file:
+You vendored a library into your monorepo and fixed a bug in it, tested
+together with your app. Now the fix should go back to the library's own
+repository, but it is buried in monorepo commits that also touch `app/`,
+and the two repositories share no history:
 
-    git splice clone https://github.com/x/lib.git vendor/lib
-
+```text
+  your monorepo                              github.com/x/lib
+ ┌──────────────────────────────┐           ┌─────────────────────┐
+ │ app/                         │           │ src/                │
+ │ vendor/lib/  (copy of x/lib) │           │ README.md           │
+ │   src/       ← your fix      │ ───?───▶  │                     │
+ └──────────────────────────────┘           └─────────────────────┘
+   one history for app and lib                its own history
 ```
+
+The same holds the other way round: a package developed in the monorepo
+that you publish as its own repository, while still merging outside
+contributions back in. Neither side should become the source of truth.
+
+## The solution
+
+Instead of copying the library, splice it in once:
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/test/readme/scrut-setup.sh"
+```
+-->
+
+```scrut
+$ git splice clone https://github.com/x/lib.git vendor/lib
+===  vendor/lib: fetching https://github.com/x/lib.git
+ok   vendor/lib: cloned e849115 from main
+```
+
+(If `vendor/lib` already holds a changed copy, `clone --merge` keeps both,
+and every file that differs becomes a conflict to resolve.)
+
+From then on, `git splice pull vendor/lib` brings upstream changes in as
+one ordinary monorepo commit, and `git splice push vendor/lib` rebuilds the
+monorepo commits that touched `vendor/lib/` as commits of the library,
+containing only that folder. Both histories are shown as
+`git log --graph --oneline` shows them, newest first:
+
+```text
+  monorepo                                    github.com/x/lib
+
+  * (HEAD -> fix-parser) app: call parse()
+  * fix parse() options          ── push ──▶  * (fix-parser) fix parse() options
+  * rename helper in app and lib ── push ──▶  * rename helper in app and lib
+  |                                           |
+  * (main) splice: clone          ◀── clone ── * (main) e849115 release 1.2
+  |   vendor/lib from main at e849115
+  * app: initial commit
+```
+
+Point the URL at your fork, and the pushed branch is ready for a pull
+request. Changes cross the boundary, but commits don't: both repositories
+keep their own histories.
+
+The splice's state is one committed file:
+
+```scrut
 $ cat vendor/lib/.splice
 [splice]
 	url = https://github.com/x/lib.git
-	commit = 3f1c…
+	commit = e8491155fe5db4e87fd6c1227ab65fd61da8af0a
 ```
 
-`url` is the splice's upstream repository. `commit` is the upstream commit
-the folder last matched; `clone`, `merge` and `pull` update it, nothing
-else does.
-Everything follows from two rules:
+`commit` is the sync point: the upstream commit the folder last matched.
+Everything else follows from two rules:
 
 1. **The folder carries its own state.** Move it with `git mv`, and the
    splice moves along. A clone of the monorepo has every splice, with no
@@ -31,45 +87,26 @@ Everything follows from two rules:
    default branch, it syncs with the upstream's default branch, whatever
    its name ([example](test/scenarios/default-branch/README.md)).
 
-Splices can't be nested
-([why](test/scenarios/nested-splices/README.md)), so an upstream that
-contains a `.splice` of its own can't be cloned or merged. A splice's path
-must also work in a Git ref name, so no spaces.
-
-## How it compares
-
-`git-splice` grew out of
-[git-subtrees](https://github.com/roschaefer/git-subtrees), a layer on `git
-subtree`. Four problems with `git subtree` led to this rewrite: `status`
-slowing down with the monorepo's whole history, a Git remote per folder that
-could receive the whole monorepo by accident, two commits for every pull,
-and squash merges that lost the sync point. [The design](docs/design/README.md)
-explains each decision.
-
-| Tool | Why it doesn't fit |
-| --- | --- |
-| `git subtree` | No state of its own: every operation splits the whole history, and a pull adds a squash commit and a merge. |
-| `git submodule` | `git switch` doesn't switch the submodules' branches. `--recurse-submodules` only checks out a pinned commit. |
-| [git-subrepo](https://github.com/ingydotnet/git-subrepo) | A fixed branch per folder, and its `.gitrepo` stores a monorepo commit that squash merges and rebases break. |
-| [splitsh-lite](https://github.com/splitsh/lite) | One way only: it publishes read-only mirrors. |
-| [Josh](https://github.com/josh-project/josh) | The opposite model: the monorepo is authoritative, and people work in filtered views of it. |
-| [Copybara](https://github.com/google/copybara) | One repository is the source of truth. Syncing back needs a second, reverse workflow. |
+[The design](docs/design/README.md) explains the model, how it
+[compares](docs/design/README.md#how-it-compares) to `git submodule`,
+`git subtree`, git-subrepo, Josh, Copybara and others, and its
+[limits](docs/design/README.md#limits).
 
 ## Example
 
-[A walkthrough of every command](walkthrough/README.md) shows what each one
+[A walkthrough of every command](test/walkthrough/README.md) shows what each one
 prints, on a throwaway monorepo whose upstreams live on the same machine.
 To follow along, run `just walkthrough` in a clone of this repository.
 
 ## Commands
 
-Commands that splice in or out change the monorepo or an upstream, so they
-name their splices, or take `--all`. Commands that only look cover every
-splice unless you name some. Run `git splice <command> --help` for options.
+`merge`, `pull` and `push` change the monorepo or an upstream, so they name
+their splices, or take `--all`. `clone` and `init` start one splice each.
+Commands that only look cover every splice unless you name some. Run `git splice <command> --help` for options.
 
 | Command | What it does |
 | --- | --- |
-| `clone <url> [<path>]` | Splices an existing repository into a new folder, as one commit. |
+| `clone <url> [<path>]` | Splices an existing repository into a new folder, as one commit. Use `--merge` if the folder already exists and differs. |
 | `init <path> <url>` | Makes a folder a splice of a new, empty repository. The first `push` publishes its history. |
 | `merge <path>…` | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
 | `pull <path>…` | `fetch` + `merge`. |
@@ -80,52 +117,21 @@ splice unless you name some. Run `git splice <command> --help` for options.
 | `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<path>/`. |
 
 `status`, `diff`, `log` and `merge` only use what was last fetched. Run
-`git splice fetch` first if you need the latest upstream state.
+`git splice fetch` first if you need the latest upstream state. Fetched
+upstreams can be read with any Git command, e.g.
+`git log splices/vendor/lib/main`.
 
-**No Git remotes.** Upstreams are fetched and pushed by URL, so nothing can
-send the whole monorepo to one by mistake, not even a plain `git push` with
-`push.autoSetupRemote`. `url.<base>.insteadOf` and `pushInsteadOf` apply as
-usual.
-
-**Looking at an upstream.** `fetch` keeps each upstream's complete history
-in the monorepo, so every Git command can read it as of the last fetch, as
-`splices/<path>/<branch>`. Nothing needs to be cloned:
-
-    git log --oneline splices/vendor/lib/main
-    git show splices/vendor/lib/main:README.md
-    git worktree add --detach ../lib-upstream splices/vendor/lib/main
-
-`git log --all` and `gitk --all` show those histories too; add
-`--exclude='refs/splices/*'` before `--all` to leave them out.
-
-**One commit per pull.** A pull is an ordinary commit that changes the
-splice and its `.splice`; upstream's history stays upstream. A conflict
-stops it like any merge: resolve it and run `git commit`.
-
-**Pushing a new branch.** If a splice's upstream doesn't have your branch
-yet, `push` creates it only when that splice changed on your branch. So
-starting a feature branch doesn't create empty branches on every upstream.
-"Changed" is measured against the monorepo's base branch: `--base <branch>`
-if you pass it, else the monorepo's default branch (`origin/HEAD`, else
-`init.defaultBranch`). If none of these work, `push` asks for `--base`
-instead of guessing.
-
-**Starting a splice.**
-
-| Situation | Command |
-| --- | --- |
-| The upstream exists, the folder doesn't | `git splice clone <url> [<path>]` |
-| The folder exists, the upstream is new and empty | `git splice init <path> <url>` |
-| Both exist with the same content | `git splice clone <url> <path>` only adds `.splice` |
-| Both exist and differ | `git splice clone --merge <url> <path>`: every file that differs becomes a conflict, nothing is lost |
-
-The monorepo needs at least one commit: a clone is a commit on top of it.
+Upstreams are fetched and pushed by URL, with no Git remote, so a plain
+`git push` can't send the whole monorepo to one by mistake
+([more](docs/design/README.md#refs-instead-of-remotes)). A `push` creates a
+new upstream branch only if the splice changed on your branch
+([more](docs/design/README.md#splicing-out-push-and-the-rebuild)).
 
 ## Sync states
 
 `status` reports one of these states for each splice, and `merge`, `pull`
-and `push` act on it. Each linked scenario is a small, tested example of
-that state.
+and `push` act on it. Each example is a small, tested scenario;
+[all scenarios](test/scenarios/README.md) cover more situations.
 
 | State | Meaning | What to do |
 | --- | --- | --- |
@@ -135,38 +141,7 @@ that state.
 | pull | Only the upstream changed. ([example](test/scenarios/pull-ahead/README.md)) | Run `git splice pull`. |
 | diverged | Both sides changed since they last matched. ([example](test/scenarios/diverged-common-ancestor/README.md)) | Run `git splice pull`, then `push`. On a conflict, resolve it and `git commit` first. |
 | unrelated history | Both sides changed and share no history, e.g. the upstream was rebuilt from scratch. ([example](test/scenarios/diverged-unrelated-history/README.md)) | Pick a side. `merge`, `pull` and `push` refuse to guess and print the commands to keep either side, or both. |
-| upstream has no such branch | The upstream has no branch with your branch's name. ([unchanged](test/scenarios/feature-branch-unchanged/README.md), [changed](test/scenarios/feature-branch-changed/README.md)) | Run `git splice push`. It creates the branch only if the splice changed (see *Pushing a new branch*). |
-
-More scenarios:
-
-- [`pushed-then-changed`](test/scenarios/pushed-then-changed/README.md):
-  a push, then more local changes. The next push fast-forwards.
-- [`diverged-then-pulled`](test/scenarios/diverged-then-pulled/README.md):
-  a pull merged a divergence; the local commit still reaches upstream as
-  its own commit.
-- [`squash-merged-pull`](test/scenarios/squash-merged-pull/README.md):
-  a pull on a branch that was squash-merged.
-- [`merge-in-monorepo`](test/scenarios/merge-in-monorepo/README.md): unlike
-  `git subtree`, merges in the monorepo become ordinary upstream commits;
-  [repeated merges](test/scenarios/merge-in-monorepo/multiple-main-merges.md)
-  behave the same way.
-- [`copybara-contributor-workflow`](test/scenarios/copybara-contributor-workflow/README.md):
-  test an external contribution in the monorepo while keeping its merge in
-  the public upstream repository.
-- [`clone-copied-content`](test/scenarios/clone-copied-content/README.md),
-  [`clone-differing-content`](test/scenarios/clone-differing-content/README.md),
-  [`clone-on-feature-branch`](test/scenarios/clone-on-feature-branch/README.md),
-  [`clone-without-commits`](test/scenarios/clone-without-commits/README.md),
-  and [invalid paths](test/scenarios/clone-without-commits/ref-friendly-path.md):
-  `clone` where something is there already, or missing.
-- [`init-new-upstream`](test/scenarios/init-new-upstream/README.md):
-  publishing a folder that grew in the monorepo.
-- [`shared-remote-url`](test/scenarios/shared-remote-url/README.md): two
-  splices with the same upstream URL act like two clones of one repository.
-
-[The design](docs/design/README.md) explains how states are worked out,
-how a push is rebuilt, and where it deliberately differs from `git subtree
-split`.
+| upstream has no such branch | The upstream has no branch with your branch's name. ([unchanged](test/scenarios/feature-branch-unchanged/README.md), [changed](test/scenarios/feature-branch-changed/README.md)) | Run `git splice push`. It creates the branch only if the splice changed. |
 
 ## Installation
 
@@ -218,12 +193,8 @@ With [Nix](https://nixos.org/download/) and
     just --list      # lint, fmt, test, ci, bench, walkthrough, ...
     just walkthrough # try commands by hand in a throwaway monorepo
 
-Scenario fixtures for the tests are in
-[`test/scenarios/`](test/scenarios/README.md), each with a README that
-shows the tool's output in that state, checked like the walkthroughs by
-`just docs-check`. The push rebuild is tested against `git subtree split`
-as an oracle (`test/rebuild.bats`). Pull requests out of draft get a
-benchmark against their base in the job summary of the Benchmark workflow.
+[The design](docs/design/README.md#testing) explains how the tests are
+layered and how to write one.
 
 Releases come from [release-please](https://github.com/googleapis/release-please):
 it keeps a release PR open with the next version and changelog, built from

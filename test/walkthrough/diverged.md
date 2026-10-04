@@ -131,5 +131,5 @@ ok   vendor/pkg-a -> main (up to date)
 If the two sides share no history at all, e.g. because the upstream was
 rebuilt from scratch, `merge`, `pull` and `push` don't try to merge. They
 print the commands to keep either side instead; see the
-[`diverged-unrelated-history`](../test/scenarios/diverged-unrelated-history/README.md)
+[`diverged-unrelated-history`](../scenarios/diverged-unrelated-history/README.md)
 scenario.
