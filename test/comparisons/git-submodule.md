@@ -95,6 +95,33 @@ doesn't find the fix unless asked to recurse:
 $ git log --oneline -- vendor/lib/src/parse.txt
 ```
 
+Only the patches of commits that moved the gitlink can show what changed
+inside, with `--submodule=diff` again:
+
+```scrut
+$ git log -1 -p --submodule=diff --format=%s -- vendor/lib
+app: call parse()
+
+Submodule vendor/lib bafd496..a6152f5:
+diff --git a/vendor/lib/src/parse.txt b/vendor/lib/src/parse.txt
+index ac9837c..66931ff 100644
+--- a/vendor/lib/src/parse.txt
++++ b/vendor/lib/src/parse.txt
+@@ -28,3 +28,4 @@ line 27
+ line 28
+ line 29
+ line 30
++fix
+```
+
+`status` has no such option. It never names a file inside a submodule,
+as above, and rejects `--recurse-submodules`:
+
+```scrut
+$ git status --recurse-submodules | head -1
+error: unknown option `recurse-submodules'
+```
+
 ```scrut
 $ git grep -c fix -- vendor/lib; git grep -c --recurse-submodules fix -- vendor/lib
 vendor/lib/src/parse.txt:1

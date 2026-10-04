@@ -17,7 +17,7 @@ also says where it is the better tool.
 | | `git submodule` | `git subtree` | `git splice` |
 | --- | --- | --- | --- |
 | Library files in the monorepo | no, a gitlink | yes | yes |
-| `status`, `diff`, `log` of library files | only with extra options | yes | yes |
+| `status`, `diff`, `log` of library files | `status`: never; `diff`, `log -p`: with `--submodule=diff`; `log -- <file>`: never | yes | yes |
 | Fix to app and library | two commits, two pushes, library first | one commit | one commit |
 | Library history in the monorepo | none | whole, or squashed into a merge | none, one commit per sync |
 | Monorepo history | linear | merges | linear |
