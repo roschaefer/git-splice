@@ -6,15 +6,15 @@ lint:
     shellcheck test/walkthrough/setup.sh test/walkthrough/simulate-remote-change
     shellcheck completions/git-splice.bash
     shellcheck bench/setup.sh bench/run.sh
-    shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh
+    shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/comparisons/scrut-setup.sh
 
 # Format with shfmt
 fmt:
-    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh test/walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh
+    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh test/walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/comparisons/scrut-setup.sh
 
 # Check formatting with shfmt
 fmt-check:
-    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh test/walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh
+    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh test/walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/comparisons/scrut-setup.sh
 
 # Run the bats tests
 test:
@@ -30,14 +30,14 @@ bench *args:
 walkthrough *args:
     @test/walkthrough/setup.sh "$@"
 
-# Check the README, walkthroughs and scenario READMEs against real output; --write updates them
+# Check the README, walkthroughs, scenario READMEs and comparisons against real output; --write updates them
 docs-check flag="":
     @if [[ "{{flag}}" == --write ]]; then \
-      scrut update --replace --assume-yes README.md test/walkthrough test/scenarios; \
+      scrut update --replace --assume-yes README.md test/walkthrough test/scenarios test/comparisons; \
     elif [[ -n "{{flag}}" ]]; then \
       echo "usage: just docs-check [--write]" >&2; exit 1; \
-    elif ! scrut test README.md test/walkthrough test/scenarios; then \
-      echo "The README, walkthroughs or scenario READMEs don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
+    elif ! scrut test README.md test/walkthrough test/scenarios test/comparisons; then \
+      echo "The README, walkthroughs, scenario READMEs or comparisons don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
     fi
 
 # Everything CI runs: lint, fmt-check, test and docs-check
