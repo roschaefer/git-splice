@@ -430,7 +430,7 @@ and Git 2.40, and their newer counterparts.
 | Unit and command tests | `test/*.bats` | Functions and commands, called directly after `load_lib`, against a scenario. |
 | Oracle tests | `test/rebuild.bats` | The rebuild against `git subtree split`. |
 | Scenario READMEs | `test/scenarios/<name>/README.md` | What the tool prints in that state, checked by scrut. |
-| Walkthroughs | `walkthrough/*.md` | Every command in order, on a sandbox, checked by scrut. |
+| Walkthroughs | `test/walkthrough/*.md` | Every command in order, on a sandbox, checked by scrut. |
 | Benchmark | `bench/`, `test/bench.bats` | `status` timings on a synthetic monorepo, reported on PRs out of draft. |
 
 ### Writing a bats test

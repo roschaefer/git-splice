@@ -80,7 +80,7 @@ Everything else follows from two rules:
 
 ## Example
 
-[A walkthrough of every command](walkthrough/README.md) shows what each one
+[A walkthrough of every command](test/walkthrough/README.md) shows what each one
 prints, on a throwaway monorepo whose upstreams live on the same machine.
 To follow along, run `just walkthrough` in a clone of this repository.
 
