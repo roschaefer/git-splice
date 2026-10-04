@@ -35,17 +35,17 @@ Splice the library in once:
 From then on, `git splice pull` brings upstream changes in as one ordinary
 monorepo commit, and `git splice push` rebuilds the monorepo commits that
 touched `vendor/lib/` as commits of the library, containing only that
-folder:
+folder. Both histories are shown as `git log --graph --oneline` shows them,
+newest first:
 
 ```
-  monorepo, branch fix-parser                github.com/x/lib, branch fix-parser
+  monorepo                                    github.com/x/lib
 
-  * app: call parse() with options
-  * fix parse() options          ── push ──▶  * fix parse() options
+  * (HEAD -> fix-parser) app: call parse()
+  * fix parse() options          ── push ──▶  * (fix-parser) fix parse() options
   * rename helper in app and lib ── push ──▶  * rename helper in app and lib
   |                                           |
-  * splice in x/lib at 3f1c      ◀── clone ── * 3f1c release 1.2
-  |
+  * (main) splice in x/lib@3f1c  ◀── clone ── * (main) 3f1c release 1.2
   * app: initial commit
 ```
 
