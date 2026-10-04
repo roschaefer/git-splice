@@ -28,9 +28,12 @@ contributions back in. Neither side should become the source of truth.
 
 ## The solution
 
-Splice the library in once:
+Instead of copying the library, splice it in once:
 
     git splice clone https://github.com/x/lib.git vendor/lib
+
+(If `vendor/lib` already holds a changed copy, `clone --merge` keeps both,
+and every file that differs becomes a conflict to resolve.)
 
 From then on, `git splice pull` brings upstream changes in as one ordinary
 monorepo commit, and `git splice push` rebuilds the monorepo commits that
@@ -86,9 +89,9 @@ To follow along, run `just walkthrough` in a clone of this repository.
 
 ## Commands
 
-Commands that splice in or out change the monorepo or an upstream, so they
-name their splices, or take `--all`. Commands that only look cover every
-splice unless you name some. Run `git splice <command> --help` for options.
+`merge`, `pull` and `push` change the monorepo or an upstream, so they name
+their splices, or take `--all`. `clone` and `init` start one splice each.
+Commands that only look cover every splice unless you name some. Run `git splice <command> --help` for options.
 
 | Command | What it does |
 | --- | --- |

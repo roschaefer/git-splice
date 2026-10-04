@@ -228,7 +228,8 @@ Which splices a command acts on depends on what it does:
 
 | Kind | Commands | Without a path |
 |---|---|---|
-| Splices in or out: changes the monorepo or an upstream | `clone`, `init`, `merge`, `pull`, `push` | Refuses. Takes one or more paths, or `--all`. |
+| Starts a splice | `clone`, `init` | Take one URL and one path, no `--all`. `clone` defaults the path to the repository's name, as `git clone` does. |
+| Splices in or out: changes the monorepo or an upstream | `merge`, `pull`, `push` | Refuses. Takes one or more paths, or `--all`. |
 | Looks or prepares: changes neither | `status`, `diff`, `log`, `fetch` | Every splice; paths narrow it down. |
 
 Splicing in writes a commit into the monorepo, and splicing out publishes
@@ -328,7 +329,8 @@ message. Upstream doesn't know the monorepo's side branches, so a faithful
 merge shape would add nothing, and leaving it out avoids the
 parent-mapping problems `split` spent years fixing.
 
-**Costs** O(commits since the last sync), not O(all history). The commit loop
+**Costs** O(commits since the last boundary whose folder matched its synced
+commit), not O(all history). The commit loop
 reads all commit metadata with one `git log` and all folder trees with one
 `git cat-file --batch-check`, so it spawns about one process per commit.
 
@@ -349,13 +351,13 @@ nothing ([#3](https://github.com/roschaefer/git-splice/issues/3)).
 
 | Condition | State |
 |---|---|
-| No `refs/splices/<path>/*`, and U isn't available locally (a fresh clone of the monorepo) | never fetched |
+| No `refs/splices/<path>/*`, and U is recorded but isn't available locally (a fresh clone of the monorepo) | never fetched |
 | No ref for this branch | upstream has no such branch |
 | The splice's content equals T's tree, or R = T | up to date |
 | T is an ancestor of R | push |
 | R is an ancestor of T | pull |
 | A common ancestor, neither contains the other | diverged |
-| No common ancestor, or U is gone upstream | unrelated history |
+| No common ancestor, or U isn't available locally | unrelated history |
 
 The content check comes first: when the trees are equal, nothing needs
 rebuilding.
