@@ -210,9 +210,11 @@ refs/splices/vendor/a/rename-helper
 
 The commit the ref named is still in the object store, but nothing points
 at it anymore. `git gc` deletes such commits, by default once they're two
-weeks old; `--prune=now` doesn't wait.
+weeks old, counted from when the object was written, not from when the
+ref was deleted; `--prune=now` doesn't wait.
 
-These refs keep no reflog. A branch's or remote-tracking branch's reflog
+By default, these refs keep no reflog (unless `core.logAllRefUpdates` is
+`always`). A branch's or remote-tracking branch's reflog
 keeps a commit it moved away from for another 30 days
 (`gc.reflogExpireUnreachable`), so that matters when a fetch moves a
 splice's ref after a force push upstream. A deleted ref's reflog is
@@ -231,8 +233,9 @@ fatal: git cat-file: could not get object info
 
 ### A clone of the monorepo has no splice refs
 
-`git push` and `git clone` only transfer branches and tags, and the
-commits those reach. A clone of the monorepo has every `.splice` file, but
+By default, `git push` and `git clone` only transfer branches and tags,
+and the commits those reach. (`--mirror`, or an explicit refspec, would
+transfer `refs/splices/*` too.) A clone of the monorepo has every `.splice` file, but
 none of the refs and none of the upstream's commits. Its splices are never
 fetched until it fetches them. (`--no-local` makes the clone go through
 Git's transport, as a clone from a server does. A clone from a local path
@@ -285,7 +288,7 @@ af0b42b refs/splices/vendor/a/rename-helper
 ```
 
 They cost no extra space, since the new refs keep the same commits alive.
-Deleting them is safe:
+Deleting them is safe on this branch:
 
 ```scrut
 $ git for-each-ref --format='delete %(refname)' refs/splices/vendor/a/ | git update-ref --stdin
@@ -295,6 +298,24 @@ $ git for-each-ref --format='delete %(refname)' refs/splices/vendor/a/ | git upd
 $ git for-each-ref --format='%(refname)' refs/splices
 refs/splices/libs/a/main
 refs/splices/libs/a/rename-helper
+```
+
+But other branches may still have the splice at the old path. On those,
+it now has no refs, as right after the move:
+
+```scrut
+$ git switch -q rename-helper && git splice status
+ok   vendor/a -> rename-helper (upstream has no such branch; changed since 'main' -- push would create it)
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+```
+
+A fetch there brings them back, under the old path:
+
+```scrut
+$ git splice fetch && git splice status
+ok   vendor/a fetched
+ok   vendor/a -> rename-helper (up to date)
 ```
 
 ## Lifetime, space and garbage collection
