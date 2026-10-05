@@ -178,17 +178,21 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "diff: passes Git's diff options on" {
+@test "diff: --stat lists only the changed files" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_diff --stat
   [ "$status" -eq 0 ]
   [[ "$output" == *"file.txt | 1 +"* ]]
   [[ "$output" != *"+local change"* ]]
-  run cmd_diff --name-only vendor/a
-  [ "$output" = "$(printf '===  vendor/a\nfile.txt')" ]
-  run cmd_diff -U0 --base main
-  [[ "$output" == *"@@ -1,0 +2 @@"* ]]
+}
+
+@test "diff: refuses git diff's other options" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --name-only
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown option: --name-only"* ]]
 }
 
 @test "diff: a path after -- that looks like an option is still a path" {
@@ -197,79 +201,4 @@ setup() {
   run cmd_diff --stat -- --stat
   [ "$status" -ne 0 ]
   [[ "$output" == *"not a splice: --stat"* ]]
-}
-
-@test "diff: --exit-code and --quiet exit 1 for changes to push, without calling it a failure" {
-  scenario_push_ahead "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_diff --quiet
-  [ "$status" -eq 1 ]
-  [ -z "$output" ]
-  run cmd_diff --exit-code --stat
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"file.txt | 1 +"* ]]
-  [[ "$output" != *"Failed"* ]]
-}
-
-@test "diff: --quiet exits 0 when there is nothing to push" {
-  scenario_up_to_date "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_diff --quiet
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "diff: --output writes every splice's diff to the file" {
-  scenario_shared_remote_url "$monorepo" "$upstream"
-  cd "$monorepo"
-  commit_local "$monorepo" "vendor/a" "change in a"
-  commit_local "$monorepo" "vendor/b" "change in b"
-  mkdir sub
-  cd sub
-  run cmd_diff --output=changes.patch
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-  [[ "$(cat changes.patch)" == *"===  vendor/a"*"+change in a"*"===  vendor/b"*"+change in b"* ]]
-}
-
-@test "diff: --output without a file is an error, not a diff on stdout" {
-  scenario_push_ahead "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_diff --output=
-  [ "$status" -eq 1 ]
-  [ "$output" = "!!   --output needs a file" ]
-}
-
-@test "diff: -O reads the order file relative to where it was run" {
-  scenario_shared_remote_url "$monorepo" "$upstream"
-  cd "$monorepo"
-  commit_local "$monorepo" "vendor/a" "change" a.txt
-  commit_local "$monorepo" "vendor/a" "change" b.txt
-  mkdir sub
-  cd sub
-  printf 'b.txt\na.txt\n' >order
-  run cmd_diff --name-only -Oorder vendor/a
-  [ "$status" -eq 0 ]
-  [ "${lines[1]}" = "b.txt" ]
-  [ "${lines[2]}" = "a.txt" ]
-}
-
-@test "diff: -z is rejected rather than mixed with the splice headings" {
-  scenario_push_ahead "$monorepo" "$upstream"
-  cd "$monorepo"
-  run cmd_diff --name-only -z
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"-z isn't supported"* ]]
-}
-
-@test "diff: --check exits 2 for whitespace errors, like git diff, without calling it a failure" {
-  scenario_push_ahead "$monorepo" "$upstream"
-  commit_local "$monorepo" "vendor/a" "trailing space "
-  cd "$monorepo"
-  run cmd_diff --check
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"trailing whitespace"* ]]
-  [[ "$output" != *"Failed"* ]]
-  run cmd_diff --check --exit-code
-  [ "$status" -eq 3 ]
 }

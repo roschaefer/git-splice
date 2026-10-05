@@ -207,7 +207,7 @@ index 1b6c064..15c0cbd 100644
 +a local fix
 ```
 
-It takes Git's diff options, e.g. `--stat` for just the files:
+`--stat` shows just the files:
 
 ```scrut
 $ git splice diff --stat

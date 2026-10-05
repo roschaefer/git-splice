@@ -76,10 +76,9 @@ normalize_path() {
 
 # Parses the arguments of a command that takes `[--all] [--base <branch>]
 # [<flag>...] [path...]`. Sets ALL_ARG, BASE_ARG, PATH_ARGS, and
-# EXTRA_FLAGS for every flag named in $2 (space-separated, e.g. "--merge"),
-# or for every other option if $2 contains "-*". $1 names the command's
-# usage function, which is run (then exit 0) for -h/--help. Everything
-# after `--` is a path.
+# EXTRA_FLAGS for every flag named in $2 (space-separated, e.g. "--merge").
+# $1 names the command's usage function, which is run (then exit 0) for
+# -h/--help. Everything after `--` is a path.
 parse_args() {
   local usage_fn="$1" allowed=" $2 "
   shift 2
@@ -111,7 +110,7 @@ parse_args() {
         break
         ;;
       -*)
-        [[ "$allowed" == *" $1 "* || "$allowed" == *" -* "* ]] || {
+        [[ "$allowed" == *" $1 "* ]] || {
           "$usage_fn" >&2
           die "unknown option: $1"
         }

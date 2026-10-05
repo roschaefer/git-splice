@@ -71,7 +71,7 @@ Splicing in or out -- name the splices, or pass --all:
 
 Looking -- every splice unless paths are given:
   status [--base <b>] [path...]       show each splice's sync state
-  diff [--base <b>] [<git diff option>...] [path...]
+  diff [--base <b>] [--stat] [path...]
                                       show the file changes push would send
   log [path...]                       show the commits push and pull would move
   fetch [path...]                     fetch the upstreams
