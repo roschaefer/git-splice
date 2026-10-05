@@ -315,9 +315,12 @@ content_pathspec() {
 
 # Succeeds if splice $1's folder has uncommitted changes: staged, unstaged
 # or untracked files (ignored ones don't count). Every command reads a
-# splice from HEAD, so push leaves them out.
+# splice from HEAD, so push leaves them out. Returns 1 for none, and 2 if
+# git status failed, which must not pass for "none".
 has_uncommitted_changes() {
-  [[ -n "$(git status --porcelain --untracked-files=normal -- ":(top,literal)$1" 2>/dev/null)" ]]
+  local changes
+  changes="$(git status --porcelain --untracked-files=normal -- ":(top,literal)$1" 2>/dev/null)" || return 2
+  [[ -n "$changes" ]]
 }
 
 # Prints the full ref of the monorepo's base branch -- the branch feature

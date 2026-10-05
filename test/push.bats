@@ -195,3 +195,14 @@ setup() {
   [[ "$output" == *"vendor/a: pushed"* ]]
   [ "$(git -C "$upstream" show main:file.txt)" = "$(git show HEAD:vendor/a/file.txt)" ]
 }
+
+@test "push: says so when it can't check for uncommitted changes" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  # An invalid value that only git status reads makes it fail.
+  git config status.relativePaths bogus
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "??   vendor/a: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ]]
+  [[ "$output" == *"vendor/a: pushed"* ]]
+}

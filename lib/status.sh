@@ -51,7 +51,7 @@ format_missing_branch_line() {
 
 # Classifies and prints the status of one splice.
 format_status_line() {
-  local path="$1" branch="$2" base="${3:-}" local_tree
+  local path="$1" branch="$2" base="${3:-}" local_tree rc=0
   classify_splice "$path" "$branch"
   local prefix="$path -> $SPLICE_UPSTREAM_BRANCH"
 
@@ -82,9 +82,11 @@ format_status_line() {
       status_warn "$prefix (unrelated history -- see 'git splice merge $path' for options)"
       ;;
   esac
-  if has_uncommitted_changes "$path"; then
-    status_warn "$path has uncommitted changes -- push only sends committed ones"
-  fi
+  has_uncommitted_changes "$path" || rc=$?
+  case "$rc" in
+    0) status_warn "$path has uncommitted changes -- push only sends committed ones" ;;
+    2) status_warn "$path: could not check for uncommitted changes (git status failed)" ;;
+  esac
 }
 
 cmd_status() {

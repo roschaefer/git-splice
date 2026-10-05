@@ -26,11 +26,13 @@ EOF
 # Pushes one splice. $3 is an explicit --base branch, if any; $4 is
 # "force" for --force.
 push_one() {
-  local path="$1" branch="$2" base="${3:-}" force="${4:-}"
+  local path="$1" branch="$2" base="${3:-}" force="${4:-}" rc=0
 
-  if has_uncommitted_changes "$path"; then
-    log_warn "$path: uncommitted changes aren't pushed -- commit them first"
-  fi
+  has_uncommitted_changes "$path" || rc=$?
+  case "$rc" in
+    0) log_warn "$path: uncommitted changes aren't pushed -- commit them first" ;;
+    2) log_warn "$path: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ;;
+  esac
   classify_splice "$path" "$branch"
   local upstream_branch="$SPLICE_UPSTREAM_BRANCH"
   case "$SPLICE_STATE" in

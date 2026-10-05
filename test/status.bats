@@ -175,3 +175,14 @@ assert_state() {
   run cmd_status
   [ "$output" = "ok   vendor/a -> main (up to date)" ]
 }
+
+@test "status: says so when it can't check for uncommitted changes" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  # An invalid value that only git status reads makes it fail.
+  git config status.relativePaths bogus
+  run cmd_status
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "ok   vendor/a -> main (up to date)" ]]
+  [[ "${lines[1]}" == "??   vendor/a: could not check for uncommitted changes (git status failed)" ]]
+}
