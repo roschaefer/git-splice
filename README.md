@@ -186,6 +186,16 @@ them; for a clone:
     ln -s /path/to/git-splice/completions/git-splice.fish \
       ~/.config/fish/completions/git-splice.fish
 
+## Documentation
+
+The [documentation site](https://roschaefer.github.io/git-splice/) has
+this README, the
+[walkthrough](https://roschaefer.github.io/git-splice/test/walkthrough/),
+[all scenarios](https://roschaefer.github.io/git-splice/test/scenarios/),
+the [comparisons](https://roschaefer.github.io/git-splice/test/comparisons/)
+and [the design](https://roschaefer.github.io/git-splice/docs/design/) in
+one place.
+
 ## Development
 
 With [Nix](https://nixos.org/download/) and
