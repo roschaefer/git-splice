@@ -149,7 +149,7 @@
             scrut
             # Builds the documentation site in website/.
             pkgs.nodejs
-            pkgs.yarn
+            pkgs.pnpm
             # Only for test/completions.bats: the zsh and fish completions.
             pkgs.zsh
             pkgs.fish

@@ -42,11 +42,11 @@ docs-check flag="":
 
 # Build the documentation site into website/build; fails on broken links
 site-build:
-    cd website && yarn install --frozen-lockfile && yarn build
+    cd website && pnpm install --frozen-lockfile && pnpm build
 
 # Serve the documentation site locally, reloading on changes
 site-serve:
-    cd website && yarn install --frozen-lockfile && yarn start
+    cd website && pnpm install --frozen-lockfile && pnpm start
 
 # Everything CI runs: lint, fmt-check, test, docs-check and site-build
 ci: lint fmt-check test docs-check site-build
