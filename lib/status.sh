@@ -36,7 +36,13 @@ format_missing_branch_line() {
       log_ok "$prefix (upstream has no such branch; $(new_branch_count "$path")since '$SPLICE_BASE_BRANCH' -- push would create it)"
       ;;
     self)
-      status_warn "$prefix (upstream has no such branch -- push would create it)"
+      local count
+      count="$(new_branch_count "$path")"
+      if [[ "$count" == ahead* ]]; then
+        status_warn "$prefix (upstream has no such branch; ${count% } -- push would create it)"
+      else
+        status_warn "$prefix (upstream has no such branch -- push would create it)"
+      fi
       ;;
     error)
       status_warn "$prefix (upstream has no such branch; could not compare with base branch '$SPLICE_BASE_BRANCH')"

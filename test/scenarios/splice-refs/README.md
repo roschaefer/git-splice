@@ -266,7 +266,7 @@ $ mkdir libs && git mv vendor/a libs/a && git commit -q -m "move a"
 
 ```scrut
 $ git splice status
-??   libs/a -> main (upstream has no such branch -- push would create it)
+??   libs/a -> main (upstream has no such branch; ahead 3 -- push would create it)
 ```
 
 A fetch creates refs under the new path. The old ones stay behind, pointing

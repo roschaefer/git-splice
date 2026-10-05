@@ -233,3 +233,11 @@ assert_state() {
   [ "${lines[0]}" = "ok   vendor/a -> main (push)" ]
   [[ "${lines[1]}" == "??   vendor/a has uncommitted changes"* ]]
 }
+
+@test "status: on the base branch, counts the commits the push creating the branch would publish" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null
+  run cmd_status
+  [ "$output" = "??   lib/a -> main (upstream has no such branch; ahead 2 -- push would create it)" ]
+}
