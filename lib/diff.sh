@@ -12,7 +12,8 @@ when no paths are given.
 
 Other options go to 'git diff', e.g. --stat, --name-only or
 --name-status. Give each as one word (-U5, --stat=80), since a separate
-value would be read as a path.
+value would be read as a path. With --exit-code or --quiet, it exits 1
+if any splice has changes to push, like 'git diff'.
 
 For a splice whose upstream has no branch named like the current one, the
 diff is against the monorepo's base branch (--base, else the monorepo's
@@ -20,6 +21,10 @@ default branch). On the base branch itself, the whole splice is shown as
 new upstream content.
 EOF
 }
+
+# diff_one's status when 'git diff --exit-code' or '--quiet' found
+# changes: a result, not a failure.
+DIFF_CHANGED=3
 
 # Shows the upstream-to-local patch for one splice. $3 is an explicit
 # --base branch, if any.
@@ -75,14 +80,19 @@ diff_one() {
   new_tree="$CONTENT_TREE"
   [[ -n "$old_tree" ]] || old_tree="$(git hash-object -t tree /dev/null)"
 
-  log_step "$path"
-  git diff "${EXTRA_FLAGS[@]}" "$old_tree" "$new_tree"
+  has_flag --quiet || log_step "$path"
+  git diff "${EXTRA_FLAGS[@]}" "$old_tree" "$new_tree" && return 0
+  local rc=$?
+  if ((rc == 1)) && { has_flag --exit-code || has_flag --quiet; }; then
+    return "$DIFF_CHANGED"
+  fi
+  return "$rc"
 }
 
 # Emits all selected patches. Kept separate from cmd_diff so one pager can
 # contain every splice rather than opening a new pager for each one.
 diff_paths() {
-  local branch="$1" base="$2" path rc failures=()
+  local branch="$1" base="$2" path rc changed="" failures=()
   shift 2
   for path in "$@"; do
     if diff_one "$path" "$branch" "$base"; then
@@ -90,7 +100,11 @@ diff_paths() {
     else
       rc=$?
       ((rc == 141)) && return 141
-      failures+=("$path")
+      if ((rc == DIFF_CHANGED)); then
+        changed=1
+      else
+        failures+=("$path")
+      fi
     fi
   done
 
@@ -98,6 +112,7 @@ diff_paths() {
     log_err "Failed: ${failures[*]}"
     return 1
   fi
+  [[ -z "$changed" ]] || return 1
 }
 
 cmd_diff() {

@@ -198,3 +198,23 @@ setup() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"not a splice: --stat"* ]]
 }
+
+@test "diff: --exit-code and --quiet exit 1 for changes to push, without calling it a failure" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --quiet
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  run cmd_diff --exit-code --stat
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"file.txt | 1 +"* ]]
+  [[ "$output" != *"Failed"* ]]
+}
+
+@test "diff: --quiet exits 0 when there is nothing to push" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --quiet
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
