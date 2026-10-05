@@ -2,7 +2,9 @@
 
 The workaround for [#4](https://github.com/roschaefer/git-splice/issues/4),
 in the [same state](README.md): push the unpushed commit first, then move
-the splice. Each commit then reaches the upstream on its own.
+the splice. The local commit then reaches the upstream with its own
+message and author. The move changes no file inside the folder, so it
+doesn't reach the upstream at all.
 
 ## Output
 
