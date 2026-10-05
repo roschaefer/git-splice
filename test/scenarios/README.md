@@ -45,6 +45,7 @@ A scenario folder has:
 | [`shared-remote-url`](shared-remote-url/) | [Shared remote URL](shared-remote-url/README.md) |
 | [`splice-refs`](splice-refs/) | [How commands change a splice's refs](splice-refs/README.md) |
 | [`squash-merged-pull`](squash-merged-pull/) | [Squash-merged pull](squash-merged-pull/README.md) |
+| [`uncommitted-changes`](uncommitted-changes/) | [Uncommitted changes](uncommitted-changes/README.md) |
 | [`up-to-date`](up-to-date/) | [Up to date](up-to-date/README.md) |
 | [`upstream-rewritten-equal-tree`](upstream-rewritten-equal-tree/) | [Upstream rewritten to an equal tree](upstream-rewritten-equal-tree/README.md); [Keep the upstream's version](upstream-rewritten-equal-tree/keep-the-upstream-version.md); [`push --force` undoes the rewrite](upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) |
 
@@ -80,6 +81,7 @@ ok pushed-then-pulled (1 document)
 ok shared-remote-url (1 document)
 ok splice-refs (1 document)
 ok squash-merged-pull (1 document)
+ok uncommitted-changes (1 document)
 ok up-to-date (1 document)
 ok upstream-rewritten-equal-tree (3 documents)
 ```

@@ -6,7 +6,7 @@ setup() {
   for scenario in up-to-date push-ahead pull-ahead diverged-common-ancestor \
     diverged-unrelated-history never-fetched feature-branch-unchanged \
     feature-branch-changed diverged-then-pulled pushed-then-changed \
-    shared-remote-url default-branch; do
+    shared-remote-url default-branch uncommitted-changes; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -184,4 +184,25 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a: nothing to push"* ]]
   [[ "$output" == *"vendor/b: pushed"* ]]
+}
+
+@test "push: warns about uncommitted changes and pushes only committed ones" {
+  scenario_uncommitted_changes "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "??   vendor/a: uncommitted changes aren't pushed -- commit them first" ]]
+  [[ "$output" == *"vendor/a: pushed"* ]]
+  [ "$(git -C "$upstream" show main:file.txt)" = "$(git show HEAD:vendor/a/file.txt)" ]
+}
+
+@test "push: says so when it can't check for uncommitted changes" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  # An invalid value that only git status reads makes it fail.
+  git config status.relativePaths bogus
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "??   vendor/a: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ]]
+  [[ "$output" == *"vendor/a: pushed"* ]]
 }
