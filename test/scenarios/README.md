@@ -24,6 +24,7 @@ A scenario folder has:
 | [`clone-differing-content`](clone-differing-content/) | [Clone differing content](clone-differing-content/README.md) |
 | [`clone-on-feature-branch`](clone-on-feature-branch/) | [Clone on a feature branch](clone-on-feature-branch/README.md) |
 | [`clone-without-commits`](clone-without-commits/) | [Clone without commits](clone-without-commits/README.md); [Ref-friendly path](clone-without-commits/ref-friendly-path.md) |
+| [`concurrent-pulls`](concurrent-pulls/) | [Concurrent pulls](concurrent-pulls/README.md); [Redo the pull](concurrent-pulls/redo-the-pull.md); [Committed conflict markers](concurrent-pulls/committed-conflict-markers.md) |
 | [`copybara-contributor-workflow`](copybara-contributor-workflow/) | [External contributor workflow](copybara-contributor-workflow/README.md) |
 | [`default-branch`](default-branch/) | [Default branch](default-branch/README.md) |
 | [`diverged-common-ancestor`](diverged-common-ancestor/) | [Diverged with a common ancestor](diverged-common-ancestor/README.md) |
@@ -56,6 +57,7 @@ ok clone-copied-content (1 document)
 ok clone-differing-content (1 document)
 ok clone-on-feature-branch (1 document)
 ok clone-without-commits (2 documents)
+ok concurrent-pulls (3 documents)
 ok copybara-contributor-workflow (1 document)
 ok default-branch (1 document)
 ok diverged-common-ancestor (1 document)
