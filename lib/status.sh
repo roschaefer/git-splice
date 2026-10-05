@@ -61,10 +61,11 @@ format_missing_branch_line() {
 # branch: the commits the push that creates it would publish, i.e. those
 # of the rebuild on no fetched upstream branch. Prints "changed " if
 # there are none to count, e.g. right after cloning on a feature branch:
-# the push would create the branch at a commit upstream already has.
+# the push would create the branch at a commit upstream already has, or
+# if they can't be counted, e.g. because the synced commit was pruned.
 new_branch_count() {
   local path="$1" rebuilt count
-  rebuilt="$(rebuild_splice "$path" HEAD)"
+  rebuilt="$(rebuild_splice "$path" HEAD 2>/dev/null)"
   if [[ -z "$rebuilt" ]] || ! count="$(git rev-list --count "$rebuilt" --not --glob="refs/splices/$path/*")" || ((count == 0)); then
     printf 'changed '
     return

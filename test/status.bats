@@ -221,6 +221,16 @@ assert_state() {
   [[ "${lines[0]}" == *"(upstream has no such branch; changed since 'main' -- push would create it)" ]]
 }
 
+@test "status: a missing branch that can't be rebuilt says changed, without the rebuild's error" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  rebuild_splice() { die "vendor/a: synced commit isn't available locally"; }
+  run cmd_status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"(upstream has no such branch; changed since 'main' -- push would create it)" ]]
+  [[ "$output" != *"!!"* ]]
+}
+
 @test "status: shows the state without counts if they can't be counted" {
   scenario_uncommitted_changes "$monorepo" "$upstream"
   cd "$monorepo"
