@@ -34,7 +34,8 @@ fetch_upstream() {
 # Fetches the upstream that splices <path>... share, and reports for each
 # whether the branch it syncs with moved, while the monorepo is on branch
 # $1. Writes what to print for path number <i> of the whole fetch to
-# $2/<i>.out and $2/<i>.err; $3 holds those numbers, space-separated.
+# $2/<i>.out and $2/<i>.err, and creates $2/<i>.failed if it failed; $3
+# holds those numbers, space-separated.
 fetch_shared_upstream() {
   local branch="$1" out_dir="$2" indexes=() i=0 path synced=() upstream_branches=() target_refs=() old_shas=() new_sha
   read -r -a indexes <<<"$3"
@@ -54,6 +55,7 @@ fetch_shared_upstream() {
         log_err "${*:i+1:1} fetch failed"
       } >"$out_dir/${indexes[i]}.err" 2>&1
       : >"$out_dir/${indexes[i]}.out"
+      : >"$out_dir/${indexes[i]}.failed"
     done
     return 1
   fi
@@ -65,7 +67,10 @@ fetch_shared_upstream() {
     else
       log_ok "$path fetched"
     fi >"$out_dir/${indexes[i]}.out"
-    : >"$out_dir/${indexes[i]}.err"
+    # What git printed on success, e.g. an SSH warning, shown once.
+    if ((i == 0)) && [[ -n "$error" ]]; then
+      printf '%s\n' "$error"
+    fi >"$out_dir/${indexes[i]}.err"
     i=$((i + 1))
   done
 }
@@ -128,7 +133,7 @@ fetch_all_parallel() {
   for i in "${!paths[@]}"; do
     FETCH_OUTPUT+=("$(cat "$tmp_dir/$i.out")")
     FETCH_STDERR+=("$(cat "$tmp_dir/$i.err")")
-    [[ -z "${FETCH_STDERR[$i]}" ]] || FETCH_FAILURES+=("${paths[$i]}")
+    [[ ! -e "$tmp_dir/$i.failed" ]] || FETCH_FAILURES+=("${paths[$i]}")
   done
   rm -rf "$tmp_dir"
 }

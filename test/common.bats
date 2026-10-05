@@ -405,6 +405,17 @@ assert_key() {
   [[ "$output" == *"vendor/a/.splice can't be read (bad config line "*") -- fix it and commit it"* ]]
 }
 
+@test "discover_splices refuses a .splice that git config can't read from its first line" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  { printf '<<<<<<< HEAD\n'; cat vendor/a/.splice; } >vendor/a/.splice.new
+  mv vendor/a/.splice.new vendor/a/.splice
+  git commit -q -am "conflict markers first"
+  run "$BATS_TEST_DIRNAME/../git-splice" status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice can't be read (bad config line 1 "*") -- fix it and commit it"* ]]
+}
+
 @test "discover_splices reads an upstream URL with a newline in it whole" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

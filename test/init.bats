@@ -117,3 +117,16 @@ setup() {
   [[ "$output" == *"vendor/a: pushed"* ]]
   [ "$(git -C "$new" show main:file.txt)" = "$(git show HEAD:vendor/a/file.txt)" ]
 }
+
+@test "init: drops refs fetched before from an upstream that is empty now" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  cd "$monorepo"
+  git fetch -q "$upstream" "+refs/heads/*:$(upstream_refs "$upstream")*"
+  git -C "$upstream" update-ref -d refs/heads/main
+  run cmd_init lib/a "$upstream"
+  [ "$status" -eq 0 ]
+  [ -z "$(git for-each-ref "$(upstream_refs "$upstream")")" ]
+  classify_splice lib/a main
+  [ "$SPLICE_STATE" = missing-branch ]
+}

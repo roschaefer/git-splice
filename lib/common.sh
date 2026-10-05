@@ -285,10 +285,14 @@ load_splice_upstream() {
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
-  # may list some entries before failing.
+  # may list some entries before failing. An if, so set -e can't end the
+  # subshell before the status is printed.
   mapfile -d '' records < <(
-    git config --blob "HEAD:$path/$STATE_FILE" --list -z 2>/dev/null
-    printf '%d' "$?"
+    if git config --blob "HEAD:$path/$STATE_FILE" --list -z 2>/dev/null; then
+      printf 0
+    else
+      printf '%d' "$?"
+    fi
   )
   if [[ "${records[-1]}" != 0 ]]; then
     error="$(git config --blob "HEAD:$path/$STATE_FILE" --list 2>&1 >/dev/null || true)"

@@ -66,7 +66,10 @@ cmd_init() {
     die "$path: upstream's default branch is '$upstream_default', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
   fi
 
+  # The upstream is empty, so refs fetched from it before name branches
+  # it no longer has.
   upstream_key "$url"
+  git for-each-ref --format='delete %(refname)' "refs/splices/$UPSTREAM_KEY/-/" | git update-ref --stdin
   git cat-file blob "$(state_blob "$path" "default-branch=$default_branch" "upstream.$DEFAULT_UPSTREAM.url=$url")" >"$path/$STATE_FILE"
   # -f: an ignore rule matching .splice mustn't stop it, it's committed
   # by definition.

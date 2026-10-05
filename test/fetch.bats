@@ -89,3 +89,16 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(wc -l <"$BATS_TEST_TMPDIR/fetches")" -eq 1 ]
 }
+
+@test "fetch: shows what git printed on a successful fetch, once per upstream" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  git() {
+    [[ "$1" == fetch ]] && echo "warning: from the transport" >&2
+    command git "$@"
+  }
+  run cmd_fetch
+  [ "$status" -eq 0 ]
+  [ "$(grep -c "warning: from the transport" <<<"$output")" -eq 1 ]
+  [[ "$output" == *"ok   vendor/a fetched"* && "$output" == *"ok   vendor/b fetched"* ]]
+}
