@@ -4,7 +4,8 @@ In the [same state](README.md), the conflict in `vendor/a/.splice` is
 committed with its markers. git-splice doesn't notice: it reads `.splice`
 with `git config`, which stops at the first marker, and hides the error.
 The URL comes before the markers, so it's still read; the synced commit
-comes after them, so it's read as missing. This is a known gap.
+comes after them, so it's read as missing. This is a known bug,
+[#37](https://github.com/roschaefer/git-splice/issues/37).
 
 ## Output
 
