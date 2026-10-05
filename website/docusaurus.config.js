@@ -43,7 +43,9 @@ module.exports = {
           ],
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl: `${repoUrl}/edit/main/`,
+          // docPath is relative to the repository root (path above); the
+          // string form would put "../" after main/ and leave the branch.
+          editUrl: ({docPath}) => `${repoUrl}/edit/main/${docPath}`,
           beforeDefaultRemarkPlugins: [
             [repoFileLinks, {repoUrl, repoRoot: require('path').resolve(__dirname, '..')}],
             [siteLinks, {siteUrl: siteUrl + baseUrl}],
