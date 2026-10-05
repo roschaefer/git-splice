@@ -433,9 +433,14 @@ These are known and accepted, each to keep the design simple:
 - **Moving a splice with unpushed changes:** the `git mv` commit changes
   `.splice`, so it becomes the boundary, and the unpushed commits before it
   reach upstream folded into the move commit. Push before moving
-  ([#4](https://github.com/roschaefer/git-splice/issues/4)). After a move,
-  run `git splice fetch <new path>`: the fetched refs stay under the old
-  path ([#21](https://github.com/roschaefer/git-splice/issues/21)).
+  ([#4](https://github.com/roschaefer/git-splice/issues/4)).
+- **Upstream URLs that differ only in letter case**, e.g.
+  `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
+  on case-insensitive file systems, like macOS's default one: fetching one
+  overwrites the other's. And a URL component that is too long once
+  escaped, e.g. many spaces, fails with "File name too long". Until
+  [#51](https://github.com/roschaefer/git-splice/issues/51), avoid
+  upstreams whose URLs differ only in case, and long path components.
 - **A splice made by `init`** has no synced commit until its first pull, so
   until then every rebuild walks the folder's whole history.
 - **Rare edge cases** each have an issue labelled
