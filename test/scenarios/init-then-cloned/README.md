@@ -37,7 +37,7 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_init_then_clon
 
 ```scrut
 $ git config --file lib/a/.splice --list
-splice.url=$UPSTREAM
+upstream.origin.url=$UPSTREAM
 ```
 
 `status` says the upstream has no such branch, though it has:

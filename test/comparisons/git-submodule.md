@@ -153,8 +153,8 @@ fix parse() and call it
 
 ```scrut
 $ git log --oneline -- vendor/lib/src/parse.txt
-4c04221 fix parse() and call it
-216fa3d splice: clone vendor/lib from main at bafd496
+ae63bb6 fix parse() and call it
+dcaf6be splice: clone vendor/lib from main at bafd496
 ```
 
 ```scrut
@@ -278,8 +278,8 @@ ok   vendor/lib: pushed 6b3df25 to feature
 
 ```scrut
 $ cd ../splice-monorepo && git for-each-ref --format='%(refname)' refs/splices
-refs/splices/vendor/lib/feature
-refs/splices/vendor/lib/main
+refs/splices/git.example.com/lib/-/feature
+refs/splices/git.example.com/lib/-/main
 ```
 
 ```scrut

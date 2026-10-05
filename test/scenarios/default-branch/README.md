@@ -22,9 +22,9 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_default_branch
 
 ```scrut
 $ git config --file vendor/a/.splice --list
-splice.url=$UPSTREAM
 splice.commit=bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 splice.default-branch=master
+upstream.origin.url=$UPSTREAM
 ```
 
 ```scrut

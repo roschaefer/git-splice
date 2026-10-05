@@ -4,45 +4,67 @@ usage_fetch() {
   cat <<'EOF'
 usage: git splice fetch [path...]
 
-Fetches every branch of each splice's upstream into refs/splices/<path>/*,
-by URL -- there is no Git remote. Branches deleted upstream are pruned.
-Defaults to every splice when no paths are given. Runs fetches in parallel
-and reports when the branch this one syncs with moved.
+Fetches every branch of each splice's upstream into
+refs/splices/<key>/-/*, where <key> comes from the upstream's URL, e.g.
+github.com/x/lib -- by URL, there is no Git remote. Branches deleted
+upstream are pruned. Defaults to every splice when no paths are given.
+Fetches upstreams in parallel, each once, and reports when the branch a
+splice syncs with moved.
 EOF
 }
 
-# Fetches one splice's upstream: every branch, pruning those that are gone.
-# $2 is the monorepo's current branch, to report when its counterpart moved.
-fetch_one() {
-  local path="$1" branch="$2" url synced target_ref old_sha new_sha upstream_branch
-  url="$(splice_config "$path" url)"
-  [[ -n "$url" ]] || {
-    log_err "$path: no url in $path/$STATE_FILE"
+# Fetches every branch of upstream <url> into <prefix>*, pruning those that
+# are gone. The rebuild starts at a splice's synced commit; any <commit>
+# given that no branch upstream has any more (e.g. after a force push) is
+# fetched by id.
+fetch_upstream() {
+  local url="$1" prefix="$2" commit
+  shift 2
+  git fetch --quiet --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
+  for commit in "$@"; do
+    if ! git cat-file -e "$commit^{commit}" 2>/dev/null; then
+      git fetch --quiet --no-tags --no-write-fetch-head -- "$url" "$commit" 2>/dev/null || true
+    fi
+  done
+}
+
+# Fetches the upstream that splices <path>... share, and reports for each
+# whether the branch it syncs with moved, while the monorepo is on branch
+# $1. Writes what to print for path number <i> of the whole fetch to
+# $2/<i>.out and $2/<i>.err; $3 holds those numbers, space-separated.
+fetch_shared_upstream() {
+  local branch="$1" out_dir="$2" indexes=() i=0 path synced=() upstream_branches=() target_refs=() old_shas=() new_sha
+  read -r -a indexes <<<"$3"
+  shift 3
+  for path in "$@"; do
+    upstream_branches[i]="$(upstream_branch_for "$path" "$branch")"
+    target_refs[i]="$(splice_ref "$path" "${upstream_branches[i]}")"
+    old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
+    synced+=("$(splice_config "$path" commit)")
+    i=$((i + 1))
+  done
+  local error
+  if ! error="$(fetch_upstream "${SPLICE_URLS[$1]}" "$(splice_refs_prefix "$1")" "${synced[@]}" 2>&1)"; then
+    for i in "${!indexes[@]}"; do
+      {
+        [[ -z "$error" ]] || printf '%s\n' "$error"
+        log_err "${*:i+1:1} fetch failed"
+      } >"$out_dir/${indexes[i]}.err" 2>&1
+      : >"$out_dir/${indexes[i]}.out"
+    done
     return 1
-  }
-  upstream_branch="$(upstream_branch_for "$path" "$branch")"
-  target_ref="$(splice_ref "$path" "$upstream_branch")"
-  old_sha="$(git rev-parse --verify --quiet "$target_ref" || true)"
-
-  if ! git fetch --quiet --no-tags --no-write-fetch-head --prune -- \
-    "$url" "+refs/heads/*:refs/splices/$path/*"; then
-    log_err "$path fetch failed"
-    return 1
   fi
-
-  # The rebuild starts at the synced commit. If no branch upstream has it
-  # any more (e.g. after a force push), try fetching it by id.
-  synced="$(splice_config "$path" commit)"
-  if [[ -n "$synced" ]] && ! git cat-file -e "$synced^{commit}" 2>/dev/null; then
-    git fetch --quiet --no-tags --no-write-fetch-head -- "$url" "$synced" 2>/dev/null || true
-  fi
-
-  new_sha="$(git rev-parse --verify --quiet "$target_ref" || true)"
-  if [[ -n "$old_sha" && -n "$new_sha" && "$old_sha" != "$new_sha" ]]; then
-    log_ok "$path fetched ($upstream_branch moved ${old_sha:0:7}..${new_sha:0:7})"
-  else
-    log_ok "$path fetched"
-  fi
+  i=0
+  for path in "$@"; do
+    new_sha="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
+    if [[ -n "${old_shas[i]}" && -n "$new_sha" && "${old_shas[i]}" != "$new_sha" ]]; then
+      log_ok "$path fetched (${upstream_branches[i]} moved ${old_shas[i]:0:7}..${new_sha:0:7})"
+    else
+      log_ok "$path fetched"
+    fi >"$out_dir/${indexes[i]}.out"
+    : >"$out_dir/${indexes[i]}.err"
+    i=$((i + 1))
+  done
 }
 
 declare -ga FETCH_FAILURES=()
@@ -64,10 +86,13 @@ print_fetch_output() {
   return 0
 }
 
-# Fetches every given (distinct) path in parallel, while the monorepo is on
-# branch $1. Sets FETCH_FAILURES to the paths whose fetch failed, and
-# FETCH_OUTPUT/FETCH_STDERR to each job's captured stdout/stderr, in the
-# order of the paths.
+# Fetches the upstreams of every given (distinct) path in parallel, each
+# upstream once: splices with the same URL share their fetched refs, and
+# two fetches into the same refs would fail on each other's locks. $1 is
+# the monorepo's current branch, to report when a splice's counterpart
+# moved. Sets FETCH_FAILURES to the paths whose fetch failed, and
+# FETCH_OUTPUT/FETCH_STDERR to what to print for each path, in the order
+# of the paths.
 fetch_all_parallel() {
   local branch="$1"
   shift
@@ -75,19 +100,32 @@ fetch_all_parallel() {
   FETCH_OUTPUT=()
   FETCH_STDERR=()
 
-  local tmp_dir pids=() i=0 path
-  tmp_dir="$(mktemp -d)"
-  for path in "$@"; do
-    fetch_one "$path" "$branch" >"$tmp_dir/$i.out" 2>"$tmp_dir/$i.err" &
-    pids+=("$!")
-    i=$((i + 1))
+  local paths=("$@") i key keys=() members=()
+  local -A indexes_of_key=()
+  for i in "${!paths[@]}"; do
+    key="${SPLICE_KEYS[${paths[$i]}]}"
+    [[ -n "${indexes_of_key[$key]+set}" ]] || keys+=("$key")
+    indexes_of_key[$key]+="$i "
   done
 
-  local paths=("$@")
+  local tmp_dir pids=()
+  tmp_dir="$(mktemp -d)"
+  for key in "${keys[@]}"; do
+    members=()
+    for i in ${indexes_of_key[$key]}; do
+      members+=("${paths[$i]}")
+    done
+    fetch_shared_upstream "$branch" "$tmp_dir" "${indexes_of_key[$key]}" "${members[@]}" &
+    pids+=("$!")
+  done
   for i in "${!pids[@]}"; do
-    wait "${pids[$i]}" || FETCH_FAILURES+=("${paths[$i]}")
+    wait "${pids[$i]}" || true
+  done
+
+  for i in "${!paths[@]}"; do
     FETCH_OUTPUT+=("$(cat "$tmp_dir/$i.out")")
     FETCH_STDERR+=("$(cat "$tmp_dir/$i.err")")
+    [[ -z "${FETCH_STDERR[$i]}" ]] || FETCH_FAILURES+=("${paths[$i]}")
   done
   rm -rf "$tmp_dir"
 }

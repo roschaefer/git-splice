@@ -6,7 +6,7 @@
 # Sets, as globals, since status, merge, push, diff and log all need them:
 #   SPLICE_STATE            see below
 #   SPLICE_UPSTREAM_BRANCH  the upstream branch this branch syncs with
-#   SPLICE_TARGET_REF       refs/splices/<path>/<upstream branch>
+#   SPLICE_TARGET_REF       refs/splices/<key>/-/<upstream branch>
 #   SPLICE_SYNCED           the synced commit U from the state file
 #   SPLICE_REBUILT          the rebuild R of HEAD (see rebuild_splice), when
 #                           the state needed it
@@ -22,6 +22,7 @@
 #   unrelated-history  no common ancestor at all
 classify_splice() {
   local path="$1" branch="$2"
+  require_splice_upstream "$path"
   SPLICE_STATE=""
   SPLICE_TARGET_REF=""
   SPLICE_REBUILT=""
@@ -146,7 +147,7 @@ splice_in() {
 print_unrelated_history_guidance() {
   local path="$1" q_path q_url
   q_path="$(shell_quote "$path")"
-  q_url="$(shell_quote "$(splice_config "$path" url)")"
+  q_url="$(shell_quote "${SPLICE_URLS[$path]}")"
   log_warn "$path: upstream and the splice share no history -- pick a side:"
   cat >&2 <<EOF
 

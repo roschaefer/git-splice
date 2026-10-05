@@ -6,9 +6,7 @@ One splice inside another. Every command refuses this.
   `.splice`.
 
 The outer splice's content includes the inner one, so pushing `vendor/pkg`
-would publish `vendor/pkg/extra` too. And `refs/splices/vendor/pkg/extra/main`
-could name either the branch `extra/main` of `vendor/pkg` or the branch
-`main` of `vendor/pkg/extra`.
+would publish `vendor/pkg/extra` too.
 
 ## Output
 

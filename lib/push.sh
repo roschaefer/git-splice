@@ -100,7 +100,7 @@ push_one() {
   fi
 
   local url force_flag=()
-  url="$(splice_config "$path" url)"
+  url="${SPLICE_URLS[$path]}"
   [[ -n "$force" ]] && force_flag=(--force)
   if ! git push "${force_flag[@]}" --quiet -- "$url" "$SPLICE_REBUILT:refs/heads/$upstream_branch"; then
     log_err "$path: push failed"

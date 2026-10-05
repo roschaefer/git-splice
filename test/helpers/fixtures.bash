@@ -49,11 +49,24 @@ init_monorepo() {
   )
 }
 
-# Fetches every branch of upstream $2 into monorepo $1's refs for splice
-# $3, like `git splice fetch` does.
+# Prints the prefix of the refs git splice fetches upstream <url>'s
+# branches into, e.g. refs/splices/file/tmp/upstream/-/, from the same
+# upstream_key the commands use.
+upstream_refs() {
+  (
+    # shellcheck source=../../lib/common.sh
+    source "$FIXTURES_DIR/../../lib/common.sh"
+    upstream_key "$1"
+    printf 'refs/splices/%s/-/\n' "$UPSTREAM_KEY"
+  )
+}
+
+# Fetches every branch of upstream $2 into monorepo $1's refs, like `git
+# splice fetch` does for a splice with that URL. ($3, the splice's path,
+# doesn't matter: refs are keyed by URL.)
 fetch_splice() {
-  local monorepo="$1" url="$2" path="$3"
-  git -C "$monorepo" fetch -q --no-tags --prune -- "$url" "+refs/heads/*:refs/splices/$path/*"
+  local monorepo="$1" url="$2"
+  git -C "$monorepo" fetch -q --no-tags --prune -- "$url" "+refs/heads/*:$(upstream_refs "$url")*"
 }
 
 # Splices branch $4 (default: main) of upstream $2 into $3 inside monorepo
@@ -64,9 +77,9 @@ add_splice() {
   fetch_splice "$monorepo" "$url" "$path"
   (
     cd "$monorepo"
-    commit="$(git rev-parse "refs/splices/$path/$branch")"
+    commit="$(git rev-parse "$(upstream_refs "$url")$branch")"
     git read-tree --prefix="$path/" -u "$commit"
-    printf '[splice]\n\turl = %s\n\tcommit = %s\n' "$url" "$commit" >"$path/.splice"
+    printf '[splice]\n\tcommit = %s\n[upstream "origin"]\n\turl = %s\n' "$commit" "$url" >"$path/.splice"
     git add "$path"
     git commit -q -m "add $path"
   )

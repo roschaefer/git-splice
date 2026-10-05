@@ -43,7 +43,7 @@ setup() {
   git add . && git commit -q -m "a file name with a newline"
   run discover_splices
   [ "$status" -eq 1 ]
-  [[ "$output" == *"can't be part of a Git ref name"* ]]
+  [[ "$output" == *"isn't supported as a splice path yet"* ]]
   [[ "$output" != *"'phantom'"* ]]
 }
 
@@ -72,7 +72,7 @@ setup() {
   git add "my lib" && git commit -q -m "a splice by hand"
   run discover_splices
   [ "$status" -eq 1 ]
-  [[ "$output" == *"'my lib' can't be part of a Git ref name"* ]]
+  [[ "$output" == *"'my lib' isn't supported as a splice path yet"* ]]
 }
 
 @test "discover_splices refuses a .splice at the repository root" {
@@ -148,7 +148,7 @@ setup() {
   blob="$(state_blob vendor/a commit=abc default-branch=master)"
   [ "$(git config --blob "$blob" splice.commit)" = abc ]
   [ "$(git config --blob "$blob" splice.default-branch)" = master ]
-  [ "$(git config --blob "$blob" splice.url)" = "$upstream" ]
+  [ "$(git config --blob "$blob" upstream.origin.url)" = "$upstream" ]
   blob="$(state_blob vendor/a default-branch=)"
   ! git config --blob "$blob" splice.default-branch
 }
@@ -302,4 +302,99 @@ add_monorepo_origin() {
   run print_unrelated_history_guidance "-foo"
   [[ "$output" == *"git rm -r -q -- -foo"* ]]
   [[ "$output" == *"git splice clone -- "*" -foo"* ]]
+}
+
+# Runs upstream_key on $1 and checks that it gives key $2.
+assert_key() {
+  upstream_key "$1"
+  echo "$1 -> $UPSTREAM_KEY" >&2
+  [ "$UPSTREAM_KEY" = "$2" ]
+  git check-ref-format "refs/splices/$UPSTREAM_KEY/-/main"
+}
+
+@test "upstream_key: equal upstreams share a key, whatever the URL's syntax" {
+  assert_key https://github.com/x/lib.git github.com/x/lib
+  assert_key https://github.com/x/lib github.com/x/lib
+  assert_key https://github.com/x/lib/ github.com/x/lib
+  assert_key git@github.com:x/lib.git github.com/x/lib
+  assert_key ssh://git@github.com/x/lib.git github.com/x/lib
+  assert_key https://GitHub.com/x/lib github.com/x/lib
+}
+
+@test "upstream_key: a port becomes its own component, local paths go under file/" {
+  assert_key ssh://git@host.example:2222/x/lib host.example/2222/x/lib
+  assert_key /srv/git/lib.git file/srv/git/lib
+  assert_key file:///srv/git/lib.git file/srv/git/lib
+  assert_key ext::some-command ext/file/some-command
+}
+
+@test "upstream_key: escapes what Git refuses in ref names, and % itself" {
+  assert_key "https://host/a b/~c" "host/a%20b/%7Ec"
+  assert_key https://host/x.lock/y host/x%2Elock/y
+  assert_key https://host/.hidden/a..b host/%2Ehidden/a.%2Eb
+  assert_key https://host/100% host/100%25
+  assert_key ../lib.git file/%2E%2E/lib
+}
+
+@test "upstream_key: keeps hyphens in names, escapes a component that is just -" {
+  assert_key https://github.com/my-org/git-splice github.com/my-org/git-splice
+  assert_key https://gitlab.example/group/-/lib gitlab.example/group/%2D/lib
+}
+
+@test "upstream_key: keys never nest into each other's branches" {
+  upstream_key https://host/x
+  local outer="refs/splices/$UPSTREAM_KEY/-/lib/-/main"
+  upstream_key https://host/x/lib
+  [[ "$outer" != "refs/splices/$UPSTREAM_KEY/-/"* ]]
+}
+
+@test "discover_splices refuses an old .splice and prints how to convert it" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  printf '[splice]\n\turl = %s\n\tcommit = %s\n' "$upstream" "$(splice_config vendor/a commit)" >vendor/a/.splice
+  git commit -q -am "old format"
+  run discover_splices
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == "!!   vendor/a/.splice has its URL in the old format, splice.url -- convert it with:" ]]
+  [[ "$output" == *"git config --file vendor/a/.splice upstream.origin.url $upstream"* ]]
+  [[ "$output" == *"git config --file vendor/a/.splice --unset splice.url"* ]]
+}
+
+@test "discover_splices: the printed commands convert an old .splice" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  printf '[splice]\n\turl = %s\n\tcommit = %s\n' "$upstream" "$(splice_config vendor/a commit)" >vendor/a/.splice
+  git commit -q -am "old format"
+  run discover_splices
+  eval "$(printf '%s\n' "$output" | grep '^  git ')"
+  run "$BATS_TEST_DIRNAME/../git-splice" status
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+}
+
+@test "discover_splices refuses a .splice without an upstream, or with two" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice --remove-section upstream.origin
+  git commit -q -am "no upstream"
+  run discover_splices
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice names no upstream"* ]]
+  git config --file vendor/a/.splice upstream.origin.url "$upstream"
+  git config --file vendor/a/.splice upstream.fork.url "$BATS_TEST_TMPDIR/fork.git"
+  git commit -q -am "two upstreams"
+  run discover_splices
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice names 2 upstreams -- only one is supported so far"* ]]
+}
+
+@test "discover_splices refuses a .splice git config can't read, with Git's message" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  printf '<<<<<<< HEAD\n' >>vendor/a/.splice
+  git commit -q -am "conflict markers"
+  # The entrypoint, so the error is printed under set -e as in real use.
+  run "$BATS_TEST_DIRNAME/../git-splice" status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice can't be read (bad config line "*") -- fix it and commit it"* ]]
 }

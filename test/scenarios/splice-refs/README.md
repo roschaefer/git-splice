@@ -13,8 +13,10 @@ monorepo, and what those refs cost.
 A ref is a name for a commit. Branches are refs under `refs/heads/`, tags
 under `refs/tags/`, and `git fetch` keeps a remote's branches under
 `refs/remotes/<remote>/`. These are only conventions: a ref can live under
-any `refs/` path, and git-splice keeps each splice's upstream branches
-under `refs/splices/<path>/`.
+any `refs/` path, and git-splice keeps each upstream's branches under
+`refs/splices/<key>/-/`. The key comes from the upstream's URL, so
+`https://git.example.com/a.git` becomes `git.example.com/a`, and the `-`
+marks where branch names, which may contain slashes, begin.
 
 A ref costs one line in `.git/packed-refs`, or a small file. The commits it
 names, and their trees and files, are what cost space.
@@ -50,9 +52,9 @@ ok   vendor/a: cloned bde4164 from main
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)'
-ac208c0 refs/heads/main
-530decc refs/splices/vendor/a/fix-parser
-bde4164 refs/splices/vendor/a/main
+52577ba refs/heads/main
+530decc refs/splices/git.example.com/a/-/fix-parser
+bde4164 refs/splices/git.example.com/a/-/main
 ```
 
 The upstream's commits now live in the monorepo's object store, with the
@@ -60,12 +62,12 @@ upstream's own layout: `file.txt` sits at the root, not under `vendor/a/`.
 Any Git command can read them, by their short name too:
 
 ```scrut
-$ git log --format='%h %s' splices/vendor/a/main
+$ git log --format='%h %s' splices/git.example.com/a/-/main
 bde4164 seed
 ```
 
 ```scrut
-$ git ls-tree -r --abbrev=7 --format='%(objectname) %(path)' splices/vendor/a/main
+$ git ls-tree -r --abbrev=7 --format='%(objectname) %(path)' splices/git.example.com/a/-/main
 e31de1f file.txt
 ```
 
@@ -74,7 +76,7 @@ In the monorepo, the same file is spliced in under `vendor/a/`, next to
 
 ```scrut
 $ git ls-tree -r --abbrev=7 --format='%(objectname) %(path)' HEAD
-c1353c2 vendor/a/.splice
+73e0c50 vendor/a/.splice
 e31de1f vendor/a/file.txt
 ```
 
@@ -83,12 +85,12 @@ names the upstream commit only in its message and in `.splice`:
 
 ```scrut
 $ git log --format='%h %s'
-ac208c0 splice: clone vendor/a from main at bde4164
+52577ba splice: clone vendor/a from main at bde4164
 4d732bc initial commit
 ```
 
 ```scrut
-$ git merge-base --is-ancestor splices/vendor/a/main HEAD || echo "not an ancestor"
+$ git merge-base --is-ancestor splices/git.example.com/a/-/main HEAD || echo "not an ancestor"
 not an ancestor
 ```
 
@@ -110,8 +112,8 @@ ok   vendor/a fetched (main moved bde4164..6045a98)
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
-530decc refs/splices/vendor/a/fix-parser
-6045a98 refs/splices/vendor/a/main
+530decc refs/splices/git.example.com/a/-/fix-parser
+6045a98 refs/splices/git.example.com/a/-/main
 ```
 
 `pull` is `fetch`, then `merge`. Its fetch moves and prunes refs like the
@@ -140,14 +142,14 @@ ok   vendor/a: pushed eda2ac7 to main
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(subject) %(refname)' refs/splices
-530decc parser fix refs/splices/vendor/a/fix-parser
-eda2ac7 local change refs/splices/vendor/a/main
+530decc parser fix refs/splices/git.example.com/a/-/fix-parser
+eda2ac7 local change refs/splices/git.example.com/a/-/main
 ```
 
 ### A monorepo branch syncs with the upstream branch of the same name
 
 On a monorepo branch named `fix-parser`, the splice syncs with
-`splices/vendor/a/fix-parser`. It's diverged: the upstream's `fix-parser`
+`splices/git.example.com/a/-/fix-parser`. It's diverged: the upstream's `fix-parser`
 has the parser fix, and this branch has the changes made on `main`:
 
 ```scrut
@@ -177,9 +179,9 @@ ok   vendor/a: pushed af0b42b to rename-helper
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
-refs/splices/vendor/a/fix-parser
-refs/splices/vendor/a/main
-refs/splices/vendor/a/rename-helper
+refs/splices/git.example.com/a/-/fix-parser
+refs/splices/git.example.com/a/-/main
+refs/splices/git.example.com/a/-/rename-helper
 ```
 
 ### `fetch` prunes refs of deleted branches
@@ -188,7 +190,7 @@ The upstream deletes `fix-parser`, e.g. after merging it. `fetch` removes
 its ref, as `git fetch --prune` does:
 
 ```scrut
-$ fix_parser="$(git rev-parse splices/vendor/a/fix-parser)"
+$ fix_parser="$(git rev-parse splices/git.example.com/a/-/fix-parser)"
 ```
 
 ```scrut
@@ -202,8 +204,8 @@ ok   vendor/a fetched
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
-refs/splices/vendor/a/main
-refs/splices/vendor/a/rename-helper
+refs/splices/git.example.com/a/-/main
+refs/splices/git.example.com/a/-/rename-helper
 ```
 
 The commit the ref named is still in the object store, but nothing points
@@ -253,12 +255,11 @@ $ cd ../clone && git splice status; cd - >/dev/null
 ??   vendor/a -> main (never fetched -- run 'git splice fetch vendor/a')
 ```
 
-### `git mv` leaves the refs under the old path
+### `git mv` keeps the refs
 
-The refs are named after the splice's path, and moving the folder doesn't
-rename them. Until the next fetch, the moved splice has no refs, and
-`status` wrongly says the upstream has no such branch
-([#21](https://github.com/roschaefer/git-splice/issues/21)):
+The refs are named after the upstream's URL, not the splice's path. Moving
+the folder keeps the URL in `.splice`, so the moved splice still finds
+its refs, without a fetch:
 
 ```scrut
 $ mkdir libs && git mv vendor/a libs/a && git commit -q -m "move a"
@@ -266,51 +267,19 @@ $ mkdir libs && git mv vendor/a libs/a && git commit -q -m "move a"
 
 ```scrut
 $ git splice status
-??   libs/a -> main (upstream has no such branch; ahead 3 -- push would create it)
-```
-
-A fetch creates refs under the new path. The old ones stay behind, pointing
-at the same commits:
-
-```scrut
-$ git splice fetch
-ok   libs/a fetched
+ok   libs/a -> main (up to date)
 ```
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
-eda2ac7 refs/splices/libs/a/main
-af0b42b refs/splices/libs/a/rename-helper
-eda2ac7 refs/splices/vendor/a/main
-af0b42b refs/splices/vendor/a/rename-helper
+eda2ac7 refs/splices/git.example.com/a/-/main
+af0b42b refs/splices/git.example.com/a/-/rename-helper
 ```
 
-They cost no extra space, since the new refs keep the same commits alive.
-Deleting them is safe on this branch:
-
-```scrut
-$ git for-each-ref --format='delete %(refname)' refs/splices/vendor/a/ | git update-ref --stdin
-```
-
-```scrut
-$ git for-each-ref --format='%(refname)' refs/splices
-refs/splices/libs/a/main
-refs/splices/libs/a/rename-helper
-```
-
-But other branches may still have the splice at the old path. On those,
-it now has no refs, as right after the move:
+Branches that still have the splice at the old path read the same refs:
 
 ```scrut
 $ git switch -q rename-helper && git splice status
-ok   vendor/a -> rename-helper (upstream has no such branch; ahead 4 since 'main' -- push would create it)
-```
-
-A fetch there brings them back, under the old path:
-
-```scrut
-$ git splice fetch && git splice status
-ok   vendor/a fetched
 ok   vendor/a -> rename-helper (up to date)
 ```
 
@@ -318,8 +287,9 @@ ok   vendor/a -> rename-helper (up to date)
 
 - **Lifetime.** A ref lives until something deletes it. `fetch` overwrites a
   splice's refs and deletes the refs of branches the upstream no longer
-  has; `push` updates the ref it pushed to. Nothing deletes the refs of a
-  splice that was moved or removed.
+  has; `push` updates the ref it pushed to. Nothing deletes the refs of an
+  upstream that no splice names any more, e.g. after a splice was removed
+  or its URL changed.
 - **Space.** Refs cost next to nothing; objects cost the space. Because
   Git addresses objects by content, files the monorepo and the upstream
   share are stored once. What a splice adds is the upstream's commits and

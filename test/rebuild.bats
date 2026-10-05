@@ -123,7 +123,7 @@ split() {
 @test "rebuild: without a synced commit (after init), rebuilds the folder's whole history" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
-  printf '[splice]\n\turl = %s\n' "$upstream" >lib/a/.splice
+  printf '[upstream "origin"]\n\turl = %s\n' "$upstream" >lib/a/.splice
   git add lib/a/.splice
   git commit -q -m "init lib/a"
   local rebuilt
@@ -148,7 +148,7 @@ split() {
   cd "$monorepo"
   local rebuilt feature_tip
   rebuilt="$(rebuild_splice vendor/a)"
-  feature_tip="$(git rev-parse refs/splices/vendor/a/feature)"
+  feature_tip="$(git rev-parse "$(upstream_refs "$upstream")feature")"
   # The squash merge is the boundary: the rebuild starts at the pulled
   # upstream commit itself, then only the local change follows.
   [ "$(git rev-parse "$rebuilt^")" = "$feature_tip" ]
@@ -176,7 +176,7 @@ split() {
   local rebuilt
   rebuilt="$(rebuild_splice vendor/a)"
   [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
-  [ "$(git rev-parse "$rebuilt^")" = "$(git rev-parse refs/splices/vendor/a/feature)" ]
+  [ "$(git rev-parse "$rebuilt^")" = "$(git rev-parse "$(upstream_refs "$upstream")feature")" ]
 }
 
 @test "rebuild: a synced commit that isn't available locally is an error" {
@@ -194,7 +194,7 @@ split() {
   cd "$monorepo"
   local before
   before="$(rebuild_splice vendor/a)"
-  git config --file vendor/a/.splice splice.url "$upstream/../moved.git"
+  git config --file vendor/a/.splice upstream.origin.url "$upstream/../moved.git"
   git commit -q -am "the upstream moved"
   [ "$(rebuild_splice vendor/a)" = "$before" ]
 }

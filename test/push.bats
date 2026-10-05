@@ -22,7 +22,7 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a: pushed ${rebuilt:0:7} to main"* ]]
   [ "$(git -C "$upstream" rev-parse main)" = "$rebuilt" ]
-  [ "$(git rev-parse refs/splices/vendor/a/main)" = "$rebuilt" ]
+  [ "$(git rev-parse "$(upstream_refs "$upstream")main")" = "$rebuilt" ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
   ! git -C "$upstream" cat-file -e main:.splice 2>/dev/null
 }
@@ -160,7 +160,7 @@ setup() {
   mkdir "$BATS_TEST_TMPDIR/tmp"
   TMPDIR="$BATS_TEST_TMPDIR/tmp" run splice push vendor/a
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a: pushed $(git rev-parse --short=7 refs/splices/vendor/a/main) to main" ]
+  [ "$output" = "ok   vendor/a: pushed $(git rev-parse --short=7 "$(upstream_refs "$upstream")main") to main" ]
   [ -z "$(ls -A "$BATS_TEST_TMPDIR/tmp")" ]
 }
 

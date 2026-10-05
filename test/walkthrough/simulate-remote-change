@@ -23,10 +23,11 @@ fi
 path="$1"
 message="${2:-simulated upstream change at $(date -u +%H:%M:%S)}"
 
-url="$(git config --file "$path/.splice" splice.url 2>/dev/null)" || {
+url="$(git config --file "$path/.splice" --get-regexp '^upstream\..*\.url$' 2>/dev/null | sed 's/^[^ ]* //' || true)"
+if [[ -z "$url" ]]; then
   echo "no splice at '$path' in $(pwd)" >&2
   exit 1
-}
+fi
 # Applies the monorepo's url.<base>.insteadOf, which the clone below, run
 # outside the monorepo, wouldn't see.
 url="$(git ls-remote --get-url "$url")"

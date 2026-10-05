@@ -86,7 +86,7 @@ pkg-a: a second commit, after the clone
 a local fix
 =======
 pkg-a: an upstream fix
->>>>>>> 89201a2 (splice: pull vendor/pkg-a from main at 4527a78)
+>>>>>>> 87e5027 (splice: pull vendor/pkg-a from main at 4527a78)
 ```
 
 ## Resolve and push
@@ -99,7 +99,7 @@ $ printf '%s\n' "pkg-a: seed" "pkg-a: a second commit, after the clone" "a local
 
 ```scrut
 $ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline -1
-ccd9894 splice: pull vendor/pkg-a from main at 4527a78
+03f38f9 splice: pull vendor/pkg-a from main at 4527a78
 ```
 
 Only the local fix is left to push. Upstream gets it as its own commit,

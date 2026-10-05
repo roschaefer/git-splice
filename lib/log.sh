@@ -34,7 +34,7 @@ log_one() {
       SPLICE_REBUILT="$(rebuild_splice "$path" HEAD)"
       [[ -n "$SPLICE_REBUILT" ]] || return 0
       # Everything no upstream branch has yet; all of it would be pushed.
-      git log --format="${LOG_FORMAT/\%m/<}" "$SPLICE_REBUILT" --not --glob="refs/splices/$path/*"
+      git log --format="${LOG_FORMAT/\%m/<}" "$SPLICE_REBUILT" --not --glob="$(splice_refs_prefix "$path")*"
       return
       ;;
     up-to-date)

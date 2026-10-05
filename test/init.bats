@@ -17,7 +17,7 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = "lib/a/.splice" ]
   [ "$(git status --porcelain)" = "A  other.txt" ]
-  [ "$(splice_config lib/a url)" = "$upstream" ]
+  [ "$(git config --file lib/a/.splice upstream.origin.url)" = "$upstream" ]
   [ -z "$(splice_config lib/a commit)" ]
 }
 
@@ -92,7 +92,7 @@ setup() {
   cd "$monorepo"
   echo ".*" >.git/info/exclude
   cmd_init lib/a "$upstream"
-  [ "$(splice_config lib/a url)" = "$upstream" ]
+  [ "$(git config --file lib/a/.splice upstream.origin.url)" = "$upstream" ]
 }
 
 @test "init: refuses a .splice that is a dangling symlink, and writes nothing" {
@@ -103,4 +103,17 @@ setup() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"lib/a/.splice exists, but isn't committed"* ]]
   [ ! -e "$BATS_TEST_TMPDIR/outside" ]
+}
+
+@test "init: on a path that had another upstream, the first push publishes everything" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  local new="$BATS_TEST_TMPDIR/new.git"
+  make_bare_repo "$new"
+  cd "$monorepo"
+  git rm -q vendor/a/.splice && git commit -q -m "unsplice vendor/a"
+  splice init vendor/a "$new" >/dev/null
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: pushed"* ]]
+  [ "$(git -C "$new" show main:file.txt)" = "$(git show HEAD:vendor/a/file.txt)" ]
 }
