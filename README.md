@@ -100,11 +100,10 @@ Everything else follows from two rules:
 
 ## Getting started
 
-Head over to the [documentation](https://roschaefer.github.io/git-splice/) to
-[install git-splice](https://roschaefer.github.io/git-splice/docs/installation/), look up its
-[commands](https://roschaefer.github.io/git-splice/docs/commands/) and
-[sync states](https://roschaefer.github.io/git-splice/docs/sync-states/), and follow
-[a walkthrough of every command](https://roschaefer.github.io/git-splice/test/walkthrough/).
+Head over to the
+[getting started guide](https://roschaefer.github.io/git-splice/docs/installation/)
+to install git-splice, learn its commands and sync states, and follow a
+walkthrough of every command.
 
 ## Contribute
 
