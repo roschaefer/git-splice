@@ -68,7 +68,7 @@ new_branch_count() {
 
 # Classifies and prints the status of one splice.
 format_status_line() {
-  local path="$1" branch="$2" base="${3:-}" ahead behind rc=0
+  local path="$1" branch="$2" base="${3:-}" counts ahead behind rc=0
   classify_splice "$path" "$branch"
   local prefix="$path -> $SPLICE_UPSTREAM_BRANCH"
 
@@ -85,13 +85,17 @@ format_status_line() {
     push | pull | diverged)
       # Ahead: commits of the rebuild R the upstream branch T lacks, which
       # push publishes. Behind: commits of T that R lacks, which pull
-      # brings in.
-      read -r ahead behind < <(git rev-list --left-right --count "$SPLICE_REBUILT...$SPLICE_TARGET_REF")
-      case "$SPLICE_STATE" in
-        push) log_ok "$prefix (push: ahead $ahead)" ;;
-        pull) log_ok "$prefix (pull: behind $behind)" ;;
-        diverged) log_ok "$prefix (diverged: ahead $ahead, behind $behind)" ;;
-      esac
+      # brings in. If they can't be counted, the state alone still holds.
+      if counts="$(git rev-list --left-right --count "$SPLICE_REBUILT...$SPLICE_TARGET_REF" 2>/dev/null)"; then
+        read -r ahead behind <<<"$counts"
+        case "$SPLICE_STATE" in
+          push) log_ok "$prefix (push: ahead $ahead)" ;;
+          pull) log_ok "$prefix (pull: behind $behind)" ;;
+          diverged) log_ok "$prefix (diverged: ahead $ahead, behind $behind)" ;;
+        esac
+      else
+        log_ok "$prefix ($SPLICE_STATE)"
+      fi
       ;;
     unrelated-history)
       status_warn "$prefix (unrelated history -- see 'git splice merge $path' for options)"

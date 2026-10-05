@@ -220,3 +220,16 @@ assert_state() {
   run cmd_status
   [[ "${lines[0]}" == *"(upstream has no such branch; changed since 'main' -- push would create it)" ]]
 }
+
+@test "status: shows the state without counts if they can't be counted" {
+  scenario_uncommitted_changes "$monorepo" "$upstream"
+  cd "$monorepo"
+  git() {
+    [[ "$1 $2" == "rev-list --left-right" ]] && return 1
+    command git "$@"
+  }
+  run cmd_status
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "ok   vendor/a -> main (push)" ]
+  [[ "${lines[1]}" == "??   vendor/a has uncommitted changes"* ]]
+}
