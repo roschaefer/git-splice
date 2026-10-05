@@ -40,5 +40,13 @@ docs-check flag="":
       echo "The README, walkthroughs, scenario READMEs or comparisons don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
     fi
 
-# Everything CI runs: lint, fmt-check, test and docs-check
-ci: lint fmt-check test docs-check
+# Build the documentation site into website/build; fails on broken links
+site-build:
+    cd website && yarn install --frozen-lockfile && yarn build
+
+# Serve the documentation site locally, reloading on changes
+site-serve:
+    cd website && yarn install --frozen-lockfile && yarn start
+
+# Everything CI runs: lint, fmt-check, test, docs-check and site-build
+ci: lint fmt-check test docs-check site-build

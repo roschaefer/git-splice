@@ -147,6 +147,9 @@
             # Renders the walkthrough chapters in the walkthrough shell.
             pkgs.glow
             scrut
+            # Builds the documentation site in website/.
+            pkgs.nodejs
+            pkgs.yarn
             # Only for test/completions.bats: the zsh and fish completions.
             pkgs.zsh
             pkgs.fish

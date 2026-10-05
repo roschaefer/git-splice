@@ -28,6 +28,9 @@ jobs:
       - name: docs-check
         run: nix develop --command just docs-check
 
+      - name: site-build
+        run: nix develop --command just site-build
+
       # Builds the package and runs it through `git splice` in the sandbox.
       - name: nix flake check
         run: nix flake check -L
