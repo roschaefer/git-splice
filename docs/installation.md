@@ -1,7 +1,8 @@
 # Installation
 
-With [Nix](https://nixos.org/download/), which brings its own Bash, Git and
-shell completions:
+With [Nix](https://nixos.org/download/) and
+[flakes](https://wiki.nixos.org/wiki/Flakes) enabled, which brings its own
+Bash, Git and shell completions:
 
     nix profile install github:roschaefer/git-splice
     nix run github:roschaefer/git-splice -- status   # or try it first
@@ -36,5 +37,6 @@ them; for a clone:
       /usr/local/share/zsh/site-functions/_git-splice
 
     # fish
+    mkdir -p ~/.config/fish/completions
     ln -s /path/to/git-splice/completions/git-splice.fish \
       ~/.config/fish/completions/git-splice.fish
