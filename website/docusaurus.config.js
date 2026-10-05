@@ -4,14 +4,17 @@ const {themes} = require('prism-react-renderer');
 // scenarios, comparisons and design notes -- in place, so the pages are the
 // same files `just docs-check` runs against real output.
 const repoUrl = 'https://github.com/roschaefer/git-splice';
+const siteUrl = 'https://roschaefer.github.io';
+const baseUrl = '/git-splice/';
 const repoFileLinks = require('./src/remark/repo-file-links');
+const siteLinks = require('./src/remark/site-links');
 
 /** @type {import('@docusaurus/types').Config} */
 module.exports = {
   title: 'git-splice',
   tagline: 'Keep folders of your monorepo in sync with their own repositories',
-  url: 'https://roschaefer.github.io',
-  baseUrl: '/git-splice/',
+  url: siteUrl,
+  baseUrl,
   organizationName: 'roschaefer',
   projectName: 'git-splice',
   trailingSlash: true,
@@ -43,6 +46,7 @@ module.exports = {
           editUrl: `${repoUrl}/edit/main/`,
           beforeDefaultRemarkPlugins: [
             [repoFileLinks, {repoUrl, repoRoot: require('path').resolve(__dirname, '..')}],
+            [siteLinks, {siteUrl: siteUrl + baseUrl}],
           ],
         },
         blog: false,
