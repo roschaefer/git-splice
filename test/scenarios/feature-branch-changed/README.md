@@ -23,9 +23,7 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_feature_branch
 
 ```scrut
 $ git splice status
-ok   vendor/a -> feature (upstream has no such branch; changed since 'main' -- push would create it)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/a -> feature (upstream has no such branch; ahead 1 since 'main' -- push would create it)
 ```
 
 ```scrut

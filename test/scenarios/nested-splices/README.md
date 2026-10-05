@@ -35,7 +35,5 @@ $ git rm -q vendor/pkg/extra/.splice && git commit -q -m "vendor/pkg/extra is pa
 
 ```scrut
 $ git splice status
-ok   vendor/pkg -> main (push)
- extra/file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/pkg -> main (push: ahead 2)
 ```

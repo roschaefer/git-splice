@@ -18,9 +18,7 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_diverged_commo
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (diverged)
- file.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ok   vendor/a -> main (diverged: ahead 1, behind 1)
 ```
 
 ```scrut

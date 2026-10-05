@@ -47,9 +47,7 @@ $ echo "a new option" >>vendor/pkg-b/file.txt && git commit -qam "pkg-b: add an 
 ```scrut
 $ git splice status
 ok   vendor/pkg-a -> feature (upstream has no such branch; unchanged since 'main')
-ok   vendor/pkg-b -> feature (upstream has no such branch; changed since 'main' -- push would create it)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/pkg-b -> feature (upstream has no such branch; ahead 1 since 'main' -- push would create it)
 ```
 
 With no upstream branch to compare with, `diff` compares with `main`:

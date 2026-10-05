@@ -52,8 +52,5 @@ $ echo "both versions" >vendor/a/file.txt && git add vendor/a/file.txt && git co
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push)
- file.txt  | 2 +-
- local.txt | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ok   vendor/a -> main (push: ahead 2)
 ```

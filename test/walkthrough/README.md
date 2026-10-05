@@ -40,14 +40,14 @@ $ source "$TESTDIR/scrut-setup.sh"
 ## status
 
 Lists every splice: a folder with a `.splice` file. Each one gets its
-[sync state](../../docs/sync-states.md) and the files that differ. `status`
-doesn't fetch; it uses what was fetched last.
+[sync state](../../docs/sync-states.md), with commits counted like
+`git status` counts them against a tracking branch: "behind 1" is one
+commit for `pull` to bring in. `status` doesn't fetch; it uses what was
+fetched last.
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> main (pull)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/pkg-a -> main (pull: behind 1)
 ```
 
 The `.splice` file names the upstream, and the upstream commit the folder
@@ -189,9 +189,7 @@ $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local 
 
 ```scrut
 $ git splice status vendor/pkg-a
-ok   vendor/pkg-a -> main (push)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/pkg-a -> main (push: ahead 1)
 ```
 
 `diff` shows what `push` would send, with paths as the upstream sees them.
@@ -207,6 +205,15 @@ index 1b6c064..15c0cbd 100644
  pkg-a: seed
  pkg-a: a second commit, after the clone
 +a local fix
+```
+
+It takes Git's diff options, e.g. `--stat` for just the files:
+
+```scrut
+$ git splice diff --stat
+===  vendor/pkg-a
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
 ```
 
 ## push

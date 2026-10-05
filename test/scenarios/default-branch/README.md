@@ -29,9 +29,7 @@ splice.default-branch=master
 
 ```scrut
 $ git splice status
-ok   vendor/a -> master (push)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/a -> master (push: ahead 1)
 ```
 
 ```scrut

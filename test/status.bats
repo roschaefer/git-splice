@@ -80,20 +80,38 @@ assert_state() {
   [ "$SPLICE_STATE" = missing-branch ]
 }
 
-@test "status: prints each state" {
+@test "status: counts what push would publish and pull would bring in" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "second local change"
+  cd "$monorepo"
+  run cmd_status
+  [ "$output" = "ok   vendor/a -> main (push: ahead 2)" ]
+
+  scenario_pull_ahead "$BATS_TEST_TMPDIR/pull" "$BATS_TEST_TMPDIR/pull.git"
+  cd "$BATS_TEST_TMPDIR/pull"
+  run cmd_status
+  [ "$output" = "ok   vendor/a -> main (pull: behind 1)" ]
+
+  scenario_diverged_common_ancestor "$BATS_TEST_TMPDIR/diverged" "$BATS_TEST_TMPDIR/diverged.git"
+  cd "$BATS_TEST_TMPDIR/diverged"
+  run cmd_status
+  [ "$output" = "ok   vendor/a -> main (diverged: ahead 1, behind 1)" ]
+}
+
+@test "status: leaves the file summary to diff --stat" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "ok   vendor/a -> main (diverged)" ]]
-  [[ "$output" == *"file.txt | 2 +-"* ]]
+  [ "${#lines[@]}" -eq 1 ]
+  [[ "$output" != *"file.txt"* ]]
 }
 
 @test "status: names upstream's branch when it differs" {
   scenario_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
-  [[ "${lines[0]}" == "ok   vendor/a -> master (push)" ]]
+  [[ "${lines[0]}" == "ok   vendor/a -> master (push: ahead 1)" ]]
 }
 
 @test "status: covers every splice by default and takes paths" {
@@ -110,8 +128,7 @@ assert_state() {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
-  [[ "${lines[0]}" == *"(upstream has no such branch; changed since 'main' -- push would create it)" ]]
-  [[ "$output" == *"file.txt | 1 +"* ]]
+  [[ "${lines[0]}" == *"(upstream has no such branch; ahead 1 since 'main' -- push would create it)" ]]
   git checkout -q -b other main
   run cmd_status
   [[ "$output" == *"(upstream has no such branch; unchanged since 'main')" ]]
@@ -144,7 +161,7 @@ assert_state() {
   cd "$monorepo"
   run cmd_status
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "ok   vendor/a -> main (push)" ]]
+  [[ "${lines[0]}" == "ok   vendor/a -> main (push: ahead 1)" ]]
   [[ "${lines[-1]}" == "??   vendor/a has uncommitted changes -- push only sends committed ones" ]]
 }
 
@@ -185,4 +202,21 @@ assert_state() {
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "ok   vendor/a -> main (up to date)" ]]
   [[ "${lines[1]}" == "??   vendor/a: could not check for uncommitted changes (git status failed)" ]]
+}
+
+@test "status: a missing branch counts every commit the push creating it would publish" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "another change"
+  cd "$monorepo"
+  run cmd_status
+  [[ "${lines[0]}" == *"(upstream has no such branch; ahead 2 since 'main' -- push would create it)" ]]
+}
+
+@test "status: a missing branch with no new commits for upstream says changed, not ahead 0" {
+  load 'scenarios/clone-on-feature-branch/setup'
+  scenario_clone_on_feature_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a >/dev/null
+  run cmd_status
+  [[ "${lines[0]}" == *"(upstream has no such branch; changed since 'main' -- push would create it)" ]]
 }

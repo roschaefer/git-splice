@@ -177,3 +177,24 @@ setup() {
 
   [ "$status" -eq 0 ]
 }
+
+@test "diff: passes Git's diff options on" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --stat
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"file.txt | 1 +"* ]]
+  [[ "$output" != *"+local change"* ]]
+  run cmd_diff --name-only vendor/a
+  [ "$output" = "$(printf '===  vendor/a\nfile.txt')" ]
+  run cmd_diff -U0 --base main
+  [[ "$output" == *"@@ -1,0 +2 @@"* ]]
+}
+
+@test "diff: a path after -- that looks like an option is still a path" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --stat -- --stat
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"not a splice: --stat"* ]]
+}

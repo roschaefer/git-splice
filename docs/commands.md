@@ -11,8 +11,8 @@ Commands that only look cover every splice unless you name some. Run `git splice
 | `merge <path>…` | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
 | `pull <path>…` | `fetch` + `merge`. |
 | `push <path>…` | Rebuilds the commits that changed each splice since the last sync and pushes them upstream. Writes nothing to the monorepo. |
-| `status [path…]` | Shows each splice's [sync state](sync-states.md). |
-| `diff [path…]` | Shows the file changes `push` would send. |
+| `status [path…]` | Shows each splice's [sync state](sync-states.md), with how many commits `push` would publish and `pull` would bring in. |
+| `diff [<git diff option>…] [path…]` | Shows the file changes `push` would send. Takes `git diff`'s options, e.g. `--stat`. |
 | `log [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors. |
 | `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<path>/`. |
 

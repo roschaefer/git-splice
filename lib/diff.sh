@@ -3,12 +3,16 @@
 
 usage_diff() {
   cat <<'EOF'
-usage: git splice diff [--base <branch>] [path...]
+usage: git splice diff [--base <branch>] [<git diff option>...] [--] [path...]
 
 Shows the file changes 'git splice push' would send to each splice's
 upstream, with paths as the upstream sees them. Purely local -- run
 'git splice fetch' first for up-to-date results. Defaults to every splice
 when no paths are given.
+
+Other options go to 'git diff', e.g. --stat, --name-only or
+--name-status. Give each as one word (-U5, --stat=80), since a separate
+value would be read as a path.
 
 For a splice whose upstream has no branch named like the current one, the
 diff is against the monorepo's base branch (--base, else the monorepo's
@@ -72,7 +76,7 @@ diff_one() {
   [[ -n "$old_tree" ]] || old_tree="$(git hash-object -t tree /dev/null)"
 
   log_step "$path"
-  git diff "$old_tree" "$new_tree"
+  git diff "${EXTRA_FLAGS[@]}" "$old_tree" "$new_tree"
 }
 
 # Emits all selected patches. Kept separate from cmd_diff so one pager can
@@ -97,7 +101,7 @@ diff_paths() {
 }
 
 cmd_diff() {
-  parse_args usage_diff "" "$@"
+  parse_args usage_diff "-*" "$@"
   local base="$BASE_ARG" branch
   cd_to_repo_root
   require_head_commit
