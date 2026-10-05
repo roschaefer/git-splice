@@ -209,4 +209,4 @@ dcaf6be6 3) line 3
 ```
 
 The library's history is still at hand, fetched under
-`refs/splices/git.example.com/lib/-/`, but not part of the monorepo's.
+`refs/splices/https%3A/%/git.example.com/lib.git/-/`, but not part of the monorepo's.

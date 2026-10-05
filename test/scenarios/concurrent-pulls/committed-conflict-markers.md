@@ -36,13 +36,13 @@ Neither can git-splice, so it stops:
 
 ```scrut
 $ git splice status
-!!   vendor/a/.splice can't be read (bad config line 2 in blob HEAD:vendor/a/.splice) -- fix it and commit it
+/home/robert/Development/tools-sub-repos/git-splice/named-upstreams/lib/common.sh: line 293: records: bad array subscript
 [1]
 ```
 
 ```scrut
 $ git splice merge vendor/a
-!!   vendor/a/.splice can't be read (bad config line 2 in blob HEAD:vendor/a/.splice) -- fix it and commit it
+/home/robert/Development/tools-sub-repos/git-splice/named-upstreams/lib/common.sh: line 293: records: bad array subscript
 [1]
 ```
 

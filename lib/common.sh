@@ -281,20 +281,28 @@ folder_tree() {
 #
 # Exactly one [upstream] section is supported for now.
 load_splice_upstream() {
-  local path="$1" listing line urls=() old_url="" error q_file
+  local path="$1" records=() record urls=() old_url="" error q_file
   # One git config per splice: discovery runs this for every splice, in
-  # every command.
-  if ! listing="$(git config --blob "HEAD:$path/$STATE_FILE" --list 2>/dev/null)"; then
+  # every command. NUL-delimited, since a value, e.g. a local path, may
+  # contain a newline; git's status follows as the last record, since it
+  # may list some entries before failing.
+  mapfile -d '' records < <(
+    git config --blob "HEAD:$path/$STATE_FILE" --list -z 2>/dev/null
+    printf '%d' "$?"
+  )
+  if [[ "${records[-1]}" != 0 ]]; then
     error="$(git config --blob "HEAD:$path/$STATE_FILE" --list 2>&1 >/dev/null || true)"
     error="${error%%$'\n'*}"
     die "$path/$STATE_FILE can't be read (${error#error: }) -- fix it and commit it"
   fi
-  while IFS= read -r line; do
-    case "${line%%=*}" in
-      upstream.*.url) urls+=("${line#*=}") ;;
-      splice.url) old_url="${line#*=}" ;;
+  unset 'records[-1]'
+  for record in "${records[@]}"; do
+    # Each record is <key>, a newline, and the value.
+    case "${record%%$'\n'*}" in
+      upstream.*.url) urls+=("${record#*$'\n'}") ;;
+      splice.url) old_url="${record#*$'\n'}" ;;
     esac
-  done <<<"$listing"
+  done
   if [[ ${#urls[@]} -eq 0 ]]; then
     q_file="$(shell_quote "$path/$STATE_FILE")"
     if [[ -n "$old_url" ]]; then
@@ -321,61 +329,30 @@ EOF
 # under, refs/splices/<key>/-/<branch>. Keyed by URL rather than by the
 # splice's path, refs follow a splice through git mv, and splices at one
 # path with different upstreams, e.g. on two branches, don't share them.
-# Derived from the URL as written, so equal upstreams share refs:
+# The key is the URL exactly as written, so splices share refs only if
+# their URLs are equal -- spellings that look alike can name different
+# repositories, e.g. /srv/lib and /srv/lib.git:
 #
-#   https://github.com/x/lib.git        github.com/x/lib
-#   git@github.com:x/lib.git            github.com/x/lib
-#   ssh://git@host.example:2222/x/lib   host.example/2222/x/lib
-#   /srv/git/lib.git, file:///srv/...   file/srv/git/lib
-#   ext::<command>                      ext/<command, escaped>
+#   https://github.com/x/lib.git   https%3A/%/github.com/x/lib.git
+#   git@github.com:x/lib.git       git%40github.com%3Ax/lib.git
+#   /srv/git/lib.git               %/srv/git/lib.git
 #
-# The scheme, the user and a trailing .git are dropped, the host is
-# lowercased, and each component is escaped (see ref_component), which
-# leaves only what Git allows in a ref name. A component that is just "-"
-# is escaped too, so the "-" that ends the key marks where the branch name
-# begins, even one with slashes.
+# Each "/"-separated component is escaped (see ref_component), which
+# leaves only what Git allows in a ref name; an empty one becomes "%",
+# which no escaped component is. A component that is just "-" is escaped
+# too, so the "-" that ends the key marks where the branch name begins,
+# even one with slashes.
 upstream_key() {
-  local url="$1" host="" port="" location components=() component key=""
-  # <transport>::<address> names a remote helper, e.g. ext::<command>.
-  if [[ "$url" =~ ^([A-Za-z][A-Za-z0-9+.-]*)::(.*)$ ]]; then
-    components+=("${BASH_REMATCH[1],,}")
-    url="${BASH_REMATCH[2]}"
-  fi
-  if [[ "$url" =~ ^([A-Za-z][A-Za-z0-9+.-]*)://(.*)$ ]]; then
-    location="${BASH_REMATCH[2]}"
-    if [[ "${BASH_REMATCH[1],,}" != file ]]; then
-      host="${location%%/*}"
-      location="${location:${#host}}"
-      host="${host##*@}"
-      if [[ "$host" =~ ^(.+):([0-9]*)$ ]]; then
-        host="${BASH_REMATCH[1]}"
-        port="${BASH_REMATCH[2]}"
-      fi
+  local rest="$1" key=""
+  while :; do
+    if [[ "${rest%%/*}" == "" ]]; then
+      key+="${key:+/}%"
+    else
+      ref_component "${rest%%/*}"
+      key+="${key:+/}$REF_COMPONENT"
     fi
-  elif [[ "$url" =~ ^([^/:]+):(.*)$ ]]; then
-    # scp-like syntax, host:path, as Git reads it: a colon before any slash.
-    host="${BASH_REMATCH[1]##*@}"
-    location="${BASH_REMATCH[2]}"
-  else
-    location="$url"
-  fi
-  while [[ "$location" == */ ]]; do location="${location%/}"; done
-  location="${location%.git}"
-
-  if [[ -n "$host" ]]; then
-    components+=("${host,,}")
-    [[ -n "$port" ]] && components+=("$port")
-  else
-    components+=(file)
-  fi
-  local IFS=/
-  for component in $location; do
-    [[ -n "$component" ]] && components+=("$component")
-  done
-  unset IFS
-  for component in "${components[@]}"; do
-    ref_component "$component"
-    key+="${key:+/}$REF_COMPONENT"
+    [[ "$rest" == */* ]] || break
+    rest="${rest#*/}"
   done
   UPSTREAM_KEY="$key"
 }

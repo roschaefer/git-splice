@@ -14,8 +14,9 @@ A ref is a name for a commit. Branches are refs under `refs/heads/`, tags
 under `refs/tags/`, and `git fetch` keeps a remote's branches under
 `refs/remotes/<remote>/`. These are only conventions: a ref can live under
 any `refs/` path, and git-splice keeps each upstream's branches under
-`refs/splices/<key>/-/`. The key comes from the upstream's URL, so
-`https://git.example.com/a.git` becomes `git.example.com/a`, and the `-`
+`refs/splices/<key>/-/`. The key is the upstream's URL escaped for a ref
+name, so `https://git.example.com/a.git` becomes
+`https%3A/%/git.example.com/a.git`, and the `-`
 marks where branch names, which may contain slashes, begin.
 
 A ref costs one line in `.git/packed-refs`, or a small file. The commits it
@@ -53,8 +54,8 @@ ok   vendor/a: cloned bde4164 from main
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)'
 52577ba refs/heads/main
-530decc refs/splices/git.example.com/a/-/fix-parser
-bde4164 refs/splices/git.example.com/a/-/main
+530decc refs/splices/https%3A/%/git.example.com/a.git/-/fix-parser
+bde4164 refs/splices/https%3A/%/git.example.com/a.git/-/main
 ```
 
 The upstream's commits now live in the monorepo's object store, with the
@@ -62,12 +63,12 @@ upstream's own layout: `file.txt` sits at the root, not under `vendor/a/`.
 Any Git command can read them, by their short name too:
 
 ```scrut
-$ git log --format='%h %s' splices/git.example.com/a/-/main
+$ git log --format='%h %s' splices/https%3A/%/git.example.com/a.git/-/main
 bde4164 seed
 ```
 
 ```scrut
-$ git ls-tree -r --abbrev=7 --format='%(objectname) %(path)' splices/git.example.com/a/-/main
+$ git ls-tree -r --abbrev=7 --format='%(objectname) %(path)' splices/https%3A/%/git.example.com/a.git/-/main
 e31de1f file.txt
 ```
 
@@ -90,7 +91,7 @@ $ git log --format='%h %s'
 ```
 
 ```scrut
-$ git merge-base --is-ancestor splices/git.example.com/a/-/main HEAD || echo "not an ancestor"
+$ git merge-base --is-ancestor splices/https%3A/%/git.example.com/a.git/-/main HEAD || echo "not an ancestor"
 not an ancestor
 ```
 
@@ -112,8 +113,8 @@ ok   vendor/a fetched (main moved bde4164..6045a98)
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
-530decc refs/splices/git.example.com/a/-/fix-parser
-6045a98 refs/splices/git.example.com/a/-/main
+530decc refs/splices/https%3A/%/git.example.com/a.git/-/fix-parser
+6045a98 refs/splices/https%3A/%/git.example.com/a.git/-/main
 ```
 
 `pull` is `fetch`, then `merge`. Its fetch moves and prunes refs like the
@@ -142,14 +143,14 @@ ok   vendor/a: pushed eda2ac7 to main
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(subject) %(refname)' refs/splices
-530decc parser fix refs/splices/git.example.com/a/-/fix-parser
-eda2ac7 local change refs/splices/git.example.com/a/-/main
+530decc parser fix refs/splices/https%3A/%/git.example.com/a.git/-/fix-parser
+eda2ac7 local change refs/splices/https%3A/%/git.example.com/a.git/-/main
 ```
 
 ### A monorepo branch syncs with the upstream branch of the same name
 
 On a monorepo branch named `fix-parser`, the splice syncs with
-`splices/git.example.com/a/-/fix-parser`. It's diverged: the upstream's `fix-parser`
+`splices/https%3A/%/git.example.com/a.git/-/fix-parser`. It's diverged: the upstream's `fix-parser`
 has the parser fix, and this branch has the changes made on `main`:
 
 ```scrut
@@ -179,9 +180,9 @@ ok   vendor/a: pushed af0b42b to rename-helper
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
-refs/splices/git.example.com/a/-/fix-parser
-refs/splices/git.example.com/a/-/main
-refs/splices/git.example.com/a/-/rename-helper
+refs/splices/https%3A/%/git.example.com/a.git/-/fix-parser
+refs/splices/https%3A/%/git.example.com/a.git/-/main
+refs/splices/https%3A/%/git.example.com/a.git/-/rename-helper
 ```
 
 ### `fetch` prunes refs of deleted branches
@@ -190,7 +191,7 @@ The upstream deletes `fix-parser`, e.g. after merging it. `fetch` removes
 its ref, as `git fetch --prune` does:
 
 ```scrut
-$ fix_parser="$(git rev-parse splices/git.example.com/a/-/fix-parser)"
+$ fix_parser="$(git rev-parse splices/https%3A/%/git.example.com/a.git/-/fix-parser)"
 ```
 
 ```scrut
@@ -204,8 +205,8 @@ ok   vendor/a fetched
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
-refs/splices/git.example.com/a/-/main
-refs/splices/git.example.com/a/-/rename-helper
+refs/splices/https%3A/%/git.example.com/a.git/-/main
+refs/splices/https%3A/%/git.example.com/a.git/-/rename-helper
 ```
 
 The commit the ref named is still in the object store, but nothing points
@@ -272,8 +273,8 @@ ok   libs/a -> main (up to date)
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
-eda2ac7 refs/splices/git.example.com/a/-/main
-af0b42b refs/splices/git.example.com/a/-/rename-helper
+eda2ac7 refs/splices/https%3A/%/git.example.com/a.git/-/main
+af0b42b refs/splices/https%3A/%/git.example.com/a.git/-/rename-helper
 ```
 
 Branches that still have the splice at the old path read the same refs:

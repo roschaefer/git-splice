@@ -204,14 +204,15 @@ Upstream branches are fetched by URL into private refs:
 git fetch --prune <url> '+refs/heads/*:refs/splices/<key>/-/*'
 ```
 
-The key comes from the URL as written in `.splice`, before `insteadOf`:
-the scheme, the user and a trailing `.git` are dropped, `host:path` is
-read like `host/path`, a port becomes its own component, local paths go
-under `file/`, and characters Git refuses in ref names are escaped as
-`%XX`. So `https://github.com/x/lib.git` and `git@github.com:x/lib.git`
-share `refs/splices/github.com/x/lib/-/`. A component that is just `-` is
-escaped too, so the `-` after the key marks where branch names begin, even
-those with slashes.
+The key is the URL exactly as written in `.splice`, before `insteadOf`,
+with each `/`-separated component escaped: characters Git refuses in ref
+names become `%XX`, and an empty component becomes `%`. So
+`https://github.com/x/lib.git` is keyed `https%3A/%/github.com/x/lib.git`.
+Spellings that look alike can name different repositories, e.g.
+`/srv/lib` and `/srv/lib.git`, or `host:lib` (relative to the home
+folder) and `ssh://host/lib`, so only equal URLs share a key. A component
+that is just `-` is escaped too, so the `-` after the key marks where
+branch names begin, even those with slashes.
 
 Keyed by URL, not by path, the refs describe the upstream rather than the
 folder:
@@ -220,7 +221,7 @@ folder:
 - Splices at the same path with different upstreams, e.g. on two
   branches, don't overwrite each other's refs, and `init` on a path that
   had another upstream doesn't see that one's refs.
-- Splices with the same URL share refs, which is fine, since refs only
+- Splices with equal URLs share refs, which is fine, since refs only
   describe the upstream. `fetch` fetches each upstream once.
 
 - No Git remote exists, so nothing can push the monorepo there by mistake.
@@ -235,9 +236,9 @@ folder:
   as of the last fetch. No separate clone is needed:
 
   ```
-  git log --oneline splices/github.com/x/a/-/main
-  git show splices/github.com/x/a/-/main:README.md
-  git worktree add --detach ../a-upstream splices/github.com/x/a/-/main
+  git log --oneline splices/https%3A/%/github.com/x/a.git/-/main
+  git show splices/https%3A/%/github.com/x/a.git/-/main:README.md
+  git worktree add --detach ../a-upstream splices/https%3A/%/github.com/x/a.git/-/main
   ```
 
   `git log --all` and `gitk --all` show those histories too; add

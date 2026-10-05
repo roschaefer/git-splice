@@ -312,33 +312,39 @@ assert_key() {
   git check-ref-format "refs/splices/$UPSTREAM_KEY/-/main"
 }
 
-@test "upstream_key: equal upstreams share a key, whatever the URL's syntax" {
-  assert_key https://github.com/x/lib.git github.com/x/lib
-  assert_key https://github.com/x/lib github.com/x/lib
-  assert_key https://github.com/x/lib/ github.com/x/lib
-  assert_key git@github.com:x/lib.git github.com/x/lib
-  assert_key ssh://git@github.com/x/lib.git github.com/x/lib
-  assert_key https://GitHub.com/x/lib github.com/x/lib
+@test "upstream_key: the key is the URL as written, escaped per component" {
+  assert_key https://github.com/x/lib.git https%3A/%/github.com/x/lib.git
+  assert_key git@github.com:x/lib.git git%40github.com%3Ax/lib.git
+  assert_key /srv/git/lib.git %/srv/git/lib.git
+  assert_key ext::some-command ext%3A%3Asome-command
 }
 
-@test "upstream_key: a port becomes its own component, local paths go under file/" {
-  assert_key ssh://git@host.example:2222/x/lib host.example/2222/x/lib
-  assert_key /srv/git/lib.git file/srv/git/lib
-  assert_key file:///srv/git/lib.git file/srv/git/lib
-  assert_key ext::some-command ext/file/some-command
+@test "upstream_key: URLs that look alike but can name different repositories get different keys" {
+  local url keys=()
+  for url in /tmp/up /tmp/up.git tmp/up /tmp/up/ /tmp//up ssh://a@host/up ssh://b@host/up host:up ssh://host/up; do
+    upstream_key "$url"
+    keys+=("$UPSTREAM_KEY")
+  done
+  [ "$(printf '%s\n' "${keys[@]}" | sort -u | wc -l)" -eq "${#keys[@]}" ]
 }
 
 @test "upstream_key: escapes what Git refuses in ref names, and % itself" {
-  assert_key "https://host/a b/~c" "host/a%20b/%7Ec"
-  assert_key https://host/x.lock/y host/x%2Elock/y
-  assert_key https://host/.hidden/a..b host/%2Ehidden/a.%2Eb
-  assert_key https://host/100% host/100%25
-  assert_key ../lib.git file/%2E%2E/lib
+  assert_key "https://host/a b/~c" "https%3A/%/host/a%20b/%7Ec"
+  assert_key https://host/x.lock/y https%3A/%/host/x%2Elock/y
+  assert_key https://host/.hidden/a..b https%3A/%/host/%2Ehidden/a.%2Eb
+  assert_key https://host/100% https%3A/%/host/100%25
+  assert_key ../lib.git %2E%2E/lib.git
+}
+
+@test "upstream_key: a glob character stays itself, whatever files match it" {
+  cd "$BATS_TEST_TMPDIR"
+  touch aXb aYb
+  assert_key 'a*b' a%2Ab
 }
 
 @test "upstream_key: keeps hyphens in names, escapes a component that is just -" {
-  assert_key https://github.com/my-org/git-splice github.com/my-org/git-splice
-  assert_key https://gitlab.example/group/-/lib gitlab.example/group/%2D/lib
+  assert_key https://github.com/my-org/git-splice https%3A/%/github.com/my-org/git-splice
+  assert_key https://gitlab.example/group/-/lib https%3A/%/gitlab.example/group/%2D/lib
 }
 
 @test "upstream_key: keys never nest into each other's branches" {
@@ -397,4 +403,13 @@ assert_key() {
   run "$BATS_TEST_DIRNAME/../git-splice" status
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice can't be read (bad config line "*") -- fix it and commit it"* ]]
+}
+
+@test "discover_splices reads an upstream URL with a newline in it whole" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.origin.url $'/srv/a\nb.git'
+  git commit -q -am "newline in the URL"
+  discover_splices
+  [ "${SPLICE_URLS[vendor/a]}" = $'/srv/a\nb.git' ]
 }

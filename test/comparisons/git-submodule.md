@@ -278,8 +278,8 @@ ok   vendor/lib: pushed 6b3df25 to feature
 
 ```scrut
 $ cd ../splice-monorepo && git for-each-ref --format='%(refname)' refs/splices
-refs/splices/git.example.com/lib/-/feature
-refs/splices/git.example.com/lib/-/main
+refs/splices/https%3A/%/git.example.com/lib.git/-/feature
+refs/splices/https%3A/%/git.example.com/lib.git/-/main
 ```
 
 ```scrut

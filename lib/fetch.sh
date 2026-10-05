@@ -5,8 +5,9 @@ usage_fetch() {
 usage: git splice fetch [path...]
 
 Fetches every branch of each splice's upstream into
-refs/splices/<key>/-/*, where <key> comes from the upstream's URL, e.g.
-github.com/x/lib -- by URL, there is no Git remote. Branches deleted
+refs/splices/<key>/-/*, where <key> is the upstream's URL escaped for
+a ref name, e.g. https%3A/%/github.com/x/lib.git -- by URL, there is no
+Git remote. Branches deleted
 upstream are pruned. Defaults to every splice when no paths are given.
 Fetches upstreams in parallel, each once, and reports when the branch a
 splice syncs with moved.
@@ -22,6 +23,8 @@ fetch_upstream() {
   shift 2
   git fetch --quiet --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
   for commit in "$@"; do
+    # A splice made by init has no synced commit until its first pull.
+    [[ -n "$commit" ]] || continue
     if ! git cat-file -e "$commit^{commit}" 2>/dev/null; then
       git fetch --quiet --no-tags --no-write-fetch-head -- "$url" "$commit" 2>/dev/null || true
     fi

@@ -75,3 +75,17 @@ setup() {
   [[ "$output" == *"ok   vendor/b fetched (main moved"* ]]
   [ "$(wc -l <"$fetches")" -eq 1 ]
 }
+
+@test "fetch: a splice without a synced commit yet fetches its upstream once" {
+  load 'scenarios/init-new-upstream/setup'
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null
+  git() {
+    [[ "$1" == fetch ]] && echo fetch >>"$BATS_TEST_TMPDIR/fetches"
+    command git "$@"
+  }
+  run cmd_fetch lib/a
+  [ "$status" -eq 0 ]
+  [ "$(wc -l <"$BATS_TEST_TMPDIR/fetches")" -eq 1 ]
+}
