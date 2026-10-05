@@ -40,7 +40,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 ## status
 
 Lists every splice: a folder with a `.splice` file. Each one gets its
-[sync state](../../README.md#sync-states) and the files that differ. `status`
+[sync state](../../docs/sync-states.md) and the files that differ. `status`
 doesn't fetch; it uses what was fetched last.
 
 ```scrut
