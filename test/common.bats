@@ -378,11 +378,16 @@ assert_key() {
   [ "$output" = "ok   vendor/a -> main (up to date)" ]
 }
 
-@test "discover_splices refuses a .splice without an upstream, or with two" {
+@test "discover_splices refuses a .splice without an upstream, with an empty URL, or with two" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   git config --file vendor/a/.splice --remove-section upstream.origin
   git commit -q -am "no upstream"
+  run discover_splices
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice names no upstream"* ]]
+  git config --file vendor/a/.splice upstream.origin.url ""
+  git commit -q -am "empty upstream URL"
   run discover_splices
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice names no upstream"* ]]

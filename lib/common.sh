@@ -303,7 +303,8 @@ load_splice_upstream() {
   for record in "${records[@]}"; do
     # Each record is <key>, a newline, and the value.
     case "${record%%$'\n'*}" in
-      upstream.*.url) urls+=("${record#*$'\n'}") ;;
+      # An empty URL names no upstream.
+      upstream.*.url) [[ -z "${record#*$'\n'}" ]] || urls+=("${record#*$'\n'}") ;;
       splice.url) old_url="${record#*$'\n'}" ;;
     esac
   done
