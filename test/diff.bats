@@ -177,3 +177,28 @@ setup() {
 
   [ "$status" -eq 0 ]
 }
+
+@test "diff: --stat summarizes the changes per file instead of the patch" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --stat
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"file.txt | 1 +"* ]]
+  [[ "$output" != *"+local change"* ]]
+}
+
+@test "diff: refuses git diff's other options" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --name-only
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown option: --name-only"* ]]
+}
+
+@test "diff: a path after -- that looks like an option is still a path" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --stat -- --stat
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"not a splice: --stat"* ]]
+}

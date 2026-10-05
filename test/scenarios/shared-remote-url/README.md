@@ -30,7 +30,5 @@ $ echo "only in b" >>vendor/b/file.txt && git commit -q -am "change b"
 ```scrut
 $ git splice status
 ok   vendor/a -> main (up to date)
-ok   vendor/b -> main (push)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/b -> main (push: ahead 1)
 ```

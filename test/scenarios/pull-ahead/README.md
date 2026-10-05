@@ -18,9 +18,7 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_pull_ahead
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (pull)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/a -> main (pull: behind 1)
 ```
 
 ```scrut

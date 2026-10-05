@@ -8,6 +8,10 @@ Shows the sync state of every splice. Purely local -- run 'git splice
 fetch' first for up-to-date results. Defaults to every splice when no
 paths are given.
 
+Like 'git status' against a tracking branch, it counts commits: "ahead"
+is how many 'git splice push' would publish, "behind" how many 'git
+splice pull' would bring in. 'git splice diff --stat' shows the files.
+
 For a splice whose upstream has no branch named like the current one, the
 state is whether the splice changed on this branch compared with the
 monorepo's base branch (--base, else the monorepo's default branch).
@@ -22,19 +26,23 @@ status_warn() { printf '??   %s\n' "$*"; }
 # Prints the status of a splice whose upstream has no branch like the
 # current one: what changed on this branch compared with the base branch.
 format_missing_branch_line() {
-  local path="$1" base="$2" prefix="$1 -> $SPLICE_UPSTREAM_BRANCH" pathspec=()
+  local path="$1" base="$2" prefix="$1 -> $SPLICE_UPSTREAM_BRANCH"
   changes_vs_base "$path" "$base"
   case "$SPLICE_CHANGES_VS_BASE" in
     no)
       log_ok "$prefix (upstream has no such branch; unchanged since '$SPLICE_BASE_BRANCH')"
       ;;
     yes)
-      log_ok "$prefix (upstream has no such branch; changed since '$SPLICE_BASE_BRANCH' -- push would create it)"
-      mapfile -t pathspec < <(content_pathspec "$path")
-      git --no-pager diff --stat --relative="$path" "$SPLICE_BASE_MERGE_BASE" HEAD -- "${pathspec[@]}" 2>/dev/null || true
+      log_ok "$prefix (upstream has no such branch; $(new_branch_count "$path")since '$SPLICE_BASE_BRANCH' -- push would create it)"
       ;;
     self)
-      status_warn "$prefix (upstream has no such branch -- push would create it)"
+      local count
+      count="$(new_branch_count "$path")"
+      if [[ "$count" == ahead* ]]; then
+        status_warn "$prefix (upstream has no such branch; ${count% } -- push would create it)"
+      else
+        status_warn "$prefix (upstream has no such branch -- push would create it)"
+      fi
       ;;
     error)
       status_warn "$prefix (upstream has no such branch; could not compare with base branch '$SPLICE_BASE_BRANCH')"
@@ -49,9 +57,25 @@ format_missing_branch_line() {
   esac
 }
 
+# Prints "ahead <n> " for a splice whose upstream lacks the current
+# branch: the commits the push that creates it would publish, i.e. those
+# of the rebuild on no fetched upstream branch. Prints "changed " if
+# there are none to count, e.g. right after cloning on a feature branch:
+# the push would create the branch at a commit upstream already has, or
+# if they can't be counted, e.g. because the synced commit was pruned.
+new_branch_count() {
+  local path="$1" rebuilt count
+  rebuilt="$(rebuild_splice "$path" HEAD 2>/dev/null)"
+  if [[ -z "$rebuilt" ]] || ! count="$(git rev-list --count "$rebuilt" --not --glob="refs/splices/$path/*")" || ((count == 0)); then
+    printf 'changed '
+    return
+  fi
+  printf 'ahead %s ' "$count"
+}
+
 # Classifies and prints the status of one splice.
 format_status_line() {
-  local path="$1" branch="$2" base="${3:-}" local_tree rc=0
+  local path="$1" branch="$2" base="${3:-}" counts ahead behind rc=0
   classify_splice "$path" "$branch"
   local prefix="$path -> $SPLICE_UPSTREAM_BRANCH"
 
@@ -66,17 +90,19 @@ format_status_line() {
       log_ok "$prefix (up to date)"
       ;;
     push | pull | diverged)
-      log_ok "$prefix ($SPLICE_STATE)"
-      content_tree HEAD "$path"
-      local_tree="$CONTENT_TREE"
-      # Diff order follows what the pending operation would apply, so
-      # insertions always mean "content gained": push diffs upstream to
-      # local, pull local to upstream. diverged has no single right
-      # direction; upstream to local is picked for consistency.
-      case "$SPLICE_STATE" in
-        pull) git --no-pager diff --stat "$local_tree" "$SPLICE_TARGET_REF" 2>/dev/null || true ;;
-        *) git --no-pager diff --stat "$SPLICE_TARGET_REF" "$local_tree" 2>/dev/null || true ;;
-      esac
+      # Ahead: commits of the rebuild R the upstream branch T lacks, which
+      # push publishes. Behind: commits of T that R lacks, which pull
+      # brings in. If they can't be counted, the state alone still holds.
+      if counts="$(git rev-list --left-right --count "$SPLICE_REBUILT...$SPLICE_TARGET_REF" 2>/dev/null)"; then
+        read -r ahead behind <<<"$counts"
+        case "$SPLICE_STATE" in
+          push) log_ok "$prefix (push: ahead $ahead)" ;;
+          pull) log_ok "$prefix (pull: behind $behind)" ;;
+          diverged) log_ok "$prefix (diverged: ahead $ahead, behind $behind)" ;;
+        esac
+      else
+        log_ok "$prefix ($SPLICE_STATE)"
+      fi
       ;;
     unrelated-history)
       status_warn "$prefix (unrelated history -- see 'git splice merge $path' for options)"

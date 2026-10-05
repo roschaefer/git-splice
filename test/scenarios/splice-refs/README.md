@@ -156,9 +156,7 @@ $ git switch -q -c fix-parser main
 
 ```scrut
 $ git splice status
-ok   vendor/a -> fix-parser (diverged)
- file.txt | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ok   vendor/a -> fix-parser (diverged: ahead 2, behind 1)
 ```
 
 On a new branch, `push` creates the upstream branch, and with it a new ref:
@@ -268,7 +266,7 @@ $ mkdir libs && git mv vendor/a libs/a && git commit -q -m "move a"
 
 ```scrut
 $ git splice status
-??   libs/a -> main (upstream has no such branch -- push would create it)
+??   libs/a -> main (upstream has no such branch; ahead 3 -- push would create it)
 ```
 
 A fetch creates refs under the new path. The old ones stay behind, pointing
@@ -305,9 +303,7 @@ it now has no refs, as right after the move:
 
 ```scrut
 $ git switch -q rename-helper && git splice status
-ok   vendor/a -> rename-helper (upstream has no such branch; changed since 'main' -- push would create it)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/a -> rename-helper (upstream has no such branch; ahead 4 since 'main' -- push would create it)
 ```
 
 A fetch there brings them back, under the old path:

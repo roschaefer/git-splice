@@ -33,9 +33,7 @@ initial commit
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push)
- file.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ok   vendor/a -> main (push: ahead 2)
 ```
 
 ```scrut

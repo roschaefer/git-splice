@@ -27,7 +27,7 @@ ok   lib/a: initialized -- 'git splice push lib/a' publishes it
 
 ```scrut
 $ git splice status
-??   lib/a -> main (upstream has no such branch -- push would create it)
+??   lib/a -> main (upstream has no such branch; ahead 2 -- push would create it)
 ```
 
 ```scrut

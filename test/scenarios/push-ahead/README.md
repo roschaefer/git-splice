@@ -18,9 +18,7 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_push_ahead
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/a -> main (push: ahead 1)
 ```
 
 `log` shows the commit a push would publish, and who wrote it:

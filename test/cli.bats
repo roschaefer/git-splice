@@ -99,7 +99,7 @@ setup() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo/vendor/a"
   run "$entrypoint" status
-  [ "${lines[0]}" = "ok   vendor/a -> main (push)" ]
+  [ "${lines[0]}" = "ok   vendor/a -> main (push: ahead 1)" ]
 }
 
 @test "cli: every command refuses nested splices before doing anything" {

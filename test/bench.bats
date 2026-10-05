@@ -28,7 +28,7 @@ setup() {
   run git log --format=%s -- packages/sub1
   [[ "$output" == *"sub1: round 4"* ]]
   run "$BATS_TEST_DIRNAME/../git-splice" status
-  [[ "${lines[0]}" == *"(push)" ]]
+  [[ "${lines[0]}" == *"(push: ahead "* ]]
 }
 
 @test "bench fixture: marked complete only once setup has finished" {

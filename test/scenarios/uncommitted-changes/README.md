@@ -23,9 +23,7 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_uncommitted_ch
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push)
- file.txt | 1 +
- 1 file changed, 1 insertion(+)
+ok   vendor/a -> main (push: ahead 1)
 ??   vendor/a has uncommitted changes -- push only sends committed ones
 ```
 

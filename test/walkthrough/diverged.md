@@ -43,9 +43,7 @@ ok   vendor/pkg-a fetched (main moved 703b936..4527a78)
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> main (diverged)
- file.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ok   vendor/pkg-a -> main (diverged: ahead 1, behind 1)
 ```
 
 ```scrut
