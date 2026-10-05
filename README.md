@@ -80,7 +80,6 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 ```text
   monorepo, newest first                    github.com/x/lib, since U
-  (* touches vendor/lib/, . doesn't)
 
   . app: call parse()
   * fix parse() options                     * release 1.3
@@ -90,6 +89,9 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
    \                                       /
     `----------------- U -----------------'
 ```
+
+On the left, `*` marks the commits that touch `vendor/lib/`, and `.` the
+others.
 
 That's a branch and its tracking branch since their merge base, and
 git-splice handles it like Git does:
