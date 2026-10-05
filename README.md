@@ -4,11 +4,6 @@ git-splice is a developer-friendly way to contribute to other repositories
 from one monorepo. Edit them as folders, test them together, and sync both
 ways with plain Git.
 
-Keep folders of your monorepo in sync with their own repositories, in both
-directions: to publish a package, mirror a library, or keep a vendored copy
-up to date. Switch branches in the monorepo, and every folder switches the
-branch it syncs with.
-
 ## The problem
 
 You vendored a library into your monorepo and fixed a bug in it, tested
@@ -26,9 +21,11 @@ and the two repositories share no history:
    one history for app and lib                its own history
 ```
 
-The same holds the other way round: a package developed in the monorepo
-that you publish as its own repository, while still merging outside
-contributions back in. Neither side should become the source of truth.
+Meanwhile the library moves on, and its next release should come in
+without overwriting your fix. The same holds the other way round: a
+package developed in the monorepo that you publish as its own repository,
+while still merging outside contributions back in. Neither side should
+become the source of truth.
 
 ## The solution
 
@@ -49,29 +46,20 @@ ok   vendor/lib: cloned e849115 from main
 (If `vendor/lib` already holds a changed copy, `clone --merge` keeps both,
 and every file that differs becomes a conflict to resolve.)
 
-From then on, `git splice pull vendor/lib` brings upstream changes in as
-one ordinary monorepo commit, and `git splice push vendor/lib` rebuilds the
-monorepo commits that touched `vendor/lib/` as commits of the library,
-containing only that folder. Both histories are shown as
-`git log --graph --oneline` shows them, newest first:
+The folder is now a splice: a folder of the monorepo that is also the
+library. One committed file inside it says which repository, and the sync
+point **U**, the library commit the folder last matched:
 
 ```text
-  monorepo                                    github.com/x/lib
-
-  * (HEAD -> fix-parser) app: call parse()
-  * fix parse() options          ── push ──>  * (fix-parser) fix parse() options
-  * rename helper in app and lib ── push ──>  * rename helper in app and lib
-  |                                           |
-  * (main) splice: clone          <── clone ── * (main) e849115 release 1.2
-  |   vendor/lib from main at e849115
-  * app: initial commit
+  monorepo/
+  ├── app/
+  └── vendor/lib/
+      ├── .splice    url    = https://github.com/x/lib.git
+      │              commit = U
+      └── src/
 ```
 
-Point the URL at your fork, and the pushed branch is ready for a pull
-request. Changes cross the boundary, but commits don't: both repositories
-keep their own histories.
-
-The splice's state is one committed file:
+In the real file, U is a commit hash:
 
 ```scrut
 $ cat vendor/lib/.splice
@@ -81,7 +69,49 @@ $ cat vendor/lib/.splice
 	url = https://github.com/x/lib.git
 ```
 
-`commit` is the sync point: the upstream commit the folder last matched.
+From U, both sides move on. Say you fix a bug in the library while working
+on the app, and the library gets a release meanwhile:
+
+<!--
+```scrut
+$ source "$TESTDIR/test/readme/both-sides-move-on.sh"
+```
+-->
+
+```text
+  monorepo, newest first                    github.com/x/lib, since U
+  (* touches vendor/lib/, . doesn't)
+
+  . app: call parse()
+  * fix parse() options                     * release 1.3
+  . app: bump dependencies                  * docs: explain parse()
+  * rename helper in app and lib            |
+  . splice: clone vendor/lib (= U)          |
+   \                                       /
+    `----------------- U -----------------'
+```
+
+That's a branch and its tracking branch since their merge base, and
+git-splice handles it like Git does:
+
+```scrut
+$ git splice status
+ok   vendor/lib -> main (diverged: ahead 2, behind 2)
+```
+
+- **Ahead 2**: the `*` commits on the left, which the library lacks.
+  `git splice push vendor/lib` rebuilds them as commits of the library,
+  each containing only that folder's changes.
+- **Behind 2**: the library's commits since U, on the right, which the
+  folder lacks.
+  `git splice pull vendor/lib` merges them in as one ordinary monorepo
+  commit, and moves U to the library's newest commit.
+
+When both sides moved, as here, pull first, then push, as with
+`git pull` and `git push`. Point the URL at your fork, and the pushed
+branch is ready for a pull request. Changes cross the boundary, but
+commits don't: both repositories keep their own histories.
+
 Everything else follows from two rules:
 
 1. **The folder carries its own state.** Move it with `git mv`, and the
