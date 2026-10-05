@@ -17,6 +17,9 @@ init.defaultBranch); if none resolves, push refuses and asks for --base.
 
 --force overwrites the upstream branch with the monorepo's side: when the
 two share no history, or to discard commits only upstream has.
+
+Only committed changes are pushed; push warns about uncommitted ones in a
+splice's folder.
 EOF
 }
 
@@ -25,6 +28,9 @@ EOF
 push_one() {
   local path="$1" branch="$2" base="${3:-}" force="${4:-}"
 
+  if has_uncommitted_changes "$path"; then
+    log_warn "$path: uncommitted changes aren't pushed -- commit them first"
+  fi
   classify_splice "$path" "$branch"
   local upstream_branch="$SPLICE_UPSTREAM_BRANCH"
   case "$SPLICE_STATE" in

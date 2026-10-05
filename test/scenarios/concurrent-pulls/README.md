@@ -68,7 +68,9 @@ $ expand vendor/a/.splice
 
 While the merge is in progress, `pull` and `merge` refuse to start.
 `status`, `log`, `diff` and `push` read the last commit, not the
-conflicted files, so they still show the state from before the merge:
+conflicted files, so they still show the state from before the merge.
+`status` adds that the folder has uncommitted changes, the conflicted
+files:
 
 ```scrut
 $ git splice pull vendor/a
@@ -79,6 +81,7 @@ $ git splice pull vendor/a
 ```scrut
 $ git splice status
 ok   vendor/a -> main (up to date)
+??   vendor/a has uncommitted changes -- push only sends committed ones
 ```
 
 ### Resolving

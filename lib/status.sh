@@ -11,6 +11,9 @@ paths are given.
 For a splice whose upstream has no branch named like the current one, the
 state is whether the splice changed on this branch compared with the
 monorepo's base branch (--base, else the monorepo's default branch).
+
+Like every command, status reads splices from the last commit. It warns
+about uncommitted changes in a splice's folder, which push leaves out.
 EOF
 }
 
@@ -79,6 +82,9 @@ format_status_line() {
       status_warn "$prefix (unrelated history -- see 'git splice merge $path' for options)"
       ;;
   esac
+  if has_uncommitted_changes "$path"; then
+    status_warn "$path has uncommitted changes -- push only sends committed ones"
+  fi
 }
 
 cmd_status() {

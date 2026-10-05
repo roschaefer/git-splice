@@ -6,7 +6,8 @@ setup() {
   for scenario in up-to-date push-ahead pull-ahead diverged-common-ancestor \
     diverged-unrelated-history never-fetched feature-branch-unchanged \
     feature-branch-changed diverged-then-pulled pushed-then-changed \
-    squash-merged-pull merge-in-monorepo default-branch init-new-upstream; do
+    squash-merged-pull merge-in-monorepo default-branch init-new-upstream \
+    uncommitted-changes; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -137,3 +138,40 @@ assert_state() {
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
 }
 
+
+@test "status: warns about uncommitted changes in a splice's folder" {
+  scenario_uncommitted_changes "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_status
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "ok   vendor/a -> main (push)" ]]
+  [[ "${lines[-1]}" == "??   vendor/a has uncommitted changes -- push only sends committed ones" ]]
+}
+
+@test "status: counts staged, unstaged and untracked files as uncommitted" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo staged >>vendor/a/file.txt
+  git add vendor/a/file.txt
+  run cmd_status
+  [[ "$output" == *"vendor/a has uncommitted changes"* ]]
+  git reset -q --hard
+  echo unstaged >>vendor/a/file.txt
+  run cmd_status
+  [[ "$output" == *"vendor/a has uncommitted changes"* ]]
+  git reset -q --hard
+  echo untracked >vendor/a/new.txt
+  run cmd_status
+  [[ "$output" == *"vendor/a has uncommitted changes"* ]]
+}
+
+@test "status: doesn't count changes outside the splice or ignored files" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo outside >outside.txt
+  echo 'vendor/a/build/' >.git/info/exclude
+  mkdir vendor/a/build
+  echo ignored >vendor/a/build/out.txt
+  run cmd_status
+  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+}
