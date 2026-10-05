@@ -21,7 +21,7 @@ and the two repositories share no history:
  ┌──────────────────────────────┐           ┌─────────────────────┐
  │ app/                         │           │ src/                │
  │ vendor/lib/  (copy of x/lib) │           │ README.md           │
- │   src/       <- your fix     │ ───?───▶  │                     │
+ │   src/       <- your fix     │ ───?───>  │                     │
  └──────────────────────────────┘           └─────────────────────┘
    one history for app and lib                its own history
 ```
@@ -59,10 +59,10 @@ containing only that folder. Both histories are shown as
   monorepo                                    github.com/x/lib
 
   * (HEAD -> fix-parser) app: call parse()
-  * fix parse() options          ── push ──▶  * (fix-parser) fix parse() options
-  * rename helper in app and lib ── push ──▶  * rename helper in app and lib
+  * fix parse() options          ── push ──>  * (fix-parser) fix parse() options
+  * rename helper in app and lib ── push ──>  * rename helper in app and lib
   |                                           |
-  * (main) splice: clone          ◀── clone ── * (main) e849115 release 1.2
+  * (main) splice: clone          <── clone ── * (main) e849115 release 1.2
   |   vendor/lib from main at e849115
   * app: initial commit
 ```
