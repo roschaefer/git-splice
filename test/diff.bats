@@ -178,7 +178,7 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "diff: --stat lists only the changed files" {
+@test "diff: --stat summarizes the changes per file instead of the patch" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_diff --stat

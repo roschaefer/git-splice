@@ -10,7 +10,7 @@ upstream, with paths as the upstream sees them. Purely local -- run
 'git splice fetch' first for up-to-date results. Defaults to every splice
 when no paths are given.
 
---stat lists only the changed files, like 'git diff --stat'.
+--stat summarizes the changes per file instead, like 'git diff --stat'.
 
 For a splice whose upstream has no branch named like the current one, the
 diff is against the monorepo's base branch (--base, else the monorepo's
