@@ -13,7 +13,8 @@ when no paths are given.
 Other options go to 'git diff', e.g. --stat, --name-only or
 --name-status. Give each as one word (-U5, --stat=80), since a separate
 value would be read as a path. With --exit-code or --quiet, it exits 1
-if any splice has changes to push, like 'git diff'.
+if any splice has changes to push, like 'git diff'. --output=<file>
+writes every splice's diff to that one file.
 
 For a splice whose upstream has no branch named like the current one, the
 diff is against the monorepo's base branch (--base, else the monorepo's
@@ -115,13 +116,34 @@ diff_paths() {
   [[ -z "$changed" ]] || return 1
 }
 
+# Takes --output=<file> out of EXTRA_FLAGS into DIFF_OUTPUT, as an
+# absolute path: each splice's 'git diff' would overwrite the file with
+# its own patch, so the whole output goes there instead.
+take_output_flag() {
+  local flag flags=()
+  DIFF_OUTPUT=""
+  for flag in "${EXTRA_FLAGS[@]}"; do
+    case "$flag" in
+      --output=*) DIFF_OUTPUT="${flag#--output=}" ;;
+      *) flags+=("$flag") ;;
+    esac
+  done
+  EXTRA_FLAGS=("${flags[@]}")
+  [[ -z "$DIFF_OUTPUT" || "$DIFF_OUTPUT" == /* ]] || DIFF_OUTPUT="$PWD/$DIFF_OUTPUT"
+}
+
 cmd_diff() {
   parse_args usage_diff "-*" "$@"
   local base="$BASE_ARG" branch
+  take_output_flag
   cd_to_repo_root
   require_head_commit
   discover_splices
   select_paths overview diff
   branch="$(current_branch)"
+  if [[ -n "$DIFF_OUTPUT" ]]; then
+    diff_paths "$branch" "$base" "${SELECTED_PATHS[@]}" >"$DIFF_OUTPUT"
+    return
+  fi
   page_git_output diff_paths "$branch" "$base" "${SELECTED_PATHS[@]}"
 }

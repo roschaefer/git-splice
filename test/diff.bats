@@ -218,3 +218,16 @@ setup() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+@test "diff: --output writes every splice's diff to the file" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_local "$monorepo" "vendor/a" "change in a"
+  commit_local "$monorepo" "vendor/b" "change in b"
+  mkdir sub
+  cd sub
+  run cmd_diff --output=changes.patch
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [[ "$(cat changes.patch)" == *"===  vendor/a"*"+change in a"*"===  vendor/b"*"+change in b"* ]]
+}
