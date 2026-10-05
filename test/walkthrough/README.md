@@ -55,8 +55,8 @@ last matched. That's all the state there is:
 
 ```scrut
 $ git config --file vendor/pkg-a/.splice --list
-splice.url=https://git.example.com/pkg-a.git
 splice.commit=9bb866a3ba726f2229597a45e8ea3368f7e669a8
+upstream.origin.url=https://git.example.com/pkg-a.git
 ```
 
 There's no Git remote, so nothing can push the monorepo to an upstream by
@@ -110,17 +110,20 @@ $ git splice log
 ## Looking at an upstream
 
 `fetch` keeps each upstream's complete history in the monorepo, under
-`refs/splices/<path>/<branch>`. Every Git command reads it as
-`splices/<path>/<branch>`, so there's nothing to clone:
+`refs/splices/<key>/-/<branch>`, where the key comes from the upstream's
+URL, escaped for a ref name: `https://git.example.com/pkg-b.git` becomes
+`https%3A/%/git.example.com/pkg-b.git`.
+Every Git command reads it as `splices/<key>/-/<branch>`, so there's
+nothing to clone:
 
 ```scrut
-$ git log --oneline splices/vendor/pkg-b/main
+$ git log --oneline splices/https%3A/%/git.example.com/pkg-b.git/-/main
 b937c4f pkg-b: add a feature
 9b3cb02 pkg-b: seed
 ```
 
 ```scrut
-$ git show splices/vendor/pkg-b/main:file.txt
+$ git show splices/https%3A/%/git.example.com/pkg-b.git/-/main:file.txt
 pkg-b: seed
 pkg-b: add a feature
 ```
@@ -130,7 +133,7 @@ worktree, and remove it when you're done. Commits made there don't reach
 upstream; changes belong in the monorepo, and `push` publishes them.
 
 ```scrut
-$ git worktree add -q --detach ../pkg-b-upstream splices/vendor/pkg-b/main && ls ../pkg-b-upstream
+$ git worktree add -q --detach ../pkg-b-upstream splices/https%3A/%/git.example.com/pkg-b.git/-/main && ls ../pkg-b-upstream
 file.txt
 ```
 
@@ -170,11 +173,11 @@ and in `refs/splices/`:
 
 ```scrut
 $ git log --oneline
-21e0e5a splice: pull vendor/pkg-b from main at b937c4f
-4bc508a splice: merge vendor/pkg-a from main at 703b936
-c36e2ef splice: clone vendor/pkg-b from main at 9b3cb02
-cf63522 lib-c: first version
-c41a285 splice: clone vendor/pkg-a from main at 9bb866a
+e49a1ae splice: pull vendor/pkg-b from main at b937c4f
+04198c1 splice: merge vendor/pkg-a from main at 703b936
+621efe6 splice: clone vendor/pkg-b from main at 9b3cb02
+ceb41dd lib-c: first version
+7b30b50 splice: clone vendor/pkg-a from main at 9bb866a
 ebe3b2b initial commit
 ```
 

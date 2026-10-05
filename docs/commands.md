@@ -14,12 +14,12 @@ Commands that only look cover every splice unless you name some. Run `git splice
 | `status [path…]` | Shows each splice's [sync state](sync-states.md), with how many commits `push` would publish and `pull` would bring in. |
 | `diff [--stat] [path…]` | Shows the file changes `push` would send; `--stat` summarizes them per file. |
 | `log [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors. |
-| `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<path>/`. |
+| `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<key>/-/`, keyed by its URL, e.g. `https%3A/%/github.com/x/lib.git`. |
 
 `status`, `diff`, `log` and `merge` only use what was last fetched. Run
 `git splice fetch` first if you need the latest upstream state. Fetched
 upstreams can be read with any Git command, e.g.
-`git log splices/vendor/lib/main`.
+`git log splices/https%3A/%/github.com/x/lib.git/-/main`.
 
 Upstreams are fetched and pushed by URL, with no Git remote, so a plain
 `git push` can't send the whole monorepo to one by mistake

@@ -66,7 +66,7 @@ format_missing_branch_line() {
 new_branch_count() {
   local path="$1" rebuilt count
   rebuilt="$(rebuild_splice "$path" HEAD 2>/dev/null)"
-  if [[ -z "$rebuilt" ]] || ! count="$(git rev-list --count "$rebuilt" --not --glob="refs/splices/$path/*")" || ((count == 0)); then
+  if [[ -z "$rebuilt" ]] || ! count="$(git rev-list --count "$rebuilt" --not --glob="$(splice_refs_prefix "$path")*")" || ((count == 0)); then
     printf 'changed '
     return
   fi

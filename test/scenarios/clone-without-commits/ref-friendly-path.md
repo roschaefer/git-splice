@@ -1,8 +1,10 @@
 # Scenario: a splice path must be ref-friendly
 
-A splice path becomes part of `refs/splices/<path>/<branch>`. Git ref names
-cannot contain spaces, so `git splice clone` rejects such a path before it
-fetches anything.
+A splice path must be valid in a Git ref name, e.g. without spaces, so
+`git splice clone` rejects such a path before it fetches anything. Paths
+used to be part of the splice's ref names. Since refs are keyed by the
+upstream's URL, the limit only remains until every command is tested with
+such paths.
 
 ## Output
 
@@ -19,7 +21,7 @@ $ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_clone_without_
 
 ```scrut
 $ git commit -q --allow-empty -m "initial commit" && git splice clone "$UPSTREAM" "my lib"
-!!   'my lib' can't be part of a Git ref name, so it can't be a splice -- choose another folder name (e.g. no spaces)
+!!   'my lib' isn't supported as a splice path yet -- choose another folder name (e.g. no spaces)
 [1]
 ```
 

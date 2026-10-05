@@ -76,8 +76,9 @@ The splice's state is one committed file:
 ```scrut
 $ cat vendor/lib/.splice
 [splice]
-	url = https://github.com/x/lib.git
 	commit = e8491155fe5db4e87fd6c1227ab65fd61da8af0a
+[upstream "origin"]
+	url = https://github.com/x/lib.git
 ```
 
 `commit` is the sync point: the upstream commit the folder last matched.

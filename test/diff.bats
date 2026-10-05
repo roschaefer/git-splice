@@ -52,7 +52,7 @@ setup() {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q main
-  git update-ref -d refs/splices/vendor/a/main
+  git update-ref -d "$(upstream_refs "$upstream")main"
   seed_bare_repo "$upstream" "elsewhere" other
   fetch_splice "$monorepo" "$upstream" vendor/a
   git -C "$upstream" branch -D main >/dev/null

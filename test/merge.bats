@@ -22,16 +22,16 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(git rev-parse HEAD^)" = "$before" ]
   [ "$(git rev-list --parents -1 HEAD | wc -w)" -eq 2 ]
-  ! git merge-base --is-ancestor refs/splices/vendor/a/main HEAD
-  [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from main at $(git rev-parse --short=7 refs/splices/vendor/a/main)" ]
+  ! git merge-base --is-ancestor "$(upstream_refs "$upstream")main" HEAD
+  [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from main at $(git rev-parse --short=7 "$(upstream_refs "$upstream")main")" ]
 }
 
 @test "merge: brings upstream's content and records the synced commit" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   cmd_merge vendor/a
-  [ "$(git rev-parse HEAD:vendor/a/file.txt)" = "$(git rev-parse refs/splices/vendor/a/main:file.txt)" ]
-  [ "$(splice_config vendor/a commit)" = "$(git rev-parse refs/splices/vendor/a/main)" ]
+  [ "$(git rev-parse HEAD:vendor/a/file.txt)" = "$(git rev-parse "$(upstream_refs "$upstream")main":file.txt)" ]
+  [ "$(splice_config vendor/a commit)" = "$(git rev-parse "$(upstream_refs "$upstream")main")" ]
   classify_splice vendor/a main
   [ "$SPLICE_STATE" = up-to-date ]
 }
@@ -75,7 +75,7 @@ setup() {
   git add vendor/a/file.txt
   git commit -q --no-edit
   [[ "$(git log -1 --format=%s)" == "splice: merge vendor/a from main at "* ]]
-  [ "$(splice_config vendor/a commit)" = "$(git rev-parse refs/splices/vendor/a/main)" ]
+  [ "$(splice_config vendor/a commit)" = "$(git rev-parse "$(upstream_refs "$upstream")main")" ]
   classify_splice vendor/a main
   [ "$SPLICE_STATE" = push ]
 }
@@ -84,7 +84,6 @@ setup() {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   add_splice "$monorepo" "$upstream" vendor/b
   cd "$monorepo"
-  git -C "$monorepo" update-ref refs/splices/vendor/b/main "$(git rev-parse refs/splices/vendor/a/main~1)"
   run cmd_merge --all
   [ "$status" -eq 1 ]
   [[ "$output" == *"Not merged yet: vendor/b"* ]]
@@ -142,14 +141,14 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a fetched (main moved"* ]]
   [[ "$output" == *"vendor/a: pulled"* ]]
-  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from main at $(git rev-parse --short=7 refs/splices/vendor/a/main)" ]
+  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from main at $(git rev-parse --short=7 "$(upstream_refs "$upstream")main")" ]
 }
 
 @test "pull: a failed fetch is reported, the rest still merges" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "upstream change"
   cd "$monorepo"
-  git config --file vendor/b/.splice splice.url "$BATS_TEST_TMPDIR/nowhere.git"
+  git config --file vendor/b/.splice upstream.origin.url "$BATS_TEST_TMPDIR/nowhere.git"
   git commit -q -am "break vendor/b"
   run cmd_pull --all
   [ "$status" -eq 1 ]

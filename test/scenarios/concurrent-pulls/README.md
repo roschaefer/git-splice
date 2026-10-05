@@ -14,8 +14,8 @@ both.
 
 To avoid this, pull the monorepo before you pull a splice. To get out of
 it, resolve the conflict as below, or [redo the pull](redo-the-pull.md).
-Never commit `.splice` with conflict markers:
-[git-splice doesn't notice](committed-conflict-markers.md).
+If `.splice` is committed with conflict markers anyway,
+[every command stops](committed-conflict-markers.md) until it's fixed.
 
 ## Output
 
@@ -58,12 +58,13 @@ Both sides changed the synced commit (`expand` shows the tabs as spaces):
 ```scrut
 $ expand vendor/a/.splice
 [splice]
-        url = https://git.example.com/a.git
 <<<<<<< HEAD
         commit = 4c1905de64f0df0a488c0b63482302ec229fdce9
 =======
         commit = 72efaacc5c6b50e5d2a6fe51a30af958c8adae51
 >>>>>>> origin/main
+[upstream "origin"]
+        url = https://git.example.com/a.git
 ```
 
 While the merge is in progress, `pull` and `merge` refuse to start.
@@ -91,7 +92,7 @@ The fetched upstream branch shows both, newest first: Bob's `upstream 2`
 contains Alice's `upstream 1`:
 
 ```scrut
-$ git log --format='%h %s' splices/vendor/a/main
+$ git log --format='%h %s' splices/https%3A/%/git.example.com/a.git/-/main
 4c1905d upstream 2
 72efaac upstream 1
 bde4164 seed
@@ -111,8 +112,8 @@ refuses a `.splice` it can't read:
 
 ```scrut
 $ git diff --cached --check && git config --file vendor/a/.splice --list
-splice.url=https://git.example.com/a.git
 splice.commit=4c1905de64f0df0a488c0b63482302ec229fdce9
+upstream.origin.url=https://git.example.com/a.git
 ```
 
 ```scrut

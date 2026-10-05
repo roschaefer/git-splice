@@ -26,7 +26,7 @@ new_upstream() {
   [ "$status" -eq 0 ]
   [ "$(git rev-parse HEAD^)" = "$before" ]
   [ "$(cat vendor/a/file.txt)" = seed ]
-  [ "$(splice_config vendor/a url)" = "$upstream" ]
+  [ "$(git config --file vendor/a/.splice upstream.origin.url)" = "$upstream" ]
   [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
   [ -z "$(splice_config vendor/a default-branch)" ]
   [ -z "$(git remote)" ]
@@ -122,7 +122,7 @@ new_upstream() {
   git commit -q --allow-empty -m "initial commit"
   run cmd_clone "$upstream" "my lib"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"'my lib' can't be part of a Git ref name"* ]]
+  [[ "$output" == *"'my lib' isn't supported as a splice path yet"* ]]
   [ -z "$(git for-each-ref refs/splices/)" ]
 }
 

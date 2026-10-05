@@ -203,10 +203,10 @@ monorepo, so `git blame` stops at the `clone`:
 
 ```scrut
 $ git blame -s -L 1,3 vendor/lib/src/parse.txt
-216fa3de 1) line 1
-216fa3de 2) line 2
-216fa3de 3) line 3
+dcaf6be6 1) line 1
+dcaf6be6 2) line 2
+dcaf6be6 3) line 3
 ```
 
 The library's history is still at hand, fetched under
-`refs/splices/vendor/lib/`, but not part of the monorepo's.
+`refs/splices/https%3A/%/git.example.com/lib.git/-/`, but not part of the monorepo's.

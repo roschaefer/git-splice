@@ -196,7 +196,7 @@ a subfolder's. Upstreams are fetched and pushed by URL, from the committed
   nor a repository.
 - Nothing needs installing per clone, `--no-verify` has nothing to skip,
   and no tool sees an invalid or unusual URL.
-- `git splice push` updates `refs/splices/<path>/<branch>` itself, so
+- `git splice push` updates `refs/splices/<key>/-/<branch>` itself, so
   `status` stays current without tracking refs.
 
 What remains is typing an upstream's URL into a plain `git push` by hand,

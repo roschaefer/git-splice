@@ -251,3 +251,33 @@ assert_state() {
   run cmd_status
   [ "$output" = "??   lib/a -> main (upstream has no such branch; ahead 2 -- push would create it)" ]
 }
+
+@test "status: a splice moved with git mv still finds its fetched refs" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir libs && git mv vendor/a libs/a && git commit -q -m "move a"
+  run cmd_status
+  [ "${lines[0]}" = "ok   libs/a -> main (push: ahead 1)" ]
+}
+
+@test "status: splices at one path with different upstreams on two branches keep their own refs" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  local other="$BATS_TEST_TMPDIR/other.git"
+  make_bare_repo "$other"
+  seed_bare_repo "$other" "other seed" release
+  cd "$monorepo"
+  git checkout -q -b release
+  git rm -q -r vendor/a && git commit -q -m "remove vendor/a"
+  add_splice "$monorepo" "$other" vendor/a release
+  seed_bare_repo "$other" "colleague's change" release
+
+  splice fetch >/dev/null
+  run cmd_status
+  [ "${lines[0]}" = "ok   vendor/a -> release (pull: behind 1)" ]
+
+  git checkout -q main
+  splice fetch >/dev/null
+  git checkout -q release
+  run cmd_status
+  [ "${lines[0]}" = "ok   vendor/a -> release (pull: behind 1)" ]
+}

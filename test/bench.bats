@@ -12,7 +12,7 @@ setup() {
 
 @test "bench fixture: one splice per upstream, reached through the delayed ext:: transport" {
   [ "$(git ls-files '*/.splice' | tr '\n' ' ')" = "packages/sub1/.splice packages/sub2/.splice " ]
-  [[ "$(git config --file packages/sub1/.splice splice.url)" == "ext::sh -c sleep% 0;% exec% %S% "* ]]
+  [[ "$(git config --file packages/sub1/.splice upstream.origin.url)" == "ext::sh -c sleep% 0;% exec% %S% "* ]]
   [ -z "$(git remote)" ]
   run "$BATS_TEST_DIRNAME/../git-splice" fetch
   [ "$status" -eq 0 ]
@@ -21,7 +21,11 @@ setup() {
 @test "bench fixture: each upstream holds the monorepo's push from halfway, and the monorepo changed since" {
   local sub
   for sub in sub1 sub2; do
-    run git log --format=%s "refs/splices/packages/$sub/main"
+    run git log --format=%s "$(
+      source "$BATS_TEST_DIRNAME/../lib/common.sh"
+      upstream_key "$(git config --file "packages/$sub/.splice" upstream.origin.url)"
+      printf 'refs/splices/%s/-/main' "$UPSTREAM_KEY"
+    )"
     [[ "$output" == *"$sub: round 2"* ]]
     [[ "$output" != *"$sub: round 3"* ]]
   done

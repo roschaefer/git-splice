@@ -1,11 +1,11 @@
 # Committed conflict markers
 
 In the [same state](README.md), the conflict in `vendor/a/.splice` is
-committed with its markers. git-splice doesn't notice: it reads `.splice`
-with `git config`, which stops at the first marker, and hides the error.
-The URL comes before the markers, so it's still read; the synced commit
-comes after them, so it's read as missing. This is a known bug,
-[#37](https://github.com/roschaefer/git-splice/issues/37).
+committed with its markers. git-splice reads `.splice` with `git config`,
+which can't read past the first marker. So every command stops with Git's
+message, before a half-read `.splice` could make the splice look
+unrelated to its upstream and suggest `push --force`
+([#37](https://github.com/roschaefer/git-splice/issues/37)).
 
 ## Output
 
@@ -28,47 +28,21 @@ $ git merge origin/main >/dev/null; git checkout --ours -- vendor/a/file.txt && 
 
 ```scrut
 $ git config --blob HEAD:vendor/a/.splice --get splice.commit
-error: bad config line 3 in blob HEAD:vendor/a/.splice
+error: bad config line 2 in blob HEAD:vendor/a/.splice
 [1]
 ```
 
-But `status` reports nothing wrong, since the folder still matches the
-upstream:
+Neither can git-splice, so it stops:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
-```
-
-The next change shows the damage. Without a synced commit, the splice's
-whole history looks unrelated to the upstream's, and the advice includes
-`push --force`, which would replace the upstream's branch:
-
-```scrut
-$ echo "local change" >>vendor/a/file.txt && git commit -q -a -m "local change"
-```
-
-```scrut
-$ git splice status
-??   vendor/a -> main (unrelated history -- see 'git splice merge vendor/a' for options)
+!!   vendor/a/.splice can't be read (bad config line 2 in blob HEAD:vendor/a/.splice) -- fix it and commit it
+[1]
 ```
 
 ```scrut
 $ git splice merge vendor/a
-??   vendor/a: upstream and the splice share no history -- pick a side:
-
-  # keep the upstream version, discarding local changes under vendor/a:
-  git rm -r -q -- vendor/a && git commit -m 'remove vendor/a'
-  git splice clone -- https://git.example.com/a.git vendor/a
-
-  # OR: keep both, resolving every file that differs as a conflict:
-  git rm -q -- vendor/a/.splice && git commit -m 'unsplice vendor/a'
-  git splice clone --merge -- https://git.example.com/a.git vendor/a
-
-  # OR: keep the monorepo version, overwriting upstream's branch:
-  git splice push --force -- vendor/a
-
-!!   Failed: vendor/a
+!!   vendor/a/.splice can't be read (bad config line 2 in blob HEAD:vendor/a/.splice) -- fix it and commit it
 [1]
 ```
 
@@ -77,5 +51,5 @@ first parent has it:
 
 ```scrut
 $ git checkout HEAD~1^1 -- vendor/a/.splice && git commit -q -m "fix vendor/a/.splice" && git splice status
-ok   vendor/a -> main (push: ahead 4)
+ok   vendor/a -> main (up to date)
 ```

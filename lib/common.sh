@@ -4,6 +4,14 @@
 
 # Every splice path in the repository, from its committed .splice file.
 declare -ga ALL_PATHS=()
+# Each splice's upstream URL, and the key its fetched refs live under (see
+# upstream_key), by path. Set by discover_splices, and by clone for the
+# splice it creates.
+declare -gA SPLICE_URLS=()
+declare -gA SPLICE_KEYS=()
+
+# Name of the one upstream clone and init write into a new .splice.
+DEFAULT_UPSTREAM=origin
 # Results of parse_args.
 declare -g BASE_ARG=""
 declare -g ALL_ARG=""
@@ -145,9 +153,13 @@ discover_splices() {
     [[ "$file" == "$STATE_FILE" ]] && die "a $STATE_FILE at the repository root isn't supported -- a splice must be a folder"
     path="${file%/"$STATE_FILE"}"
     usable_splice_path "$path" ||
-      die "'$path' can't be part of a Git ref name, so it can't be a splice -- rename the folder (e.g. no spaces)"
+      die "'$path' isn't supported as a splice path yet -- rename the folder (e.g. no spaces)"
     ALL_PATHS+=("$path")
   done < <(state_files HEAD 2>/dev/null)
+
+  for path in "${ALL_PATHS[@]}"; do
+    load_splice_upstream "$path"
+  done
 
   local other
   for path in "${ALL_PATHS[@]}"; do
@@ -157,9 +169,10 @@ discover_splices() {
   done
 }
 
-# Succeeds if <path> can be part of the refs a splice needs,
-# refs/splices/<path>/<branch>. Git refuses e.g. spaces, "..", and a
-# component ending in ".lock".
+# Succeeds if <path> would be valid in a ref name: no spaces, "..", or a
+# component ending in ".lock". Splice paths were part of their refs' names
+# before refs were keyed by URL, and are still limited to these until
+# every command is tested with the others.
 usable_splice_path() {
   git check-ref-format "refs/splices/$1/branch"
 }
@@ -228,7 +241,9 @@ splice_config() {
 }
 
 # Prints a blob id: splice <path>'s state file as committed in HEAD (or a
-# new one), with each "key=value" argument set ("key=" unsets it).
+# new one), with each "key=value" argument set ("key=" unsets it). A key
+# without a section is in [splice], e.g. "commit"; others are given in
+# full, e.g. "upstream.origin.url".
 state_blob() {
   local path="$1" tmp kv key value
   shift
@@ -237,10 +252,11 @@ state_blob() {
   for kv in "$@"; do
     key="${kv%%=*}"
     value="${kv#*=}"
+    [[ "$key" == *.* ]] || key="splice.$key"
     if [[ -n "$value" ]]; then
-      git config --file "$tmp" "splice.$key" "$value"
+      git config --file "$tmp" "$key" "$value"
     else
-      git config --file "$tmp" --unset "splice.$key" 2>/dev/null || true
+      git config --file "$tmp" --unset "$key" 2>/dev/null || true
     fi
   done
   git hash-object -w "$tmp"
@@ -257,13 +273,137 @@ folder_tree() {
   return 0
 }
 
+# Reads splice <path>'s upstream from its committed state file into
+# SPLICE_URLS and SPLICE_KEYS, or dies explaining what's wrong with it:
+#
+#   [upstream "origin"]
+#   	url = https://github.com/x/lib.git
+#
+# Exactly one [upstream] section is supported for now.
+load_splice_upstream() {
+  local path="$1" records=() record urls=() old_url="" error q_file
+  # One git config per splice: discovery runs this for every splice, in
+  # every command. NUL-delimited, since a value, e.g. a local path, may
+  # contain a newline; git's status follows as the last record, since it
+  # may list some entries before failing. An if, so set -e can't end the
+  # subshell before the status is printed.
+  mapfile -d '' records < <(
+    if git config --blob "HEAD:$path/$STATE_FILE" --list -z 2>/dev/null; then
+      printf 0
+    else
+      printf '%d' "$?"
+    fi
+  )
+  if [[ "${records[-1]}" != 0 ]]; then
+    error="$(git config --blob "HEAD:$path/$STATE_FILE" --list 2>&1 >/dev/null || true)"
+    error="${error%%$'\n'*}"
+    die "$path/$STATE_FILE can't be read (${error#error: }) -- fix it and commit it"
+  fi
+  unset 'records[-1]'
+  for record in "${records[@]}"; do
+    # Each record is <key>, a newline, and the value.
+    case "${record%%$'\n'*}" in
+      # An empty URL names no upstream.
+      upstream.*.url) [[ -z "${record#*$'\n'}" ]] || urls+=("${record#*$'\n'}") ;;
+      splice.url) old_url="${record#*$'\n'}" ;;
+    esac
+  done
+  if [[ ${#urls[@]} -eq 0 ]]; then
+    q_file="$(shell_quote "$path/$STATE_FILE")"
+    if [[ -n "$old_url" ]]; then
+      log_err "$path/$STATE_FILE has its URL in the old format, splice.url -- convert it with:"
+      cat >&2 <<EOF
+
+  git config --file $q_file upstream.$DEFAULT_UPSTREAM.url $(shell_quote "$old_url")
+  git config --file $q_file --unset splice.url
+  git commit -m $(shell_quote "splice: name $path's upstream") -- $q_file
+
+EOF
+      exit 1
+    fi
+    die "$path/$STATE_FILE names no upstream -- add one: git config --file $q_file upstream.$DEFAULT_UPSTREAM.url <url>"
+  fi
+  [[ ${#urls[@]} -eq 1 ]] ||
+    die "$path/$STATE_FILE names ${#urls[@]} upstreams -- only one is supported so far"
+  upstream_key "${urls[0]}"
+  SPLICE_URLS[$path]="${urls[0]}"
+  SPLICE_KEYS[$path]="$UPSTREAM_KEY"
+}
+
+# Sets UPSTREAM_KEY to the key the fetched refs of upstream <url> live
+# under, refs/splices/<key>/-/<branch>. Keyed by URL rather than by the
+# splice's path, refs follow a splice through git mv, and splices at one
+# path with different upstreams, e.g. on two branches, don't share them.
+# The key is the URL exactly as written, so splices share refs only if
+# their URLs are equal -- spellings that look alike can name different
+# repositories, e.g. /srv/lib and /srv/lib.git:
+#
+#   https://github.com/x/lib.git   https%3A/%/github.com/x/lib.git
+#   git@github.com:x/lib.git       git%40github.com%3Ax/lib.git
+#   /srv/git/lib.git               %/srv/git/lib.git
+#
+# Each "/"-separated component is escaped (see ref_component), which
+# leaves only what Git allows in a ref name; an empty one becomes "%",
+# which no escaped component is. A component that is just "-" is escaped
+# too, so the "-" that ends the key marks where the branch name begins,
+# even one with slashes.
+upstream_key() {
+  local rest="$1" key=""
+  while :; do
+    if [[ "${rest%%/*}" == "" ]]; then
+      key+="${key:+/}%"
+    else
+      ref_component "${rest%%/*}"
+      key+="${key:+/}$REF_COMPONENT"
+    fi
+    [[ "$rest" == */* ]] || break
+    rest="${rest#*/}"
+  done
+  UPSTREAM_KEY="$key"
+}
+
+# Sets REF_COMPONENT to <component> escaped for a ref name: every byte
+# but letters, digits and "_,+=.-" as %XX, "%" included, so no two
+# components escape alike. Dots Git refuses (leading, "..", trailing,
+# ".lock" at the end) and a component that is just "-" are escaped too.
+ref_component() {
+  local component="$1" escaped="" char i hex
+  local LC_ALL=C
+  for ((i = 0; i < ${#component}; i++)); do
+    char="${component:i:1}"
+    if [[ "$char" == [A-Za-z0-9_,+=.-] ]]; then
+      escaped+="$char"
+    else
+      printf -v hex '%%%02X' "'$char"
+      escaped+="$hex"
+    fi
+  done
+  [[ "$escaped" == .* ]] && escaped="%2E${escaped:1}"
+  while [[ "$escaped" == *..* ]]; do escaped="${escaped/../.%2E}"; done
+  [[ "$escaped" == *. ]] && escaped="${escaped%.}%2E"
+  [[ "$escaped" == *.lock ]] && escaped="${escaped%.lock}%2Elock"
+  [[ "$escaped" == - ]] && escaped=%2D
+  REF_COMPONENT="$escaped"
+}
+
+# Prints the ref prefix splice <path>'s fetched upstream branches share.
+splice_refs_prefix() {
+  printf 'refs/splices/%s/-/\n' "${SPLICE_KEYS[$1]}"
+}
+
+# Prints the ref of upstream branch <branch> of splice <path>, as fetched.
 splice_ref() {
-  printf 'refs/splices/%s/%s\n' "$1" "$2"
+  printf 'refs/splices/%s/-/%s\n' "${SPLICE_KEYS[$1]}" "$2"
+}
+
+# Loads splice <path>'s upstream, unless discover_splices or clone has.
+require_splice_upstream() {
+  [[ -n "${SPLICE_KEYS[$1]:-}" ]] || load_splice_upstream "$1"
 }
 
 # Succeeds if any upstream branch of splice $1 has been fetched.
 splice_fetched() {
-  [[ -n "$(git for-each-ref --count=1 "refs/splices/$1/")" ]]
+  [[ -n "$(git for-each-ref --count=1 "refs/splices/${SPLICE_KEYS[$1]}/-/")" ]]
 }
 
 # Prints the monorepo's default branch name: the target of origin/HEAD,

@@ -1,4 +1,5 @@
-# Assumes lib/common.sh, lib/rebuild.sh and lib/state.sh are already sourced.
+# Assumes lib/common.sh, lib/rebuild.sh, lib/state.sh and lib/fetch.sh are
+# already sourced.
 
 usage_clone() {
   cat <<'EOF'
@@ -42,7 +43,7 @@ cmd_clone() {
   path="$(normalize_path "$path")"
   [[ -n "$path" && "$path" != . && "$path" != /* ]] || die "'$path' isn't a folder inside the repository"
   usable_splice_path "$path" ||
-    die "'$path' can't be part of a Git ref name, so it can't be a splice -- choose another folder name (e.g. no spaces)"
+    die "'$path' isn't supported as a splice path yet -- choose another folder name (e.g. no spaces)"
 
   cd_to_repo_root
   require_head_commit
@@ -58,9 +59,11 @@ cmd_clone() {
     die "$path is a file, not a folder"
   fi
 
+  upstream_key "$url"
+  SPLICE_URLS[$path]="$url"
+  SPLICE_KEYS[$path]="$UPSTREAM_KEY"
   log_step "$path: fetching $url"
-  git fetch --quiet --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:refs/splices/$path/*" ||
-    die "$path: fetch failed"
+  fetch_upstream "$url" "$(splice_refs_prefix "$path")" || die "$path: fetch failed"
   splice_fetched "$path" || die "$url has no branches yet -- to publish $path there, use 'git splice init $(shell_quote "$path") $(shell_quote "$url")'"
 
   # Map the monorepo's default branch to the upstream's, if they differ.
@@ -94,7 +97,7 @@ cmd_clone() {
   fi
 
   local blob
-  blob="$(state_blob "$path" "url=$url" "commit=$target" "default-branch=$default_branch")"
+  blob="$(state_blob "$path" "commit=$target" "default-branch=$default_branch" "upstream.$DEFAULT_UPSTREAM.url=$url")"
   # The merge base is an empty folder: the two sides share nothing.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
     "splice: clone $path from $upstream_branch at ${target:0:7}"; then

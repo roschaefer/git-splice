@@ -35,7 +35,7 @@ cmd_init() {
   fi
   path="$(normalize_path "$path")"
   usable_splice_path "$path" ||
-    die "'$path' can't be part of a Git ref name, so it can't be a splice -- rename the folder (e.g. no spaces)"
+    die "'$path' isn't supported as a splice path yet -- rename the folder (e.g. no spaces)"
 
   cd_to_repo_root
   current_branch >/dev/null
@@ -66,7 +66,11 @@ cmd_init() {
     die "$path: upstream's default branch is '$upstream_default', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
   fi
 
-  git cat-file blob "$(state_blob "$path" "url=$url" "default-branch=$default_branch")" >"$path/$STATE_FILE"
+  # The upstream is empty, so refs fetched from it before name branches
+  # it no longer has.
+  upstream_key "$url"
+  git for-each-ref --format='delete %(refname)' "refs/splices/$UPSTREAM_KEY/-/" | git update-ref --stdin
+  git cat-file blob "$(state_blob "$path" "default-branch=$default_branch" "upstream.$DEFAULT_UPSTREAM.url=$url")" >"$path/$STATE_FILE"
   # -f: an ignore rule matching .splice mustn't stop it, it's committed
   # by definition.
   git add -f -- "$path/$STATE_FILE"

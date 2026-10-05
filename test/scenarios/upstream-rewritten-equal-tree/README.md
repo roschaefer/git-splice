@@ -61,8 +61,14 @@ $ git log -1 --format=%s "$(git config --file vendor/a/.splice splice.commit)"
 release
 ```
 
+The upstream's `main`, as fetched, is the ref ending in `-/main`:
+
 ```scrut
-$ git merge-base --is-ancestor "$(git config --file vendor/a/.splice splice.commit)" splices/vendor/a/main || echo "not in the upstream's history"
+$ main="$(git for-each-ref --format='%(refname:lstrip=-2) %(objectname)' refs/splices/ | sed -n 's#^-/main ##p')"
+```
+
+```scrut
+$ git merge-base --is-ancestor "$(git config --file vendor/a/.splice splice.commit)" "$main" || echo "not in the upstream's history"
 not in the upstream's history
 ```
 
