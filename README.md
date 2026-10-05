@@ -85,13 +85,14 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
   * fix parse() options                     * release 1.3
   . app: bump dependencies                  * docs: explain parse()
   * rename helper in app and lib            |
-  . splice: clone vendor/lib (= U)          |
+  = splice: clone vendor/lib (folder = U)   |
    \                                       /
     `----------------- U -----------------'
 ```
 
-On the left, `*` marks the commits that touch `vendor/lib/`, and `.` the
-others.
+On the left, `*` marks the commits that touch `vendor/lib/`, and `.` those
+that don't. The clone, `=`, touches it too, but only to make the folder
+match U, so it has nothing for the library.
 
 That's a branch and its tracking branch since their merge base, and
 git-splice handles it like Git does:
