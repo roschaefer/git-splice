@@ -21,7 +21,7 @@ and the two repositories share no history:
  ┌──────────────────────────────┐           ┌─────────────────────┐
  │ app/                         │           │ src/                │
  │ vendor/lib/  (copy of x/lib) │           │ README.md           │
- │   src/       ← your fix      │ ───?───▶  │                     │
+ │   src/       <- your fix     │ ───?───▶  │                     │
  └──────────────────────────────┘           └─────────────────────┘
    one history for app and lib                its own history
 ```
