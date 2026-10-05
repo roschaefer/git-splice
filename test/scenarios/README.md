@@ -35,6 +35,7 @@ A scenario folder has:
 | [`init-new-upstream`](init-new-upstream/) | [Initialize a new upstream](init-new-upstream/README.md) |
 | [`init-then-cloned`](init-then-cloned/) | [Init, then cloned](init-then-cloned/README.md); [Push before the fetch](init-then-cloned/push-before-fetch.md) |
 | [`merge-in-monorepo`](merge-in-monorepo/) | [`git subtree` merge](merge-in-monorepo/README.md); [Repeated `main` merges](merge-in-monorepo/multiple-main-merges.md) |
+| [`moved-with-unpushed-commits`](moved-with-unpushed-commits/) | [Moved with unpushed commits](moved-with-unpushed-commits/README.md); [Push before moving](moved-with-unpushed-commits/push-before-moving.md) |
 | [`nested-splices`](nested-splices/) | [Nested splices](nested-splices/README.md) |
 | [`never-fetched`](never-fetched/) | [Never fetched](never-fetched/README.md) |
 | [`pull-ahead`](pull-ahead/) | [Pull ahead](pull-ahead/README.md) |
@@ -69,6 +70,7 @@ ok feature-branch-unchanged (1 document)
 ok init-new-upstream (1 document)
 ok init-then-cloned (2 documents)
 ok merge-in-monorepo (2 documents)
+ok moved-with-unpushed-commits (2 documents)
 ok nested-splices (1 document)
 ok never-fetched (1 document)
 ok pull-ahead (1 document)
