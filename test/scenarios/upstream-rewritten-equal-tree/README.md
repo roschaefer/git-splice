@@ -16,8 +16,14 @@ is a known bug, [#17](https://github.com/roschaefer/git-splice/issues/17).
 date` without looking at the history, and `merge` doesn't record the new
 commit in `.splice`.
 
-Workaround: the recovery commands `merge` prints for `unrelated history`,
-or `git splice push --force` to make the monorepo's side win.
+Workaround: [keep the upstream's version](keep-the-upstream-version.md)
+and redo the local changes on top of it. If the rewrite removed something,
+like a secret, don't use the other ways out that `merge` prints for
+`unrelated history`. `git splice push --force` rebuilds on top of the old
+synced commit, and so [publishes the rewritten-away history
+again](push-force-undoes-the-rewrite.md). Keeping
+both publishes the monorepo's own history of the folder, which contains
+whatever the monorepo pulled before the rewrite.
 
 ## Output
 
