@@ -13,8 +13,9 @@ when no paths are given.
 Other options go to 'git diff', e.g. --stat, --name-only or
 --name-status. Give each as one word (-U5, --stat=80), since a separate
 value would be read as a path. With --exit-code or --quiet, it exits 1
-if any splice has changes to push, like 'git diff'. --output=<file>
-writes every splice's diff to that one file.
+if any splice has changes to push, like 'git diff'; with --check, it exits
+2 if any has whitespace errors. --output=<file> writes every splice's diff to that
+one file. -z isn't supported.
 
 For a splice whose upstream has no branch named like the current one, the
 diff is against the monorepo's base branch (--base, else the monorepo's
@@ -24,8 +25,9 @@ EOF
 }
 
 # diff_one's status when 'git diff --exit-code' or '--quiet' found
-# changes: a result, not a failure.
-DIFF_CHANGED=3
+# changes, or '--check' found problems: a result, not a failure. Git's
+# status for it, 1 for changes plus 2 for problems, is in DIFF_RESULT.
+DIFF_CHANGED=4
 
 # Shows the upstream-to-local patch for one splice. $3 is an explicit
 # --base branch, if any.
@@ -83,17 +85,20 @@ diff_one() {
 
   has_flag --quiet || log_step "$path"
   git diff "${EXTRA_FLAGS[@]}" "$old_tree" "$new_tree" && return 0
-  local rc=$?
-  if ((rc == 1)) && { has_flag --exit-code || has_flag --quiet; }; then
-    return "$DIFF_CHANGED"
+  local rc=$? results=0
+  { has_flag --exit-code || has_flag --quiet; } && results=1
+  has_flag --check && ((results |= 2))
+  if ((rc & ~results)); then
+    return "$rc"
   fi
-  return "$rc"
+  DIFF_RESULT="$rc"
+  return "$DIFF_CHANGED"
 }
 
 # Emits all selected patches. Kept separate from cmd_diff so one pager can
 # contain every splice rather than opening a new pager for each one.
 diff_paths() {
-  local branch="$1" base="$2" path rc changed="" failures=()
+  local branch="$1" base="$2" path rc result=0 failures=()
   shift 2
   for path in "$@"; do
     if diff_one "$path" "$branch" "$base"; then
@@ -102,7 +107,7 @@ diff_paths() {
       rc=$?
       ((rc == 141)) && return 141
       if ((rc == DIFF_CHANGED)); then
-        changed=1
+        ((result |= DIFF_RESULT))
       else
         failures+=("$path")
       fi
@@ -113,29 +118,41 @@ diff_paths() {
     log_err "Failed: ${failures[*]}"
     return 1
   fi
-  [[ -z "$changed" ]] || return 1
+  return "$result"
 }
 
-# Takes --output=<file> out of EXTRA_FLAGS into DIFF_OUTPUT, as an
-# absolute path: each splice's 'git diff' would overwrite the file with
-# its own patch, so the whole output goes there instead.
-take_output_flag() {
+# Prints $1 as an absolute path: Git reads the file names its diff options
+# take relative to where it was run, but cmd_diff runs it from the root.
+absolute_path() {
+  [[ "$1" == /* ]] && printf '%s\n' "$1" || printf '%s\n' "$PWD/$1"
+}
+
+# Readies EXTRA_FLAGS for 'git diff' run at the repository root, once per
+# splice. --output=<file> moves to DIFF_OUTPUT, since each 'git diff' would
+# overwrite the file with its own patch; the whole output goes there
+# instead. -O<orderfile> gets an absolute path. -z is rejected, since the
+# headings between splices would break its NUL-delimited format.
+prepare_diff_flags() {
   local flag flags=()
   DIFF_OUTPUT=""
   for flag in "${EXTRA_FLAGS[@]}"; do
     case "$flag" in
-      --output=*) DIFF_OUTPUT="${flag#--output=}" ;;
+      --output=*)
+        [[ -n "${flag#--output=}" ]] || die "--output needs a file"
+        DIFF_OUTPUT="$(absolute_path "${flag#--output=}")"
+        ;;
+      -O?*) flags+=("-O$(absolute_path "${flag#-O}")") ;;
+      -z) die "-z isn't supported: the headings between splices would break its format" ;;
       *) flags+=("$flag") ;;
     esac
   done
   EXTRA_FLAGS=("${flags[@]}")
-  [[ -z "$DIFF_OUTPUT" || "$DIFF_OUTPUT" == /* ]] || DIFF_OUTPUT="$PWD/$DIFF_OUTPUT"
 }
 
 cmd_diff() {
   parse_args usage_diff "-*" "$@"
   local base="$BASE_ARG" branch
-  take_output_flag
+  prepare_diff_flags
   cd_to_repo_root
   require_head_commit
   discover_splices

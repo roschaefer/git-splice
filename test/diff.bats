@@ -231,3 +231,45 @@ setup() {
   [ -z "$output" ]
   [[ "$(cat changes.patch)" == *"===  vendor/a"*"+change in a"*"===  vendor/b"*"+change in b"* ]]
 }
+
+@test "diff: --output without a file is an error, not a diff on stdout" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --output=
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --output needs a file" ]
+}
+
+@test "diff: -O reads the order file relative to where it was run" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_local "$monorepo" "vendor/a" "change" a.txt
+  commit_local "$monorepo" "vendor/a" "change" b.txt
+  mkdir sub
+  cd sub
+  printf 'b.txt\na.txt\n' >order
+  run cmd_diff --name-only -Oorder vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = "b.txt" ]
+  [ "${lines[2]}" = "a.txt" ]
+}
+
+@test "diff: -z is rejected rather than mixed with the splice headings" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff --name-only -z
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"-z isn't supported"* ]]
+}
+
+@test "diff: --check exits 2 for whitespace errors, like git diff, without calling it a failure" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  commit_local "$monorepo" "vendor/a" "trailing space "
+  cd "$monorepo"
+  run cmd_diff --check
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"trailing whitespace"* ]]
+  [[ "$output" != *"Failed"* ]]
+  run cmd_diff --check --exit-code
+  [ "$status" -eq 3 ]
+}
