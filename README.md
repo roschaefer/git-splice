@@ -1,5 +1,9 @@
 # git-splice
 
+git-splice is a developer-friendly way to contribute to other repositories
+from one monorepo. Edit them as folders, test them together, and sync both
+ways with plain Git.
+
 Keep folders of your monorepo in sync with their own repositories, in both
 directions: to publish a package, mirror a library, or keep a vendored copy
 up to date. Switch branches in the monorepo, and every folder switches the
@@ -94,124 +98,17 @@ Everything else follows from two rules:
 `git subtree`, git-subrepo, Josh, Copybara and others, and its
 [limits](docs/design/README.md#limits).
 
-## Example
+## Getting started
 
-[A walkthrough of every command](test/walkthrough/README.md) shows what each one
-prints, on a throwaway monorepo whose upstreams live on the same machine.
-To follow along, run `just walkthrough` in a clone of this repository.
+Head over to the [documentation](https://roschaefer.github.io/git-splice/) to
+[install git-splice](https://roschaefer.github.io/git-splice/docs/installation/), look up its
+[commands](https://roschaefer.github.io/git-splice/docs/commands/) and
+[sync states](https://roschaefer.github.io/git-splice/docs/sync-states/), and follow
+[a walkthrough of every command](https://roschaefer.github.io/git-splice/test/walkthrough/).
 
-## Commands
+## Contribute
 
-`merge`, `pull` and `push` change the monorepo or an upstream, so they name
-their splices, or take `--all`. `clone` and `init` start one splice each.
-Commands that only look cover every splice unless you name some. Run `git splice <command> --help` for options.
-
-| Command | What it does |
-| --- | --- |
-| `clone <url> [<path>]` | Splices an existing repository into a new folder, as one commit. Use `--merge` if the folder already exists and differs. |
-| `init <path> <url>` | Makes a folder a splice of a new, empty repository. The first `push` publishes its history. |
-| `merge <path>…` | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
-| `pull <path>…` | `fetch` + `merge`. |
-| `push <path>…` | Rebuilds the commits that changed each splice since the last sync and pushes them upstream. Writes nothing to the monorepo. |
-| `status [path…]` | Shows each splice's [sync state](#sync-states). |
-| `diff [path…]` | Shows the file changes `push` would send. |
-| `log [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors. |
-| `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<path>/`. |
-
-`status`, `diff`, `log` and `merge` only use what was last fetched. Run
-`git splice fetch` first if you need the latest upstream state. Fetched
-upstreams can be read with any Git command, e.g.
-`git log splices/vendor/lib/main`.
-
-Upstreams are fetched and pushed by URL, with no Git remote, so a plain
-`git push` can't send the whole monorepo to one by mistake
-([more](docs/design/README.md#refs-instead-of-remotes)). A `push` creates a
-new upstream branch only if the splice changed on your branch
-([more](docs/design/README.md#splicing-out-push-and-the-rebuild)).
-
-## Sync states
-
-`status` reports one of these states for each splice, and `merge`, `pull`
-and `push` act on it. Each example is a small, tested scenario;
-[all scenarios](test/scenarios/README.md) cover more situations.
-
-| State | Meaning | What to do |
-| --- | --- | --- |
-| never fetched | The upstream wasn't fetched in this clone yet. ([example](test/scenarios/never-fetched/README.md)) | Run `git splice fetch`. |
-| up to date | Both sides are the same. ([example](test/scenarios/up-to-date/README.md)) | Nothing to do. |
-| push | Only your side changed. ([example](test/scenarios/push-ahead/README.md)) | Run `git splice push`. |
-| pull | Only the upstream changed. ([example](test/scenarios/pull-ahead/README.md)) | Run `git splice pull`. |
-| diverged | Both sides changed since they last matched. ([example](test/scenarios/diverged-common-ancestor/README.md)) | Run `git splice pull`, then `push`. On a conflict, resolve it and `git commit` first. |
-| unrelated history | Both sides changed and share no history, e.g. the upstream was rebuilt from scratch. ([example](test/scenarios/diverged-unrelated-history/README.md)) | Pick a side. `merge`, `pull` and `push` refuse to guess and print the commands to keep either side, or both. |
-| upstream has no such branch | The upstream has no branch with your branch's name. ([unchanged](test/scenarios/feature-branch-unchanged/README.md), [changed](test/scenarios/feature-branch-changed/README.md)) | Run `git splice push`. It creates the branch only if the splice changed. |
-
-## Installation
-
-With [Nix](https://nixos.org/download/), which brings its own Bash, Git and
-shell completions:
-
-    nix profile install github:roschaefer/git-splice
-    nix run github:roschaefer/git-splice -- status   # or try it first
-
-Otherwise, clone it:
-
-    git clone https://github.com/roschaefer/git-splice.git
-    mkdir -p ~/.local/bin
-    ln -s "$(pwd)/git-splice/git-splice" ~/.local/bin/git-splice
-
-Git runs any `git-<name>` executable on your `PATH` as `git <name>`, so make
-sure `~/.local/bin` is on it. Symlink only the `git-splice` file. The `lib/`
-folder must stay next to it.
-
-Requires:
-
-- Bash >= 4.4. macOS ships 3.2, so install a newer one (e.g.
-  `brew install bash`) and put it first on your `PATH`.
-- Git >= 2.40. `git subtree` isn't needed.
-
-### Shell completions
-
-`completions/` has completions for bash, zsh and fish. They complete
-commands, splice paths and `--base` branches. The Nix package installs
-them; for a clone:
-
-    # bash: source from ~/.bashrc
-    source /path/to/git-splice/completions/git-splice.bash
-
-    # zsh: install as `_git-splice` on your $fpath, then restart the shell
-    ln -s /path/to/git-splice/completions/git-splice.zsh \
-      /usr/local/share/zsh/site-functions/_git-splice
-
-    # fish
-    ln -s /path/to/git-splice/completions/git-splice.fish \
-      ~/.config/fish/completions/git-splice.fish
-
-## Documentation
-
-The [documentation site](https://roschaefer.github.io/git-splice/) has
-this README, the
-[walkthrough](https://roschaefer.github.io/git-splice/test/walkthrough/),
-[all scenarios](https://roschaefer.github.io/git-splice/test/scenarios/),
-the [comparisons](https://roschaefer.github.io/git-splice/test/comparisons/)
-and [the design](https://roschaefer.github.io/git-splice/docs/design/) in
-one place.
-
-## Development
-
-With [Nix](https://nixos.org/download/) and
-[flakes](https://wiki.nixos.org/wiki/Flakes), run in the clone:
-
-    nix develop      # shell with the dev tools and this checkout on PATH
-    just --list      # lint, fmt, test, ci, bench, walkthrough, ...
-    just walkthrough # try commands by hand in a throwaway monorepo
-
-[The design](docs/design/README.md#testing) explains how the tests are
-layered and how to write one.
-
-Releases come from [release-please](https://github.com/googleapis/release-please):
-it keeps a release PR open with the next version and changelog, built from
-the Conventional Commits on `main`. Merging it tags and publishes the
-release.
+- [Contributing](CONTRIBUTING.md)
 
 ## License
 

@@ -36,6 +36,7 @@ module.exports = {
           path: '..',
           include: [
             'README.md',
+            'CONTRIBUTING.md',
             'docs/**/*.md',
             'test/walkthrough/**/*.md',
             'test/scenarios/**/*.md',
