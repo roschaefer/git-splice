@@ -6,20 +6,20 @@ setup() {
   load 'scenarios/up-to-date/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
-  inner="$BATS_TEST_TMPDIR/upstream-b.git"
+  upstream_b="$BATS_TEST_TMPDIR/upstream-b.git"
 }
 
-# Clones the outer upstream into $outer_work, where b is a splice at b/,
-# and cds there.
-work_in_outer_upstream() {
-  outer_work="$BATS_TEST_TMPDIR/outer-work"
-  git clone -q "$upstream" "$outer_work"
-  cd "$outer_work"
+# Clones a's upstream into $a_work, where b is a splice at b/, and cds
+# there.
+work_in_upstream_a() {
+  a_work="$BATS_TEST_TMPDIR/a-work"
+  git clone -q "$upstream" "$a_work"
+  cd "$a_work"
   git config user.name "Test"
   git config user.email "test@example.com"
 }
 
-@test "nested: status shows the outer and the inner splice" {
+@test "nested: status shows a splice and the one below it" {
   scenario_nested_splices "$monorepo" "$upstream"
   cd "$monorepo"
   run splice status
@@ -28,16 +28,16 @@ work_in_outer_upstream() {
   [ "${lines[1]}" = "ok   vendor/a/b -> main (up to date)" ]
 }
 
-@test "nested: push of the inner splice sends its files without its .splice" {
+@test "nested: push of the splice below sends its files without its .splice" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
   splice push vendor/a/b
-  [ "$(git -C "$inner" ls-tree --name-only main)" = "file.txt" ]
-  [ "$(git -C "$inner" show main:file.txt)" = "$(git show HEAD:vendor/a/b/file.txt)" ]
+  [ "$(git -C "$upstream_b" ls-tree --name-only main)" = "file.txt" ]
+  [ "$(git -C "$upstream_b" show main:file.txt)" = "$(git show HEAD:vendor/a/b/file.txt)" ]
 }
 
-@test "nested: push of the outer splice sends the inner one's files and its .splice" {
+@test "nested: push of the splice above sends the files and the .splice of the one below" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
@@ -46,25 +46,25 @@ work_in_outer_upstream() {
   [ "$(git -C "$upstream" rev-parse main:b)" = "$(git rev-parse HEAD:vendor/a/b)" ]
 }
 
-@test "nested: after both pushes, the outer upstream's own clone sees the inner splice up to date" {
+@test "nested: after both pushes, a clone of a's upstream sees b up to date" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
   splice push --all
-  work_in_outer_upstream
+  work_in_upstream_a
   splice fetch b
   run splice status b
   [ "$output" = "ok   b -> main (up to date)" ]
 }
 
-@test "nested: a pull of the inner splice reaches the outer upstream with the next push of the outer one" {
+@test "nested: a pull of b reaches a's upstream with the next push of a" {
   scenario_nested_splices "$monorepo" "$upstream"
-  seed_bare_repo "$inner" "b upstream change"
+  seed_bare_repo "$upstream_b" "b upstream change"
   cd "$monorepo"
   splice pull vendor/a/b
   splice push vendor/a
-  [ "$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)" = "$(git -C "$inner" rev-parse main)" ]
-  [ "$(git -C "$upstream" rev-parse main:b/file.txt)" = "$(git -C "$inner" rev-parse main:file.txt)" ]
+  [ "$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ "$(git -C "$upstream" rev-parse main:b/file.txt)" = "$(git -C "$upstream_b" rev-parse main:file.txt)" ]
 }
 
 @test "nested: cloning an upstream that contains a .splice makes its folder a splice" {
@@ -90,7 +90,7 @@ work_in_outer_upstream() {
 @test "nested: clone and init make a splice inside an existing one" {
   scenario_nested_splices "$monorepo" "$upstream"
   cd "$monorepo"
-  splice clone "$inner" vendor/a/c
+  splice clone "$upstream_b" vendor/a/c
   mkdir vendor/a/d && echo d >vendor/a/d/file.txt
   git add vendor/a/d && git commit -q -m "add d"
   make_bare_repo "$BATS_TEST_TMPDIR/d.git"
@@ -108,22 +108,22 @@ work_in_outer_upstream() {
   [ "$(git -C "$BATS_TEST_TMPDIR/vendor.git" ls-tree -r --name-only main)" = $'a/.splice\na/b/.splice\na/b/file.txt\na/file.txt' ]
 }
 
-@test "nested: a pull of the outer splice keeps an inner .splice its upstream doesn't have" {
+@test "nested: a pull of a keeps a .splice below it that a's upstream doesn't have" {
   scenario_up_to_date "$monorepo" "$upstream"
-  make_bare_repo "$inner"
-  seed_bare_repo "$inner" "b seed"
+  make_bare_repo "$upstream_b"
+  seed_bare_repo "$upstream_b" "b seed"
   cd "$monorepo"
-  splice clone "$inner" vendor/a/b
+  splice clone "$upstream_b" vendor/a/b
   seed_bare_repo "$upstream" "upstream change"
   splice pull vendor/a
   [ "$(git show HEAD:vendor/a/file.txt)" = $'seed\nupstream change' ]
   git cat-file -e HEAD:vendor/a/b/.splice
 }
 
-@test "nested: a pull of the outer splice that moves the inner one's synced commit keeps its unpushed commits" {
+@test "nested: a pull of a that moves b's synced commit keeps b's unpushed commits" {
   scenario_nested_splices "$monorepo" "$upstream"
-  seed_bare_repo "$inner" "b upstream change" main other.txt
-  work_in_outer_upstream
+  seed_bare_repo "$upstream_b" "b upstream change" main other.txt
+  work_in_upstream_a
   splice pull b
   git push -q origin main
   commit_local "$monorepo" vendor/a/b "b local"
@@ -134,19 +134,19 @@ work_in_outer_upstream() {
   run splice status vendor/a/b
   [ "$output" = "ok   vendor/a/b -> main (push: ahead 2)" ]
   splice push vendor/a/b
-  run git -C "$inner" log --format=%s main
+  run git -C "$upstream_b" log --format=%s main
   [[ "$output" == *"b local"* ]]
-  [ "$(git -C "$inner" show main:file.txt)" = $'b seed\nb local' ]
-  [ "$(git -C "$inner" show main:other.txt)" = "b upstream change" ]
+  [ "$(git -C "$upstream_b" show main:file.txt)" = $'b seed\nb local' ]
+  [ "$(git -C "$upstream_b" show main:other.txt)" = "b upstream change" ]
 }
 
-@test "nested: both sides pulling the inner splice make the next pull of the outer one conflict" {
+@test "nested: both sides pulling b make the next pull of a conflict" {
   scenario_nested_splices "$monorepo" "$upstream"
-  seed_bare_repo "$inner" "b change 1" main other.txt
+  seed_bare_repo "$upstream_b" "b change 1" main other.txt
   cd "$monorepo"
   splice pull vendor/a/b
-  seed_bare_repo "$inner" "b change 2" main other.txt
-  work_in_outer_upstream
+  seed_bare_repo "$upstream_b" "b change 2" main other.txt
+  work_in_upstream_a
   splice pull b
   git push -q origin main
   cd "$monorepo"
@@ -156,13 +156,13 @@ work_in_outer_upstream() {
   [[ "$output" == *"vendor/a: conflict -- resolve it"* ]]
 }
 
-@test "nested: that conflict resolves to the outer upstream's side of the inner folder, if it has no unpushed changes" {
+@test "nested: that conflict resolves to the side of a's upstream, if b has no unpushed changes" {
   scenario_nested_splices "$monorepo" "$upstream"
-  seed_bare_repo "$inner" "b change 1" main other.txt
+  seed_bare_repo "$upstream_b" "b change 1" main other.txt
   cd "$monorepo"
   splice pull vendor/a/b
-  seed_bare_repo "$inner" "b change 2" main other.txt
-  work_in_outer_upstream
+  seed_bare_repo "$upstream_b" "b change 2" main other.txt
+  work_in_upstream_a
   splice pull b
   git push -q origin main
   cd "$monorepo"
@@ -176,9 +176,9 @@ work_in_outer_upstream() {
   [ "${lines[1]}" = "ok   vendor/a/b -> main (up to date)" ]
 }
 
-@test "nested: pull --all skips an inner splice that the pull of the outer one removed" {
+@test "nested: pull --all skips b if the pull of a removed it" {
   scenario_nested_splices "$monorepo" "$upstream"
-  work_in_outer_upstream
+  work_in_upstream_a
   git rm -q b/.splice
   git commit -q -m "b is part of a"
   git push -q origin main
@@ -189,13 +189,13 @@ work_in_outer_upstream() {
   ! git cat-file -e HEAD:vendor/a/b/.splice
 }
 
-@test "nested: pull takes the outer splice first, whose pull moves the inner one's synced commit" {
+@test "nested: pull goes top-down: a first, whose pull moves b's synced commit" {
   scenario_nested_splices "$monorepo" "$upstream"
-  seed_bare_repo "$inner" "b change 1" main other.txt
-  work_in_outer_upstream
+  seed_bare_repo "$upstream_b" "b change 1" main other.txt
+  work_in_upstream_a
   splice pull b
   git push -q origin main
-  seed_bare_repo "$inner" "b change 2" main other.txt
+  seed_bare_repo "$upstream_b" "b change 2" main other.txt
   cd "$monorepo"
   run splice pull vendor/a/b vendor/a
   [ "$status" -eq 0 ]
@@ -203,12 +203,14 @@ work_in_outer_upstream() {
   [ "$(git show HEAD:vendor/a/b/other.txt)" = $'b change 1\nb change 2' ]
 }
 
-@test "nested: merge and pull keep the order given, but take each nested splice after its outer one" {
-  run outer_splices_first deep/x/y other deep/x z
+@test "nested: top-down puts each splice after the ones above it, bottom-up before them, and keeps the order given otherwise" {
+  run splices_in_order top-down deep/x/y other deep/x z
   [ "$output" = $'deep/x\ndeep/x/y\nother\nz' ]
+  run splices_in_order bottom-up deep/x/y other deep/x z
+  [ "$output" = $'deep/x/y\ndeep/x\nother\nz' ]
 }
 
-@test "nested: pull skips the outer splice when the fetch of one nested in it fails" {
+@test "nested: pull skips the splice above when the fetch of the one below fails" {
   scenario_nested_splices "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "a change"
   cd "$monorepo"
@@ -216,7 +218,47 @@ work_in_outer_upstream() {
   git commit -q -am "break vendor/a/b"
   run splice pull vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a: not pulled, since vendor/a/b wasn't fetched -- 'git splice merge vendor/a' merges what was fetched anyway"* ]]
+  [[ "$output" == *"vendor/a: not pulled, since vendor/a/b below it wasn't fetched -- 'git splice merge vendor/a' merges what was fetched anyway"* ]]
   [[ "$output" == *"Not fetched: vendor/a/b"* ]]
   [ "$(git log -1 --format=%s)" = "break vendor/a/b" ]
+}
+
+@test "nested: pull skips the splice below when the fetch of the one above fails" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b change" main other.txt
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.origin.url "$BATS_TEST_TMPDIR/nowhere.git"
+  git commit -q -am "break vendor/a"
+  run splice pull --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/b: not pulled, since vendor/a above it wasn't fetched"* ]]
+  [[ "$output" == *"Not fetched: vendor/a"* ]]
+  [ "$(git log -1 --format=%s)" = "break vendor/a" ]
+}
+
+@test "nested: merge skips the splice below when the merge of the one above fails" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b change" main other.txt
+  seed_bare_repo "$upstream" "a change"
+  cd "$monorepo"
+  splice fetch
+  # A .splice at the root of a's upstream would replace vendor/a/.splice.
+  seed_bare_repo "$upstream" "a root splice" main .splice
+  splice fetch vendor/a
+  run splice merge --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/b: not merged, since vendor/a above it failed"* ]]
+  [[ "$output" == *"Failed: vendor/a vendor/a/b"* ]]
+}
+
+@test "nested: push goes bottom-up, and a failed push of the splice below stops the one above" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b upstream change" main other.txt
+  cd "$monorepo"
+  echo "b local" >>vendor/a/b/file.txt
+  git commit -q -am "b local"
+  run splice push --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/b:"*"vendor/a: not pushed, since vendor/a/b below it failed"* ]]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" != "b local" ]
 }

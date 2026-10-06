@@ -6,36 +6,24 @@ usage: git splice pull (<path>... | --all)
 
 'git splice fetch' followed by 'git splice merge': fetches the splices'
 upstreams in parallel, then splices their changes in, as one ordinary
-commit per splice. Also fetches the splices nested in each: pulling a
-splice can move their synced commits.
+commit per splice. Also fetches the splices below each: pulling a splice
+can move their synced commits. Top-down: a splice is pulled before the
+ones below it, and a failed fetch stops the splices above and below it.
 
 On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 --abort' to give up), then re-run pull for any splices left.
 EOF
 }
 
-# Succeeds if splice <path> is nested in one in SELECTED_PATHS, but isn't
+# Succeeds if splice <path> is below one in SELECTED_PATHS, but isn't
 # selected itself.
-nested_in_selected() {
-  local selected nested=""
+below_selected() {
+  local selected below=""
   for selected in "${SELECTED_PATHS[@]}"; do
     [[ "$1" != "$selected" ]] || return 1
-    [[ "$1" != "$selected"/* ]] || nested=1
+    [[ "$1" != "$selected"/* ]] || below=1
   done
-  [[ -n "$nested" ]]
-}
-
-# Prints the first splice nested in <path> whose fetch failed, or fails if
-# there's none.
-nested_fetch_failure() {
-  local failed_path
-  for failed_path in "${FETCH_FAILURES[@]}"; do
-    [[ "$failed_path" != "$1"/* ]] || {
-      printf '%s\n' "$failed_path"
-      return 0
-    }
-  done
-  return 1
+  [[ -n "$below" ]]
 }
 
 cmd_pull() {
@@ -45,11 +33,11 @@ cmd_pull() {
   discover_splices
   select_paths explicit pull
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
-  local branch i path nested fetched=() fetch_paths=("${SELECTED_PATHS[@]}")
+  local branch i path failed fetched=() fetch_paths=("${SELECTED_PATHS[@]}")
   branch="$(current_branch)"
 
   for path in "${ALL_PATHS[@]}"; do
-    nested_in_selected "$path" && fetch_paths+=("$path")
+    below_selected "$path" && fetch_paths+=("$path")
   done
   fetch_all_parallel "$branch" "${fetch_paths[@]}"
   for i in "${!fetch_paths[@]}"; do
@@ -57,9 +45,14 @@ cmd_pull() {
   done
   for path in "${SELECTED_PATHS[@]}"; do
     fetch_failed_for_path "$path" && continue
-    if nested="$(nested_fetch_failure "$path")"; then
-      # Its pull could move $nested's synced commit to one that wasn't fetched.
-      log_err "$path: not pulled, since $nested wasn't fetched -- 'git splice merge $path' merges what was fetched anyway"
+    if failed="$(first_above "$path" "${FETCH_FAILURES[@]}")"; then
+      log_err "$path: not pulled, since $failed above it wasn't fetched"
+      continue
+    fi
+    # Its pull could move the synced commit of $failed to one that wasn't
+    # fetched.
+    if failed="$(first_below "$path" "${FETCH_FAILURES[@]}")"; then
+      log_err "$path: not pulled, since $failed below it wasn't fetched -- 'git splice merge $path' merges what was fetched anyway"
       continue
     fi
     fetched+=("$path")

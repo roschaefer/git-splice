@@ -160,8 +160,8 @@ has_flag() {
 
 # Populates ALL_PATHS from every */.splice file committed in HEAD, at any
 # depth. This *is* the whole discovery mechanism: a folder with a committed
-# .splice is a splice, also inside another splice, whose push then
-# publishes the inner .splice with the rest of its content. Committed, not
+# .splice is a splice, also below another splice, whose push then
+# publishes the .splice below with the rest of its content. Committed, not
 # staged: every command reads a splice's state from HEAD, so a staged
 # .splice isn't one yet, and a staged deletion doesn't end one.
 discover_splices() {
@@ -178,6 +178,74 @@ discover_splices() {
   for path in "${ALL_PATHS[@]}"; do
     load_splice_upstream "$path"
   done
+}
+
+# Prints splice paths $2... one per line, in tree order $1: top-down, each
+# after every splice above it, or bottom-up, each before them. Paths in
+# different trees keep the order given, each tree at the place of its first
+# path. (A path in a ref name has no newline.)
+splices_in_order() {
+  local order="$1" path above
+  shift
+  local -A printed=()
+  for path in "$@"; do
+    while above="$(splice_above "$path" "$@")" && [[ -n "$above" ]]; do
+      path="$above"
+    done
+    [[ -z "${printed[$path]:-}" ]] || continue
+    printed[$path]=1
+    print_splice_tree "$order" "$path" "$@"
+  done
+}
+
+# Prints splice path $2 and, recursively, those of paths $3... below it, in
+# order $1 (see splices_in_order).
+print_splice_tree() {
+  local order="$1" top="$2" path
+  shift 2
+  [[ "$order" == bottom-up ]] || printf '%s\n' "$top"
+  for path in "$@"; do
+    [[ "$(splice_above "$path" "$@")" != "$top" ]] || print_splice_tree "$order" "$path" "$@"
+  done
+  [[ "$order" != bottom-up ]] || printf '%s\n' "$top"
+}
+
+# Prints the nearest of paths $2... above splice path $1, or nothing.
+splice_above() {
+  local below="$1" path nearest=""
+  shift
+  for path in "$@"; do
+    [[ "$below" == "$path"/* && ${#path} -gt ${#nearest} ]] && nearest="$path"
+  done
+  printf '%s' "$nearest"
+}
+
+# Prints the first of paths $2... above splice path $1, or fails if there's
+# none.
+first_above() {
+  local below="$1" path
+  shift
+  for path in "$@"; do
+    [[ "$below" != "$path"/* ]] || {
+      printf '%s\n' "$path"
+      return 0
+    }
+  done
+  return 1
+}
+
+# Prints the first of paths $2... below splice path $1, or fails if there's
+# none.
+first_below() {
+  local above="$1" path
+  shift
+  for path in "$@"; do
+    [[ "$path" != "$above"/* ]] || {
+      printf '%s\n' "$path"
+      return 0
+    }
+  done
+  return 1
 }
 
 # Succeeds if <path> would be valid in a ref name: no spaces, "..", or a

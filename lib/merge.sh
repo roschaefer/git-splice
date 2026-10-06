@@ -11,6 +11,9 @@ first, or 'git splice pull' to do both.
 The upstream branch is the one named like the current branch; on the
 monorepo's default branch, the splice's default-branch if it has one.
 
+Top-down: a splice is merged before the ones below it, since its merge
+can move their synced commits, and a failure stops them.
+
 On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 --abort' to give up), then re-run merge for any splices left. When the two
 sides share no history at all, merge doesn't guess: it prints the commands
@@ -73,60 +76,26 @@ merge_one() {
   log_ok "$path: $(past_tense "$verb") ${target:0:7}"
 }
 
-# Prints splice paths $@ one per line, each after every splice it's nested
-# in, and otherwise in the order given. (A path in a ref name has no
-# newline.)
-outer_splices_first() {
-  local path outer
-  local -A printed=()
-  for path in "$@"; do
-    # A nested splice goes with its outermost selected one, at the first
-    # of their places.
-    while outer="$(closest_outer_splice "$path" "$@")" && [[ -n "$outer" ]]; do
-      path="$outer"
-    done
-    [[ -z "${printed[$path]:-}" ]] || continue
-    printed[$path]=1
-    print_with_nested "$path" "$@"
-  done
-}
-
-# Prints splice path $1, then, recursively, those of paths $2... nested
-# directly in it, in the order given.
-print_with_nested() {
-  local outer="$1" path
-  shift
-  printf '%s\n' "$outer"
-  for path in "$@"; do
-    [[ "$(closest_outer_splice "$path" "$@")" != "$outer" ]] || print_with_nested "$path" "$@"
-  done
-}
-
-# Prints the longest of paths $2... that splice path $1 is nested in, or
-# nothing.
-closest_outer_splice() {
-  local inner="$1" path closest=""
-  shift
-  for path in "$@"; do
-    [[ "$inner" == "$path"/* && ${#path} -gt ${#closest} ]] && closest="$path"
-  done
-  printf '%s' "$closest"
-}
-
 # Merges every given path, stopping at the first one that leaves a conflict:
-# another cherry-pick can't start before it's resolved. An outer splice
-# goes before the ones nested in it, whose synced commit its pull may move.
-# `verb` as for merge_one. Exits 1 if anything was skipped or failed.
+# another cherry-pick can't start before it's resolved. Top-down: a splice
+# goes before the ones below it, whose synced commit its pull may move, and
+# a failure stops them. `verb` as for merge_one. Exits 1 if anything was
+# skipped or failed.
 merge_paths() {
-  local branch="$1" verb="$2" path paths=() failures=() skipped=()
+  local branch="$1" verb="$2" path failed paths=() failures=() skipped=()
   shift 2
-  mapfile -t paths < <(outer_splices_first "$@")
+  mapfile -t paths < <(splices_in_order top-down "$@")
   for path in "${paths[@]}"; do
     if splice_in_progress; then
       skipped+=("$path")
       continue
     fi
-    # A pull of a splice this one is nested in may have removed it.
+    if failed="$(first_above "$path" "${failures[@]}")"; then
+      log_err "$path: not $(past_tense "$verb"), since $failed above it failed"
+      failures+=("$path")
+      continue
+    fi
+    # A pull of a splice above this one may have removed it.
     if ! git cat-file -e "HEAD:$path/$STATE_FILE" 2>/dev/null; then
       log_ok "$path: not a splice any more -- nothing to $verb"
       continue
