@@ -116,8 +116,8 @@ ok   vendor/pkg-b: nothing to pull
 ```
 
 ```scrut
-$ git for-each-ref --format='%(refname)' refs/splices/https%3A/%/git.example.com/pkg-b.git/-/
-refs/splices/https%3A/%/git.example.com/pkg-b.git/-/main
+$ git for-each-ref --format='%(refname)' refs/splices/pkg-b/
+refs/splices/pkg-b/main
 ```
 
 ```scrut

@@ -32,6 +32,18 @@ setup() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
+@test "init: the first push records the key before it pushes, so a failure to record it pushes nothing" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_init lib/a "$upstream" >/dev/null
+  mkdir .git/splice-keys.lock
+  UPSTREAM_KEYS_LOCK_TRIES=1
+  run cmd_push lib/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"another git splice is recording an upstream key"* ]]
+  [ -z "$(git -C "$upstream" for-each-ref refs/heads)" ]
+}
+
 @test "init: refuses an upstream that has commits" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "seed"

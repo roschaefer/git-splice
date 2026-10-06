@@ -87,7 +87,7 @@ _git_splice() {
   [[ "${COMP_WORDS[0]}" == git ]] && start=2
 
   if ((COMP_CWORD == start)); then
-    mapfile -t COMPREPLY < <(compgen -W "clone init fetch merge pull push status diff log -h --help --version" -- "$cur")
+    mapfile -t COMPREPLY < <(compgen -W "clone init fetch merge pull push status diff log key -h --help --version" -- "$cur")
     return
   fi
 
@@ -121,6 +121,22 @@ _git_splice() {
         mapfile -t COMPREPLY < <(compgen -W "-h --help" -- "$cur")
       elif (($(__git_splice_positionals "$start") == 0)); then
         __git_splice_reply "" < <(compgen -d -- "$cur")
+      fi
+      ;;
+    key)
+      # The word after --upstream is the upstream's name, not a positional.
+      local i positionals=0
+      for ((i = start + 1; i < COMP_CWORD; i++)); do
+        case "${COMP_WORDS[i]}" in
+          --upstream) ((i++)) ;;
+          -*) ;;
+          *) ((positionals++)) ;;
+        esac
+      done
+      if [[ "${COMP_WORDS[COMP_CWORD - 1]}" == --upstream ]]; then
+        :
+      elif [[ "$cur" == -* ]] || ((positionals == 0)); then
+        __git_splice_paths_or_options "$cur" --upstream -h --help
       fi
       ;;
     *) ;;

@@ -5,9 +5,9 @@ usage_fetch() {
 usage: git splice fetch [path...]
 
 Fetches every branch of each splice's upstream into
-refs/splices/<key>/-/*, where <key> is the upstream's URL escaped for
-a ref name, e.g. https%3A/%/github.com/x/lib.git -- by URL, there is no
-Git remote. Branches deleted
+refs/splices/<key>/*, where <key> is the upstream's key in this
+repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
+no Git remote; 'git splice key' prints and renames keys. Branches deleted
 upstream are pruned. Defaults to every splice when no paths are given.
 Fetches upstreams in parallel, each once, and reports when the branch a
 splice syncs with moved.
@@ -110,6 +110,10 @@ fetch_all_parallel() {
 
   local paths=("$@") i key keys=() members=()
   local -A indexes_of_key=()
+  # Before the fetches start in parallel, which would race to record keys.
+  for i in "${!paths[@]}"; do
+    ensure_splice_key "${paths[$i]}"
+  done
   for i in "${!paths[@]}"; do
     key="${SPLICE_KEYS[${paths[$i]}]}"
     [[ -n "${indexes_of_key[$key]+set}" ]] || keys+=("$key")

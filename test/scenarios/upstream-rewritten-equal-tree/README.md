@@ -64,7 +64,7 @@ release
 The upstream's `main`, as fetched, is the ref ending in `-/main`:
 
 ```scrut
-$ main="$(git for-each-ref --format='%(refname:lstrip=-2) %(objectname)' refs/splices/ | sed -n 's#^-/main ##p')"
+$ main="$(git for-each-ref --format='%(refname:lstrip=3) %(objectname)' refs/splices/ | sed -n 's#^main ##p')"
 ```
 
 ```scrut

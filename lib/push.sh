@@ -102,6 +102,9 @@ push_one() {
   local url force_flag=()
   url="${SPLICE_URLS[$path]}"
   [[ -n "$force" ]] && force_flag=(--force)
+  # Before the push, so a failure to record the key can't follow a push
+  # that already happened.
+  ensure_splice_key "$path"
   if ! git push "${force_flag[@]}" --quiet -- "$url" "$SPLICE_REBUILT:refs/heads/$upstream_branch"; then
     log_err "$path: push failed"
     return 1

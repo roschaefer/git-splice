@@ -69,7 +69,9 @@ cmd_init() {
   # The upstream is empty, so refs fetched from it before name branches
   # it no longer has.
   upstream_key "$url"
-  git for-each-ref --format='delete %(refname)' "refs/splices/$UPSTREAM_KEY/-/" | git update-ref --stdin
+  if [[ -n "$UPSTREAM_KEY" ]]; then
+    git for-each-ref --format='delete %(refname)' "refs/splices/$UPSTREAM_KEY/" | git update-ref --stdin
+  fi
   git cat-file blob "$(state_blob "$path" "default-branch=$default_branch" "upstream.$DEFAULT_UPSTREAM.url=$url")" >"$path/$STATE_FILE"
   # -f: an ignore rule matching .splice mustn't stop it, it's committed
   # by definition.

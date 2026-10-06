@@ -52,6 +52,8 @@ source "$script_dir/lib/status.sh"
 source "$script_dir/lib/diff.sh"
 # shellcheck source=lib/log.sh
 source "$script_dir/lib/log.sh"
+# shellcheck source=lib/key.sh
+source "$script_dir/lib/key.sh"
 
 top_usage() {
   cat <<'EOF'
@@ -75,6 +77,8 @@ Looking -- every splice unless paths are given:
                                       show the file changes push would send
   log [path...]                       show the commits push and pull would move
   fetch [path...]                     fetch the upstreams
+  key [--upstream <name>] <path> [<new-key>]
+                                      print or rename the key of a splice's fetched refs
 
 Run 'git splice <command> -h' for command-specific help, and
 'git splice --version' for the version.
@@ -96,7 +100,7 @@ main() {
     --version)
       printf 'git splice version %s\n' "$VERSION"
       ;;
-    clone | init | fetch | merge | pull | push | status | diff | log)
+    clone | init | fetch | merge | pull | push | status | diff | log | key)
       "cmd_$command" "$@"
       ;;
     *)

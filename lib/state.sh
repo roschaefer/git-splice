@@ -6,7 +6,7 @@
 # Sets, as globals, since status, merge, push, diff and log all need them:
 #   SPLICE_STATE            see below
 #   SPLICE_UPSTREAM_BRANCH  the upstream branch this branch syncs with
-#   SPLICE_TARGET_REF       refs/splices/<key>/-/<upstream branch>
+#   SPLICE_TARGET_REF       refs/splices/<key>/<upstream branch>
 #   SPLICE_SYNCED           the synced commit U from the state file
 #   SPLICE_REBUILT          the rebuild R of HEAD (see rebuild_splice), when
 #                           the state needed it

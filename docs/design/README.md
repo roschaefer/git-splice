@@ -94,7 +94,8 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **synced commit** (U) | The upstream commit whose content the splice last matched, recorded in `.splice`. |
 | **boundary** (B) | The newest first-parent commit in the monorepo that changed `<path>/.splice`. Derived, never stored. |
 | **rebuild** (R) | The upstream history that the monorepo's commits since B turn into. What `push` sends. |
-| **upstream branch** (T) | `refs/splices/<key>/-/<branch>`: the upstream branch as last fetched, keyed by the upstream's URL. |
+| **upstream branch** (T) | `refs/splices/<key>/<branch>`: the upstream branch as last fetched, under the upstream's key. |
+| **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
 | **splice in** | Bring upstream content into the monorepo: `clone`, `merge`, `pull`. |
 | **splice out** | Publish the monorepo's changes upstream: `push`. |
 | **sync state** | How R and T relate: `up to date`, `push`, `pull`, `diverged` and so on. |
@@ -115,7 +116,7 @@ which would describe only one of their uses.
  │      ├ .splice  (url, U)     │          └───────────────────────────┘
  │      └ …                     │                  ^
  │                              │                  │ push R
- │ refs/splices/<key>/-/*   (T) │                  │
+ │ refs/splices/<key>/*     (T) │                  │
  └──────────────────────────────┘                  │
         │ merge: cherry-pick of re-rooted trees    │
         │ push: rebuild of B..HEAD on top of U ────┘
@@ -125,8 +126,9 @@ The state lives in two places, and both are plain Git data:
 
 - **Committed:** `<path>/.splice`, with the upstream's URL and the synced
   commit U.
-- **Local, rebuilt by `fetch`:** `refs/splices/<key>/-/<branch>`, a copy of
-  every upstream branch, keyed by the upstream's URL.
+- **Local, rebuilt by `fetch`:** `refs/splices/<key>/<branch>`, a copy of
+  every upstream branch, under a key the repository's config maps the
+  upstream's URL to.
 
 Everything else, B, R and the sync state, is derived from those two and
 the monorepo's history each time a command runs.
@@ -139,7 +141,7 @@ layered, each using only the ones above it:
 
 | File | Responsibility |
 |---|---|
-| `lib/common.sh` | Discovery (`discover_splices`), argument parsing and path selection, reading and writing `.splice` (`splice_config`, `state_blob`), branch mapping, base branch resolution. |
+| `lib/common.sh` | Discovery (`discover_splices`), argument parsing and path selection, reading and writing `.splice` (`splice_config`, `state_blob`), upstream keys (`upstream_key`, `create_upstream_key`), branch mapping, base branch resolution. |
 | `lib/rebuild.sh` | The push rebuild: `splice_boundary`, `rebuild_splice` and its commit loop `rebuild_walk`. |
 | `lib/state.sh` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone --merge`. |
 | `lib/pager.sh` | Paging for `diff` and `log`. |
@@ -197,18 +199,37 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
 Upstream branches are fetched by URL into private refs:
 
 ```
-git fetch --prune <url> '+refs/heads/*:refs/splices/<key>/-/*'
+git fetch --prune <url> '+refs/heads/*:refs/splices/<key>/*'
 ```
 
-The key is the URL exactly as written in `.splice`, before `insteadOf`,
-with each `/`-separated component escaped: characters Git refuses in ref
-names become `%XX`, and an empty component becomes `%`. So
-`https://github.com/x/lib.git` is keyed `https%3A/%/github.com/x/lib.git`.
-Spellings that look alike can name different repositories, e.g.
-`/srv/lib` and `/srv/lib.git`, or `host:lib` (relative to the home
-folder) and `ssh://host/lib`, so only equal URLs share a key. A component
-that is just `-` is escaped too, so the `-` after the key marks where
-branch names begin, even those with slashes.
+The key is the upstream's short name in this repository. The first
+command that fetches an upstream records it in the repository's config,
+which all its worktrees share, as they share the refs:
+
+```
+[splice "lib"]
+	url = https://github.com/x/lib.git
+```
+
+It comes from the end of the URL, without `.git`, in lower case: `lib`
+for `https://github.com/x/lib.git`. If that's taken, by another URL or by
+refs left under it, more of the URL goes in front, `x-lib`, then
+`github.com-x-lib`, and only then a number. Lower case only, so no two
+keys' refs share files on a case-insensitive file system, and short, so
+they fit any file system's name limit. Commands record keys one at a
+time, under a lock, and refuse a config edited by hand into keys that
+aren't valid, or into two URLs for a key or two keys for a URL, naming
+the `git config` command that fixes it. A key has no `/`, so branch names, which may, start right
+after it. `git splice key <path>` prints a splice's key, and
+`git splice key <path> <new-key>` renames it, refs included. Commands
+that only read, like `status`, never record a key: an upstream without
+one hasn't been fetched.
+
+The URL is the one written in `.splice`, before `insteadOf`. Spellings
+that look alike can name different repositories, e.g. `/srv/lib` and
+`/srv/lib.git`, or `host:lib` (relative to the home folder) and
+`ssh://host/lib`, so only equal URLs share a key. Keys are local, like the
+refs: two clones may give one upstream different keys.
 
 Keyed by URL, not by path, the refs describe the upstream rather than the
 folder:
@@ -224,17 +245,17 @@ folder:
   [Why that matters](accidental-monorepo-push.md).
 - `url.<base>.insteadOf` and `pushInsteadOf` still apply, since they work
   on URLs.
-- `push` goes to the URL, and then updates `refs/splices/<key>/-/<branch>`
+- `push` goes to the URL, and then updates `refs/splices/<key>/<branch>`
   itself. If it can't, the push counts as failed.
 - `--prune` drops branches deleted upstream, so no `prune` command is
   needed.
-- Every Git command can read an upstream as `splices/<key>/-/<branch>`,
+- Every Git command can read an upstream as `splices/<key>/<branch>`,
   as of the last fetch. No separate clone is needed:
 
   ```
-  git log --oneline splices/https%3A/%/github.com/x/a.git/-/main
-  git show splices/https%3A/%/github.com/x/a.git/-/main:README.md
-  git worktree add --detach ../a-upstream splices/https%3A/%/github.com/x/a.git/-/main
+  git log --oneline splices/a/main
+  git show splices/a/main:README.md
+  git worktree add --detach ../a-upstream splices/a/main
   ```
 
   `git log --all` and `gitk --all` show those histories too; add
@@ -380,7 +401,7 @@ publishes nothing. Push it from the default branch instead
 
 | Condition | State |
 |---|---|
-| No `refs/splices/<key>/-/*`, and U is recorded but isn't available locally (a fresh clone of the monorepo) | never fetched |
+| No `refs/splices/<key>/*`, and U is recorded but isn't available locally (a fresh clone of the monorepo) | never fetched |
 | No ref for this branch | upstream has no such branch |
 | The splice's content equals T's tree, or R = T | up to date |
 | T is an ancestor of R | push |
@@ -398,7 +419,7 @@ rebuilding.
 - **`log`** shows commits in both directions:
 
   ```
-  git log --left-right --cherry-mark R...refs/splices/<key>/-/<branch>
+  git log --left-right --cherry-mark R...refs/splices/<key>/<branch>
   ```
 
   `<` is on the left (local) side only, so a push sends it; `>` is on the
