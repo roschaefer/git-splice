@@ -23,13 +23,13 @@ $ build_scenario scenario_init_then_cloned
 ```scrut
 $ git splice push lib/a
 ??   lib/a: upstream has no 'main' branch yet -- this push creates it
-ok   lib/a: pushed ef82a18 to main
+ok   lib/a: pushed f9832ad to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main
 second version
-first version
+splice: init lib/a
 ```
 
 A successful push records what the upstream has now, so the clone sees it

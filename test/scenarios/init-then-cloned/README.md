@@ -7,7 +7,7 @@ treat the upstream as empty, though it has commits. This is a known bug,
 
 - **Monorepo (`lib/a`)**: a fresh clone of a monorepo in which `lib/a` was
   made a splice with `init` and pushed twice.
-- **Upstream**: the two pushed commits, `first version` and
+- **Upstream**: the two pushed commits, `splice: init lib/a` and
   `second version`.
 
 A splice made by `init` records no synced commit, and `push` doesn't write
@@ -53,7 +53,7 @@ $ git splice status
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main
 second version
-first version
+splice: init lib/a
 ```
 
 `log` shows both published commits as unpushed:
@@ -61,8 +61,8 @@ first version
 ```scrut
 $ git splice log
 ===  lib/a (upstream has no 'main' branch)
-< ef82a18 second version  (Test <test@example.com>)
-< 766bf9a first version  (Test <test@example.com>)
+< f9832ad second version  (Test <test@example.com>)
+< f0fcdd0 splice: init lib/a  (Test <test@example.com>)
 ```
 
 `merge` finds nothing to merge:

@@ -96,11 +96,14 @@ copy_commit() {
 #   3. Then one commit per first-parent commit after B whose folder
 #      differs from the one before. A merge in the monorepo becomes one
 #      ordinary commit.
-# Without a synced commit (after init, before any pull), the whole
-# first-parent history is rebuilt from its first commit.
+# Without a synced commit (after init, before any pull), the rebuild
+# starts at the commit that added the state file, as a root commit with
+# the folder as it was then. The folder's history before that isn't
+# published: it may hold what was removed before the folder became a
+# splice.
 rebuild_splice() {
   local path="$1" rev="${2:-HEAD}"
-  local boundary synced prev="" prev_tree="" tree range
+  local boundary synced prev="" prev_tree="" tree range start
 
   boundary="$(splice_boundary "$path" "$rev")"
   synced=""
@@ -109,7 +112,7 @@ rebuild_splice() {
   if [[ -n "$synced" ]] && ! git cat-file -e "$synced^{commit}" 2>/dev/null; then
     # push --force sets REBUILD_WITHOUT_SYNCED: the upstream no longer has
     # the synced commit, and the monorepo's side replaces its history
-    # anyway, so the folder's whole history is rebuilt instead.
+    # anyway, so it's rebuilt as if the splice had no synced commit.
     [[ -n "${REBUILD_WITHOUT_SYNCED:-}" ]] ||
       die "$path: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch $path'"
     synced=""
@@ -125,6 +128,12 @@ rebuild_splice() {
       before=""
       git rev-parse --verify --quiet "$boundary^1" >/dev/null &&
         before="$(rebuild_splice "$path" "$boundary^1")"
+      if [[ -n "$before" ]] && ! git merge-base "$before" "$synced" >/dev/null; then
+        # Unrelated to U, as git merge refuses by default: the folder was
+        # another splice before B, e.g. two folders swapped paths. Its
+        # history mustn't reach this upstream.
+        before=""
+      fi
       if [[ -z "$before" ]] || git merge-base --is-ancestor "$before" "$synced"; then
         # Nothing unpushed before B: B's changes go on top of U.
         parents=("$synced")
@@ -146,6 +155,9 @@ rebuild_splice() {
     range="$boundary..$rev"
   else
     range="$rev"
+    start="$(git log --first-parent -1 --diff-filter=A --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE")"
+    [[ -n "$start" ]] && git rev-parse --verify --quiet "$start^1" >/dev/null &&
+      range="$start^1..$rev"
   fi
 
   rebuild_walk "$path" "$prev" "$range"
