@@ -467,6 +467,14 @@ These are known and accepted, each to keep the design simple:
   outer upstream's side: `git checkout --theirs -- <outer>/<inner>`, then
   `git add` and `git commit`. Pushing the outer splice right after pulling
   the inner one avoids the conflict.
+- **A nested splice's default branch** can change meaning on the way
+  between repositories: a `.splice` without `default-branch` follows the
+  default branch of the repository it's in. If the outer upstream's
+  default branch is `master` and the monorepo's is `main`, a nested splice
+  cloned with the outer one syncs with its upstream's `main` instead of
+  `master`. Until
+  [#71](https://github.com/roschaefer/git-splice/issues/71), set
+  `default-branch` in the nested `.splice` by hand.
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
 - **Moving a splice with unpushed changes:** the `git mv` commit changes
   `.splice`, so it becomes the boundary, and the unpushed commits before it
