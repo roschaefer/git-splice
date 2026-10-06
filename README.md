@@ -127,10 +127,10 @@ Everything else follows from two rules:
    default branch, it syncs with the upstream's default branch, whatever
    its name ([example](test/scenarios/default-branch/README.md)).
 
-[The design](docs/design/README.md) explains the model, how it
-[compares](docs/design/README.md#how-it-compares) to `git submodule`,
-`git subtree`, git-subrepo, Josh, Copybara and others, and its
+[The design](docs/design/README.md) explains the model and its
 [limits](docs/design/README.md#limits).
+[Comparisons](test/comparisons/README.md) shows how it compares to
+`git submodule`, `git subtree`, git-subrepo, Josh, Copybara and others.
 
 ## Getting started
 

@@ -1,22 +1,15 @@
 # Third-party tools
 
-Tools outside Git that also keep a library's files in a monorepo folder
-and sync them with the library's own repository. They run on the same
-library and monorepo as [`git submodule` and `git subtree`](../README.md),
-at the version the page prints.
+Tools outside Git that also keep a library in a monorepo folder, or move
+changes between a monorepo and other repositories. The pages run on the
+same library and monorepo as [`git submodule` and `git subtree`](../README.md).
+A page that runs the tool prints its version.
 
-- [git-subrepo](git-subrepo.md): like a splice, the folder's files are
-  ordinary monorepo files and every pull is one commit, so the history
-  stays linear. But a folder syncs with one upstream branch whatever the
-  monorepo's branch, every push writes a monorepo commit, and after a
-  squash merge or rebase the next push stops until `.gitrepo` is fixed
-  by hand.
+## How it compares
 
-| | git-subrepo | `git splice` |
+| Tool | What is similar | Key difference |
 | --- | --- | --- |
-| Monorepo history | linear | linear |
-| Commits per sync | one per pull, one per push | one per pull |
-| Upstream branch | the one in `.gitrepo`, for every monorepo branch | the monorepo branch's name |
-| Sync point | a monorepo commit, stored in `.gitrepo` | derived: the newest commit that changed `.splice` |
-| After a squash merge | push stops until `.gitrepo` is fixed by hand | push works |
-| After rebasing pushed commits | push stops until `.gitrepo` is fixed by hand | diverged, `push --force` as with Git |
+| [git-subrepo](https://github.com/ingydotnet/git-subrepo) | It has a committed state file, fetches by URL and pulls as one commit. | It stores a monorepo commit that rebases and squash merges can invalidate, and fixes each folder to one upstream branch. ([in depth](git-subrepo.md)) |
+| [splitsh-lite](https://github.com/splitsh/lite) | It publishes folders as repositories. | It creates read-only mirrors; changes only flow out. |
+| [Josh](https://github.com/josh-project/josh) | It exposes part of a monorepo as a repository. | The monorepo remains authoritative, and contributors work through filtered views of it. |
+| [Copybara](https://github.com/google/copybara) | It moves changes between repositories. | One repository is the source of truth; syncing back needs a separate reverse workflow ([in depth](copybara.md)). |

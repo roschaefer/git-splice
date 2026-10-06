@@ -279,3 +279,14 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
   shows every push, and a squash merge or rebase can strand that record.
   A splice's push writes nothing to the monorepo; `.splice` changes on
   `clone` and `pull` only.
+
+## In short
+
+| | git-subrepo | `git splice` |
+| --- | --- | --- |
+| Monorepo history | linear | linear |
+| Commits per sync | one per pull, one per push | one per pull |
+| Upstream branch | the one in `.gitrepo`, for every monorepo branch | the monorepo branch's name |
+| Sync point | a monorepo commit, stored in `.gitrepo` | derived: the newest commit that changed `.splice` |
+| After a squash merge | push stops until `.gitrepo` is fixed by hand | push works |
+| After rebasing pushed commits | push stops until `.gitrepo` is fixed by hand | diverged, `push --force` as with Git |
