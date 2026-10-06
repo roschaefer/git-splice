@@ -127,25 +127,26 @@ $ git subrepo push vendor/lib
 Subrepo 'vendor/lib' pushed to 'https://git.example.com/lib.git' (main).
 ```
 
-`--branch` pushes to another upstream branch. After a push, it needs a `fetch`
-first, or it fails with "Local repository does not contain" the commit it
-pushed:
+`--branch` pushes to another upstream branch, and `--update` writes it
+into `.gitrepo`. After a push, it needs a `fetch` first, or it fails with
+"Local repository does not contain" the commit it pushed:
 
 ```scrut
-$ echo "fix 3" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 3" && git subrepo fetch vendor/lib && git subrepo push --branch feature vendor/lib
+$ echo "fix 3" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 3" && git subrepo fetch vendor/lib && git subrepo push --branch feature --update vendor/lib
 Fetched 'vendor/lib' from 'https://git.example.com/lib.git' (main).
 Subrepo 'vendor/lib' pushed to 'https://git.example.com/lib.git' (feature).
 ```
 
-It also writes the branch into `.gitrepo`, so the feature branch now syncs
-with the upstream branch `feature`:
+So the feature branch now syncs with the upstream branch `feature`.
+(0.4.9 writes the branch even without `--update`,
+[git-subrepo#313](https://github.com/ingydotnet/git-subrepo/issues/313).)
 
 ```scrut
 $ git config --file vendor/lib/.gitrepo subrepo.branch
 feature
 ```
 
-## The sync point is a monorepo commit
+## The last sync is a stored monorepo commit
 
 The feature branch is done and squash-merged into `main`, as a pull
 request would be:
@@ -238,10 +239,12 @@ $ echo "fix 3" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 3" && git 
 ok   vendor/lib: pushed 79da5cd to feature
 ```
 
-After the squash merge, `main` syncs with the upstream branch `main` again. The
-sync point is the newest commit that changed `.splice`, the `clone`, and
-a squash merge can't drop it. So the next push sends the squashed commit
-and the new one:
+After the squash merge, `main` syncs with the upstream branch `main` again.
+A push starts from the boundary, the newest commit that changed `.splice`,
+here the `clone`. It's derived from the history rather than stored, so a
+squash merge can't drop it, and the sync point, the upstream commit in
+`.splice`, still names a commit upstream has. So the next push sends the
+squashed commit and the new one:
 
 ```scrut
 $ git switch -q main && git merge -q --squash feature && git commit -q -m "feature (squashed)"
@@ -354,7 +357,8 @@ ok   vendor/lib -> main (up to date)
 | Monorepo history | linear | linear |
 | Commits per sync | one per pull, one per push | one per pull |
 | Upstream branch | the one in `.gitrepo`, for every monorepo branch | the monorepo branch's name |
-| Sync point | a monorepo commit, stored in `.gitrepo` | derived: the newest commit that changed `.splice` |
+| Sync point, the upstream commit last synced | `commit` in `.gitrepo`, written on clone, pull and push | `commit` in `.splice`, written on clone and pull |
+| Where the last sync is in the monorepo | `parent` in `.gitrepo`, a stored commit | the boundary, derived: the newest commit that changed `.splice` |
 | After a squash merge | push stops until `.gitrepo` is fixed by hand | push works |
 | After rebasing pushed commits | push stops until `.gitrepo` is fixed by hand | diverged, `push --force` as with Git |
 | Fetched refs keyed by | folder path | upstream URL |
