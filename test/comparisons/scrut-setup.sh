@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Sourced by the hidden first scrut block of each comparison in this
-# folder; see `just docs-check`.
+# folder and in third-party/; see `just docs-check`.
 #
 # Builds, in the scrut work directory:
 #   upstream/lib.git  a library with 30 commits by three developers

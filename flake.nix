@@ -147,6 +147,8 @@
             # Renders the walkthrough chapters in the walkthrough shell.
             pkgs.glow
             scrut
+            # Runs in the git-subrepo comparison, test/comparisons/third-party/.
+            pkgs.git-subrepo
             # Builds the documentation site in website/.
             pkgs.nodejs
             pkgs.pnpm

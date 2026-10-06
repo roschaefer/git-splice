@@ -25,8 +25,10 @@ also says where it is the better tool.
 | Second worktree | initialize again, `submodule.*` settings shared, can't be moved | works | works |
 | Best for | libraries kept apart, with their own access | moving a repository in for good, history included | changing a library in the monorepo and sending the changes back |
 
-The [design](../../docs/design/README.md#how-it-compares) compares more
-tools in short.
+[Third-party tools](third-party/README.md) compares tools outside Git the
+same way, starting with git-subrepo. The
+[design](../../docs/design/README.md#how-it-compares) compares more tools
+in short.
 
 ## The output is real
 
