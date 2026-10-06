@@ -42,7 +42,8 @@ setup() {
   cd "$monorepo"
   local before
   before="$(git rev-parse HEAD)"
-  cmd_push vendor/a
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
   [ "$(git rev-parse HEAD)" = "$before" ]
   [ -z "$(git status --porcelain)" ]
   [ -z "$(git remote)" ]
@@ -61,7 +62,8 @@ setup() {
 @test "push: then pushing again has nothing to do" {
   scenario_pushed_then_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  cmd_push vendor/a
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
   run cmd_push vendor/a
   [[ "$output" == *"vendor/a: nothing to push"* ]]
 }
