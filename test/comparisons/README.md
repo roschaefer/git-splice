@@ -12,7 +12,10 @@ also says where it is the better tool.
   shares the monorepo's `submodule.*` settings for them.
 - [`git subtree`](git-subtree.md): either the library's whole history
   comes into the monorepo, or `split` walks the monorepo's whole history
-  on every push. Either way, the history isn't linear.
+  on every push. Either way, the history isn't linear. A splice's sync
+  point survives a [squash merge](../scenarios/squash-merged-pull/README.md),
+  and a [merge in the monorepo](../scenarios/merge-in-monorepo/README.md)
+  reaches the upstream as one commit.
 
 | | `git submodule` | `git subtree` | `git splice` |
 | --- | --- | --- | --- |
@@ -25,8 +28,8 @@ also says where it is the better tool.
 | Second worktree | initialize again, `submodule.*` settings shared, can't be moved | works | works |
 | Best for | libraries kept apart, with their own access | moving a repository in for good, history included | changing a library in the monorepo and sending the changes back |
 
-The [design](../../docs/design/README.md#how-it-compares) compares more
-tools in short.
+[Third-party tools](third-party/README.md) compares git-subrepo,
+splitsh-lite, Josh and Copybara.
 
 ## The output is real
 
