@@ -201,3 +201,12 @@ a subfolder's. Upstreams are fetched and pushed by URL, from the committed
 
 What remains is typing an upstream's URL into a plain `git push` by hand,
 which is hard to do by accident.
+
+`git splice push` itself can publish too much on a smaller scale: it sends
+the history the rebuild assigns to the folder. So the rebuild leaves out
+what never belonged to the splice. A folder's history from before it got
+its `.splice` stays in the monorepo
+([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)),
+and history that shares no commit with the upstream isn't joined to it,
+e.g. after two splices swapped paths
+([#73](https://github.com/roschaefer/git-splice/issues/73)).
