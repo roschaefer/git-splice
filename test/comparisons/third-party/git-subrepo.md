@@ -273,8 +273,9 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
 
 Both tools keep what they fetched under refs of their own. git-subrepo
 keys them by the folder's path, `refs/subrepo/<path>/`; git-splice by the
-upstream's URL, `refs/splices/<URL>/-/<branch>`. They differ when another
-branch uses the same folder for another upstream, here a second library:
+upstream, `refs/splices/<key>/<branch>`, with one key per URL. They differ
+when another branch uses the same folder for another upstream, here a
+second library:
 
 ```scrut
 $ git init -q -b main ../other && echo "other" >../other/README && git -C ../other add README && git -C ../other commit -q -m "other library" && git init -q --bare "$COMPARISON/upstream/other.git" && git -C ../other push -q https://git.example.com/other.git main
@@ -322,9 +323,9 @@ Each upstream has its own refs, so `main`'s are untouched:
 
 ```scrut
 $ git for-each-ref --format='%(refname) %(subject)' refs/splices
-refs/splices/https%3A/%/git.example.com/lib.git/-/feature fix 3
-refs/splices/https%3A/%/git.example.com/lib.git/-/main fix 4
-refs/splices/https%3A/%/git.example.com/other.git/-/main other library
+refs/splices/lib/feature fix 3
+refs/splices/lib/main fix 4
+refs/splices/other/main other library
 ```
 
 ```scrut
