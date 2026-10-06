@@ -24,14 +24,12 @@ declare -ga EXTRA_FLAGS=()
 # Name of the state file inside every splice folder.
 STATE_FILE=.splice
 
-# Prints the first state file in upstream commit <commit>, at its root or
-# deeper, e.g. because the upstream uses git splice itself. Fails if there
-# is none. Bringing one in would replace the splice's own, or nest a splice
-# inside it, and every command refuses nested splices.
-upstream_state_file() {
-  local file
-  IFS= read -r -d '' file < <(state_files "$1") || return 1
-  printf '%s\n' "$file"
+# Succeeds if upstream commit <commit> has a state file at its root:
+# bringing it in would replace the splice's own. Deeper ones are nested
+# splices, e.g. because the upstream uses git splice itself: they come
+# along with the content and are splices in the monorepo from then on.
+upstream_has_state_file() {
+  git cat-file -e "$1:$STATE_FILE" 2>/dev/null
 }
 
 # Prints every state file in commit <commit>, at any depth, NUL-separated.
@@ -160,11 +158,12 @@ has_flag() {
   return 1
 }
 
-# Populates ALL_PATHS from every */.splice file committed in HEAD. This
-# *is* the whole discovery mechanism: a folder with a committed .splice is a
-# splice. Committed, not staged: every command reads a splice's state from
-# HEAD, so a staged .splice isn't one yet, and a staged deletion doesn't end
-# one.
+# Populates ALL_PATHS from every */.splice file committed in HEAD, at any
+# depth. This *is* the whole discovery mechanism: a folder with a committed
+# .splice is a splice, also inside another splice, whose push then
+# publishes the inner .splice with the rest of its content. Committed, not
+# staged: every command reads a splice's state from HEAD, so a staged
+# .splice isn't one yet, and a staged deletion doesn't end one.
 discover_splices() {
   ALL_PATHS=()
   local file path
@@ -179,13 +178,6 @@ discover_splices() {
   for path in "${ALL_PATHS[@]}"; do
     load_splice_upstream "$path"
   done
-
-  local other
-  for path in "${ALL_PATHS[@]}"; do
-    if other="$(overlapping_splice "$path")"; then
-      die "nested splices are not supported: '$path' and '$other' overlap -- remove one of their $STATE_FILE files"
-    fi
-  done
 }
 
 # Succeeds if <path> would be valid in a ref name: no spaces, "..", or a
@@ -194,20 +186,6 @@ discover_splices() {
 # every command is tested with the others.
 usable_splice_path() {
   git check-ref-format "refs/splices/$1/branch"
-}
-
-# Prints the first splice in ALL_PATHS nested inside, or containing, $1.
-# Nested splices are refused: the outer one's push would publish the inner
-# one.
-overlapping_splice() {
-  local name="$1" path
-  for path in "${ALL_PATHS[@]}"; do
-    if [[ "$path" == "$name"/* || "$name" == "$path"/* ]]; then
-      printf '%s\n' "$path"
-      return 0
-    fi
-  done
-  return 1
 }
 
 is_splice_path() {

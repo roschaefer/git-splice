@@ -42,11 +42,8 @@ cmd_init() {
   require_head_commit
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
   discover_splices
-  local other heads
+  local heads
   is_splice_path "$path" && die "$path is a splice already"
-  if other="$(overlapping_splice "$path")"; then
-    die "nested splices are not supported: '$path' and '$other' overlap"
-  fi
   [[ -n "$(folder_tree HEAD "$path")" ]] ||
     die "$path: no committed folder here -- to splice in an existing repository, use 'git splice clone'"
   [[ ! -e "$path/$STATE_FILE" && ! -L "$path/$STATE_FILE" ]] || die "$path/$STATE_FILE exists, but isn't committed -- remove it or commit it"

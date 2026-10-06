@@ -54,10 +54,10 @@ merge_one() {
 
   # The merge base is the newest upstream commit both sides contain: the
   # synced commit, or a later one this branch pushed since.
-  local target merge_base base_folder base_blob new_blob nested
+  local target merge_base base_folder base_blob new_blob
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
-  if nested="$(upstream_state_file "$target")"; then
-    log_err "$path: upstream has $nested, and a splice can't contain another $STATE_FILE -- nested splices are not supported"
+  if upstream_has_state_file "$target"; then
+    log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
     return 1
   fi
   merge_base="$(git merge-base "$SPLICE_REBUILT" "$target")"
@@ -73,15 +73,33 @@ merge_one() {
   log_ok "$path: $(past_tense "$verb") ${target:0:7}"
 }
 
-# Merges every given path, stopping at the first one that leaves a conflict:
-# another cherry-pick can't start before it's resolved. `verb` as for
-# merge_one. Exits 1 if anything was skipped or failed.
-merge_paths() {
-  local branch="$1" verb="$2" path failures=() skipped=()
-  shift 2
+# Prints splice paths $@ one per line, each after every splice it's nested
+# in, and otherwise in the order given. (A path in a ref name has no
+# newline.)
+outer_splices_first() {
+  local path slashes
   for path in "$@"; do
+    slashes="${path//[^\/]/}"
+    printf '%d\t%s\n' "${#slashes}" "$path"
+  done | sort -s -n -k1,1 | cut -f2-
+}
+
+# Merges every given path, stopping at the first one that leaves a conflict:
+# another cherry-pick can't start before it's resolved. An outer splice
+# goes before the ones nested in it, whose synced commit its pull may move.
+# `verb` as for merge_one. Exits 1 if anything was skipped or failed.
+merge_paths() {
+  local branch="$1" verb="$2" path paths=() failures=() skipped=()
+  shift 2
+  mapfile -t paths < <(outer_splices_first "$@")
+  for path in "${paths[@]}"; do
     if splice_in_progress; then
       skipped+=("$path")
+      continue
+    fi
+    # A pull of a splice this one is nested in may have removed it.
+    if ! git cat-file -e "HEAD:$path/$STATE_FILE" 2>/dev/null; then
+      log_ok "$path: not a splice any more -- nothing to $verb"
       continue
     fi
     merge_one "$path" "$branch" "$verb" || failures+=("$path")

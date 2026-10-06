@@ -27,12 +27,11 @@ setup() {
   [ ${#ALL_PATHS[@]} -eq 0 ]
 }
 
-@test "discover_splices refuses nested splices" {
+@test "discover_splices finds a splice nested in another" {
   scenario_nested_splices "$monorepo" "$upstream"
   cd "$monorepo"
-  run discover_splices
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"nested splices are not supported: 'vendor/pkg' and 'vendor/pkg/extra' overlap"* ]]
+  discover_splices
+  [ "${ALL_PATHS[*]}" = "vendor/a vendor/a/b" ]
 }
 
 @test "discover_splices: a file name with a newline doesn't make a splice" {

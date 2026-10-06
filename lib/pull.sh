@@ -6,11 +6,23 @@ usage: git splice pull (<path>... | --all)
 
 'git splice fetch' followed by 'git splice merge': fetches the splices'
 upstreams in parallel, then splices their changes in, as one ordinary
-commit per splice.
+commit per splice. Also fetches the splices nested in each: pulling a
+splice can move their synced commits.
 
 On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 --abort' to give up), then re-run pull for any splices left.
 EOF
+}
+
+# Succeeds if splice <path> is nested in one in SELECTED_PATHS, but isn't
+# selected itself.
+nested_in_selected() {
+  local selected nested=""
+  for selected in "${SELECTED_PATHS[@]}"; do
+    [[ "$1" != "$selected" ]] || return 1
+    [[ "$1" != "$selected"/* ]] || nested=1
+  done
+  [[ -n "$nested" ]]
 }
 
 cmd_pull() {
@@ -20,13 +32,18 @@ cmd_pull() {
   discover_splices
   select_paths explicit pull
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
-  local branch i fetched=()
+  local branch i path fetched=() fetch_paths=("${SELECTED_PATHS[@]}")
   branch="$(current_branch)"
 
-  fetch_all_parallel "$branch" "${SELECTED_PATHS[@]}"
-  for i in "${!SELECTED_PATHS[@]}"; do
+  for path in "${ALL_PATHS[@]}"; do
+    nested_in_selected "$path" && fetch_paths+=("$path")
+  done
+  fetch_all_parallel "$branch" "${fetch_paths[@]}"
+  for i in "${!fetch_paths[@]}"; do
     print_fetch_output "$i"
-    fetch_failed_for_path "${SELECTED_PATHS[$i]}" || fetched+=("${SELECTED_PATHS[$i]}")
+  done
+  for path in "${SELECTED_PATHS[@]}"; do
+    fetch_failed_for_path "$path" || fetched+=("$path")
   done
 
   local status=0

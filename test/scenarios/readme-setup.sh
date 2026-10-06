@@ -16,12 +16,12 @@ export UPSTREAM
 source "$(dirname "${BASH_SOURCE[0]}")/../helpers/fixtures.bash"
 
 # Runs scenario function $1 from the README's setup.bash, the function the
-# bats tests call too, and cds into the monorepo it built. The upstream is
-# the bare repository $UPSTREAM.
+# bats tests call too, with any further arguments, and cds into the
+# monorepo it built. The upstream is the bare repository $UPSTREAM.
 build_scenario() {
   # shellcheck disable=SC1091
   source "$TESTDIR/setup.bash"
-  "$1" "$PWD/monorepo" "$UPSTREAM" >/dev/null 2>&1 || return
+  "$1" "$PWD/monorepo" "$UPSTREAM" "${@:2}" >/dev/null 2>&1 || return
   cd monorepo || return
   scenario_built=1
 }

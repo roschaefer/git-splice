@@ -52,8 +52,8 @@ as upstream commits. Changes cross the boundary; commits do not.
 - **Name the target when writing, show everything when looking.** Commands
   that change the monorepo or an upstream need a path or `--all`.
   Commands that only look cover every splice.
-- **Refuse rather than guess.** With unrelated histories, nested splices,
-  or a path that can't be a ref name, the tool stops and says what to do.
+- **Refuse rather than guess.** With unrelated histories, or a path that
+  can't be a ref name, the tool stops and says what to do.
 - **Weigh every fix against its complexity.** An easy, safe fix goes in.
   A rare case gets documented, or an issue labelled
   [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22). An extreme one is ignored.
@@ -171,11 +171,13 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   instead, so rebases and squash merges can't break it.
 - **It stores no path.** The folder that contains it is the splice, and it
   moves along with `git mv`. Discovery reads every `*/.splice` committed in
-  `HEAD`, not the index: a staged `.splice` isn't a splice yet.
-- **It's never pushed upstream.** The rebuild drops the entry at the
-  splice's root from every tree it exports; a pull adds it back. Build or
-  package globs in the monorepo do see it, which is fine: the name clashes
-  with no known configuration file.
+  `HEAD`, at any depth, not the index: a staged `.splice` isn't a splice
+  yet.
+- **A splice's own push never sends it.** The rebuild drops the entry at
+  the splice's root from every tree it exports; a pull adds it back. The
+  `.splice` of a nested splice is content of the outer one, and its push
+  sends it (see below). Build or package globs in the monorepo do see it,
+  which is fine: the name clashes with no known configuration file.
 - **Its `default-branch`** is looked up once, by `clone` and `init`, and
   recorded only when it differs. That keeps it stable if upstream later
   renames its default branch, and visible to anyone wondering why `main`
@@ -263,10 +265,14 @@ folder:
 
 Two rules follow from the layout:
 
-- **No nested splices.** The outer splice's push would publish the inner
-  one. Discovery, `clone`
-  and `init` refuse them, and `clone` and `merge` refuse an upstream that
-  contains a `.splice` of its own.
+- **A splice nested in another is a splice on both sides.** Each push
+  sends its folder without its own `.splice`, so the outer splice's push
+  sends the inner one's `.splice` along with its files. In the outer
+  upstream, the inner folder is then a splice too, which `git splice` can
+  pull and push there. The `.splice` holds nothing specific to the
+  monorepo, and fetched refs are keyed by URL, so both repositories find
+  the same synced commit under the same refs. An upstream with a `.splice`
+  at its root is refused: it would replace the splice's own.
 - **A splice's path must work in a ref name** (`git check-ref-format`),
   which applies to the whole path: no spaces, no component ending in
   `.lock`, and so on.
@@ -341,6 +347,16 @@ spares the merge from replaying changes upstream already has.
   you ran `merge`, so `merge` names both commands when it stops.
 - **base and theirs are never referenced** and get garbage-collected. Upstream
   commits stay in `refs/splices/` and never become ancestors of HEAD.
+- **Nested splices:** a pull of the outer splice brings in the inner
+  `.splice` as the outer upstream has it, and becomes the inner splice's
+  boundary. If the outer upstream moved the inner splice's synced commit,
+  the rebuild joins the inner splice's unpushed commits with the new one,
+  as after a pull of a divergence. `pull` fetches nested splices too, so
+  their new synced commit is there. `merge` and `pull` take an outer
+  splice before the ones nested in it: pulling the inner splice first, to
+  a commit newer than the outer upstream's, would make the outer pull
+  conflict. An outer pull that removed the inner `.splice` ends the inner
+  splice, and the inner pull is skipped.
 
 ### Splicing out: `push` and the rebuild
 
@@ -444,8 +460,13 @@ rebuilding.
 
 These are known and accepted, each to keep the design simple:
 
-- **Nested splices**, including an upstream that contains a `.splice`, are
-  refused (see above).
+- **A nested splice pulled on both sides:** if the monorepo and the outer
+  upstream each pull the inner splice, the next pull of the outer one
+  conflicts in the inner folder, since each side brought in a different
+  upstream commit. If the monorepo has no unpushed changes there, keep the
+  outer upstream's side: `git checkout --theirs -- <outer>/<inner>`, then
+  `git add` and `git commit`. Pushing the outer splice right after pulling
+  the inner one avoids the conflict.
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
 - **Moving a splice with unpushed changes:** the `git mv` commit changes
   `.splice`, so it becomes the boundary, and the unpushed commits before it
