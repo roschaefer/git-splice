@@ -75,9 +75,9 @@ monorepo's history, two in the upstream's, and one is computed:
 | | Commit | Lives in |
 |---|---|---|
 | **B** | The boundary: the newest commit on the monorepo's first-parent history that changed `.splice`. Usually the last `clone`, `init`, `merge` or `pull`, but any commit that changes `.splice` counts, e.g. a `git mv` of the folder, or a squash merge of a branch that pulled. | the monorepo |
-| **U** | The synced commit: the upstream commit the folder matched at B, recorded in `.splice`. | the upstream |
-| **T** | *Theirs*: the upstream branch, as last fetched to `refs/splices/`. | the upstream |
-| **R** | The rebuild, *ours* to compare with T: the monorepo's commits since B that change the folder, rebuilt as upstream commits on top of U. If B's folder differs from U, after a pull that merged a divergence, the commits before B are rebuilt too, and joined with U by a merge; without a U, after `init`, the folder's whole history is. It's what `push` sends, so it lives upstream only after a push. | neither, until pushed |
+| **U** | The synced commit: the upstream commit last spliced in, recorded in `.splice` at B. B's folder has U's content, plus any local changes a pull kept when it merged a divergence. | the upstream |
+| **T** | *Theirs*: the upstream branch in `refs/splices/`, as of the last fetch or push. | the upstream |
+| **R** | The rebuild, *ours* to compare with T: the monorepo's commits since B that change the folder, rebuilt as upstream commits on top of U. If B's folder differs from U, after a pull that merged a divergence, the commits before B are rebuilt too, and joined with U by a merge; without a U, after `init`, the folder's whole history is. It's what `push` sends. Computed by every command; its commits are upstream already where nothing changed since they were pushed or pulled, e.g. R = U when no commit changed the folder since B. | computed |
 
 For `vendor/pkg-a` in the sandbox:
 
