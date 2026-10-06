@@ -93,8 +93,11 @@ _git_splice() {
 
   cmd="${COMP_WORDS[start]}"
   case "$cmd" in
-    fetch | log)
+    fetch)
       __git_splice_paths_or_options "$cur" -h --help
+      ;;
+    log)
+      __git_splice_paths_or_options "$cur" --graph -h --help
       ;;
     merge | pull)
       __git_splice_paths_or_options "$cur" --all -h --help
