@@ -120,15 +120,18 @@ split() {
   [ "$(rebuild_splice vendor/a HEAD^)" = "$(splice_config vendor/a commit)" ]
 }
 
-@test "rebuild: without a synced commit (after init), rebuilds the folder's whole history" {
+@test "rebuild: after init, the history starts at the init commit: earlier commits aren't published" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   printf '[upstream "origin"]\n\turl = %s\n' "$upstream" >lib/a/.splice
   git add lib/a/.splice
   git commit -q -m "init lib/a"
+  commit_local "$monorepo" lib/a "third version"
   local rebuilt
   rebuilt="$(rebuild_splice lib/a)"
-  [ "$(git log --format=%s "$rebuilt")" = "second version"$'\n'"first version" ]
+  [ "$(git log --format=%s "$rebuilt")" = "third version"$'\n'"init lib/a" ]
+  content_tree "HEAD~1" lib/a
+  [ "$(git rev-parse "$rebuilt~1^{tree}")" = "$CONTENT_TREE" ]
   [ -z "$(git rev-parse "$rebuilt~1^@")" ]
 }
 
@@ -177,6 +180,49 @@ split() {
   rebuilt="$(rebuild_splice vendor/a)"
   [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
   [ "$(git rev-parse "$rebuilt^")" = "$(git rev-parse "$(upstream_refs "$upstream")feature")" ]
+}
+
+# Two splices with their own upstreams, vendor/a and vendor/b, each with
+# an unpushed commit.
+two_splices_ahead() {
+  make_bare_repo "$BATS_TEST_TMPDIR/a.git"
+  seed_bare_repo "$BATS_TEST_TMPDIR/a.git" "seed a"
+  make_bare_repo "$BATS_TEST_TMPDIR/b.git"
+  seed_bare_repo "$BATS_TEST_TMPDIR/b.git" "seed b"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$BATS_TEST_TMPDIR/a.git" vendor/a
+  add_splice "$monorepo" "$BATS_TEST_TMPDIR/b.git" vendor/b
+  commit_local "$monorepo" vendor/a "not for b's upstream" a.txt
+  commit_local "$monorepo" vendor/b "unpushed in b" b.txt
+}
+
+@test "rebuild: two splices that swap paths don't get each other's history" {
+  two_splices_ahead
+  cd "$monorepo"
+  git mv vendor/a tmp
+  git mv vendor/b vendor/a
+  git mv tmp vendor/b
+  git commit -q -m "swap a and b"
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  # b's unpushed commit is folded into the swap: the rebuild doesn't
+  # follow moves yet (#4). But nothing of a's reaches b's upstream.
+  [ "$(git log --format=%s "$rebuilt")" = "swap a and b"$'\n'"seed b" ]
+  content_tree HEAD vendor/a
+  [ "$(git rev-parse "$rebuilt^{tree}")" = "$CONTENT_TREE" ]
+}
+
+@test "rebuild: a splice moved onto a folder that wasn't one doesn't get that folder's history" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  commit_local "$monorepo" internal "not for any upstream" secret.txt
+  cd "$monorepo"
+  git mv internal tmp
+  git mv vendor/a internal
+  git mv tmp vendor/a
+  git commit -q -m "swap internal and vendor/a"
+  local rebuilt
+  rebuilt="$(rebuild_splice internal)"
+  [ "$(git log --format=%s "$rebuilt")" = "swap internal and vendor/a"$'\n'"seed" ]
 }
 
 @test "rebuild: a synced commit that isn't available locally is an error" {

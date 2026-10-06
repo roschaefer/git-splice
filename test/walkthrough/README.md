@@ -345,7 +345,8 @@ ok   vendor/pkg-b -> main (up to date)
 ## init
 
 `libs/c` grew inside the monorepo. `init` makes it a splice of the new,
-empty `lib-c.git`; the first push publishes its history.
+empty `lib-c.git`; the first push publishes it as one commit, the init
+commit. Its history before that stays in the monorepo.
 
 ```scrut
 $ git splice init libs/c https://git.example.com/lib-c.git
@@ -355,10 +356,10 @@ ok   libs/c: initialized -- 'git splice push libs/c' publishes it
 ```scrut
 $ git splice push libs/c
 ??   libs/c: upstream has no 'main' branch yet -- this push creates it
-ok   libs/c: pushed 57c40bc to main
+ok   libs/c: pushed 9dc1e6a to main
 ```
 
 ```scrut
 $ git -C "$WALKTHROUGH/upstream/lib-c.git" log --format=%s main
-lib-c: first version
+splice: init libs/c
 ```
