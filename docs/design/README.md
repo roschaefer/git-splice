@@ -93,8 +93,8 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
 | **synced commit** (U) | The upstream commit whose content the splice last matched, recorded in `.splice`. |
 | **boundary** (B) | The newest first-parent commit in the monorepo that changed `<path>/.splice`. Derived, never stored. |
-| **rebuild** (R) | The upstream history that the monorepo's commits since B turn into. What `push` sends. |
-| **upstream branch** (T) | `refs/splices/<key>/<branch>`: the upstream branch as last fetched, under the upstream's key. |
+| **rebuild** (R) | The upstream history that the monorepo's commits since B turn into. What `push` sends. It's *ours* in the upstream's history, where `status`, `diff`, `log` and `push` compare the two sides. In the monorepo's history, *ours* is HEAD, and R is derived from it. |
+| **upstream branch** (T, for *theirs*) | `refs/splices/<key>/<branch>`: the upstream branch as last fetched, under the upstream's key. The other side of every comparison with R. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
 | **splice in** | Bring upstream content into the monorepo: `clone`, `merge`, `pull`. |
 | **splice out** | Publish the monorepo's changes upstream: `push`. |
@@ -323,11 +323,11 @@ explicitly:
    (`reroot_tree`, using a temporary index):
    - **base:** HEAD's tree, with `<path>/` replaced by the merge base's
      tree and HEAD's `.splice`.
-   - **T:** HEAD's tree, with `<path>/` replaced by the upstream branch's
-     tree and a `.splice` that records its commit. T's parent is base.
-2. Run `git cherry-pick T`. That's a three-way merge with base as the merge
-   base, HEAD as ours and T as theirs. Only `<path>/` differs between base
-   and T, so only the splice can conflict. Local edits are kept, and the
+   - **theirs:** HEAD's tree, with `<path>/` replaced by the upstream branch's
+     tree and a `.splice` that records its commit. Its parent is base.
+2. Run `git cherry-pick theirs`. That's a three-way merge of HEAD (ours)
+   and theirs, with base as the merge base. Only `<path>/` differs between
+   base and theirs, so only the splice can conflict. Local edits are kept, and the
    `.splice` update comes along in the same commit. Git's ort merge does
    the work, including rename detection.
 
@@ -339,7 +339,7 @@ spares the merge from replaying changes upstream already has.
   cherry-pick and keeps the prepared message. Abort with
   `git cherry-pick --abort`. `git status` says "cherry-picking" although
   you ran `merge`, so `merge` names both commands when it stops.
-- **base and T are never referenced** and get garbage-collected. Upstream
+- **base and theirs are never referenced** and get garbage-collected. Upstream
   commits stay in `refs/splices/` and never become ancestors of HEAD.
 
 ### Splicing out: `push` and the rebuild

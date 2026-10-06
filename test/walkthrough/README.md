@@ -76,8 +76,8 @@ monorepo's history, two in the upstream's, and one is computed:
 |---|---|---|
 | **B** | The boundary: the newest commit on the monorepo's first-parent history that changed `.splice`, i.e. the last `clone`, `init`, `merge` or `pull`. | the monorepo |
 | **U** | The synced commit: the upstream commit the folder matched at B, recorded in `.splice`. | the upstream |
-| **T** | The upstream branch, as last fetched to `refs/splices/`. | the upstream |
-| **R** | The rebuild: the monorepo's commits since B that change the folder, rebuilt as upstream commits on top of U. It's what `push` sends, so it lives upstream only after a push. | neither, until pushed |
+| **T** | *Theirs*: the upstream branch, as last fetched to `refs/splices/`. | the upstream |
+| **R** | The rebuild, *ours* to compare with T: the monorepo's commits since B that change the folder, rebuilt as upstream commits on top of U. It's what `push` sends, so it lives upstream only after a push. | neither, until pushed |
 
 For `vendor/pkg-a` in the sandbox:
 
