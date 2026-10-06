@@ -59,13 +59,22 @@ have a commit the other lacks, and U is where they part:
 ```text
       monorepo, newest first                 pkg-a.git, newest first
 
-      * pkg-a: a local fix               R   o | pkg-a: a local fix
-                                         T   | * pkg-a: an upstream fix
+      * pkg-a: a local fix               R   < | pkg-a: a local fix
+                                         T   | > pkg-a: an upstream fix
   B   = splice: pull vendor/pkg-a            |/
           (folder = U)                   U   * pkg-a: a second commit, after the clone
 ```
 
-`<` marks R's side, `>` T's side.
+`log --graph` draws that right-hand side:
+
+```scrut
+$ git splice log --graph
+===  vendor/pkg-a (main)
+< 2d02eb8 (R) pkg-a: a local fix  (Walkthrough <walkthrough@example.com>)
+| > 4527a78 (T) pkg-a: an upstream fix  (Walkthrough <walkthrough@example.com>)
+|/  
+o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
+```
 
 ## Pull first
 
@@ -123,16 +132,29 @@ plain `git pull` would have:
 ```text
       monorepo, newest first                 pkg-a.git, newest first
 
-  B   = splice: pull vendor/pkg-a        R   o   splice: pull vendor/pkg-a from main at 4527a78
+  B   = splice: pull vendor/pkg-a        R   <   splice: pull vendor/pkg-a from main at 4527a78
           (folder = U + local fix)           |\
-      * pkg-a: a local fix                   o | pkg-a: a local fix
+      * pkg-a: a local fix                   < | pkg-a: a local fix
       = splice: pull vendor/pkg-a        U = T | * pkg-a: an upstream fix
                                              |/
                                              * pkg-a: a second commit, after the clone
 ```
 
-T is an ancestor of R now, so the state is `push`, ahead by R's two `o`
-commits:
+T is an ancestor of R now, so the state is `push`, ahead by R's two `<`
+commits. `log --graph` draws them down to the commits they build on, T
+among them:
+
+```scrut
+$ git splice log --graph
+===  vendor/pkg-a (main)
+<   610288c (R) splice: pull vendor/pkg-a from main at 4527a78  (Walkthrough <walkthrough@example.com>)
+|\  
+< | 2d02eb8 pkg-a: a local fix  (Walkthrough <walkthrough@example.com>)
+| o 4527a78 (T) pkg-a: an upstream fix  (Walkthrough <walkthrough@example.com>)
+|/  
+o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
+```
+
 
 ```scrut
 $ git splice status

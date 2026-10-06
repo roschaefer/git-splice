@@ -13,7 +13,7 @@ Commands that only look cover every splice unless you name some. Run `git splice
 | `push <path>…` | Rebuilds the commits that changed each splice since the last sync and pushes them upstream. Writes nothing to the monorepo. |
 | `status [path…]` | Shows each splice's [sync state](sync-states.md), with how many commits `push` would publish and `pull` would bring in. |
 | `diff [--stat] [path…]` | Shows the file changes `push` would send; `--stat` summarizes them per file. |
-| `log [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors. |
+| `log [--graph] [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors; `--graph` draws both sides as a graph. |
 | `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<key>/`, under the upstream's key in this repository, e.g. `lib` for `https://github.com/x/lib.git`. |
 | `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. `--upstream` names the upstream, and can be left out while the splice has one. |
 

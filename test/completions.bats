@@ -61,6 +61,13 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: --graph only for log" {
+  run complete_words git-splice log --g
+  [ "$output" = "--graph" ]
+  run complete_words git-splice fetch --g
+  [ -z "$output" ]
+}
+
 @test "completion: push completes branches for '--base <value>', '--base=<value>' and '--base='" {
   run complete_words git-splice push --base ma
   [ "$output" = "main" ]
@@ -209,6 +216,12 @@ fish_complete() {
   [[ "$output" == *"main"* ]]
 }
 
+@test "zsh completion: log completes --graph" {
+  require_shell zsh
+  run zsh_complete "git-splice log --g"
+  [[ "$output" == *"--graph"* ]]
+}
+
 @test "fish completion: commands" {
   require_shell fish
   run fish_complete "git-splice pu"
@@ -255,6 +268,12 @@ fish_complete() {
   require_shell fish
   run fish_complete "git-splice push --base ma"
   [[ "$output" == *"main"* ]]
+}
+
+@test "fish completion: log completes --graph" {
+  require_shell fish
+  run fish_complete "git-splice log --g"
+  [ "$output" = "--graph" ]
 }
 
 @test "interactive bash: Tab completes a splice path" {

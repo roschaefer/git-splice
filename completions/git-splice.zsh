@@ -67,8 +67,11 @@ _git-splice() {
   shift words
   ((CURRENT--))
   case $cmd in
-    fetch | log)
+    fetch)
       _arguments '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      ;;
+    log)
+      _arguments '--graph[draw both sides as a graph]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     merge | pull)
       _arguments '--all[every splice]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'

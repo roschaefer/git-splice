@@ -84,7 +84,7 @@ For `vendor/pkg-a` in the sandbox:
 ```text
       monorepo, newest first                 pkg-a.git, newest first
 
-      . lib-c: first version             T   * pkg-a: a second commit, after the clone
+      . lib-c: first version             T   > pkg-a: a second commit, after the clone
   B   = splice: clone vendor/pkg-a           |
           (folder = U)                 U = R * pkg-a: seed
 ```
@@ -92,7 +92,9 @@ For `vendor/pkg-a` in the sandbox:
 On the left, as in the [README](../../README.md#the-solution), `=` marks
 the commits that change `.splice`, `*` those that change other files in
 the folder, whether or not they change files elsewhere too, and `.` those
-that don't touch the folder. Since B, no
+that don't touch the folder. On the right, as in `git splice log`, `<`
+marks R's commits that T lacks, `>` T's commits that R lacks, and `*` the
+commits both have. Since B, no
 commit changed the folder, so R has nothing to add to U: R = U. U is an
 ancestor of T, so the state is `pull: behind 1`, the commit between them.
 
@@ -119,10 +121,17 @@ $ git log --oneline splices/pkg-a/main
 9bb866a pkg-a: seed
 ```
 
-R has no command to show it yet
-([#54](https://github.com/roschaefer/git-splice/issues/54)). `log` shows
-the commits between R and T, in both directions, and `diff` the file
-changes `push` would send.
+R has no command of its own yet
+([#54](https://github.com/roschaefer/git-splice/issues/54)), but
+`log --graph` draws it together with T, labeled, down to the commit they
+build on, `o`. Here, that's R itself:
+
+```scrut
+$ git splice log --graph vendor/pkg-a
+===  vendor/pkg-a (main)
+> 703b936 (T) pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
+o 9bb866a (R) pkg-a: seed  (Walkthrough <walkthrough@example.com>)
+```
 
 ## clone
 
@@ -155,7 +164,8 @@ ok   vendor/pkg-b fetched (main moved 9b3cb02..b937c4f)
 ## log
 
 `log` shows the commits between each splice and its upstream branch: `>`
-for what a pull brings in, `<` for what a push publishes.
+for what a pull brings in, `<` for what a push publishes. `--graph` draws
+them as a graph, as [above](#b-u-t-and-r).
 
 ```scrut
 $ git splice log
@@ -261,13 +271,12 @@ $ git splice status vendor/pkg-a
 ok   vendor/pkg-a -> main (push: ahead 1)
 ```
 
-Now R has a commit of its own: the local fix, rebuilt on top of U. `o`
-marks a commit of R that isn't upstream yet:
+Now R has a commit of its own: the local fix, rebuilt on top of U:
 
 ```text
       monorepo, newest first                 pkg-a.git, newest first
 
-      * pkg-a: a local fix               R   o pkg-a: a local fix
+      * pkg-a: a local fix               R   < pkg-a: a local fix
       . splice: pull vendor/pkg-b            |
   B   = splice: merge vendor/pkg-a           |
           (folder = U)                 U = T * pkg-a: a second commit, after the clone

@@ -6,6 +6,7 @@ setup() {
   load 'scenarios/diverged-common-ancestor/setup'
   load 'scenarios/feature-branch-changed/setup'
   load 'scenarios/merge-in-monorepo/setup'
+  load 'scenarios/pull-ahead/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -56,4 +57,45 @@ setup() {
   run cmd_log
   [ "$status" -eq 0 ]
   [ -z "$output" ]
+}
+
+@test "log --graph: both sides part at the commit they build on, with R and T labeled" {
+  scenario_diverged_common_ancestor "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_log --graph
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "===  vendor/a (main)" ]
+  [[ "${lines[1]}" == "< "*" (R) local change  (Test <test@example.com>)" ]]
+  [[ "${lines[2]}" == "| > "*" (T) upstream change  (Test <test@example.com>)" ]]
+  [[ "${lines[3]}" == "|/"* ]]
+  [[ "${lines[4]}" == "o "* ]]
+  [[ "${lines[4]}" != *"(R)"* && "${lines[4]}" != *"(T)"* ]]
+  [ "${#lines[@]}" -eq 5 ]
+}
+
+@test "log --graph: when only upstream moved, R is the commit T builds on" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_log --graph
+  [ "$status" -eq 0 ]
+  [[ "${lines[1]}" == "> "*" (T) "* ]]
+  [[ "${lines[-1]}" == "o "*" (R) "* ]]
+}
+
+@test "log --graph: a missing upstream branch draws what push would create on the commit it builds on" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_log --graph
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "===  vendor/a (upstream has no 'feature' branch)" ]
+  [[ "${lines[1]}" == "* "*" (R) local change  (Test <test@example.com>)" ]]
+  [[ "${lines[2]}" == "o "* ]]
+  [ "${#lines[@]}" -eq 3 ]
+}
+
+@test "log: labels R and T only with --graph" {
+  scenario_diverged_common_ancestor "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_log
+  [[ "$output" != *"(R)"* && "$output" != *"(T)"* ]]
 }
