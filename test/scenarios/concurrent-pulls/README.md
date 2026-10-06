@@ -92,7 +92,7 @@ The fetched upstream branch shows both, newest first: Bob's `upstream 2`
 contains Alice's `upstream 1`:
 
 ```scrut
-$ git log --format='%h %s' splices/https%3A/%/git.example.com/a.git/-/main
+$ git log --format='%h %s' splices/a/main
 4c1905d upstream 2
 72efaac upstream 1
 bde4164 seed

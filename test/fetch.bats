@@ -9,7 +9,7 @@ setup() {
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
-@test "fetch: brings every upstream branch into refs/splices/<key>/-/" {
+@test "fetch: brings every upstream branch into refs/splices/<key>/" {
   scenario_never_fetched "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "on a branch" feature
   cd "$monorepo"

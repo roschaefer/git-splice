@@ -59,7 +59,7 @@ cmd_clone() {
     die "$path is a file, not a folder"
   fi
 
-  upstream_key "$url"
+  create_upstream_key "$url"
   SPLICE_URLS[$path]="$url"
   SPLICE_KEYS[$path]="$UPSTREAM_KEY"
   log_step "$path: fetching $url"

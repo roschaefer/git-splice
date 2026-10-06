@@ -110,20 +110,20 @@ $ git splice log
 ## Looking at an upstream
 
 `fetch` keeps each upstream's complete history in the monorepo, under
-`refs/splices/<key>/-/<branch>`, where the key comes from the upstream's
-URL, escaped for a ref name: `https://git.example.com/pkg-b.git` becomes
-`https%3A/%/git.example.com/pkg-b.git`.
-Every Git command reads it as `splices/<key>/-/<branch>`, so there's
+`refs/splices/<key>/<branch>`, where the key is the upstream's short name
+in this repository, from its URL: `https://git.example.com/pkg-b.git`
+gets `pkg-b`.
+Every Git command reads it as `splices/<key>/<branch>`, so there's
 nothing to clone:
 
 ```scrut
-$ git log --oneline splices/https%3A/%/git.example.com/pkg-b.git/-/main
+$ git log --oneline splices/pkg-b/main
 b937c4f pkg-b: add a feature
 9b3cb02 pkg-b: seed
 ```
 
 ```scrut
-$ git show splices/https%3A/%/git.example.com/pkg-b.git/-/main:file.txt
+$ git show splices/pkg-b/main:file.txt
 pkg-b: seed
 pkg-b: add a feature
 ```
@@ -133,7 +133,7 @@ worktree, and remove it when you're done. Commits made there don't reach
 upstream; changes belong in the monorepo, and `push` publishes them.
 
 ```scrut
-$ git worktree add -q --detach ../pkg-b-upstream splices/https%3A/%/git.example.com/pkg-b.git/-/main && ls ../pkg-b-upstream
+$ git worktree add -q --detach ../pkg-b-upstream splices/pkg-b/main && ls ../pkg-b-upstream
 file.txt
 ```
 

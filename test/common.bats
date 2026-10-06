@@ -304,54 +304,109 @@ add_monorepo_origin() {
   [[ "$output" == *"git splice clone -- "*" -foo"* ]]
 }
 
-# Runs upstream_key on $1 and checks that it gives key $2.
-assert_key() {
-  upstream_key "$1"
-  echo "$1 -> $UPSTREAM_KEY" >&2
-  [ "$UPSTREAM_KEY" = "$2" ]
-  git check-ref-format "refs/splices/$UPSTREAM_KEY/-/main"
+# Runs derive_upstream_key on $1 and checks that it gives key $2.
+assert_derived_key() {
+  derive_upstream_key "$1"
+  echo "$1 -> $DERIVED_KEY" >&2
+  [ "$DERIVED_KEY" = "$2" ]
+  valid_upstream_key "$DERIVED_KEY"
 }
 
-@test "upstream_key: the key is the URL as written, escaped per component" {
-  assert_key https://github.com/x/lib.git https%3A/%/github.com/x/lib.git
-  assert_key git@github.com:x/lib.git git%40github.com%3Ax/lib.git
-  assert_key /srv/git/lib.git %/srv/git/lib.git
-  assert_key ext::some-command ext%3A%3Asome-command
+@test "derive_upstream_key: the URL's last component, without .git" {
+  assert_derived_key https://github.com/x/lib.git lib
+  assert_derived_key git@github.com:x/lib.git lib
+  assert_derived_key host:lib lib
+  assert_derived_key /srv/git/lib/ lib
+  assert_derived_key ../lib.git lib
 }
 
-@test "upstream_key: URLs that look alike but can name different repositories get different keys" {
-  local url keys=()
-  for url in /tmp/up /tmp/up.git tmp/up /tmp/up/ /tmp//up ssh://a@host/up ssh://b@host/up host:up ssh://host/up; do
-    upstream_key "$url"
-    keys+=("$UPSTREAM_KEY")
-  done
-  [ "$(printf '%s\n' "${keys[@]}" | sort -u | wc -l)" -eq "${#keys[@]}" ]
+@test "derive_upstream_key: lower case, with what a key can't hold replaced by -" {
+  assert_derived_key https://host/Org/My_Lib.git my_lib
+  assert_derived_key "https://host/a b~c" a-b-c
+  assert_derived_key https://host/x.lock x-lock
+  assert_derived_key https://host/.hidden..name hidden.name
+  assert_derived_key "ext::sh -c sleep% 0;% exec% %S% /tmp/up" up
 }
 
-@test "upstream_key: escapes what Git refuses in ref names, and % itself" {
-  assert_key "https://host/a b/~c" "https%3A/%/host/a%20b/%7Ec"
-  assert_key https://host/x.lock/y https%3A/%/host/x%2Elock/y
-  assert_key https://host/.hidden/a..b https%3A/%/host/%2Ehidden/a.%2Eb
-  assert_key https://host/100% https%3A/%/host/100%25
-  assert_key ../lib.git %2E%2E/lib.git
+@test "derive_upstream_key: falls back to 'upstream' when nothing usable is left" {
+  assert_derived_key https://host/ host
+  assert_derived_key https://host/%%% upstream
+  assert_derived_key / upstream
 }
 
-@test "upstream_key: a glob character stays itself, whatever files match it" {
-  cd "$BATS_TEST_TMPDIR"
-  touch aXb aYb
-  assert_key 'a*b' a%2Ab
+@test "derive_upstream_key: cuts long names, so suffixes still fit" {
+  derive_upstream_key "https://host/$(printf 'a%.0s' {1..300})"
+  [ "${#DERIVED_KEY}" -eq 40 ]
 }
 
-@test "upstream_key: keeps hyphens in names, escapes a component that is just -" {
-  assert_key https://github.com/my-org/git-splice https%3A/%/github.com/my-org/git-splice
-  assert_key https://gitlab.example/group/-/lib https%3A/%/gitlab.example/group/%2D/lib
+@test "valid_upstream_key: lower-case letters, digits, '.', '_' and '-' only" {
+  valid_upstream_key lib
+  valid_upstream_key lib-2
+  valid_upstream_key my_lib.v2
+  ! valid_upstream_key Lib
+  ! valid_upstream_key -lib
+  ! valid_upstream_key lib.
+  ! valid_upstream_key a/b
+  ! valid_upstream_key a..b
+  ! valid_upstream_key ""
+  ! valid_upstream_key "$(printf 'a%.0s' {1..65})"
 }
 
-@test "upstream_key: keys never nest into each other's branches" {
-  upstream_key https://host/x
-  local outer="refs/splices/$UPSTREAM_KEY/-/lib/-/main"
-  upstream_key https://host/x/lib
-  [[ "$outer" != "refs/splices/$UPSTREAM_KEY/-/"* ]]
+@test "upstream_key: empty for an upstream never fetched" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  upstream_key https://github.com/x/lib.git
+  [ -z "$UPSTREAM_KEY" ]
+  [ -z "$(git config --local --get-regexp '^splice\.' || true)" ]
+}
+
+@test "create_upstream_key: records the key in the repository's config, and reuses it" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  create_upstream_key https://github.com/x/lib.git
+  [ "$UPSTREAM_KEY" = lib ]
+  [ "$(git config --local splice.lib.url)" = https://github.com/x/lib.git ]
+  create_upstream_key https://github.com/x/lib.git
+  [ "$UPSTREAM_KEY" = lib ]
+  [ "$(git config --local --get-all splice.lib.url | wc -l)" -eq 1 ]
+}
+
+@test "create_upstream_key: URLs differing only in case get keys that differ in more than case" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  create_upstream_key ssh://host/Org/Lib
+  [ "$UPSTREAM_KEY" = lib ]
+  create_upstream_key ssh://host/org/lib
+  [ "$UPSTREAM_KEY" = lib-2 ]
+}
+
+@test "create_upstream_key: skips a key whose refs are left over" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  git update-ref refs/splices/lib/main HEAD
+  create_upstream_key https://github.com/x/lib.git
+  [ "$UPSTREAM_KEY" = lib-2 ]
+}
+
+@test "create_upstream_key: a key another command recorded meanwhile for another URL goes to that URL" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  load_upstream_keys
+  git config --local --add splice.lib.url https://gitlab.com/y/lib.git
+  create_upstream_key https://github.com/x/lib.git
+  [ "$UPSTREAM_KEY" = lib-2 ]
+  [ "$(git config --local --get-all splice.lib.url)" = https://gitlab.com/y/lib.git ]
+  [ "$(git config --local --get-all splice.lib-2.url)" = https://github.com/x/lib.git ]
+}
+
+@test "create_upstream_key: the same URL recorded meanwhile under the same key is kept once" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  load_upstream_keys
+  git config --local --add splice.lib.url https://github.com/x/lib.git
+  create_upstream_key https://github.com/x/lib.git
+  [ "$UPSTREAM_KEY" = lib ]
+  [ "$(git config --local --get-all splice.lib.url)" = https://github.com/x/lib.git ]
 }
 
 @test "discover_splices refuses an old .splice and prints how to convert it" {

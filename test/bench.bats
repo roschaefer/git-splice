@@ -24,7 +24,7 @@ setup() {
     run git log --format=%s "$(
       source "$BATS_TEST_DIRNAME/../lib/common.sh"
       upstream_key "$(git config --file "packages/$sub/.splice" upstream.origin.url)"
-      printf 'refs/splices/%s/-/main' "$UPSTREAM_KEY"
+      printf 'refs/splices/%s/main' "$UPSTREAM_KEY"
     )"
     [[ "$output" == *"$sub: round 2"* ]]
     [[ "$output" != *"$sub: round 3"* ]]

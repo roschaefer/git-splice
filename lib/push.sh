@@ -107,6 +107,7 @@ push_one() {
     return 1
   fi
   # Pushing to a URL updates no ref here, so record what upstream has now.
+  ensure_splice_key "$path"
   if ! git update-ref "$(splice_ref "$path" "$upstream_branch")" "$SPLICE_REBUILT"; then
     log_err "$path: pushed, but couldn't record it in $(splice_ref "$path" "$upstream_branch") -- run 'git splice fetch $path'"
     return 1

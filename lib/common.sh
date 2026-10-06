@@ -5,8 +5,8 @@
 # Every splice path in the repository, from its committed .splice file.
 declare -ga ALL_PATHS=()
 # Each splice's upstream URL, and the key its fetched refs live under (see
-# upstream_key), by path. Set by discover_splices, and by clone for the
-# splice it creates.
+# upstream_key; empty until the upstream is first fetched), by path. Set by
+# discover_splices, and by clone for the splice it creates.
 declare -gA SPLICE_URLS=()
 declare -gA SPLICE_KEYS=()
 
@@ -179,7 +179,7 @@ usable_splice_path() {
 
 # Prints the first splice in ALL_PATHS nested inside, or containing, $1.
 # Nested splices are refused: the outer one's push would publish the inner
-# one, and refs/splices/<outer>/<branch> could name a branch of either.
+# one.
 overlapping_splice() {
   local name="$1" path
   for path in "${ALL_PATHS[@]}"; do
@@ -330,80 +330,179 @@ EOF
   SPLICE_KEYS[$path]="$UPSTREAM_KEY"
 }
 
-# Sets UPSTREAM_KEY to the key the fetched refs of upstream <url> live
-# under, refs/splices/<key>/-/<branch>. Keyed by URL rather than by the
-# splice's path, refs follow a splice through git mv, and splices at one
-# path with different upstreams, e.g. on two branches, don't share them.
-# The key is the URL exactly as written, so splices share refs only if
-# their URLs are equal -- spellings that look alike can name different
-# repositories, e.g. /srv/lib and /srv/lib.git:
+# Each upstream URL's key, and each key's URL, as recorded in the
+# repository's config by create_upstream_key. Loaded once, by
+# load_upstream_keys.
+declare -gA KEY_OF_URL=()
+declare -gA URL_OF_KEY=()
+declare -g UPSTREAM_KEYS_LOADED=""
+
+# Reads the keys of the upstreams fetched so far from the repository's
+# config, where create_upstream_key records them as splice.<key>.url:
 #
-#   https://github.com/x/lib.git   https%3A/%/github.com/x/lib.git
-#   git@github.com:x/lib.git       git%40github.com%3Ax/lib.git
-#   /srv/git/lib.git               %/srv/git/lib.git
+#   [splice "lib"]
+#   	url = https://github.com/x/lib.git
 #
-# Each "/"-separated component is escaped (see ref_component), which
-# leaves only what Git allows in a ref name; an empty one becomes "%",
-# which no escaped component is. A component that is just "-" is escaped
-# too, so the "-" that ends the key marks where the branch name begins,
-# even one with slashes.
-upstream_key() {
-  local rest="$1" key=""
-  while :; do
-    if [[ "${rest%%/*}" == "" ]]; then
-      key+="${key:+/}%"
-    else
-      ref_component "${rest%%/*}"
-      key+="${key:+/}$REF_COMPONENT"
-    fi
-    [[ "$rest" == */* ]] || break
-    rest="${rest#*/}"
+# --local: the repository's own config, which all its worktrees share, as
+# they share refs/splices/.
+load_upstream_keys() {
+  [[ -z "$UPSTREAM_KEYS_LOADED" ]] || return 0
+  local records=() record key url
+  mapfile -d '' records < <(git config --local -z --get-regexp '^splice\..*\.url$' || true)
+  for record in "${records[@]}"; do
+    key="${record%%$'\n'*}"
+    key="${key#splice.}"
+    key="${key%.url}"
+    url="${record#*$'\n'}"
+    # A key with several URLs, e.g. while two commands race to record it
+    # (see create_upstream_key), keeps its first.
+    [[ -z "${URL_OF_KEY[$key]+set}" && -n "$url" ]] || continue
+    URL_OF_KEY[$key]="$url"
+    [[ -n "${KEY_OF_URL[$url]+set}" ]] || KEY_OF_URL[$url]="$key"
   done
+  UPSTREAM_KEYS_LOADED=1
+}
+
+# Sets UPSTREAM_KEY to the key the fetched refs of upstream <url> live
+# under, refs/splices/<key>/<branch>, or to nothing if the upstream has
+# never been fetched. Keyed by URL rather than by the splice's path, refs
+# follow a splice through git mv, and splices at one path with different
+# upstreams, e.g. on two branches, don't share them. The URL is taken
+# exactly as written, so splices share refs only if their URLs are equal
+# -- spellings that look alike can name different repositories, e.g.
+# /srv/lib and /srv/lib.git.
+upstream_key() {
+  load_upstream_keys
+  UPSTREAM_KEY="${KEY_OF_URL[$1]:-}"
+  [[ -z "$UPSTREAM_KEY" ]] || return 0
+  # Not cached: another command may have recorded it since.
+  UPSTREAM_KEYS_LOADED=""
+  KEY_OF_URL=()
+  URL_OF_KEY=()
+  load_upstream_keys
+  UPSTREAM_KEY="${KEY_OF_URL[$1]:-}"
+}
+
+# Succeeds if <key> can name an upstream: lower-case letters, digits, ".",
+# "_" and "-", starting and ending with a letter or digit, and at most 64
+# long. Lower case only, so no two keys' refs share files on a
+# case-insensitive file system; no "/", so no key's refs nest in another's.
+valid_upstream_key() {
+  local key="$1"
+  [[ "$key" =~ ^[a-z0-9]([a-z0-9._-]{0,62}[a-z0-9])?$ ]] &&
+    git check-ref-format "refs/splices/$key/main"
+}
+
+# Succeeds if <key> names an upstream already, or refs are left under it,
+# e.g. from a key that was removed from the config by hand.
+upstream_key_taken() {
+  load_upstream_keys
+  [[ -n "${URL_OF_KEY[$1]+set}" ]] || [[ -n "$(git for-each-ref --count=1 "refs/splices/$1/")" ]]
+}
+
+# Sets DERIVED_KEY to a key for upstream <url>: its last path component,
+# without .git, in lower case, with anything valid_upstream_key doesn't
+# allow replaced by "-":
+#
+#   https://github.com/x/lib.git   lib
+#   git@github.com:x/My_Lib.git    my_lib
+#   /srv/git/lib/                  lib
+derive_upstream_key() {
+  local LC_ALL=C name="$1"
+  while [[ "$name" == */ ]]; do name="${name%/}"; done
+  name="${name##*[/:]}"
+  name="${name%.git}"
+  name="${name,,}"
+  name="${name//[^a-z0-9._-]/-}"
+  while [[ "$name" == *--* ]]; do name="${name//--/-}"; done
+  while [[ "$name" == *..* ]]; do name="${name//../.}"; done
+  name="${name:0:40}"
+  while [[ "$name" == [._-]* ]]; do name="${name:1}"; done
+  while [[ "$name" == *[._-] ]]; do name="${name%?}"; done
+  [[ "$name" != *.lock ]] || name="${name%.lock}-lock"
+  valid_upstream_key "$name" || name=upstream
+  DERIVED_KEY="$name"
+}
+
+# Sets UPSTREAM_KEY to upstream <url>'s key, and records one in the
+# repository's config first if it has none: derive_upstream_key's, or with
+# "-2", "-3" and so on if that's taken. Two commands may record a key at
+# the same time, e.g. fetches in two worktrees, so the key is added rather
+# than set, and given up for the next one if another URL got it too.
+create_upstream_key() {
+  local url="$1" base key n urls
+  upstream_key "$url"
+  [[ -z "$UPSTREAM_KEY" ]] || return 0
+  derive_upstream_key "$url"
+  base="$DERIVED_KEY"
+  key="$base"
+  n=2
+  while :; do
+    while upstream_key_taken "$key"; do
+      key="$base-$n"
+      n=$((n + 1))
+    done
+    git config --local --add "splice.$key.url" "$url" ||
+      die "couldn't record the key of $url in the repository's config -- try again"
+    urls="$(git config --local --get-all "splice.$key.url")"
+    [[ "$urls" != "$url" ]] || break
+    # Another command recorded the same URL under the same key.
+    if [[ -z "$(grep -vxF -- "$url" <<<"$urls")" ]]; then
+      git config --local --replace-all "splice.$key.url" "$url"
+      break
+    fi
+    git config --local --fixed-value --unset "splice.$key.url" "$url" || true
+    UPSTREAM_KEYS_LOADED=""
+    KEY_OF_URL=()
+    URL_OF_KEY=()
+    upstream_key "$url"
+    [[ -z "$UPSTREAM_KEY" ]] || return 0
+  done
+  URL_OF_KEY[$key]="$url"
+  KEY_OF_URL[$url]="$key"
   UPSTREAM_KEY="$key"
 }
 
-# Sets REF_COMPONENT to <component> escaped for a ref name: every byte
-# but letters, digits and "_,+=.-" as %XX, "%" included, so no two
-# components escape alike. Dots Git refuses (leading, "..", trailing,
-# ".lock" at the end) and a component that is just "-" are escaped too.
-ref_component() {
-  local component="$1" escaped="" char i hex
-  local LC_ALL=C
-  for ((i = 0; i < ${#component}; i++)); do
-    char="${component:i:1}"
-    if [[ "$char" == [A-Za-z0-9_,+=.-] ]]; then
-      escaped+="$char"
-    else
-      printf -v hex '%%%02X' "'$char"
-      escaped+="$hex"
-    fi
+# Gives splice <path>'s upstream a key, if it has none yet, and every
+# splice with the same URL along with it. For the commands that write
+# refs: clone, fetch, pull and push.
+ensure_splice_key() {
+  local path="$1" p
+  require_splice_upstream "$path"
+  [[ -z "${SPLICE_KEYS[$path]}" ]] || return 0
+  create_upstream_key "${SPLICE_URLS[$path]}"
+  for p in "${!SPLICE_URLS[@]}"; do
+    [[ "${SPLICE_URLS[$p]}" != "${SPLICE_URLS[$path]}" ]] || SPLICE_KEYS[$p]="$UPSTREAM_KEY"
   done
-  [[ "$escaped" == .* ]] && escaped="%2E${escaped:1}"
-  while [[ "$escaped" == *..* ]]; do escaped="${escaped/../.%2E}"; done
-  [[ "$escaped" == *. ]] && escaped="${escaped%.}%2E"
-  [[ "$escaped" == *.lock ]] && escaped="${escaped%.lock}%2Elock"
-  [[ "$escaped" == - ]] && escaped=%2D
-  REF_COMPONENT="$escaped"
 }
 
-# Prints the ref prefix splice <path>'s fetched upstream branches share.
+# Prints the ref prefix splice <path>'s fetched upstream branches share. An
+# upstream without a key has no refs: its prefix, "refs/splices/./", isn't
+# a valid ref name, so it matches none.
 splice_refs_prefix() {
-  printf 'refs/splices/%s/-/\n' "${SPLICE_KEYS[$1]}"
+  printf 'refs/splices/%s/\n' "${SPLICE_KEYS[$1]:-.}"
 }
 
 # Prints the ref of upstream branch <branch> of splice <path>, as fetched.
 splice_ref() {
-  printf 'refs/splices/%s/-/%s\n' "${SPLICE_KEYS[$1]}" "$2"
+  printf '%s%s\n' "$(splice_refs_prefix "$1")" "$2"
 }
 
-# Loads splice <path>'s upstream, unless discover_splices or clone has.
+# Loads splice <path>'s upstream, unless discover_splices or clone has, and
+# looks up its key again if it had none yet.
 require_splice_upstream() {
-  [[ -n "${SPLICE_KEYS[$1]:-}" ]] || load_splice_upstream "$1"
+  if [[ -z "${SPLICE_URLS[$1]:-}" ]]; then
+    load_splice_upstream "$1"
+  elif [[ -z "${SPLICE_KEYS[$1]}" ]]; then
+    upstream_key "${SPLICE_URLS[$1]}"
+    SPLICE_KEYS[$1]="$UPSTREAM_KEY"
+  fi
 }
 
 # Succeeds if any upstream branch of splice $1 has been fetched.
 splice_fetched() {
-  [[ -n "$(git for-each-ref --count=1 "refs/splices/${SPLICE_KEYS[$1]}/-/")" ]]
+  [[ -n "${SPLICE_KEYS[$1]}" ]] &&
+    [[ -n "$(git for-each-ref --count=1 "$(splice_refs_prefix "$1")")" ]]
 }
 
 # Prints the monorepo's default branch name: the target of origin/HEAD,

@@ -43,6 +43,7 @@ _git-splice() {
     'diff:show the file changes push would send'
     'log:show the commits push and pull would move'
     'fetch:fetch the upstreams'
+    'key:print or rename the key of a splice'\''s fetched refs'
   )
 
   options=(
@@ -98,6 +99,12 @@ _git-splice() {
         '(-h --help)'{-h,--help}'[show usage]' \
         '1:path:_files -/' \
         '2:url:'
+      ;;
+    key)
+      _arguments \
+        '(-h --help)'{-h,--help}'[show usage]' \
+        '1:splice:__git_splice_paths' \
+        '2:new key:'
       ;;
   esac
 }
