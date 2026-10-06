@@ -133,3 +133,7 @@ ok   vendor/a/b: pushed cb61f73 to main
 If the monorepo had pulled b as well, to a different commit, the pull of
 a would have conflicted: see
 [Limits](../../../docs/design/README.md#limits).
+
+Once the monorepo has pushed a change in b, another monorepo that splices
+a in can't push from b without a conflict, a known limitation:
+[spliced into another monorepo](spliced-elsewhere.md).
