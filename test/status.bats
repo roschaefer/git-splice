@@ -260,7 +260,7 @@ assert_state() {
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
   run cmd_status
-  [ "$output" = "??   lib/a -> main (upstream has no such branch; ahead 2 -- push would create it)" ]
+  [ "$output" = "??   lib/a -> main (upstream has no such branch; ahead 1 -- push would create it)" ]
 }
 
 @test "status: a splice moved with git mv still finds its fetched refs" {

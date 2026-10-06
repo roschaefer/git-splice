@@ -319,7 +319,11 @@ does. An overview such as `status` is only useful if it's complete.
   commit, then `clone` into the empty spot.
 - `init` refuses an upstream that already has commits, and points to
   `clone --merge`. It writes `.splice` without a synced commit, and the
-  first push creates the upstream branch from the folder's whole history.
+  first push creates the upstream branch with one commit, the init
+  commit. The folder's history before it isn't published: it was written
+  for the monorepo, and may hold what was removed before anyone decided
+  to publish the folder
+  ([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)).
 - The name `add` is avoided on purpose: it suggests `git add`.
 
 ### Splicing in: `merge`, and `pull` = `fetch` + `merge`
@@ -389,6 +393,10 @@ commits. `rebuild_splice` is a function of HEAD alone:
    joined with its own by a merge, as a plain `git pull` would have made.
    The recursion stops at the first boundary whose folder equals its
    synced commit, so it only costs something after pulls of divergences.
+   A rebuild of B's first parent that shares no history with U isn't
+   joined, as `git merge` refuses unrelated histories: the folder was
+   another splice there, e.g. after two folders swapped paths, and B goes
+   on top of U.
 3. **Copy each commit.** For each commit in
    `git rev-list --reverse --first-parent B..HEAD -- <path>` whose folder
    changed, `git commit-tree` with the folder's tree minus `.splice`.
@@ -494,7 +502,7 @@ These are known and accepted, each to keep the design simple:
   [#51](https://github.com/roschaefer/git-splice/issues/51), avoid
   upstreams whose URLs differ only in case, and long path components.
 - **A splice made by `init`** has no synced commit until its first pull, so
-  until then every rebuild walks the folder's whole history.
+  until then every rebuild walks the folder's history since `init`.
 - **Rare edge cases** each have an issue labelled
   [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22).
 
