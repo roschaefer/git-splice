@@ -181,32 +181,41 @@ discover_splices() {
 }
 
 # Prints splice paths $2... one per line, in tree order $1: top-down, each
-# after every splice above it, or bottom-up, each before them. Paths in
-# different trees keep the order given, each tree at the place of its first
-# path. (A path in a ref name has no newline.)
+# after every splice above it, or bottom-up, each before them. Trees, and
+# subtrees under the same splice, keep the order given, each at the place
+# of its first path. (A path in a ref name has no newline.)
 splices_in_order() {
-  local order="$1" path above
+  local order="$1"
   shift
+  print_splice_subtrees "$order" "" "$@"
+}
+
+# Prints, in order $1 (see splices_in_order), the subtrees of paths $3...
+# right below splice path $2 (or at the top, if $2 is empty), each at the
+# place of its first path.
+print_splice_subtrees() {
+  local order="$1" top="$2" path child above
+  shift 2
   local -A printed=()
   for path in "$@"; do
-    while above="$(splice_above "$path" "$@")" && [[ -n "$above" ]]; do
-      path="$above"
+    child="$path"
+    while above="$(splice_above "$child" "$@")" && [[ -n "$above" && "$above" != "$top" ]]; do
+      child="$above"
     done
-    [[ -z "${printed[$path]:-}" ]] || continue
-    printed[$path]=1
-    print_splice_tree "$order" "$path" "$@"
+    [[ "$child" != "$top" && "$above" == "$top" ]] || continue
+    [[ -z "${printed[$child]:-}" ]] || continue
+    printed[$child]=1
+    print_splice_tree "$order" "$child" "$@"
   done
 }
 
 # Prints splice path $2 and, recursively, those of paths $3... below it, in
 # order $1 (see splices_in_order).
 print_splice_tree() {
-  local order="$1" top="$2" path
+  local order="$1" top="$2"
   shift 2
   [[ "$order" == bottom-up ]] || printf '%s\n' "$top"
-  for path in "$@"; do
-    [[ "$(splice_above "$path" "$@")" != "$top" ]] || print_splice_tree "$order" "$path" "$@"
-  done
+  print_splice_subtrees "$order" "$top" "$@"
   [[ "$order" != bottom-up ]] || printf '%s\n' "$top"
 }
 

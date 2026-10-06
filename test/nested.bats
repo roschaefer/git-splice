@@ -210,6 +210,13 @@ work_in_upstream_a() {
   [ "$output" = $'deep/x/y\ndeep/x\nother\nz' ]
 }
 
+@test "nested: subtrees under the same splice keep the order of their first path too" {
+  run splices_in_order top-down a/b/d a/c a/b a
+  [ "$output" = $'a\na/b\na/b/d\na/c' ]
+  run splices_in_order bottom-up a/b/d a/c a/b a
+  [ "$output" = $'a/b/d\na/b\na/c\na' ]
+}
+
 @test "nested: pull skips the splice above when the fetch of the one below fails" {
   scenario_nested_splices "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "a change"
