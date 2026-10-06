@@ -102,21 +102,6 @@ setup() {
   [ "${lines[0]}" = "ok   vendor/a -> main (push: ahead 1)" ]
 }
 
-@test "cli: every command refuses nested splices before doing anything" {
-  load 'scenarios/nested-splices/setup'
-  scenario_nested_splices "$monorepo" "$upstream"
-  cd "$monorepo"
-  local before cmd
-  before="$(git rev-parse HEAD)"
-  for cmd in status diff log fetch "merge --all" "pull --all" "push --all"; do
-    # shellcheck disable=SC2086
-    run "$entrypoint" $cmd
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"nested splices are not supported: 'vendor/pkg' and 'vendor/pkg/extra' overlap"* ]]
-  done
-  [ "$(git rev-parse HEAD)" = "$before" ]
-}
-
 @test "cli: every command refuses a detached HEAD" {
   load 'scenarios/up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"

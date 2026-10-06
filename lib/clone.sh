@@ -48,12 +48,9 @@ cmd_clone() {
   cd_to_repo_root
   require_head_commit
   discover_splices
-  local branch other
+  local branch
   branch="$(current_branch)"
   is_splice_path "$path" && die "$path is a splice already"
-  if other="$(overlapping_splice "$path")"; then
-    die "nested splices are not supported: '$path' and '$other' overlap"
-  fi
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
   if git cat-file -e "HEAD:$path" 2>/dev/null && [[ -z "$(folder_tree HEAD "$path")" ]]; then
     die "$path is a file, not a folder"
@@ -87,11 +84,10 @@ cmd_clone() {
     upstream_branch="$upstream_default"
   fi
 
-  local target local_folder nested
+  local target local_folder
   target="$(git rev-parse "$(splice_ref "$path" "$upstream_branch")^{commit}")"
-  if nested="$(upstream_state_file "$target")"; then
-    die "$path: upstream has $nested, and a splice can't contain another $STATE_FILE -- nested splices are not supported"
-  fi
+  upstream_has_state_file "$target" &&
+    die "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE -- splice a folder of it instead"
   local_folder="$(folder_tree HEAD "$path")"
   if [[ -n "$local_folder" && "$local_folder" != "$(git rev-parse "$target^{tree}")" && -z "$merge" ]]; then
     die "$path exists and differs from '$upstream_branch' upstream -- '--merge' keeps both, and every file that differs becomes a conflict to resolve"

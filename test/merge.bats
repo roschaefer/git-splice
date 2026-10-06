@@ -36,16 +36,16 @@ setup() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
-@test "merge: refuses an upstream that brings in a .splice of its own" {
+@test "merge: refuses an upstream that brings in a .splice at its root" {
   scenario_pull_ahead "$monorepo" "$upstream"
-  seed_bare_repo "$upstream" "[splice]" main extra/.splice
+  seed_bare_repo "$upstream" "[splice]" main .splice
   cd "$monorepo"
   splice fetch vendor/a >/dev/null
   local before
   before="$(git rev-parse HEAD)"
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"upstream has extra/.splice"* ]]
+  [[ "$output" == *"upstream has a .splice at its root, which would replace vendor/a/.splice"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
 

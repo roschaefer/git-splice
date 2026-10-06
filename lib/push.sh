@@ -8,6 +8,10 @@ Publishes each splice's local changes: rebuilds the commits that changed
 it since the last sync, without its .splice file, and pushes them to its
 upstream URL. Nothing is written to the monorepo.
 
+Bottom-up: a splice below another is pushed first, since the push of the
+one above publishes its .splice, and a failed push stops the splices
+above it.
+
 If the upstream has no branch named like the current one, push creates it
 -- but only for a splice that changed on this branch compared with the
 monorepo's base branch (the branch this one was cut from), so working on a
@@ -125,7 +129,7 @@ cmd_push() {
   require_head_commit
   discover_splices
   select_paths explicit push
-  local branch path failures=()
+  local branch path failed paths=() failures=()
   branch="$(current_branch)"
 
   # Pushes to the same host share one SSH connection.
@@ -136,7 +140,15 @@ cmd_push() {
   trap "rm -rf -- $(printf '%q' "$ssh_control_dir")" EXIT
   export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$ssh_control_dir/%r@%h:%p"
 
-  for path in "${SELECTED_PATHS[@]}"; do
+  # Bottom-up: a splice's push publishes the .splice files below it, which
+  # should point at what their own pushes published.
+  mapfile -t paths < <(splices_in_order bottom-up "${SELECTED_PATHS[@]}")
+  for path in "${paths[@]}"; do
+    if failed="$(first_below "$path" "${failures[@]}")"; then
+      log_err "$path: not pushed, since $failed below it failed"
+      failures+=("$path")
+      continue
+    fi
     push_one "$path" "$branch" "$base" "$force" || failures+=("$path")
   done
   rm -rf "$ssh_control_dir"

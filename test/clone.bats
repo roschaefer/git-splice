@@ -99,13 +99,11 @@ new_upstream() {
   [ "$SPLICE_STATE" = push ]
 }
 
-@test "clone: refuses an existing splice, a nested one, and an empty upstream" {
+@test "clone: refuses an existing splice and an empty upstream" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_clone "$upstream" vendor/a
   [[ "$output" == *"vendor/a is a splice already"* ]]
-  run cmd_clone "$upstream" vendor/a/inner
-  [[ "$output" == *"nested splices are not supported"* ]]
   make_bare_repo "$BATS_TEST_TMPDIR/empty.git"
   run cmd_clone "$BATS_TEST_TMPDIR/empty.git" vendor/b
   [ "$status" -eq 1 ]
@@ -130,15 +128,12 @@ new_upstream() {
   [ -z "$(git for-each-ref refs/splices/)" ]
 }
 
-@test "clone: refuses an upstream that contains a .splice, at its root or deeper" {
+@test "clone: refuses an upstream with a .splice at its root" {
   new_upstream
-  seed_bare_repo "$upstream" "[splice]" main extra/.splice
-  run cmd_clone "$upstream" vendor/a
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"upstream has extra/.splice, and a splice can't contain another .splice"* ]]
   seed_bare_repo "$upstream" "[splice]" main .splice
   run cmd_clone "$upstream" vendor/a
-  [[ "$output" == *"upstream has .splice,"* ]]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream has a .splice at its root, which would replace vendor/a/.splice"* ]]
   [ -z "$(git ls-files vendor/a)" ]
 }
 

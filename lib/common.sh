@@ -24,14 +24,12 @@ declare -ga EXTRA_FLAGS=()
 # Name of the state file inside every splice folder.
 STATE_FILE=.splice
 
-# Prints the first state file in upstream commit <commit>, at its root or
-# deeper, e.g. because the upstream uses git splice itself. Fails if there
-# is none. Bringing one in would replace the splice's own, or nest a splice
-# inside it, and every command refuses nested splices.
-upstream_state_file() {
-  local file
-  IFS= read -r -d '' file < <(state_files "$1") || return 1
-  printf '%s\n' "$file"
+# Succeeds if upstream commit <commit> has a state file at its root:
+# bringing it in would replace the splice's own. Deeper ones are nested
+# splices, e.g. because the upstream uses git splice itself: they come
+# along with the content and are splices in the monorepo from then on.
+upstream_has_state_file() {
+  git cat-file -e "$1:$STATE_FILE" 2>/dev/null
 }
 
 # Prints every state file in commit <commit>, at any depth, NUL-separated.
@@ -160,11 +158,12 @@ has_flag() {
   return 1
 }
 
-# Populates ALL_PATHS from every */.splice file committed in HEAD. This
-# *is* the whole discovery mechanism: a folder with a committed .splice is a
-# splice. Committed, not staged: every command reads a splice's state from
-# HEAD, so a staged .splice isn't one yet, and a staged deletion doesn't end
-# one.
+# Populates ALL_PATHS from every */.splice file committed in HEAD, at any
+# depth. This *is* the whole discovery mechanism: a folder with a committed
+# .splice is a splice, also below another splice, whose push then
+# publishes the .splice below with the rest of its content. Committed, not
+# staged: every command reads a splice's state from HEAD, so a staged
+# .splice isn't one yet, and a staged deletion doesn't end one.
 discover_splices() {
   ALL_PATHS=()
   local file path
@@ -179,13 +178,83 @@ discover_splices() {
   for path in "${ALL_PATHS[@]}"; do
     load_splice_upstream "$path"
   done
+}
 
-  local other
-  for path in "${ALL_PATHS[@]}"; do
-    if other="$(overlapping_splice "$path")"; then
-      die "nested splices are not supported: '$path' and '$other' overlap -- remove one of their $STATE_FILE files"
-    fi
+# Prints splice paths $2... one per line, in tree order $1: top-down, each
+# after every splice above it, or bottom-up, each before them. Trees, and
+# subtrees under the same splice, keep the order given, each at the place
+# of its first path. (A path in a ref name has no newline.)
+splices_in_order() {
+  local order="$1"
+  shift
+  print_splice_subtrees "$order" "" "$@"
+}
+
+# Prints, in order $1 (see splices_in_order), the subtrees of paths $3...
+# right below splice path $2 (or at the top, if $2 is empty), each at the
+# place of its first path.
+print_splice_subtrees() {
+  local order="$1" top="$2" path child above
+  shift 2
+  local -A printed=()
+  for path in "$@"; do
+    child="$path"
+    while above="$(splice_above "$child" "$@")" && [[ -n "$above" && "$above" != "$top" ]]; do
+      child="$above"
+    done
+    [[ "$child" != "$top" && "$above" == "$top" ]] || continue
+    [[ -z "${printed[$child]:-}" ]] || continue
+    printed[$child]=1
+    print_splice_tree "$order" "$child" "$@"
   done
+}
+
+# Prints splice path $2 and, recursively, those of paths $3... below it, in
+# order $1 (see splices_in_order).
+print_splice_tree() {
+  local order="$1" top="$2"
+  shift 2
+  [[ "$order" == bottom-up ]] || printf '%s\n' "$top"
+  print_splice_subtrees "$order" "$top" "$@"
+  [[ "$order" != bottom-up ]] || printf '%s\n' "$top"
+}
+
+# Prints the nearest of paths $2... above splice path $1, or nothing.
+splice_above() {
+  local below="$1" path nearest=""
+  shift
+  for path in "$@"; do
+    [[ "$below" == "$path"/* && ${#path} -gt ${#nearest} ]] && nearest="$path"
+  done
+  printf '%s' "$nearest"
+}
+
+# Prints the first of paths $2... above splice path $1, or fails if there's
+# none.
+first_above() {
+  local below="$1" path
+  shift
+  for path in "$@"; do
+    [[ "$below" != "$path"/* ]] || {
+      printf '%s\n' "$path"
+      return 0
+    }
+  done
+  return 1
+}
+
+# Prints the first of paths $2... below splice path $1, or fails if there's
+# none.
+first_below() {
+  local above="$1" path
+  shift
+  for path in "$@"; do
+    [[ "$path" != "$above"/* ]] || {
+      printf '%s\n' "$path"
+      return 0
+    }
+  done
+  return 1
 }
 
 # Succeeds if <path> would be valid in a ref name: no spaces, "..", or a
@@ -194,20 +263,6 @@ discover_splices() {
 # every command is tested with the others.
 usable_splice_path() {
   git check-ref-format "refs/splices/$1/branch"
-}
-
-# Prints the first splice in ALL_PATHS nested inside, or containing, $1.
-# Nested splices are refused: the outer one's push would publish the inner
-# one.
-overlapping_splice() {
-  local name="$1" path
-  for path in "${ALL_PATHS[@]}"; do
-    if [[ "$path" == "$name"/* || "$name" == "$path"/* ]]; then
-      printf '%s\n' "$path"
-      return 0
-    fi
-  done
-  return 1
 }
 
 is_splice_path() {

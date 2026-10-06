@@ -11,6 +11,9 @@ first, or 'git splice pull' to do both.
 The upstream branch is the one named like the current branch; on the
 monorepo's default branch, the splice's default-branch if it has one.
 
+Top-down: a splice is merged before the ones below it, since its merge
+can move their synced commits, and a failure stops them.
+
 On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 --abort' to give up), then re-run merge for any splices left. When the two
 sides share no history at all, merge doesn't guess: it prints the commands
@@ -54,10 +57,10 @@ merge_one() {
 
   # The merge base is the newest upstream commit both sides contain: the
   # synced commit, or a later one this branch pushed since.
-  local target merge_base base_folder base_blob new_blob nested
+  local target merge_base base_folder base_blob new_blob
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
-  if nested="$(upstream_state_file "$target")"; then
-    log_err "$path: upstream has $nested, and a splice can't contain another $STATE_FILE -- nested splices are not supported"
+  if upstream_has_state_file "$target"; then
+    log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
     return 1
   fi
   merge_base="$(git merge-base "$SPLICE_REBUILT" "$target")"
@@ -74,14 +77,27 @@ merge_one() {
 }
 
 # Merges every given path, stopping at the first one that leaves a conflict:
-# another cherry-pick can't start before it's resolved. `verb` as for
-# merge_one. Exits 1 if anything was skipped or failed.
+# another cherry-pick can't start before it's resolved. Top-down: a splice
+# goes before the ones below it, whose synced commit its pull may move, and
+# a failure stops them. `verb` as for merge_one. Exits 1 if anything was
+# skipped or failed.
 merge_paths() {
-  local branch="$1" verb="$2" path failures=() skipped=()
+  local branch="$1" verb="$2" path failed paths=() failures=() skipped=()
   shift 2
-  for path in "$@"; do
+  mapfile -t paths < <(splices_in_order top-down "$@")
+  for path in "${paths[@]}"; do
     if splice_in_progress; then
       skipped+=("$path")
+      continue
+    fi
+    if failed="$(first_above "$path" "${failures[@]}")"; then
+      log_err "$path: not $(past_tense "$verb"), since $failed above it failed"
+      failures+=("$path")
+      continue
+    fi
+    # A pull of a splice above this one may have removed it.
+    if ! git cat-file -e "HEAD:$path/$STATE_FILE" 2>/dev/null; then
+      log_ok "$path: not a splice any more -- nothing to $verb"
       continue
     fi
     merge_one "$path" "$branch" "$verb" || failures+=("$path")
