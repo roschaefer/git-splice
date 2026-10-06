@@ -77,7 +77,8 @@ Looking -- every splice unless paths are given:
                                       show the file changes push would send
   log [path...]                       show the commits push and pull would move
   fetch [path...]                     fetch the upstreams
-  key <path> [<new-key>]              print or rename the key of a splice's fetched refs
+  key [--upstream <name>] <path> [<new-key>]
+                                      print or rename the key of a splice's fetched refs
 
 Run 'git splice <command> -h' for command-specific help, and
 'git splice --version' for the version.

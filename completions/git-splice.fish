@@ -18,16 +18,24 @@ function __git_splice_paths
 end
 
 # True while the word being completed is positional argument number $argv[2]
-# (counting from 0) of command $argv[1], options not counted.
+# (counting from 0) of command $argv[1], options and the value after
+# --upstream not counted.
 function __git_splice_positional
     set -l seen 0
     set -l count 0
+    set -l skip 0
     for token in (commandline -opc)
         if test $seen = 0
             test "$token" = $argv[1]; and set seen 1
             continue
         end
+        if test $skip = 1
+            set skip 0
+            continue
+        end
         switch $token
+            case --upstream
+                set skip 1
             case '-*'
             case '*'
                 set count (math $count + 1)
@@ -63,3 +71,4 @@ complete -c git-splice -n "__fish_seen_subcommand_from clone" -l merge -d 'merge
 complete -c git-splice -n "__git_splice_positional clone 1" -a "(__fish_complete_directories)"
 complete -c git-splice -n "__git_splice_positional init 0" -a "(__fish_complete_directories)"
 complete -c git-splice -n "__git_splice_positional key 0" -a "(__git_splice_paths)" -d splice
+complete -c git-splice -n "__fish_seen_subcommand_from key" -l upstream -x -d 'upstream named in .splice'

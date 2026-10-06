@@ -2,12 +2,15 @@
 
 usage_key() {
   cat <<'EOF'
-usage: git splice key <path> [<new-key>]
+usage: git splice key [--upstream <name>] <path> [<new-key>]
 
 Prints the key splice <path>'s upstream has in this repository: its
 fetched branches are refs/splices/<key>/<branch>, e.g. for
 'git log splices/<key>/main'. With <new-key>, renames the key and moves
 its refs along.
+
+--upstream names the upstream, as <path>/.splice does in
+[upstream "<name>"]. It can be left out while the splice has only one.
 
 A key belongs to an upstream URL, so splices with the same URL share it.
 The first fetch of an upstream records its key in the repository's config,
@@ -43,21 +46,19 @@ rename_upstream_key() {
 }
 
 cmd_key() {
-  case "${1:-}" in
-    -h | --help)
-      usage_key
-      return
-      ;;
-  esac
-  [[ $# -eq 1 || $# -eq 2 ]] || {
+  parse_args usage_key "--upstream" "$@"
+  [[ -z "$ALL_ARG" ]] || die "key takes no --all"
+  [[ -z "$BASE_ARG" ]] || die "key takes no --base"
+  [[ ${#PATH_ARGS[@]} -eq 1 || ${#PATH_ARGS[@]} -eq 2 ]] || {
     usage_key >&2
     exit 1
   }
-  local path="${1%/}" new="${2:-}"
+  local path="${PATH_ARGS[0]%/}" new="${PATH_ARGS[1]:-}"
   cd_to_repo_root
   require_head_commit
   discover_splices
   is_splice_path "$path" || die "not a splice: $path"
+  require_upstream_name "$path" "$UPSTREAM_ARG"
   local key="${SPLICE_KEYS[$path]}"
   [[ -n "$key" ]] || die "$path: its upstream has no key yet -- 'git splice fetch $(shell_quote "$path")' records one"
   if [[ -z "$new" ]]; then

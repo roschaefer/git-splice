@@ -116,6 +116,17 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: key offers --upstream, and doesn't count its value as the path" {
+  run complete_words git-splice key --up
+  [ "$output" = "--upstream" ]
+  run complete_words git-splice key --upstream origin vend
+  [ "$output" = "vendor/a" ]
+  run complete_words git-splice key --upstream vend
+  [ -z "$output" ]
+  run complete_words git-splice key --upstream origin vendor/a vend
+  [ -z "$output" ]
+}
+
 @test "completion: init offers a directory with a command substitution quoted" {
   mkdir 'z$(touch${IFS}pwned)'
   run complete_words git-splice init z
@@ -186,6 +197,12 @@ fish_complete() {
   [ -z "$output" ]
 }
 
+@test "zsh completion: key offers --upstream" {
+  require_shell zsh
+  run zsh_complete "git-splice key --up"
+  [[ "$output" == *"--upstream"* ]]
+}
+
 @test "zsh completion: push completes branches for --base" {
   require_shell zsh
   run zsh_complete "git-splice push --base=ma"
@@ -224,6 +241,14 @@ fish_complete() {
   [[ "$output" == *"vendor/a"* ]]
   run fish_complete "git-splice key vendor/a vend"
   [ -z "$output" ]
+}
+
+@test "fish completion: key offers --upstream, and doesn't count its value as the path" {
+  require_shell fish
+  run fish_complete "git-splice key --up"
+  [ "$output" = "--upstream" ]
+  run fish_complete "git-splice key --upstream origin vendor/"
+  [[ "$output" == *"vendor/a"* ]]
 }
 
 @test "fish completion: push completes branches for --base" {

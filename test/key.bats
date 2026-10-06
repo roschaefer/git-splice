@@ -78,3 +78,43 @@ setup() {
   [ "$status" -eq 1 ]
   [ "$output" = "!!   not a splice: vendor" ]
 }
+
+@test "key: --upstream names the splice's upstream, in both forms" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_key --upstream origin vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = upstream ]
+  run cmd_key --upstream=origin vendor/a lib
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: renamed key 'upstream' to 'lib'" ]
+}
+
+@test "key: refuses an upstream the splice doesn't have, naming the one it has" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_key --upstream fork vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a has no upstream 'fork' -- its upstream is 'origin'" ]
+}
+
+@test "key: --upstream needs a name" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_key vendor/a --upstream
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --upstream needs an upstream's name" ]
+  run cmd_key --upstream= vendor/a
+  [ "$status" -eq 1 ]
+}
+
+@test "--upstream: refused by commands that don't take it yet" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_status --upstream origin vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   unknown option: --upstream" ]]
+  run cmd_push --upstream=origin vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   unknown option: --upstream" ]]
+}

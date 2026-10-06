@@ -102,6 +102,7 @@ _git-splice() {
       ;;
     key)
       _arguments \
+        '--upstream=[upstream named in .splice]:upstream name:' \
         '(-h --help)'{-h,--help}'[show usage]' \
         '1:splice:__git_splice_paths' \
         '2:new key:'

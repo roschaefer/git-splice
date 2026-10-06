@@ -9,11 +9,14 @@ declare -ga ALL_PATHS=()
 # discover_splices, and by clone for the splice it creates.
 declare -gA SPLICE_URLS=()
 declare -gA SPLICE_KEYS=()
+# Each splice's upstream's name in its .splice, [upstream "<name>"], by path.
+declare -gA SPLICE_UPSTREAM_NAMES=()
 
 # Name of the one upstream clone and init write into a new .splice.
 DEFAULT_UPSTREAM=origin
 # Results of parse_args.
 declare -g BASE_ARG=""
+declare -g UPSTREAM_ARG=""
 declare -g ALL_ARG=""
 declare -ga PATH_ARGS=()
 declare -ga EXTRA_FLAGS=()
@@ -93,6 +96,7 @@ parse_args() {
   shift 2
   ALL_ARG=""
   BASE_ARG=""
+  UPSTREAM_ARG=""
   PATH_ARGS=()
   EXTRA_FLAGS=()
   while [[ $# -gt 0 ]]; do
@@ -112,6 +116,20 @@ parse_args() {
       --base=*)
         BASE_ARG="${1#--base=}"
         [[ -n "$BASE_ARG" ]] || die "--base needs a branch name"
+        ;;
+      --upstream | --upstream=*)
+        [[ "$allowed" == *" --upstream "* ]] || {
+          "$usage_fn" >&2
+          die "unknown option: ${1%%=*}"
+        }
+        if [[ "$1" == --upstream ]]; then
+          [[ $# -ge 2 && -n "$2" ]] || die "--upstream needs an upstream's name"
+          UPSTREAM_ARG="$2"
+          shift
+        else
+          UPSTREAM_ARG="${1#--upstream=}"
+          [[ -n "$UPSTREAM_ARG" ]] || die "--upstream needs an upstream's name"
+        fi
         ;;
       --)
         shift
@@ -282,7 +300,7 @@ folder_tree() {
 #
 # Exactly one [upstream] section is supported for now.
 load_splice_upstream() {
-  local path="$1" records=() record urls=() old_url="" error q_file
+  local path="$1" records=() record urls=() names=() name old_url="" error q_file
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
@@ -305,7 +323,13 @@ load_splice_upstream() {
     # Each record is <key>, a newline, and the value.
     case "${record%%$'\n'*}" in
       # An empty URL names no upstream.
-      upstream.*.url) [[ -z "${record#*$'\n'}" ]] || urls+=("${record#*$'\n'}") ;;
+      upstream.*.url)
+        [[ -n "${record#*$'\n'}" ]] || continue
+        urls+=("${record#*$'\n'}")
+        name="${record%%$'\n'*}"
+        name="${name#upstream.}"
+        names+=("${name%.url}")
+        ;;
       splice.url) old_url="${record#*$'\n'}" ;;
     esac
   done
@@ -328,6 +352,7 @@ EOF
     die "$path/$STATE_FILE names ${#urls[@]} upstreams -- only one is supported so far"
   upstream_key "${urls[0]}"
   SPLICE_URLS[$path]="${urls[0]}"
+  SPLICE_UPSTREAM_NAMES[$path]="${names[0]}"
   SPLICE_KEYS[$path]="$UPSTREAM_KEY"
 }
 
@@ -541,6 +566,16 @@ splice_refs_prefix() {
 # Prints the ref of upstream branch <branch> of splice <path>, as fetched.
 splice_ref() {
   printf '%s%s\n' "$(splice_refs_prefix "$1")" "$2"
+}
+
+# Dies unless upstream <name> (from --upstream) is one of splice <path>'s,
+# or <name> is empty. Leaving it out picks the splice's only upstream; once
+# a .splice can name several, it will have to name one of them.
+require_upstream_name() {
+  local path="$1" name="$2"
+  require_splice_upstream "$path"
+  [[ -z "$name" || "$name" == "${SPLICE_UPSTREAM_NAMES[$path]}" ]] ||
+    die "$path has no upstream '$name' -- its upstream is '${SPLICE_UPSTREAM_NAMES[$path]}'"
 }
 
 # Loads splice <path>'s upstream, unless discover_splices or clone has, and

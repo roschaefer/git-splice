@@ -124,8 +124,19 @@ _git_splice() {
       fi
       ;;
     key)
-      if [[ "$cur" == -* ]] || (($(__git_splice_positionals "$start") == 0)); then
-        __git_splice_paths_or_options "$cur" -h --help
+      # The word after --upstream is the upstream's name, not a positional.
+      local i positionals=0
+      for ((i = start + 1; i < COMP_CWORD; i++)); do
+        case "${COMP_WORDS[i]}" in
+          --upstream) ((i++)) ;;
+          -*) ;;
+          *) ((positionals++)) ;;
+        esac
+      done
+      if [[ "${COMP_WORDS[COMP_CWORD - 1]}" == --upstream ]]; then
+        :
+      elif [[ "$cur" == -* ]] || ((positionals == 0)); then
+        __git_splice_paths_or_options "$cur" --upstream -h --help
       fi
       ;;
     *) ;;
