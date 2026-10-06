@@ -78,8 +78,9 @@ setup() {
   cd "$monorepo"
   cmd_init lib/a "$upstream"
   [ "$(splice_config lib/a default-branch)" = master ]
-  cmd_push lib/a
-  [ "$(git -C "$upstream" log -1 --format=%s master)" = "second version" ]
+  run cmd_push lib/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log -1 --format=%s master)" = "splice: init lib/a" ]
   ! git -C "$upstream" rev-parse --verify --quiet main
 }
 
