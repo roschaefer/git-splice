@@ -5,6 +5,9 @@ setup() {
   root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   cd "$root"
   fence='```'
+  # What scrut runs: a fence whose language is exactly scrut, maybe with a
+  # {config} after it. A longer word, e.g. scrutt, is a block it skips.
+  scrut_language='^scrut([[:space:]{]|$)'
   # The paths `just docs-check` hands scrut, read from the justfile so the
   # two can't drift apart.
   read -r -a docs_paths < <(sed -n 's/.*elif ! scrut test \(.*\); then.*/\1/p' justfile)
@@ -24,7 +27,7 @@ checked_documents() {
       [[ "$file" == "$path" || "$file" == "$path"/* ]] && checked=1
     done
     [[ -n "$checked" && "$file" == *.md ]] || missed+=("$file")
-  done < <(git grep --untracked -l -E "^$fence"scrut -- ':!test/docs.bats')
+  done < <(git grep --untracked -l -E "^$fence${scrut_language#^}" -- ':!test/docs.bats')
   printf 'not run by docs-check: %s\n' "${missed[@]}" >&2
   [ "${#missed[@]}" -eq 0 ]
 }
@@ -33,12 +36,12 @@ checked_documents() {
   local document unchecked
   unchecked="$(
     while IFS= read -r document; do
-      awk -v file="$document" -v fence="$fence" '
+      awk -v file="$document" -v fence="$fence" -v scrut="$scrut_language" '
         index($0, fence) == 1 {
           if (inside) { inside = 0 } else { inside = 1; info = substr($0, 4) }
           next
         }
-        inside && info !~ /^scrut/ && /^\$ / { print file ":" NR ": " $0 }
+        inside && info !~ scrut && /^\$ / { print file ":" NR ": " $0 }
       ' "$document"
     done < <(checked_documents)
   )"
@@ -49,10 +52,12 @@ checked_documents() {
 @test "docs: every scrut document first sources its setup" {
   local document first wrong=()
   while IFS= read -r document; do
-    grep -q "^$fence"scrut "$document" || continue
-    first="$(awk -v fence="$fence" '
-      index($0, fence "scrut") == 1 { inside = 1; next }
-      index($0, fence) == 1 { inside = 0 }
+    grep -qE "^$fence${scrut_language#^}" "$document" || continue
+    first="$(awk -v fence="$fence" -v scrut="$scrut_language" '
+      index($0, fence) == 1 {
+        if (inside) { inside = 0 } else { inside = substr($0, 4) ~ scrut }
+        next
+      }
       inside && /^\$ / { print; exit }
     ' "$document")"
     [[ "$first" =~ ^\$\ source\ \"\$TESTDIR/([^\"]*/)?[a-z]+-setup\.sh\" ]] || wrong+=("$document: $first")

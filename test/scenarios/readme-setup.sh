@@ -28,7 +28,7 @@ build_scenario() {
 
 # Prints the commands of document $1's scrut blocks, one "$ " line each.
 scrut_commands() {
-  awk '/^```scrut/ { inside = 1; next } /^```/ { inside = 0 } inside && /^\$ /' "$1"
+  awk '/^```/ { inside = !inside && /^```scrut([[:space:]{]|$)/; next } inside && /^\$ /' "$1"
 }
 
 # Used by this directory's README to keep the executable documentation
