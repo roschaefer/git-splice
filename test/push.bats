@@ -3,10 +3,20 @@ setup() {
   load_lib
   hermetic_git_config
   local scenario
-  for scenario in up-to-date push-ahead pull-ahead diverged-common-ancestor \
-    diverged-unrelated-history never-fetched feature-branch-unchanged \
-    feature-branch-changed diverged-then-pulled pushed-then-changed \
-    shared-remote-url default-branch uncommitted-changes; do
+  for scenario in \
+    up-to-date \
+    up-to-date/push-ahead \
+    up-to-date/pull-ahead \
+    up-to-date/push-ahead/diverged-common-ancestor \
+    up-to-date/push-ahead/diverged-unrelated-history \
+    never-fetched \
+    up-to-date/feature-branch-unchanged \
+    up-to-date/feature-branch-unchanged/feature-branch-changed \
+    up-to-date/diverged-then-pulled \
+    up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed \
+    up-to-date/shared-remote-url \
+    default-branch \
+    up-to-date/push-ahead/uncommitted-changes; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"

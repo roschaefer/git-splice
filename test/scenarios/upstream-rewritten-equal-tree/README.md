@@ -27,14 +27,17 @@ whatever the monorepo pulled before the rewrite.
 
 ## Output
 
-`scenario_upstream_rewritten_equal_tree` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_upstream_rewritten_equal_tree
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_upstream_rewritten_equal_tree
+```
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main

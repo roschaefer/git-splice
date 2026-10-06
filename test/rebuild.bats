@@ -7,9 +7,9 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/push-ahead/setup'
-  load 'scenarios/diverged-then-pulled/setup'
-  load 'scenarios/squash-merged-pull/setup'
+  load 'scenarios/up-to-date/push-ahead/setup'
+  load 'scenarios/up-to-date/diverged-then-pulled/setup'
+  load 'scenarios/up-to-date/squash-merged-pull/setup'
   load 'scenarios/init-new-upstream/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"

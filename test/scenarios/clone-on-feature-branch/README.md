@@ -10,14 +10,17 @@ Cloning while on a branch upstream doesn't have.
 
 ## Output
 
-`scenario_clone_on_feature_branch` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_clone_on_feature_branch
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_clone_on_feature_branch
+```
 
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a

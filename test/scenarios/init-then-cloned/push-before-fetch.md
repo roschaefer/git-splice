@@ -8,14 +8,17 @@ the upstream has, so the upstream stays as it was. This is part of
 
 ## Output
 
-`scenario_init_then_cloned` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_init_then_cloned
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_init_then_cloned
+```
 
 ```scrut
 $ git splice push lib/a

@@ -9,14 +9,17 @@ upstream's branches aren't.
 
 ## Output
 
-`scenario_never_fetched` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_never_fetched
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_never_fetched
+```
 
 ```scrut
 $ git splice status

@@ -7,14 +7,17 @@ rewrite removed something, like a secret.
 
 ## Output
 
-`scenario_upstream_rewritten_equal_tree` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_upstream_rewritten_equal_tree
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_upstream_rewritten_equal_tree
+```
 
 ```scrut
 $ echo "local change" >>vendor/a/file.txt && git commit -q -a -m "local change" && git splice status

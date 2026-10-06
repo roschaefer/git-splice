@@ -8,16 +8,20 @@ such paths.
 
 ## Output
 
-`scenario_clone_without_commits` in [`setup.bash`](setup.bash) builds the
-same empty monorepo used by the other document in this folder. The first
-command gives it the commit this independent example needs. [How scenarios
-work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_clone_without_commits
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds the same empty monorepo as the other
+document in this folder:
+
+```scrut
+$ build_scenario scenario_clone_without_commits
+```
+
+The first command gives it the commit this example needs:
 
 ```scrut
 $ git commit -q --allow-empty -m "initial commit" && git splice clone "$UPSTREAM" "my lib"

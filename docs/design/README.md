@@ -70,7 +70,7 @@ commit says which revision should be checked out. A splice commit is a sync
 point: the upstream revision the folder matched when changes were last spliced
 in. It does not determine the folder's current content; later monorepo commits
 can change it, and a push does not update the sync point
-([example](../../test/scenarios/pushed-then-pulled/README.md)).
+([example](../../test/scenarios/up-to-date/push-ahead/pushed-then-pulled/README.md)).
 
 From that point, `git-splice` lets Git merge upstream changes and resolve
 conflicts, or rebuild the folder's monorepo commits for a push. Changes cross
@@ -483,10 +483,10 @@ and Git 2.40, and their newer counterparts.
 
 | Layer | Where | What it checks |
 |---|---|---|
-| Scenarios | `test/scenarios/<name>/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state. Shared by everything below. |
+| Scenarios | `test/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from. Shared by everything below. |
 | Unit and command tests | `test/*.bats` | Functions and commands, called directly after `load_lib`, against a scenario. |
 | Oracle tests | `test/rebuild.bats` | The rebuild against `git subtree split`. |
-| Scenario READMEs | `test/scenarios/<name>/README.md` | What the tool prints in that state, checked by scrut. |
+| Scenario READMEs | `test/scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
 | Walkthroughs | `test/walkthrough/*.md` | Every command in order, on a sandbox, checked by scrut. |
 | Benchmark | `bench/`, `test/bench.bats` | `status` timings on a synthetic monorepo, reported on PRs out of draft. |
 
@@ -497,7 +497,7 @@ setup() {
   load 'helpers/fixtures'
   load_lib                  # source lib/*.sh, to call functions directly
   hermetic_git_config       # ignore the developer's git config
-  load 'scenarios/push-ahead/setup'
+  load 'scenarios/up-to-date/push-ahead/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

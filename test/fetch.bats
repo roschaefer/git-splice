@@ -4,7 +4,7 @@ setup() {
   hermetic_git_config
   load 'scenarios/up-to-date/setup'
   load 'scenarios/never-fetched/setup'
-  load 'scenarios/shared-remote-url/setup'
+  load 'scenarios/up-to-date/shared-remote-url/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

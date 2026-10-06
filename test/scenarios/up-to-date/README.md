@@ -7,14 +7,17 @@ A splice freshly cloned and never touched again on either side.
 
 ## Output
 
-`scenario_up_to_date` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_up_to_date
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_up_to_date
+```
 
 Nothing to do on either side:
 

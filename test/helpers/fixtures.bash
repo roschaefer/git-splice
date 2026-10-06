@@ -1,4 +1,4 @@
-# Low-level git-plumbing helpers shared by test/scenarios/*/setup.bash.
+# Low-level git-plumbing helpers shared by test/scenarios/**/setup.bash.
 # Named scenarios compose these into the specific history shapes bats
 # tests exercise -- see each scenario folder's README.md.
 

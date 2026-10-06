@@ -13,8 +13,8 @@ also says where it is the better tool.
 - [`git subtree`](git-subtree.md): either the library's whole history
   comes into the monorepo, or `split` walks the monorepo's whole history
   on every push. Either way, the history isn't linear. A splice's sync
-  point survives a [squash merge](../scenarios/squash-merged-pull/README.md),
-  and a [merge in the monorepo](../scenarios/merge-in-monorepo/README.md)
+  point survives a [squash merge](../scenarios/up-to-date/squash-merged-pull/README.md),
+  and a [merge in the monorepo](../scenarios/up-to-date/feature-branch-unchanged/merge-in-monorepo/README.md)
   reaches the upstream as one commit.
 
 | | `git submodule` | `git subtree` | `git splice` |

@@ -3,8 +3,12 @@ setup() {
   load_lib
   hermetic_git_config
   local scenario
-  for scenario in up-to-date clone-copied-content clone-differing-content \
-    clone-on-feature-branch clone-without-commits; do
+  for scenario in \
+    up-to-date \
+    clone-copied-content \
+    clone-differing-content \
+    clone-on-feature-branch \
+    clone-without-commits; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"

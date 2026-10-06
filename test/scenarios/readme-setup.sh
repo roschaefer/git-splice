@@ -28,33 +28,41 @@ build_scenario() {
 
 # Used by this directory's README to keep the executable documentation
 # contract honest: its table of contents includes every folder and document,
-# every scenario has one loadable setup, and every document links to and
-# invokes that setup.
+# every scenario has one loadable setup that sources nothing but its parent
+# scenario's, and every document links to and invokes that setup.
 check_scenario_setups() {
-  local directory document name function documents relative_document toc
+  local setup directory document name function documents relative toc sources
   toc="$(sed -n '/^## Table of contents$/,/^This check /p' "$TESTDIR/README.md")"
-  for directory in "$TESTDIR"/*/; do
-    [[ -f "$directory/setup.bash" ]] || return
+  # Sorted by folder, so a parent scenario comes before its children.
+  while IFS= read -r directory; do
+    setup="$directory/setup.bash"
+    relative="${directory#"$TESTDIR/"}"
     name="$(basename "$directory")"
     function="scenario_${name//-/_}"
-    grep -Fq "($name/)" <<<"$toc" || return
+    grep -Fq "($relative/)" <<<"$toc" || return
+    sources="$(grep -E '^[[:space:]]*(source|\.)[[:space:]]' "$setup")"
+    if [[ "$relative" == */* ]]; then
+      # shellcheck disable=SC2016 # the literal line a child setup.bash has
+      [[ "$sources" == 'source "$(dirname "${BASH_SOURCE[0]}")/../setup.bash"' ]] || return
+    else
+      [[ -z "$sources" ]] || return
+    fi
     unset -f "$function"
-    # shellcheck disable=SC1091
-    source "$directory/setup.bash"
+    # shellcheck disable=SC1090
+    source "$setup"
     declare -F "$function" >/dev/null || return
     documents=0
-    for document in "$directory"*.md; do
+    for document in "$directory"/*.md; do
       [[ -f "$document" ]] || continue
-      relative_document="${document#"$TESTDIR/"}"
-      grep -Fq "($relative_document)" <<<"$toc" || return
+      grep -Fq "(${document#"$TESTDIR/"})" <<<"$toc" || return
       grep -Fq 'setup.bash`](setup.bash)' "$document" || return
-      grep -Fq "build_scenario $function" "$document" || return
+      grep -Fq "$ build_scenario $function" "$document" || return
       ((documents += 1))
     done
     ((documents > 0)) || return
     printf 'ok %s (%d document%s)\n' \
-      "$name" "$documents" "$([[ $documents -eq 1 ]] || printf s)"
-  done
+      "$relative" "$documents" "$([[ $documents -eq 1 ]] || printf s)"
+  done < <(find "$TESTDIR" -mindepth 2 -name setup.bash | sed 's#/setup\.bash$##' | LC_ALL=C sort)
 }
 
 # Once the scenario is built, the READMEs show what a terminal shows,

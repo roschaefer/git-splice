@@ -3,10 +3,10 @@ setup() {
   load_lib
   hermetic_git_config
   load 'scenarios/up-to-date/setup'
-  load 'scenarios/diverged-common-ancestor/setup'
-  load 'scenarios/feature-branch-changed/setup'
-  load 'scenarios/merge-in-monorepo/setup'
-  load 'scenarios/pull-ahead/setup'
+  load 'scenarios/up-to-date/push-ahead/diverged-common-ancestor/setup'
+  load 'scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/setup'
+  load 'scenarios/up-to-date/feature-branch-unchanged/merge-in-monorepo/setup'
+  load 'scenarios/up-to-date/pull-ahead/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

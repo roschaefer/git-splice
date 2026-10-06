@@ -3,12 +3,12 @@ setup() {
   load_lib
   hermetic_git_config
   load 'scenarios/up-to-date/setup'
-  load 'scenarios/push-ahead/setup'
-  load 'scenarios/pull-ahead/setup'
-  load 'scenarios/diverged-common-ancestor/setup'
-  load 'scenarios/diverged-unrelated-history/setup'
+  load 'scenarios/up-to-date/push-ahead/setup'
+  load 'scenarios/up-to-date/pull-ahead/setup'
+  load 'scenarios/up-to-date/push-ahead/diverged-common-ancestor/setup'
+  load 'scenarios/up-to-date/push-ahead/diverged-unrelated-history/setup'
   load 'scenarios/never-fetched/setup'
-  load 'scenarios/shared-remote-url/setup'
+  load 'scenarios/up-to-date/shared-remote-url/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
