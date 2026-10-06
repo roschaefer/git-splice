@@ -93,8 +93,7 @@ On the left, as in the [README](../../README.md#the-solution), `=` marks
 the commits that change `.splice`, `*` those that change other files in
 the folder, whether or not they change files elsewhere too, and `.` those
 that don't touch the folder. On the right, as in `git splice log`, `<`
-marks R's commits that T lacks, `>` T's commits that R lacks, and `*` the
-commits both have. Since B, no
+marks R's commits that T lacks, `>` T's commits that R lacks. Since B, no
 commit changed the folder, so R has nothing to add to U: R = U. U is an
 ancestor of T, so the state is `pull: behind 1`, the commit between them.
 
