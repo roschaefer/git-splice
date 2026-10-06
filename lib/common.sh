@@ -52,6 +52,7 @@ log_err() { printf '!!   %s\n' "$*" >&2; }
 log_step() { printf '===  %s\n' "$*"; }
 die() {
   log_err "$*"
+  unlock_upstream_keys
   exit 1
 }
 
@@ -331,7 +332,7 @@ EOF
 }
 
 # Each upstream URL's key, and each key's URL, as recorded in the
-# repository's config by create_upstream_key. Loaded once, by
+# repository's config by create_upstream_key. Loaded by
 # load_upstream_keys.
 declare -gA KEY_OF_URL=()
 declare -gA URL_OF_KEY=()
@@ -344,7 +345,9 @@ declare -g UPSTREAM_KEYS_LOADED=""
 #   	url = https://github.com/x/lib.git
 #
 # --local: the repository's own config, which all its worktrees share, as
-# they share refs/splices/.
+# they share refs/splices/. Dies if an edit by hand broke what
+# create_upstream_key keeps: valid keys, each with one URL, and each URL
+# with one key.
 load_upstream_keys() {
   [[ -z "$UPSTREAM_KEYS_LOADED" ]] || return 0
   local records=() record key url
@@ -354,13 +357,27 @@ load_upstream_keys() {
     key="${key#splice.}"
     key="${key%.url}"
     url="${record#*$'\n'}"
-    # A key with several URLs, e.g. while two commands race to record it
-    # (see create_upstream_key), keeps its first.
-    [[ -z "${URL_OF_KEY[$key]+set}" && -n "$url" ]] || continue
+    valid_upstream_key "$key" ||
+      die "splice.$key.url in the repository's config: '$key' isn't a valid key -- rename it: git config --local --rename-section $(shell_quote "splice.$key") splice.<new-key>"
+    [[ -n "$url" ]] ||
+      die "splice.$key.url in the repository's config is empty -- remove it: git config --local --remove-section splice.$key"
+    [[ -z "${URL_OF_KEY[$key]+set}" ]] ||
+      die "splice.$key.url is set more than once in the repository's config -- keep one: git config --local --edit"
+    [[ -z "${KEY_OF_URL[$url]+set}" ]] ||
+      die "keys '${KEY_OF_URL[$url]}' and '$key' both name $url in the repository's config -- remove one: git config --local --remove-section splice.$key"
     URL_OF_KEY[$key]="$url"
-    [[ -n "${KEY_OF_URL[$url]+set}" ]] || KEY_OF_URL[$url]="$key"
+    KEY_OF_URL[$url]="$key"
   done
   UPSTREAM_KEYS_LOADED=1
+}
+
+# Forgets the keys load_upstream_keys read, so the next lookup reads the
+# config again.
+reload_upstream_keys() {
+  UPSTREAM_KEYS_LOADED=""
+  KEY_OF_URL=()
+  URL_OF_KEY=()
+  load_upstream_keys
 }
 
 # Sets UPSTREAM_KEY to the key the fetched refs of upstream <url> live
@@ -376,10 +393,7 @@ upstream_key() {
   UPSTREAM_KEY="${KEY_OF_URL[$1]:-}"
   [[ -z "$UPSTREAM_KEY" ]] || return 0
   # Not cached: another command may have recorded it since.
-  UPSTREAM_KEYS_LOADED=""
-  KEY_OF_URL=()
-  URL_OF_KEY=()
-  load_upstream_keys
+  reload_upstream_keys
   UPSTREAM_KEY="${KEY_OF_URL[$1]:-}"
 }
 
@@ -400,64 +414,105 @@ upstream_key_taken() {
   [[ -n "${URL_OF_KEY[$1]+set}" ]] || [[ -n "$(git for-each-ref --count=1 "refs/splices/$1/")" ]]
 }
 
-# Sets DERIVED_KEY to a key for upstream <url>: its last path component,
-# without .git, in lower case, with anything valid_upstream_key doesn't
-# allow replaced by "-":
-#
-#   https://github.com/x/lib.git   lib
-#   git@github.com:x/My_Lib.git    my_lib
-#   /srv/git/lib/                  lib
-derive_upstream_key() {
-  local LC_ALL=C name="$1"
-  while [[ "$name" == */ ]]; do name="${name%/}"; done
-  name="${name##*[/:]}"
-  name="${name%.git}"
-  name="${name,,}"
+# Sets KEY_CANDIDATE to <name> as a valid key, or to nothing if nothing
+# usable is left: lower case, with anything valid_upstream_key doesn't
+# allow replaced by "-", and its end kept if it's too long.
+upstream_key_candidate() {
+  local LC_ALL=C name="${1,,}"
   name="${name//[^a-z0-9._-]/-}"
   while [[ "$name" == *--* ]]; do name="${name//--/-}"; done
   while [[ "$name" == *..* ]]; do name="${name//../.}"; done
-  name="${name:0:40}"
+  ((${#name} <= 60)) || name="${name: -60}"
   while [[ "$name" == [._-]* ]]; do name="${name:1}"; done
   while [[ "$name" == *[._-] ]]; do name="${name%?}"; done
   [[ "$name" != *.lock ]] || name="${name%.lock}-lock"
-  valid_upstream_key "$name" || name=upstream
-  DERIVED_KEY="$name"
+  valid_upstream_key "$name" || name=""
+  KEY_CANDIDATE="$name"
+}
+
+# Sets KEY_CANDIDATES to the keys upstream <url> could get, most readable
+# first: its last path component without .git, then with more of the path
+# in front, up to the host, until one is free:
+#
+#   https://github.com/x/lib.git    lib, x-lib, github.com-x-lib
+#   git@gitlab.com:y/My_Lib.git     my_lib, y-my_lib, gitlab.com-y-my_lib
+#   /srv/git/lib/                   lib, git-lib, srv-git-lib
+#
+# Falls back to "upstream" if no part of the URL is usable.
+upstream_key_candidates() {
+  local url="$1" rest parts=() part name="" i
+  rest="${url#*://}"
+  while [[ "$rest" == */ ]]; do rest="${rest%/}"; done
+  rest="${rest%.git}"
+  IFS='/:' read -r -a parts <<<"$rest"
+  KEY_CANDIDATES=()
+  for ((i = ${#parts[@]} - 1; i >= 0; i--)); do
+    part="${parts[i]##*@}"
+    [[ -n "$part" ]] || continue
+    name="$part${name:+-$name}"
+    upstream_key_candidate "$name"
+    [[ -z "$KEY_CANDIDATE" ]] || [[ " ${KEY_CANDIDATES[*]} " == *" $KEY_CANDIDATE "* ]] ||
+      KEY_CANDIDATES+=("$KEY_CANDIDATE")
+  done
+  [[ ${#KEY_CANDIDATES[@]} -gt 0 ]] || KEY_CANDIDATES=(upstream)
+}
+
+# Where create_upstream_key and rename_upstream_key take turns: a folder
+# in the repository's common Git directory, which mkdir creates or fails
+# on in one step. Set while held; die releases it. Waits up to
+# UPSTREAM_KEYS_LOCK_TRIES tenths of a second for another command's.
+UPSTREAM_KEYS_LOCK=""
+UPSTREAM_KEYS_LOCK_TRIES=50
+
+lock_upstream_keys() {
+  local lock i
+  lock="$(git rev-parse --path-format=absolute --git-common-dir)/splice-keys.lock"
+  for ((i = 0; i < UPSTREAM_KEYS_LOCK_TRIES; i++)); do
+    if mkdir -- "$lock" 2>/dev/null; then
+      UPSTREAM_KEYS_LOCK="$lock"
+      return 0
+    fi
+    sleep 0.1
+  done
+  die "another git splice is recording an upstream key -- if none is running, remove $lock"
+}
+
+unlock_upstream_keys() {
+  [[ -z "$UPSTREAM_KEYS_LOCK" ]] || rmdir -- "$UPSTREAM_KEYS_LOCK" 2>/dev/null || true
+  UPSTREAM_KEYS_LOCK=""
 }
 
 # Sets UPSTREAM_KEY to upstream <url>'s key, and records one in the
-# repository's config first if it has none: derive_upstream_key's, or with
-# "-2", "-3" and so on if that's taken. Two commands may record a key at
-# the same time, e.g. fetches in two worktrees, so the key is added rather
-# than set, and given up for the next one if another URL got it too.
+# repository's config first if it has none: the first of
+# upstream_key_candidates that's free, or the last with "-2", "-3" and so
+# on. Under the lock, so two commands recording keys at the same time,
+# e.g. first fetches in two worktrees, can't pick the same one.
 create_upstream_key() {
-  local url="$1" base key n urls
+  local url="$1" key="" candidate n
   upstream_key "$url"
   [[ -z "$UPSTREAM_KEY" ]] || return 0
-  derive_upstream_key "$url"
-  base="$DERIVED_KEY"
-  key="$base"
-  n=2
-  while :; do
-    while upstream_key_taken "$key"; do
-      key="$base-$n"
-      n=$((n + 1))
-    done
-    git config --local --add "splice.$key.url" "$url" ||
-      die "couldn't record the key of $url in the repository's config -- try again"
-    urls="$(git config --local --get-all "splice.$key.url")"
-    [[ "$urls" != "$url" ]] || break
-    # Another command recorded the same URL under the same key.
-    if [[ -z "$(grep -vxF -- "$url" <<<"$urls")" ]]; then
-      git config --local --replace-all "splice.$key.url" "$url"
+  lock_upstream_keys
+  reload_upstream_keys
+  if [[ -n "${KEY_OF_URL[$url]:-}" ]]; then
+    UPSTREAM_KEY="${KEY_OF_URL[$url]}"
+    unlock_upstream_keys
+    return 0
+  fi
+  upstream_key_candidates "$url"
+  for candidate in "${KEY_CANDIDATES[@]}"; do
+    if ! upstream_key_taken "$candidate"; then
+      key="$candidate"
       break
     fi
-    git config --local --fixed-value --unset "splice.$key.url" "$url" || true
-    UPSTREAM_KEYS_LOADED=""
-    KEY_OF_URL=()
-    URL_OF_KEY=()
-    upstream_key "$url"
-    [[ -z "$UPSTREAM_KEY" ]] || return 0
   done
+  if [[ -z "$key" ]]; then
+    n=2
+    while upstream_key_taken "$candidate-$n"; do n=$((n + 1)); done
+    key="$candidate-$n"
+  fi
+  git config --local "splice.$key.url" "$url" ||
+    die "couldn't record the key of $url in the repository's config"
+  unlock_upstream_keys
   URL_OF_KEY[$key]="$url"
   KEY_OF_URL[$url]="$key"
   UPSTREAM_KEY="$key"

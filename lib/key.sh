@@ -11,18 +11,23 @@ its refs along.
 
 A key belongs to an upstream URL, so splices with the same URL share it.
 The first fetch of an upstream records its key in the repository's config,
-as splice.<key>.url, from the URL's last component: lib for
-https://github.com/x/lib.git, lib-2 if that's taken. A key is lower-case
-letters, digits, ".", "_" and "-", at most 64 long.
+as splice.<key>.url, from the end of its URL: lib for
+https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
+taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
+long.
 EOF
 }
 
 # Renames upstream key <old> to <new>: its refs, in one transaction, then
-# its entry in the repository's config.
+# its entry in the repository's config. Under the lock create_upstream_key
+# takes, so neither picks a key the other is taking.
 rename_upstream_key() {
-  local old="$1" new="$2" url="${URL_OF_KEY[$1]}"
+  local old="$1" new="$2" url
   valid_upstream_key "$new" ||
     die "'$new' isn't a valid key -- use lower-case letters, digits, '.', '_' and '-', at most 64, starting and ending with a letter or digit"
+  lock_upstream_keys
+  reload_upstream_keys
+  url="${URL_OF_KEY[$old]}"
   upstream_key_taken "$new" && die "key '$new' is taken -- 'git config --local --get-regexp ^splice\\.' lists the keys"
   git for-each-ref --format='%(refname) %(objectname)' "refs/splices/$old/" |
     while read -r ref object; do
@@ -31,6 +36,7 @@ rename_upstream_key() {
     done | git update-ref --stdin || die "couldn't move the refs of key '$old'"
   git config --local --rename-section "splice.$old" "splice.$new" ||
     die "moved the refs to refs/splices/$new/, but couldn't rename splice.$old in the repository's config -- rename it by hand (git config --local --rename-section splice.$old splice.$new)"
+  unlock_upstream_keys
   URL_OF_KEY[$new]="$url"
   unset 'URL_OF_KEY[$old]'
   KEY_OF_URL[$url]="$new"

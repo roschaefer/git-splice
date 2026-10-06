@@ -215,11 +215,15 @@ which all its worktrees share, as they share the refs:
 	url = https://github.com/x/lib.git
 ```
 
-It comes from the URL's last component, without `.git`, in lower case:
-`lib`, or `lib-2` if `lib` is taken, by another URL or by refs left under
-it. Lower case only, so no two keys' refs share files on a
-case-insensitive file system, and short, so they fit any file system's
-name limit. A key has no `/`, so branch names, which may, start right
+It comes from the end of the URL, without `.git`, in lower case: `lib`
+for `https://github.com/x/lib.git`. If that's taken, by another URL or by
+refs left under it, more of the URL goes in front, `x-lib`, then
+`github.com-x-lib`, and only then a number. Lower case only, so no two
+keys' refs share files on a case-insensitive file system, and short, so
+they fit any file system's name limit. Commands record keys one at a
+time, under a lock, and refuse a config edited by hand into keys that
+aren't valid, or into two URLs for a key or two keys for a URL, naming
+the `git config` command that fixes it. A key has no `/`, so branch names, which may, start right
 after it. `git splice key <path>` prints a splice's key, and
 `git splice key <path> <new-key>` renames it, refs included. Commands
 that only read, like `status`, never record a key: an upstream without
