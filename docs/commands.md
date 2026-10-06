@@ -8,7 +8,7 @@ Commands that only look cover every splice unless you name some. Run `git splice
 | --- | --- |
 | `clone <url> [<path>]` | Splices an existing repository into a new folder, as one commit. Use `--merge` if the folder already exists and differs. |
 | `init <path> <url>` | Makes a folder a splice of a new, empty repository. The first `push` publishes its history. |
-| `merge <path>…` | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
+| `merge <path>…` | Splices already-fetched upstream changes in, as one ordinary commit per splice. Works like `git merge --squash`, done internally with a cherry-pick: on a conflict, `git status` shows a cherry-pick in progress. |
 | `pull <path>…` | `fetch` + `merge`. |
 | `push <path>…` | Rebuilds the commits that changed each splice since the last sync and pushes them upstream. Writes nothing to the monorepo. |
 | `status [path…]` | Shows each splice's [sync state](sync-states.md), with how many commits `push` would publish and `pull` would bring in. |
