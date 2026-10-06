@@ -74,10 +74,10 @@ monorepo's history, two in the upstream's, and one is computed:
 
 | | Commit | Lives in |
 |---|---|---|
-| **B** | The boundary: the newest commit on the monorepo's first-parent history that changed `.splice`, i.e. the last `clone`, `init`, `merge` or `pull`. | the monorepo |
+| **B** | The boundary: the newest commit on the monorepo's first-parent history that changed `.splice`. Usually the last `clone`, `init`, `merge` or `pull`, but any commit that changes `.splice` counts, e.g. a `git mv` of the folder, or a squash merge of a branch that pulled. | the monorepo |
 | **U** | The synced commit: the upstream commit the folder matched at B, recorded in `.splice`. | the upstream |
 | **T** | *Theirs*: the upstream branch, as last fetched to `refs/splices/`. | the upstream |
-| **R** | The rebuild, *ours* to compare with T: the monorepo's commits since B that change the folder, rebuilt as upstream commits on top of U. It's what `push` sends, so it lives upstream only after a push. | neither, until pushed |
+| **R** | The rebuild, *ours* to compare with T: the monorepo's commits since B that change the folder, rebuilt as upstream commits on top of U. If B's folder differs from U, after a pull that merged a divergence, the commits before B are rebuilt too, and joined with U by a merge; without a U, after `init`, the folder's whole history is. It's what `push` sends, so it lives upstream only after a push. | neither, until pushed |
 
 For `vendor/pkg-a` in the sandbox:
 
@@ -90,8 +90,9 @@ For `vendor/pkg-a` in the sandbox:
 ```
 
 On the left, as in the [README](../../README.md#the-solution), `=` marks
-the commits that change `.splice`, `*` those that change only the
-folder's other files, and `.` those that don't touch the folder. Since B, no
+the commits that change `.splice`, `*` those that change other files in
+the folder, whether or not they change files elsewhere too, and `.` those
+that don't touch the folder. Since B, no
 commit changed the folder, so R has nothing to add to U: R = U. U is an
 ancestor of T, so the state is `pull: behind 1`, the commit between them.
 
@@ -211,7 +212,7 @@ $ git splice merge vendor/pkg-a
 ok   vendor/pkg-a: merged 703b936
 ```
 
-The merge commit is `vendor/pkg-a`'s new B, and its `.splice` records T
+The commit `merge` made is `vendor/pkg-a`'s new B, and its `.splice` records T
 as the new U:
 
 ```scrut
