@@ -26,20 +26,24 @@ build_scenario() {
   scenario_built=1
 }
 
+# Prints the commands of document $1's scrut blocks, one "$ " line each.
+scrut_commands() {
+  awk '/^```scrut/ { inside = 1; next } /^```/ { inside = 0 } inside && /^\$ /' "$1"
+}
+
 # Used by this directory's README to keep the executable documentation
-# contract honest: its table of contents includes every folder and document,
-# every scenario has one loadable setup that sources nothing but its parent
-# scenario's, and every document links to and invokes that setup.
+# contract honest, and to list every scenario there: each setup.bash
+# sources nothing but its parent scenario's and defines the function named
+# after its folder, and each document links to that setup and runs the
+# function first, right after the hidden block that sources this file.
 check_scenario_setups() {
-  local setup directory document name function documents relative toc sources
-  toc="$(sed -n '/^## Table of contents$/,/^This check /p' "$TESTDIR/README.md")"
+  local setup directory document name function documents relative sources first
   # Sorted by folder, so a parent scenario comes before its children.
   while IFS= read -r directory; do
     setup="$directory/setup.bash"
     relative="${directory#"$TESTDIR/"}"
     name="$(basename "$directory")"
     function="scenario_${name//-/_}"
-    grep -Fq "($relative/)" <<<"$toc" || return
     sources="$(grep -E '^[[:space:]]*(source|\.)[[:space:]]' "$setup")"
     if [[ "$relative" == */* ]]; then
       # shellcheck disable=SC2016 # the literal line a child setup.bash has
@@ -54,9 +58,9 @@ check_scenario_setups() {
     documents=0
     for document in "$directory"/*.md; do
       [[ -f "$document" ]] || continue
-      grep -Fq "(${document#"$TESTDIR/"})" <<<"$toc" || return
       grep -Fq 'setup.bash`](setup.bash)' "$document" || return
-      grep -Fq "$ build_scenario $function" "$document" || return
+      first="$(scrut_commands "$document" | sed -n 2p)"
+      [[ "$first" == "\$ build_scenario $function" || "$first" == "\$ build_scenario $function "* ]] || return
       ((documents += 1))
     done
     ((documents > 0)) || return

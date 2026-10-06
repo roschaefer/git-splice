@@ -21,42 +21,12 @@ A scenario folder has:
 - One or more `.md` files. Each describes one behavior and shows what the
   tool prints under "Output".
 
-## Table of contents
+## Every scenario
 
-| Scenario folder | Documents |
-| --- | --- |
-| [`clone-copied-content`](clone-copied-content/) | [Clone copied content](clone-copied-content/README.md) |
-| [`clone-differing-content`](clone-differing-content/) | [Clone differing content](clone-differing-content/README.md) |
-| [`clone-on-feature-branch`](clone-on-feature-branch/) | [Clone on a feature branch](clone-on-feature-branch/README.md) |
-| [`clone-without-commits`](clone-without-commits/) | [Clone without commits](clone-without-commits/README.md); [Ref-friendly path](clone-without-commits/ref-friendly-path.md) |
-| [`concurrent-pulls`](concurrent-pulls/) | [Concurrent pulls](concurrent-pulls/README.md); [Redo the pull](concurrent-pulls/redo-the-pull.md); [Committed conflict markers](concurrent-pulls/committed-conflict-markers.md) |
-| [`default-branch`](default-branch/) | [Default branch](default-branch/README.md) |
-| [`init-new-upstream`](init-new-upstream/) | [Initialize a new upstream](init-new-upstream/README.md) |
-| [`init-then-cloned`](init-then-cloned/) | [Init, then cloned](init-then-cloned/README.md); [Push before the fetch](init-then-cloned/push-before-fetch.md) |
-| [`nested-splices`](nested-splices/) | [Nested splices](nested-splices/README.md) |
-| [`never-fetched`](never-fetched/) | [Never fetched](never-fetched/README.md) |
-| [`splice-refs`](splice-refs/) | [How commands change a splice's refs](splice-refs/README.md) |
-| [`up-to-date`](up-to-date/) | [Up to date](up-to-date/README.md) |
-| [`up-to-date/diverged-then-pulled`](up-to-date/diverged-then-pulled/) | [Diverged, then pulled](up-to-date/diverged-then-pulled/README.md) |
-| [`up-to-date/feature-branch-unchanged`](up-to-date/feature-branch-unchanged/) | [Unchanged feature branch](up-to-date/feature-branch-unchanged/README.md) |
-| [`up-to-date/feature-branch-unchanged/feature-branch-changed`](up-to-date/feature-branch-unchanged/feature-branch-changed/) | [Changed feature branch](up-to-date/feature-branch-unchanged/feature-branch-changed/README.md) |
-| [`up-to-date/feature-branch-unchanged/merge-in-monorepo`](up-to-date/feature-branch-unchanged/merge-in-monorepo/) | [`git subtree` merge](up-to-date/feature-branch-unchanged/merge-in-monorepo/README.md); [Repeated `main` merges](up-to-date/feature-branch-unchanged/merge-in-monorepo/multiple-main-merges.md) |
-| [`up-to-date/pull-ahead`](up-to-date/pull-ahead/) | [Pull ahead](up-to-date/pull-ahead/README.md) |
-| [`up-to-date/push-ahead`](up-to-date/push-ahead/) | [Push ahead](up-to-date/push-ahead/README.md) |
-| [`up-to-date/push-ahead/diverged-common-ancestor`](up-to-date/push-ahead/diverged-common-ancestor/) | [Diverged with a common ancestor](up-to-date/push-ahead/diverged-common-ancestor/README.md) |
-| [`up-to-date/push-ahead/diverged-unrelated-history`](up-to-date/push-ahead/diverged-unrelated-history/) | [Diverged with unrelated history](up-to-date/push-ahead/diverged-unrelated-history/README.md) |
-| [`up-to-date/push-ahead/moved-with-unpushed-commits`](up-to-date/push-ahead/moved-with-unpushed-commits/) | [Moved with unpushed commits](up-to-date/push-ahead/moved-with-unpushed-commits/README.md); [Push before moving](up-to-date/push-ahead/moved-with-unpushed-commits/push-before-moving.md) |
-| [`up-to-date/push-ahead/pushed-then-pulled`](up-to-date/push-ahead/pushed-then-pulled/) | [Pushed, then pulled](up-to-date/push-ahead/pushed-then-pulled/README.md) |
-| [`up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed`](up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed/) | [Pushed, then changed](up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed/README.md) |
-| [`up-to-date/push-ahead/uncommitted-changes`](up-to-date/push-ahead/uncommitted-changes/) | [Uncommitted changes](up-to-date/push-ahead/uncommitted-changes/README.md) |
-| [`up-to-date/shared-remote-url`](up-to-date/shared-remote-url/) | [Shared remote URL](up-to-date/shared-remote-url/README.md) |
-| [`up-to-date/squash-merged-pull`](up-to-date/squash-merged-pull/) | [Squash-merged pull](up-to-date/squash-merged-pull/README.md) |
-| [`upstream-rewritten-equal-tree`](upstream-rewritten-equal-tree/) | [Upstream rewritten to an equal tree](upstream-rewritten-equal-tree/README.md); [Keep the upstream's version](upstream-rewritten-equal-tree/keep-the-upstream-version.md); [`push --force` undoes the rewrite](upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) |
-
-This check verifies that every scenario folder and document is present in the
-table of contents, that each `setup.bash` sources nothing but its parent's
-and defines its expected scenario function, and that every document links
-to and invokes its own folder's setup:
+This check lists every scenario folder, with how many documents it has.
+It fails if a `setup.bash` sources anything but its parent's, or doesn't
+define the function named after its folder, or if a document doesn't link
+to its setup or doesn't call that function first:
 
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/readme-setup.sh" && check_scenario_setups
@@ -119,5 +89,5 @@ shows as `$UPSTREAM`.
 2. Write one `.md` file per behavior. Copy the "Output" start from another
    scenario at the same depth, change the function name, and add a `scrut`
    block per command with just its `$ ` line.
-3. Add the folder and its documents to the table of contents.
-4. Run `just docs-check --write` to fill in the output, and read it.
+3. Run `just docs-check --write` to fill in the output, including the
+   new folder's line under "Every scenario", and read it.
