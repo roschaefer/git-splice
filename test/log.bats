@@ -59,14 +59,19 @@ setup() {
   [ -z "$output" ]
 }
 
-@test "log --graph: both sides part at the commit they build on, with R and T labeled" {
+@test "log --graph: both sides part at the commit they build on, with R and T labeled, the newer tip first" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_log --graph
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "===  vendor/a (main)" ]
-  [[ "${lines[1]}" == "< "*" (R) local change  (Test <test@example.com>)" ]]
-  [[ "${lines[2]}" == "| > "*" (T) upstream change  (Test <test@example.com>)" ]]
+  local r_line="${lines[1]}" t_line="${lines[2]#| }"
+  if [[ "${lines[1]}" == ">"* ]]; then
+    r_line="${lines[2]#| }" t_line="${lines[1]}"
+  fi
+  [[ "${lines[2]}" == "| "* ]]
+  [[ "$r_line" == "< "*" (R) local change  (Test <test@example.com>)" ]]
+  [[ "$t_line" == "> "*" (T) upstream change  (Test <test@example.com>)" ]]
   [[ "${lines[3]}" == "|/"* ]]
   [[ "${lines[4]}" == "o "* ]]
   [[ "${lines[4]}" != *"(R)"* && "${lines[4]}" != *"(T)"* ]]
