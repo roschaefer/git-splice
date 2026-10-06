@@ -74,10 +74,10 @@ monorepo's history, two in the upstream's, and one is computed:
 
 | | Commit | Lives in |
 |---|---|---|
-| **B** | The boundary: the newest commit on the monorepo's first-parent history that changed `.splice`. Usually the last `clone`, `init`, `merge` or `pull`, but any commit that changes `.splice` counts, e.g. a `git mv` of the folder, or a squash merge of a branch that pulled. | the monorepo |
-| **U** | The synced commit: the upstream commit last spliced in, recorded in `.splice` at B. B's folder has U's content, plus any local changes a pull kept when it merged a divergence. | the upstream |
-| **T** | *Theirs*: the upstream branch in `refs/splices/`, as of the last fetch or push. | the upstream |
-| **R** | The rebuild, *ours* to compare with T: the monorepo's commits since B that change the folder, rebuilt as upstream commits on top of U. If B's folder differs from U, after a pull that merged a divergence, the commits before B are rebuilt too, and joined with U by a merge; without a U, after `init`, the folder's whole history is. It's what `push` sends. Computed by every command; its commits are upstream already where nothing changed since they were pushed or pulled, e.g. R = U when no commit changed the folder since B. | computed |
+| **B** | The boundary: the newest commit on the monorepo's first-parent history that changed `.splice`. | the monorepo |
+| **U** | The synced commit: the upstream commit `.splice` records at B. | the upstream |
+| **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
+| **R** | The rebuild, *ours*: the splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends ([how](../../docs/design/README.md#splicing-out-push-and-the-rebuild)). | computed |
 
 For `vendor/pkg-a` in the sandbox:
 
@@ -120,8 +120,9 @@ $ git log --oneline splices/pkg-a/main
 ```
 
 R has no command to show it yet
-([#54](https://github.com/roschaefer/git-splice/issues/54)). `diff` and
-`log` show how it differs from T.
+([#54](https://github.com/roschaefer/git-splice/issues/54)). `log` shows
+the commits between R and T, in both directions, and `diff` the file
+changes `push` would send.
 
 ## clone
 

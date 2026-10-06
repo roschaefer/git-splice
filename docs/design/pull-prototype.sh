@@ -6,10 +6,10 @@
 # The trick: upstream commits have the folder's content at their root, so
 # they can't be merged into HEAD directly. Build two throwaway commits with
 # monorepo-shaped trees instead,
-#   base = HEAD, with <path>/ replaced by the old upstream commit U
-#   T    = HEAD, with <path>/ replaced by the new upstream commit U2 (parent: base)
-# and cherry-pick T: a three-way merge with base as merge base, HEAD as ours
-# and T as theirs. Only <path>/ differs between base and T, so only the
+#   base   = HEAD, with <path>/ replaced by the old upstream commit U
+#   theirs = HEAD, with <path>/ replaced by the new upstream commit U2 (parent: base)
+# and cherry-pick theirs: a three-way merge with base as merge base, HEAD as
+# ours. Only <path>/ differs between base and theirs, so only the
 # folder can conflict, and the state file update rides along.
 set -euo pipefail
 
@@ -65,8 +65,8 @@ echo "=== pull: cherry-pick a re-rooted upstream change"
 fetch
 U2="$(git rev-parse "refs/splices/$P/main")"
 base="$(git commit-tree "$(reroot "$U")" -p HEAD -m base)"
-T="$(git commit-tree "$(reroot "$U2")" -p "$base" -m "splice: pull $P to ${U2:0:7}")"
-git cherry-pick "$T" >/dev/null 2>&1 || true
+theirs="$(git commit-tree "$(reroot "$U2")" -p "$base" -m "splice: pull $P to ${U2:0:7}")"
+git cherry-pick "$theirs" >/dev/null 2>&1 || true
 git status --short
 cat "$P/f"
 

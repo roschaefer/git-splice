@@ -91,10 +91,10 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
-| **synced commit** (U) | The upstream commit whose content the splice last matched, recorded in `.splice`. |
+| **synced commit** (U) | The upstream commit `.splice` records: the one last spliced in. |
 | **boundary** (B) | The newest first-parent commit in the monorepo that changed `<path>/.splice`. Derived, never stored. |
-| **rebuild** (R) | The upstream history that the monorepo's commits since B turn into. What `push` sends. It's *ours* in the upstream's history, where `status`, `diff`, `log` and `push` compare the two sides. In the monorepo's history, *ours* is HEAD, and R is derived from it. |
-| **upstream branch** (T, for *theirs*) | `refs/splices/<key>/<branch>`: the upstream branch as last fetched, under the upstream's key. The other side of every comparison with R. |
+| **rebuild** (R) | The splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends, and *ours* when compared with T, in the upstream's history; in the monorepo's history, *ours* is HEAD. |
+| **upstream branch** (T, for *theirs*) | `refs/splices/<key>/<branch>`: the upstream branch as the monorepo last saw it, under the upstream's key. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
 | **splice in** | Bring upstream content into the monorepo: `clone`, `merge`, `pull`. |
 | **splice out** | Publish the monorepo's changes upstream: `push`. |
