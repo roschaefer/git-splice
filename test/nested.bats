@@ -202,3 +202,21 @@ work_in_outer_upstream() {
   [[ "$output" == *"vendor/a: pulled"*"vendor/a/b: pulled"* ]]
   [ "$(git show HEAD:vendor/a/b/other.txt)" = $'b change 1\nb change 2' ]
 }
+
+@test "nested: merge and pull keep the order given, but take each nested splice after its outer one" {
+  run outer_splices_first deep/x/y other deep/x z
+  [ "$output" = $'deep/x\ndeep/x/y\nother\nz' ]
+}
+
+@test "nested: pull skips the outer splice when the fetch of one nested in it fails" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "a change"
+  cd "$monorepo"
+  git config --file vendor/a/b/.splice upstream.origin.url "$BATS_TEST_TMPDIR/nowhere.git"
+  git commit -q -am "break vendor/a/b"
+  run splice pull vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: not pulled, since vendor/a/b wasn't fetched -- 'git splice merge vendor/a' merges what was fetched anyway"* ]]
+  [[ "$output" == *"Not fetched: vendor/a/b"* ]]
+  [ "$(git log -1 --format=%s)" = "break vendor/a/b" ]
+}

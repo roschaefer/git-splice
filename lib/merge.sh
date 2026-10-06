@@ -77,11 +77,40 @@ merge_one() {
 # in, and otherwise in the order given. (A path in a ref name has no
 # newline.)
 outer_splices_first() {
-  local path slashes
+  local path outer
+  local -A printed=()
   for path in "$@"; do
-    slashes="${path//[^\/]/}"
-    printf '%d\t%s\n' "${#slashes}" "$path"
-  done | sort -s -n -k1,1 | cut -f2-
+    # A nested splice goes with its outermost selected one, at the first
+    # of their places.
+    while outer="$(closest_outer_splice "$path" "$@")" && [[ -n "$outer" ]]; do
+      path="$outer"
+    done
+    [[ -z "${printed[$path]:-}" ]] || continue
+    printed[$path]=1
+    print_with_nested "$path" "$@"
+  done
+}
+
+# Prints splice path $1, then, recursively, those of paths $2... nested
+# directly in it, in the order given.
+print_with_nested() {
+  local outer="$1" path
+  shift
+  printf '%s\n' "$outer"
+  for path in "$@"; do
+    [[ "$(closest_outer_splice "$path" "$@")" != "$outer" ]] || print_with_nested "$path" "$@"
+  done
+}
+
+# Prints the longest of paths $2... that splice path $1 is nested in, or
+# nothing.
+closest_outer_splice() {
+  local inner="$1" path closest=""
+  shift
+  for path in "$@"; do
+    [[ "$inner" == "$path"/* && ${#path} -gt ${#closest} ]] && closest="$path"
+  done
+  printf '%s' "$closest"
 }
 
 # Merges every given path, stopping at the first one that leaves a conflict:
