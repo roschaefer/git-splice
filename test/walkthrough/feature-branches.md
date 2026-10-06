@@ -50,7 +50,8 @@ ok   vendor/pkg-a -> feature (upstream has no such branch; unchanged since 'main
 ok   vendor/pkg-b -> feature (upstream has no such branch; ahead 1 since 'main' -- push would create it)
 ```
 
-With no upstream branch to compare with, `diff` compares with `main`:
+Without an upstream branch there's no [T](README.md#b-u-t-and-r) to
+compare R with, so `diff` compares with `main`:
 
 ```scrut
 $ git splice diff

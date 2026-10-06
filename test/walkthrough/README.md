@@ -66,6 +66,64 @@ mistake:
 $ git remote
 ```
 
+## B, U, T and R
+
+Every command works a splice's state out from four commits, named as in
+the [design](../../docs/design/README.md#vocabulary). One lives in the
+monorepo's history, two in the upstream's, and one is computed:
+
+| | Commit | Lives in |
+|---|---|---|
+| **B** | The boundary: the newest commit on the monorepo's first-parent history that changed `.splice`. | the monorepo |
+| **U** | The synced commit: the upstream commit `.splice` records at B. | the upstream |
+| **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
+| **R** | The rebuild, *ours*: the splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends ([how](../../docs/design/README.md#splicing-out-push-and-the-rebuild)). | computed |
+
+For `vendor/pkg-a` in the sandbox:
+
+```text
+      monorepo, newest first                 pkg-a.git, newest first
+
+      . lib-c: first version             T   * pkg-a: a second commit, after the clone
+  B   = splice: clone vendor/pkg-a           |
+          (folder = U)                 U = R * pkg-a: seed
+```
+
+On the left, as in the [README](../../README.md#the-solution), `=` marks
+the commits that change `.splice`, `*` those that change other files in
+the folder, whether or not they change files elsewhere too, and `.` those
+that don't touch the folder. Since B, no
+commit changed the folder, so R has nothing to add to U: R = U. U is an
+ancestor of T, so the state is `pull: behind 1`, the commit between them.
+
+B is the newest commit that changed `.splice`:
+
+```scrut
+$ git log --first-parent -1 --oneline -- vendor/pkg-a/.splice
+7b30b50 splice: clone vendor/pkg-a from main at 9bb866a
+```
+
+U is the commit recorded there. `fetch` copied it into the monorepo, so
+Git can show it:
+
+```scrut
+$ git log -1 --oneline "$(git config --file vendor/pkg-a/.splice splice.commit)"
+9bb866a pkg-a: seed
+```
+
+T is the fetched branch. Its history leads to U:
+
+```scrut
+$ git log --oneline splices/pkg-a/main
+703b936 pkg-a: a second commit, after the clone
+9bb866a pkg-a: seed
+```
+
+R has no command to show it yet
+([#54](https://github.com/roschaefer/git-splice/issues/54)). `log` shows
+the commits between R and T, in both directions, and `diff` the file
+changes `push` would send.
+
 ## clone
 
 `clone` splices an existing repository into a new folder, as one commit.
@@ -155,6 +213,14 @@ $ git splice merge vendor/pkg-a
 ok   vendor/pkg-a: merged 703b936
 ```
 
+The commit `merge` made is `vendor/pkg-a`'s new B, and its `.splice` records T
+as the new U:
+
+```scrut
+$ git config --file vendor/pkg-a/.splice splice.commit
+703b9360f7ac335a1134e9b5771a90a7c09ba39a
+```
+
 ## pull
 
 `pull` is `fetch` and `merge` in one: this brings in the `pkg-b` change
@@ -195,7 +261,23 @@ $ git splice status vendor/pkg-a
 ok   vendor/pkg-a -> main (push: ahead 1)
 ```
 
-`diff` shows what `push` would send, with paths as the upstream sees them.
+Now R has a commit of its own: the local fix, rebuilt on top of U. `o`
+marks a commit of R that isn't upstream yet:
+
+```text
+      monorepo, newest first                 pkg-a.git, newest first
+
+      * pkg-a: a local fix               R   o pkg-a: a local fix
+      . splice: pull vendor/pkg-b            |
+  B   = splice: merge vendor/pkg-a           |
+          (folder = U)                 U = T * pkg-a: a second commit, after the clone
+                                             * pkg-a: seed
+```
+
+T is an ancestor of R, so the state is `push: ahead 1`.
+
+`diff` shows what `push` would send, the changes from T to R, with paths
+as the upstream sees them.
 
 ```scrut
 $ git splice diff
@@ -236,6 +318,14 @@ $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --format=%s main
 pkg-a: a local fix
 pkg-a: a second commit, after the clone
 pkg-a: seed
+```
+
+`push` updates T too, so now T = R. B and U stay where they were: a push
+writes nothing to the monorepo.
+
+```scrut
+$ git log -1 --oneline splices/pkg-a/main
+2d02eb8 pkg-a: a local fix
 ```
 
 ```scrut

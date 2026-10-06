@@ -115,10 +115,10 @@ splice_in_progress() {
 # same commit. Both sides are re-rooted into the monorepo's layout as two
 # throwaway commits, and the second is cherry-picked:
 #
-#   base = HEAD, with <path> = <base-folder> + <base-blob>
-#   T    = HEAD, with <path> = <new-folder>  + <new-blob>, parent: base
+#   base   = HEAD, with <path> = <base-folder> + <base-blob>
+#   theirs = HEAD, with <path> = <new-folder>  + <new-blob>, parent: base
 #
-# Only <path> differs between base and T, so only the splice can conflict.
+# Only <path> differs between base and theirs, so only the splice can conflict.
 # Returns 1 on a conflict, leaving it to be resolved like any other.
 splice_in() {
   local path="$1" base_folder="$2" base_blob="$3" new_folder="$4" new_blob="$5" message="$6"
@@ -133,7 +133,7 @@ splice_in() {
   if output="$(git -c advice.mergeConflict=false -c advice.resolveConflict=false cherry-pick "$theirs" 2>&1)"; then
     return 0
   fi
-  # "could not apply <T>" names the throwaway commit: no use to anyone.
+  # "could not apply <theirs>" names the throwaway commit: no use to anyone.
   printf '%s\n' "$output" | grep -v '^error: could not apply ' >&2
   if git rev-parse --quiet --verify CHERRY_PICK_HEAD >/dev/null 2>&1; then
     log_err "$path: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)"

@@ -53,6 +53,20 @@ $ git splice log
 > 4527a78 pkg-a: an upstream fix  (Walkthrough <walkthrough@example.com>)
 ```
 
+In terms of the [four commits](README.md#b-u-t-and-r), R and T each
+have a commit the other lacks, and U is where they part:
+
+```text
+      monorepo, newest first                 pkg-a.git, newest first
+
+      * pkg-a: a local fix               R   o | pkg-a: a local fix
+                                         T   | * pkg-a: an upstream fix
+  B   = splice: pull vendor/pkg-a            |/
+          (folder = U)                   U   * pkg-a: a second commit, after the clone
+```
+
+`<` marks R's side, `>` T's side.
+
 ## Pull first
 
 `push` refuses to drop upstream's commit:
@@ -102,8 +116,31 @@ $ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline 
 03f38f9 splice: pull vendor/pkg-a from main at 4527a78
 ```
 
-Only the local fix is left to push. Upstream gets it as its own commit,
-joined with upstream's fix by a merge:
+The resolved commit is the new B, and U moved to T. B's folder is U plus
+the local fix, so R joins the rebuilt local fix with U by a merge, as a
+plain `git pull` would have:
+
+```text
+      monorepo, newest first                 pkg-a.git, newest first
+
+  B   = splice: pull vendor/pkg-a        R   o   splice: pull vendor/pkg-a from main at 4527a78
+          (folder = U + local fix)           |\
+      * pkg-a: a local fix                   o | pkg-a: a local fix
+      = splice: pull vendor/pkg-a        U = T | * pkg-a: an upstream fix
+                                             |/
+                                             * pkg-a: a second commit, after the clone
+```
+
+T is an ancestor of R now, so the state is `push`, ahead by R's two `o`
+commits:
+
+```scrut
+$ git splice status
+ok   vendor/pkg-a -> main (push: ahead 2)
+```
+
+Upstream gets the local fix as its own commit, joined with upstream's fix
+by a merge:
 
 ```scrut
 $ git splice push vendor/pkg-a
