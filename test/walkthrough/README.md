@@ -114,7 +114,7 @@ $ git log -1 --oneline "$(git config --file vendor/pkg-a/.splice splice.commit)"
 T is the fetched branch. Its history leads to U:
 
 ```scrut
-$ git log --oneline splices/https%3A/%/git.example.com/pkg-a.git/-/main
+$ git log --oneline splices/pkg-a/main
 703b936 pkg-a: a second commit, after the clone
 9bb866a pkg-a: seed
 ```
@@ -323,7 +323,7 @@ pkg-a: seed
 writes nothing to the monorepo.
 
 ```scrut
-$ git log -1 --oneline splices/https%3A/%/git.example.com/pkg-a.git/-/main
+$ git log -1 --oneline splices/pkg-a/main
 2d02eb8 pkg-a: a local fix
 ```
 
