@@ -6,11 +6,14 @@ committed file in the folder, `.gitrepo`, names the library, and `push`
 turns the monorepo's commits that touched the folder into library commits.
 Every pull is one squashed commit, so the monorepo's history stays linear.
 
-The difference is what `.gitrepo` records besides the library: the one
-library branch the folder syncs with, and the monorepo commit of the last
-sync, which every push writes too. This page shows what follows from that
-on a feature branch that ends in a squash merge, and where git-subrepo is
-the better tool.
+Both tools call the library's own repository the *upstream*, and the
+branch of it that a folder syncs with the *upstream branch*. This page does
+too.
+
+The difference is what `.gitrepo` records besides the upstream: one
+upstream branch, explicitly, and the monorepo commit of the last sync,
+which every push writes too. This page shows what follows from that on a
+feature branch that ends in a squash merge.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
 and a monorepo with an app. [How these pages run](../README.md).
@@ -108,7 +111,7 @@ $ git log -1 --format=%s "$(git config --file vendor/lib/.gitrepo subrepo.parent
 fix parse() and call it
 ```
 
-## One library branch per folder
+## One upstream branch per folder
 
 On a feature branch, a second fix:
 
@@ -116,15 +119,15 @@ On a feature branch, a second fix:
 $ git switch -q -c feature && echo "fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 2"
 ```
 
-`push` sends it to the branch in `.gitrepo`, the library's `main`, with no
-pull request to review it:
+`push` sends it to the upstream branch in `.gitrepo`, `main`, with no pull
+request to review it:
 
 ```scrut
 $ git subrepo push vendor/lib
 Subrepo 'vendor/lib' pushed to 'https://git.example.com/lib.git' (main).
 ```
 
-`--branch` pushes to another branch. After a push, it needs a `fetch`
+`--branch` pushes to another upstream branch. After a push, it needs a `fetch`
 first, or it fails with "Local repository does not contain" the commit it
 pushed:
 
@@ -135,7 +138,7 @@ Subrepo 'vendor/lib' pushed to 'https://git.example.com/lib.git' (feature).
 ```
 
 It also writes the branch into `.gitrepo`, so the feature branch now syncs
-with the library's `feature`:
+with the upstream branch `feature`:
 
 ```scrut
 $ git config --file vendor/lib/.gitrepo subrepo.branch
@@ -152,7 +155,7 @@ $ git switch -q main && git merge -q --squash feature && git commit -q -m "featu
 Squash commit -- not updating HEAD
 ```
 
-`main` now syncs with the library's `feature` branch, and its `parent`
+`main` now syncs with the upstream branch `feature`, and its `parent`
 is a commit of the feature branch, which `main` doesn't contain:
 
 ```scrut
@@ -221,7 +224,7 @@ $ git log --graph --format=%s -3
 * app commit 40
 ```
 
-On a feature branch, `push` syncs with the library branch of the same
+On a feature branch, `push` syncs with the upstream branch of the same
 name, ready for a pull request:
 
 ```scrut
@@ -235,7 +238,7 @@ $ echo "fix 3" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 3" && git 
 ok   vendor/lib: pushed 79da5cd to feature
 ```
 
-After the squash merge, `main` syncs with the library's `main` again. The
+After the squash merge, `main` syncs with the upstream branch `main` again. The
 sync point is the newest commit that changed `.splice`, the `clone`, and
 a squash merge can't drop it. So the next push sends the squashed commit
 and the new one:
@@ -260,17 +263,19 @@ lib commit 30
 
 Rebasing a branch after its push makes the rebuilt commits differ from the
 pushed ones, as with `git push`: `status` shows the splice as diverged, and
-`git splice push --force` replaces the library branch, like
+`git splice push --force` replaces the upstream branch, like
 `git push --force`.
 
-## Where git-subrepo is better
+## Where git-subrepo is different
 
-- **A folder can follow any library branch.** `.gitrepo` names it, so
-  every monorepo branch can sync with, say, the library's release branch.
-  A splice syncs by branch name, the monorepo's default branch with the
-  library's.
-- **Pushing straight to the library's `main` is one command,** from any
-  branch. If you own the library and don't review its changes, that's
-  what you want.
-- **The monorepo's history shows every push,** in the commits that changed
-  `.gitrepo`. A splice's `.splice` changes on `clone` and `pull` only.
+- **Explicit vs. implicit upstream branches.** `.gitrepo` names the
+  upstream branch, so every monorepo branch syncs with that one, say
+  `main` or a release branch, until `--branch` changes it, and a merge
+  carries the change along. A splice names none: each monorepo branch
+  syncs with the upstream branch of its own name, the default branch with
+  the upstream's.
+- **A push commits on the monorepo.** It records the pushed commit and the
+  monorepo commit it came from in `.gitrepo`, so the monorepo's history
+  shows every push, and a squash merge or rebase can strand that record.
+  A splice's push writes nothing to the monorepo; `.splice` changes on
+  `clone` and `pull` only.
