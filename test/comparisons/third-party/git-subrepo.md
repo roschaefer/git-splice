@@ -266,6 +266,69 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
 `git splice push --force` replaces the upstream branch, like
 `git push --force`.
 
+## Fetched refs: keyed by folder or by upstream
+
+Both tools keep what they fetched under refs of their own. git-subrepo
+keys them by the folder's path, `refs/subrepo/<path>/`; git-splice by the
+upstream's URL, `refs/splices/<URL>/-/<branch>`. They differ when another
+branch uses the same folder for another upstream, here a second library:
+
+```scrut
+$ git init -q -b main ../other && echo "other" >../other/README && git -C ../other add README && git -C ../other commit -q -m "other library" && git init -q --bare "$COMPARISON/upstream/other.git" && git -C ../other push -q https://git.example.com/other.git main
+```
+
+Back in git-subrepo's monorepo, `vendor/lib` on `main` was last fetched
+from `lib.git`:
+
+```scrut
+$ cd ../monorepo && git log -1 --format=%s refs/subrepo/vendor/lib/fetch
+fix 3
+```
+
+A branch from before the library clones the other one into the same
+folder:
+
+```scrut
+$ git switch -q -c other ':/^app commit 40' && git subrepo clone https://git.example.com/other.git vendor/lib && git switch -q main
+Subrepo 'https://git.example.com/other.git' (main) cloned into 'vendor/lib'.
+```
+
+Back on `main`, `vendor/lib` still names `lib.git`, but its refs now hold
+the other library, and `status` shows its commit as the upstream's:
+
+```scrut
+$ git subrepo status vendor/lib | grep -E 'Remote URL|Upstream Ref'; git log -1 --format=%s refs/subrepo/vendor/lib/fetch
+  Remote URL:      https://git.example.com/lib.git
+  Upstream Ref:    3ea1a83
+other library
+```
+
+`pull` and `push` fetch again before they use the refs, so they still
+reach the right library. `status` doesn't.
+
+The same with `git splice`:
+
+```scrut
+$ cd ../splice-monorepo && git switch -q -c other ':/^app commit 40' && git splice clone https://git.example.com/other.git vendor/lib && git switch -q main
+===  vendor/lib: fetching https://git.example.com/other.git
+===  vendor/lib: upstream has no 'other' branch -- using 'main'; your first push creates 'other'
+ok   vendor/lib: cloned 3ea1a83 from main
+```
+
+Each upstream has its own refs, so `main`'s are untouched:
+
+```scrut
+$ git for-each-ref --format='%(refname) %(subject)' refs/splices
+refs/splices/https%3A/%/git.example.com/lib.git/-/feature fix 3
+refs/splices/https%3A/%/git.example.com/lib.git/-/main fix 4
+refs/splices/https%3A/%/git.example.com/other.git/-/main other library
+```
+
+```scrut
+$ git splice status
+ok   vendor/lib -> main (up to date)
+```
+
 ## Where git-subrepo is different
 
 - **Explicit vs. implicit upstream branches.** `.gitrepo` names the
@@ -279,6 +342,10 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
   shows every push, and a squash merge or rebase can strand that record.
   A splice's push writes nothing to the monorepo; `.splice` changes on
   `clone` and `pull` only.
+- **Fetched refs are keyed by folder, not by upstream.** Two branches
+  that use the same folder for different upstreams share
+  `refs/subrepo/<path>/`, and `status` shows whichever was fetched last.
+  git-splice keys its refs by the upstream's URL.
 
 ## In short
 
@@ -290,3 +357,4 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
 | Sync point | a monorepo commit, stored in `.gitrepo` | derived: the newest commit that changed `.splice` |
 | After a squash merge | push stops until `.gitrepo` is fixed by hand | push works |
 | After rebasing pushed commits | push stops until `.gitrepo` is fixed by hand | diverged, `push --force` as with Git |
+| Fetched refs keyed by | folder path | upstream URL |
