@@ -6,15 +6,15 @@ lint:
     shellcheck test/walkthrough/setup.sh test/walkthrough/simulate-remote-change
     shellcheck completions/git-splice.bash
     shellcheck bench/setup.sh bench/run.sh
-    shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/comparisons/scrut-setup.sh
+    shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh
 
 # Format with shfmt
 fmt:
-    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh test/walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/comparisons/scrut-setup.sh
+    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh test/walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh
 
 # Check formatting with shfmt
 fmt-check:
-    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh test/walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/comparisons/scrut-setup.sh
+    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh test/walkthrough/simulate-remote-change completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh
 
 # Run the bats tests
 test:
