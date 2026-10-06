@@ -118,3 +118,21 @@ setup() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   unknown option: --upstream" ]]
 }
+
+@test "key: takes the path in any spelling the other commands take" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  [ "$(cmd_key ./vendor/a)" = upstream ]
+  [ "$(cmd_key vendor/a//)" = upstream ]
+}
+
+@test "key: a rename of a key another command renamed meanwhile fails, and releases the lock" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  load_upstream_keys
+  git config --local --rename-section splice.upstream splice.other
+  run rename_upstream_key upstream lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   key 'upstream' is gone -- run 'git splice key' again" ]
+  [ ! -e .git/splice-keys.lock ]
+}

@@ -30,6 +30,8 @@ rename_upstream_key() {
     die "'$new' isn't a valid key -- use lower-case letters, digits, '.', '_' and '-', at most 64, starting and ending with a letter or digit"
   lock_upstream_keys
   reload_upstream_keys
+  # Another command may have renamed it since this one read the config.
+  [[ -n "${URL_OF_KEY[$old]:-}" ]] || die "key '$old' is gone -- run 'git splice key' again"
   url="${URL_OF_KEY[$old]}"
   upstream_key_taken "$new" && die "key '$new' is taken -- 'git config --local --get-regexp ^splice\\.' lists the keys"
   git for-each-ref --format='%(refname) %(objectname)' "refs/splices/$old/" |
@@ -53,7 +55,8 @@ cmd_key() {
     usage_key >&2
     exit 1
   }
-  local path="${PATH_ARGS[0]%/}" new="${PATH_ARGS[1]:-}"
+  local path new="${PATH_ARGS[1]:-}"
+  path="$(normalize_path "${PATH_ARGS[0]}")"
   cd_to_repo_root
   require_head_commit
   discover_splices

@@ -414,6 +414,22 @@ assert_candidates() {
   [ "$UPSTREAM_KEY" = x-lib ]
 }
 
+@test "create_upstream_key: skips a key a ref is named like, which its refs would conflict with" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  git update-ref refs/splices/lib HEAD
+  create_upstream_key https://github.com/x/lib.git
+  [ "$UPSTREAM_KEY" = x-lib ]
+}
+
+@test "create_upstream_key: refs of a longer key don't take a shorter one" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  git update-ref refs/splices/libfoo/main HEAD
+  create_upstream_key https://github.com/x/lib.git
+  [ "$UPSTREAM_KEY" = lib ]
+}
+
 @test "create_upstream_key: sees a key another command recorded since this one read the config" {
   init_monorepo "$monorepo"
   cd "$monorepo"

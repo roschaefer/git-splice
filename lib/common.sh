@@ -433,10 +433,12 @@ valid_upstream_key() {
 }
 
 # Succeeds if <key> names an upstream already, or refs are left under it,
-# e.g. from a key that was removed from the config by hand.
+# e.g. from a key that was removed from the config by hand, or a ref is
+# named like it, which refs under it would conflict with. (A pattern
+# without "/" matches both, and no other key's refs.)
 upstream_key_taken() {
   load_upstream_keys
-  [[ -n "${URL_OF_KEY[$1]+set}" ]] || [[ -n "$(git for-each-ref --count=1 "refs/splices/$1/")" ]]
+  [[ -n "${URL_OF_KEY[$1]+set}" ]] || [[ -n "$(git for-each-ref --count=1 "refs/splices/$1")" ]]
 }
 
 # Sets KEY_CANDIDATE to <name> as a valid key, or to nothing if nothing
