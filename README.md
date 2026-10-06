@@ -120,7 +120,7 @@ Everything else follows from two rules:
 1. **The folder carries its own state.** Move it with `git mv`, and the
    splice moves along. Push unpushed commits first: a push after the move
    squashes them into it
-   ([#4](test/scenarios/moved-with-unpushed-commits/README.md)). A clone of the monorepo has every splice, with no
+   ([#4](test/scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)). A clone of the monorepo has every splice, with no
    setup.
 2. **Your local branch name is the upstream branch name.** On `feature-x`,
    every splice syncs with its upstream's `feature-x`. On the monorepo's

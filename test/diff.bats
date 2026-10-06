@@ -3,11 +3,11 @@ setup() {
   load_lib
   hermetic_git_config
   load 'scenarios/up-to-date/setup'
-  load 'scenarios/push-ahead/setup'
-  load 'scenarios/pull-ahead/setup'
-  load 'scenarios/feature-branch-unchanged/setup'
-  load 'scenarios/feature-branch-changed/setup'
-  load 'scenarios/shared-remote-url/setup'
+  load 'scenarios/up-to-date/push-ahead/setup'
+  load 'scenarios/up-to-date/pull-ahead/setup'
+  load 'scenarios/up-to-date/feature-branch-unchanged/setup'
+  load 'scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/setup'
+  load 'scenarios/up-to-date/shared-remote-url/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

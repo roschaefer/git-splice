@@ -24,14 +24,17 @@ message is wrong too.
 
 ## Output
 
-`scenario_init_then_cloned` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_init_then_cloned
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_init_then_cloned
+```
 
 `.splice` has no synced commit:
 

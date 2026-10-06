@@ -95,7 +95,7 @@ setup() {
 }
 
 @test "cli: runs from any subfolder" {
-  load 'scenarios/push-ahead/setup'
+  load 'scenarios/up-to-date/push-ahead/setup'
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo/vendor/a"
   run "$entrypoint" status

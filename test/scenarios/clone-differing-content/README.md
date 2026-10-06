@@ -11,14 +11,17 @@ a conflict, and nothing is lost.
 
 ## Output
 
-`scenario_clone_differing_content` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_clone_differing_content
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_clone_differing_content
+```
 
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a

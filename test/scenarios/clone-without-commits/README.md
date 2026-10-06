@@ -8,14 +8,17 @@ that first commit.
 
 ## Output
 
-`scenario_clone_without_commits` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_clone_without_commits
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_clone_without_commits
+```
 
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a

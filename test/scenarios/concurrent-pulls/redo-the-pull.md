@@ -7,14 +7,17 @@ is your only local commit, and keeps the history linear.
 
 ## Output
 
-`scenario_concurrent_pulls` in [`setup.bash`](setup.bash)
-builds this state. [How scenarios work](../README.md).
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh" && build_scenario scenario_concurrent_pulls
+$ source "$TESTDIR/../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_concurrent_pulls
+```
 
 ```scrut
 $ git merge origin/main >/dev/null; git merge --abort
