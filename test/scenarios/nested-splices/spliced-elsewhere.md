@@ -1,11 +1,13 @@
 # Scenario: nested-splices, spliced into another monorepo
 
-**A known limitation.** The monorepo pushes a change in b, the splice
-below a. Then another monorepo splices a in. There, b's files already
-have the change, but b's `.splice` still names the synced commit from
-before it, and `git splice clone` brought in none of the history between
-the two. So b's first local change there reads as diverged from b's
-upstream, and `pull` conflicts on a line both sides have.
+**A known limitation**
+([#74](https://github.com/roschaefer/git-splice/issues/74)). The
+monorepo pushes a change in b, the splice below a. Then another monorepo
+splices a in. There, b's files already have the change, but b's
+`.splice` still names the synced commit from before it, and
+`git splice clone` brought in none of the history between the two. So
+b's first local change there reads as diverged from b's upstream, and
+`pull` conflicts on a line both sides have.
 
 A plain `git clone` of a's upstream doesn't run into this: it has the
 history in between, as the monorepo does.

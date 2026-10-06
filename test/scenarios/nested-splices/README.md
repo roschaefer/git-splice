@@ -135,5 +135,6 @@ a would have conflicted: see
 [Limits](../../../docs/design/README.md#limits).
 
 Once the monorepo has pushed a change in b, another monorepo that splices
-a in can't push from b without a conflict, a known limitation:
+a in can't push from b without a conflict, a known limitation
+([#74](https://github.com/roschaefer/git-splice/issues/74)):
 [spliced into another monorepo](spliced-elsewhere.md).
