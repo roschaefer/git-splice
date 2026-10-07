@@ -6,8 +6,9 @@ repository.
 - **Monorepo (`lib/a`)**: two commits.
 - **Upstream**: empty.
 
-`init` only commits `.splice`. The first push sends the folder as it is at
-`init`, as one commit; its history before that stays in the monorepo
+`init` only commits `.splice`. The first push starts the upstream at that
+commit, with the folder as it is at `init`, followed by any commits after
+it. Its history before that stays in the monorepo
 ([why](removed-before-init/README.md)).
 
 ## Output

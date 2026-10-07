@@ -6,8 +6,9 @@ usage: git splice init <path> <url>
 
 Makes the existing folder <path> a splice, to be published to <url>: an
 empty repository you created for it. Commits <path>/.splice and nothing
-else. Your first 'git splice push <path>' then sends the folder as it is
-now, as one commit: its earlier history stays in the monorepo.
+else. Your first 'git splice push <path>' then starts the upstream with
+that commit, the folder as it is now, followed by any commits after it.
+The folder's earlier history stays in the monorepo.
 
 If <url> has commits already, use 'git splice clone --merge <url> <path>'.
 EOF
