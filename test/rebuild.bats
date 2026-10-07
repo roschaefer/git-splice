@@ -264,6 +264,26 @@ two_splices_ahead() {
   [ "$(git log --format=%s "$rebuilt")" = "clone lib/a again"$'\n'"splice: init lib/a" ]
 }
 
+@test "rebuild: a leftover old-format splice.url doesn't start the history over" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(rebuild_splice vendor/a)"
+  git config --file vendor/a/.splice splice.url "$upstream"
+  git commit -q -am "leave the old URL in"
+  [ "$(rebuild_splice vendor/a)" = "$before" ]
+}
+
+@test "rebuild: URLs that differ only in the order of their lines are different splices" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.origin.url $'one\ntwo'
+  git commit -q -am "one upstream"
+  git config --file vendor/a/.splice upstream.origin.url $'two\none'
+  git commit -q -am "another upstream"
+  [ "$(splice_mount vendor/a)" = "$(git rev-parse HEAD)" ]
+}
+
 @test "rebuild: a synced commit that isn't available locally is an error" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
