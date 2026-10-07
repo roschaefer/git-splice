@@ -443,6 +443,16 @@ removed and spliced in again
 A new upstream URL keeps the history: the `id` stays
 ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
 
+**A nested splice's history up to the splice above's boundary** comes
+from that splice's upstream. A clone or pull of the splice above squashes
+the upstream's history into one commit, so the monorepo's own history
+can't tell which of the folder's changes the splice below already
+pushed, or who made them. The upstream's history can, and the monorepo
+has it: the synced commit of the splice above, fetched. So the rebuild of
+the splice below first rebuilds it in that upstream, at that synced
+commit, and continues from there with the monorepo's commits
+([example](../../test/scenarios/nested-splices/spliced-elsewhere.md)).
+
 **Costs** O(commits since the last boundary whose folder matched its synced
 commit), not O(all history). The commit loop
 reads all commit metadata with one `git log` and all folder trees with one

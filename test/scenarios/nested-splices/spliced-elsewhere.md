@@ -1,16 +1,17 @@
 # Scenario: nested-splices, spliced into another monorepo
 
-**A known limitation**
-([#74](https://github.com/roschaefer/git-splice/issues/74)). The
-monorepo pushes a change in b, the splice below a. Then another monorepo
-splices a in. There, b's files already have the change, but b's
-`.splice` still names the synced commit from before it, and
-`git splice clone` brought in none of the history between the two. So
-b's first local change there reads as diverged from b's upstream, and
-`pull` conflicts on a line both sides have.
+The monorepo pushes a change in b, the splice below a. Then another
+monorepo splices a in. There, b's files already have the change, but b's
+`.splice` still names the synced commit from before it, and `git splice
+clone` squashed a's history into one commit: the other monorepo's own
+history has nothing between that synced commit and b's files.
 
-A plain `git clone` of a's upstream doesn't run into this: it has the
-history in between, as the monorepo does.
+a's upstream has that history, though, and the other monorepo fetched
+it. So up to the clone, b's history is rebuilt from a's upstream: the
+rebuild gets exactly the commit the first monorepo pushed, b is up to
+date, and its first change is pushed on top. Before, b read as diverged
+there, and `pull` conflicted on a line both sides had
+([#74](https://github.com/roschaefer/git-splice/issues/74)).
 
 ## Output
 
@@ -35,9 +36,9 @@ ok   vendor/a/b: pushed f47c373 to main
 ok   vendor/a: pushed 3c57040 to main
 ```
 
-b's `.splice` still names b's synced commit from before the change. That's
-fine here: the monorepo has the commit `b local` in between, and rebuilds
-it into exactly the commit it pushed. a's push publishes this `.splice`:
+b's `.splice` still names b's synced commit from before the change: a
+push writes nothing to the monorepo. a's push publishes this `.splice`,
+along with a commit `b local` in a's upstream:
 
 ```scrut
 $ git -C "$UPSTREAM" show main:b/.splice | git config --file - splice.commit | xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
@@ -58,9 +59,8 @@ ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```
 
-`clone` squashed a's history into one commit, so that commit is b's
-boundary. b's files there already have `b local`, but its `.splice` names
-`b seed`:
+`clone` squashed a's history into one commit. b's files there already
+have `b local`, but its `.splice` names `b seed`:
 
 ```scrut
 $ git log --format=%s
@@ -89,36 +89,37 @@ The first change to b here:
 $ echo "b other" >>vendor/a/b/file.txt && git commit -q -a -m "b other"
 ```
 
-With no history between `b seed` and the clone, the rebuild can't tell
-that the clone's files are the commit already pushed. It makes a new
-commit for them, so b reads as diverged:
+The rebuild of b reads b's history up to the clone in a's upstream,
+where `b local` is a commit of its own. So it gets the commit the first
+monorepo pushed, and only `b other` is new:
 
 ```scrut
 $ git splice status vendor/a/b
-ok   vendor/a/b -> main (diverged: ahead 2, behind 1)
+ok   vendor/a/b -> main (push: ahead 1)
 ```
-
-`log` shows the two as the same change, `=`: the commit `b local` that
-the monorepo pushed, and the one the rebuild made from the clone:
 
 ```scrut
 $ git splice log vendor/a/b
 ===  vendor/a/b (main)
-< 55e043d b other  (Other <other@example.com>)
-= f47c373 b local  (Other <other@example.com>)
-= de5ba58 splice: clone vendor/a from main at 3c57040  (Other <other@example.com>)
+< f123e09 b other  (Other <other@example.com>)
 ```
 
-And `pull` conflicts. Merged on top of `b seed`, the upstream's side adds
-`b local`, and this side adds `b local` and `b other`:
+There's nothing to pull, and the push goes on top of `b local`:
 
 ```scrut
 $ git splice pull vendor/a/b
 ok   vendor/a/b fetched
-Auto-merging vendor/a/b/file.txt
-CONFLICT (content): Merge conflict in vendor/a/b/file.txt
-!!   vendor/a/b: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
-!!   vendor/a/b: pull failed
-!!   Failed: vendor/a/b
-[1]
+ok   vendor/a/b: nothing to pull
+```
+
+```scrut
+$ git splice push vendor/a/b
+ok   vendor/a/b: pushed f123e09 to main
+```
+
+```scrut
+$ git -C "$UPSTREAM-b.git" log --format=%s main
+b other
+b local
+b seed
 ```

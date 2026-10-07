@@ -68,6 +68,33 @@ work_in_upstream_a() {
   [ "$(git -C "$upstream" rev-parse main:b/file.txt)" = "$(git -C "$upstream_b" rev-parse main:file.txt)" ]
 }
 
+@test "nested: b's history from before a's clone comes from a's upstream, so another monorepo's push of b isn't made again" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice push vendor/a/b vendor/a
+  local other="$BATS_TEST_TMPDIR/other"
+  init_monorepo "$other"
+  cd "$other"
+  splice clone "$upstream" vendor/a
+  splice fetch
+  [ "$(rebuild_splice vendor/a/b)" = "$(git -C "$upstream_b" rev-parse main)" ]
+}
+
+@test "nested: a change to b made in a's upstream reaches b's upstream with its own author" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  work_in_upstream_a
+  echo "b in a's upstream" >>b/file.txt
+  git -c user.name=Maintainer -c user.email=maintainer@example.com commit -q -am "b in a's upstream"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  splice pull vendor/a
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a/b)"
+  [ "$(git log -1 --format='%s (%an)' "$rebuilt")" = "b in a's upstream (Maintainer)" ]
+  [ "$(git rev-parse "$rebuilt^")" = "$(git -C "$upstream_b" rev-parse main)" ]
+}
+
 @test "nested: a .splice below without default-branch follows the default branch of the splice above" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
