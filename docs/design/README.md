@@ -419,7 +419,8 @@ two splices that swap paths
 removed and spliced in again
 ([example](../../test/scenarios/init-new-upstream/unspliced-then-cloned-again/README.md)).
 The URLs are the identity for now, so changing one starts over too (see
-the limitations below).
+the limitations below, and
+[#78](https://github.com/roschaefer/git-splice/issues/78)).
 
 **Costs** O(commits since the last boundary whose folder matched its synced
 commit), not O(all history). The commit loop
@@ -512,7 +513,8 @@ These are known and accepted, each to keep the design simple:
   moved, starts the splice's history over: the URLs are its identity, so
   unpushed commits before the change reach upstream folded into it. Push
   before changing the URL
-  ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
+  ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md),
+  [#78](https://github.com/roschaefer/git-splice/issues/78)).
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
   on case-insensitive file systems, like macOS's default one: fetching one
