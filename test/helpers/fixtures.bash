@@ -75,13 +75,14 @@ fetch_splice() {
 # $1 via raw git plumbing -- deliberately NOT via cmd_clone, so other
 # commands' tests don't depend on clone's own correctness.
 add_splice() {
-  local monorepo="$1" url="$2" path="$3" branch="${4:-main}" commit
+  local monorepo="$1" url="$2" path="$3" branch="${4:-main}" commit id
   fetch_splice "$monorepo" "$url" "$path"
   (
     cd "$monorepo"
     commit="$(git rev-parse "$(upstream_refs "$url")$branch")"
+    id="$(printf '%s\n%s\n' "$path" "$(git rev-parse HEAD)" | git hash-object --stdin)"
     git read-tree --prefix="$path/" -u "$commit"
-    printf '[splice]\n\tcommit = %s\n[upstream "origin"]\n\turl = %s\n' "$commit" "$url" >"$path/.splice"
+    printf '[splice]\n\tcommit = %s\n\tid = %s\n[upstream "origin"]\n\turl = %s\n' "$commit" "${id:0:16}" "$url" >"$path/.splice"
     git add "$path"
     git commit -q -m "add $path"
   )

@@ -56,7 +56,7 @@ ok   vendor/a: cloned bde4164 from main
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)'
-52577ba refs/heads/main
+ee9ca71 refs/heads/main
 530decc refs/splices/a/fix-parser
 bde4164 refs/splices/a/main
 ```
@@ -92,7 +92,7 @@ In the monorepo, the same file is spliced in under `vendor/a/`, next to
 
 ```scrut
 $ git ls-tree -r --abbrev=7 --format='%(objectname) %(path)' HEAD
-73e0c50 vendor/a/.splice
+643b393 vendor/a/.splice
 e31de1f vendor/a/file.txt
 ```
 
@@ -101,7 +101,7 @@ names the upstream commit only in its message and in `.splice`:
 
 ```scrut
 $ git log --format='%h %s'
-52577ba splice: clone vendor/a from main at bde4164
+ee9ca71 splice: clone vendor/a from main at bde4164
 4d732bc initial commit
 ```
 

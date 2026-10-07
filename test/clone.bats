@@ -39,6 +39,14 @@ new_upstream() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
+@test "clone: gives the splice an id, another one than a clone at another path" {
+  new_upstream
+  cmd_clone "$upstream" vendor/a
+  cmd_clone "$upstream" vendor/b
+  [[ "$(splice_config vendor/a id)" =~ ^[0-9a-f]{16}$ ]]
+  [ "$(splice_config vendor/a id)" != "$(splice_config vendor/b id)" ]
+}
+
 @test "clone: names the folder after the repository by default" {
   new_upstream
   cmd_clone "$upstream"

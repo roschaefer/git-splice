@@ -9,8 +9,9 @@ in the monorepo, even if it was committed while the folder was a splice.
 - **Upstream**: the pushed commit, `splice: init lib/a`.
 
 A splice's history starts at its **mount**: the newest commit whose
-parent had no `.splice` at the path, or one naming another upstream URL.
-Removing `.splice` ends a mount, and adding it again starts a new one. A
+parent had no `.splice` at the path, or one with another `id`. Removing
+`.splice` ends a mount, and adding it again starts a new one, with a new
+id, even for the same upstream. A
 commit made before that, like the password below, was never pushed to
 the upstream, and by the time the folder is a splice again, it may hold
 what was removed in between. See
