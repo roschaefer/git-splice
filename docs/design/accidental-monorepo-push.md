@@ -204,9 +204,11 @@ which is hard to do by accident.
 
 `git splice push` itself can publish too much on a smaller scale: it sends
 the history the rebuild assigns to the folder. So the rebuild leaves out
-what never belonged to the splice. A folder's history from before it got
-its `.splice` stays in the monorepo
+what never belonged to the splice: everything before the splice's
+[mount](README.md#splicing-out-push-and-the-rebuild), the commit where the
+folder became this splice. A folder's history from before it got its
+`.splice` stays in the monorepo
 ([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)),
-and history that shares no commit with the upstream isn't joined to it,
-e.g. after two splices swapped paths
-([#73](https://github.com/roschaefer/git-splice/issues/73)).
+and so does another splice's, e.g. after two splices swapped paths
+([example](../../test/scenarios/swapped-splices/README.md),
+[#73](https://github.com/roschaefer/git-splice/issues/73)).
