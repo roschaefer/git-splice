@@ -11,6 +11,8 @@ b's first local change there reads as diverged from b's upstream, and
 
 A plain `git clone` of a's upstream doesn't run into this: it has the
 history in between, as the monorepo does.
+[own-sync-point](own-sync-point.md) shows the same steps with a sync
+point for b that this monorepo records itself.
 
 ## Output
 
