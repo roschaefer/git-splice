@@ -393,10 +393,8 @@ commits. `rebuild_splice` is a function of HEAD alone:
    joined with its own by a merge, as a plain `git pull` would have made.
    The recursion stops at the first boundary whose folder equals its
    synced commit, so it only costs something after pulls of divergences.
-   A rebuild of B's first parent that shares no history with U isn't
-   joined, as `git merge` refuses unrelated histories: the folder was
-   another splice there, e.g. after two folders swapped paths, and B goes
-   on top of U.
+   If B is the splice's mount, its first parent isn't rebuilt at all, and
+   B goes on top of U (see below).
 3. **Copy each commit.** For each commit in
    `git rev-list --reverse --first-parent B..HEAD -- <path>` whose folder
    changed, `git commit-tree` with the folder's tree minus `.splice`.
@@ -414,6 +412,20 @@ feature branch, becomes **one ordinary commit** upstream, with the merge's
 message. Upstream doesn't know the monorepo's side branches, so a faithful
 merge shape would add nothing, and leaving it out avoids the
 parent-mapping problems `split` spent years fixing.
+
+**Only this splice's history:** a splice's history starts at its
+**mount**, the newest first-parent commit whose first parent had no
+`.splice` at the path, or one naming other upstream URLs. Before the
+mount, the folder was no splice, or another one, so nothing from there is
+published, with or without a synced commit. That covers a folder's
+history from before `init`
+([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)),
+two splices that swap paths
+([example](../../test/scenarios/swapped-splices/README.md)), and a splice
+removed and spliced in again
+([example](../../test/scenarios/init-new-upstream/unspliced-then-cloned-again/README.md)).
+The URLs are the identity for now, so changing one starts over too (see
+the limitations below).
 
 **Costs** O(commits since the last boundary whose folder matched its synced
 commit), not O(all history). The commit loop
@@ -494,6 +506,11 @@ These are known and accepted, each to keep the design simple:
   `.splice`, so it becomes the boundary, and the unpushed commits before it
   reach upstream folded into the move commit. Push before moving
   ([#4](https://github.com/roschaefer/git-splice/issues/4)).
+- **Changing an upstream's URL** in `.splice`, e.g. after the upstream
+  moved, starts the splice's history over: the URLs are its identity, so
+  unpushed commits before the change reach upstream folded into it. Push
+  before changing the URL
+  ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
   on case-insensitive file systems, like macOS's default one: fetching one
