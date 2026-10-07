@@ -56,6 +56,34 @@ splice_boundary() {
   git log --first-parent -1 --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
 }
 
+# Prints the upstream URLs that splice <path>'s state file names in
+# commit <rev>, sorted, one per line: the splice's identity. Nothing if
+# there's no state file. The old format's splice.url counts too, so
+# converting it keeps the identity.
+splice_identity() {
+  local path="$1" rev="$2"
+  git config --blob "$rev:$path/$STATE_FILE" --get-regexp '^(upstream\..*|splice)\.url$' 2>/dev/null |
+    sed 's/^[^ ]* //' | grep -v '^$' | sort || true
+}
+
+# Prints the first-parent commit reachable from <rev> where the splice at
+# <path> in <rev> was mounted: the newest one whose first parent had no
+# state file at <path>, or one naming other upstreams. Nothing if <path>
+# isn't a splice in <rev>. Only the history from there on is this
+# splice's: before, the folder was no splice, or another one.
+splice_mount() {
+  local path="$1" rev="${2:-HEAD}" identity commit
+  identity="$(splice_identity "$path" "$rev")"
+  [[ -n "$identity" ]] || return 0
+  while read -r commit; do
+    if ! git rev-parse --verify --quiet "$commit^1" >/dev/null ||
+      [[ "$(splice_identity "$path" "$commit^1")" != "$identity" ]]; then
+      printf '%s\n' "$commit"
+      return
+    fi
+  done < <(git log --first-parent --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE")
+}
+
 # Prints a new commit with tree <tree> and parents <parent>... that copies
 # author and committer -- names, emails and dates -- and the message of
 # monorepo commit <source>, the way `git subtree split` does. Never signed:
@@ -97,10 +125,10 @@ copy_commit() {
 #      differs from the one before. A merge in the monorepo becomes one
 #      ordinary commit.
 # Without a synced commit (after init, before any pull), the rebuild
-# starts at the commit that added the state file, as a root commit with
-# the folder as it was then. The folder's history before that isn't
-# published: it may hold what was removed before the folder became a
-# splice.
+# starts at the mount (splice_mount), as a root commit with the folder as
+# it was then. Nothing from before the mount is published, with or
+# without a synced commit: the folder was no splice then, or another one,
+# and its history may hold what was removed before it became this splice.
 rebuild_splice() {
   local path="$1" rev="${2:-HEAD}"
   local boundary synced prev="" prev_tree="" tree range start
@@ -126,14 +154,10 @@ rebuild_splice() {
     if [[ -n "$tree" && "$tree" != "$prev_tree" ]]; then
       local before parents=()
       before=""
+      # Unless B is the mount: what came before isn't this splice's.
       git rev-parse --verify --quiet "$boundary^1" >/dev/null &&
+        [[ "$(splice_identity "$path" "$boundary^1")" == "$(splice_identity "$path" "$boundary")" ]] &&
         before="$(rebuild_splice "$path" "$boundary^1")"
-      if [[ -n "$before" ]] && ! git merge-base "$before" "$synced" >/dev/null; then
-        # Unrelated to U, as git merge refuses by default: the folder was
-        # another splice before B, e.g. two folders swapped paths. Its
-        # history mustn't reach this upstream.
-        before=""
-      fi
       if [[ -z "$before" ]] || git merge-base --is-ancestor "$before" "$synced"; then
         # Nothing unpushed before B: B's changes go on top of U.
         parents=("$synced")
@@ -154,10 +178,10 @@ rebuild_splice() {
     fi
     range="$boundary..$rev"
   else
+    start="$(splice_mount "$path" "$rev")"
+    [[ -n "$start" ]] || return 0
     range="$rev"
-    start="$(git log --first-parent -1 --diff-filter=A --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE")"
-    [[ -n "$start" ]] && git rev-parse --verify --quiet "$start^1" >/dev/null &&
-      range="$start^1..$rev"
+    git rev-parse --verify --quiet "$start^1" >/dev/null && range="$start^1..$rev"
   fi
 
   rebuild_walk "$path" "$prev" "$range"
