@@ -70,7 +70,8 @@ $ git config --file vendor/a/b/.splice splice.commit "$(git ls-remote https://gi
 b is up to date. But a is now ahead: b's `.splice` is a's content, so
 a's next push would publish this monorepo's sync point for b to a's
 upstream, where it may be stale for the next monorepo again. Keeping the
-sync point out of the `.splice` that travels would avoid that.
+sync point out of the `.splice` that travels would avoid that
+([#80](https://github.com/roschaefer/git-splice/issues/80)).
 
 ```scrut
 $ git splice status
