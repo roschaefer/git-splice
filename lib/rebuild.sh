@@ -56,14 +56,25 @@ splice_boundary() {
   git log --first-parent -1 --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
 }
 
-# Prints the upstream URLs that splice <path>'s state file names in
-# commit <rev>, sorted, one per line: the splice's identity. Nothing if
-# there's no state file. The old format's splice.url counts too, so
-# converting it keeps the identity.
+# Prints the identity of splice <path> in commit <rev>: a hash of the
+# upstream URLs its state file names, sorted. Nothing if there's no state
+# file. As in load_splice_upstream, the old format's splice.url counts
+# only if no upstream has a URL, so converting it keeps the identity, and
+# a leftover one doesn't change it. NUL-delimited, since a URL may
+# contain a newline.
 splice_identity() {
-  local path="$1" rev="$2"
-  git config --blob "$rev:$path/$STATE_FILE" --get-regexp '^(upstream\..*|splice)\.url$' 2>/dev/null |
-    sed 's/^[^ ]* //' | grep -v '^$' | sort || true
+  local path="$1" rev="$2" record urls=() old_urls=()
+  while IFS= read -r -d '' record; do
+    # Each record is <key>, a newline, and the value.
+    [[ "$record" == *$'\n'?* ]] || continue
+    case "${record%%$'\n'*}" in
+      upstream.*.url) urls+=("${record#*$'\n'}") ;;
+      splice.url) old_urls+=("${record#*$'\n'}") ;;
+    esac
+  done < <(git config --blob "$rev:$path/$STATE_FILE" -z --get-regexp '^(upstream\..*|splice)\.url$' 2>/dev/null)
+  [[ ${#urls[@]} -gt 0 ]] || urls=("${old_urls[@]}")
+  [[ ${#urls[@]} -gt 0 ]] || return 0
+  printf '%s\0' "${urls[@]}" | sort -z | git hash-object --stdin
 }
 
 # Prints the first-parent commit reachable from <rev> where the splice at
