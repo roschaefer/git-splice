@@ -225,6 +225,45 @@ two_splices_ahead() {
   [ "$(git log --format=%s "$rebuilt")" = "swap internal and vendor/a"$'\n'"seed" ]
 }
 
+@test "rebuild: a splice made by init, then swapped with another, doesn't get the other's history" {
+  make_bare_repo "$BATS_TEST_TMPDIR/a.git"
+  seed_bare_repo "$BATS_TEST_TMPDIR/a.git" "seed a"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$BATS_TEST_TMPDIR/a.git" vendor/a
+  commit_local "$monorepo" vendor/a "not for b's upstream" a.txt
+  commit_local "$monorepo" vendor/b "b before init" b.txt
+  make_bare_repo "$BATS_TEST_TMPDIR/b.git"
+  cd "$monorepo"
+  cmd_init vendor/b "$BATS_TEST_TMPDIR/b.git"
+  git mv vendor/a tmp
+  git mv vendor/b vendor/a
+  git mv tmp vendor/b
+  git commit -q -m "swap a and b"
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  [ "$(git log --format=%s "$rebuilt")" = "swap a and b" ]
+  content_tree HEAD vendor/a
+  [ "$(git rev-parse "$rebuilt^{tree}")" = "$CONTENT_TREE" ]
+}
+
+@test "rebuild: a splice removed and cloned again doesn't get the history from its first time" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_init lib/a "$upstream"
+  cmd_push lib/a
+  commit_local "$monorepo" lib/a "unpushed, then removed" removed.txt
+  git rm -q -r lib/a
+  git commit -q -m "remove lib/a"
+  add_splice "$monorepo" "$upstream" lib/a
+  # Cloned with local changes, as clone --merge does.
+  echo "merged" >lib/a/merged.txt
+  git add lib/a/merged.txt
+  git commit -q --amend -m "clone lib/a again"
+  local rebuilt
+  rebuilt="$(rebuild_splice lib/a)"
+  [ "$(git log --format=%s "$rebuilt")" = "clone lib/a again"$'\n'"splice: init lib/a" ]
+}
+
 @test "rebuild: a synced commit that isn't available locally is an error" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
@@ -240,9 +279,21 @@ two_splices_ahead() {
   cd "$monorepo"
   local before
   before="$(rebuild_splice vendor/a)"
+  git config --file vendor/a/.splice splice.default-branch main
+  git commit -q -am "name the default branch"
+  [ "$(rebuild_splice vendor/a)" = "$before" ]
+}
+
+@test "rebuild: a new upstream URL starts the splice's history over, folding unpushed commits into it" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
   git config --file vendor/a/.splice upstream.origin.url "$upstream/../moved.git"
   git commit -q -am "the upstream moved"
-  [ "$(rebuild_splice vendor/a)" = "$before" ]
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  [ "$(git log --format=%s "$rebuilt")" = "the upstream moved"$'\n'"seed" ]
+  content_tree HEAD vendor/a
+  [ "$(git rev-parse "$rebuilt^{tree}")" = "$CONTENT_TREE" ]
 }
 
 @test "rebuild: a commit that only changes .splice after a push leaves the state up to date" {
