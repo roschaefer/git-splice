@@ -163,6 +163,27 @@ rebuild_splice() {
   synced=""
   [[ -n "$boundary" ]] && synced="$(splice_config "$path" commit "$boundary")"
 
+  # A nested splice's history up to the boundary of the splice above it
+  # is in that splice's upstream: a clone or pull of the splice above
+  # squashed it into one commit here. So up to there, it's rebuilt from
+  # the upstream's history, at the synced commit of the splice above, and
+  # that rebuild stands in for the synced commit.
+  local above above_boundary above_synced from_above
+  if above="$(splice_above_in "$rev" "$path")"; then
+    above_boundary="$(splice_boundary "$above" "$rev")"
+    above_synced=""
+    [[ -n "$above_boundary" ]] && above_synced="$(splice_config "$above" commit "$above_boundary")"
+    if [[ -n "$above_synced" && -n "$boundary" ]] &&
+      git cat-file -e "$above_synced^{commit}" 2>/dev/null &&
+      git merge-base --is-ancestor "$boundary" "$above_boundary"; then
+      from_above="$(rebuild_splice "${path#"$above/"}" "$above_synced")"
+      if [[ -n "$from_above" ]]; then
+        boundary="$above_boundary"
+        synced="$from_above"
+      fi
+    fi
+  fi
+
   if [[ -n "$synced" ]] && ! git cat-file -e "$synced^{commit}" 2>/dev/null; then
     # push --force sets REBUILD_WITHOUT_SYNCED: the upstream no longer has
     # the synced commit, and the monorepo's side replaces its history
