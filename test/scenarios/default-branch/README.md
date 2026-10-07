@@ -27,6 +27,7 @@ $ build_scenario scenario_default_branch
 $ git config --file vendor/a/.splice --list
 splice.commit=bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 splice.default-branch=master
+splice.id=25e766b33a0eb239
 upstream.origin.url=$UPSTREAM
 ```
 

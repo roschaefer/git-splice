@@ -318,8 +318,15 @@ splice_config() {
 # new one), with each "key=value" argument set ("key=" unsets it). A key
 # without a section is in [splice], e.g. "commit"; others are given in
 # full, e.g. "upstream.origin.url".
+#
+# A file without splice.id gets one: a new splice, or one from before ids.
+# The id stays with the splice wherever its .splice goes, so the rebuild
+# can tell it from another splice at the same path (splice_mount). It's
+# derived from the path and HEAD, not random, so the same command on the
+# same commit writes the same file: two pulls that give a splice from
+# before ids an id don't conflict over it.
 state_blob() {
-  local path="$1" tmp kv key value
+  local path="$1" tmp kv key value id
   shift
   tmp="$(mktemp)"
   git cat-file blob "HEAD:$path/$STATE_FILE" >"$tmp" 2>/dev/null || : >"$tmp"
@@ -333,6 +340,10 @@ state_blob() {
       git config --file "$tmp" --unset "$key" 2>/dev/null || true
     fi
   done
+  if ! git config --file "$tmp" --get splice.id >/dev/null; then
+    id="$(printf '%s\0%s\0' "$path" "$(git rev-parse --verify --quiet HEAD || true)" | git hash-object --stdin)"
+    git config --file "$tmp" splice.id "${id:0:16}"
+  fi
   git hash-object -w "$tmp"
   rm -f "$tmp"
 }

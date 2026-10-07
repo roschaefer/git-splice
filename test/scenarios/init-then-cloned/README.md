@@ -41,6 +41,7 @@ $ build_scenario scenario_init_then_cloned
 ```scrut
 $ git config --file lib/a/.splice --list
 upstream.origin.url=$UPSTREAM
+splice.id=f39fbad8adfa1558
 ```
 
 `status` says the upstream has no such branch, though it has:

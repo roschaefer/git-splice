@@ -58,7 +58,7 @@ without `.splice`:
 ```scrut
 $ git splice push vendor/a/b vendor/a
 ok   vendor/a/b: pushed 701ab17 to main
-ok   vendor/a: pushed a5c42a7 to main
+ok   vendor/a: pushed 9555a29 to main
 ```
 
 ```scrut
@@ -104,9 +104,9 @@ there:
 
 ```scrut
 $ git splice pull vendor/a
-ok   vendor/a fetched (main moved a5c42a7..7eb1486)
+ok   vendor/a fetched (main moved 9555a29..b50a1ff)
 ok   vendor/a/b fetched (main moved 701ab17..527b1a2)
-ok   vendor/a: pulled 7eb1486
+ok   vendor/a: pulled b50a1ff
 ```
 
 The pull is now b's boundary. b's unpushed commit is kept, and the next
@@ -120,8 +120,8 @@ ok   vendor/a/b -> main (push: ahead 2)
 
 ```scrut
 $ git splice push vendor/a/b && git -C "$UPSTREAM-b.git" log --graph --format=%s main
-ok   vendor/a/b: pushed cb61f73 to main
-*   splice: pull vendor/a from main at 7eb1486
+ok   vendor/a/b: pushed 3a0104a to main
+*   splice: pull vendor/a from main at b50a1ff
 |\  
 | * b upstream change
 * | b local 2

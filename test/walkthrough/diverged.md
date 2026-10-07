@@ -109,7 +109,7 @@ pkg-a: a second commit, after the clone
 a local fix
 =======
 pkg-a: an upstream fix
->>>>>>> 87e5027 (splice: pull vendor/pkg-a from main at 4527a78)
+>>>>>>> 3eab84f (splice: pull vendor/pkg-a from main at 4527a78)
 ```
 
 ## Resolve and push
@@ -122,7 +122,7 @@ $ printf '%s\n' "pkg-a: seed" "pkg-a: a second commit, after the clone" "a local
 
 ```scrut
 $ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline -1
-03f38f9 splice: pull vendor/pkg-a from main at 4527a78
+9d12c81 splice: pull vendor/pkg-a from main at 4527a78
 ```
 
 The resolved commit is the new B, and U moved to T. B's folder is U plus
