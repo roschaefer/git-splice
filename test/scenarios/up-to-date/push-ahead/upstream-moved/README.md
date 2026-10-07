@@ -1,10 +1,9 @@
 # Scenario: upstream-moved
 
 The upstream moved, e.g. to another host, and `.splice` gets its new URL
-while a commit is still unpushed. The next push sends the right content,
-but squashes the unpushed commit into the commit that changed the URL:
-its message and author are lost. This is a known limitation,
-[#78](https://github.com/roschaefer/git-splice/issues/78).
+while a commit is still unpushed. The next push sends that commit to the
+new URL, with its own message and author: the splice's history doesn't
+depend on its URL.
 
 - **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit,
   `local change`, not pushed yet.
@@ -12,15 +11,17 @@ its message and author are lost. This is a known limitation,
   `$UPSTREAM-moved`.
 
 A splice's history starts at its **mount**: the newest commit whose
-parent had no `.splice` at the path, or one naming another upstream URL.
-The URLs are the splice's identity, so a new URL looks like another
-splice took over the path, as after
-[two splices swapped paths](../../../swapped-splices/README.md). Starting
-over keeps another splice's history from reaching this upstream, at the
-price of this case. See
+parent had no `.splice` at the path, or one with another `id`. The id
+names the splice, not its upstream, so a new URL keeps it, and the
+commits before the change still belong to the splice. Compare
+[two splices that swap paths](../../../swapped-splices/README.md), where
+the id changes, and so does the history. See
 [the design notes](../../../../../docs/design/README.md#splicing-out-push-and-the-rebuild).
 
-Workaround: push before changing the URL.
+A `.splice` from before ids has none until its next `merge` or `pull`,
+and its URLs stand in for it: there, a new URL starts the history over,
+and `local change` would reach the new upstream folded into the commit
+that changed the URL.
 
 ## Output
 
@@ -42,8 +43,16 @@ $ git splice log
 < e859a6b local change  (Test <test@example.com>)
 ```
 
+The id stays when the URL changes:
+
 ```scrut
-$ git config --file vendor/a/.splice upstream.origin.url "$UPSTREAM-moved" && git commit -q -am "the upstream moved"
+$ git config --file vendor/a/.splice splice.id && git config --file vendor/a/.splice upstream.origin.url "$UPSTREAM-moved" && git commit -q -am "the upstream moved"
+b23b165ba51e3878
+```
+
+```scrut
+$ git config --file vendor/a/.splice splice.id
+b23b165ba51e3878
 ```
 
 ```scrut
@@ -51,32 +60,22 @@ $ git splice fetch vendor/a
 ok   vendor/a fetched
 ```
 
-`local change` is gone from the list, the URL change takes its place:
+`local change` is still the one commit to push. The URL change itself
+changes nothing upstream:
 
 ```scrut
 $ git splice log
 ===  vendor/a (main)
-< 004731d the upstream moved  (Test <test@example.com>)
+< e859a6b local change  (Test <test@example.com>)
 ```
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: pushed 004731d to main
+ok   vendor/a: pushed e859a6b to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM-moved" log --format=%s main
-the upstream moved
+local change
 seed
-```
-
-```scrut
-$ git -C "$UPSTREAM-moved" show --format= main
-diff --git a/file.txt b/file.txt
-index e31de1f..d939bfa 100644
---- a/file.txt
-+++ b/file.txt
-@@ -1 +1,2 @@
- seed
-+local change
 ```

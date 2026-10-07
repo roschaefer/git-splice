@@ -157,6 +157,7 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
 ```
 [splice]
 	commit = 3f1c…              # the synced commit U
+	id = 9b2e41c07d5a8f36       # which splice this is, wherever it moves
 	default-branch = master     # only if upstream's differs from the monorepo's
 [upstream "origin"]
 	url = git@github.com:x/a.git
@@ -179,6 +180,15 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   `.splice` of a nested splice is content of the splice above it, whose
   push sends it (see below). Build or package globs in the monorepo do see it,
   which is fine: the name clashes with no known configuration file.
+- **Its `id`** names the splice, not an upstream: it's written once, when
+  `clone` or `init` makes the folder a splice, and stays the same when
+  the folder moves, its upstream's URL changes, or upstreams are added.
+  The rebuild uses it to tell this splice from another one that had the
+  same path before (see the push section). It's derived from the path
+  and `HEAD`, not random, so a command gives the same result each time it
+  runs on the same commit. A `.splice` from before ids gets
+  one with its next `merge` or `pull`; until then, its upstream URLs
+  stand in for it.
 - **Without `default-branch`**, the upstream's default branch has the
   name of the default branch of what the splice lives in: the splice
   above it, or the monorepo. So a nested `.splice` means the same in the
@@ -419,20 +429,17 @@ parent-mapping problems `split` spent years fixing.
 
 **Only this splice's history:** a splice's history starts at its
 **mount**, the newest first-parent commit whose first parent had no
-`.splice` at the path, or one naming other upstream URLs. Before the
+`.splice` at the path, or one with another `id`. Before the
 mount, the folder was no splice, or another one, so nothing from there is
 published, with or without a synced commit. That covers a folder's
 history from before `init`
 ([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)),
-two splices of different upstreams that swap paths
+two splices that swap paths
 ([example](../../test/scenarios/swapped-splices/README.md)), and a splice
 removed and spliced in again
 ([example](../../test/scenarios/init-new-upstream/unspliced-then-cloned-again/README.md)).
-The URLs are the identity for now, so changing one starts over too, and
-two splices of the same upstream that swap paths aren't told apart (see
-the limitations below,
-[#78](https://github.com/roschaefer/git-splice/issues/78) and
-[#96](https://github.com/roschaefer/git-splice/issues/96)).
+A new upstream URL keeps the history: the `id` stays
+([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
 
 **Costs** O(commits since the last boundary whose folder matched its synced
 commit), not O(all history). The commit loop
@@ -513,16 +520,11 @@ These are known and accepted, each to keep the design simple:
   `.splice`, so it becomes the boundary, and the unpushed commits before it
   reach upstream folded into the move commit. Push before moving
   ([#4](https://github.com/roschaefer/git-splice/issues/4)).
-- **Changing an upstream's URL** in `.splice`, e.g. after the upstream
-  moved, starts the splice's history over: the URLs are its identity, so
-  unpushed commits before the change reach upstream folded into it. Push
-  before changing the URL
-  ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md),
-  [#78](https://github.com/roschaefer/git-splice/issues/78)).
-- **Two splices of the same upstream that swap paths** aren't told apart,
-  since the URLs are their identity: each one's push sends the commits
-  made at its new path before the swap, which were the other splice's.
-  Push before swapping them
+- **A `.splice` from before ids** is told apart from another splice by
+  its upstream URLs until its next `merge` or `pull` gives it an id. So
+  until then, changing its URL starts its history over, folding unpushed
+  commits into the change, and two such splices of the same upstream that
+  swap paths aren't told apart
   ([#96](https://github.com/roschaefer/git-splice/issues/96)).
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs

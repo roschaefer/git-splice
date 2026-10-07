@@ -21,6 +21,13 @@ setup() {
   [ -z "$(splice_config lib/a commit)" ]
 }
 
+@test "init: gives the splice an id" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_init lib/a "$upstream"
+  [[ "$(splice_config lib/a id)" =~ ^[0-9a-f]{16}$ ]]
+}
+
 @test "init: the first push sends the folder as it was at init, as one commit" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"

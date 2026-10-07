@@ -11,6 +11,7 @@ setup() {
   load 'scenarios/up-to-date/diverged-then-pulled/setup'
   load 'scenarios/up-to-date/squash-merged-pull/setup'
   load 'scenarios/init-new-upstream/setup'
+  load 'scenarios/up-to-date/shared-remote-url/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -212,6 +213,20 @@ two_splices_ahead() {
   [ "$(git rev-parse "$rebuilt^{tree}")" = "$CONTENT_TREE" ]
 }
 
+@test "rebuild: two splices of the same upstream that swap paths don't get each other's history" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "unpushed in a" a.txt
+  commit_local "$monorepo" vendor/b "unpushed in b" b.txt
+  cd "$monorepo"
+  git mv vendor/a tmp
+  git mv vendor/b vendor/a
+  git mv tmp vendor/b
+  git commit -q -m "swap a and b"
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  [ "$(git log --format=%s "$rebuilt")" = "swap a and b"$'\n'"seed" ]
+}
+
 @test "rebuild: a splice moved onto a folder that wasn't one doesn't get that folder's history" {
   scenario_push_ahead "$monorepo" "$upstream"
   commit_local "$monorepo" internal "not for any upstream" secret.txt
@@ -264,9 +279,16 @@ two_splices_ahead() {
   [ "$(git log --format=%s "$rebuilt")" = "clone lib/a again"$'\n'"splice: init lib/a" ]
 }
 
-@test "rebuild: a leftover old-format splice.url doesn't start the history over" {
+# Turns vendor/a into a splice from before ids: a commit removes its id.
+without_id() {
+  git config --file vendor/a/.splice --unset splice.id
+  git commit -q -am "a splice from before ids"
+}
+
+@test "rebuild: without an id, a leftover old-format splice.url doesn't start the history over" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
+  without_id
   local before
   before="$(rebuild_splice vendor/a)"
   git config --file vendor/a/.splice splice.url "$upstream"
@@ -274,7 +296,7 @@ two_splices_ahead() {
   [ "$(rebuild_splice vendor/a)" = "$before" ]
 }
 
-@test "rebuild: the order of a splice's upstreams doesn't change its identity" {
+@test "rebuild: without an id, the order of a splice's upstreams doesn't change its identity" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   git config --file vendor/a/.splice upstream.mirror.url https://mirror.example.com/a.git
@@ -283,13 +305,14 @@ two_splices_ahead() {
   git config --file vendor/a/.splice upstream.origin.url "$upstream"
   git commit -q -am "the same upstreams, in another order"
   [ "$(git config --file vendor/a/.splice --name-only --get-regexp 'url$' | tr '\n' ' ')" = "upstream.mirror.url upstream.origin.url " ]
-  [ -n "$(splice_identity vendor/a HEAD)" ]
-  [ "$(splice_identity vendor/a HEAD)" = "$(splice_identity vendor/a HEAD^)" ]
+  [ -n "$(splice_url_identity vendor/a HEAD)" ]
+  [ "$(splice_url_identity vendor/a HEAD)" = "$(splice_url_identity vendor/a HEAD^)" ]
 }
 
-@test "rebuild: URLs that differ only in the order of their lines are different splices" {
+@test "rebuild: without an id, URLs that differ only in the order of their lines are different splices" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
+  without_id
   git config --file vendor/a/.splice upstream.origin.url $'one\ntwo'
   git commit -q -am "one upstream"
   git config --file vendor/a/.splice upstream.origin.url $'two\none'
@@ -317,9 +340,20 @@ two_splices_ahead() {
   [ "$(rebuild_splice vendor/a)" = "$before" ]
 }
 
-@test "rebuild: a new upstream URL starts the splice's history over, folding unpushed commits into it" {
+@test "rebuild: a new upstream URL keeps the splice's history: its id is the same" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
+  local before
+  before="$(rebuild_splice vendor/a)"
+  git config --file vendor/a/.splice upstream.origin.url "$upstream/../moved.git"
+  git commit -q -am "the upstream moved"
+  [ "$(rebuild_splice vendor/a)" = "$before" ]
+}
+
+@test "rebuild: without an id, a new upstream URL starts the splice's history over, folding unpushed commits into it" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  without_id
   git config --file vendor/a/.splice upstream.origin.url "$upstream/../moved.git"
   git commit -q -am "the upstream moved"
   local rebuilt

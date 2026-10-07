@@ -15,9 +15,10 @@ that had the path before.
 A path's history alone can't tell the two splices apart: `git log --
 vendor/a` lists a's commits before the swap and b's after it. So the
 rebuild only uses the path's history from the splice's **mount** on: the
-newest commit whose parent had no `.splice` at the path, or one naming
-another upstream URL. For `vendor/a` after the swap, that's the swap
-itself. See
+newest commit whose parent had no `.splice` at the path, or one with
+another `id`. Each splice got its own id when it was cloned or
+initialized, and it moves with the `.splice`. For `vendor/a` after the
+swap, the mount is the swap itself. See
 [the design notes](../../../docs/design/README.md#splicing-out-push-and-the-rebuild).
 
 ## Output
