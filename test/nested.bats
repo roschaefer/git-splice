@@ -3,6 +3,7 @@ setup() {
   load_lib
   hermetic_git_config
   load 'scenarios/nested-splices/setup'
+  load 'scenarios/nested-default-branch/setup'
   load 'scenarios/up-to-date/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -65,6 +66,43 @@ work_in_upstream_a() {
   splice push vendor/a
   [ "$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
   [ "$(git -C "$upstream" rev-parse main:b/file.txt)" = "$(git -C "$upstream_b" rev-parse main:file.txt)" ]
+}
+
+@test "nested: a .splice below without default-branch follows the default branch of the splice above" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  splice fetch
+  run splice status
+  [ "${lines[0]}" = "ok   vendor/a -> master (up to date)" ]
+  [ "${lines[1]}" = "ok   vendor/a/b -> master (up to date)" ]
+}
+
+@test "nested: clone inside a splice records default-branch only where it differs from the splice above's" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  local upstream_main="$BATS_TEST_TMPDIR/main.git"
+  make_bare_repo "$upstream_main" main
+  seed_bare_repo "$upstream_main" "main seed" main
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  cmd_clone "$upstream_b" vendor/a/c
+  cmd_clone "$upstream_main" vendor/a/d
+  [ -z "$(splice_config vendor/a/c default-branch)" ]
+  [ "$(splice_config vendor/a/d default-branch)" = main ]
+  [ "$(upstream_branch_for vendor/a/c main)" = master ]
+  [ "$(upstream_branch_for vendor/a/d main)" = main ]
+}
+
+@test "nested: init inside a splice records default-branch only where it differs from the splice above's" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  local empty_master="$BATS_TEST_TMPDIR/empty-master.git"
+  make_bare_repo "$empty_master" master
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  commit_local "$monorepo" vendor/a/e "e's first version"
+  cmd_init vendor/a/e "$empty_master"
+  [ -z "$(splice_config vendor/a/e default-branch)" ]
+  [ "$(upstream_branch_for vendor/a/e main)" = master ]
 }
 
 @test "nested: cloning an upstream that contains a .splice makes its folder a splice" {

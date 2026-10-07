@@ -179,8 +179,14 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   `.splice` of a nested splice is content of the splice above it, whose
   push sends it (see below). Build or package globs in the monorepo do see it,
   which is fine: the name clashes with no known configuration file.
+- **Without `default-branch`**, the upstream's default branch has the
+  name of the default branch of what the splice lives in: the splice
+  above it, or the monorepo. So a nested `.splice` means the same in the
+  monorepo as in the upstream above, where the repository stands in for
+  the splice above
+  ([example](../../test/scenarios/nested-default-branch/README.md)).
 - **Its `default-branch`** is looked up once, by `clone` and `init`, and
-  recorded only when it differs. That keeps it stable if upstream later
+  recorded only when it differs from that default branch. That keeps it stable if upstream later
   renames its default branch, and visible to anyone wondering why `main`
   syncs with `master`.
 - **Its upstream is named**, like a Git remote, so a library can later
@@ -475,15 +481,6 @@ These are known and accepted, each to keep the design simple:
   `git checkout --theirs -- <above>/<below>`, then `git add` and
   `git commit`. Pushing the splice above right after pulling the one below
   avoids the conflict.
-- **A nested splice's default branch** can change meaning on the way
-  between repositories: a `.splice` without `default-branch` follows the
-  default branch of the repository it's in. If the default branch of the
-  upstream above is `master` and the monorepo's is `main`, a splice below,
-  cloned with the one above, syncs with its upstream's `main` instead of
-  `master`
-  ([example](../../test/scenarios/nested-default-branch/README.md)).
-  Until [#71](https://github.com/roschaefer/git-splice/issues/71), set
-  `default-branch` in the nested `.splice` by hand.
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
 - **Moving a splice with unpushed changes:** the `git mv` commit changes
   `.splice`, so it becomes the boundary, and the unpushed commits before it
