@@ -313,8 +313,9 @@ does. An overview such as `status` is only useful if it's complete.
   commit, then `clone` into the empty spot.
 - `init` refuses an upstream that already has commits, and points to
   `clone --merge`. It writes `.splice` without a synced commit, and the
-  first push creates the upstream branch with one commit, the init
-  commit. The folder's history before it isn't published: it was written
+  first push creates the upstream branch starting at the init commit,
+  followed by any commits after it. The folder's history before it isn't
+  published: it was written
   for the monorepo, and may hold what was removed before anyone decided
   to publish the folder
   ([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)).
