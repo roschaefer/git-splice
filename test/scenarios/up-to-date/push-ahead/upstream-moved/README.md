@@ -3,7 +3,8 @@
 The upstream moved, e.g. to another host, and `.splice` gets its new URL
 while a commit is still unpushed. The next push sends the right content,
 but squashes the unpushed commit into the commit that changed the URL:
-its message and author are lost. This is a known limitation.
+its message and author are lost. This is a known limitation,
+[#78](https://github.com/roschaefer/git-splice/issues/78).
 
 - **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit,
   `local change`, not pushed yet.
