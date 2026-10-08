@@ -274,6 +274,19 @@ two_splices_ahead() {
   [ "$(rebuild_splice vendor/a)" = "$before" ]
 }
 
+@test "rebuild: the order of a splice's upstreams doesn't change its identity" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.mirror.url https://mirror.example.com/a.git
+  git commit -q -am "add a mirror"
+  git config --file vendor/a/.splice --remove-section upstream.origin
+  git config --file vendor/a/.splice upstream.origin.url "$upstream"
+  git commit -q -am "the same upstreams, in another order"
+  [ "$(git config --file vendor/a/.splice --name-only --get-regexp 'url$' | tr '\n' ' ')" = "upstream.mirror.url upstream.origin.url " ]
+  [ -n "$(splice_identity vendor/a HEAD)" ]
+  [ "$(splice_identity vendor/a HEAD)" = "$(splice_identity vendor/a HEAD^)" ]
+}
+
 @test "rebuild: URLs that differ only in the order of their lines are different splices" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"

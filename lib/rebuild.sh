@@ -60,8 +60,9 @@ splice_boundary() {
 # upstream URLs its state file names, sorted. Nothing if there's no state
 # file. As in load_splice_upstream, the old format's splice.url counts
 # only if no upstream has a URL, so converting it keeps the identity, and
-# a leftover one doesn't change it. NUL-delimited, since a URL may
-# contain a newline.
+# a leftover one doesn't change it. A URL may contain a newline, so each
+# is shell-quoted onto one line: a plain sort then orders them, where
+# sort -z isn't portable.
 splice_identity() {
   local path="$1" rev="$2" record urls=() old_urls=()
   while IFS= read -r -d '' record; do
@@ -74,7 +75,7 @@ splice_identity() {
   done < <(git config --blob "$rev:$path/$STATE_FILE" -z --get-regexp '^(upstream\..*|splice)\.url$' 2>/dev/null)
   [[ ${#urls[@]} -gt 0 ]] || urls=("${old_urls[@]}")
   [[ ${#urls[@]} -gt 0 ]] || return 0
-  printf '%s\0' "${urls[@]}" | sort -z | git hash-object --stdin
+  printf '%q\n' "${urls[@]}" | LC_ALL=C sort | git hash-object --stdin
 }
 
 # Prints the first-parent commit reachable from <rev> where the splice at
