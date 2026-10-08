@@ -1,7 +1,7 @@
 # shellcheck shell=bash
-# Sourced by the hidden scrut block of each scenario's README.md, which
-# then calls build_scenario with its scenario function; see `just
-# docs-check`.
+# Sourced by the hidden scrut block of each scenario's README.md, and of
+# each document in test/concepts/ with a setup.bash, which then calls
+# build_scenario with its scenario function; see `just docs-check`.
 #
 # Dates are fixed and the developer's git config is ignored, so commit
 # hashes are the same on every run.
