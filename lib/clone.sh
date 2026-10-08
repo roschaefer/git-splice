@@ -11,7 +11,10 @@ repository's name), as one ordinary commit with a new <path>/.splice.
 The upstream branch is the one named like the current branch, else the
 upstream's default branch; your first push then creates the missing
 branch. If the upstream's default branch is named differently from the
-monorepo's, .splice records it as default-branch.
+monorepo's, .splice records it as default-branch. Inside another splice,
+it's compared with that splice's default branch instead, and on the
+monorepo's default branch, that's the upstream branch: the monorepo's
+branch name isn't tried.
 
 If <path> already exists with exactly the upstream's content, clone only
 adds .splice. If its content differs, clone refuses, unless --merge is
@@ -64,22 +67,29 @@ cmd_clone() {
   fetch_upstream "$url" "$(splice_refs_prefix "$path")" || die "$path: fetch failed"
   splice_fetched "$path" || die "$url has no branches yet -- to publish $path there, use 'git splice init $(shell_quote "$path") $(shell_quote "$url")'"
 
-  # Map the monorepo's default branch to the upstream's, if they differ.
-  local upstream_default monorepo_default default_branch=""
+  # Map the monorepo's default branch to the upstream's, if it differs from
+  # the default branch of what the splice lives in: the splice above it,
+  # or the monorepo (container_default_branch).
+  local upstream_default monorepo_default container_default default_branch=""
   upstream_default="$(upstream_default_branch "$url")"
   monorepo_default="$(monorepo_default_branch)"
-  if [[ -n "$upstream_default" && -n "$monorepo_default" && "$upstream_default" != "$monorepo_default" ]]; then
-    default_branch="$upstream_default"
-  elif [[ -n "$upstream_default" && -z "$monorepo_default" && "$upstream_default" != "$branch" ]]; then
+  container_default="$(container_default_branch "$path")"
+  if [[ -n "$upstream_default" && -z "$monorepo_default" && "$upstream_default" != "$branch" ]]; then
     # Without the monorepo's default branch, the splice couldn't map it to
-    # upstream's: it would look for '$branch' upstream from the start.
+    # upstream's: it would look for '$branch' upstream from the start, even
+    # inside a splice whose default branch is known.
     die "$path: upstream's default branch is '$upstream_default', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+  elif [[ -n "$upstream_default" && -n "$container_default" && "$upstream_default" != "$container_default" ]]; then
+    default_branch="$upstream_default"
   fi
 
   local upstream_branch="$branch"
-  [[ -n "$default_branch" && "$branch" == "$monorepo_default" ]] && upstream_branch="$default_branch"
+  [[ -n "$monorepo_default" && "$branch" == "$monorepo_default" ]] && upstream_branch="${default_branch:-$container_default}"
   if ! git show-ref --verify --quiet "$(splice_ref "$path" "$upstream_branch")"; then
-    [[ -n "$upstream_default" ]] || die "$path: upstream has no '$upstream_branch' branch and no default branch"
+    # On the monorepo's default branch inside a splice, '$upstream_branch'
+    # is the splice above's default branch. The monorepo's branch name says
+    # nothing about this upstream then, so it isn't tried instead.
+    [[ -n "$upstream_default" ]] || die "$path: upstream has no '$upstream_branch' branch and names no default branch"
     log_step "$path: upstream has no '$upstream_branch' branch -- using '$upstream_default'; your first push creates '$upstream_branch'"
     upstream_branch="$upstream_default"
   fi

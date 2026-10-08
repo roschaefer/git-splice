@@ -664,14 +664,55 @@ monorepo_default_branch() {
   git config --get init.defaultBranch 2>/dev/null || true
 }
 
+# Prints the nearest splice above splice <path> in commit <rev>: the
+# closest folder above it with a state file. Fails if there's none.
+# (splice_above looks among paths given, not in a commit.)
+splice_above_in() {
+  local rev="$1" path="$2" dir="$2"
+  while [[ "$dir" == */* ]]; do
+    dir="${dir%/*}"
+    if git cat-file -e "$rev:$dir/$STATE_FILE" 2>/dev/null; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Prints the default branch of the upstream of splice $1: its recorded
+# default-branch, else the one of what it lives in (container_default_branch).
+# A .splice records it only where it differs from that, so the file means
+# the same in every repository it reaches: a nested one, in the
+# monorepo, follows the splice above it, as it follows its repository
+# in the upstream above.
+splice_default_branch() {
+  local name
+  name="$(splice_config "$1" default-branch)"
+  if [[ -n "$name" ]]; then
+    printf '%s\n' "$name"
+  else
+    container_default_branch "$1"
+  fi
+}
+
+# Prints the default branch of what folder $1 lives in: the default branch
+# of the splice above it, or the monorepo's.
+container_default_branch() {
+  local above
+  if above="$(splice_above_in HEAD "$1")"; then
+    splice_default_branch "$above"
+  else
+    monorepo_default_branch
+  fi
+}
+
 # Prints the upstream branch splice $1 syncs with while the monorepo is on
 # branch $2: the same name, except that the monorepo's default branch maps
-# to the splice's recorded default-branch, if it has one.
+# to the splice's default branch (splice_default_branch).
 upstream_branch_for() {
-  local path="$1" branch="$2" default_branch
-  default_branch="$(splice_config "$path" default-branch)"
-  if [[ -n "$default_branch" && "$branch" == "$(monorepo_default_branch)" ]]; then
-    printf '%s\n' "$default_branch"
+  local path="$1" branch="$2"
+  if [[ "$branch" == "$(monorepo_default_branch)" ]]; then
+    splice_default_branch "$path"
   else
     printf '%s\n' "$branch"
   fi
