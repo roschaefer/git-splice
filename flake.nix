@@ -149,6 +149,8 @@
             scrut
             # Runs in the git-subrepo comparison, test/comparisons/third-party/.
             pkgs.git-subrepo
+            # Runs in the Josh comparison, test/comparisons/third-party/.
+            pkgs.josh
             # Builds the documentation site in website/.
             pkgs.nodejs
             pkgs.pnpm
