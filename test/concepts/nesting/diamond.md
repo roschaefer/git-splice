@@ -79,6 +79,13 @@ b/s/.splice: id = 2b29a3b662c7595b
 s/.splice: id = 9d8f890efe139320
 ```
 
+By their ids, the three copies of S are independent splices
+([splice identity](../splice-identity/README.md#what-an-id-is)): each
+repository cloned S itself. Here they're meant to be one library, though,
+**mirrors**, and git splice has no way yet to give a clone the id of an
+existing splice. So keeping them alike is up to the monorepo's
+discipline ([mirrors](../../../docs/going-forward/mirrors.md)).
+
 ```scrut
 $ git splice key a/s && git splice key b/s && git splice key s
 s
@@ -142,10 +149,16 @@ o 1917a62 (R) s seed  (Test <test@example.com>)
 o 1917a62 (R) s seed  (Test <test@example.com>)
 ```
 
-The copies of S have **drifted** apart: they would push different
-commits. Here, `status` shows it, since S's upstream is ahead of two of
-them. Had the change come from elsewhere and only `s` pulled it, it
-would look the same.
+The copies of S differ now: they would push different commits. Meant as
+mirrors, they have **drifted**. `status` shows it only indirectly, as
+two splices behind their upstream, which an independent copy may well
+be. Comparing the folders, without `.splice`, shows it directly:
+
+```scrut
+$ git diff --stat HEAD:s HEAD:a/s -- ':!.splice'
+ file.txt | 1 -
+ 1 file changed, 1 deletion(-)
+```
 
 Each pulls it in, and A and B are then ahead of their upstreams, by the
 new `s/` content and `s/.splice`:
@@ -196,7 +209,14 @@ b/s/.splice: commit = 9854a3b0e01f22a40a9b55704bf2add3185ad502
 s/.splice: commit = 1917a62ce23de14693c0d3f5f5025e4e03d1460f
 ```
 
-So different synced commits don't mean drift. Different R does: all
-three would push the same commit now. Nothing compares the copies'
-R with each other yet, only each with T
-([upstreams](../upstreams/README.md#drift)).
+So different synced commits don't mean drift. Different files do, and
+the three copies have the same:
+
+```scrut
+$ git diff --quiet HEAD:s HEAD:a/s -- ':!.splice' && git diff --quiet HEAD:s HEAD:b/s -- ':!.splice' && echo "mirrors"
+mirrors
+```
+
+git splice compares each copy only with its own upstream, not the
+copies with each other
+([mirrors](../../../docs/going-forward/mirrors.md)).

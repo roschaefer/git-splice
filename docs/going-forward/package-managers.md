@@ -13,10 +13,11 @@ maps, and what doesn't.
 | what you ask for: a version range or tag, e.g. `^1.2` (a *descriptor* in Yarn) | the upstream branch a splice syncs with |
 | what you got: the exact version in the lockfile (a *locator* in Yarn) | the synced commit U |
 | a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../../test/concepts/nesting/README.md)) |
-| registries and mirrors | several upstreams per splice, not yet |
-| two versions of one package in the tree | [drift](../../test/concepts/upstreams/README.md#drift) |
-| `yarn dedupe --check` | no check yet |
-| — | the [`id`](../../test/concepts/splice-identity/README.md): packages can't be edited in place, so nothing needs to name one copy of one |
+| registries and mirror servers | several upstreams per splice, not yet |
+| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../../test/concepts/upstreams/README.md#one-library-at-two-versions)) |
+| one package, deduplicated | mirrors: splices with the same `id` ([mirrors](mirrors.md)) |
+| `yarn dedupe --check` | a report of mirrors that drifted, not yet |
+| — | the [`id`](../../test/concepts/splice-identity/README.md): which copies are one splice, history included. A package can't be edited in place, so its name and version say that already |
 
 A package name is one identity in a registry. A URL is only a location:
 two URLs of one repository are two upstreams to the monorepo
@@ -36,7 +37,7 @@ name and version, and installs each package once, wherever it's needed:
 A splice **contains** its files, and a nested splice is part of the
 files of the splice above. So:
 
-- **Diamonds** get a copy per path, which can drift
+- **Diamonds** get a copy per path. Meant as mirrors, they can drift
   ([diamond](../../test/concepts/nesting/diamond.md)).
 - **Cycles** never end, and are forbidden
   ([cycle](../../test/concepts/nesting/cycle.md)).
@@ -49,45 +50,12 @@ with `push`. A package manager can only patch a package (`yarn patch`,
 
 ## What could be learned
 
-- **A drift check**, as `yarn dedupe --check` reports packages that
-  could share a version: splices of one upstream that would push
-  different commits.
+- **A drift report**, as `yarn dedupe --check` reports packages that
+  could share a version: mirrors whose files differ
+  ([mirrors](mirrors.md)).
 - **Skipping a cycle instead of refusing it**, as Node does: a splice
   that's already above needs no copy below. It would need a reference
   where today there is content.
-
-## Duplicate ids and deduplication
-
-Two folders get the same `id` in two ways:
-
-- **A plain copy** in the monorepo, e.g. `cp -r`. There's no known use
-  for it: `git splice clone` gives the same files, at the same synced
-  commit, as a splice with an id of its own. A check could point that out.
-- **The same nested splice, reached twice.** If B's upstream splices in
-  A, which has L nested, then a monorepo that splices in both A and B has
-  `a/l` and `b/a/l`, with the same id: A's clone of L. The monorepo copied
-  nothing, and can't avoid it, short of not splicing in both. So
-  refusing duplicate ids would refuse diamonds of this shape.
-
-A package manager installs a package once, and points every place that
-needs it there. A monorepo could do the same with splices: keep one
-folder, and make the others symlinks to it. Some things to solve first:
-
-- **The key isn't the id.** In the
-  [diamond](../../test/concepts/nesting/diamond.md), the three splices of
-  S have three ids, since A, B and M each ran `clone`. What they share is
-  the upstream, and, when they're in sync, the same R. So splices of one
-  upstream that would push the same commit could share a folder.
-- **Links stay in the monorepo.** A push of A, whose `s/` would be a
-  link to M's `s/`, must send S's files, not the link, or A's own
-  repository gets a link to outside of it. The rebuild builds its trees
-  from Git objects, so it could put the tree of the link's target in
-  the link's place.
-- **Git deduplicates already**, by content: identical files and folders
-  are stored once. Only the checkout and the diffs have each copy.
-- **It ends drift by construction.** Copies that are one folder can't
-  drift, which is the point of a `yarn dedupe`, but also takes away
-  trying a new version in one place first.
 
 ## Zero installs
 

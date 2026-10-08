@@ -1,8 +1,8 @@
 # Upstreams
 
 What a splice's upstream is, how it relates to the refs under
-`refs/splices/<key>/`, and what it means when two splices of the same
-upstream drift apart.
+`refs/splices/<key>/`, and what it means when two splices of one
+upstream are at different versions.
 
 - **Upstream** (`$UPSTREAM`): `seed`. The monorepo reaches it as
   `https://git.example.com/s.git`, and as
@@ -103,7 +103,7 @@ ok   app-a/s fetched (main moved bde4164..6045a98)
 ok   app-b/s fetched (main moved bde4164..6045a98)
 ```
 
-### Drift
+### One library at two versions
 
 Only app a pulls the new version:
 
@@ -125,22 +125,20 @@ app-a/s/.splice: commit = 6045a986b5afb475cd0af0caf6bb622db918a25b
 app-b/s/.splice: commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 ```
 
-Two splices of one upstream that would push different commits, a
-different R in the [sync model](../sync-model/README.md), have **drifted
-apart**. Each is fine on its own: `status` reports app b's as behind its
-upstream, not as behind app a's. Drift can be wanted for a while, e.g.
-while app a tries the new version first. But if the copies are meant to
-be equal, nothing says that they aren't any more. A future version of
-git splice could, e.g. in `status`, by comparing the R of splices that
-share an upstream.
+`app-a/s` and `app-b/s` were cloned separately, so they have different
+ids: they're **independent**
+([splice identity](../splice-identity/README.md#what-an-id-is)). That
+they're at different versions is fine, e.g. while app a tries the new
+one first, and `status` reports app b's only as behind its upstream. If
+both apps should always share one version, the two need to be mirrors,
+with the same id. Then a difference is **drift**, which git splice
+doesn't report yet ([mirrors](../../../docs/going-forward/mirrors.md)).
 
-Different synced commits U aren't drift by themselves. A push doesn't
-move U, so a splice that pushed a change is at an older U than a copy
-that pulled it, with the same files
-([diamond](../nesting/diamond.md)). And two splices with the same `id`
-aren't needed for drift, nor enough for it: a copy whose URL now names a
-fork is at another synced commit on purpose
-([splice identity](../splice-identity/README.md#same-id-different-synced-commits)).
+Whether two splices differ is a matter of their files, or R in the
+[sync model](../sync-model/README.md), not of their synced commits U. A
+push doesn't move U, so a splice that pushed a change is at an older U
+than a copy that pulled it, with the same files
+([diamond](../nesting/diamond.md)).
 
 ### One repository, two URLs
 
@@ -166,9 +164,10 @@ $ git splice key app-c/s
 mirror.example.com-s
 ```
 
-So drift between `app-c/s` and the others couldn't be found by comparing
-URLs. With several upstreams per splice, a splice that names both URLs
-would tell the monorepo that they are copies of each other.
+So comparing URLs couldn't tell that `app-c/s` splices the same
+repository as the others. With several upstreams per splice, a splice
+that names both URLs would tell the monorepo that they are copies of
+each other.
 
 How this compares with a package manager's names, versions and lockfile:
 [package managers](../../../docs/going-forward/package-managers.md).
