@@ -89,19 +89,22 @@ third_party/a/.splice: id = 08502bf01cd0c0a3
 vendor/a/.splice: id = 25e766b33a0eb239
 ```
 
-Today the rebuild compares ids only at one path, between a commit and its
-parent: where the `.splice` there is new, or has another id, this
-splice's history starts, its mount. That's what keeps two splices that
-swap paths apart ([swapped-splices](../../scenarios/swapped-splices/README.md)). It
-doesn't follow a splice back to its old path yet, so unpushed commits are
-folded into the move
-([#4](https://github.com/roschaefer/git-splice/issues/4)).
+The rebuild follows a move back to the old path, so the commits from
+before it that weren't pushed yet are kept
+([moved-with-unpushed-commits](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)).
+It finds the old path by the folder's files: a commit that creates the
+folder, and removes one with files of the same names, moved it. The id
+then confirms that it's the same splice. Where a `.splice` is new at a
+path, without such a move, or has another id, the splice's history
+starts: its mount. That's what keeps two splices that swap paths apart
+([swapped-splices](../../scenarios/swapped-splices/README.md)).
 
-The id alone couldn't say where a splice came from either, once two
-folders have it, as in the next section. A commit that adds `c/` and
-removes `a/` is a move from `a/`, even if `b/` has the same id. One
-that adds `c/` and removes both `a/` and `b/` is ambiguous, as Git's own
-rename detection is with two identical files.
+The id alone couldn't say where a splice came from, once two folders
+have it, as in the next section. A commit that adds `c/` and removes
+`a/` is a move from `a/`, even if `b/` has the same id. One that adds
+`c/` and removes both `a/` and `b/` is a move from the one with more
+unchanged files, and a tie is no move, as with Git's own rename
+detection and two identical files.
 
 ### A copy shares the id
 
@@ -119,8 +122,12 @@ vendor/a-copy/.splice: id = 25e766b33a0eb239
 vendor/a/.splice: id = 25e766b33a0eb239
 ```
 
-That's allowed. Every command works on a splice by its path, and nothing
-compares ids across paths. Both are splices of their own, and the copy's
+That's allowed, though there's no known use for it: `git splice clone`
+gives the same files, at the same synced commit, as a splice with an id
+of its own
+([going forward](../../../docs/going-forward/package-managers.md#duplicate-ids-and-deduplication)).
+Every command works on a splice by its path, and nothing compares ids
+across paths. Both are splices of their own, and the copy's
 history starts with the copy, its mount:
 
 ```scrut
