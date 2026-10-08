@@ -410,7 +410,9 @@ commits. `rebuild_splice` is a function of HEAD alone:
 1. **Find the boundary.** B is
    `git log --first-parent -1 -- <path>/.splice`. Every `clone`, `init`
    and pull writes such a commit, and no rebase or squash merge can remove
-   all of them. U is the synced commit recorded at B.
+   all of them. U is the synced commit recorded at B. A `git mv` of the
+   whole folder isn't a boundary: the rebuild follows the folder to its
+   old path.
 2. **Start at U.** If B's folder (without `.splice`) equals U's tree, the
    rebuild continues from U. If it differs, a pull merged a divergence, or
    a squash merge mixed local edits into the commit that changed
@@ -452,6 +454,8 @@ two splices that swap paths
 ([example](../../test/scenarios/swapped-splices/README.md)), and a splice
 removed and spliced in again
 ([example](../../test/scenarios/init-new-upstream/unspliced-then-cloned-again/README.md)).
+A `git mv` keeps it too: a move of the whole folder to a free path is
+followed back to the old path, where the `.splice` has the same `id`.
 A new upstream URL keeps the history: the `id` stays
 ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
 
@@ -551,10 +555,16 @@ These are known and accepted, each to keep the design simple:
   `git commit`. Pushing the splice above right after pulling the one below
   avoids the conflict.
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
-- **Moving a splice with unpushed changes:** the `git mv` commit changes
-  `.splice`, so it becomes the boundary, and the unpushed commits before it
-  reach upstream folded into the move commit. Push before moving
-  ([#4](https://github.com/roschaefer/git-splice/issues/4)).
+- **Swapping two splices with unpushed changes:** the rebuild follows a
+  `git mv` only to a path that was free. After a swap, each splice's
+  unpushed commits reach its upstream folded into the swap commit
+  ([example](../../test/scenarios/swapped-splices/README.md)). Push before
+  swapping.
+- **A nested splice moved since its boundary** is rebuilt from the
+  monorepo's history alone, not from the upstream above up to that
+  splice's boundary: its path there would be another one. So a push of
+  its history from before the move may be made again, as before
+  [#74](https://github.com/roschaefer/git-splice/issues/74).
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
   on case-insensitive file systems, like macOS's default one: fetching one
