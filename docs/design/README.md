@@ -480,8 +480,9 @@ These are known and accepted, each to keep the design simple:
   default branch of the repository it's in. If the default branch of the
   upstream above is `master` and the monorepo's is `main`, a splice below,
   cloned with the one above, syncs with its upstream's `main` instead of
-  `master`. Until
-  [#71](https://github.com/roschaefer/git-splice/issues/71), set
+  `master`
+  ([example](../../test/scenarios/nested-default-branch/README.md)).
+  Until [#71](https://github.com/roschaefer/git-splice/issues/71), set
   `default-branch` in the nested `.splice` by hand.
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
 - **Moving a splice with unpushed changes:** the `git mv` commit changes
