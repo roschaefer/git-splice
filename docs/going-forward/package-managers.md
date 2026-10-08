@@ -56,6 +56,39 @@ with `push`. A package manager can only patch a package (`yarn patch`,
   that's already above needs no copy below. It would need a reference
   where today there is content.
 
+## Duplicate ids and deduplication
+
+Two folders get the same `id` in two ways:
+
+- **A plain copy** in the monorepo, e.g. `cp -r`. There's no known use
+  for it: `git splice clone` gives the same files, at the same synced
+  commit, as a splice with an id of its own. A check could point that out.
+- **The same nested splice, reached twice.** If B's upstream splices in
+  A, which has L nested, then a monorepo that splices in both A and B has
+  `a/l` and `b/a/l`, with the same id: A's clone of L. The monorepo copied
+  nothing, and can't avoid it, short of not splicing in both. So
+  refusing duplicate ids would refuse diamonds of this shape.
+
+A package manager installs a package once, and points every place that
+needs it there. A monorepo could do the same with splices: keep one
+folder, and make the others symlinks to it. Some things to solve first:
+
+- **The key isn't the id.** In the
+  [diamond](../../test/concepts/nesting/diamond.md), the three splices of
+  S have three ids, since A, B and M each ran `clone`. What they share is
+  the upstream, and, when they're in sync, the same R. So splices of one
+  upstream that would push the same commit could share a folder.
+- **Links stay in the monorepo.** A push of A, whose `s/` would be a
+  link to M's `s/`, must send S's files, not the link, or A's own
+  repository gets a link to outside of it. The rebuild builds its trees
+  from Git objects, so it could put the tree of the link's target in
+  the link's place.
+- **Git deduplicates already**, by content: identical files and folders
+  are stored once. Only the checkout and the diffs have each copy.
+- **It ends drift by construction.** Copies that are one folder can't
+  drift, which is the point of a `yarn dedupe`, but also takes away
+  trying a new version in one place first.
+
 ## Zero installs
 
 Yarn's *zero installs* commit the package cache, so a fresh clone runs
