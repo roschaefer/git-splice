@@ -30,14 +30,14 @@ bench *args:
 walkthrough *args:
     @test/walkthrough/setup.sh "$@"
 
-# Check the README, walkthroughs, scenario READMEs and comparisons against real output; --write updates them
+# Check the README, walkthroughs, concepts, scenario READMEs and comparisons against real output; --write updates them
 docs-check flag="":
     @if [[ "{{flag}}" == --write ]]; then \
-      scrut update --replace --assume-yes README.md test/walkthrough test/scenarios test/comparisons; \
+      scrut update --replace --assume-yes README.md test/walkthrough test/concepts test/scenarios test/comparisons; \
     elif [[ -n "{{flag}}" ]]; then \
       echo "usage: just docs-check [--write]" >&2; exit 1; \
-    elif ! scrut test README.md test/walkthrough test/scenarios test/comparisons; then \
-      echo "The README, walkthroughs, scenario READMEs or comparisons don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
+    elif ! scrut test README.md test/walkthrough test/concepts test/scenarios test/comparisons; then \
+      echo "The README, walkthroughs, concepts, scenario READMEs or comparisons don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
     fi
 
 # Build the documentation site into website/build; fails on broken links

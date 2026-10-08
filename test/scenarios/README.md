@@ -44,8 +44,6 @@ ok nested-default-branch (1 document)
 ok nested-splices (4 documents)
 ok nested-splices/three-levels (1 document)
 ok never-fetched (1 document)
-ok splice-identity (1 document)
-ok splice-identity/recursion (2 documents)
 ok splice-refs (1 document)
 ok swapped-splices (1 document)
 ok up-to-date (1 document)
@@ -65,7 +63,6 @@ ok up-to-date/push-ahead/upstream-moved (1 document)
 ok up-to-date/shared-remote-url (1 document)
 ok up-to-date/squash-merged-pull (1 document)
 ok upstream-rewritten-equal-tree (3 documents)
-ok upstreams (1 document)
 ```
 
 ## The output is real

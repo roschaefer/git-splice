@@ -1,4 +1,4 @@
-# Scenario: splice-identity
+# Splice identity
 
 What a splice's `id` names, what it's for, and why two folders may have
 the same one.
@@ -31,7 +31,7 @@ random, so the same command on the same commit writes the same file
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh"
+$ source "$TESTDIR/../../scenarios/readme-setup.sh"
 ```
 -->
 
@@ -74,8 +74,8 @@ vendor/a/.splice: id = 25e766b33a0eb239
 ```
 
 What the two have in common is their upstream: they share its fetched
-refs, and they drift apart when only one of them is pulled. That's the
-[upstreams](../upstreams/README.md) scenario.
+refs, and they drift apart when only one of them is pulled
+([upstreams](../upstreams/README.md)).
 
 ### A move keeps the id
 
@@ -92,7 +92,7 @@ vendor/a/.splice: id = 25e766b33a0eb239
 Today the rebuild compares ids only at one path, between a commit and its
 parent: where the `.splice` there is new, or has another id, this
 splice's history starts, its mount. That's what keeps two splices that
-swap paths apart ([swapped-splices](../swapped-splices/README.md)). It
+swap paths apart ([swapped-splices](../../scenarios/swapped-splices/README.md)). It
 doesn't follow a splice back to its old path yet, so unpushed commits are
 folded into the move
 ([#4](https://github.com/roschaefer/git-splice/issues/4)).
@@ -133,13 +133,14 @@ ok   vendor/a -> main (up to date)
 A copy isn't the only way to get the same id twice. If two upstreams
 contain the same nested splice, e.g. because one of them splices in the
 other, both bring its `.splice` into the monorepo, each in its own
-folder.
+folder. Two upstreams that each cloned the library themselves give it
+two ids, as in the [diamond](../nesting/diamond.md).
 
 ### Same id, different synced commits
 
-Two folders with the same id can be at different synced commits U. Since
-nothing ties them together after the copy, that's how they get there.
-What it means depends on their upstreams.
+Two folders with the same id can be at different synced commits U.
+Nothing ties them together after the copy. What it means depends on
+their upstreams.
 
 **Same upstream: drift.** The upstream moves on, and only `vendor/a` is
 pulled:
@@ -171,8 +172,9 @@ ok   vendor/a -> main (up to date)
 
 `vendor/a-copy` lags behind just as `third_party/a` does, which has an id
 of its own. So drift is about the upstream, not the id, and it may be
-wanted for a while, e.g. while one app tries the new version first. The
-[upstreams](../upstreams/README.md) scenario has more on drift.
+wanted for a while, e.g. while one app tries the new version first.
+Different synced commits aren't always drift, though: a push doesn't move
+U ([upstreams](../upstreams/README.md#drift)).
 
 **Another upstream: a fork.** A copy whose URL is changed to a fork's
 vendors the fork next to the original:
@@ -206,6 +208,6 @@ would have given the fork an id of its own.
 
 A splice can't be inside itself: a `.splice` with the same id as one
 above it means an upstream splices in, directly or not, something that
-contains it. Every pull then nests one more copy. The
-[recursion](recursion/README.md) scenario shows it. Nothing refuses it
-yet ([#86](https://github.com/roschaefer/git-splice/issues/86)).
+contains it. Every pull then nests one more copy
+([cycle](../nesting/cycle.md)). Nothing refuses it yet
+([#86](https://github.com/roschaefer/git-splice/issues/86)).
