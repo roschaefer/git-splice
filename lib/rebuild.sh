@@ -56,20 +56,21 @@ splice_boundary() {
   git log --first-parent -1 --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
 }
 
-# Succeeds if the state files at <path> in commits <a> and <b> are the
-# same splice: they have the same splice.id. If either has none, from
-# before ids, they're compared by their upstream URLs instead. Fails if
-# either commit has no state file there.
+# Succeeds if the state file at <path> in commit <a> and the one at
+# <path_b> (default: <path>) in commit <b> are the same splice: they have
+# the same splice.id. If either has none, from before ids, they're
+# compared by their upstream URLs instead. Fails if either commit has no
+# state file there.
 same_splice() {
-  local path="$1" a="$2" b="$3" id_a id_b urls_a
+  local path="$1" a="$2" b="$3" path_b="${4:-$1}" id_a id_b urls_a
   id_a="$(splice_config "$path" id "$a")"
-  id_b="$(splice_config "$path" id "$b")"
+  id_b="$(splice_config "$path_b" id "$b")"
   if [[ -n "$id_a" && -n "$id_b" ]]; then
     [[ "$id_a" == "$id_b" ]]
     return
   fi
   urls_a="$(splice_url_identity "$path" "$a")"
-  [[ -n "$urls_a" && "$urls_a" == "$(splice_url_identity "$path" "$b")" ]]
+  [[ -n "$urls_a" && "$urls_a" == "$(splice_url_identity "$path_b" "$b")" ]]
 }
 
 # Prints a hash of the upstream URLs that splice <path>'s state file names
@@ -110,6 +111,168 @@ splice_mount() {
   done < <(git log --first-parent --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE")
 }
 
+# Sets MOVED_FROM to the folder that commit <rev> moved to <path> (`git
+# mv`), or to nothing if it didn't, and MOVED_STATE_KEPT to 1 if the move
+# left the state file as it was. Only a move of the whole folder counts:
+# <path> doesn't exist in <rev>'s first parent, and a folder that shares a
+# file name with it there is gone in <rev>. If that folder wasn't a splice
+# yet, all its file names must be the same -- their contents may have
+# changed -- or a single file moved out of a bigger folder would publish
+# the rest of that folder's history. A splice's content was meant for its
+# upstream anyway, so the move may also add, delete or rename files. If
+# several folders qualify (alike splices moved together), the one with the
+# most unchanged files wins; a tie is no move.
+moved_from() {
+  local rev="$1" path="$2" entry name object deleted rest from
+  local count=0 score best_score=-1 tie="" state from_state kept same
+  # Keys start with "/", so that no file name is a special subscript.
+  local -A files=() candidates=()
+  MOVED_FROM=""
+  MOVED_STATE_KEPT=""
+  git rev-parse --verify --quiet "$rev^1" >/dev/null || return 0
+  [[ -z "$(folder_tree "$rev^1" "$path")" ]] || return 0
+
+  # ls-tree -z entries are "<mode> <type> <object>\t<name>".
+  while IFS= read -r -d '' entry; do
+    name="${entry#*$'\t'}"
+    object="${entry%%$'\t'*}"
+    files["/$name"]="${object##* }"
+    [[ "$name" == "$STATE_FILE" ]] || count=$((count + 1))
+  done < <(git ls-tree -r -z "$rev:$path")
+  state="${files["/$STATE_FILE"]:-}"
+
+  # A folder is a candidate if a file deleted from it has the name of one
+  # in <path>.
+  while IFS= read -r -d '' deleted; do
+    rest="$deleted"
+    while [[ "$rest" == */* ]]; do
+      rest="${rest#*/}"
+      [[ -n "${files["/$rest"]+set}" ]] && candidates["/${deleted%"/$rest"}"]=1
+    done
+  done < <(git diff-tree -r -z --no-renames --name-only --diff-filter=D "$rev^1" "$rev")
+
+  for from in "${!candidates[@]}"; do
+    from="${from#/}"
+    [[ -z "$(folder_tree "$rev" "$from")" ]] || continue
+    score=0
+    rest=0
+    from_state=""
+    same=1
+    while IFS= read -r -d '' entry; do
+      name="${entry#*$'\t'}"
+      object="${entry%%$'\t'*}"
+      object="${object##* }"
+      if [[ "$name" == "$STATE_FILE" ]]; then
+        from_state="$object"
+      elif [[ -n "${files["/$name"]+set}" ]]; then
+        rest=$((rest + 1))
+        [[ "${files["/$name"]}" == "$object" ]] && score=$((score + 1))
+      else
+        same=""
+      fi
+    done < <(git ls-tree -r -z "$rev^1:$from")
+    ((rest == count)) || same=""
+    [[ -n "$same" || -n "$from_state" ]] || continue
+    if ((score > best_score)); then
+      MOVED_FROM="$from"
+      best_score="$score"
+      tie=""
+      kept=""
+      [[ -n "$state" && "$state" == "$from_state" ]] && kept=1
+    elif ((score == best_score)); then
+      tie=1
+    fi
+  done
+  if [[ -n "$tie" ]]; then
+    MOVED_FROM=""
+  elif [[ -n "$MOVED_FROM" ]]; then
+    MOVED_STATE_KEPT="$kept"
+  fi
+}
+
+# Follows splice <path> back from monorepo commit <upper> to its boundary:
+# the newest first-parent commit that changed its state file. Moves of the
+# folder (`git mv`, see moved_from) are followed; one that leaves the state
+# file as it is isn't a boundary. Sets, as globals:
+#   LINEAGE_BOUNDARY     the boundary B, or nothing
+#   LINEAGE_SYNCED       the synced commit U recorded at B, or nothing
+#   LINEAGE_PATH         the splice's path at B
+#   LINEAGE_BEFORE_PATH  its path in B's first parent: another one if B
+#                        moved the folder and changed the state file
+#   LINEAGE_UPPER        the newest commit at LINEAGE_PATH
+#   LINEAGE_PATHS, LINEAGE_RANGES
+#                        the newer paths, newest first, each with the
+#                        range (rev-list syntax) of commits it applies to
+splice_lineage() {
+  local path="$1" upper="$2" commit status
+  LINEAGE_BOUNDARY=""
+  LINEAGE_SYNCED=""
+  LINEAGE_BEFORE_PATH=""
+  LINEAGE_PATHS=()
+  LINEAGE_RANGES=()
+  while :; do
+    commit="" status=""
+    {
+      IFS= read -r commit
+      IFS= read -r _
+      read -r status _
+    } < <(git log --first-parent -1 --name-status --format=%H "$upper" -- ":(top,literal)$path/$STATE_FILE")
+    [[ -n "$commit" ]] || break
+    MOVED_FROM=""
+    MOVED_STATE_KEPT=""
+    # Only a commit that adds the state file can have moved the folder, so
+    # a splice that never moved costs no extra Git process.
+    [[ "$status" == A ]] && moved_from "$commit" "$path"
+    if [[ -z "$MOVED_STATE_KEPT" ]]; then
+      LINEAGE_BOUNDARY="$commit"
+      LINEAGE_BEFORE_PATH="${MOVED_FROM:-$path}"
+      break
+    fi
+    LINEAGE_PATHS+=("$path")
+    LINEAGE_RANGES+=("$commit^1..$upper")
+    path="$MOVED_FROM"
+    upper="$commit^1"
+  done
+  [[ -n "$LINEAGE_BOUNDARY" ]] && LINEAGE_SYNCED="$(splice_config "$path" commit "$LINEAGE_BOUNDARY")"
+  LINEAGE_PATH="$path"
+  LINEAGE_UPPER="$upper"
+}
+
+# Continues splice_lineage back from LINEAGE_PATH and LINEAGE_UPPER to the
+# splice's mount (see splice_mount), following moves of the folder that
+# kept the splice: the state file it came from is the same splice
+# (same_splice), even if the move changed it. Sets LINEAGE_MOUNT, or
+# nothing if there's no state file, and extends LINEAGE_PATH,
+# LINEAGE_UPPER, LINEAGE_PATHS and LINEAGE_RANGES. A move from before the
+# mount isn't followed: the folder was no splice then.
+splice_lineage_to_mount() {
+  local path="$LINEAGE_PATH" upper="$LINEAGE_UPPER" commit moved
+  LINEAGE_MOUNT=""
+  while :; do
+    moved=""
+    while read -r commit; do
+      if git rev-parse --verify --quiet "$commit^1" >/dev/null &&
+        same_splice "$path" "$commit^1" "$commit"; then
+        continue
+      fi
+      moved_from "$commit" "$path"
+      if [[ -n "$MOVED_FROM" ]] && same_splice "$MOVED_FROM" "$commit^1" "$commit" "$path"; then
+        moved=1
+      else
+        LINEAGE_MOUNT="$commit"
+      fi
+      break
+    done < <(git log --first-parent --format=%H "$upper" -- ":(top,literal)$path/$STATE_FILE")
+    [[ -n "$moved" ]] || break
+    LINEAGE_PATHS+=("$path")
+    LINEAGE_RANGES+=("$commit^1..$upper")
+    path="$MOVED_FROM"
+    upper="$commit^1"
+  done
+  LINEAGE_PATH="$path"
+  LINEAGE_UPPER="$upper"
+}
+
 # Prints a new commit with tree <tree> and parents <parent>... that copies
 # author and committer -- names, emails and dates -- and the message of
 # monorepo commit <source>, the way `git subtree split` does. Never signed:
@@ -140,36 +303,48 @@ copy_commit() {
 # Prints the upstream commit that represents splice <path> as of monorepo
 # commit <rev> (default HEAD), or nothing if the splice has no content yet.
 #
-#   1. B is the boundary (splice_boundary) and U the synced commit recorded
-#      there. If B's folder equals U, the rebuild starts at U.
+#   1. B is the boundary (splice_lineage, which follows the folder through
+#      moves) and U the synced commit recorded there. If B's folder equals
+#      U, the rebuild starts at U.
 #   2. If it differs -- a pull merged local changes in, or a squash merge
 #      mixed local edits into the commit that changed the state file -- B
 #      is rebuilt as a commit with B's folder, whose parents are what the
 #      rebuild had before B (rebuilt from B's first parent, recursively)
 #      and U. Local commits that were never pushed keep their own identity.
 #   3. Then one commit per first-parent commit after B whose folder
-#      differs from the one before. A merge in the monorepo becomes one
-#      ordinary commit.
+#      differs from the one before, under the path the folder had then. A
+#      merge in the monorepo becomes one ordinary commit.
 # Without a synced commit (after init, before any pull), the rebuild
-# starts at the mount (splice_mount), as a root commit with the folder as
-# it was then. Nothing from before the mount is published, with or
-# without a synced commit: the folder was no splice then, or another one,
-# and its history may hold what was removed before it became this splice.
+# starts at the mount (splice_lineage_to_mount, which follows moves too),
+# as a root commit with the folder as it was then. Nothing from before the
+# mount is published, with or without a synced commit: the folder was no
+# splice then, or another one, and its history may hold what was removed
+# before it became this splice.
 rebuild_splice() {
   local path="$1" rev="${2:-HEAD}"
-  local boundary synced prev="" prev_tree="" tree range start
+  local boundary synced prev="" prev_tree="" tree range i
+  local at before_path upper
+  local -a paths ranges
 
-  boundary="$(splice_boundary "$path" "$rev")"
-  synced=""
-  [[ -n "$boundary" ]] && synced="$(splice_config "$path" commit "$boundary")"
+  splice_lineage "$path" "$rev"
+  # Recursive calls below overwrite the globals.
+  boundary="$LINEAGE_BOUNDARY"
+  synced="$LINEAGE_SYNCED"
+  at="$LINEAGE_PATH"
+  before_path="$LINEAGE_BEFORE_PATH"
+  upper="$LINEAGE_UPPER"
+  paths=("${LINEAGE_PATHS[@]}")
+  ranges=("${LINEAGE_RANGES[@]}")
 
   # A nested splice's history up to the boundary of the splice above it
   # is in that splice's upstream: a clone or pull of the splice above
   # squashed it into one commit here. So up to there, it's rebuilt from
   # the upstream's history, at the synced commit of the splice above, and
-  # that rebuild stands in for the synced commit.
+  # that rebuild stands in for the synced commit. Only if the splice
+  # didn't move since its boundary: the path in the upstream above would
+  # be another one.
   local above above_boundary above_synced from_above
-  if above="$(splice_above_in "$rev" "$path")"; then
+  if [[ ${#paths[@]} -eq 0 ]] && above="$(splice_above_in "$rev" "$path")"; then
     above_boundary="$(splice_boundary "$above" "$rev")"
     above_synced=""
     [[ -n "$above_boundary" ]] && above_synced="$(splice_config "$above" commit "$above_boundary")"
@@ -180,6 +355,7 @@ rebuild_splice() {
       if [[ -n "$from_above" ]]; then
         boundary="$above_boundary"
         synced="$from_above"
+        before_path="$path"
       fi
     fi
   fi
@@ -196,15 +372,15 @@ rebuild_splice() {
   if [[ -n "$synced" ]]; then
     prev="$synced"
     prev_tree="$(git rev-parse "$synced^{tree}")"
-    content_tree "$boundary" "$path"
+    content_tree "$boundary" "$at"
     tree="$CONTENT_TREE"
     if [[ -n "$tree" && "$tree" != "$prev_tree" ]]; then
       local before parents=()
       before=""
       # Unless B is the mount: what came before isn't this splice's.
       git rev-parse --verify --quiet "$boundary^1" >/dev/null &&
-        same_splice "$path" "$boundary^1" "$boundary" &&
-        before="$(rebuild_splice "$path" "$boundary^1")"
+        same_splice "$before_path" "$boundary^1" "$boundary" "$at" &&
+        before="$(rebuild_splice "$before_path" "$boundary^1")"
       if [[ -z "$before" ]] || git merge-base --is-ancestor "$before" "$synced"; then
         # Nothing unpushed before B: B's changes go on top of U.
         parents=("$synced")
@@ -223,15 +399,27 @@ rebuild_splice() {
       fi
       prev_tree="$tree"
     fi
-    range="$boundary..$rev"
+    range="$boundary..$upper"
   else
-    start="$(splice_mount "$path" "$rev")"
-    [[ -n "$start" ]] || return 0
-    range="$rev"
-    git rev-parse --verify --quiet "$start^1" >/dev/null && range="$start^1..$rev"
+    LINEAGE_PATH="$at"
+    LINEAGE_UPPER="$upper"
+    LINEAGE_PATHS=("${paths[@]}")
+    LINEAGE_RANGES=("${ranges[@]}")
+    splice_lineage_to_mount
+    [[ -n "$LINEAGE_MOUNT" ]] || return 0
+    at="$LINEAGE_PATH"
+    upper="$LINEAGE_UPPER"
+    paths=("${LINEAGE_PATHS[@]}")
+    ranges=("${LINEAGE_RANGES[@]}")
+    range="$upper"
+    git rev-parse --verify --quiet "$LINEAGE_MOUNT^1" >/dev/null && range="$LINEAGE_MOUNT^1..$upper"
   fi
 
-  rebuild_walk "$path" "$prev" "$range"
+  prev="$(rebuild_walk "$at" "$prev" "$range")"
+  for ((i = ${#paths[@]} - 1; i >= 0; i--)); do
+    prev="$(rebuild_walk "${paths[i]}" "$prev" "${ranges[i]}")"
+  done
+  printf '%s\n' "$prev"
 }
 
 # Prints the rebuild of splice <path> along <range> (rev-list syntax, e.g.

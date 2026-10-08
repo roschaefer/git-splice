@@ -95,6 +95,18 @@ work_in_upstream_a() {
   [ "$(git rev-parse "$rebuilt^")" = "$(git -C "$upstream_b" rev-parse main)" ]
 }
 
+@test "nested: b moved inside a keeps its unpushed commits" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  local before_move
+  before_move="$(rebuild_splice vendor/a/b)"
+  git mv vendor/a/b vendor/a/c
+  git commit -q -m "rename b's folder"
+  [ "$(rebuild_splice vendor/a/c)" = "$before_move" ]
+  [ "$(git log -1 --format=%s "$before_move")" = "b local" ]
+}
+
 @test "nested: a .splice below without default-branch follows the default branch of the splice above" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   cd "$monorepo"

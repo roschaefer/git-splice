@@ -101,10 +101,12 @@ b.txt
 `a's unpushed work` and `a.txt` didn't reach b's upstream.
 
 The other direction: `vendor/b` is a's splice now. Its push goes to
-`$UPSTREAM`, so a's commits belong there, but the rebuild doesn't follow
-moves yet, and `a's unpushed work` is folded into the swap commit. This
-is the known bug [#4](https://github.com/roschaefer/git-splice/issues/4),
-with the same workaround: push before moving a splice.
+`$UPSTREAM`, so a's commits belong there. But the rebuild follows a
+`git mv` only to a path that was free
+([example](../up-to-date/push-ahead/moved-with-unpushed-commits/README.md)),
+and `vendor/b` wasn't, so `a's unpushed work` is folded into the swap
+commit. Push before swapping splices
+([the design's limits](../../../docs/design/README.md#limits)).
 
 ```scrut
 $ git splice log vendor/b
