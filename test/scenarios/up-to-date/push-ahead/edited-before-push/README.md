@@ -2,9 +2,10 @@
 
 The commits a push would send, R, are edited before they're pushed:
 here, a message that names an internal ticket is reworded. They're
-pushed with plain Git, and the monorepo isn't told. Then R, which is
-computed from the monorepo's history, still has the original commit, and
-publishes it with the next push, next to the edited one.
+pushed with plain Git. R is computed from the monorepo's history, which
+still has the original commit, so a `pull` right after the push records
+the edited commit as the synced commit. From there on, the monorepo
+builds on the edited commit.
 
 - **Monorepo (`vendor/a`)**: cloned at `seed`, then the unpushed commit
   `fix, see INTERNAL-123`.
@@ -18,11 +19,12 @@ The recipe:
 2. Check it out in a worktree of its own: R has the upstream's layout,
    and a `git switch` would replace the monorepo's whole checkout.
 3. Edit the commits after the synced commit U, e.g. with
-   `git rebase -i`, and push the result with `git push`.
-4. **Record the pushed commit as the new sync point.** Without this step,
-   the monorepo keeps rebuilding the original commits: this document
-   shows what happens then. [record-the-sync-point](record-the-sync-point.md)
-   shows the recipe with it.
+   `git rebase -i`, and push the result with `git push`. Change only the
+   history, not the files.
+4. **`git splice pull`**, before the next change to the splice. The
+   folder has the pushed commit's files, so the pull records it as the
+   synced commit. A change before the pull publishes the original commit
+   after all: [change-before-the-pull](change-before-the-pull.md).
 
 ## Output
 
@@ -56,79 +58,46 @@ file.txt
 $ git -C ../edited commit -q --amend -m "fix the parser" && git -C ../edited push -q "$UPSTREAM" edited:main
 ```
 
-The upstream has the edited commit, and the monorepo's folder has the
-same files, so the splice reads as up to date:
+### Pull
 
-```scrut
-$ git splice fetch && git splice status
-ok   vendor/a fetched (main moved bde4164..ce80186)
-ok   vendor/a -> main (up to date)
-```
-
-A plain `pull` doesn't change that: there's nothing to merge, and it
-records no new sync point
-([#17](https://github.com/roschaefer/git-splice/issues/17) is the same
-gap, for an upstream rewritten by someone else):
+The folder has the upstream's files, but R still has the original
+commit, not the edited one. The pull records the edited commit, in a
+commit that changes only `.splice`:
 
 ```scrut
 $ git splice pull vendor/a
-ok   vendor/a fetched
-ok   vendor/a: nothing to pull
+ok   vendor/a fetched (main moved bde4164..ce80186)
+ok   vendor/a: recorded ce80186 as the synced commit -- the folder already has its files
 ```
 
-### The original comes back
+```scrut
+$ git show --stat --format=%s HEAD
+splice: pull vendor/a from main at ce80186
 
-The next change in the monorepo:
+ vendor/a/.splice | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+
+### The next change builds on the edited commit
 
 ```scrut
 $ echo "another fix" >>vendor/a/file.txt && git commit -q -a -m "another fix"
 ```
 
-R still starts at U with the original commit. `log` marks it and the
-edited commit `=`, the same change on both sides, but the rebuild
-doesn't skip it, so the splice has diverged:
-
 ```scrut
 $ git splice log vendor/a
 ===  vendor/a (main)
-< 294db54 another fix  (Test <test@example.com>)
-= ce80186 fix the parser  (Test <test@example.com>)
-= 700a8ff fix, see INTERNAL-123  (Test <test@example.com>)
-```
-
-The pull merges from U, where both sides added the same line, so it
-conflicts. Keeping the monorepo's side resolves it:
-
-```scrut
-$ git splice pull vendor/a
-ok   vendor/a fetched
-Auto-merging vendor/a/file.txt
-CONFLICT (content): Merge conflict in vendor/a/file.txt
-!!   vendor/a: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
-!!   vendor/a: pull failed
-!!   Failed: vendor/a
-[1]
-```
-
-```scrut
-$ git checkout -q --ours vendor/a/file.txt && git add vendor/a/file.txt && git commit -q --no-edit
+< bbd5c31 another fix  (Test <test@example.com>)
 ```
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: pushed 623a43e to main
+ok   vendor/a: pushed bbd5c31 to main
 ```
-
-The upstream now has both: the edited commit, and the original with the
-message that was meant to stay in the monorepo:
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s main
-*   splice: pull vendor/a from main at ce80186
-|\  
-| * fix the parser
-* | another fix
-* | fix, see INTERNAL-123
-|/  
+* another fix
+* fix the parser
 * seed
 ```

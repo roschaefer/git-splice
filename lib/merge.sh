@@ -44,7 +44,11 @@ merge_one() {
       log_ok "$path: upstream has no '$SPLICE_UPSTREAM_BRANCH' branch -- nothing to $verb"
       return 0
       ;;
-    up-to-date | push)
+    up-to-date)
+      record_equal_tree "$path" "$verb"
+      return
+      ;;
+    push)
       log_ok "$path: nothing to $verb"
       return 0
       ;;
@@ -74,6 +78,43 @@ merge_one() {
     return 1
   fi
   log_ok "$path: $(past_tense "$verb") ${target:0:7}"
+}
+
+# For splice <path> in state up-to-date: records the upstream branch T as
+# the synced commit, in a commit that only changes the state file, if the
+# folder already has T's files but T isn't part of the rebuild's history.
+# That happens when the upstream rewrote its history to the same files
+# (#17), squash-merged what this branch pushed, or got the rebuild edited
+# before the push. Without the record, the rebuild would keep the
+# monorepo's original commits, and publish them with the next push. After
+# an ordinary push, T is the rebuild: nothing to record. `verb` as for
+# merge_one.
+record_equal_tree() {
+  local path="$1" verb="$2" target rebuilt
+  target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
+  if [[ "$target" == "$SPLICE_SYNCED" ]]; then
+    log_ok "$path: nothing to $verb"
+    return 0
+  fi
+  # Without the synced commit there's no rebuild to compare with, and the
+  # folder matches T: recording it is all that's left.
+  if [[ -z "$SPLICE_SYNCED" ]] || git cat-file -e "$SPLICE_SYNCED^{commit}" 2>/dev/null; then
+    rebuilt="$(rebuild_splice "$path" HEAD)"
+    if [[ -n "$rebuilt" ]] && git merge-base --is-ancestor "$target" "$rebuilt"; then
+      log_ok "$path: nothing to $verb"
+      return 0
+    fi
+  fi
+  local folder base_blob new_blob
+  folder="$(git rev-parse "$target^{tree}")"
+  base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
+  new_blob="$(state_blob "$path" "commit=$target")"
+  if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
+    "splice: $verb $path from $SPLICE_UPSTREAM_BRANCH at ${target:0:7}"; then
+    log_err "$path: $verb failed"
+    return 1
+  fi
+  log_ok "$path: recorded ${target:0:7} as the synced commit -- the folder already has its files"
 }
 
 # Merges every given path, stopping at the first one that leaves a conflict:

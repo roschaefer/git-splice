@@ -1,6 +1,7 @@
 # Keep the upstream's version
 
-The safe way out of the [same state](README.md) after a local change:
+The safe way out of the [same state](README.md) after a local change,
+made before a `merge` or `pull` recorded the rewritten commit:
 splice the rewritten upstream in again, and redo the local change on top
 of it. The upstream's history stays as rewritten, which matters if the
 rewrite removed something, like a secret.

@@ -9,6 +9,9 @@ setup() {
   load 'scenarios/up-to-date/push-ahead/diverged-unrelated-history/setup'
   load 'scenarios/never-fetched/setup'
   load 'scenarios/up-to-date/shared-remote-url/setup'
+  load 'scenarios/up-to-date/push-ahead/pushed-then-pulled/setup'
+  load 'scenarios/up-to-date/push-ahead/edited-before-push/setup'
+  load 'scenarios/upstream-rewritten-equal-tree/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -107,6 +110,50 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"nothing to merge"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge: an upstream rewritten to the same files becomes the synced commit, so a later change pushes on top of it" {
+  scenario_upstream_rewritten_equal_tree "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before target
+  before="$(git rev-parse HEAD)"
+  target="$(git rev-parse "$(upstream_refs "$upstream")main")"
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse HEAD^)" = "$before" ]
+  [ "$(git diff --name-only HEAD^ HEAD)" = "vendor/a/.splice" ]
+  [ "$(splice_config vendor/a commit)" = "$target" ]
+  commit_local "$monorepo" vendor/a "local change"
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = push ]
+  [ "$(git rev-parse "$SPLICE_REBUILT^")" = "$target" ]
+}
+
+@test "merge: right after a push, nothing is recorded: the rebuild is the upstream branch" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: nothing to merge" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge: a push of an edited rebuild becomes the synced commit, so the original commit is never pushed" {
+  scenario_edited_before_push "$monorepo" "$upstream"
+  cd "$monorepo"
+  local rebuilt edited
+  rebuilt="$(rebuild_splice vendor/a)"
+  edited="$(git commit-tree "$rebuilt^{tree}" -p "$rebuilt^" -m "fix the parser")"
+  git push -q "$upstream" "$edited:refs/heads/main"
+  splice fetch >/dev/null
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$edited" ]
+  commit_local "$monorepo" vendor/a "another fix"
+  splice push vendor/a >/dev/null
+  [ "$(git -C "$upstream" log --format=%s main)" = "another fix"$'\n'"fix the parser"$'\n'"seed" ]
 }
 
 @test "merge: refuses to guess on unrelated history" {
