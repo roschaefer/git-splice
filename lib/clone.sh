@@ -72,12 +72,13 @@ cmd_clone() {
   upstream_default="$(upstream_default_branch "$url")"
   monorepo_default="$(monorepo_default_branch)"
   container_default="$(container_default_branch "$path")"
-  if [[ -n "$upstream_default" && -n "$container_default" && "$upstream_default" != "$container_default" ]]; then
-    default_branch="$upstream_default"
-  elif [[ -n "$upstream_default" && -z "$container_default" && "$upstream_default" != "$branch" ]]; then
+  if [[ -n "$upstream_default" && -z "$monorepo_default" && "$upstream_default" != "$branch" ]]; then
     # Without the monorepo's default branch, the splice couldn't map it to
-    # upstream's: it would look for '$branch' upstream from the start.
+    # upstream's: it would look for '$branch' upstream from the start, even
+    # inside a splice whose default branch is known.
     die "$path: upstream's default branch is '$upstream_default', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+  elif [[ -n "$upstream_default" && -n "$container_default" && "$upstream_default" != "$container_default" ]]; then
+    default_branch="$upstream_default"
   fi
 
   local upstream_branch="$branch"

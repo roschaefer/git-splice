@@ -93,6 +93,31 @@ work_in_upstream_a() {
   [ "$(upstream_branch_for vendor/a/d main)" = main ]
 }
 
+@test "nested: clone inside a splice refuses when the monorepo's default branch can't be determined, though the splice above's can" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  git config --unset init.defaultBranch
+  run cmd_clone "$upstream_b" vendor/a/c
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream's default branch is 'master', and the monorepo's can't be determined"* ]]
+  [ ! -e vendor/a/c/.splice ]
+}
+
+@test "nested: init inside a splice refuses when the monorepo's default branch can't be determined, though the splice above's can" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  local empty_master="$BATS_TEST_TMPDIR/empty-master.git"
+  make_bare_repo "$empty_master" master
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  commit_local "$monorepo" vendor/a/e "e's first version"
+  git config --unset init.defaultBranch
+  run cmd_init vendor/a/e "$empty_master"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream's default branch is 'master', and the monorepo's can't be determined"* ]]
+  [ ! -e vendor/a/e/.splice ]
+}
+
 @test "nested: init inside a splice records default-branch only where it differs from the splice above's" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   local empty_master="$BATS_TEST_TMPDIR/empty-master.git"
