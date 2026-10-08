@@ -104,7 +104,7 @@ work_in_upstream_a() {
   [ ! -e vendor/a/c/.splice ]
 }
 
-@test "nested: clone inside a splice keeps the branch named like the current one, and records it, when the upstream names no default branch" {
+@test "nested: clone inside a splice refuses an upstream without the splice above's default branch and with no default branch, instead of trying the monorepo's branch name" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   local no_head="$BATS_TEST_TMPDIR/no-head.git"
   make_bare_repo "$no_head" main
@@ -114,9 +114,9 @@ work_in_upstream_a() {
   cd "$monorepo"
   splice clone "$upstream" vendor/a
   run cmd_clone "$no_head" vendor/a/f
-  [ "$status" -eq 0 ]
-  [ "$(splice_config vendor/a/f default-branch)" = main ]
-  [ "$(upstream_branch_for vendor/a/f main)" = main ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream has no 'master' branch and names no default branch"* ]]
+  [ ! -e vendor/a/f/.splice ]
 }
 
 @test "nested: init inside a splice refuses when the monorepo's default branch can't be determined, though the splice above's can" {

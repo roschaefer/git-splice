@@ -12,7 +12,9 @@ The upstream branch is the one named like the current branch, else the
 upstream's default branch; your first push then creates the missing
 branch. If the upstream's default branch is named differently from the
 monorepo's, .splice records it as default-branch. Inside another splice,
-it's compared with that splice's default branch instead.
+it's compared with that splice's default branch instead, and on the
+monorepo's default branch, that's the upstream branch: the monorepo's
+branch name isn't tried.
 
 If <path> already exists with exactly the upstream's content, clone only
 adds .splice. If its content differs, clone refuses, unless --merge is
@@ -83,18 +85,11 @@ cmd_clone() {
 
   local upstream_branch="$branch"
   [[ -n "$monorepo_default" && "$branch" == "$monorepo_default" ]] && upstream_branch="${default_branch:-$container_default}"
-  if [[ -z "$upstream_default" && "$upstream_branch" != "$branch" ]] &&
-    ! git show-ref --verify --quiet "$(splice_ref "$path" "$upstream_branch")" &&
-    git show-ref --verify --quiet "$(splice_ref "$path" "$branch")"; then
-    # The upstream names no default branch, and hasn't the one of the
-    # splice above: the branch named like the current one is the best
-    # guess, as outside a splice. Recorded, so that later commands don't
-    # follow the splice above's.
-    upstream_branch="$branch"
-    default_branch="$branch"
-  fi
   if ! git show-ref --verify --quiet "$(splice_ref "$path" "$upstream_branch")"; then
-    [[ -n "$upstream_default" ]] || die "$path: upstream has no '$upstream_branch' branch and no default branch"
+    # On the monorepo's default branch inside a splice, '$upstream_branch'
+    # is the splice above's default branch. The monorepo's branch name says
+    # nothing about this upstream then, so it isn't tried instead.
+    [[ -n "$upstream_default" ]] || die "$path: upstream has no '$upstream_branch' branch and names no default branch"
     log_step "$path: upstream has no '$upstream_branch' branch -- using '$upstream_default'; your first push creates '$upstream_branch'"
     upstream_branch="$upstream_default"
   fi
