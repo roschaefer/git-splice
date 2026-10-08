@@ -83,6 +83,16 @@ cmd_clone() {
 
   local upstream_branch="$branch"
   [[ -n "$monorepo_default" && "$branch" == "$monorepo_default" ]] && upstream_branch="${default_branch:-$container_default}"
+  if [[ -z "$upstream_default" && "$upstream_branch" != "$branch" ]] &&
+    ! git show-ref --verify --quiet "$(splice_ref "$path" "$upstream_branch")" &&
+    git show-ref --verify --quiet "$(splice_ref "$path" "$branch")"; then
+    # The upstream names no default branch, and hasn't the one of the
+    # splice above: the branch named like the current one is the best
+    # guess, as outside a splice. Recorded, so that later commands don't
+    # follow the splice above's.
+    upstream_branch="$branch"
+    default_branch="$branch"
+  fi
   if ! git show-ref --verify --quiet "$(splice_ref "$path" "$upstream_branch")"; then
     [[ -n "$upstream_default" ]] || die "$path: upstream has no '$upstream_branch' branch and no default branch"
     log_step "$path: upstream has no '$upstream_branch' branch -- using '$upstream_default'; your first push creates '$upstream_branch'"
