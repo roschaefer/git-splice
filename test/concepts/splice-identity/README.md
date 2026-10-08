@@ -1,7 +1,7 @@
 # Splice identity
 
-What a splice's `id` names, what it's for, and why two folders may have
-the same one.
+What a splice's `id` names, what it's for, and what it means when two
+folders have the same one: they're meant to be mirrors.
 
 - **Upstream** (`$UPSTREAM`, reached as `https://git.example.com/a.git`):
   `seed`.
@@ -19,13 +19,25 @@ upstream. It names neither a folder nor an upstream:
 |---|---|
 | `clone` or `init` | is new, even for an upstream another folder already splices |
 | `git mv` of the folder | moves along with `.splice` |
-| a new URL, or another upstream | stays: a fork or a mirror is meant to be a copy |
+| a new URL, or another upstream | stays: the upstream moved, or got a second home |
 | `cp -r` of the folder, or a nested `.splice` reaching the monorepo twice | is copied: now two folders have it |
 
 A splice keeps its id however its folder or its upstream changes. The
 id is derived from the path and `HEAD` when the splice is made, not
 random, so the same command on the same commit writes the same file
 ([the design](../../../docs/design/README.md#the-splice-file)).
+
+So the id says which folders are meant to stay alike:
+
+| | Different ids | The same id |
+|---|---|---|
+| Meaning | **independent** splices, even of one upstream, e.g. a library at two versions | one splice in two places: **mirrors**, meant to have the same files |
+| Different content | fine | **drift**, to resolve |
+| Made by | `clone` or `init` | a copy, or one nested splice reached twice |
+
+Mirrors can't be enforced, only reported, and git splice doesn't report
+them yet: [mirrors](../../../docs/going-forward/mirrors.md) explains why,
+and what you can do meanwhile.
 
 ## Output
 
@@ -122,12 +134,11 @@ vendor/a-copy/.splice: id = 25e766b33a0eb239
 vendor/a/.splice: id = 25e766b33a0eb239
 ```
 
-That's allowed, though there's no known use for it: `git splice clone`
-gives the same files, at the same synced commit, as a splice with an id
-of its own
-([going forward](../../../docs/going-forward/package-managers.md#duplicate-ids-and-deduplication)).
-Every command works on a splice by its path, and nothing compares ids
-across paths. Both are splices of their own, and the copy's
+The copy declares a **mirror** of `vendor/a`. For a copy that should go
+its own way, `git splice clone` gives the same files, at the same synced
+commit, with an id of its own. Every command works on a splice by its
+path, and nothing compares ids across paths, so each copy is pulled and
+pushed on its own. Both are splices of their own, and the copy's
 history starts with the copy, its mount:
 
 ```scrut
@@ -143,14 +154,10 @@ other, both bring its `.splice` into the monorepo, each in its own
 folder. Two upstreams that each cloned the library themselves give it
 two ids, as in the [diamond](../nesting/diamond.md).
 
-### Same id, different synced commits
+### A mirror drifts
 
-Two folders with the same id can be at different synced commits U.
-Nothing ties them together after the copy. What it means depends on
-their upstreams.
-
-**Same upstream: drift.** The upstream moves on, and only `vendor/a` is
-pulled:
+Nothing keeps mirrors alike: each is pulled on its own. The upstream
+moves on, and only `vendor/a` is pulled:
 
 ```scrut
 $ seed_bare_repo "$UPSTREAM" "upstream change"
@@ -177,39 +184,61 @@ ok   vendor/a-copy -> main (pull: behind 1)
 ok   vendor/a -> main (up to date)
 ```
 
-`vendor/a-copy` lags behind just as `third_party/a` does, which has an id
-of its own. So drift is about the upstream, not the id, and it may be
-wanted for a while, e.g. while one app tries the new version first.
-Different synced commits aren't always drift, though: a push doesn't move
-U ([upstreams](../upstreams/README.md#drift)).
+`vendor/a-copy` is meant to mirror `vendor/a`, but has other files now:
+it has **drifted**. `status` only says it's behind its upstream, just as
+`third_party/a`, which is independent and may stay behind. A report of
+mirrors that differ is possible, but not there yet
+([mirrors](../../../docs/going-forward/mirrors.md)).
 
-**Another upstream: a fork.** A copy whose URL is changed to a fork's
-vendors the fork next to the original:
+Until then, you can compare mirrors yourself. Their folders, without
+`.splice`, should have the same tree, so `git diff` between the two
+folders in `HEAD` shows what's different:
 
 ```scrut
-$ cp -r vendor/a-copy vendor/a-fork && git config --file vendor/a-fork/.splice upstream.origin.url https://git.example.com/a-fork.git && git add vendor/a-fork && git commit -q -m "vendor a fork"
+$ git diff --stat HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice'
+ file.txt | 1 -
+ 1 file changed, 1 deletion(-)
+```
+
+Pulling the copy resolves the drift:
+
+```scrut
+$ git splice pull vendor/a-copy
+ok   vendor/a-copy fetched
+ok   vendor/a-copy: pulled 6045a98
 ```
 
 ```scrut
-$ git splice pull vendor/a-fork
-ok   vendor/a-fork fetched
-ok   vendor/a-fork: pulled c09993d
+$ git diff --quiet HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice' && echo "mirrors"
+mirrors
+```
+
+Different synced commits alone aren't drift: a push doesn't move U, so
+a mirror that pushed a change has an older U than one that pulled it,
+with the same files ([diamond](../nesting/diamond.md)).
+
+### A fork is a splice of its own
+
+To vendor a fork next to the original, clone it:
+
+```scrut
+$ git splice clone https://git.example.com/a-fork.git vendor/a-fork
+===  vendor/a-fork: fetching https://git.example.com/a-fork.git
+ok   vendor/a-fork: cloned c09993d from main
 ```
 
 ```scrut
-$ git grep -e 'id = ' -e 'commit = ' -e 'url = ' -- vendor/a-copy/.splice vendor/a-fork/.splice | tr '\t' ' '
-vendor/a-copy/.splice: commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
-vendor/a-copy/.splice: id = 25e766b33a0eb239
-vendor/a-copy/.splice: url = https://git.example.com/a.git
-vendor/a-fork/.splice: commit = c09993d6070910488d3e924b417023fccf6f305a
-vendor/a-fork/.splice: id = 25e766b33a0eb239
+$ git grep -e 'id = ' -e 'url = ' -- vendor/a/.splice vendor/a-fork/.splice | tr '\t' ' '
+vendor/a-fork/.splice: id = c59d098a936491c0
 vendor/a-fork/.splice: url = https://git.example.com/a-fork.git
+vendor/a/.splice: id = 25e766b33a0eb239
+vendor/a/.splice: url = https://git.example.com/a.git
 ```
 
-Here the different synced commits are the point, not drift. The id can't
-tell this case from an upstream that moved to a new URL, since both keep
-it. `git splice clone https://git.example.com/a-fork.git vendor/a-fork`
-would have given the fork an id of its own.
+A copy of `vendor/a` whose URL is changed to the fork's would keep the
+id, and so declare a mirror of something that isn't one. The id can't
+tell that from an upstream that moved to a new URL, which keeps it on
+purpose, and nothing warns about it yet.
 
 ### Where the id must not repeat
 

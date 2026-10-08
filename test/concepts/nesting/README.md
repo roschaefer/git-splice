@@ -31,6 +31,8 @@ Two shapes need a closer look, as in a package manager's dependency
 graph:
 
 - [**Diamond**](diamond.md): two paths lead to one library. Allowed:
-  the monorepo has a copy per path, which can drift apart.
+  the monorepo has a copy per path. Copies of one splice are mirrors,
+  which can drift apart
+  ([mirrors](../../../docs/going-forward/mirrors.md)).
 - [**Cycle**](cycle.md): a splice contains itself. Forbidden: the copies
   would never end.
