@@ -38,8 +38,8 @@ The monorepo changes c and pushes all three, bottom-up:
 ```scrut
 $ echo "c local" >>vendor/a/b/c/file.txt && git commit -q -a -m "c local" && git splice push vendor/a/b/c vendor/a/b vendor/a
 ok   vendor/a/b/c: pushed 8dd94ad to main
-ok   vendor/a/b: pushed 6fc6beb to main
-ok   vendor/a: pushed 448599c to main
+ok   vendor/a/b: pushed 50ab272 to main
+ok   vendor/a: pushed daa485c to main
 ```
 
 b's `.splice`, as a's upstream has it now, still names b's commit from
@@ -59,7 +59,7 @@ $ git init -q -b main ../other && cd ../other && git commit -q --allow-empty -m 
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a && git splice fetch
 ===  vendor/a: fetching $UPSTREAM
-ok   vendor/a: cloned 448599c from main
+ok   vendor/a: cloned daa485c from main
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched

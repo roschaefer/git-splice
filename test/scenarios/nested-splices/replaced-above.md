@@ -54,8 +54,8 @@ b2's `.splice` has another id than b's:
 
 ```scrut
 $ git -C ../a-work config --file b/.splice splice.id; git config --file vendor/a/b/.splice splice.id
-4ac6da537149443f
-b260547af9afae07
+88a02361b312d5a4
+548ac82ad47ea22d
 ```
 
 ## The monorepo keeps its own b
@@ -64,7 +64,7 @@ The pull of a conflicts in b:
 
 ```scrut
 $ git splice pull vendor/a
-ok   vendor/a fetched (main moved da334c3..e2f3da1)
+ok   vendor/a fetched (main moved ddf42f3..e114b33)
 ok   vendor/a/b fetched
 Auto-merging vendor/a/b/file.txt
 CONFLICT (content): Merge conflict in vendor/a/b/file.txt
