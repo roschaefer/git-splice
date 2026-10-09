@@ -31,7 +31,7 @@ setup() {
 
 @test "cli: each command's own -h works" {
   local cmd
-  for cmd in clone init fetch merge pull push status diff log; do
+  for cmd in clone init fetch merge pull push status diff log rebuild; do
     run "$entrypoint" "$cmd" -h
     [ "$status" -eq 0 ]
     [[ "$output" == *"usage: git splice $cmd"* ]]
@@ -41,7 +41,7 @@ setup() {
 @test "cli: top-level help lists every command" {
   run "$entrypoint" --help
   local cmd
-  for cmd in clone init fetch merge pull push status diff log; do
+  for cmd in clone init fetch merge pull push status diff log rebuild; do
     [[ "$output" == *"  $cmd "* ]]
   done
 }
@@ -51,7 +51,7 @@ setup() {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   local cmd
-  for cmd in diff fetch log merge pull push status; do
+  for cmd in diff fetch log merge pull push rebuild status; do
     run "$entrypoint" "$cmd" -- -h
     [ "$status" -eq 1 ]
     [[ "$output" == *"not a splice: -h"* ]]

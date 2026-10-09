@@ -1,5 +1,5 @@
 # The push rebuild: turns a splice's history in the monorepo into the
-# commits its upstream gets. Assumes lib/common.sh is already sourced.
+# commits its upstream gets, and the rebuild command that prints it. Assumes lib/common.sh is already sourced.
 #
 # The rebuild is deterministic -- the same history always rebuilds into the
 # same commits -- so status can compare it with the upstream branch without
@@ -279,4 +279,48 @@ rebuild_walk() {
     prev_tree="$CONTENT_TREE"
   done
   printf '%s\n' "$prev"
+}
+
+usage_rebuild() {
+  cat <<'EOF'
+usage: git splice rebuild <path>
+
+Prints the commit 'git splice push <path>' would send: the splice's
+history rebuilt without its .splice file, on top of the upstream commit
+it last synced with. If nothing changed since, that's the synced commit
+itself. The rebuild is deterministic, so a later push sees what was
+pushed of it as already upstream.
+
+Writes nothing: no ref, no monorepo commit. Purely local, but the synced
+commit must have been fetched.
+
+Push it to an upstream branch other than the one named like the current
+one, e.g. a release branch:
+
+  git push <url> "$(git splice rebuild <path>)":refs/heads/<branch>
+
+or check it out in a separate worktree, since it has the upstream's
+layout, not the monorepo's:
+
+  git worktree add ../rebuild "$(git splice rebuild <path>)"
+EOF
+}
+
+cmd_rebuild() {
+  parse_args usage_rebuild "" "$@"
+  [[ -z "$ALL_ARG" ]] || die "rebuild takes no --all"
+  [[ -z "$BASE_ARG" ]] || die "rebuild takes no --base"
+  [[ ${#PATH_ARGS[@]} -eq 1 ]] || {
+    usage_rebuild >&2
+    exit 1
+  }
+  local path rebuilt
+  path="$(normalize_path "${PATH_ARGS[0]}")"
+  cd_to_repo_root
+  require_head_commit
+  discover_splices
+  is_splice_path "$path" || die "not a splice: $path"
+  rebuilt="$(rebuild_splice "$path" HEAD)" || exit 1
+  [[ -n "$rebuilt" ]] || die "$path: has no content yet -- nothing to rebuild"
+  printf '%s\n' "$rebuilt"
 }

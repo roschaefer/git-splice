@@ -42,6 +42,7 @@ _git-splice() {
     'status:show each splice'\''s sync state'
     'diff:show the file changes push would send'
     'log:show the commits push and pull would move'
+    'rebuild:print the commit push would send'
     'fetch:fetch the upstreams'
     'key:print or rename the key of a splice'\''s fetched refs'
   )
@@ -102,6 +103,9 @@ _git-splice() {
         '(-h --help)'{-h,--help}'[show usage]' \
         '1:path:_files -/' \
         '2:url:'
+      ;;
+    rebuild)
+      _arguments '(-h --help)'{-h,--help}'[show usage]' '1:splice:__git_splice_paths'
       ;;
     key)
       _arguments \
