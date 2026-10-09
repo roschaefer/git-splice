@@ -148,9 +148,9 @@ ok   vendor/lib: pulled ab8d849
 
 ```scrut
 $ git log --oneline --graph -3
-* c53163d splice: pull vendor/lib from main at ab8d849
-* 9b79bcc add notes to lib
-* ae63bb6 fix parse() and call it
+* 8fd7e84 splice: pull vendor/lib from main at ab8d849
+* 53ca8c1 add notes to lib
+* 22698ef fix parse() and call it
 ```
 
 The release stays in the library's history, in `refs/splices/lib/main`.
@@ -161,6 +161,84 @@ $ git rev-list --count HEAD && git -C ../monorepo rev-list --count HEAD
 44
 75
 ```
+
+## Whose history is it?
+
+With Josh, the library's history is a view of the monorepo's: one
+project, seen through a folder. With git-splice, the library has a history
+of its own, and the monorepo integrates it. The difference shows when the
+monorepo adopts a library change on a branch, glues it into the app, and
+merges the branch.
+
+In the Josh monorepo, the branch changes the library, adapts the app, and
+fixes a typo in the library change:
+
+```scrut
+$ cd ../monorepo && git switch -q -c parse-options && echo "options" >vendor/lib/src/options.txt && git add vendor/lib && git commit -q -m "lib: add parse() options" && echo "parse(options)" >>app/main.txt && git commit -q -a -m "app: pass options to parse()" && echo "options, fixed" >vendor/lib/src/options.txt && git commit -q -a -m "lib: fix options typo"
+```
+
+```scrut
+$ git switch -q main && echo "deps" >app/deps.txt && git add app && git commit -q -m "app: bump dependencies" && git merge -q --no-ff -m "Merge branch 'parse-options'" parse-options
+```
+
+The library gets the monorepo's merge, with its branch name, and both of
+the branch's library commits, the typo fix included. Only the commits that
+didn't touch the library, the app's glue and the dependency bump, stay
+behind:
+
+```scrut
+$ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
+*   0f0e116 Merge branch 'parse-options'
+|\  
+| * 6fa6a39 lib: fix options typo
+| * 619f52b lib: add parse() options
+|/  
+*   f676de6 merge release 1.3
+|\  
+| * ab8d849 release 1.3
+* | d01e4b2 add notes to lib
+|/  
+```
+
+The same branch and merge in the git-splice monorepo:
+
+```scrut
+$ cd ../splice-monorepo && git switch -q -c parse-options && echo "options" >vendor/lib/src/options.txt && git add vendor/lib && git commit -q -m "lib: add parse() options" && echo "parse(options)" >>app/main.txt && git commit -q -a -m "app: pass options to parse()" && echo "options, fixed" >vendor/lib/src/options.txt && git commit -q -a -m "lib: fix options typo"
+```
+
+```scrut
+$ git switch -q main && echo "deps" >app/deps.txt && git add app && git commit -q -m "app: bump dependencies" && git merge -q --no-ff -m "Merge branch 'parse-options'" parse-options
+```
+
+A push follows the monorepo's first parents, so the merge reaches the
+library as one commit, with the library's half of the branch:
+
+```scrut
+$ git splice push vendor/lib
+ok   vendor/lib: pushed cb4c102 to main
+```
+
+```scrut
+$ git -C "$COMPARISON/upstream/lib.git" log --oneline --graph -6 main
+* cb4c102 Merge branch 'parse-options'
+*   cc09788 splice: pull vendor/lib from main at ab8d849
+|\  
+| * ab8d849 release 1.3
+* | d01e4b2 add notes to lib
+|/  
+* 5069701 fix parse() and call it
+* bafd496 lib commit 30
+```
+
+Below it, both libraries have the same merge of the earlier pull: the same
+parents, `d01e4b2` and `ab8d849`, with Josh's message or git-splice's.
+A merge that joins the library's own history with the monorepo's changes
+belongs to the library, and both tools send it. A merge of the monorepo's
+branches is integration, and only Josh sends it.
+
+The message is still the monorepo's: `Merge branch 'parse-options'`. A
+squash merge, or a merge message written for the library, reaches the
+library as written.
 
 ## Where Josh is different
 
@@ -197,9 +275,10 @@ $ git rev-list --count HEAD && git -C ../monorepo rev-list --count HEAD
 | | Josh | `git splice` |
 | --- | --- | --- |
 | Library history in the monorepo | whole, as copies under the folder | none, one commit per sync |
-| Commits a push sends | the filtered history, the same as `git subtree split` | the commits since the last sync, the same as `git subtree split` |
+| Commits a push sends | the filtered history, the same as `git subtree split` | the first-parent commits since the last sync, otherwise the same as `git subtree split` |
+| A monorepo branch merged | a merge, with the branch's commits | one commit, with the merge's message |
 | Where both sides meet | shared commits | the synced commit in `.splice` |
-| An upstream commit pulled in | one monorepo commit for each, merged | one pull commit for all |
+| An upstream commit pulled in | one monorepo commit for each, and a merge if both sides moved | one pull commit for all |
 | Monorepo history | merges | linear |
 | Implementation | Rust, gitoxide, a cache | Bash, the `git` command |
 | Best for | a monorepo that is the source of truth, served in parts | a library with its own repository, changed in the monorepo |
