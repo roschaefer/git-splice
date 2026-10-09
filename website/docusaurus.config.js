@@ -1,7 +1,7 @@
 const {themes} = require('prism-react-renderer');
 
 // The site renders the repository's own Markdown -- the README, walkthrough,
-// scenarios, comparisons and design notes -- in place, so the pages are the
+// concepts, scenarios, comparisons and design notes -- in place, so the pages are the
 // same files `just docs-check` runs against real output.
 const repoUrl = 'https://github.com/roschaefer/git-splice';
 const siteUrl = 'https://roschaefer.github.io';
@@ -40,6 +40,7 @@ module.exports = {
             'docs/**/*.md',
             'test/walkthrough/**/*.md',
             'test/scenarios/**/*.md',
+            'test/concepts/**/*.md',
             'test/comparisons/**/*.md',
           ],
           routeBasePath: '/',

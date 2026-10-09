@@ -563,7 +563,7 @@ and a scenario's README shows the tool's real output. Run them in
 
 ```
 just test                 # bats tests
-just docs-check           # scenario READMEs and walkthroughs, via scrut
+just docs-check           # concepts, scenario READMEs and walkthroughs, via scrut
 just docs-check --write   # update them after an intended output change
 just ci                   # lint, fmt-check, test, docs-check
 ```
