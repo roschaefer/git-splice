@@ -12,9 +12,7 @@ publishes it with the next push, next to the edited one.
 
 The recipe:
 
-1. Get R. `git splice rebuild` would print it
-   ([#54](https://github.com/roschaefer/git-splice/issues/54)); until
-   then, `log --graph` shows it, labeled `(R)`.
+1. Get R: `git splice rebuild` prints it.
 2. Check it out in a worktree of its own: R has the upstream's layout,
    and a `git switch` would replace the monorepo's whole checkout.
 3. Edit the commits after the synced commit U, e.g. with
@@ -41,7 +39,7 @@ $ build_scenario scenario_edited_before_push
 ### Edit and push
 
 ```scrut
-$ R="$(git splice log --graph vendor/a | awk '$3 == "(R)" { print $2 }')" && git log --oneline "$R"
+$ R="$(git splice rebuild vendor/a)" && git log --oneline "$R"
 700a8ff fix, see INTERNAL-123
 bde4164 seed
 ```
