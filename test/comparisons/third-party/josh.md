@@ -4,8 +4,9 @@
 shows a folder of a monorepo as a repository of its own by filtering the
 monorepo's history. Its filters are reversible: filtering a commit always
 gives the same commit, and filtering the result back gives the original.
-So the library's repository and the monorepo share commits, hash for hash,
-but only if the monorepo holds the library's whole history.
+So the library's repository and Josh's filtered view of the monorepo share
+commits, hash for hash, but only if the monorepo holds the library's whole
+history, as copies of its commits.
 
 git-splice keeps the two histories apart. This page runs both on the same
 library and monorepo, with `josh-filter`, Josh's command-line front end to
@@ -87,7 +88,9 @@ ok   vendor/lib: pushed 5069701 to main
 
 The library gets 5069701 from both. Josh and git-splice copy a commit's
 author, committer, dates and message the way `git subtree split` does, so
-the same change on top of the same library commit is the same commit.
+the same unsigned change on top of the same library commit is the same
+commit. A signed commit differs: Josh keeps its signature header by
+default, which then no longer verifies, and git-splice never signs.
 Neither needs to remember which commits it pushed: it computes them again.
 
 ## A release breaks the app: `git bisect`
@@ -155,26 +158,27 @@ $ git bisect start HEAD HEAD~1 >/dev/null && git bisect run sh "$COMPARISON/test
 To go deeper, bisect the library's history between the two synced
 commits, U1 and U2, which `.splice` records before and after the pull. Its
 commits are fetched into the monorepo already, so a worktree of the
-monorepo can check them out:
+monorepo can check them out. A second, throwaway worktree runs the app's
+test, so your own checkout stays as it is:
 
 ```scrut
-$ git worktree add -q --detach ../lib-bisect && cd ../lib-bisect && git bisect start "$(git config --blob HEAD:vendor/lib/.splice splice.commit)" "$(git config --blob HEAD~1:vendor/lib/.splice splice.commit)" >/dev/null
+$ git worktree add -q --detach ../app-bisect && git worktree add -q --detach ../lib-bisect && cd ../lib-bisect && git bisect start "$(git config --blob HEAD:vendor/lib/.splice splice.commit)" "$(git config --blob HEAD~1:vendor/lib/.splice splice.commit)" >/dev/null
 ```
 
-The library alone can't run the app's test, so each step copies the
-library's files into the monorepo's folder first:
+The library alone can't run the app's test, so each step replaces the
+throwaway worktree's folder with the library's files at that step:
 
 ```scrut
-$ git bisect run sh -c 'git --work-tree=../splice-monorepo/vendor/lib checkout HEAD -- . && cd ../splice-monorepo && sh "$COMPARISON/test-app.sh"' >/dev/null && git bisect log | tail -1
+$ git bisect run sh -c 'rm -rf ../app-bisect/vendor/lib && mkdir ../app-bisect/vendor/lib && git archive HEAD | tar -x -C ../app-bisect/vendor/lib && cd ../app-bisect && sh "$COMPARISON/test-app.sh"' >/dev/null && git bisect log | tail -1
 # first bad commit: [9c8481ced0e577e419cebdf1caa1d444e05944f7] parse: rename fix to fixed
 ```
 
 ```scrut
-$ git bisect reset >/dev/null && cd ../splice-monorepo && git checkout -- vendor/lib && git clean -fdq vendor/lib && git worktree remove ../lib-bisect && git status --short
+$ git bisect reset >/dev/null && cd ../splice-monorepo && git worktree remove ../lib-bisect && git worktree remove --force ../app-bisect
 ```
 
 That's the library's own commit, of which Josh's `092b6b1` is the
-monorepo's copy. Copying the files works here because the folder had no
+monorepo's copy. Replacing the folder works here because it had no
 changes of its own since U1. With unpushed changes, each step would need
 them merged in.
 
@@ -190,7 +194,6 @@ Meanwhile, each monorepo adds notes to the library:
 
 ```scrut
 $ echo "notes" >vendor/lib/NOTES && git add vendor/lib && git commit -q -m "add notes to lib"
-[0]
 ```
 
 ```scrut
@@ -370,24 +373,26 @@ library as written.
   that folder. git-splice starts from a library that has its own
   repository, and keeps working in the monorepo, where the library is
   tested with the app.
-- **Links are newer, and go one way.** The experimental `josh link`
+- **Links are unreleased, and go one way.** `josh link`, experimental
+  and on Josh's `master` since September 2026 but in no release yet,
   publishes a folder to a repository of its own. A link's id and the one
   upstream branch it tracks live in a ref of the monorepo,
   `refs/josh/links/<id>`, not in the folder, and nothing comes back
   through a link. A splice's id and synced commit are committed in its
   folder, so they move along with `git mv`, and each monorepo branch syncs
-  with the upstream branch of its name.
+  with the upstream branch of its name, the default branch with the
+  upstream's.
 
 ## In short
 
 | | Josh | `git splice` |
 | --- | --- | --- |
 | Library history in the monorepo | whole, as copies under the folder | none, one commit per sync |
-| Commits a push sends | the filtered history, the same as `git subtree split` | the first-parent commits since the last sync, otherwise the same as `git subtree split` |
-| `git bisect` for a library bug | finds the library's commit | finds the pull, then a second bisect between the synced commits does |
+| Commits a push sends | the filtered history, the same as `git subtree split` for unsigned commits | the first-parent commits since the last sync, otherwise the same as `git subtree split` |
+| `git bisect` for a library bug | finds the monorepo's copy of the library's commit | finds the pull, then a second bisect between the synced commits does |
 | A monorepo branch merged | a merge, with the branch's commits | one commit, with the merge's message |
-| Where both sides meet | shared commits | the synced commit in `.splice` |
+| Where both sides meet | commits of the filtered view that the library has | the synced commit in `.splice` |
 | An upstream commit pulled in | one monorepo commit for each, and a merge if both sides moved | one pull commit for all |
-| Monorepo history | merges | linear |
+| Merges a sync adds to the monorepo | one when both sides moved | none |
 | Implementation | Rust, gitoxide, a cache | Bash, the `git` command |
 | Best for | a monorepo that is the source of truth, served in parts | a library with its own repository, changed in the monorepo |
