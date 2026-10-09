@@ -189,8 +189,7 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   not random, so a command gives the same result each time it runs on
   the same commit, while two splices of different upstreams mounted at
   the same path on branches from the same commit still get different
-  ids. Every command refuses a `.splice` without an id, from before ids,
-  and prints how to give it one.
+  ids. Every command refuses a `.splice` without an id.
 - **Without `default-branch`**, the upstream's default branch has the
   name of the default branch of what the splice lives in: the splice
   above it, or the monorepo. So a nested `.splice` means the same in the
@@ -205,9 +204,7 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   sync with more than one, e.g. a company fork and the original. Exactly
   one `[upstream "<name>"]` is supported for now. `clone` and `init` name
   it `origin`. `commit` stays one per splice: a sync point is a commit,
-  whichever upstream it came from. A `.splice` from before names, with
-  `splice.url`, makes every command stop and print the commands that
-  convert it.
+  whichever upstream it came from.
 - **Every command checks it can read it.** A `.splice` that `git config`
   can't parse, e.g. one committed with conflict markers, stops every
   command with Git's message, instead of being half read.
