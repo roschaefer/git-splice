@@ -61,12 +61,12 @@ Both sides changed the synced commit (`expand` shows the tabs as spaces):
 ```scrut
 $ expand vendor/a/.splice
 [splice]
+        id = 224f2c2563d3b6f7
 <<<<<<< HEAD
         commit = 4c1905de64f0df0a488c0b63482302ec229fdce9
 =======
         commit = 72efaacc5c6b50e5d2a6fe51a30af958c8adae51
 >>>>>>> origin/main
-        id = 25e766b33a0eb239
 [upstream "origin"]
         url = https://git.example.com/a.git
 ```
@@ -116,8 +116,8 @@ refuses a `.splice` it can't read:
 
 ```scrut
 $ git diff --cached --check && git config --file vendor/a/.splice --list
+splice.id=224f2c2563d3b6f7
 splice.commit=4c1905de64f0df0a488c0b63482302ec229fdce9
-splice.id=25e766b33a0eb239
 upstream.origin.url=https://git.example.com/a.git
 ```
 

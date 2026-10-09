@@ -202,8 +202,8 @@ ok   vendor/lib: cloned bafd496 from main
 ```scrut
 $ cat vendor/lib/.splice
 [splice]
+\tid = f34fc447facba9d0 (escaped)
 	commit = bafd496b1f4512a95b69464604f3da428aa9e33b
-	id = e96d74a3f35326c6
 [upstream "origin"]
 	url = https://git.example.com/lib.git
 ```

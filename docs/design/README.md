@@ -184,11 +184,13 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   `clone` or `init` makes the folder a splice, and stays the same when
   the folder moves, its upstream's URL changes, or upstreams are added.
   The rebuild uses it to tell this splice from another one that had the
-  same path before (see the push section). It's derived from the path
-  and `HEAD`, not random, so a command gives the same result each time it
-  runs on the same commit. A `.splice` from before ids gets
-  one with its next `merge` or `pull`; until then, its upstream URLs
-  stand in for it.
+  same path before (see the push section). It's derived from the path,
+  `HEAD`, the upstream's URL and, for `clone`, the commit it splices in,
+  not random, so a command gives the same result each time it runs on
+  the same commit, while two splices of different upstreams mounted at
+  the same path on branches from the same commit still get different
+  ids. Every command refuses a `.splice` without an id, from before ids,
+  and prints how to give it one.
 - **Without `default-branch`**, the upstream's default branch has the
   name of the default branch of what the splice lives in: the splice
   above it, or the monorepo. So a nested `.splice` means the same in the
@@ -520,12 +522,6 @@ These are known and accepted, each to keep the design simple:
   `.splice`, so it becomes the boundary, and the unpushed commits before it
   reach upstream folded into the move commit. Push before moving
   ([#4](https://github.com/roschaefer/git-splice/issues/4)).
-- **A `.splice` from before ids** is told apart from another splice by
-  its upstream URLs until its next `merge` or `pull` gives it an id. So
-  until then, changing its URL starts its history over, folding unpushed
-  commits into the change, and two such splices of the same upstream that
-  swap paths aren't told apart
-  ([#96](https://github.com/roschaefer/git-splice/issues/96)).
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
   on case-insensitive file systems, like macOS's default one: fetching one

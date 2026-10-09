@@ -64,8 +64,8 @@ In the real file, U is a commit hash:
 ```scrut
 $ cat vendor/lib/.splice
 [splice]
+\tid = 87675ced26a59d2e (escaped)
 	commit = e8491155fe5db4e87fd6c1227ab65fd61da8af0a
-	id = 6ea1be3bad1fb313
 [upstream "origin"]
 	url = https://github.com/x/lib.git
 ```

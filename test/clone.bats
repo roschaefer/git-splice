@@ -47,6 +47,18 @@ new_upstream() {
   [ "$(splice_config vendor/a id)" != "$(splice_config vendor/b id)" ]
 }
 
+@test "clone: at the same path on the same commit, another upstream gets another id" {
+  new_upstream
+  local other="$BATS_TEST_TMPDIR/other.git"
+  make_bare_repo "$other"
+  seed_bare_repo "$other" "other seed"
+  git checkout -q -b one
+  cmd_clone "$upstream" vendor/a
+  git checkout -q -b other main
+  cmd_clone "$other" vendor/a
+  [ "$(splice_config vendor/a id)" != "$(splice_config vendor/a id one)" ]
+}
+
 @test "clone: names the folder after the repository by default" {
   new_upstream
   cmd_clone "$upstream"

@@ -57,41 +57,12 @@ splice_boundary() {
 }
 
 # Succeeds if the state files at <path> in commits <a> and <b> are the
-# same splice: they have the same splice.id. If either has none, from
-# before ids, they're compared by their upstream URLs instead. Fails if
-# either commit has no state file there.
+# same splice: they have the same splice.id. Fails if either has none,
+# from before ids: the commit that gives a splice its id is its mount.
 same_splice() {
-  local path="$1" a="$2" b="$3" id_a id_b urls_a
+  local path="$1" a="$2" b="$3" id_a
   id_a="$(splice_config "$path" id "$a")"
-  id_b="$(splice_config "$path" id "$b")"
-  if [[ -n "$id_a" && -n "$id_b" ]]; then
-    [[ "$id_a" == "$id_b" ]]
-    return
-  fi
-  urls_a="$(splice_url_identity "$path" "$a")"
-  [[ -n "$urls_a" && "$urls_a" == "$(splice_url_identity "$path" "$b")" ]]
-}
-
-# Prints a hash of the upstream URLs that splice <path>'s state file names
-# in commit <rev>, sorted: the identity of a splice from before ids.
-# Nothing if there's no state file. As in load_splice_upstream, the old
-# format's splice.url counts only if no upstream has a URL, so converting
-# it keeps the identity, and a leftover one doesn't change it. A URL may
-# contain a newline, so each is shell-quoted onto one line: a plain sort
-# then orders them, where sort -z isn't portable.
-splice_url_identity() {
-  local path="$1" rev="$2" record urls=() old_urls=()
-  while IFS= read -r -d '' record; do
-    # Each record is <key>, a newline, and the value.
-    [[ "$record" == *$'\n'?* ]] || continue
-    case "${record%%$'\n'*}" in
-      upstream.*.url) urls+=("${record#*$'\n'}") ;;
-      splice.url) old_urls+=("${record#*$'\n'}") ;;
-    esac
-  done < <(git config --blob "$rev:$path/$STATE_FILE" -z --get-regexp '^(upstream\..*|splice)\.url$' 2>/dev/null)
-  [[ ${#urls[@]} -gt 0 ]] || urls=("${old_urls[@]}")
-  [[ ${#urls[@]} -gt 0 ]] || return 0
-  printf '%q\n' "${urls[@]}" | LC_ALL=C sort | git hash-object --stdin
+  [[ -n "$id_a" && "$id_a" == "$(splice_config "$path" id "$b")" ]]
 }
 
 # Prints the first-parent commit reachable from <rev> where the splice at

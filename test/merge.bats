@@ -45,15 +45,6 @@ setup() {
   [ "$(splice_config vendor/a id)" = "$id" ]
 }
 
-@test "merge: gives a splice from before ids an id" {
-  scenario_pull_ahead "$monorepo" "$upstream"
-  cd "$monorepo"
-  git config --file vendor/a/.splice --unset splice.id
-  git commit -q -am "a splice from before ids"
-  cmd_merge vendor/a
-  [[ "$(splice_config vendor/a id)" =~ ^[0-9a-f]{16}$ ]]
-}
-
 @test "merge: refuses an upstream that brings in a .splice at its root" {
   scenario_pull_ahead "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "[splice]" main .splice

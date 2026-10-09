@@ -18,11 +18,6 @@ commits before the change still belong to the splice. Compare
 the id changes, and so does the history. See
 [the design notes](../../../../../docs/design/README.md#splicing-out-push-and-the-rebuild).
 
-A `.splice` from before ids has none until its next `merge` or `pull`,
-and its URLs stand in for it: there, a new URL starts the history over,
-and `local change` would reach the new upstream folded into the commit
-that changed the URL.
-
 ## Output
 
 <!--
