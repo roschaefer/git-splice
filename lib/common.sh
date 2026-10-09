@@ -95,6 +95,7 @@ parse_args() {
   ALL_ARG=""
   BASE_ARG=""
   UPSTREAM_ARG=""
+  REBUILD_ARG=""
   PATH_ARGS=()
   EXTRA_FLAGS=()
   while [[ $# -gt 0 ]]; do
@@ -127,6 +128,20 @@ parse_args() {
         else
           UPSTREAM_ARG="${1#--upstream=}"
           [[ -n "$UPSTREAM_ARG" ]] || die "--upstream needs an upstream's name"
+        fi
+        ;;
+      --rebuild | --rebuild=*)
+        [[ "$allowed" == *" --rebuild "* ]] || {
+          "$usage_fn" >&2
+          die "unknown option: ${1%%=*}"
+        }
+        if [[ "$1" == --rebuild ]]; then
+          [[ $# -ge 2 && -n "$2" ]] || die "--rebuild needs a commit"
+          REBUILD_ARG="$2"
+          shift
+        else
+          REBUILD_ARG="${1#--rebuild=}"
+          [[ -n "$REBUILD_ARG" ]] || die "--rebuild needs a commit"
         fi
         ;;
       --)

@@ -2,9 +2,10 @@
 
 The commits a push would send, R, are edited before they're pushed:
 here, a message that names an internal ticket is reworded. They're
-pushed with plain Git, and the monorepo isn't told. Then R, which is
-computed from the monorepo's history, still has the original commit, and
-publishes it with the next push, next to the edited one.
+pushed with `git splice push --rebuild`, which records no sync point in
+the monorepo. Then R, which is computed from the monorepo's history,
+still has the original commit, and publishes it with the next push,
+next to the edited one.
 
 - **Monorepo (`vendor/a`)**: cloned at `seed`, then the unpushed commit
   `fix, see INTERNAL-123`.
@@ -16,7 +17,9 @@ The recipe:
 2. Check it out in a worktree of its own: R has the upstream's layout,
    and a `git switch` would replace the monorepo's whole checkout.
 3. Edit the commits after the synced commit U, e.g. with
-   `git rebase -i`, and push the result with `git push`.
+   `git rebase -i`, and push the result with
+   `git splice push --rebuild <commit> <path>`. It refuses a commit
+   whose files differ from the folder's, or that doesn't contain U.
 4. **Record the pushed commit as the new sync point.** Without this step,
    the monorepo keeps rebuilding the original commits: this document
    shows what happens then. [record-the-sync-point](record-the-sync-point.md)
@@ -51,15 +54,15 @@ file.txt
 ```
 
 ```scrut
-$ git -C ../edited commit -q --amend -m "fix the parser" && git -C ../edited push -q "$UPSTREAM" edited:main
+$ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuild edited vendor/a
+ok   vendor/a: pushed ce80186 to main
 ```
 
 The upstream has the edited commit, and the monorepo's folder has the
 same files, so the splice reads as up to date:
 
 ```scrut
-$ git splice fetch && git splice status
-ok   vendor/a fetched (main moved bde4164..ce80186)
+$ git splice status
 ok   vendor/a -> main (up to date)
 ```
 

@@ -116,6 +116,16 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: push completes branches for --rebuild, e.g. one with an edited rebuild" {
+  git branch edited
+  run complete_words git-splice push --reb
+  [ "$output" = "--rebuild" ]
+  run complete_words git-splice push --rebuild edi
+  [ "$output" = "edited" ]
+  run complete_words git-splice push --rebuild edited vend
+  [ "$output" = "vendor/a" ]
+}
+
 @test "completion: rebuild completes one splice path" {
   run complete_words git-splice rebuild vend
   [ "$output" = "vendor/a" ]
@@ -203,6 +213,13 @@ fish_complete() {
   [ -z "$output" ]
 }
 
+@test "zsh completion: push completes branches for --rebuild" {
+  require_shell zsh
+  git branch edited
+  run zsh_complete "git-splice push --rebuild=edi"
+  [[ "$output" == *"edited"* ]]
+}
+
 @test "zsh completion: rebuild completes one splice path" {
   require_shell zsh
   run zsh_complete "git-splice rebuild vendor/"
@@ -261,6 +278,13 @@ fish_complete() {
   [[ "$output" == *"vendor/"* ]]
   run fish_complete "git-splice init vendor/a vend"
   [ -z "$output" ]
+}
+
+@test "fish completion: push completes branches for --rebuild" {
+  require_shell fish
+  git branch edited
+  run fish_complete "git-splice push --rebuild edi"
+  [[ "$output" == *"edited"* ]]
 }
 
 @test "fish completion: rebuild completes one splice path" {

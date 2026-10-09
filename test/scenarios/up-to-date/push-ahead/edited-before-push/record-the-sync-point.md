@@ -32,8 +32,8 @@ $ R="$(git splice rebuild vendor/a)" && git worktree add -q -b edited ../edited 
 ```
 
 ```scrut
-$ git -C ../edited commit -q --amend -m "fix the parser" && git -C ../edited push -q "$UPSTREAM" edited:main && git splice fetch
-ok   vendor/a fetched (main moved bde4164..ce80186)
+$ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuild edited vendor/a
+ok   vendor/a: pushed ce80186 to main
 ```
 
 Record the pushed commit as the sync point, in a commit that changes

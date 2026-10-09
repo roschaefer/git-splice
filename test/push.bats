@@ -218,3 +218,73 @@ setup() {
   [[ "${lines[0]}" == "??   vendor/a: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ]]
   [[ "$output" == *"vendor/a: pushed"* ]]
 }
+
+# Prints the rebuild of vendor/a with its last commit's message replaced
+# by <message>, as an edit in a separate worktree would make it.
+reworded_rebuild() {
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  git commit-tree --no-gpg-sign "$rebuilt^{tree}" -p "$rebuilt^" -m "$1"
+}
+
+@test "push --rebuild: pushes the given commit instead of the rebuild, e.g. with a reworded message" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local edited
+  edited="$(reworded_rebuild "fix the parser")"
+  run cmd_push --rebuild "$edited" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$edited" ]
+  [ "$(git rev-parse "$(upstream_refs "$upstream")main")" = "$edited" ]
+}
+
+@test "push --rebuild: creates a missing upstream branch with the given commit" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  local edited
+  edited="$(reworded_rebuild "fix the parser")"
+  run cmd_push --rebuild="$edited" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse feature)" = "$edited" ]
+}
+
+@test "push --rebuild: refuses a commit with other files than the folder, which only a monorepo commit may change" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local rebuilt other
+  rebuilt="$(rebuild_splice vendor/a)"
+  other="$(git commit-tree --no-gpg-sign "$(git rev-parse "$rebuilt^^{tree}")" -p "$rebuilt" -m "undo")"
+  run cmd_push --rebuild "$other" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: ${other:0:7} has other files than the folder -- --rebuild only takes edits to the history; commit changes to files in the monorepo" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$(splice_config vendor/a commit)" ]
+}
+
+@test "push --rebuild: refuses a commit that doesn't contain the synced commit, even where the upstream would take it" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  local root synced
+  root="$(git commit-tree --no-gpg-sign "$(rebuild_splice vendor/a)^{tree}" -m "squashed")"
+  synced="$(splice_config vendor/a commit)"
+  run cmd_push --rebuild "$root" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: ${root:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it" ]
+  ! git -C "$upstream" rev-parse --verify --quiet feature
+}
+
+@test "push --rebuild: takes a commit and exactly one splice" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push --rebuild nope vendor/a
+  [ "$output" = "!!   --rebuild: not a commit: nope" ]
+  run cmd_push --rebuild HEAD vendor/a vendor/b
+  [ "$output" = "!!   --rebuild takes exactly one splice" ]
+  run cmd_push --rebuild HEAD --all
+  [ "$output" = "!!   --rebuild takes exactly one splice" ]
+  run cmd_push vendor/a --rebuild
+  [ "$output" = "!!   --rebuild needs a commit" ]
+  run cmd_status --rebuild HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   unknown option: --rebuild" ]]
+}
