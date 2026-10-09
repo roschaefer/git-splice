@@ -135,24 +135,35 @@ rebuild_splice() {
   synced=""
   [[ -n "$boundary" ]] && synced="$(splice_config "$path" commit "$boundary")"
 
-  # A nested splice's history up to the boundary of the splice above it
-  # is in that splice's upstream: a clone or pull of the splice above
+  # A nested splice's history up to the boundary of a splice above it is
+  # in that splice's upstream: a clone or pull of the splice above
   # squashed it into one commit here. So up to there, it's rebuilt from
   # the upstream's history, at the synced commit of the splice above, and
-  # that rebuild stands in for the synced commit.
-  local above above_boundary above_synced from_above
-  if above="$(splice_above_in "$rev" "$path")"; then
-    above_boundary="$(splice_boundary "$above" "$rev")"
-    above_synced=""
-    [[ -n "$above_boundary" ]] && above_synced="$(splice_config "$above" commit "$above_boundary")"
-    if [[ -n "$above_synced" && -n "$boundary" ]] &&
-      git cat-file -e "$above_synced^{commit}" 2>/dev/null &&
-      git merge-base --is-ancestor "$boundary" "$above_boundary"; then
-      from_above="$(rebuild_splice "${path#"$above/"}" "$above_synced")"
-      if [[ -n "$from_above" ]]; then
-        boundary="$above_boundary"
-        synced="$from_above"
-      fi
+  # that rebuild stands in for the synced commit. Of the splices above,
+  # the one with the newest boundary covers the most history; on a tie,
+  # the outermost, whose upstream has the ones below it too, at least as
+  # new as their own synced commits. Only where the upstream above has
+  # the same splice at the path: it may have replaced it with another.
+  local dir="$path" above above_boundary above_synced from_above=""
+  local best="" best_boundary="" best_synced=""
+  if [[ -n "$boundary" ]]; then
+    while above="$(splice_above_in "$rev" "$dir")"; do
+      dir="$above"
+      above_boundary="$(splice_boundary "$above" "$rev")"
+      [[ -n "$above_boundary" ]] || continue
+      above_synced="$(splice_config "$above" commit "$above_boundary")"
+      [[ -n "$above_synced" ]] && git cat-file -e "$above_synced^{commit}" 2>/dev/null || continue
+      git merge-base --is-ancestor "$boundary" "$above_boundary" || continue
+      [[ -z "$best" ]] || git merge-base --is-ancestor "$best_boundary" "$above_boundary" || continue
+      [[ "$(splice_config "${path#"$above/"}" id "$above_synced")" == "$(splice_config "$path" id "$rev")" ]] || continue
+      best="$above" best_boundary="$above_boundary" best_synced="$above_synced"
+    done
+  fi
+  if [[ -n "$best" ]]; then
+    from_above="$(rebuild_splice "${path#"$best/"}" "$best_synced")"
+    if [[ -n "$from_above" ]]; then
+      boundary="$best_boundary"
+      synced="$from_above"
     fi
   fi
 
@@ -170,7 +181,10 @@ rebuild_splice() {
     prev_tree="$(git rev-parse "$synced^{tree}")"
     content_tree "$boundary" "$path"
     tree="$CONTENT_TREE"
-    if [[ -n "$tree" && "$tree" != "$prev_tree" ]]; then
+    # With the history from above, B's folder may equal it while the
+    # monorepo's history before B has commits it lacks, e.g. one pushed
+    # straight to this splice's upstream: they're joined all the same.
+    if [[ -n "$tree" && ("$tree" != "$prev_tree" || -n "$from_above") ]]; then
       local before parents=()
       before=""
       # Unless B is the mount: what came before isn't this splice's.

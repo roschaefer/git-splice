@@ -137,4 +137,9 @@ a would have conflicted: see
 Once the monorepo has pushed a change in b, another monorepo that splices
 a in rebuilds b's history up to the clone from a's upstream, so b's
 first change there goes on top of the pushed one:
-[spliced into another monorepo](spliced-elsewhere.md).
+[spliced into another monorepo](spliced-elsewhere.md). That history comes
+from the splice above with the newest boundary, even two levels up
+([three levels](three-levels/README.md)); not where a's upstream has
+another splice at `b/` ([replaced above](replaced-above.md)); and it
+doesn't drop what b's upstream got from the monorepo directly
+([pushed and made above](pushed-and-made-above.md)).
