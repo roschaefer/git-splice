@@ -53,7 +53,7 @@ content_tree() {
 # such a commit, and rebases and squash merges can't remove all of them.
 splice_boundary() {
   local path="$1" rev="${2:-HEAD}"
-  git log --first-parent -1 --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
+  git log --first-parent -1 --no-show-signature --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
 }
 
 # Succeeds if the state files at <path> in commits <a> and <b> are the
@@ -79,7 +79,7 @@ splice_mount() {
       printf '%s\n' "$commit"
       return
     fi
-  done < <(git log --first-parent --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE")
+  done < <(git log --first-parent --no-show-signature --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE")
 }
 
 # Prints a new commit with tree <tree> and parents <parent>... that copies
