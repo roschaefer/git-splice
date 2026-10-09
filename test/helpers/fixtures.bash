@@ -118,7 +118,7 @@ hermetic_git_config() {
 # the order the real entrypoint uses.
 load_lib() {
   local lib_dir="$BATS_TEST_DIRNAME/../lib" file
-  for file in common rebuild state pager clone init fetch merge pull push status diff log key; do
+  for file in common rebuild state pager clone init fetch merge pull push status diff log key boundary; do
     # shellcheck disable=SC1090
     source "$lib_dir/$file.sh"
   done

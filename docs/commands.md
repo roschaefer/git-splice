@@ -14,6 +14,7 @@ Commands that only look cover every splice unless you name some. Run `git splice
 | `status [path…]` | Shows each splice's [sync state](sync-states.md), with how many commits `push` would publish and `pull` would bring in. |
 | `diff [--stat] [path…]` | Shows the file changes `push` would send; `--stat` summarizes them per file. |
 | `log [--graph] [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors; `--graph` draws both sides as a graph. |
+| `boundary <path>` | Prints the monorepo commit where a splice last synced: the last commit that changed its `.splice`, e.g. the last `pull`. It answers "when was the library last spliced in?" |
 | `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<key>/`, under the upstream's key in this repository, e.g. `lib` for `https://github.com/x/lib.git`. |
 | `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. `--upstream` names the upstream, and can be left out while the splice has one. |
 

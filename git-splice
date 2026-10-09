@@ -54,6 +54,8 @@ source "$script_dir/lib/diff.sh"
 source "$script_dir/lib/log.sh"
 # shellcheck source=lib/key.sh
 source "$script_dir/lib/key.sh"
+# shellcheck source=lib/boundary.sh
+source "$script_dir/lib/boundary.sh"
 
 top_usage() {
   cat <<'EOF'
@@ -76,6 +78,7 @@ Looking -- every splice unless paths are given:
   diff [--base <b>] [--stat] [path...]
                                       show the file changes push would send
   log [--graph] [path...]             show the commits push and pull would move
+  boundary <path>                     print the monorepo commit where a splice last synced
   fetch [path...]                     fetch the upstreams
   key [--upstream <name>] <path> [<new-key>]
                                       print or rename the key of a splice's fetched refs
@@ -100,7 +103,7 @@ main() {
     --version)
       printf 'git splice version %s\n' "$VERSION"
       ;;
-    clone | init | fetch | merge | pull | push | status | diff | log | key)
+    clone | init | fetch | merge | pull | push | status | diff | log | boundary | key)
       "cmd_$command" "$@"
       ;;
     *)
