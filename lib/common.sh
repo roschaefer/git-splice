@@ -369,7 +369,7 @@ folder_tree() {
 #
 # Exactly one [upstream] section is supported for now.
 load_splice_upstream() {
-  local path="$1" records=() record urls=() names=() name old_url="" id="" commit="" error q_file
+  local path="$1" records=() record urls=() names=() name id="" error
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
@@ -399,42 +399,14 @@ load_splice_upstream() {
         name="${name#upstream.}"
         names+=("${name%.url}")
         ;;
-      splice.url) old_url="${record#*$'\n'}" ;;
       splice.id) id="${record#*$'\n'}" ;;
-      splice.commit) commit="${record#*$'\n'}" ;;
     esac
   done
-  if [[ ${#urls[@]} -eq 0 ]]; then
-    q_file="$(shell_quote "$path/$STATE_FILE")"
-    if [[ -n "$old_url" ]]; then
-      log_err "$path/$STATE_FILE has its URL in the old format, splice.url -- convert it with:"
-      cat >&2 <<EOF
-
-  git config --file $q_file upstream.$DEFAULT_UPSTREAM.url $(shell_quote "$old_url")
-  git config --file $q_file --unset splice.url
-  git config --file $q_file splice.id $(new_splice_id "$path" "$old_url" "$commit")
-  git commit -m $(shell_quote "splice: name $path's upstream") -- $q_file
-
-EOF
-      exit 1
-    fi
-    die "$path/$STATE_FILE names no upstream -- add one: git config --file $q_file upstream.$DEFAULT_UPSTREAM.url <url>"
-  fi
+  [[ ${#urls[@]} -gt 0 ]] ||
+    die "$path/$STATE_FILE names no upstream -- add one: git config --file $(shell_quote "$path/$STATE_FILE") upstream.$DEFAULT_UPSTREAM.url <url>"
   [[ ${#urls[@]} -eq 1 ]] ||
     die "$path/$STATE_FILE names ${#urls[@]} upstreams -- only one is supported so far"
-  if [[ -z "$id" ]]; then
-    q_file="$(shell_quote "$path/$STATE_FILE")"
-    log_err "$path/$STATE_FILE has no id, so it's from before ids -- give it one with:"
-    cat >&2 <<EOF
-
-  git config --file $q_file splice.id $(new_splice_id "$path" "${urls[0]}" "$commit")
-  git commit -m $(shell_quote "splice: give $path an id") -- $q_file
-
-Its history then starts with that commit: changes not pushed yet reach upstream
-folded into it.
-EOF
-    exit 1
-  fi
+  [[ -n "$id" ]] || die "$path/$STATE_FILE has no id"
   upstream_key "${urls[0]}"
   SPLICE_URLS[$path]="${urls[0]}"
   SPLICE_UPSTREAM_NAMES[$path]="${names[0]}"

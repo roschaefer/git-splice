@@ -57,7 +57,7 @@ monorepo's:
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a && git splice fetch
 ===  vendor/a: fetching $UPSTREAM
-ok   vendor/a: cloned da334c3 from master
+ok   vendor/a: cloned ddf42f3 from master
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```

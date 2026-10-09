@@ -57,8 +57,7 @@ splice_boundary() {
 }
 
 # Succeeds if the state files at <path> in commits <a> and <b> are the
-# same splice: they have the same splice.id. Fails if either has none,
-# from before ids: the commit that gives a splice its id is its mount.
+# same splice: they have the same splice.id. Fails if either has none.
 same_splice() {
   local path="$1" a="$2" b="$3" id_a
   id_a="$(splice_config "$path" id "$a")"
