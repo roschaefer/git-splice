@@ -90,6 +90,94 @@ author, committer, dates and message the way `git subtree split` does, so
 the same change on top of the same library commit is the same commit.
 Neither needs to remember which commits it pushed: it computes them again.
 
+## A release breaks the app: `git bisect`
+
+The app's test needs the fix in the library:
+
+```scrut
+$ printf '%s\n' 'grep -q "call parse()" app/main.txt && grep -qx fix vendor/lib/src/parse.txt' >"$COMPARISON/test-app.sh" && sh "$COMPARISON/test-app.sh" && echo pass
+pass
+```
+
+The library gets four commits, and one of them renames the line the app
+relies on:
+
+```scrut
+$ git clone -q https://git.example.com/lib.git ../lib-release && cd ../lib-release && echo "parse(text)" >README.md && git add README.md && git commit -q -m "docs: explain parse()" && sed -i 's/^fix$/fixed/' src/parse.txt && git commit -q -a -m "parse: rename fix to fixed"
+```
+
+```scrut
+$ echo "example" >examples.txt && git add examples.txt && git commit -q -m "add examples" && echo "1.2" >VERSION && git add VERSION && git commit -q -m "release 1.2" && git push -q && cd ../splice-monorepo
+```
+
+### Josh: the culprit is a monorepo commit
+
+The Josh monorepo hasn't changed the library since the fix, so the
+library's commits land on top of it. `--reverse` turns each into a
+monorepo commit, here into a ref that `main` then fast-forwards to:
+
+```scrut
+$ cd ../monorepo && git fetch -q https://git.example.com/lib.git main && git update-ref FILTERED_HEAD FETCH_HEAD && git update-ref refs/josh/main main && josh-filter --reverse ':/vendor/lib' refs/josh/main && git merge -q --ff-only refs/josh/main
+```
+
+```scrut
+$ git log --oneline -5
+99943ff release 1.2
+372e8a6 add examples
+092b6b1 parse: rename fix to fixed
+0ea8b10 docs: explain parse()
+95dc6e0 fix parse() and call it
+```
+
+The test fails now, and `git bisect` finds the library's commit among the
+monorepo's own:
+
+```scrut
+$ git bisect start HEAD HEAD~4 >/dev/null && git bisect run sh "$COMPARISON/test-app.sh" >/dev/null && git bisect log | tail -1 && git bisect reset >/dev/null
+# first bad commit: [092b6b1e37d8035965e55a4856c921988c941e39] parse: rename fix to fixed
+```
+
+### git-splice: the culprit is the pull
+
+```scrut
+$ cd ../splice-monorepo && git splice pull vendor/lib
+ok   vendor/lib fetched (main moved 5069701..612d462)
+ok   vendor/lib: pulled 612d462
+```
+
+`git bisect` stops at the pull, which brought all four commits at once:
+
+```scrut
+$ git bisect start HEAD HEAD~1 >/dev/null && git bisect run sh "$COMPARISON/test-app.sh" >/dev/null && git bisect log | tail -1 && git bisect reset >/dev/null
+# first bad commit: [f85ff0501eca7cb3482ec7e84b7da5fd966724d5] splice: pull vendor/lib from main at 612d462
+```
+
+To go deeper, bisect the library's history between the two synced
+commits, U1 and U2, which `.splice` records before and after the pull. Its
+commits are fetched into the monorepo already, so a worktree of the
+monorepo can check them out:
+
+```scrut
+$ git worktree add -q --detach ../lib-bisect && cd ../lib-bisect && git bisect start "$(git config --blob HEAD:vendor/lib/.splice splice.commit)" "$(git config --blob HEAD~1:vendor/lib/.splice splice.commit)" >/dev/null
+```
+
+The library alone can't run the app's test, so each step copies the
+library's files into the monorepo's folder first:
+
+```scrut
+$ git bisect run sh -c 'git --work-tree=../splice-monorepo/vendor/lib checkout HEAD -- . && cd ../splice-monorepo && sh "$COMPARISON/test-app.sh"' >/dev/null && git bisect log | tail -1
+# first bad commit: [9c8481ced0e577e419cebdf1caa1d444e05944f7] parse: rename fix to fixed
+```
+
+```scrut
+$ git bisect reset >/dev/null && cd ../splice-monorepo && git checkout -- vendor/lib && git clean -fdq vendor/lib && git worktree remove ../lib-bisect && git status --short
+```
+
+That's the library's own commit, of which Josh's `092b6b1` is the
+monorepo's copy. Copying the files works here because the folder had no
+changes of its own since U1. With unpushed changes, each step would need
+them merged in.
+
 ## Both sides move on
 
 The library gets a release:
@@ -102,6 +190,7 @@ Meanwhile, each monorepo adds notes to the library:
 
 ```scrut
 $ echo "notes" >vendor/lib/NOTES && git add vendor/lib && git commit -q -m "add notes to lib"
+[0]
 ```
 
 ```scrut
@@ -130,27 +219,27 @@ merge:
 
 ```scrut
 $ git log --oneline --graph -4
-*   98c80a6 merge release 1.3
+*   151bbf6 merge release 1.3
 |\  
-| * 8adb05a release 1.3
-* | d0af3c0 add notes to lib
+| * 148e97c release 1.3
+* | 64fc20e add notes to lib
 |/  
-* 95dc6e0 fix parse() and call it
+* 99943ff release 1.2
 ```
 
 ### git-splice: one pull commit
 
 ```scrut
 $ cd ../splice-monorepo && git splice pull vendor/lib
-ok   vendor/lib fetched (main moved 5069701..ab8d849)
-ok   vendor/lib: pulled ab8d849
+ok   vendor/lib fetched (main moved 612d462..bc443d9)
+ok   vendor/lib: pulled bc443d9
 ```
 
 ```scrut
 $ git log --oneline --graph -3
-* 8fd7e84 splice: pull vendor/lib from main at ab8d849
-* 53ca8c1 add notes to lib
-* 22698ef fix parse() and call it
+* 49407e9 splice: pull vendor/lib from main at bc443d9
+* 5b9db00 add notes to lib
+* f85ff05 splice: pull vendor/lib from main at 612d462
 ```
 
 The release stays in the library's history, in `refs/splices/lib/main`.
@@ -158,8 +247,8 @@ The monorepo's history counts its own commits only:
 
 ```scrut
 $ git rev-list --count HEAD && git -C ../monorepo rev-list --count HEAD
-44
-75
+45
+79
 ```
 
 ## Whose history is it?
@@ -188,15 +277,15 @@ behind:
 
 ```scrut
 $ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
-*   0f0e116 Merge branch 'parse-options'
+*   2788671 Merge branch 'parse-options'
 |\  
-| * 6fa6a39 lib: fix options typo
-| * 619f52b lib: add parse() options
+| * 3b58a7e lib: fix options typo
+| * 0833578 lib: add parse() options
 |/  
-*   f676de6 merge release 1.3
+*   23ff56b merge release 1.3
 |\  
-| * ab8d849 release 1.3
-* | d01e4b2 add notes to lib
+| * bc443d9 release 1.3
+* | 15560d7 add notes to lib
 |/  
 ```
 
@@ -215,23 +304,23 @@ library as one commit, with the library's half of the branch:
 
 ```scrut
 $ git splice push vendor/lib
-ok   vendor/lib: pushed cb4c102 to main
+ok   vendor/lib: pushed ea668f6 to main
 ```
 
 ```scrut
 $ git -C "$COMPARISON/upstream/lib.git" log --oneline --graph -6 main
-* cb4c102 Merge branch 'parse-options'
-*   cc09788 splice: pull vendor/lib from main at ab8d849
+* ea668f6 Merge branch 'parse-options'
+*   ef0b95a splice: pull vendor/lib from main at bc443d9
 |\  
-| * ab8d849 release 1.3
-* | d01e4b2 add notes to lib
+| * bc443d9 release 1.3
+* | 15560d7 add notes to lib
 |/  
-* 5069701 fix parse() and call it
-* bafd496 lib commit 30
+* 612d462 release 1.2
+* efa30d9 add examples
 ```
 
 Below it, both libraries have the same merge of the earlier pull: the same
-parents, `d01e4b2` and `ab8d849`, with Josh's message or git-splice's.
+parents, `15560d7` and `bc443d9`, with Josh's message or git-splice's.
 A merge that joins the library's own history with the monorepo's changes
 belongs to the library, and both tools send it. A merge of the monorepo's
 branches is integration, and only Josh sends it.
@@ -239,6 +328,25 @@ branches is integration, and only Josh sends it.
 The message is still the monorepo's: `Merge branch 'parse-options'`. A
 squash merge, or a merge message written for the library, reaches the
 library as written.
+
+## Where Josh is better
+
+- **`git bisect`, `git blame` and `git log` reach the library's commits.**
+  In the Josh monorepo, they're ancestors, so a
+  [bisect](#a-release-breaks-the-app-git-bisect) lands on the library's
+  commit, and blame names its author. In the git-splice monorepo, they
+  stop at the pull that brought the commits in, and going further takes a
+  second bisect, `git log`, or `git blame` on the library's history,
+  between the synced commits.
+- **Nothing to conflict on a pull.** Two monorepo branches that both pull a
+  splice conflict in `.splice`, and you keep the newer synced commit. Josh
+  stores no sync point, so there's nothing to resolve but the files.
+- **Any slice of the monorepo can be a repository.** A view can combine
+  folders, change on demand and be served to people who can't see the rest
+  of the monorepo. A splice is one folder with one upstream, set up
+  beforehand.
+- **Built for large monorepos.** Josh filters whole histories quickly,
+  with a cache that can be shared between machines.
 
 ## Where Josh is different
 
@@ -276,6 +384,7 @@ library as written.
 | --- | --- | --- |
 | Library history in the monorepo | whole, as copies under the folder | none, one commit per sync |
 | Commits a push sends | the filtered history, the same as `git subtree split` | the first-parent commits since the last sync, otherwise the same as `git subtree split` |
+| `git bisect` for a library bug | finds the library's commit | finds the pull, then a second bisect between the synced commits does |
 | A monorepo branch merged | a merge, with the branch's commits | one commit, with the merge's message |
 | Where both sides meet | shared commits | the synced commit in `.splice` |
 | An upstream commit pulled in | one monorepo commit for each, and a merge if both sides moved | one pull commit for all |
