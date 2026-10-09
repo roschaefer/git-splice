@@ -3,7 +3,7 @@
 
 usage_diff() {
   cat <<'EOF'
-usage: git splice diff [--base <branch>] [--stat] [path...]
+usage: git splice diff [--upstream <name>] [--base <branch>] [--stat] [path...]
 
 Shows the file changes 'git splice push' would send to each splice's
 upstream, with paths as the upstream sees them. Purely local -- run
@@ -16,6 +16,10 @@ For a splice whose upstream has no branch named like the current one, the
 diff is against the monorepo's base branch (--base, else the monorepo's
 default branch). On the base branch itself, the whole splice is shown as
 new upstream content.
+
+--upstream names one of the upstreams a splice's .splice names; without
+it, the splice's default upstream. A splice without the named upstream
+stops the command before it starts.
 EOF
 }
 
@@ -27,7 +31,7 @@ diff_one() {
   classify_splice "$path" "$branch"
   case "$SPLICE_STATE" in
     never-fetched)
-      log_warn "$path: not fetched -- run 'git splice fetch $path' first"
+      log_warn "$path: not fetched -- run 'git splice fetch $(upstream_option "$path")$path' first"
       return 1
       ;;
     up-to-date | pull)
@@ -47,7 +51,7 @@ diff_one() {
           if [[ -n "$base" ]]; then
             log_err "$path: base branch '$base' not found, or it shares no history with '$branch'"
           else
-            log_err "$path: upstream has no '$SPLICE_UPSTREAM_BRANCH' branch and the monorepo's base branch can't be determined -- re-run with --base <branch>"
+            log_err "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch and the monorepo's base branch can't be determined -- re-run with --base <branch>"
           fi
           return 1
           ;;
@@ -99,12 +103,13 @@ diff_paths() {
 }
 
 cmd_diff() {
-  parse_args usage_diff "--stat" "$@"
+  parse_args usage_diff "--stat --upstream" "$@"
   local base="$BASE_ARG" branch
   cd_to_repo_root
   require_head_commit
   discover_splices
   select_paths overview diff
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   branch="$(current_branch)"
   page_git_output diff_paths "$branch" "$base" "${SELECTED_PATHS[@]}"
 }

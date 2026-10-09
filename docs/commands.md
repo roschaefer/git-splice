@@ -15,7 +15,17 @@ Commands that only look cover every splice unless you name some. Run `git splice
 | `diff [--stat] [path…]` | Shows the file changes `push` would send; `--stat` summarizes them per file. |
 | `log [--graph] [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors; `--graph` draws both sides as a graph. |
 | `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<key>/`, under the upstream's key in this repository, e.g. `lib` for `https://github.com/x/lib.git`. |
-| `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. `--upstream` names the upstream, and can be left out while the splice has one. |
+| `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. |
+
+A splice can have several upstreams, e.g. a company fork and the
+original it follows
+([several-upstreams](../test/scenarios/several-upstreams/README.md)).
+`--upstream <name>` picks one for `fetch`, `merge`, `pull`, `push`,
+`status`, `diff`, `log` and `key`. Without it, commands use the splice's
+`default-upstream`, which `.splice` needs once it names several; `fetch`
+fetches all of them. A splice that lacks the named upstream stops the
+command before it starts
+([missing upstream names](../test/scenarios/several-upstreams/missing-upstream-names.md)).
 
 `status`, `diff`, `log` and `merge` only use what was last fetched. Run
 `git splice fetch` first if you need the latest upstream state. Fetched

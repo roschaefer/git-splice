@@ -10,7 +10,7 @@ fetched branches are refs/splices/<key>/<branch>, e.g. for
 its refs along.
 
 --upstream names the upstream, as <path>/.splice does in
-[upstream "<name>"]. It can be left out while the splice has only one.
+[upstream "<name>"]. Without it, the splice's default upstream.
 
 A key belongs to an upstream URL, so splices with the same URL share it.
 The first fetch of an upstream records its key in the repository's config,
@@ -61,7 +61,7 @@ cmd_key() {
   require_head_commit
   discover_splices
   is_splice_path "$path" || die "not a splice: $path"
-  require_upstream_name "$path" "$UPSTREAM_ARG"
+  use_upstreams "$UPSTREAM_ARG" "$path"
   local key="${SPLICE_KEYS[$path]}"
   [[ -n "$key" ]] || die "$path: its upstream has no key yet -- 'git splice fetch $(shell_quote "$path")' records one"
   if [[ -z "$new" ]]; then

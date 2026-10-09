@@ -68,22 +68,24 @@ _git-splice() {
   ((CURRENT--))
   case $cmd in
     fetch)
-      _arguments '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      _arguments '--upstream=[upstream named in .splice]:upstream name:' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     log)
-      _arguments '--graph[draw both sides as a graph]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      _arguments '--upstream=[upstream named in .splice]:upstream name:' '--graph[draw both sides as a graph]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     merge | pull)
-      _arguments '--all[every splice]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      _arguments '--upstream=[upstream named in .splice]:upstream name:' '--all[every splice]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     status | diff)
       _arguments \
+        '--upstream=[upstream named in .splice]:upstream name:' \
         '--base=[monorepo base branch to compare against]:branch:__git_splice_branches' \
         '(-h --help)'{-h,--help}'[show usage]' \
         '*:splice:__git_splice_paths'
       ;;
     push)
       _arguments \
+        '--upstream=[upstream named in .splice]:upstream name:' \
         '--all[every splice]' \
         '--force[overwrite upstream'\''s branch]' \
         '--base=[monorepo base branch to compare against]:branch:__git_splice_branches' \

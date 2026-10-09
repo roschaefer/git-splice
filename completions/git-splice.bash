@@ -92,23 +92,25 @@ _git_splice() {
   fi
 
   cmd="${COMP_WORDS[start]}"
+  # The word after --upstream is an upstream's name: nothing to offer.
+  [[ "${COMP_WORDS[COMP_CWORD - 1]}" != --upstream ]] || return 0
   case "$cmd" in
     fetch)
-      __git_splice_paths_or_options "$cur" -h --help
+      __git_splice_paths_or_options "$cur" --upstream -h --help
       ;;
     log)
-      __git_splice_paths_or_options "$cur" --graph -h --help
+      __git_splice_paths_or_options "$cur" --upstream --graph -h --help
       ;;
     merge | pull)
-      __git_splice_paths_or_options "$cur" --all -h --help
+      __git_splice_paths_or_options "$cur" --upstream --all -h --help
       ;;
     push | status | diff)
       if __git_splice_completing_base; then
         __git_splice_reply "$base_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --all --base --force -h --help
+        __git_splice_paths_or_options "$cur" --upstream --all --base --force -h --help
       else
-        __git_splice_paths_or_options "$cur" --base -h --help
+        __git_splice_paths_or_options "$cur" --upstream --base -h --help
       fi
       ;;
     clone)
@@ -136,9 +138,7 @@ _git_splice() {
           *) ((positionals++)) ;;
         esac
       done
-      if [[ "${COMP_WORDS[COMP_CWORD - 1]}" == --upstream ]]; then
-        :
-      elif [[ "$cur" == -* ]] || ((positionals == 0)); then
+      if [[ "$cur" == -* ]] || ((positionals == 0)); then
         __git_splice_paths_or_options "$cur" --upstream -h --help
       fi
       ;;

@@ -3,7 +3,7 @@
 
 usage_log() {
   cat <<'EOF'
-usage: git splice log [--graph] [path...]
+usage: git splice log [--upstream <name>] [--graph] [path...]
 
 Shows the commits between each splice and the upstream branch it syncs
 with, in both directions:
@@ -20,6 +20,10 @@ Without an upstream branch, every '*' is a commit push would publish.
 Each line shows the author, who is published along with the commit. Purely
 local -- run 'git splice fetch' first. Defaults to every splice when no
 paths are given.
+
+--upstream names one of the upstreams a splice's .splice names; without
+it, the splice's default upstream. A splice without the named upstream
+stops the command before it starts.
 EOF
 }
 
@@ -64,11 +68,11 @@ log_one() {
   classify_splice "$path" "$branch"
   case "$SPLICE_STATE" in
     never-fetched)
-      log_warn "$path: not fetched -- run 'git splice fetch $path' first"
+      log_warn "$path: not fetched -- run 'git splice fetch $(upstream_option "$path")$path' first"
       return 1
       ;;
     missing-branch)
-      log_step "$path (upstream has no '$SPLICE_UPSTREAM_BRANCH' branch)"
+      log_step "$path (upstream has no '$SPLICE_UPSTREAM_LABEL' branch)"
       SPLICE_REBUILT="$(rebuild_splice "$path" HEAD)"
       [[ -n "$SPLICE_REBUILT" ]] || return 0
       # Everything no upstream branch has yet; all of it would be pushed.
@@ -87,7 +91,7 @@ log_one() {
       ;;
   esac
 
-  log_step "$path ($SPLICE_UPSTREAM_BRANCH)"
+  log_step "$path ($SPLICE_UPSTREAM_LABEL)"
   splice_git_log "$SPLICE_REBUILT" "$(git rev-parse "$SPLICE_TARGET_REF^{commit}")" \
     --left-right --cherry-mark "$SPLICE_REBUILT...$SPLICE_TARGET_REF"
 }
@@ -112,7 +116,7 @@ log_paths() {
 }
 
 cmd_log() {
-  parse_args usage_log "--graph" "$@"
+  parse_args usage_log "--graph --upstream" "$@"
   LOG_GRAPH=""
   has_flag --graph && LOG_GRAPH=1
   [[ -z "$BASE_ARG" ]] || die "log takes no --base"
@@ -120,6 +124,7 @@ cmd_log() {
   require_head_commit
   discover_splices
   select_paths overview log
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   local branch
   branch="$(current_branch)"
   page_git_output log_paths "$branch" "${SELECTED_PATHS[@]}"

@@ -2,7 +2,7 @@
 
 usage_pull() {
   cat <<'EOF'
-usage: git splice pull (<path>... | --all)
+usage: git splice pull [--upstream <name>] (<path>... | --all)
 
 'git splice fetch' followed by 'git splice merge': fetches the splices'
 upstreams in parallel, then splices their changes in, as one ordinary
@@ -12,6 +12,12 @@ ones below it, and a failed fetch stops the splices above and below it.
 
 On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 --abort' to give up), then re-run pull for any splices left.
+
+--upstream names one of the upstreams a splice's .splice names; without
+it, the splice's default upstream. A splice without the named upstream
+stops the command before it starts. The splices below are fetched from
+every upstream they name: names are only unique within one .splice, and
+any of them may have the synced commit the pull moves to.
 EOF
 }
 
@@ -27,20 +33,25 @@ below_selected() {
 }
 
 cmd_pull() {
-  parse_args usage_pull "" "$@"
+  parse_args usage_pull "--upstream" "$@"
   cd_to_repo_root
   require_head_commit
   discover_splices
   select_paths explicit pull
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
-  local branch i path failed fetched=() fetch_paths=("${SELECTED_PATHS[@]}")
+  local branch i path failed fetched=() below=() entries=()
   branch="$(current_branch)"
 
   for path in "${ALL_PATHS[@]}"; do
-    below_selected "$path" && fetch_paths+=("$path")
+    below_selected "$path" && below+=("$path")
   done
-  fetch_all_parallel "$branch" "${fetch_paths[@]}"
-  for i in "${!fetch_paths[@]}"; do
+  mapfile -t entries < <(
+    used_upstream_entry "${SELECTED_PATHS[@]}"
+    every_upstream_entry "${below[@]}"
+  )
+  fetch_all_parallel "$branch" "${entries[@]}"
+  for i in "${!entries[@]}"; do
     print_fetch_output "$i"
   done
   for path in "${SELECTED_PATHS[@]}"; do

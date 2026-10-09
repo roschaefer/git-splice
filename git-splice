@@ -66,19 +66,26 @@ upstream branch named like the current branch.
 Splicing in or out -- name the splices, or pass --all:
   clone [--merge] <url> [<path>]      splice an existing repository in
   init <path> <url>                   make a folder a splice of an empty repository
-  merge (<path>... | --all)           splice in already-fetched upstream changes
-  pull (<path>... | --all)            fetch, then merge
-  push [--base <b>] [--force] (<path>... | --all)
+  merge [--upstream <n>] (<path>... | --all)
+                                      splice in already-fetched upstream changes
+  pull [--upstream <n>] (<path>... | --all)
+                                      fetch, then merge
+  push [--upstream <n>] [--base <b>] [--force] (<path>... | --all)
                                       publish local changes upstream
 
 Looking -- every splice unless paths are given:
-  status [--base <b>] [path...]       show each splice's sync state
-  diff [--base <b>] [--stat] [path...]
+  status [--upstream <n>] [--base <b>] [path...]
+                                      show each splice's sync state
+  diff [--upstream <n>] [--base <b>] [--stat] [path...]
                                       show the file changes push would send
-  log [--graph] [path...]             show the commits push and pull would move
-  fetch [path...]                     fetch the upstreams
+  log [--upstream <n>] [--graph] [path...]
+                                      show the commits push and pull would move
+  fetch [--upstream <n>] [path...]    fetch the upstreams
   key [--upstream <name>] <path> [<new-key>]
                                       print or rename the key of a splice's fetched refs
+
+--upstream names one of a splice's upstreams in .splice; without it, the
+splice's default upstream.
 
 Run 'git splice <command> -h' for command-specific help, and
 'git splice --version' for the version.
