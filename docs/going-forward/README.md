@@ -10,4 +10,4 @@ scope, and some are impossible with Git. Each page says which is which.
   same files. A report of mirrors that drifted is possible; sharing one
   folder isn't, with Git.
 - [Jujutsu](jj.md): what git splice needs to work in a jj repository,
-  and what a VCS with native support could do better.
+  e.g. what stands for the current and the default branch there.

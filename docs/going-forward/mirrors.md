@@ -48,7 +48,7 @@ mirror's files now, and may not have what those commits added
 | A pull of one mirror pulls the others | **Possible** for copies in the monorepo, not implemented. Not for a nested copy that another upstream owns. |
 | Mirrors never differ | **Impossible.** Nested copies can differ for reasons the monorepo can't change. |
 | Mirrors share one folder: an edit in one is an edit in all | **Impossible with Git.** A symlink commits a link, not files: A's own repository would get a link that points outside of it, and a checkout without symlink support gets a text file with the link's target. And a link is a reference: the copies could never differ, not even while you work. Mirrors are values, which are alike at sync points. |
-| Mirrors take disk space once | **Impossible in Git's checkout**, which writes every file. A file system with copy-on-write, e.g. btrfs, XFS or APFS, can share the blocks of identical files that stay separate files. A VCS with its own working copy could create such copies on checkout ([Jujutsu](jj.md)). |
+| Mirrors take disk space once | **Impossible in Git's checkout**, which writes every file. A file system with copy-on-write, e.g. btrfs, XFS or APFS, can share the blocks of identical files that stay separate files. |
 
 ## Meanwhile: discipline
 
