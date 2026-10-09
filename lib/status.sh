@@ -2,7 +2,7 @@
 
 usage_status() {
   cat <<'EOF'
-usage: git splice status [--base <branch>] [path...]
+usage: git splice status [--upstream <name>] [--base <branch>] [path...]
 
 Shows the sync state of every splice. Purely local -- run 'git splice
 fetch' first for up-to-date results. Defaults to every splice when no
@@ -18,6 +18,11 @@ monorepo's base branch (--base, else the monorepo's default branch).
 
 Like every command, status reads splices from the last commit. It warns
 about uncommitted changes in a splice's folder, which push leaves out.
+
+--upstream names one of the upstreams a splice's .splice names; without
+it, the splice's default upstream. A splice without the named upstream
+stops the command before it starts. A splice with several upstreams shows its
+upstream branch as <name>/<branch>.
 EOF
 }
 
@@ -26,7 +31,7 @@ status_warn() { printf '??   %s\n' "$*"; }
 # Prints the status of a splice whose upstream has no branch like the
 # current one: what changed on this branch compared with the base branch.
 format_missing_branch_line() {
-  local path="$1" base="$2" prefix="$1 -> $SPLICE_UPSTREAM_BRANCH"
+  local path="$1" base="$2" prefix="$1 -> $SPLICE_UPSTREAM_LABEL"
   changes_vs_base "$path" "$base"
   case "$SPLICE_CHANGES_VS_BASE" in
     no)
@@ -77,11 +82,12 @@ new_branch_count() {
 format_status_line() {
   local path="$1" branch="$2" base="${3:-}" counts ahead behind rc=0
   classify_splice "$path" "$branch"
-  local prefix="$path -> $SPLICE_UPSTREAM_BRANCH"
+  local prefix="$path -> $SPLICE_UPSTREAM_LABEL" option
+  option="$(upstream_option "$path")"
 
   case "$SPLICE_STATE" in
     never-fetched)
-      status_warn "$prefix (never fetched -- run 'git splice fetch $path')"
+      status_warn "$prefix (never fetched -- run 'git splice fetch $option$path')"
       ;;
     missing-branch)
       format_missing_branch_line "$path" "$base"
@@ -105,7 +111,7 @@ format_status_line() {
       fi
       ;;
     unrelated-history)
-      status_warn "$prefix (unrelated history -- see 'git splice merge $path' for options)"
+      status_warn "$prefix (unrelated history -- see 'git splice merge $option$path' for options)"
       ;;
   esac
   has_uncommitted_changes "$path" || rc=$?
@@ -116,7 +122,7 @@ format_status_line() {
 }
 
 cmd_status() {
-  parse_args usage_status "" "$@"
+  parse_args usage_status "--upstream" "$@"
   local base="$BASE_ARG" branch path
   cd_to_repo_root
   require_head_commit
@@ -126,6 +132,7 @@ cmd_status() {
     return 0
   fi
   select_paths overview status
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   branch="$(current_branch)"
   for path in "${SELECTED_PATHS[@]}"; do
     format_status_line "$path" "$branch" "$base"
