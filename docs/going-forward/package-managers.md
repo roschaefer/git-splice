@@ -37,9 +37,9 @@ name and version, and installs each package once, wherever it's needed:
 A splice **contains** its files, and a nested splice is part of the
 files of the splice above. So:
 
-- **Diamonds** get a copy per path. Meant as mirrors, they can drift
+- **Diamonds** get a copy per path, which can be at different versions
   ([diamond](../../test/concepts/nesting/diamond.md)).
-- **Cycles** never end, and are forbidden
+- **Cycles** never end, and aren't supported, though not prevented yet
   ([cycle](../../test/concepts/nesting/cycle.md)).
 
 Containment is the point of git splice, not an accident: a splice's

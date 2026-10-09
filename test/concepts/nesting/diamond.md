@@ -81,10 +81,10 @@ s/.splice: id = b34eca1503aaac78
 
 By their ids, the three copies of S are independent splices
 ([splice identity](../splice-identity/README.md#what-an-id-is)): each
-repository cloned S itself. Here they're meant to be one library, though,
-**mirrors**, and git splice has no way yet to give a clone the id of an
-existing splice. So keeping them alike is up to the monorepo's
-discipline ([mirrors](../../../docs/going-forward/mirrors.md)).
+repository cloned S itself. They're one library, at possibly different
+versions, as in a package manager's diamond: A may still use an older S
+than B. Keeping them at the same version is up to the monorepo, where
+that's wanted.
 
 ```scrut
 $ git splice key a/s && git splice key b/s && git splice key s
@@ -149,10 +149,9 @@ o 1917a62 (R) s seed  (Test <test@example.com>)
 o 1917a62 (R) s seed  (Test <test@example.com>)
 ```
 
-The copies of S differ now: they would push different commits. Meant as
-mirrors, they have **drifted**. `status` shows it only indirectly, as
-two splices behind their upstream, which an independent copy may well
-be. Comparing the folders, without `.splice`, shows it directly:
+The copies of S differ now: they're at different versions of S.
+`status` shows it only indirectly, as two splices behind their
+upstream. Comparing the folders, without `.splice`, shows it directly:
 
 ```scrut
 $ git diff --stat HEAD:s HEAD:a/s -- ':!.splice'
@@ -209,14 +208,15 @@ b/s/.splice: commit = 9854a3b0e01f22a40a9b55704bf2add3185ad502
 s/.splice: commit = 1917a62ce23de14693c0d3f5f5025e4e03d1460f
 ```
 
-So different synced commits don't mean drift. Different files do, and
-the three copies have the same:
+So different synced commits don't mean different versions. Different
+files do, and the three copies have the same:
 
 ```scrut
-$ git diff --quiet HEAD:s HEAD:a/s -- ':!.splice' && git diff --quiet HEAD:s HEAD:b/s -- ':!.splice' && echo "mirrors"
-mirrors
+$ git diff --quiet HEAD:s HEAD:a/s -- ':!.splice' && git diff --quiet HEAD:s HEAD:b/s -- ':!.splice' && echo "the same files"
+the same files
 ```
 
 git splice compares each copy only with its own upstream, not the
-copies with each other
-([mirrors](../../../docs/going-forward/mirrors.md)).
+copies with each other. Copies with one id,
+[mirrors](../../../docs/going-forward/mirrors.md), are meant to stay
+alike; these three aren't.

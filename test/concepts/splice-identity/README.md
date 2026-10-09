@@ -87,7 +87,8 @@ vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
 What the two have in common is their upstream: they share its fetched
-refs, and they drift apart when only one of them is pulled
+refs, and they end up at different versions when only one of them is
+pulled
 ([upstreams](../upstreams/README.md)).
 
 ### A move keeps the id

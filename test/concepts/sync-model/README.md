@@ -12,6 +12,10 @@ cross from four commits:
 | **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
 | **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U. | computed |
 
+U and T may be missing: right after `init`, there's no U yet, and R
+starts as a root commit; before the first fetch, there's no T, and the
+splice is *never fetched*, or the upstream has *no such branch*.
+
 The [walkthrough](../../walkthrough/README.md#b-u-t-and-r) shows the
 Git commands that find each of them.
 
@@ -36,10 +40,11 @@ they relate is the [sync state](../../../docs/sync-states.md):
 
 | R and T | State | What crosses |
 |---|---|---|
-| equal | up to date | nothing |
+| the same files, or the same commit | up to date | nothing |
 | T is an ancestor of R | push | `push` sends R, a fast-forward |
 | R is an ancestor of T | pull | `pull` merges T in |
-| neither | diverged | `pull` merges T in, then `push` sends R |
+| neither, but with a common ancestor | diverged | `pull` merges T in, then `push` sends R |
+| no common ancestor | unrelated history | nothing: `pull` and `push` refuse, and print the commands to keep either side, or both |
 
 A pull is a **three-way merge**, in the monorepo's layout:
 
