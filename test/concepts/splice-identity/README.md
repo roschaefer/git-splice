@@ -102,22 +102,15 @@ third_party/a/.splice: id = a841bb3c200928e9
 vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
-The rebuild follows a move back to the old path, so the commits from
-before it that weren't pushed yet are kept
-([moved-with-unpushed-commits](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)).
-It finds the old path by the folder's files: a commit that creates the
-folder, and removes one with files of the same names, moved it. The id
-then confirms that it's the same splice. Where a `.splice` is new at a
-path, without such a move, or has another id, the splice's history
+The rebuild doesn't follow the move yet: it reads the folder's history
+under its current path only, so the move starts it there, and commits
+from before the move that weren't pushed yet reach upstream folded into
+it. Push before moving
+([moved-with-unpushed-commits](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md),
+[#4](https://github.com/roschaefer/git-splice/issues/4)). Where a
+`.splice` is new at a path, or has another id, the splice's history
 starts: its mount. That's what keeps two splices that swap paths apart
 ([swapped-splices](../../scenarios/swapped-splices/README.md)).
-
-The id alone couldn't say where a splice came from, once two folders
-have it, as in the next section. A commit that adds `c/` and removes
-`a/` is a move from `a/`, even if `b/` has the same id. One that adds
-`c/` and removes both `a/` and `b/` is a move from the one with more
-unchanged files, and a tie is no move, as with Git's own rename
-detection and two identical files.
 
 ### A copy shares the id
 
