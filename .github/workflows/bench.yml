@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
 
       - uses: DeterminateSystems/nix-installer-action@2cb76beab460be7e44442c7ebdcbc30b638416df # main
-      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # main
+      - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
 
       - name: benchmark this PR, merged into its base, against the base
         env:
