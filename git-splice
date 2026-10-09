@@ -82,6 +82,7 @@ Looking -- every splice unless paths are given:
 
 New to git splice -- one splice each:
   boundary <path>                     print the commit where a splice last synced
+  rebuild <path>                      print the commit push would send
   key [--upstream <name>] <path> [<new-key>]
                                       print or rename the key of a splice's fetched refs
 
@@ -105,7 +106,7 @@ main() {
     --version)
       printf 'git splice version %s\n' "$VERSION"
       ;;
-    clone | init | fetch | merge | pull | push | status | diff | log | boundary | key)
+    clone | init | fetch | merge | pull | push | status | diff | log | boundary | rebuild | key)
       "cmd_$command" "$@"
       ;;
     *)

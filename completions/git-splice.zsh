@@ -43,6 +43,7 @@ _git-splice() {
     'diff:show the file changes push would send'
     'log:show the commits push and pull would move'
     'boundary:print the commit where a splice last synced'
+    'rebuild:print the commit push would send'
     'fetch:fetch the upstreams'
     'key:print or rename the key of a splice'\''s fetched refs'
   )
@@ -104,7 +105,7 @@ _git-splice() {
         '1:path:_files -/' \
         '2:url:'
       ;;
-    boundary)
+    boundary | rebuild)
       _arguments '(-h --help)'{-h,--help}'[show usage]' '1:splice:__git_splice_paths'
       ;;
     key)
