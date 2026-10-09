@@ -68,6 +68,7 @@ complete -c git-splice -n "__fish_seen_subcommand_from merge pull push status di
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull push" -l all -d 'every splice'
 complete -c git-splice -n "__fish_seen_subcommand_from push status diff" -l base -x -a $branches -d 'monorepo base branch to compare against'
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l force -d "overwrite upstream's branch"
+complete -c git-splice -n "__fish_seen_subcommand_from push" -l rebuild -x -a $branches -d 'push this commit instead of the rebuild'
 complete -c git-splice -n "__fish_seen_subcommand_from log" -l graph -d 'draw both sides as a graph'
 complete -c git-splice -n "__fish_seen_subcommand_from clone" -l merge -d 'merge with an existing folder'
 complete -c git-splice -n "__git_splice_positional clone 1" -a "(__fish_complete_directories)"

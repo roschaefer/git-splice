@@ -109,6 +109,20 @@ copy_commit() {
       git commit-tree --no-gpg-sign "$tree" "${parents[@]}"
 }
 
+# Commits given for a splice's rebuild with push --rebuild, by path.
+declare -gA REBUILD_GIVEN=()
+
+# Prints the rebuild push sends for splice <path> at HEAD: the commit given
+# with push --rebuild, if any, else rebuild_splice's.
+splice_rebuild() {
+  local path="$1"
+  if [[ -n "${REBUILD_GIVEN[$path]:-}" ]]; then
+    printf '%s\n' "${REBUILD_GIVEN[$path]}"
+  else
+    rebuild_splice "$path" HEAD
+  fi
+}
+
 # Prints the upstream commit that represents splice <path> as of monorepo
 # commit <rev> (default HEAD), or nothing if the splice has no content yet.
 #
