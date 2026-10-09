@@ -15,7 +15,7 @@ and the two repositories share no history:
   your monorepo                              github.com/x/lib
  ┌──────────────────────────────┐           ┌─────────────────────┐
  │ app/                         │           │ src/                │
- │ vendor/lib/  (copy of x/lib) │           │ README.md           │
+ │ path/        (copy of x/lib) │           │ README.md           │
  │   src/       <- your fix     │ ───?───>  │                     │
  └──────────────────────────────┘           └─────────────────────┘
    one history for app and lib                its own history
@@ -48,12 +48,12 @@ $ source "$TESTDIR/test/readme/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice clone https://github.com/x/lib.git vendor/lib
-===  vendor/lib: fetching https://github.com/x/lib.git
-ok   vendor/lib: cloned e849115 from main
+$ git splice clone https://github.com/x/lib.git path
+===  path: fetching https://github.com/x/lib.git
+ok   path: cloned e849115 from main
 ```
 
-(If `vendor/lib` already holds a changed copy, `clone --merge` keeps both,
+(If `path` already holds a changed copy, `clone --merge` keeps both,
 and every file that differs becomes a conflict to resolve.)
 
 The folder is now a splice: a folder of the monorepo that is also the
@@ -63,7 +63,7 @@ point **U**, the library commit the folder last matched:
 ```text
   monorepo/
   ├── app/
-  └── vendor/lib/
+  └── path/
       ├── .splice    url    = https://github.com/x/lib.git
       │              commit = U
       └── src/
@@ -72,9 +72,9 @@ point **U**, the library commit the folder last matched:
 In the real file, U is a commit hash:
 
 ```scrut
-$ cat vendor/lib/.splice
+$ cat path/.splice
 [splice]
-\tid = 87675ced26a59d2e (escaped)
+\tid = e6e54cc2c95133ae (escaped)
 	commit = e8491155fe5db4e87fd6c1227ab65fd61da8af0a
 [upstream "origin"]
 	url = https://github.com/x/lib.git
@@ -89,36 +89,31 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 ```
 -->
 
-```text
-  monorepo, newest first                    github.com/x/lib, since U
+<div align="center">
 
-  . app: call parse()
-  * fix parse() options                     * release 1.3
-  . app: bump dependencies                  * docs: explain parse()
-  * rename helper in app and lib            |
-  = splice: clone vendor/lib (folder = U)   |
-   \                                       /
-    `----------------- U -----------------'
-```
+![Monorepo commits a to d, library commits k to n, and the rebuilt commits o and p on top of U](git-splice.svg)
 
-On the left, `*` marks the commits that touch `vendor/lib/`, and `.` those
-that don't. The clone, `=`, touches it too, but only to make the folder
-match U, so it has nothing for the library.
+</div>
 
-That's a branch and its tracking branch since their merge base, and
-git-splice handles it like Git does:
+git-splice rebuilds the monorepo's commits on top of U, with only the
+folder's changes, and skips those like c that don't touch it. The result,
+**R**, is a commit of the library, ready to send upstream as it is.
+
+R and **T**, where the library's branch points, relate like the tips of
+a branch and its tracking branch, with U as their merge base. git-splice
+handles them like Git does:
 
 ```scrut
 $ git splice status
-ok   vendor/lib -> main (diverged: ahead 2, behind 2)
+ok   path -> main (diverged: ahead 2, behind 3)
 ```
 
-- **Ahead 2**: the `*` commits on the left, which the library lacks.
-  `git splice push vendor/lib` rebuilds them as commits of the library,
+- **Ahead 2**: o and p, which the library lacks.
+  `git splice push path` rebuilds them from b and d,
   each containing only that folder's changes.
-- **Behind 2**: the library's commits since U, on the right, which the
+- **Behind 3**: l, m and n, the library's commits since U, which the
   folder lacks.
-  `git splice pull vendor/lib` merges them in as one ordinary monorepo
+  `git splice pull path` merges them in as one ordinary monorepo
   commit, and moves U to the library's newest commit.
 
 When both sides moved, as here, pull first, then push, as with

@@ -30,6 +30,24 @@ changes, but they have the monorepo's layout and the monorepo's history.
 R copies each of them, since B, as an upstream commit: the folder's tree
 without `.splice`, the same author, dates and message, on top of U.
 
+<div align="center">
+
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits o and p on top of U](../../../git-splice.svg)
+
+</div>
+
+Circles are commits, boxes point at them, newest on top. In the
+monorepo, a to d, H is `HEAD`, and B is a: the commit that wrote U into
+`path/.splice`. b and d change the folder, c changes only other files.
+In the upstream, U is k, and T has moved on to n.
+
+The rebuild copies the commits in `B..H`, b to d, on top of U. c didn't
+touch `path/`, so it's skipped, and b and d become o and p, dashed
+because they exist only as the rebuild. Their tip is R. B itself isn't
+copied, since its folder is U already. When it isn't, after a pull merged
+a divergence, R joins the commits since the earlier B with T by a merge
+(see [Output](#output)).
+
 R is never stored. It's computed from `HEAD` each time, and the same
 `HEAD` always gives the same R. So a commit pushed once is rebuilt
 identically, and the next push is a fast-forward. And since R is
