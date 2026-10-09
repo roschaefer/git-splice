@@ -54,8 +54,9 @@ mirror's files now, and may not have what those commits added
 
 What git splice can't do yet, a team can do by hand. A report wouldn't
 take that over, only point at it: it names the mirrors that differ and
-how to resolve the difference, so the fix stays a plain `pull`, which
-anyone can check. That fits the design's principles: refuse rather than
+how to resolve the difference. For a mirror that's only behind, that's a
+plain `pull`, which anyone can check. Where both changed, the pull
+merges, and the difference left is for someone to resolve. That fits the design's principles: refuse rather than
 guess, and make the state explicit
 ([design](../design/README.md#principles)).
 

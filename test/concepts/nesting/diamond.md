@@ -107,8 +107,8 @@ df06afb s/.splice
 afc5fd8 s/file.txt
 ```
 
-The checkout does have three copies of each file, and a change to S
-shows up in each of them.
+The checkout does have three copies of each file. A change to one copy
+reaches the others only by a push and their pulls, as below.
 
 ### A change to S, round trip
 

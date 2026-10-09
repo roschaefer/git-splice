@@ -25,7 +25,7 @@ upstream ([design](../design/README.md#branches)):
 
 | In Git | Upstream branch | Also used for |
 |---|---|---|
-| **The current branch**, which `HEAD` names | The one with the same name | Which branch `status`, `pull` and `push` sync with |
+| **The current branch**, which `HEAD` names | The one with the same name, unless it's the default branch (next row) | Which branch `status`, `pull` and `push` sync with |
 | **The default branch**: `origin/HEAD`, else `init.defaultBranch` | The splice's `default-branch` if `.splice` records one, else the same name as the default branch of what it lives in | The base of a branch, unless `--base` names another |
 
 jj has neither as Git has them. What could stand for each, and what's

@@ -12,6 +12,10 @@ cross from four commits:
 | **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
 | **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U. | computed |
 
+For a nested splice, R's history up to the boundary of the splice above
+comes from the upstream above, at its synced commit
+([nesting](../nesting/README.md)).
+
 U and T may be missing: right after `init`, there's no U yet, and R
 starts as a root commit; before the first fetch, there's no T, and the
 splice is *never fetched*, or the upstream has *no such branch*.
