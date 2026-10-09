@@ -319,7 +319,14 @@ does. An overview such as `status` is only useful if it's complete.
   commit, then `clone` into the empty spot.
 - `init` refuses an upstream that already has commits, and points to
   `clone --merge`. It writes `.splice` without a synced commit, and the
-  first push creates the upstream branch from the folder's whole history.
+  first push creates the upstream branch starting at the init commit,
+  followed by any commits after it. On a branch where the folder didn't
+  change, that push publishes nothing
+  ([#3](https://github.com/roschaefer/git-splice/issues/3), see below). The folder's history before it isn't
+  published: it was written
+  for the monorepo, and may hold what was removed before anyone decided
+  to publish the folder
+  ([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)).
 - The name `add` is avoided on purpose: it suggests `git add`.
 
 ### Splicing in: `merge`, and `pull` = `fetch` + `merge`
@@ -389,6 +396,9 @@ commits. `rebuild_splice` is a function of HEAD alone:
    joined with its own by a merge, as a plain `git pull` would have made.
    The recursion stops at the first boundary whose folder equals its
    synced commit, so it only costs something after pulls of divergences.
+   If B is the splice's mount, its first parent isn't rebuilt at all, and
+   B goes on top of U (see below). Without U, e.g. after `init`, the
+   rebuild starts at the mount instead, as a root commit.
 3. **Copy each commit.** For each commit in
    `git rev-list --reverse --first-parent B..HEAD -- <path>` whose folder
    changed, `git commit-tree` with the folder's tree minus `.splice`.
@@ -406,6 +416,23 @@ feature branch, becomes **one ordinary commit** upstream, with the merge's
 message. Upstream doesn't know the monorepo's side branches, so a faithful
 merge shape would add nothing, and leaving it out avoids the
 parent-mapping problems `split` spent years fixing.
+
+**Only this splice's history:** a splice's history starts at its
+**mount**, the newest first-parent commit whose first parent had no
+`.splice` at the path, or one naming other upstream URLs. Before the
+mount, the folder was no splice, or another one, so nothing from there is
+published, with or without a synced commit. That covers a folder's
+history from before `init`
+([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)),
+two splices of different upstreams that swap paths
+([example](../../test/scenarios/swapped-splices/README.md)), and a splice
+removed and spliced in again
+([example](../../test/scenarios/init-new-upstream/unspliced-then-cloned-again/README.md)).
+The URLs are the identity for now, so changing one starts over too, and
+two splices of the same upstream that swap paths aren't told apart (see
+the limitations below,
+[#78](https://github.com/roschaefer/git-splice/issues/78) and
+[#96](https://github.com/roschaefer/git-splice/issues/96)).
 
 **Costs** O(commits since the last boundary whose folder matched its synced
 commit), not O(all history). The commit loop
@@ -486,6 +513,17 @@ These are known and accepted, each to keep the design simple:
   `.splice`, so it becomes the boundary, and the unpushed commits before it
   reach upstream folded into the move commit. Push before moving
   ([#4](https://github.com/roschaefer/git-splice/issues/4)).
+- **Changing an upstream's URL** in `.splice`, e.g. after the upstream
+  moved, starts the splice's history over: the URLs are its identity, so
+  unpushed commits before the change reach upstream folded into it. Push
+  before changing the URL
+  ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md),
+  [#78](https://github.com/roschaefer/git-splice/issues/78)).
+- **Two splices of the same upstream that swap paths** aren't told apart,
+  since the URLs are their identity: each one's push sends the commits
+  made at its new path before the swap, which were the other splice's.
+  Push before swapping them
+  ([#96](https://github.com/roschaefer/git-splice/issues/96)).
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
   on case-insensitive file systems, like macOS's default one: fetching one
@@ -494,7 +532,7 @@ These are known and accepted, each to keep the design simple:
   [#51](https://github.com/roschaefer/git-splice/issues/51), avoid
   upstreams whose URLs differ only in case, and long path components.
 - **A splice made by `init`** has no synced commit until its first pull, so
-  until then every rebuild walks the folder's whole history.
+  until then every rebuild walks the folder's history since `init`.
 - **Rare edge cases** each have an issue labelled
   [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22).
 

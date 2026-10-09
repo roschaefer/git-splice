@@ -53,7 +53,11 @@ A  vendor/a/upstream.txt
 $ echo "both versions" >vendor/a/file.txt && git add vendor/a/file.txt && git commit -q --no-edit
 ```
 
+The push sends one commit, the merge, on top of upstream's. The folder's
+history from before it was a splice stays in the monorepo
+([why](../init-new-upstream/removed-before-init/README.md)):
+
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push: ahead 2)
+ok   vendor/a -> main (push: ahead 1)
 ```
