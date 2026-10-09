@@ -27,6 +27,16 @@ package developed in the monorepo that you publish as its own repository,
 while still merging outside contributions back in. Neither side should
 become the source of truth.
 
+## The common workaround
+
+Fork the library and point your package manager at the fork, or at a
+checkout on your disk. The fix is easy to send back, but it lives outside
+the monorepo, not versioned with the app that needs it.
+
+So it's either or: change the library outside the monorepo and maintain
+it in two places, or inside and have no way out. git-splice gives you
+both.
+
 ## The solution
 
 Instead of copying the library, splice it in once:
