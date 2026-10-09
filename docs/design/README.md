@@ -454,8 +454,9 @@ two splices that swap paths
 ([example](../../test/scenarios/swapped-splices/README.md)), and a splice
 removed and spliced in again
 ([example](../../test/scenarios/init-new-upstream/unspliced-then-cloned-again/README.md)).
-A `git mv` keeps it too: a move of the whole folder to a free path is
-followed back to the old path, where the `.splice` has the same `id`.
+A `git mv` keeps it too: the rebuild follows the folder back to the path
+whose `.splice` had the same `id` in the commit before, also when two
+splices swap paths, or a new folder takes the old one.
 A new upstream URL keeps the history: the `id` stays
 ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
 
@@ -555,11 +556,6 @@ These are known and accepted, each to keep the design simple:
   `git commit`. Pushing the splice above right after pulling the one below
   avoids the conflict.
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
-- **Swapping two splices with unpushed changes:** the rebuild follows a
-  `git mv` only to a path that was free. After a swap, each splice's
-  unpushed commits reach its upstream folded into the swap commit
-  ([example](../../test/scenarios/swapped-splices/README.md)). Push before
-  swapping.
 - **A nested splice moved since its boundary** is rebuilt from the
   monorepo's history alone, not from the upstream above up to that
   splice's boundary: its path there would be another one. So a push of

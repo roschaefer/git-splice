@@ -169,6 +169,20 @@ work_in_upstream_a() {
   [ "$(git log -1 --format=%s "$before_move")" = "b local" ]
 }
 
+@test "nested: a pull of a that moves b keeps b's unpushed commit, made before the move" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  work_in_upstream_a
+  git mv b c
+  git config --file c/.splice splice.default-branch main
+  git commit -q -am "move b to c"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  splice pull vendor/a
+  grep -qx "b local" vendor/a/c/file.txt
+  git log --format=%s "$(rebuild_splice vendor/a/c)" | grep -qx "b local"
+}
+
 @test "nested: a .splice below without default-branch follows the default branch of the splice above" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   cd "$monorepo"

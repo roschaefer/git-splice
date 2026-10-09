@@ -82,83 +82,48 @@ splice_mount() {
   done < <(git log --first-parent --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE")
 }
 
-# Sets MOVED_FROM to the folder that commit <rev> moved to <path> (`git
-# mv`), or to nothing if it didn't, and MOVED_STATE_KEPT to 1 if the move
-# left the state file as it was. Only a move of the whole folder counts:
-# <path> doesn't exist in <rev>'s first parent, and a folder that shares a
-# file name with it there is gone in <rev>. If that folder wasn't a splice
-# yet, all its file names must be the same -- their contents may have
-# changed -- or a single file moved out of a bigger folder would publish
-# the rest of that folder's history. A splice's content was meant for its
-# upstream anyway, so the move may also add, delete or rename files. If
-# several folders qualify (alike splices moved together), the one with the
-# most unchanged files wins; a tie is no move.
+# Sets MOVED_FROM to the folder that commit <rev> moved splice <path>
+# from (`git mv`), or to nothing if it didn't, and MOVED_STATE_KEPT to 1
+# if the move left the state file as it was. The splice's id says where it
+# came from: the folder whose state file had that id in <rev>'s first
+# parent, and no longer has it in <rev>. So a move may also change, add or
+# delete files, two splices may swap paths, and a new folder may take the
+# old path. If several folders had the id, mirrors moved together, the one
+# with the most files unchanged at <path> wins; a tie is no move.
 moved_from() {
-  local rev="$1" path="$2" entry name object deleted rest from
-  local count=0 score best_score=-1 tie="" state from_state kept same
-  # Keys start with "/", so that no file name is a special subscript.
-  local -A files=() candidates=()
+  local rev="$1" path="$2" id file from score best_score=-1 tie=""
+  local -a candidates=()
   MOVED_FROM=""
   MOVED_STATE_KEPT=""
   git rev-parse --verify --quiet "$rev^1" >/dev/null || return 0
-  [[ -z "$(folder_tree "$rev^1" "$path")" ]] || return 0
-
-  # ls-tree -z entries are "<mode> <type> <object>\t<name>".
-  while IFS= read -r -d '' entry; do
-    name="${entry#*$'\t'}"
-    object="${entry%%$'\t'*}"
-    files["/$name"]="${object##* }"
-    [[ "$name" == "$STATE_FILE" ]] || count=$((count + 1))
-  done < <(git ls-tree -r -z "$rev:$path")
-  state="${files["/$STATE_FILE"]:-}"
-
-  # A folder is a candidate if a file deleted from it has the name of one
-  # in <path>.
-  while IFS= read -r -d '' deleted; do
-    rest="$deleted"
-    while [[ "$rest" == */* ]]; do
-      rest="${rest#*/}"
-      [[ -n "${files["/$rest"]+set}" ]] && candidates["/${deleted%"/$rest"}"]=1
-    done
-  done < <(git diff-tree -r -z --no-renames --name-only --diff-filter=D "$rev^1" "$rev")
-
-  for from in "${!candidates[@]}"; do
-    from="${from#/}"
-    [[ -z "$(folder_tree "$rev" "$from")" ]] || continue
-    score=0
-    rest=0
-    from_state=""
-    same=1
-    while IFS= read -r -d '' entry; do
-      name="${entry#*$'\t'}"
-      object="${entry%%$'\t'*}"
-      object="${object##* }"
-      if [[ "$name" == "$STATE_FILE" ]]; then
-        from_state="$object"
-      elif [[ -n "${files["/$name"]+set}" ]]; then
-        rest=$((rest + 1))
-        [[ "${files["/$name"]}" == "$object" ]] && score=$((score + 1))
-      else
-        same=""
+  id="$(splice_config "$path" id "$rev")"
+  [[ -n "$id" ]] || return 0
+  [[ "$(splice_config "$path" id "$rev^1")" != "$id" ]] || return 0
+  # The state file it came from was deleted or changed by <rev>.
+  while IFS= read -r -d '' file; do
+    from="${file%/"$STATE_FILE"}"
+    [[ "$from" != "$path" ]] || continue
+    [[ "$(splice_config "$from" id "$rev^1")" == "$id" ]] || continue
+    [[ "$(splice_config "$from" id "$rev")" != "$id" ]] || continue
+    candidates+=("$from")
+  done < <(git diff-tree -r -z --no-renames --name-only --diff-filter=DM "$rev^1" "$rev" -- ":(top,glob)**/$STATE_FILE")
+  if [[ ${#candidates[@]} -eq 1 ]]; then
+    MOVED_FROM="${candidates[0]}"
+  else
+    for from in "${candidates[@]}"; do
+      # Files with the same name and content: lines both listings have.
+      score="$(comm -12 <(git ls-tree -r "$rev^1:$from" | sort) <(git ls-tree -r "$rev:$path" | sort) | wc -l)"
+      if ((score > best_score)); then
+        MOVED_FROM="$from" best_score="$score" tie=""
+      elif ((score == best_score)); then
+        tie=1
       fi
-    done < <(git ls-tree -r -z "$rev^1:$from")
-    ((rest == count)) || same=""
-    [[ -n "$same" || -n "$from_state" ]] || continue
-    if ((score > best_score)); then
-      MOVED_FROM="$from"
-      best_score="$score"
-      tie=""
-      kept=""
-      [[ -n "$state" && "$state" == "$from_state" ]] && kept=1
-    elif ((score == best_score)); then
-      tie=1
-    fi
-  done
-  if [[ -n "$tie" ]]; then
-    MOVED_FROM=""
-  elif [[ -n "$MOVED_FROM" ]]; then
-    MOVED_STATE_KEPT="$kept"
+    done
+    [[ -z "$tie" ]] || MOVED_FROM=""
   fi
+  [[ -n "$MOVED_FROM" && "$(git rev-parse "$rev^1:$MOVED_FROM/$STATE_FILE")" == "$(git rev-parse "$rev:$path/$STATE_FILE")" ]] &&
+    MOVED_STATE_KEPT=1
+  return 0
 }
 
 # Follows splice <path> back from monorepo commit <upper> to its boundary:
@@ -175,25 +140,16 @@ moved_from() {
 #                        the newer paths, newest first, each with the
 #                        range (rev-list syntax) of commits it applies to
 splice_lineage() {
-  local path="$1" upper="$2" commit status
+  local path="$1" upper="$2" commit
   LINEAGE_BOUNDARY=""
   LINEAGE_SYNCED=""
   LINEAGE_BEFORE_PATH=""
   LINEAGE_PATHS=()
   LINEAGE_RANGES=()
   while :; do
-    commit="" status=""
-    {
-      IFS= read -r commit
-      IFS= read -r _
-      read -r status _
-    } < <(git log --first-parent -1 --name-status --format=%H "$upper" -- ":(top,literal)$path/$STATE_FILE")
+    commit="$(git log --first-parent -1 --no-show-signature --format=%H "$upper" -- ":(top,literal)$path/$STATE_FILE")"
     [[ -n "$commit" ]] || break
-    MOVED_FROM=""
-    MOVED_STATE_KEPT=""
-    # Only a commit that adds the state file can have moved the folder, so
-    # a splice that never moved costs no extra Git process.
-    [[ "$status" == A ]] && moved_from "$commit" "$path"
+    moved_from "$commit" "$path"
     if [[ -z "$MOVED_STATE_KEPT" ]]; then
       LINEAGE_BOUNDARY="$commit"
       LINEAGE_BEFORE_PATH="${MOVED_FROM:-$path}"
@@ -233,7 +189,7 @@ splice_lineage_to_mount() {
         LINEAGE_MOUNT="$commit"
       fi
       break
-    done < <(git log --first-parent --format=%H "$upper" -- ":(top,literal)$path/$STATE_FILE")
+    done < <(git log --first-parent --no-show-signature --format=%H "$upper" -- ":(top,literal)$path/$STATE_FILE")
     [[ -n "$moved" ]] || break
     LINEAGE_PATHS+=("$path")
     LINEAGE_RANGES+=("$commit^1..$upper")
@@ -336,9 +292,11 @@ rebuild_splice() {
   if [[ -n "$best" ]]; then
     from_above="$(rebuild_splice "${path#"$best/"}" "$best_synced")"
     if [[ -n "$from_above" ]]; then
+      # A newer boundary above: the splice had its path in its first
+      # parent, since it didn't move after its own boundary.
+      [[ "$best_boundary" == "$boundary" ]] || before_path="$path"
       boundary="$best_boundary"
       synced="$from_above"
-      before_path="$path"
     fi
   fi
 
@@ -359,7 +317,9 @@ rebuild_splice() {
     # With the history from above, B's folder may equal it while the
     # monorepo's history before B has commits it lacks, e.g. one pushed
     # straight to this splice's upstream: they're joined all the same.
-    if [[ -n "$tree" && ("$tree" != "$prev_tree" || -n "$from_above") ]]; then
+    # So is a move that changed the state file: the history before it is
+    # at the old path, even where B's folder equals U.
+    if [[ -n "$tree" && ("$tree" != "$prev_tree" || -n "$from_above" || "$before_path" != "$at") ]]; then
       local before parents=()
       before=""
       # Unless B is the mount: what came before isn't this splice's.

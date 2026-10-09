@@ -2,9 +2,9 @@
 
 Two folders trade places in one commit: what was `vendor/a` is now
 `vendor/b`, and the other way around. Each takes its `.splice` along, so
-each splice keeps its upstream, under the other's old path. A push of
-either path sends only that splice's history: nothing from the folder
-that had the path before.
+each splice keeps its upstream, and its history, under the other's old
+path. A push of either path sends only that splice's history: nothing
+from the folder that had the path before.
 
 - **Monorepo**: `vendor/a`, a splice of `$UPSTREAM`, cloned at `seed`,
   with a commit not pushed yet, `a's unpushed work`. `vendor/b`, a folder
@@ -13,12 +13,10 @@ that had the path before.
   for `vendor/b`.
 
 A path's history alone can't tell the two splices apart: `git log --
-vendor/a` lists a's commits before the swap and b's after it. So the
-rebuild only uses the path's history from the splice's **mount** on: the
-newest commit whose parent had no `.splice` at the path, or one with
-another `id`. Each splice got its own id when it was cloned or
-initialized, and it moves with the `.splice`. For `vendor/a` after the
-swap, the mount is the swap itself. See
+vendor/a` lists a's commits before the swap and b's after it. Their ids
+can: each splice got its own when it was cloned or initialized, and it
+moves with the `.splice`. So the rebuild follows each splice back to the
+path where its id was before the swap, and continues there. See
 [the design notes](../../../docs/design/README.md#splicing-out-push-and-the-rebuild).
 
 ## Output
@@ -65,9 +63,9 @@ $UPSTREAM-b
 ```
 
 Seen from the path `vendor/a`, the swap didn't add a `.splice`, it
-changed the one that was there. That's why "the commit that added
-`.splice`" isn't enough to find where b's history at this path starts:
-it would find a's clone, and publish a's commits to b's upstream.
+changed the one that was there. Only the id shows that it's another
+splice now, which came from `vendor/b`. The path's own history before the
+swap is a's, and isn't b's to publish.
 
 ```scrut
 $ git diff --name-status HEAD^ HEAD -- vendor/a | tr '\t' ' '
@@ -77,50 +75,46 @@ A vendor/a/b.txt
 D vendor/a/file.txt
 ```
 
-The swap is the mount of the splice now at `vendor/a`, so only the swap
-is pushed, as the first commit of `$UPSTREAM-b`:
+b's history continues from `vendor/b`, where it was `init`. The swap
+changed none of b's files, so it adds nothing:
 
 ```scrut
 $ git splice log vendor/a
 ===  vendor/a (upstream has no 'main' branch)
-< 02eb4fc swap a and b  (Test <test@example.com>)
+< 0b18046 splice: init vendor/b  (Test <test@example.com>)
 ```
 
 ```scrut
 $ git splice push vendor/a
 ??   vendor/a: upstream has no 'main' branch yet -- this push creates it
-ok   vendor/a: pushed 02eb4fc to main
+ok   vendor/a: pushed 0b18046 to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM-b" log --format=%s main && git -C "$UPSTREAM-b" ls-tree --name-only main
-swap a and b
+splice: init vendor/b
 b.txt
 ```
 
 `a's unpushed work` and `a.txt` didn't reach b's upstream.
 
-The other direction: `vendor/b` is a's splice now. Its push goes to
-`$UPSTREAM`, so a's commits belong there. But the rebuild follows a
-`git mv` only to a path that was free
-([example](../up-to-date/push-ahead/moved-with-unpushed-commits/README.md)),
-and `vendor/b` wasn't, so `a's unpushed work` is folded into the swap
-commit. Push before swapping splices
-([the design's limits](../../../docs/design/README.md#limits)).
+The other direction: `vendor/b` is a's splice now, and its history
+continues from `vendor/a`, with `a's unpushed work` as a commit of its
+own:
 
 ```scrut
 $ git splice log vendor/b
 ===  vendor/b (main)
-< df45f51 swap a and b  (Test <test@example.com>)
+< 8da07b1 a's unpushed work  (Test <test@example.com>)
 ```
 
 ```scrut
 $ git splice push vendor/b
-ok   vendor/b: pushed df45f51 to main
+ok   vendor/b: pushed 8da07b1 to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main
-swap a and b
+a's unpushed work
 seed
 ```
