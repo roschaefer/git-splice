@@ -157,6 +157,40 @@ work_in_upstream_a() {
   [[ "$output" != *behind* ]]
 }
 
+# Swaps the .splice files of vendor/a and vendor/a/b, ids and URLs
+# included, in one commit.
+swap_splice_files() {
+  git mv vendor/a/.splice tmp.splice
+  git mv vendor/a/b/.splice vendor/a/.splice
+  git mv tmp.splice vendor/a/b/.splice
+  git commit -q -m "swap the .splice files"
+}
+
+@test "nested: after a and b swap their .splice, nothing from before the swap reaches the other's upstream" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "a local" a.txt
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  swap_splice_files
+  [ "$(splice_mount vendor/a)" = "$(git rev-parse HEAD)" ]
+  [ "$(splice_mount vendor/a/b)" = "$(git rev-parse HEAD)" ]
+  local path rebuilt
+  for path in vendor/a vendor/a/b; do
+    rebuilt="$(rebuild_splice "$path")"
+    [ "$(git log -1 --format=%s "$rebuilt")" = "swap the .splice files" ]
+    [ "$(git rev-parse "$rebuilt^")" = "$(splice_config "$path" commit)" ]
+  done
+}
+
+@test "nested: after a and b swap their .splice, a pull of the folder below doesn't nest a in it again" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  swap_splice_files
+  seed_bare_repo "$upstream" "a moves on"
+  run splice pull vendor/a/b
+  [ -z "$(git ls-files vendor/a/b/b)" ]
+}
+
 @test "nested: a .splice below without default-branch follows the default branch of the splice above" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
