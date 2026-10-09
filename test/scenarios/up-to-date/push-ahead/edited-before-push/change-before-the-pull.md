@@ -28,7 +28,7 @@ $ build_scenario scenario_edited_before_push
 Edit and push, as in [edited-before-push](README.md#edit-and-push):
 
 ```scrut
-$ R="$(git splice log --graph vendor/a | awk '$3 == "(R)" { print $2 }')" && git worktree add -q -b edited ../edited "$R"
+$ R="$(git splice rebuild vendor/a)" && git worktree add -q -b edited ../edited "$R"
 ```
 
 ```scrut
