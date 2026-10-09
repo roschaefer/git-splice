@@ -337,6 +337,20 @@ state_blob() {
   rm -f "$tmp"
 }
 
+# Prints a new id for a splice that clone or init mounts at <path> from
+# upstream <url> at <commit> (none for init). The id stays with the
+# splice wherever its .splice goes, so the rebuild can tell it from
+# another splice at the same path (same_splice). It's derived from all
+# of these and HEAD, not random, so the same command on the same commit
+# writes the same file, and the docs' output is reproducible. The URL and
+# commit tell apart two splices mounted at the same path on branches
+# from the same commit.
+new_splice_id() {
+  local path="$1" url="$2" commit="${3:-}" id
+  id="$(printf '%s\0%s\0%s\0%s\0' "$path" "$(git rev-parse --verify --quiet HEAD || true)" "$url" "$commit" | git hash-object --stdin)"
+  printf '%s\n' "${id:0:16}"
+}
+
 # Prints the tree of folder <path> in commit <rev>, or nothing if there is
 # no folder there. (`<rev>:<path>^{tree}` would read "^{tree}" as part of
 # the path.)
@@ -355,7 +369,7 @@ folder_tree() {
 #
 # Exactly one [upstream] section is supported for now.
 load_splice_upstream() {
-  local path="$1" records=() record urls=() names=() name old_url="" error q_file
+  local path="$1" records=() record urls=() names=() name old_url="" id="" commit="" error q_file
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
@@ -386,6 +400,8 @@ load_splice_upstream() {
         names+=("${name%.url}")
         ;;
       splice.url) old_url="${record#*$'\n'}" ;;
+      splice.id) id="${record#*$'\n'}" ;;
+      splice.commit) commit="${record#*$'\n'}" ;;
     esac
   done
   if [[ ${#urls[@]} -eq 0 ]]; then
@@ -396,6 +412,7 @@ load_splice_upstream() {
 
   git config --file $q_file upstream.$DEFAULT_UPSTREAM.url $(shell_quote "$old_url")
   git config --file $q_file --unset splice.url
+  git config --file $q_file splice.id $(new_splice_id "$path" "$old_url" "$commit")
   git commit -m $(shell_quote "splice: name $path's upstream") -- $q_file
 
 EOF
@@ -405,6 +422,19 @@ EOF
   fi
   [[ ${#urls[@]} -eq 1 ]] ||
     die "$path/$STATE_FILE names ${#urls[@]} upstreams -- only one is supported so far"
+  if [[ -z "$id" ]]; then
+    q_file="$(shell_quote "$path/$STATE_FILE")"
+    log_err "$path/$STATE_FILE has no id, so it's from before ids -- give it one with:"
+    cat >&2 <<EOF
+
+  git config --file $q_file splice.id $(new_splice_id "$path" "${urls[0]}" "$commit")
+  git commit -m $(shell_quote "splice: give $path an id") -- $q_file
+
+Its history then starts with that commit: changes not pushed yet reach upstream
+folded into it.
+EOF
+    exit 1
+  fi
   upstream_key "${urls[0]}"
   SPLICE_URLS[$path]="${urls[0]}"
   SPLICE_UPSTREAM_NAMES[$path]="${names[0]}"

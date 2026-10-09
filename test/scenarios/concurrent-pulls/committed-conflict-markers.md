@@ -31,7 +31,7 @@ $ git merge origin/main >/dev/null; git checkout --ours -- vendor/a/file.txt && 
 
 ```scrut
 $ git config --blob HEAD:vendor/a/.splice --get splice.commit
-error: bad config line 2 in blob HEAD:vendor/a/.splice
+error: bad config line 3 in blob HEAD:vendor/a/.splice
 [1]
 ```
 
@@ -39,13 +39,13 @@ Neither can git-splice, so it stops:
 
 ```scrut
 $ git splice status
-!!   vendor/a/.splice can't be read (bad config line 2 in blob HEAD:vendor/a/.splice) -- fix it and commit it
+!!   vendor/a/.splice can't be read (bad config line 3 in blob HEAD:vendor/a/.splice) -- fix it and commit it
 [1]
 ```
 
 ```scrut
 $ git splice merge vendor/a
-!!   vendor/a/.splice can't be read (bad config line 2 in blob HEAD:vendor/a/.splice) -- fix it and commit it
+!!   vendor/a/.splice can't be read (bad config line 3 in blob HEAD:vendor/a/.splice) -- fix it and commit it
 [1]
 ```
 

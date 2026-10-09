@@ -55,6 +55,7 @@ last matched. That's all the state there is:
 
 ```scrut
 $ git config --file vendor/pkg-a/.splice --list
+splice.id=679c78b9916de804
 splice.commit=9bb866a3ba726f2229597a45e8ea3368f7e669a8
 upstream.origin.url=https://git.example.com/pkg-a.git
 ```
@@ -101,7 +102,7 @@ B is the newest commit that changed `.splice`:
 
 ```scrut
 $ git log --first-parent -1 --oneline -- vendor/pkg-a/.splice
-7b30b50 splice: clone vendor/pkg-a from main at 9bb866a
+3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
 ```
 
 U is the commit recorded there. `fetch` copied it into the monorepo, so
@@ -248,11 +249,11 @@ and in `refs/splices/`:
 
 ```scrut
 $ git log --oneline
-e49a1ae splice: pull vendor/pkg-b from main at b937c4f
-04198c1 splice: merge vendor/pkg-a from main at 703b936
-621efe6 splice: clone vendor/pkg-b from main at 9b3cb02
-ceb41dd lib-c: first version
-7b30b50 splice: clone vendor/pkg-a from main at 9bb866a
+45432a2 splice: pull vendor/pkg-b from main at b937c4f
+6dbb42b splice: merge vendor/pkg-a from main at 703b936
+a73990e splice: clone vendor/pkg-b from main at 9b3cb02
+d2867e9 lib-c: first version
+3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
 ebe3b2b initial commit
 ```
 

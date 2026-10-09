@@ -36,6 +36,15 @@ setup() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
+@test "merge: keeps the splice's id" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local id
+  id="$(splice_config vendor/a id)"
+  cmd_merge vendor/a
+  [ "$(splice_config vendor/a id)" = "$id" ]
+}
+
 @test "merge: refuses an upstream that brings in a .splice at its root" {
   scenario_pull_ahead "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "[splice]" main .splice

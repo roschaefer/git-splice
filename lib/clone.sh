@@ -104,7 +104,7 @@ cmd_clone() {
   fi
 
   local blob
-  blob="$(state_blob "$path" "commit=$target" "default-branch=$default_branch" "upstream.$DEFAULT_UPSTREAM.url=$url")"
+  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "default-branch=$default_branch" "upstream.$DEFAULT_UPSTREAM.url=$url")"
   # The merge base is an empty folder: the two sides share nothing.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
     "splice: clone $path from $upstream_branch at ${target:0:7}"; then

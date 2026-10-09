@@ -31,8 +31,8 @@ ok   vendor/a: cloned bde4164 from main
 $ git show --stat --format=%s HEAD
 splice: clone vendor/a from main at bde4164
 
- vendor/a/.splice | 4 ++++
- 1 file changed, 4 insertions(+)
+ vendor/a/.splice | 5 +++++
+ 1 file changed, 5 insertions(+)
 ```
 
 ```scrut

@@ -56,40 +56,26 @@ splice_boundary() {
   git log --first-parent -1 --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
 }
 
-# Prints the identity of splice <path> in commit <rev>: a hash of the
-# upstream URLs its state file names, sorted. Nothing if there's no state
-# file. As in load_splice_upstream, the old format's splice.url counts
-# only if no upstream has a URL, so converting it keeps the identity, and
-# a leftover one doesn't change it. A URL may contain a newline, so each
-# is shell-quoted onto one line: a plain sort then orders them, where
-# sort -z isn't portable.
-splice_identity() {
-  local path="$1" rev="$2" record urls=() old_urls=()
-  while IFS= read -r -d '' record; do
-    # Each record is <key>, a newline, and the value.
-    [[ "$record" == *$'\n'?* ]] || continue
-    case "${record%%$'\n'*}" in
-      upstream.*.url) urls+=("${record#*$'\n'}") ;;
-      splice.url) old_urls+=("${record#*$'\n'}") ;;
-    esac
-  done < <(git config --blob "$rev:$path/$STATE_FILE" -z --get-regexp '^(upstream\..*|splice)\.url$' 2>/dev/null)
-  [[ ${#urls[@]} -gt 0 ]] || urls=("${old_urls[@]}")
-  [[ ${#urls[@]} -gt 0 ]] || return 0
-  printf '%q\n' "${urls[@]}" | LC_ALL=C sort | git hash-object --stdin
+# Succeeds if the state files at <path> in commits <a> and <b> are the
+# same splice: they have the same splice.id. Fails if either has none,
+# from before ids: the commit that gives a splice its id is its mount.
+same_splice() {
+  local path="$1" a="$2" b="$3" id_a
+  id_a="$(splice_config "$path" id "$a")"
+  [[ -n "$id_a" && "$id_a" == "$(splice_config "$path" id "$b")" ]]
 }
 
 # Prints the first-parent commit reachable from <rev> where the splice at
 # <path> in <rev> was mounted: the newest one whose first parent had no
-# state file at <path>, or one naming other upstreams. Nothing if <path>
-# isn't a splice in <rev>. Only the history from there on is this
+# state file at <path>, or another splice's (same_splice). Nothing if
+# <path> isn't a splice in <rev>. Only the history from there on is this
 # splice's: before, the folder was no splice, or another one.
 splice_mount() {
-  local path="$1" rev="${2:-HEAD}" identity commit
-  identity="$(splice_identity "$path" "$rev")"
-  [[ -n "$identity" ]] || return 0
+  local path="$1" rev="${2:-HEAD}" commit
+  git cat-file -e "$rev:$path/$STATE_FILE" 2>/dev/null || return 0
   while read -r commit; do
     if ! git rev-parse --verify --quiet "$commit^1" >/dev/null ||
-      [[ "$(splice_identity "$path" "$commit^1")" != "$identity" ]]; then
+      ! same_splice "$path" "$commit^1" "$commit"; then
       printf '%s\n' "$commit"
       return
     fi
@@ -168,7 +154,7 @@ rebuild_splice() {
       before=""
       # Unless B is the mount: what came before isn't this splice's.
       git rev-parse --verify --quiet "$boundary^1" >/dev/null &&
-        [[ "$(splice_identity "$path" "$boundary^1")" == "$(splice_identity "$path" "$boundary")" ]] &&
+        same_splice "$path" "$boundary^1" "$boundary" &&
         before="$(rebuild_splice "$path" "$boundary^1")"
       if [[ -z "$before" ]] || git merge-base --is-ancestor "$before" "$synced"; then
         # Nothing unpushed before B: B's changes go on top of U.

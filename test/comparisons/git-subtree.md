@@ -203,9 +203,9 @@ monorepo, so `git blame` stops at the `clone`:
 
 ```scrut
 $ git blame -s -L 1,3 vendor/lib/src/parse.txt
-dcaf6be6 1) line 1
-dcaf6be6 2) line 2
-dcaf6be6 3) line 3
+3ab92de9 1) line 1
+3ab92de9 2) line 2
+3ab92de9 3) line 3
 ```
 
 The library's history is still at hand, fetched under

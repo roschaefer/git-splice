@@ -153,8 +153,8 @@ fix parse() and call it
 
 ```scrut
 $ git log --oneline -- vendor/lib/src/parse.txt
-ae63bb6 fix parse() and call it
-dcaf6be splice: clone vendor/lib from main at bafd496
+22698ef fix parse() and call it
+3ab92de splice: clone vendor/lib from main at bafd496
 ```
 
 ```scrut

@@ -158,7 +158,7 @@ work_in_upstream_a() {
 
 @test "nested: a merge brings in a .splice the upstream added, and the folder becomes a splice" {
   scenario_up_to_date "$monorepo" "$upstream"
-  seed_bare_repo "$upstream" "$(printf '[upstream "origin"]\n\turl = %s' "$upstream")" main extra/.splice
+  seed_bare_repo "$upstream" "$(printf '[splice]\n\tid = 0123456789abcdef\n[upstream "origin"]\n\turl = %s' "$upstream")" main extra/.splice
   cd "$monorepo"
   splice pull vendor/a
   discover_splices
