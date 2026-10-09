@@ -3,6 +3,7 @@ setup() {
   load_lib
   hermetic_git_config
   load 'scenarios/nested-splices/setup'
+  load 'scenarios/nested-splices/three-levels/setup'
   load 'scenarios/nested-default-branch/setup'
   load 'scenarios/up-to-date/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -66,6 +67,94 @@ work_in_upstream_a() {
   splice push vendor/a
   [ "$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
   [ "$(git -C "$upstream" rev-parse main:b/file.txt)" = "$(git -C "$upstream_b" rev-parse main:file.txt)" ]
+}
+
+@test "nested: b's history from before a's clone comes from a's upstream, so another monorepo's push of b isn't made again" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice push vendor/a/b vendor/a
+  local other="$BATS_TEST_TMPDIR/other"
+  init_monorepo "$other"
+  cd "$other"
+  splice clone "$upstream" vendor/a
+  splice fetch
+  [ "$(rebuild_splice vendor/a/b)" = "$(git -C "$upstream_b" rev-parse main)" ]
+}
+
+@test "nested: a change to b made in a's upstream reaches b's upstream with its own author" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  work_in_upstream_a
+  echo "b in a's upstream" >>b/file.txt
+  git -c user.name=Maintainer -c user.email=maintainer@example.com commit -q -am "b in a's upstream"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  splice pull vendor/a
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a/b)"
+  [ "$(git log -1 --format='%s (%an)' "$rebuilt")" = "b in a's upstream (Maintainer)" ]
+  [ "$(git rev-parse "$rebuilt^")" = "$(git -C "$upstream_b" rev-parse main)" ]
+}
+
+@test "nested: three levels deep, c's history from before a's clone comes from a's upstream, through b's" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  cd "$monorepo"
+  splice push vendor/a/b/c vendor/a/b vendor/a
+  local other="$BATS_TEST_TMPDIR/other"
+  init_monorepo "$other"
+  cd "$other"
+  splice clone "$upstream" vendor/a
+  splice fetch
+  [ "$(rebuild_splice vendor/a/b/c)" = "$(git -C "$upstream_c" rev-parse main)" ]
+}
+
+@test "nested: b's history isn't taken from a's upstream once that has another splice at b/" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  local upstream_b2="$BATS_TEST_TMPDIR/upstream-b2.git"
+  make_bare_repo "$upstream_b2"
+  seed_bare_repo "$upstream_b2" "b2 seed"
+  work_in_upstream_a
+  git rm -q -r b
+  git commit -q -m "remove b"
+  splice clone "$upstream_b2" b
+  git push -q origin HEAD:main
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  git checkout HEAD -- vendor/a/b
+  git commit -q --no-edit
+  [ "$(splice_config vendor/a/b id)" != "$(git config --blob "$(splice_config vendor/a commit):b/.splice" splice.id)" ]
+  run rebuild_splice vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "$(git log --format=%s "$output")" = "b local"$'\n'"b seed" ]
+  local rebuilt="$output"
+  fetch_splice "$monorepo" "$upstream_b2"
+  [ "$(rebuild_splice vendor/a/b)" = "$rebuilt" ]
+}
+
+@test "nested: b's push stays in b's history when a's upstream gets the same files from someone else" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice push vendor/a/b
+  work_in_upstream_a
+  echo "b local" >>b/file.txt
+  git -c user.name=Maintainer -c user.email=maintainer@example.com commit -q -am "the same change, made in a's upstream"
+  echo "a change" >>file.txt
+  git commit -q -am "a change"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  splice pull vendor/a
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a/b)"
+  git merge-base --is-ancestor "$(git -C "$upstream_b" rev-parse main)" "$rebuilt"
+  commit_local "$monorepo" vendor/a/b "b next"
+  splice fetch vendor/a/b
+  run splice status vendor/a/b
+  [[ "$output" != *behind* ]]
 }
 
 @test "nested: a .splice below without default-branch follows the default branch of the splice above" {
