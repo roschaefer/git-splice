@@ -1,6 +1,7 @@
 # `push --force` undoes the rewrite
 
-In the [same state](README.md), after a local change, `git splice push
+In the [same state](README.md), after a local change made before a
+`merge` or `pull` recorded the rewritten commit, `git splice push
 --force` makes the monorepo's side win. Its rebuild starts from the old
 synced commit, so the upstream gets back the history the rewrite removed.
 Don't use it when the rewrite removed something, like a secret;

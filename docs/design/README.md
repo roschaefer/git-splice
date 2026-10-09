@@ -367,6 +367,18 @@ The merge base is `git merge-base R T`: the newest upstream commit both
 sides contain. Usually that's U. After a push it's the pushed commit, which
 spares the merge from replaying changes upstream already has.
 
+**The same files, another history:** if the folder already has T's
+files, there's nothing to merge. But if T isn't part of R's history,
+`merge` still records T as U, in a commit that only changes `.splice`.
+That happens when the upstream rewrote its history to the same files
+([example](../../test/scenarios/upstream-rewritten-equal-tree/README.md)),
+squash-merged what was pushed, or got R edited before the push
+([example](../../test/scenarios/up-to-date/push-ahead/edited-before-push/README.md)).
+Without the record, R would keep the monorepo's original commits, and
+the next push would publish them. Right after an ordinary push, R is T,
+and nothing is recorded. Once the folder changes again, it's too late:
+the splice reads as diverged, or as unrelated history.
+
 - **On a conflict:** resolve it, then run `git commit`, which finishes the
   cherry-pick and keeps the prepared message. Abort with
   `git cherry-pick --abort`. `git status` says "cherry-picking" although
