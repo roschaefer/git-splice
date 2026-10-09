@@ -357,3 +357,70 @@ two_splices_ahead() {
   classify_splice vendor/a main
   [ "$SPLICE_STATE" = up-to-date ]
 }
+
+@test "rebuild command: prints the commit push sends" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_rebuild vendor/a
+  [ "$status" -eq 0 ]
+  local rebuilt="$output"
+  [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
+  cmd_push vendor/a >/dev/null
+  [ "$(git ls-remote "$upstream" refs/heads/main | cut -f1)" = "$rebuilt" ]
+}
+
+@test "rebuild command: writes nothing, neither a ref nor a monorepo commit" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local refs
+  refs="$(git for-each-ref)"
+  cmd_rebuild vendor/a >/dev/null
+  [ "$(git for-each-ref)" = "$refs" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "rebuild command: is the synced commit when nothing changed locally" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_rebuild vendor/a
+  [ "$output" = "$(splice_config vendor/a commit)" ]
+}
+
+@test "rebuild command: works on a detached HEAD, which syncs with no upstream branch but still has a rebuild" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local expected
+  expected="$(rebuild_splice vendor/a)"
+  git checkout -q --detach
+  run cmd_rebuild vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "$expected" ]
+}
+
+@test "rebuild command: takes exactly one splice" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_rebuild
+  [ "$status" -eq 1 ]
+  [[ "$output" == "usage: git splice rebuild <path>"* ]]
+  run cmd_rebuild vendor/a vendor/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == "usage: git splice rebuild <path>"* ]]
+  run cmd_rebuild --all
+  [ "$output" = "!!   rebuild takes no --all" ]
+  run cmd_rebuild vendor
+  [ "$output" = "!!   not a splice: vendor" ]
+}
+
+@test "rebuild command: a synced commit that isn't available locally is an error, and prints no commit" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice splice.commit 1234567890123456789012345678901234567890
+  git commit -q -am "point at a missing commit"
+  run cmd_rebuild vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == "!!   vendor/a: synced commit 1234567 isn't available locally"* ]]
+  stdout_only() { cmd_rebuild vendor/a 2>/dev/null; }
+  run stdout_only
+  [ -z "$output" ]
+}

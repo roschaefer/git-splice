@@ -76,6 +76,7 @@ Looking -- every splice unless paths are given:
   diff [--base <b>] [--stat] [path...]
                                       show the file changes push would send
   log [--graph] [path...]             show the commits push and pull would move
+  rebuild <path>                      print the commit push would send
   fetch [path...]                     fetch the upstreams
   key [--upstream <name>] <path> [<new-key>]
                                       print or rename the key of a splice's fetched refs
@@ -100,7 +101,7 @@ main() {
     --version)
       printf 'git splice version %s\n' "$VERSION"
       ;;
-    clone | init | fetch | merge | pull | push | status | diff | log | key)
+    clone | init | fetch | merge | pull | push | status | diff | log | rebuild | key)
       "cmd_$command" "$@"
       ;;
     *)

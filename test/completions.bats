@@ -116,6 +116,13 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: rebuild completes one splice path" {
+  run complete_words git-splice rebuild vend
+  [ "$output" = "vendor/a" ]
+  run complete_words git-splice rebuild vendor/a vend
+  [ -z "$output" ]
+}
+
 @test "completion: key completes a splice path, and nothing for the new key" {
   run complete_words git-splice key vend
   [ "$output" = "vendor/a" ]
@@ -196,6 +203,14 @@ fish_complete() {
   [ -z "$output" ]
 }
 
+@test "zsh completion: rebuild completes one splice path" {
+  require_shell zsh
+  run zsh_complete "git-splice rebuild vendor/"
+  [[ "$output" == *"vendor/a"* ]]
+  run zsh_complete "git-splice rebuild vendor/a vend"
+  [ -z "$output" ]
+}
+
 @test "zsh completion: key completes a splice path, and nothing for the new key" {
   require_shell zsh
   run zsh_complete "git-splice key vendor/"
@@ -245,6 +260,14 @@ fish_complete() {
   run fish_complete "git-splice init vend"
   [[ "$output" == *"vendor/"* ]]
   run fish_complete "git-splice init vendor/a vend"
+  [ -z "$output" ]
+}
+
+@test "fish completion: rebuild completes one splice path" {
+  require_shell fish
+  run fish_complete "git-splice rebuild vendor/"
+  [[ "$output" == *"vendor/a"* ]]
+  run fish_complete "git-splice rebuild vendor/a vend"
   [ -z "$output" ]
 }
 
