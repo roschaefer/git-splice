@@ -217,6 +217,46 @@ Different synced commits alone aren't drift: a push doesn't move U, so
 a mirror that pushed a change has an older U than one that pulled it,
 with the same files ([diamond](../nesting/diamond.md)).
 
+### Mirrors that swap paths
+
+Mirrors are one splice, so the rebuild can't tell them apart either.
+Two splices that swap paths each start a new history with the swap
+([swapped-splices](../../scenarios/swapped-splices/README.md)); two
+mirrors don't. Each path keeps its own history, whichever mirror's files
+it has now.
+
+A commit in each mirror, not pushed yet:
+
+```scrut
+$ echo "not for upstream" >vendor/a/secret.txt && git add vendor/a && git commit -q -m "a secret"
+```
+
+```scrut
+$ echo "copy change" >>vendor/a-copy/file.txt && git commit -q -am "copy change"
+```
+
+Then they swap paths:
+
+```scrut
+$ git mv vendor/a tmp && git mv vendor/a-copy vendor/a && git mv tmp vendor/a-copy && git commit -q -m "swap the mirrors"
+```
+
+`vendor/a` has the copy's files now, without the secret. But its history
+is still the one of the path: a push sends `a secret`, then the swap,
+which removes it again and brings in the copy's change.
+
+```scrut
+$ git splice log vendor/a
+===  vendor/a (main)
+< c5e6540 swap the mirrors  (Test <test@example.com>)
+< 920226f a secret  (Test <test@example.com>)
+```
+
+Nothing in the monorepo tells this swap apart from edits to one splice
+that make its files look like the other mirror's. Keeping mirrors alike
+avoids it: push one, and pull the others right away
+([mirrors](../../../docs/going-forward/mirrors.md#meanwhile-discipline)).
+
 ### A fork is a splice of its own
 
 To vendor a fork next to the original, clone it:
@@ -229,7 +269,7 @@ ok   vendor/a-fork: cloned c09993d from main
 
 ```scrut
 $ git grep -e 'id = ' -e 'url = ' -- vendor/a/.splice vendor/a-fork/.splice | tr '\t' ' '
-vendor/a-fork/.splice: id = c59d098a936491c0
+vendor/a-fork/.splice: id = d89c88d5b7cab87d
 vendor/a-fork/.splice: url = https://git.example.com/a-fork.git
 vendor/a/.splice: id = 25e766b33a0eb239
 vendor/a/.splice: url = https://git.example.com/a.git

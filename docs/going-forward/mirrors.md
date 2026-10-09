@@ -31,6 +31,13 @@ Because of nesting, mirrors can't be forbidden or forced to stay alike:
 older version of A. The monorepo can't change that alone. Refusing
 duplicate ids would refuse diamonds of that shape.
 
+Nor can the rebuild tell mirrors apart. A splice's history starts where
+a `.splice` with another id appears at its path, so when two mirrors
+swap paths, each path keeps its own history: a push sends the commits
+made at that path before the swap, though the folder has the other
+mirror's files now, and may not have what those commits added
+([example](../../test/concepts/splice-identity/README.md#mirrors-that-swap-paths)).
+
 ## What would be desired, and what's possible
 
 | Desired | Status |
