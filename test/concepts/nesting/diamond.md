@@ -72,11 +72,11 @@ All three share S's upstream, and with it one key and one fetch
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
-a/.splice: id = 3f15db66cbe4c21e
+a/.splice: id = ada385bc3fe39937
 a/s/.splice: id = 2207a2e3260b644a
-b/.splice: id = f9a6db6e116d7d56
+b/.splice: id = 40ff492029bce288
 b/s/.splice: id = 2b29a3b662c7595b
-s/.splice: id = 9d8f890efe139320
+s/.splice: id = b34eca1503aaac78
 ```
 
 By their ids, the three copies of S are independent splices
@@ -103,7 +103,7 @@ $ git ls-tree -r --abbrev=7 --format='%(objectname) %(path)' HEAD -- s a/s b/s
 afc5fd8 a/s/file.txt
 65cd514 b/s/.splice
 afc5fd8 b/s/file.txt
-f8866ba s/.splice
+df06afb s/.splice
 afc5fd8 s/file.txt
 ```
 

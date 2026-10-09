@@ -67,8 +67,8 @@ ok   app-b/s: cloned bde4164 from main
 ```scrut
 $ cat app-a/s/.splice | tr '\t' ' '
 [splice]
+ id = 45beeb39c3270eb1
  commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
- id = e55ed235e80a83a7
 [upstream "origin"]
  url = https://git.example.com/s.git
 ```

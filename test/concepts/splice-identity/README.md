@@ -23,8 +23,9 @@ upstream. It names neither a folder nor an upstream:
 | `cp -r` of the folder, or a nested `.splice` reaching the monorepo twice | is copied: now two folders have it |
 
 A splice keeps its id however its folder or its upstream changes. The
-id is derived from the path and `HEAD` when the splice is made, not
-random, so the same command on the same commit writes the same file
+id is derived from the path, `HEAD`, the upstream's URL and the commit
+spliced in when the splice is made, not random, so the same command on
+the same commit writes the same file
 ([the design](../../../docs/design/README.md#the-splice-file)).
 
 So the id says which folders are meant to stay alike:
@@ -64,8 +65,8 @@ ok   vendor/a: cloned bde4164 from main
 ```scrut
 $ cat vendor/a/.splice | tr '\t' ' '
 [splice]
+ id = 224f2c2563d3b6f7
  commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
- id = 25e766b33a0eb239
 [upstream "origin"]
  url = https://git.example.com/a.git
 ```
@@ -81,8 +82,8 @@ ok   libs/a: cloned bde4164 from main
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
-libs/a/.splice: id = 08502bf01cd0c0a3
-vendor/a/.splice: id = 25e766b33a0eb239
+libs/a/.splice: id = a841bb3c200928e9
+vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
 What the two have in common is their upstream: they share its fetched
@@ -97,8 +98,8 @@ $ mkdir third_party && git mv libs/a third_party/a && git commit -q -m "move lib
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
-third_party/a/.splice: id = 08502bf01cd0c0a3
-vendor/a/.splice: id = 25e766b33a0eb239
+third_party/a/.splice: id = a841bb3c200928e9
+vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
 The rebuild follows a move back to the old path, so the commits from
@@ -129,9 +130,9 @@ $ cp -r vendor/a vendor/a-copy && git add vendor/a-copy && git commit -q -m "cop
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
-third_party/a/.splice: id = 08502bf01cd0c0a3
-vendor/a-copy/.splice: id = 25e766b33a0eb239
-vendor/a/.splice: id = 25e766b33a0eb239
+third_party/a/.splice: id = a841bb3c200928e9
+vendor/a-copy/.splice: id = 224f2c2563d3b6f7
+vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
 The copy declares a **mirror** of `vendor/a`. For a copy that should go
@@ -171,10 +172,10 @@ ok   vendor/a: pulled 6045a98
 
 ```scrut
 $ git grep -e 'id = ' -e 'commit = ' -- vendor/a/.splice vendor/a-copy/.splice | tr '\t' ' '
+vendor/a-copy/.splice: id = 224f2c2563d3b6f7
 vendor/a-copy/.splice: commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
-vendor/a-copy/.splice: id = 25e766b33a0eb239
+vendor/a/.splice: id = 224f2c2563d3b6f7
 vendor/a/.splice: commit = 6045a986b5afb475cd0af0caf6bb622db918a25b
-vendor/a/.splice: id = 25e766b33a0eb239
 ```
 
 ```scrut
@@ -269,9 +270,9 @@ ok   vendor/a-fork: cloned c09993d from main
 
 ```scrut
 $ git grep -e 'id = ' -e 'url = ' -- vendor/a/.splice vendor/a-fork/.splice | tr '\t' ' '
-vendor/a-fork/.splice: id = d89c88d5b7cab87d
+vendor/a-fork/.splice: id = c9c8218874380302
 vendor/a-fork/.splice: url = https://git.example.com/a-fork.git
-vendor/a/.splice: id = 25e766b33a0eb239
+vendor/a/.splice: id = 224f2c2563d3b6f7
 vendor/a/.splice: url = https://git.example.com/a.git
 ```
 
