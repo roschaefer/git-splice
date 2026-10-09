@@ -88,9 +88,10 @@ ok   vendor/lib: pushed 5069701 to main
 
 The library gets 5069701 from both. Josh and git-splice copy a commit's
 author, committer, dates and message the way `git subtree split` does, so
-the same unsigned change on top of the same library commit is the same
-commit. A signed commit differs: Josh keeps its signature header by
-default, which then no longer verifies, and git-splice never signs.
+the same change on top of the same library commit is the same commit, as
+long as it has no signature or other extra header. Josh keeps such
+headers by default, a signature then no longer verifies, while git-splice
+copies only the fields above and never signs.
 Neither needs to remember which commits it pushed: it computes them again.
 
 ## A release breaks the app: `git bisect`
@@ -388,7 +389,7 @@ library as written.
 | | Josh | `git splice` |
 | --- | --- | --- |
 | Library history in the monorepo | whole, as copies under the folder | none, one commit per sync |
-| Commits a push sends | the filtered history, the same as `git subtree split` for unsigned commits | the first-parent commits since the last sync, otherwise the same as `git subtree split` |
+| Commits a push sends | the filtered history, the same as `git subtree split` for commits without a signature or extra headers | the first-parent commits since the last sync, otherwise the same as `git subtree split` |
 | `git bisect` for a library bug | finds the monorepo's copy of the library's commit | finds the pull, then a second bisect between the synced commits does |
 | A monorepo branch merged | a merge, with the branch's commits | one commit, with the merge's message |
 | Where both sides meet | commits of the filtered view that the library has | the synced commit in `.splice` |
