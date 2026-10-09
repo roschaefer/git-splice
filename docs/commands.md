@@ -20,6 +20,16 @@ Each does to a splice what its Git namesake does to a repository.
 | `log [--graph] [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors; `--graph` draws both sides as a graph. |
 | `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<key>/`, under the upstream's key in this repository, e.g. `lib` for `https://github.com/x/lib.git`. |
 
+A splice can have several upstreams, e.g. a company fork and the
+original it follows
+([several-upstreams](../test/scenarios/several-upstreams/README.md)).
+`--upstream <name>` picks one for `fetch`, `merge`, `pull`, `push`,
+`status`, `diff`, `log` and `key`. Without it, commands use the splice's
+`default-upstream`, which `.splice` needs once it names several; `fetch`
+fetches all of them. A splice that lacks the named upstream stops the
+command before it starts
+([missing upstream names](../test/scenarios/several-upstreams/missing-upstream-names.md)).
+
 `status`, `diff`, `log` and `merge` only use what was last fetched. Run
 `git splice fetch` first if you need the latest upstream state. Fetched
 upstreams can be read with any Git command, e.g.
@@ -39,7 +49,7 @@ Their names come from splicing; Git has no command of that name.
 | --- | --- |
 | `boundary <path>` | Prints the splice boundary: the monorepo commit where a splice last synced, the last commit that changed its `.splice`, e.g. the last `pull`. It answers "when was the library last spliced in?" Like a boundary commit of `git log --boundary`, it starts the range of the folder's commits since then: `git log B..HEAD -- <path>`. |
 | `rebuild <path>` | Prints the commit `push` would send, without pushing it: to push it to another upstream branch, e.g. `git push <url> "$(git splice rebuild <path>)":refs/heads/release`, or to check it out in a separate worktree. Writes nothing. |
-| `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. `--upstream` names the upstream, and can be left out while the splice has one. |
+| `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. |
 
 A nested splice has two boundaries. In the monorepo, `boundary` prints
 where the monorepo last synced it, often a pull of the splice above.

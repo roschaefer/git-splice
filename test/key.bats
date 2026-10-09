@@ -108,13 +108,13 @@ setup() {
   [ "$status" -eq 1 ]
 }
 
-@test "--upstream: refused by commands that don't take it yet" {
+@test "--upstream: refused by commands that don't sync with an upstream" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status --upstream origin vendor/a
+  run cmd_clone --upstream origin "$upstream" vendor/b
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   unknown option: --upstream" ]]
-  run cmd_push --upstream=origin vendor/a
+  run cmd_init --upstream=origin vendor/b "$upstream"
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   unknown option: --upstream" ]]
 }

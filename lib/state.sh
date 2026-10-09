@@ -6,6 +6,7 @@
 # Sets, as globals, since status, merge, push, diff and log all need them:
 #   SPLICE_STATE            see below
 #   SPLICE_UPSTREAM_BRANCH  the upstream branch this branch syncs with
+#   SPLICE_UPSTREAM_LABEL   how messages name it (upstream_branch_label)
 #   SPLICE_TARGET_REF       refs/splices/<key>/<upstream branch>
 #   SPLICE_SYNCED           the synced commit U from the state file
 #   SPLICE_REBUILT          the rebuild R of HEAD (see rebuild_splice), when
@@ -27,6 +28,7 @@ classify_splice() {
   SPLICE_TARGET_REF=""
   SPLICE_REBUILT=""
   SPLICE_UPSTREAM_BRANCH="$(upstream_branch_for "$path" "$branch")"
+  SPLICE_UPSTREAM_LABEL="$(upstream_branch_label "$path" "$SPLICE_UPSTREAM_BRANCH")"
   SPLICE_SYNCED="$(splice_config "$path" commit)"
 
   if ! splice_fetched "$path"; then
@@ -160,7 +162,7 @@ print_unrelated_history_guidance() {
   git splice clone --merge -- $q_url $q_path
 
   # OR: keep the monorepo version, overwriting upstream's branch:
-  git splice push --force -- $q_path
+  git splice push $(upstream_option "$path")--force -- $q_path
 
 EOF
 }

@@ -2,7 +2,7 @@
 
 usage_status() {
   cat <<'EOF'
-usage: git splice status [--base <branch>] [path...]
+usage: git splice status [--upstream <name>] [--base <branch>] [path...]
 
 Shows the sync state of every splice. Purely local -- run 'git splice
 fetch' first for up-to-date results. Defaults to every splice when no
@@ -22,6 +22,11 @@ monorepo's base branch (--base, else the monorepo's default branch).
 
 Like every command, status reads splices from the last commit. It warns
 about uncommitted changes in a splice's folder, which push leaves out.
+
+--upstream names one of the upstreams a splice's .splice names; without
+it, the splice's default upstream. A splice without the named upstream
+stops the command before it starts. A splice with several upstreams shows its
+upstream branch as <name>/<branch>.
 EOF
 }
 
@@ -101,14 +106,15 @@ new_branch_count() {
 
 # Classifies one splice and adds its row.
 add_status_row() {
-  local path="$1" branch="$2" base="${3:-}" counts ahead behind rc=0 column="$1"
+  local path="$1" branch="$2" base="${3:-}" counts ahead behind rc=0 column="$1" option
   classify_splice "$path" "$branch"
   STATUS_KIND="" STATUS_LABEL="" STATUS_HINT=""
-  [[ "$SPLICE_UPSTREAM_BRANCH" == "$branch" ]] || column="$path -> $SPLICE_UPSTREAM_BRANCH"
+  [[ "$SPLICE_UPSTREAM_LABEL" == "$branch" ]] || column="$path -> $SPLICE_UPSTREAM_LABEL"
+  option="$(upstream_option "$path")"
 
   case "$SPLICE_STATE" in
     never-fetched)
-      STATUS_KIND=warning STATUS_LABEL="?? never fetched" STATUS_HINT="run 'git splice fetch $path'"
+      STATUS_KIND=warning STATUS_LABEL="?? never fetched" STATUS_HINT="run 'git splice fetch $option$path'"
       ;;
     missing-branch)
       classify_missing_branch "$path" "$base"
@@ -137,7 +143,7 @@ add_status_row() {
       fi
       ;;
     unrelated-history)
-      STATUS_KIND=problem STATUS_LABEL="!! unrelated history" STATUS_HINT="see 'git splice merge $path' for options"
+      STATUS_KIND=problem STATUS_LABEL="!! unrelated history" STATUS_HINT="see 'git splice merge $option$path' for options"
       ;;
   esac
 
@@ -209,7 +215,7 @@ print_status_header() {
 }
 
 cmd_status() {
-  parse_args usage_status "" "$@"
+  parse_args usage_status "--upstream" "$@"
   local base="$BASE_ARG" branch path
   cd_to_repo_root
   require_head_commit
@@ -219,6 +225,7 @@ cmd_status() {
     return 0
   fi
   select_paths overview status
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   branch="$(current_branch)"
   STATUS_RANKS=() STATUS_LABELS=() STATUS_PATHS=() STATUS_HINTS=()
   for path in "${SELECTED_PATHS[@]}"; do
