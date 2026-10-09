@@ -80,9 +80,13 @@ add_splice() {
   (
     cd "$monorepo"
     commit="$(git rev-parse "$(upstream_refs "$url")$branch")"
-    id="$(printf '%s\n%s\n' "$path" "$(git rev-parse HEAD)" | git hash-object --stdin)"
+    id="$(
+      # shellcheck source=../../lib/common.sh
+      source "$FIXTURES_DIR/../../lib/common.sh"
+      new_splice_id "$path" "$url" "$commit"
+    )"
     git read-tree --prefix="$path/" -u "$commit"
-    printf '[splice]\n\tcommit = %s\n\tid = %s\n[upstream "origin"]\n\turl = %s\n' "$commit" "${id:0:16}" "$url" >"$path/.splice"
+    printf '[splice]\n\tcommit = %s\n\tid = %s\n[upstream "origin"]\n\turl = %s\n' "$commit" "$id" "$url" >"$path/.splice"
     git add "$path"
     git commit -q -m "add $path"
   )

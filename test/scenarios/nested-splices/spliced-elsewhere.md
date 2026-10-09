@@ -32,7 +32,7 @@ The monorepo changes b and pushes both, bottom-up:
 ```scrut
 $ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local" && git splice push vendor/a/b vendor/a
 ok   vendor/a/b: pushed f47c373 to main
-ok   vendor/a: pushed 3c57040 to main
+ok   vendor/a: pushed 924e6e3 to main
 ```
 
 b's `.splice` still names b's synced commit from before the change. That's
@@ -53,7 +53,7 @@ $ git init -q -b main ../other && cd ../other && git commit -q --allow-empty -m 
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a && git splice fetch
 ===  vendor/a: fetching $UPSTREAM
-ok   vendor/a: cloned 3c57040 from main
+ok   vendor/a: cloned 924e6e3 from main
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```
@@ -64,7 +64,7 @@ boundary. b's files there already have `b local`, but its `.splice` names
 
 ```scrut
 $ git log --format=%s
-splice: clone vendor/a from main at 3c57040
+splice: clone vendor/a from main at 924e6e3
 other monorepo
 ```
 
@@ -104,9 +104,9 @@ the monorepo pushed, and the one the rebuild made from the clone:
 ```scrut
 $ git splice log vendor/a/b
 ===  vendor/a/b (main)
-< 55e043d b other  (Other <other@example.com>)
+< 0e6c8da b other  (Other <other@example.com>)
 = f47c373 b local  (Other <other@example.com>)
-= de5ba58 splice: clone vendor/a from main at 3c57040  (Other <other@example.com>)
+= e0a2c9a splice: clone vendor/a from main at 924e6e3  (Other <other@example.com>)
 ```
 
 And `pull` conflicts. Merged on top of `b seed`, the upstream's side adds
