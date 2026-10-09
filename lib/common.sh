@@ -430,7 +430,8 @@ EOF
   git config --file $q_file splice.id $(new_splice_id "$path" "${urls[0]}" "$commit")
   git commit -m $(shell_quote "splice: give $path an id") -- $q_file
 
-Its history then starts with that commit: push unpushed changes first.
+Its history then starts with that commit: changes not pushed yet reach upstream
+folded into it.
 EOF
     exit 1
   fi

@@ -249,7 +249,7 @@ two_splices_ahead() {
   [ "$(rebuild_splice vendor/a)" = "$(splice_config vendor/a commit)" ]
 }
 
-@test "rebuild: a .splice from before ids is another splice, so the commit that gives it an id is the mount" {
+@test "rebuild: a .splice from before ids is another splice, so the commit that gives it an id is the mount, and unpushed changes are folded into it" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local id
@@ -259,6 +259,11 @@ two_splices_ahead() {
   git config --file vendor/a/.splice splice.id "$id"
   git commit -q -am "give vendor/a an id"
   [ "$(splice_mount vendor/a)" = "$(git rev-parse HEAD)" ]
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  [ "$(git log --format=%s "$rebuilt")" = "give vendor/a an id"$'\n'"seed" ]
+  content_tree HEAD vendor/a
+  [ "$(git rev-parse "$rebuilt^{tree}")" = "$CONTENT_TREE" ]
 }
 
 @test "rebuild: a splice moved onto a folder that wasn't one doesn't get that folder's history" {
