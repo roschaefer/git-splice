@@ -30,6 +30,7 @@ to its setup or doesn't call that function first:
 
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/readme-setup.sh" && check_scenario_setups
+ok bisect-into-a-pull (1 document)
 ok clone-copied-content (1 document)
 ok clone-differing-content (1 document)
 ok clone-on-feature-branch (1 document)
