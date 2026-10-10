@@ -103,15 +103,21 @@ third_party/a/.splice: id = a841bb3c200928e9
 vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
-The rebuild doesn't follow the move yet: it reads the folder's history
-under its current path only, so the move starts it there, and commits
-from before the move that weren't pushed yet reach upstream folded into
-it. Push before moving
-([moved-with-unpushed-commits](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md),
-[#4](https://github.com/roschaefer/git-splice/issues/4)). Where a
-`.splice` is new at a path, or has another id, the splice's history
-starts: its mount. That's what keeps two splices that swap paths apart
-([swapped-splices](../../scenarios/swapped-splices/README.md)).
+The rebuild follows a move back to the old path, so the commits from
+before it that weren't pushed yet are kept
+([moved-with-unpushed-commits](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)).
+The id says where the folder came from: the path whose `.splice` had the
+same id in the commit before, and no longer has it. So two splices that
+swap paths each keep their own history
+([swapped-splices](../../scenarios/swapped-splices/README.md)). Where a
+`.splice` is new at a path, or has another id, without such a move, the
+splice's history starts: its mount.
+
+The id alone can't say where a splice came from, once two folders have
+it, as in the next section. A commit that adds `c/` and removes both
+`a/` and `b/`, which had the same id, is a move from the one with more
+unchanged files, and a tie is no move, as with Git's own rename
+detection and two identical files.
 
 ### A copy shares the id
 
@@ -215,10 +221,10 @@ with the same files ([diamond](../nesting/diamond.md)).
 ### Mirrors that swap paths
 
 Mirrors are one splice, so the rebuild can't tell them apart either.
-Two splices that swap paths each start a new history with the swap
-([swapped-splices](../../scenarios/swapped-splices/README.md)); two
-mirrors don't. Each path keeps its own history, whichever mirror's files
-it has now.
+Two splices that swap paths each keep their own history, told apart by
+their ids ([swapped-splices](../../scenarios/swapped-splices/README.md));
+two mirrors aren't. Each path keeps its own history, whichever mirror's
+files it has now.
 
 A commit in each mirror, not pushed yet:
 
