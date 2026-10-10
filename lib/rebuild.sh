@@ -71,11 +71,15 @@ same_splice() {
 # <path> isn't a splice in <rev>. Only the history from there on is this
 # splice's: before, the folder was no splice, or another one.
 splice_mount() {
-  local path="$1" rev="${2:-HEAD}" commit
+  local path="$1" rev="${2:-HEAD}" commit id
   git cat-file -e "$rev:$path/$STATE_FILE" 2>/dev/null || return 0
+  # Every commit the walk passes has the same id as <rev>: it stops at the
+  # first one whose parent has another. So <rev>'s is read once, and only
+  # each parent's per commit.
+  id="$(splice_config "$path" id "$rev")"
   while read -r commit; do
-    if ! git rev-parse --verify --quiet "$commit^1" >/dev/null ||
-      ! same_splice "$path" "$commit^1" "$commit"; then
+    if [[ -z "$id" ]] || ! git rev-parse --verify --quiet "$commit^1" >/dev/null ||
+      [[ "$(splice_config "$path" id "$commit^1")" != "$id" ]]; then
       printf '%s\n' "$commit"
       return
     fi
