@@ -134,6 +134,17 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: the commands that sync offer --upstream, and nothing for its value" {
+  for command in fetch merge pull push status diff log; do
+    run complete_words git-splice "$command" --up
+    [ "$output" = "--upstream" ]
+    run complete_words git-splice "$command" --upstream vend
+    [ -z "$output" ]
+    run complete_words git-splice "$command" --upstream origin vend
+    [ "$output" = "vendor/a" ]
+  done
+}
+
 @test "completion: init offers a directory with a command substitution quoted" {
   mkdir 'z$(touch${IFS}pwned)'
   run complete_words git-splice init z
@@ -196,6 +207,14 @@ fish_complete() {
   [ -z "$output" ]
 }
 
+@test "zsh completion: the commands that sync offer --upstream" {
+  require_shell zsh
+  for command in fetch merge pull push status diff log; do
+    run zsh_complete "git-splice $command --up"
+    [[ "$output" == *"--upstream"* ]]
+  done
+}
+
 @test "zsh completion: key completes a splice path, and nothing for the new key" {
   require_shell zsh
   run zsh_complete "git-splice key vendor/"
@@ -254,6 +273,14 @@ fish_complete() {
   [[ "$output" == *"vendor/a"* ]]
   run fish_complete "git-splice key vendor/a vend"
   [ -z "$output" ]
+}
+
+@test "fish completion: the commands that sync offer --upstream" {
+  require_shell fish
+  for command in fetch merge pull push status diff log; do
+    run fish_complete "git-splice $command --up"
+    [ "$output" = "--upstream" ]
+  done
 }
 
 @test "fish completion: key offers --upstream, and doesn't count its value as the path" {

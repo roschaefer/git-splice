@@ -2,7 +2,7 @@
 
 usage_push() {
   cat <<'EOF'
-usage: git splice push [--base <branch>] [--force] (<path>... | --all)
+usage: git splice push [--upstream <name>] [--base <branch>] [--force] (<path>... | --all)
 
 Publishes each splice's local changes: rebuilds the commits that changed
 it since the last sync, without its .splice file, and pushes them to its
@@ -24,6 +24,10 @@ two share no history, or to discard commits only upstream has.
 
 Only committed changes are pushed; push warns about uncommitted ones in a
 splice's folder.
+
+--upstream names one of the upstreams a splice's .splice names; without
+it, the splice's default upstream. A splice without the named upstream
+stops the command before it starts.
 EOF
 }
 
@@ -38,10 +42,11 @@ push_one() {
     2) log_warn "$path: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ;;
   esac
   classify_splice "$path" "$branch"
-  local upstream_branch="$SPLICE_UPSTREAM_BRANCH"
+  local upstream_branch="$SPLICE_UPSTREAM_BRANCH" label="$SPLICE_UPSTREAM_LABEL" option
+  option="$(upstream_option "$path")"
   case "$SPLICE_STATE" in
     never-fetched)
-      log_warn "$path: not fetched -- run 'git splice fetch $path' first"
+      log_warn "$path: not fetched -- run 'git splice fetch $option$path' first"
       return 1
       ;;
     up-to-date)
@@ -50,13 +55,13 @@ push_one() {
       ;;
     pull)
       if [[ -z "$force" ]]; then
-        log_ok "$path: nothing to push (upstream is ahead -- 'git splice pull $path' brings it in)"
+        log_ok "$path: nothing to push (upstream is ahead -- 'git splice pull $option$path' brings it in)"
         return 0
       fi
       ;;
     diverged)
       if [[ -z "$force" ]]; then
-        log_err "$path: upstream has commits this branch lacks -- run 'git splice pull $path' first"
+        log_err "$path: upstream has commits this branch lacks -- run 'git splice pull $option$path' first"
         return 1
       fi
       ;;
@@ -71,26 +76,26 @@ push_one() {
       changes_vs_base "$path" "$base"
       case "$SPLICE_CHANGES_VS_BASE" in
         no)
-          log_ok "$path: nothing to push (upstream has no '$upstream_branch' branch; unchanged since '$SPLICE_BASE_BRANCH')"
+          log_ok "$path: nothing to push (upstream has no '$label' branch; unchanged since '$SPLICE_BASE_BRANCH')"
           return 0
           ;;
         unresolved)
           if [[ -n "$base" ]]; then
             log_err "$path: base branch '$base' not found, or it shares no history with '$branch'"
           else
-            log_err "$path: upstream has no '$upstream_branch' branch and the monorepo's base branch can't be determined -- re-run with --base <branch>"
+            log_err "$path: upstream has no '$label' branch and the monorepo's base branch can't be determined -- re-run with --base <branch>"
           fi
           return 1
           ;;
         error)
-          log_err "$path: could not compare with base branch '$SPLICE_BASE_BRANCH' -- not creating '$upstream_branch'"
+          log_err "$path: could not compare with base branch '$SPLICE_BASE_BRANCH' -- not creating '$label'"
           return 1
           ;;
         yes)
-          log_warn "$path: upstream has no '$upstream_branch' branch yet -- this push creates it (changed since '$SPLICE_BASE_BRANCH')"
+          log_warn "$path: upstream has no '$label' branch yet -- this push creates it (changed since '$SPLICE_BASE_BRANCH')"
           ;;
         self)
-          log_warn "$path: upstream has no '$upstream_branch' branch yet -- this push creates it"
+          log_warn "$path: upstream has no '$label' branch yet -- this push creates it"
           ;;
       esac
       SPLICE_REBUILT="$(rebuild_splice "$path" HEAD)"
@@ -115,20 +120,21 @@ push_one() {
   fi
   # Pushing to a URL updates no ref here, so record what upstream has now.
   if ! git update-ref "$(splice_ref "$path" "$upstream_branch")" "$SPLICE_REBUILT"; then
-    log_err "$path: pushed, but couldn't record it in $(splice_ref "$path" "$upstream_branch") -- run 'git splice fetch $path'"
+    log_err "$path: pushed, but couldn't record it in $(splice_ref "$path" "$upstream_branch") -- run 'git splice fetch $option$path'"
     return 1
   fi
-  log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $upstream_branch"
+  log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $label"
 }
 
 cmd_push() {
-  parse_args usage_push "--force" "$@"
+  parse_args usage_push "--force --upstream" "$@"
   local base="$BASE_ARG" force=""
   has_flag --force && force=force
   cd_to_repo_root
   require_head_commit
   discover_splices
   select_paths explicit push
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   local branch path failed paths=() failures=()
   branch="$(current_branch)"
 

@@ -2,7 +2,7 @@
 
 usage_merge() {
   cat <<'EOF'
-usage: git splice merge (<path>... | --all)
+usage: git splice merge [--upstream <name>] (<path>... | --all)
 
 Splices already-fetched upstream changes into each splice, as one ordinary
 commit per splice. Never touches the network: run 'git splice fetch'
@@ -10,6 +10,10 @@ first, or 'git splice pull' to do both.
 
 The upstream branch is the one named like the current branch; on the
 monorepo's default branch, the splice's default-branch if it has one.
+
+--upstream names one of the upstreams a splice's .splice names; without
+it, the splice's default upstream. A splice without the named upstream
+stops the command before it starts.
 
 Top-down: a splice is merged before the ones below it, since its merge
 can move their synced commits, and a failure stops them.
@@ -37,11 +41,11 @@ merge_one() {
   classify_splice "$path" "$branch"
   case "$SPLICE_STATE" in
     never-fetched)
-      log_warn "$path: not fetched yet -- run 'git splice fetch $path' first"
+      log_warn "$path: not fetched yet -- run 'git splice fetch $(upstream_option "$path")$path' first"
       return 1
       ;;
     missing-branch)
-      log_ok "$path: upstream has no '$SPLICE_UPSTREAM_BRANCH' branch -- nothing to $verb"
+      log_ok "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch -- nothing to $verb"
       return 0
       ;;
     up-to-date)
@@ -73,7 +77,7 @@ merge_one() {
   new_blob="$(state_blob "$path" "commit=$target")"
 
   if ! splice_in "$path" "$base_folder" "$base_blob" "$target^{tree}" "$new_blob" \
-    "splice: $verb $path from $SPLICE_UPSTREAM_BRANCH at ${target:0:7}"; then
+    "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
     log_err "$path: $verb failed"
     return 1
   fi
@@ -110,7 +114,7 @@ record_equal_tree() {
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
   new_blob="$(state_blob "$path" "commit=$target")"
   if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
-    "splice: $verb $path from $SPLICE_UPSTREAM_BRANCH at ${target:0:7}"; then
+    "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
     log_err "$path: $verb failed"
     return 1
   fi
@@ -154,11 +158,12 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "" "$@"
+  parse_args usage_merge "--upstream" "$@"
   cd_to_repo_root
   require_head_commit
   discover_splices
   select_paths explicit merge
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
   local branch
   branch="$(current_branch)"

@@ -13,7 +13,7 @@ maps, and what doesn't.
 | what you ask for: a version range or tag, e.g. `^1.2` (a *descriptor* in Yarn) | the upstream branch a splice syncs with |
 | what you got: the exact version in the lockfile (a *locator* in Yarn) | the synced commit U |
 | a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../../test/concepts/nesting/README.md)) |
-| registries and mirror servers | several upstreams per splice, not yet |
+| registries and mirror servers | several upstreams per splice ([several-upstreams](../../test/scenarios/several-upstreams/README.md)) |
 | two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../../test/concepts/upstreams/README.md#one-library-at-two-versions)) |
 | one package, deduplicated | mirrors: splices with the same `id` ([mirrors](mirrors.md)) |
 | `yarn dedupe --check` | a report of mirrors that drifted, not yet |

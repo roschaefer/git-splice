@@ -72,4 +72,4 @@ complete -c git-splice -n "__fish_seen_subcommand_from clone" -l merge -d 'merge
 complete -c git-splice -n "__git_splice_positional clone 1" -a "(__fish_complete_directories)"
 complete -c git-splice -n "__git_splice_positional init 0" -a "(__fish_complete_directories)"
 complete -c git-splice -n "__git_splice_positional key 0" -a "(__git_splice_paths)" -d splice
-complete -c git-splice -n "__fish_seen_subcommand_from key" -l upstream -x -d 'upstream named in .splice'
+complete -c git-splice -n "__fish_seen_subcommand_from key fetch merge pull push status diff log" -l upstream -x -d 'upstream named in .splice'

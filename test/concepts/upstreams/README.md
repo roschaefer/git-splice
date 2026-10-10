@@ -12,11 +12,12 @@ upstream are at different versions.
 ## What an upstream is
 
 A splice's `.splice` names its upstream like a Git remote:
-`[upstream "origin"]` with a `url`. Exactly one upstream per splice is
-supported for now. The name is there so that a splice can later sync
-with more than one, e.g. a company fork and the original. The synced
-commit U stays one per splice: a sync point is a commit, whichever
-upstream it came from.
+`[upstream "origin"]` with a `url`. It can name more than one, e.g. a
+company fork and the original; `default-upstream` then says which one
+commands use unless `--upstream` names another
+([several-upstreams](../../scenarios/several-upstreams/README.md)). The
+synced commit U stays one per splice: a sync point is a commit,
+whichever upstream it came from.
 
 The monorepo knows an upstream by its URL. The first command that
 fetches it gives it a **key**, a short name recorded in the repository's
@@ -165,9 +166,9 @@ mirror.example.com-s
 ```
 
 So comparing URLs couldn't tell that `app-c/s` splices the same
-repository as the others. With several upstreams per splice, a splice
-that names both URLs would tell the monorepo that they are copies of
-each other.
+repository as the others. A splice can name both URLs as two upstreams,
+but they stay two upstreams, each with a key of its own: git splice
+doesn't take them for copies of one repository.
 
 How this compares with a package manager's names, versions and lockfile:
 [package managers](../../../docs/going-forward/package-managers.md).

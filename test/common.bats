@@ -571,7 +571,7 @@ assert_candidates() {
   [ "$output" = "ok   vendor/a -> main (up to date)" ]
 }
 
-@test "discover_splices refuses a .splice without an upstream, with an empty URL, or with two" {
+@test "discover_splices refuses a .splice without an upstream, or with an empty URL" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   git config --file vendor/a/.splice --remove-section upstream.origin
@@ -584,12 +584,6 @@ assert_candidates() {
   run discover_splices
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice names no upstream"* ]]
-  git config --file vendor/a/.splice upstream.origin.url "$upstream"
-  git config --file vendor/a/.splice upstream.fork.url "$BATS_TEST_TMPDIR/fork.git"
-  git commit -q -am "two upstreams"
-  run discover_splices
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a/.splice names 2 upstreams -- only one is supported so far"* ]]
 }
 
 @test "discover_splices refuses a .splice git config can't read, with Git's message" {

@@ -60,9 +60,10 @@ cmd_clone() {
   fi
 
   create_upstream_key "$url"
-  SPLICE_URLS[$path]="$url"
-  SPLICE_UPSTREAM_NAMES[$path]="$DEFAULT_UPSTREAM"
-  SPLICE_KEYS[$path]="$UPSTREAM_KEY"
+  SPLICE_UPSTREAM_LISTS[$path]="$DEFAULT_UPSTREAM"
+  UPSTREAM_URLS["$path:$DEFAULT_UPSTREAM"]="$url"
+  SPLICE_DEFAULT_UPSTREAMS[$path]="$DEFAULT_UPSTREAM"
+  use_upstream "$path" "$DEFAULT_UPSTREAM"
   log_step "$path: fetching $url"
   fetch_upstream "$url" "$(splice_refs_prefix "$path")" || die "$path: fetch failed"
   splice_fetched "$path" || die "$url has no branches yet -- to publish $path there, use 'git splice init $(shell_quote "$path") $(shell_quote "$url")'"
