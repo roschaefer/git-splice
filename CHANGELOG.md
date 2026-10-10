@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.3.0](https://github.com/roschaefer/git-splice/compare/v0.2.0...v0.3.0) (2026-10-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* a `.splice` without an id is refused.
+* **rebuild:** the first push after `init` sends one commit, the init commit, instead of the folder's whole history.
+* a nested `.splice` without `default-branch` that this monorepo wrote itself, where the nested upstream's default branch equals the monorepo's but not the outer upstream's, now follows the outer upstream's default branch. Set `default-branch` in it by hand to keep the old meaning.
+
+### Features
+
+* give each splice an id, so a new URL keeps its history ([#79](https://github.com/roschaefer/git-splice/issues/79)) ([a9eab2b](https://github.com/roschaefer/git-splice/commit/a9eab2b6c165a0af271143a2cc4fc19fe5325bad)), closes [#78](https://github.com/roschaefer/git-splice/issues/78) [#96](https://github.com/roschaefer/git-splice/issues/96)
+
+
+### Bug Fixes
+
+* a nested splice without default-branch follows the splice above ([#89](https://github.com/roschaefer/git-splice/issues/89)) ([13d9a7d](https://github.com/roschaefer/git-splice/commit/13d9a7d58060798ddf0acf6babff8d7ca93dd7c7))
+* **merge:** record an upstream with the same files as the synced commit ([#92](https://github.com/roschaefer/git-splice/issues/92)) ([c0e8334](https://github.com/roschaefer/git-splice/commit/c0e8334303d091fdac91ef8fa71089055648b1d9)), closes [#17](https://github.com/roschaefer/git-splice/issues/17)
+* **rebuild:** find a splice's boundary and mount with log.showSignature ([#111](https://github.com/roschaefer/git-splice/issues/111)) ([eb8849b](https://github.com/roschaefer/git-splice/commit/eb8849b89ca18a6093bdb12bf3c228bb4d40658f))
+* **rebuild:** never publish history from before a folder was this splice ([#77](https://github.com/roschaefer/git-splice/issues/77)) ([a22854c](https://github.com/roschaefer/git-splice/commit/a22854c45973dd34a60dab8ed550539787cecb6a)), closes [#73](https://github.com/roschaefer/git-splice/issues/73) [#18](https://github.com/roschaefer/git-splice/issues/18)
+* **rebuild:** take a nested splice's history before the outer boundary from the outer upstream ([#83](https://github.com/roschaefer/git-splice/issues/83)) ([89b294b](https://github.com/roschaefer/git-splice/commit/89b294b6e49688f7e662a86526f874b7927d1c17)), closes [#74](https://github.com/roschaefer/git-splice/issues/74)
+
+
+### Performance Improvements
+
+* **rebuild:** read a splice's id once in the mount walk ([#98](https://github.com/roschaefer/git-splice/issues/98)) ([83f1f25](https://github.com/roschaefer/git-splice/commit/83f1f253f2bb595bed980aa357f1496dd521395e))
+
 ## [0.2.0](https://github.com/roschaefer/git-splice/compare/v0.1.0...v0.2.0) (2026-10-06)
 
 
