@@ -105,6 +105,24 @@ split() {
   [ "$(rebuild_splice vendor/a)" = "$first" ]
 }
 
+@test "rebuild: log.showSignature doesn't change where a splice's history starts" {
+  command -v ssh-keygen >/dev/null || skip "no ssh-keygen to sign a commit with"
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  ssh-keygen -q -t ed25519 -N "" -f "$BATS_TEST_TMPDIR/key"
+  git config gpg.format ssh
+  git config user.signingKey "$BATS_TEST_TMPDIR/key.pub"
+  local before mount
+  before="$(rebuild_splice vendor/a)"
+  mount="$(splice_mount vendor/a)"
+  git config --file vendor/a/.splice splice.default-branch main
+  git commit -q -S -am "a signed commit that changes .splice"
+  git config log.showSignature true
+  [ "$(splice_boundary vendor/a HEAD)" = "$(git rev-parse HEAD)" ]
+  [ "$(splice_mount vendor/a)" = "$mount" ]
+  [ "$(rebuild_splice vendor/a)" = "$before" ]
+}
+
 @test "rebuild: starts at the synced commit and leaves .splice out" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
