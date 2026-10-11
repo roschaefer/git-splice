@@ -39,10 +39,11 @@ add vendor/a
 initial commit
 ```
 
-The root commit is the known good one:
+The commit that added `check.sh` is the known good one. Before it,
+`./check.sh` doesn't exist, and `git bisect run` would count that as bad:
 
 ```scrut
-$ git bisect start HEAD "$(git rev-list --max-parents=0 HEAD)" >/dev/null && git bisect run ./check.sh >/dev/null && git show --stat --format='first bad commit: %s' refs/bisect/bad
+$ git bisect start HEAD "$(git log -1 --format=%H --diff-filter=A -- check.sh)" >/dev/null && git bisect run ./check.sh >/dev/null && git show --stat --format='first bad commit: %s' refs/bisect/bad
 first bad commit: splice: pull vendor/a from main at 803779d
 
  vendor/a/.splice    | 2 +-
@@ -116,7 +117,9 @@ That's the exact upstream commit. If the bug shows in the upstream
 alone, `git bisect run` in `../lib` without `../before` is enough.
 
 The copy leaves files in the folder that a candidate doesn't have, e.g.
-ones an upstream commit deleted. And if X merged local changes into the
+ones an upstream commit deleted. It also only writes files: the index
+of `../before` doesn't change, so a test that asks Git, e.g. with
+`git ls-files` or `git grep`, doesn't see files a candidate added. And if X merged local changes into the
 folder, the candidates are tested without them.
 [#110](https://github.com/roschaefer/git-splice/issues/110) proposes
 `git splice expand`, which would turn X into one monorepo commit per
