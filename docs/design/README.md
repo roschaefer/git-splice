@@ -87,7 +87,7 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 
 | Term | Meaning |
 |---|---|
-| **splice** | A folder of the monorepo that has its own upstream repository: "`vendor/a` is spliced in from `github.com/x/a`", "the `vendor/a` splice". Strictly, the noun means the joint, not the inserted piece. |
+| **splice** | A folder of the monorepo that has its own upstream repository: "`vendor/a` is spliced in from `github.com/x/a`", "the `vendor/a` splice". Strictly, the noun means the joint, not the inserted piece ([why "splice"](../name.md)). |
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
