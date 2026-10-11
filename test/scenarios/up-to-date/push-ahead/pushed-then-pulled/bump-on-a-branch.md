@@ -2,8 +2,8 @@
 
 The same state as in [pushed-then-pulled](README.md). A feature branch
 pushes a change to the upstream's `feature` branch and bumps the sync
-point to it, by hand, as a proposed `git splice pull --bump`
-([#115](https://github.com/roschaefer/git-splice/issues/115)) would.
+point to it, with `git splice pull --bump`
+([#115](https://github.com/roschaefer/git-splice/issues/115)).
 Then `main` merges the feature branch, and with it the bump: `main`'s
 `.splice` now names a commit of the upstream's `feature` branch
 ([why the push isn't recorded](README.md#why-the-push-isnt-recorded)).
@@ -39,7 +39,9 @@ ok   vendor/a: pushed 38fbc52 to feature
 ```
 
 ```scrut
-$ U="$(git -C "$UPSTREAM" rev-parse feature)" && git config --file vendor/a/.splice splice.commit "$U" && git commit -q -m "splice: bump vendor/a from feature at ${U:0:7}" -- vendor/a/.splice
+$ git splice pull --bump vendor/a
+ok   vendor/a fetched
+ok   vendor/a: bumped the synced commit to 38fbc52
 ```
 
 `main` merges the feature branch, and its `.splice` now names the
@@ -76,7 +78,7 @@ Nothing refers to the feature branch's commit any more, and the
 upstream's `gc` removes it:
 
 ```scrut
-$ git -C "$UPSTREAM" gc -q --prune=now && git -C "$UPSTREAM" cat-file -t "$U"
+$ git -C "$UPSTREAM" gc -q --prune=now && git -C "$UPSTREAM" cat-file -t "$(git -C ../monorepo config --file vendor/a/.splice splice.commit)"
 fatal: git cat-file: could not get object info
 [128]
 ```

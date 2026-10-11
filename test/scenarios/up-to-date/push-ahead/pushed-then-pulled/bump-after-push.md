@@ -5,13 +5,12 @@ a change, and `.splice` still names `seed`. A pull doesn't change that,
 since the upstream branch is already part of the rebuild's history.
 
 `git splice pull --bump`
-([#115](https://github.com/roschaefer/git-splice/issues/115)) would move
-the sync point up to the pushed commit anyway, in a commit that only
-changes `.splice`, like a submodule bump. `pull` already writes such a
-commit when the upstream has the folder's files under another history
-([#92](https://github.com/roschaefer/git-splice/pull/92)). There's no
-such option yet, so here the bump is made by hand. It shows what the bump
-changes, and that it changes no commit a later push sends.
+([#115](https://github.com/roschaefer/git-splice/issues/115)) moves the
+sync point up to the pushed commit anyway, in a commit that only changes
+`.splice`, like a submodule bump. `pull` already writes such a commit
+when the upstream has the folder's files under another history
+([#92](https://github.com/roschaefer/git-splice/pull/92)). This shows what
+the bump changes, and that it changes no commit a later push sends.
 
 ## Output
 
@@ -62,13 +61,23 @@ And the synced commits of the next two pulls span the push, which
 misleads a bisect between them
 ([bisect into a pull](../../../bisect-into-a-pull/after-a-push/README.md)).
 
-## The bump, by hand
+## The bump
 
-What `--bump` would write: the upstream branch as the synced commit,
-in a commit that only changes `.splice`, with a message like a pull's:
+`--bump` writes the upstream branch as the synced commit, in a commit
+that only changes `.splice`:
 
 ```scrut
-$ U="$(git -C "$UPSTREAM" rev-parse main)" && git config --file vendor/a/.splice splice.commit "$U" && git commit -q -m "splice: bump vendor/a from main at ${U:0:7}" -- vendor/a/.splice
+$ git splice pull --bump vendor/a
+ok   vendor/a fetched
+ok   vendor/a: bumped the synced commit to e859a6b
+```
+
+```scrut
+$ git show --stat --format=%s
+splice: bump vendor/a from main at e859a6b
+
+ vendor/a/.splice | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 ```
 
 ```scrut
@@ -138,7 +147,9 @@ $ git splice log
 ```
 
 ```scrut
-$ U="$(git -C "$UPSTREAM" rev-parse main)" && git config --file vendor/a/.splice splice.commit "$U" && git commit -q -m "splice: bump vendor/a from main at ${U:0:7}" -- vendor/a/.splice
+$ git splice pull --bump vendor/a
+ok   vendor/a fetched
+ok   vendor/a: bumped the synced commit to 8b60a90
 ```
 
 ```scrut

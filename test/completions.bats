@@ -68,6 +68,15 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: --bump only for merge and pull" {
+  run complete_words git-splice merge --b
+  [ "$output" = "--bump" ]
+  run complete_words git-splice pull --b
+  [ "$output" = "--bump" ]
+  run complete_words git-splice push --b
+  [ "$output" = "--base" ]
+}
+
 @test "completion: push completes branches for '--base <value>', '--base=<value>' and '--base='" {
   run complete_words git-splice push --base ma
   [ "$output" = "main" ]
@@ -237,6 +246,12 @@ fish_complete() {
   [[ "$output" == *"--graph"* ]]
 }
 
+@test "zsh completion: pull completes --bump" {
+  require_shell zsh
+  run zsh_complete "git-splice pull --b"
+  [[ "$output" == *"--bump"* ]]
+}
+
 @test "fish completion: commands" {
   require_shell fish
   run fish_complete "git-splice pu"
@@ -297,6 +312,12 @@ fish_complete() {
   require_shell fish
   run fish_complete "git-splice log --g"
   [ "$output" = "--graph" ]
+}
+
+@test "fish completion: pull completes --bump" {
+  require_shell fish
+  run fish_complete "git-splice pull --b"
+  [ "$output" = "--bump" ]
 }
 
 @test "interactive bash: Tab completes a splice path" {

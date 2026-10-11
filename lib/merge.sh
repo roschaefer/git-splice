@@ -2,7 +2,7 @@
 
 usage_merge() {
   cat <<'EOF'
-usage: git splice merge (<path>... | --all)
+usage: git splice merge [--bump] (<path>... | --all)
 
 Splices already-fetched upstream changes into each splice, as one ordinary
 commit per splice. Never touches the network: run 'git splice fetch'
@@ -18,6 +18,11 @@ On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 --abort' to give up), then re-run merge for any splices left. When the two
 sides share no history at all, merge doesn't guess: it prints the commands
 to keep either side.
+
+--bump also moves the synced commit up to the upstream branch when there's
+nothing to merge, e.g. right after a push, in a commit that only changes
+the splice's .splice, like a submodule bump. Later rebuilds then start
+there, instead of rebuilding every pushed commit again.
 EOF
 }
 
@@ -49,6 +54,10 @@ merge_one() {
       return
       ;;
     push)
+      if [[ -n "${MERGE_BUMP:-}" ]]; then
+        bump_synced "$path"
+        return
+      fi
       log_ok "$path: nothing to $verb"
       return 0
       ;;
@@ -87,8 +96,8 @@ merge_one() {
 # (#17), squash-merged what this branch pushed, or got the rebuild edited
 # before the push. Without the record, the rebuild would keep the
 # monorepo's original commits, and publish them with the next push. After
-# an ordinary push, T is the rebuild: nothing to record. `verb` as for
-# merge_one.
+# an ordinary push, T is the rebuild: nothing to record, unless --bump
+# asks for it. `verb` as for merge_one.
 record_equal_tree() {
   local path="$1" verb="$2" target rebuilt
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
@@ -101,6 +110,10 @@ record_equal_tree() {
   if [[ -z "$SPLICE_SYNCED" ]] || git cat-file -e "$SPLICE_SYNCED^{commit}" 2>/dev/null; then
     rebuilt="$(rebuild_splice "$path" HEAD)"
     if [[ -n "$rebuilt" ]] && git merge-base --is-ancestor "$target" "$rebuilt"; then
+      if [[ -n "${MERGE_BUMP:-}" ]]; then
+        bump_synced "$path"
+        return
+      fi
       log_ok "$path: nothing to $verb"
       return 0
     fi
@@ -115,6 +128,34 @@ record_equal_tree() {
     return 1
   fi
   log_ok "$path: recorded ${target:0:7} as the synced commit -- the folder already has its files"
+}
+
+# For --bump: records the upstream branch T as splice <path>'s synced
+# commit, in a commit that only changes the state file, though T is
+# already part of the rebuild's history (states up-to-date and push). The
+# rebuild then starts at T, or, while ahead, continues from the history
+# before the bump. Never moves the synced commit backwards, e.g. to a stale
+# upstream ref.
+bump_synced() {
+  local path="$1" target folder base_blob new_blob
+  target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
+  if [[ "$target" == "$SPLICE_SYNCED" ]]; then
+    log_ok "$path: nothing to bump -- already synced at ${target:0:7}"
+    return 0
+  fi
+  if [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target"; then
+    log_ok "$path: nothing to bump -- the fetched '$SPLICE_UPSTREAM_BRANCH' is older than the synced commit"
+    return 0
+  fi
+  folder="$(git rev-parse "HEAD:$path")"
+  base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
+  new_blob="$(state_blob "$path" "commit=$target")"
+  if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
+    "splice: bump $path from $SPLICE_UPSTREAM_BRANCH at ${target:0:7}"; then
+    log_err "$path: bump failed"
+    return 1
+  fi
+  log_ok "$path: bumped the synced commit to ${target:0:7}"
 }
 
 # Merges every given path, stopping at the first one that leaves a conflict:
@@ -154,7 +195,9 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "" "$@"
+  parse_args usage_merge "--bump" "$@"
+  MERGE_BUMP=""
+  has_flag --bump && MERGE_BUMP=1
   cd_to_repo_root
   require_head_commit
   discover_splices

@@ -75,7 +75,7 @@ _git-splice() {
       _arguments '--graph[draw both sides as a graph]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     merge | pull)
-      _arguments '--all[every splice]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      _arguments '--all[every splice]' '--bump[move the synced commit up to the upstream branch]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     status | diff)
       _arguments \
