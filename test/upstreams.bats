@@ -171,3 +171,23 @@ add_upstream() {
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a/b commit)" = "$(git -C "$BATS_TEST_TMPDIR/upstream-b-fork.git" rev-parse main)" ]
 }
+
+@test "pull --upstream: a selected splice below gets the synced commit the pull above moves it to, from any of its upstreams" {
+  scenario_outer_fork "$monorepo" "$upstream"
+  local b_origin="$BATS_TEST_TMPDIR/upstream-b.git" b_fork="$BATS_TEST_TMPDIR/upstream-b-fork.git" work="$BATS_TEST_TMPDIR/a-fork"
+  seed_bare_repo "$b_origin" "b origin only" main origin.txt
+  git clone -q "$fork" "$work"
+  (
+    cd "$work"
+    git config user.name Test && git config user.email test@example.com
+    add_upstream b fork "$b_fork" origin
+    splice pull b
+    git push -q origin HEAD:main
+  )
+  cd "$monorepo"
+  add_upstream vendor/a fork "$fork" origin
+  add_upstream vendor/a/b fork "$b_fork" origin
+  run splice pull --upstream fork --all
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse main)" ]
+}
