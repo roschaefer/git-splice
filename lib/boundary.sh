@@ -4,11 +4,10 @@ usage_boundary() {
   cat <<'EOF'
 usage: git splice boundary <path>
 
-Prints the monorepo commit where splice <path> last synced with its
-upstream: the newest commit on the current branch's first-parent history
-that changed <path>/.splice -- the last pull, merge, clone or init, or a
-commit that edited .splice by hand. What changed in the folder since then
-is what push would publish.
+Prints the commit where splice <path> last synced with its upstream:
+the newest commit on the current branch's first-parent history that
+changed <path>/.splice -- the last pull, merge, clone or init, or a
+commit that edited .splice by hand.
 
   git show "$(git splice boundary <path>)"
   git log "$(git splice boundary <path>)"..HEAD -- <path>

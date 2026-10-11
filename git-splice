@@ -78,8 +78,10 @@ Looking -- every splice unless paths are given:
   diff [--base <b>] [--stat] [path...]
                                       show the file changes push would send
   log [--graph] [path...]             show the commits push and pull would move
-  boundary <path>                     print the monorepo commit where a splice last synced
   fetch [path...]                     fetch the upstreams
+
+New to git splice -- one splice each:
+  boundary <path>                     print the commit where a splice last synced
   key [--upstream <name>] <path> [<new-key>]
                                       print or rename the key of a splice's fetched refs
 

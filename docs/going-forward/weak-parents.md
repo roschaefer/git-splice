@@ -35,7 +35,7 @@ squash merge keeps nothing else.
 
 The two also don't claim the same. A merge says U's whole history is
 part of the monorepo's. `.splice` says only that the folder's files came
-from U: changes cross the boundary, commits don't.
+from U: changes cross the splice, commits don't.
 
 ## A weak parent in Git
 

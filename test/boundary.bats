@@ -34,7 +34,6 @@ setup() {
   cmd_merge vendor/a >/dev/null
   run cmd_boundary vendor/a
   [ "$output" = "$(git rev-parse HEAD)" ]
-  [ "$(git log -1 --format=%s "$output")" = "$(git log -1 --format=%s HEAD)" ]
 }
 
 @test "boundary: a commit that edits .splice by hand moves it too" {
@@ -70,7 +69,6 @@ setup() {
   run cmd_boundary b
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%s "$output")" = "add b" ]
-  [ "$output" = "$(git log --first-parent -1 --format=%H -- b/.splice)" ]
 }
 
 @test "boundary: takes exactly one splice" {

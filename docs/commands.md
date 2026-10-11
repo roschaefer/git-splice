@@ -37,7 +37,7 @@ Their names come from splicing; Git has no command of that name.
 
 | Command | What it does |
 | --- | --- |
-| `boundary <path>` | Prints the splice boundary: the monorepo commit where a splice last synced, the last commit that changed its `.splice`, e.g. the last `pull`. It answers "when was the library last spliced in?" Like a boundary commit of `git log --boundary`, it is where the commits `push` would publish start. |
+| `boundary <path>` | Prints the splice boundary: the monorepo commit where a splice last synced, the last commit that changed its `.splice`, e.g. the last `pull`. It answers "when was the library last spliced in?" Like a boundary commit of `git log --boundary`, it starts the range of the folder's commits since then: `git log B..HEAD -- <path>`. |
 | `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. `--upstream` names the upstream, and can be left out while the splice has one. |
 
 A nested splice has two boundaries. In the monorepo, `boundary` prints
