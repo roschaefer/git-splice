@@ -28,7 +28,8 @@ at the pushed commit, not at `seed`.
 [The design](../../../../../docs/design/README.md#the-sync-point) explains the
 sync point.
 [record-the-push](record-the-push.md) shows what recording the push would
-change, as a proposed `git splice pull --record` would do.
+change, as a proposed `git splice pull --record`
+([#115](https://github.com/roschaefer/git-splice/issues/115)) would do.
 
 ## Output
 

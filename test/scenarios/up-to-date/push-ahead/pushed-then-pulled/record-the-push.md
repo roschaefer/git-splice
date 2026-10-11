@@ -4,7 +4,8 @@ The same state as in [pushed-then-pulled](README.md): the monorepo pushed
 a change, and `.splice` still names `seed`. A pull doesn't change that,
 since the upstream branch is already part of the rebuild's history.
 
-`git splice pull --record` would record the pushed commit as the sync
+`git splice pull --record`
+([#115](https://github.com/roschaefer/git-splice/issues/115)) would record the pushed commit as the sync
 point anyway, in a commit that only changes `.splice`, the way `pull`
 already does when the upstream has the folder's files under another
 history ([#92](https://github.com/roschaefer/git-splice/pull/92)). There's
