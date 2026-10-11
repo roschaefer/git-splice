@@ -98,17 +98,6 @@ may lack objects it refers to, and fetch them from a *promisor remote*
 when needed. A weak parent wouldn't be the only reference to a missing
 object any more.
 
-### Fossil's Q cards
-
-[Fossil](https://fossil-scm.org/), the distributed version control
-system SQLite is developed with, has had one since 2011. A check-in
-lists its parents in a P card, and cherry-picks and backouts in Q cards
-([file format](https://fossil-scm.org/home/doc/trunk/www/fileformat.wiki)):
-`+target` or `-target`, with an optional baseline, the same pair of
-commits as in the `origin` RFC. A Q card names a predecessor without
-making it a parent: it adds no edge to the history. A backout's target
-is usually an ancestor anyway, through the P cards.
-
 ### Submodules
 
 A submodule's gitlink is a weak link that Git has: a commit id in the
@@ -119,9 +108,9 @@ it says what to check out, not where the folder's files came from
 
 ## What a splice would need
 
-The `origin` RFC and Q cards link commits of one repository. A splice
-links a folder to a commit of another one, so a weak parent for it needs
-more than a commit id:
+The `origin` RFC links commits of one repository. A splice links a
+folder to a commit of another one, so a weak parent for it needs more
+than a commit id:
 
 - **the target**, U,
 - **the folder** it maps to, which `git subtree` passes as `--prefix`,
