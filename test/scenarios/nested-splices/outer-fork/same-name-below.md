@@ -51,11 +51,14 @@ ok   vendor/a/b -> fork/main (pull: behind 1)
 
 Top-down, as every pull: a's fork's patch to `b/` first, then b's
 fork's patch. Since `vendor/a/b` is selected too, its `fork` is b's
-fork, and it's fetched from that one only:
+fork, and it pulls from that one. It's fetched from both of its
+upstreams, as when it isn't selected: a's fork may move its synced commit
+to one only b's origin has.
 
 ```scrut
 $ git splice pull --upstream fork --all
 ok   vendor/a fetched from fork
+ok   vendor/a/b fetched from origin
 ok   vendor/a/b fetched from fork
 ok   vendor/a: pulled 1b1cea6
 ok   vendor/a/b: pulled d5d5b62

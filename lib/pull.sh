@@ -15,8 +15,8 @@ On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 
 --upstream names one of the upstreams a splice's .splice names; without
 it, the splice's default upstream. A splice without the named upstream
-stops the command before it starts. The splices below are fetched from
-every upstream they name: names are only unique within one .splice, and
+stops the command before it starts. The splices below, selected or not,
+are fetched from every upstream they name: names are only unique within one .splice, and
 any of them may have the synced commit the pull moves to.
 
 --bump also moves the synced commit up to the upstream branch when there's
@@ -24,15 +24,14 @@ nothing to pull, e.g. right after a push; see 'git splice merge --help'.
 EOF
 }
 
-# Succeeds if splice <path> is below one in SELECTED_PATHS, but isn't
-# selected itself.
+# Succeeds if splice <path> is below one in SELECTED_PATHS, selected
+# itself or not: a pull above can move its synced commit.
 below_selected() {
-  local selected below=""
+  local selected
   for selected in "${SELECTED_PATHS[@]}"; do
-    [[ "$1" != "$selected" ]] || return 1
-    [[ "$1" != "$selected"/* ]] || below=1
+    [[ "$1" != "$selected"/* ]] || return 0
   done
-  [[ -n "$below" ]]
+  return 1
 }
 
 cmd_pull() {
@@ -45,14 +44,17 @@ cmd_pull() {
   select_paths explicit pull
   use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
-  local branch i path failed fetched=() below=() entries=()
+  local branch i path failed fetched=() top=() below=() entries=()
   branch="$(current_branch)"
 
+  for path in "${SELECTED_PATHS[@]}"; do
+    below_selected "$path" || top+=("$path")
+  done
   for path in "${ALL_PATHS[@]}"; do
     below_selected "$path" && below+=("$path")
   done
   mapfile -t entries < <(
-    used_upstream_entry "${SELECTED_PATHS[@]}"
+    used_upstream_entry "${top[@]}"
     every_upstream_entry "${below[@]}"
   )
   fetch_all_parallel "$branch" "${entries[@]}"
