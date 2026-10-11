@@ -102,6 +102,10 @@ record_equal_tree() {
   local path="$1" verb="$2" target rebuilt
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
   if [[ "$target" == "$SPLICE_SYNCED" ]]; then
+    if [[ -n "${MERGE_BUMP:-}" ]]; then
+      bump_synced "$path"
+      return
+    fi
     log_ok "$path: nothing to $verb"
     return 0
   fi

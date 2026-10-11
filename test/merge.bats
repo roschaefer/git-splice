@@ -194,7 +194,20 @@ setup() {
   before="$(git rev-parse HEAD)"
   run cmd_merge --bump vendor/a
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a: nothing to merge" ]
+  [ "$output" = "ok   vendor/a: nothing to bump -- already synced at $(splice_config vendor/a commit | cut -c1-7)" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge --bump: nothing to bump while ahead of the upstream branch it's synced at, with the same message" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_merge --bump vendor/a >/dev/null
+  commit_local "$monorepo" vendor/a "unpushed change"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: nothing to bump -- already synced at $(splice_config vendor/a commit | cut -c1-7)" ]
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
@@ -287,10 +300,16 @@ setup() {
 @test "pull --bump: fetches, then bumps" {
   scenario_pushed_then_pulled "$monorepo" "$upstream"
   cd "$monorepo"
+  local before target
+  before="$(git rev-parse HEAD)"
+  target="$(git -C "$upstream" rev-parse main)"
   run cmd_pull --bump vendor/a
   [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a: bumped the synced commit to"* ]]
-  [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
+  [ "${lines[-1]}" = "ok   vendor/a: bumped the synced commit to ${target:0:7}" ]
+  [ "$(git rev-parse HEAD^)" = "$before" ]
+  [ "$(git diff --name-only HEAD^ HEAD)" = "vendor/a/.splice" ]
+  [ "$(git log -1 --format=%s)" = "splice: bump vendor/a from main at ${target:0:7}" ]
+  [ "$(splice_config vendor/a commit)" = "$target" ]
 }
 
 @test "pull: a failed fetch is reported, the rest still merges" {

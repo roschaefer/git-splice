@@ -148,9 +148,7 @@ already has the change, so the rebase drops it, and `feature` becomes the
 library's `main`:
 
 ```scrut
-$ cd "$WALKTHROUGH/pkg-a" && git switch -q feature && git rebase -q main && git push -q -f origin feature
-hint: use --reapply-cherry-picks to include skipped commits
-hint: Disable this message with "git config set advice.skippedCherryPicks false"
+$ cd "$WALKTHROUGH/pkg-a" && git switch -q feature && git -c advice.skippedCherryPicks=false rebase -q main && git push -q -f origin feature
 ```
 
 ```scrut
