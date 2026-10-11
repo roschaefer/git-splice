@@ -5,6 +5,7 @@ setup() {
   load 'scenarios/up-to-date/push-ahead/setup'
   load 'scenarios/up-to-date/pull-ahead/setup'
   load 'scenarios/up-to-date/shared-remote-url/setup'
+  load 'scenarios/nested-splices/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -52,6 +53,24 @@ setup() {
   run cmd_boundary vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "$(git rev-parse HEAD^)" ]
+}
+
+@test "boundary: of a nested splice, in the monorepo, is where the monorepo last synced it" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_boundary vendor/a/b
+  [ "$output" = "$(git rev-parse HEAD)" ]
+  [ "$(git log -1 --format=%s "$output")" = "add vendor/a" ]
+}
+
+@test "boundary: of a nested splice, in a worktree of the upstream above, is where that upstream last synced it" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  git -C "$monorepo" worktree add -q --detach "$BATS_TEST_TMPDIR/a" refs/splices/upstream/main
+  cd "$BATS_TEST_TMPDIR/a"
+  run cmd_boundary b
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s "$output")" = "add b" ]
+  [ "$output" = "$(git log --first-parent -1 --format=%H -- b/.splice)" ]
 }
 
 @test "boundary: takes exactly one splice" {

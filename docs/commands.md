@@ -4,6 +4,10 @@
 their splices, or take `--all`. `clone` and `init` start one splice each.
 Commands that only look cover every splice unless you name some. Run `git splice <command> --help` for options.
 
+## Commands named after Git's
+
+Each does to a splice what its Git namesake does to a repository.
+
 | Command | What it does |
 | --- | --- |
 | `clone <url> [<path>]` | Splices an existing repository into a new folder, as one commit. Use `--merge` if the folder already exists and differs. |
@@ -14,9 +18,7 @@ Commands that only look cover every splice unless you name some. Run `git splice
 | `status [path…]` | Shows each splice's [sync state](sync-states.md), with how many commits `push` would publish and `pull` would bring in. |
 | `diff [--stat] [path…]` | Shows the file changes `push` would send; `--stat` summarizes them per file. |
 | `log [--graph] [path…]` | Shows the commits `push` would publish and `pull` would bring in, with their authors; `--graph` draws both sides as a graph. |
-| `boundary <path>` | Prints the monorepo commit where a splice last synced: the last commit that changed its `.splice`, e.g. the last `pull`. It answers "when was the library last spliced in?" |
 | `fetch [path…]` | Fetches every branch of each upstream into `refs/splices/<key>/`, under the upstream's key in this repository, e.g. `lib` for `https://github.com/x/lib.git`. |
-| `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. `--upstream` names the upstream, and can be left out while the splice has one. |
 
 `status`, `diff`, `log` and `merge` only use what was last fetched. Run
 `git splice fetch` first if you need the latest upstream state. Fetched
@@ -28,3 +30,21 @@ Upstreams are fetched and pushed by URL, with no Git remote, so a plain
 ([more](design/README.md#refs-instead-of-remotes)). A `push` creates a
 new upstream branch only if the splice changed on your branch
 ([more](design/README.md#splicing-out-push-and-the-rebuild)).
+
+## Commands new to git splice
+
+Their names come from splicing; Git has no command of that name.
+
+| Command | What it does |
+| --- | --- |
+| `boundary <path>` | Prints the splice boundary: the monorepo commit where a splice last synced, the last commit that changed its `.splice`, e.g. the last `pull`. It answers "when was the library last spliced in?" Like a boundary commit of `git log --boundary`, it is where the commits `push` would publish start. |
+| `key [--upstream <name>] <path> [<new-key>]` | Prints the key of a splice's upstream, or renames it, refs included. `--upstream` names the upstream, and can be left out while the splice has one. |
+
+A nested splice has two boundaries. In the monorepo, `boundary` prints
+where the monorepo last synced it, often a pull of the splice above.
+Where the upstream above last synced it is a commit of that upstream:
+check out a fetched commit of it in a worktree, and run `boundary` there
+with the path in that upstream, e.g. `b` for `vendor/a/b`:
+
+    git worktree add --detach ../a refs/splices/a/main
+    git -C ../a splice boundary b

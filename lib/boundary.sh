@@ -13,6 +13,13 @@ is what push would publish.
   git show "$(git splice boundary <path>)"
   git log "$(git splice boundary <path>)"..HEAD -- <path>
 
+For a nested splice, run it in a worktree of a fetched commit of the
+upstream above, with the path there, to get where that upstream last
+synced it:
+
+  git worktree add --detach ../a refs/splices/a/main
+  git -C ../a splice boundary b
+
 Purely local; writes nothing.
 EOF
 }
