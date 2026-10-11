@@ -30,6 +30,9 @@ original it follows
 fetches all of them. A splice that lacks the named upstream stops the
 command before it starts
 ([missing upstream names](../test/scenarios/several-upstreams/missing-upstream-names.md)).
+Each upstream records its own `default-branch`, e.g. for a fork whose
+default branch is named differently
+([fork-default-branch](../test/scenarios/several-upstreams/fork-default-branch.md)).
 
 `status`, `diff`, `log` and `merge` only use what was last fetched. Run
 `git splice fetch` first if you need the latest upstream state. Fetched

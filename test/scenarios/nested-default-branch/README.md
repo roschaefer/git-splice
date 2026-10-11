@@ -63,14 +63,14 @@ ok   vendor/a/b fetched
 ```
 
 ```scrut
-$ git config --file vendor/a/.splice splice.default-branch
+$ git config --file vendor/a/.splice upstream.origin.default-branch
 master
 ```
 
 b's `.splice` came along unchanged, without one:
 
 ```scrut
-$ git config --file vendor/a/b/.splice splice.default-branch
+$ git config --file vendor/a/b/.splice upstream.origin.default-branch
 [1]
 ```
 

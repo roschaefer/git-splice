@@ -115,7 +115,7 @@ split() {
   local before mount
   before="$(rebuild_splice vendor/a)"
   mount="$(splice_mount vendor/a)"
-  git config --file vendor/a/.splice splice.default-branch main
+  git config --file vendor/a/.splice upstream.origin.default-branch main
   git commit -q -S -am "a signed commit that changes .splice"
   git config log.showSignature true
   [ "$(splice_boundary vendor/a HEAD)" = "$(git rev-parse HEAD)" ]
@@ -334,7 +334,7 @@ two_splices_ahead() {
   cd "$monorepo"
   local before
   before="$(rebuild_splice vendor/a)"
-  git config --file vendor/a/.splice splice.default-branch main
+  git config --file vendor/a/.splice upstream.origin.default-branch main
   git commit -q -am "name the default branch"
   [ "$(rebuild_splice vendor/a)" = "$before" ]
 }
@@ -353,7 +353,7 @@ two_splices_ahead() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   splice push vendor/a >/dev/null 2>&1
-  git config --file vendor/a/.splice splice.default-branch main
+  git config --file vendor/a/.splice upstream.origin.default-branch main
   git commit -q -am "record the default branch"
   classify_splice vendor/a main
   [ "$SPLICE_STATE" = up-to-date ]
