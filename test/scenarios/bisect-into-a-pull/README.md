@@ -74,6 +74,11 @@ $ U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" && U2="$(git co
 [#109](https://github.com/roschaefer/git-splice/issues/109) proposes
 `git splice show <commit>` to print them.
 
+That range is only right if nothing was pushed since the pull before X.
+A push doesn't write to `.splice`, so U1 then is older than where X
+merged from, and the range has commits the monorepo already had
+([after-a-push](after-a-push/README.md)).
+
 ### Bisect the upstream commits inside the monorepo
 
 Two worktrees: `../before`, the monorepo right before the pull, and
