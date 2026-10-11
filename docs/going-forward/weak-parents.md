@@ -100,11 +100,14 @@ object any more.
 
 ### Fossil's Q cards
 
-[Fossil](https://fossil-scm.org/home/doc/trunk/www/fileformat.wiki)
-has had one since 2011. A check-in lists its parents in a P card, and
-cherry-picks and backouts in Q cards: `+target` or `-target`, with an
-optional baseline, the same pair of commits as in the `origin` RFC. A Q
-card names a predecessor that isn't an ancestor.
+[Fossil](https://fossil-scm.org/), the distributed version control
+system SQLite is developed with, has had one since 2011. A check-in
+lists its parents in a P card, and cherry-picks and backouts in Q cards
+([file format](https://fossil-scm.org/home/doc/trunk/www/fileformat.wiki)):
+`+target` or `-target`, with an optional baseline, the same pair of
+commits as in the `origin` RFC. A Q card names a predecessor without
+making it a parent: it adds no edge to the history. A backout's target
+is usually an ancestor anyway, through the P cards.
 
 ### Submodules
 
@@ -116,13 +119,17 @@ it says what to check out, not where the folder's files came from
 
 ## What a splice would need
 
-Every proposal above links commits of one repository. A splice links a
-folder to a commit of another one, so a weak parent for it needs more
-than a commit id:
+The `origin` RFC and Q cards link commits of one repository. A splice
+links a folder to a commit of another one, so a weak parent for it needs
+more than a commit id:
 
 - **the target**, U,
 - **the folder** it maps to, which `git subtree` passes as `--prefix`,
 - **where to fetch it from**, which object ids alone don't say.
+
+A gitlink has all three: its place in the tree, and the URL in
+`.gitmodules`. What it lacks is the meaning of a parent, that the
+folder's files came from U and may have changed since.
 
 And it has to survive the squash merges that Linus listed, which keep
 only the changes to files. That's what `.splice` holds: the URL, and U,
