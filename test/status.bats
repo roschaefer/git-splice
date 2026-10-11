@@ -363,7 +363,8 @@ EOF2
   scenario_shared_remote_url "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "local change"
   cd "$monorepo"
-  run script -qec "$BATS_TEST_DIRNAME/../git-splice status" /dev/null
+  # Git colors no terminal without a TERM, or with TERM=dumb, and CI has none.
+  TERM=xterm run script -qec "$BATS_TEST_DIRNAME/../git-splice status" /dev/null
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\e[2m  up to date  vendor/b\e[m'* ]]
 }
