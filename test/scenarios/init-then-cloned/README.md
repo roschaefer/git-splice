@@ -44,11 +44,14 @@ splice.id=[0-9a-f]{16} (regex)
 upstream.origin.url=$UPSTREAM
 ```
 
-`status` says the upstream has no such branch, though it has:
+`status` takes the splice for new, as if the upstream had no such branch,
+though it has:
 
 ```scrut
 $ git splice status
-??   lib/a -> main (upstream has no such branch; ahead 2 -- push would create it)
+On branch main
+
+  ?? new, ahead 2  lib/a  push creates the branch
 ```
 
 ```scrut
@@ -97,5 +100,7 @@ ok   lib/a fetched
 
 ```scrut
 $ git splice status
-ok   lib/a -> main (up to date)
+On branch main
+
+  up to date  lib/a
 ```

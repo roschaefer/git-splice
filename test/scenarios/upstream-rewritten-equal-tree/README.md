@@ -48,7 +48,9 @@ The splice is up to date: the folder has the upstream's files.
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```
 
 But `.splice` names the old `release`, which the upstream's history no

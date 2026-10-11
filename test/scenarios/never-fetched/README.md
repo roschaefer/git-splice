@@ -23,7 +23,9 @@ $ build_scenario scenario_never_fetched
 
 ```scrut
 $ git splice status
-??   vendor/a -> main (never fetched -- run 'git splice fetch vendor/a')
+On branch main
+
+  ?? never fetched  vendor/a  run 'git splice fetch vendor/a'
 ```
 
 ```scrut
@@ -33,5 +35,7 @@ ok   vendor/a fetched
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```

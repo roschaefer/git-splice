@@ -32,7 +32,9 @@ ok   lib/a: initialized -- 'git splice push lib/a' publishes it
 
 ```scrut
 $ git splice status
-??   lib/a -> main (upstream has no such branch; ahead 1 -- push would create it)
+On branch main
+
+  ?? new, ahead 1  lib/a  push creates the branch
 ```
 
 ```scrut

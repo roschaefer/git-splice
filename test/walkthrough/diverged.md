@@ -43,7 +43,9 @@ ok   vendor/pkg-a fetched (main moved 703b936..4527a78)
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> main (diverged: ahead 1, behind 1)
+On branch main
+
+  ahead 1, behind 1  vendor/pkg-a
 ```
 
 ```scrut
@@ -158,7 +160,9 @@ o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@exa
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> main (push: ahead 2)
+On branch main
+
+  ahead 2  vendor/pkg-a
 ```
 
 Upstream gets the local fix as its own commit, joined with upstream's fix
@@ -182,7 +186,9 @@ $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --graph --format=%s main
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> main (up to date)
+On branch main
+
+  up to date  vendor/pkg-a
 ```
 
 If the two sides share no history at all, e.g. because the upstream was

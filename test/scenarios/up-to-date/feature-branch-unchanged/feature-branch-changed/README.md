@@ -26,7 +26,9 @@ $ build_scenario scenario_feature_branch_changed
 
 ```scrut
 $ git splice status
-ok   vendor/a -> feature (upstream has no such branch; ahead 1 since 'main' -- push would create it)
+On branch feature (base: main)
+
+  new, ahead 1  vendor/a  push creates the branch
 ```
 
 ```scrut
@@ -45,5 +47,7 @@ ok   vendor/a: pushed e859a6b to feature
 
 ```scrut
 $ git splice status
-ok   vendor/a -> feature (up to date)
+On branch feature (base: main)
+
+  up to date  vendor/a
 ```

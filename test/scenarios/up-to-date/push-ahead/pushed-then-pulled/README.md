@@ -65,7 +65,9 @@ upstream's:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```
 
 So a pull right after the push has nothing to bring in, and doesn't change

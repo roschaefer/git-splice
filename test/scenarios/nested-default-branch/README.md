@@ -46,7 +46,9 @@ with `master`:
 ```scrut
 $ git clone -q "$UPSTREAM" ../a-clone && git -C ../a-clone splice fetch && git -C ../a-clone splice status
 ok   b fetched
-ok   b -> master (up to date)
+On branch master
+
+  up to date  b
 ```
 
 ## In the monorepo
@@ -78,8 +80,10 @@ So on the monorepo's `main`, both sync with `master`:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> master (up to date)
-ok   vendor/a/b -> master (up to date)
+On branch main
+
+  up to date  vendor/a -> master
+  up to date  vendor/a/b -> master
 ```
 
 A change to b, pushed from `main`, goes to `master` in b's upstream,

@@ -73,7 +73,9 @@ $ echo "c other" >>vendor/a/b/c/file.txt && git commit -q -a -m "c other"
 
 ```scrut
 $ git splice status vendor/a/b/c
-ok   vendor/a/b/c -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a/b/c
 ```
 
 ```scrut

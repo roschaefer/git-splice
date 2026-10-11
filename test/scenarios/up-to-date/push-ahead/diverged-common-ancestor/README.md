@@ -21,7 +21,9 @@ $ build_scenario scenario_diverged_common_ancestor
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (diverged: ahead 1, behind 1)
+On branch main
+
+  ahead 1, behind 1  vendor/a
 ```
 
 ```scrut

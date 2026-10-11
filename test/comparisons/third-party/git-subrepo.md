@@ -331,7 +331,9 @@ refs/splices/other/main other library
 
 ```scrut
 $ git splice status
-ok   vendor/lib -> main (up to date)
+On branch main
+
+  up to date  vendor/lib
 ```
 
 ## Where git-subrepo is different

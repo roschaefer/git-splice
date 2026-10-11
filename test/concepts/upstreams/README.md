@@ -115,8 +115,11 @@ ok   app-a/s: pulled 6045a98
 
 ```scrut
 $ git splice status
-ok   app-a/s -> main (up to date)
-ok   app-b/s -> main (pull: behind 1)
+On branch main
+
+  behind 1    app-b/s
+
+  up to date  app-a/s
 ```
 
 ```scrut

@@ -17,6 +17,7 @@ setup() {
     up-to-date/squash-merged-pull \
     up-to-date/feature-branch-unchanged/merge-in-monorepo \
     default-branch \
+    up-to-date/shared-remote-url \
     init-new-upstream \
     up-to-date/push-ahead/uncommitted-changes; do
     load "scenarios/$scenario/setup"
@@ -96,17 +97,17 @@ assert_state() {
   commit_local "$monorepo" vendor/a "second local change"
   cd "$monorepo"
   run cmd_status
-  [ "$output" = "ok   vendor/a -> main (push: ahead 2)" ]
+  [ "$output" = "$(printf 'On branch main\n\n  ahead 2  vendor/a')" ]
 
   scenario_pull_ahead "$BATS_TEST_TMPDIR/pull" "$BATS_TEST_TMPDIR/pull.git"
   cd "$BATS_TEST_TMPDIR/pull"
   run cmd_status
-  [ "$output" = "ok   vendor/a -> main (pull: behind 1)" ]
+  [ "${lines[1]}" = "  behind 1  vendor/a" ]
 
   scenario_diverged_common_ancestor "$BATS_TEST_TMPDIR/diverged" "$BATS_TEST_TMPDIR/diverged.git"
   cd "$BATS_TEST_TMPDIR/diverged"
   run cmd_status
-  [ "$output" = "ok   vendor/a -> main (diverged: ahead 1, behind 1)" ]
+  [ "${lines[1]}" = "  ahead 1, behind 1  vendor/a" ]
 }
 
 @test "status: leaves the file summary to diff --stat" {
@@ -114,7 +115,7 @@ assert_state() {
   cd "$monorepo"
   run cmd_status
   [ "$status" -eq 0 ]
-  [ "${#lines[@]}" -eq 1 ]
+  [ "${#lines[@]}" -eq 2 ]
   [[ "$output" != *"file.txt"* ]]
 }
 
@@ -122,27 +123,37 @@ assert_state() {
   scenario_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
-  [[ "${lines[0]}" == "ok   vendor/a -> master (push: ahead 1)" ]]
+  [ "${lines[0]}" = "On branch main" ]
+  [ "${lines[1]}" = "  ahead 1  vendor/a -> master" ]
 }
 
 @test "status: covers every splice by default and takes paths" {
-  load 'scenarios/up-to-date/shared-remote-url/setup'
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
-  [ "${#lines[@]}" -eq 2 ]
+  [ "${#lines[@]}" -eq 3 ]
   run cmd_status vendor/b
-  [ "$output" = "ok   vendor/b -> main (up to date)" ]
+  [ "${lines[*]:1}" = "  up to date  vendor/b" ]
 }
 
 @test "status: missing branch, unchanged and changed" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
-  [[ "${lines[0]}" == *"(upstream has no such branch; ahead 1 since 'main' -- push would create it)" ]]
+  [ "$output" = "$(cat <<'EOF'
+On branch feature (base: main)
+
+  new, ahead 1  vendor/a  push creates the branch
+EOF
+  )" ]
   git checkout -q -b other main
   run cmd_status
-  [[ "$output" == *"(upstream has no such branch; unchanged since 'main')" ]]
+  [ "$output" = "$(cat <<'EOF'
+On branch other (base: main)
+
+  unchanged, no upstream branch  vendor/a
+EOF
+  )" ]
 }
 
 @test "status: says how to start without splices" {
@@ -172,8 +183,7 @@ assert_state() {
   cd "$monorepo"
   run cmd_status
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "ok   vendor/a -> main (push: ahead 1)" ]]
-  [[ "${lines[-1]}" == "??   vendor/a has uncommitted changes -- push only sends committed ones" ]]
+  [ "${lines[1]}" = "  ahead 1  vendor/a  uncommitted changes" ]
 }
 
 @test "status: counts staged, unstaged and untracked files as uncommitted" {
@@ -182,15 +192,15 @@ assert_state() {
   echo staged >>vendor/a/file.txt
   git add vendor/a/file.txt
   run cmd_status
-  [[ "$output" == *"vendor/a has uncommitted changes"* ]]
+  [[ "$output" == *"vendor/a  uncommitted changes"* ]]
   git reset -q --hard
   echo unstaged >>vendor/a/file.txt
   run cmd_status
-  [[ "$output" == *"vendor/a has uncommitted changes"* ]]
+  [[ "$output" == *"vendor/a  uncommitted changes"* ]]
   git reset -q --hard
   echo untracked >vendor/a/new.txt
   run cmd_status
-  [[ "$output" == *"vendor/a has uncommitted changes"* ]]
+  [[ "$output" == *"vendor/a  uncommitted changes"* ]]
 }
 
 @test "status: doesn't count changes outside the splice or ignored files" {
@@ -201,7 +211,7 @@ assert_state() {
   mkdir vendor/a/build
   echo ignored >vendor/a/build/out.txt
   run cmd_status
-  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+  [ "${lines[*]:1}" = "  up to date  vendor/a" ]
 }
 
 @test "status: says so when it can't check for uncommitted changes" {
@@ -211,8 +221,7 @@ assert_state() {
   git config status.relativePaths bogus
   run cmd_status
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "ok   vendor/a -> main (up to date)" ]]
-  [[ "${lines[1]}" == "??   vendor/a: could not check for uncommitted changes (git status failed)" ]]
+  [ "${lines[1]}" = "  up to date  vendor/a  could not check for uncommitted changes (git status failed)" ]
 }
 
 @test "status: a missing branch counts every commit the push creating it would publish" {
@@ -220,7 +229,7 @@ assert_state() {
   commit_local "$monorepo" vendor/a "another change"
   cd "$monorepo"
   run cmd_status
-  [[ "${lines[0]}" == *"(upstream has no such branch; ahead 2 since 'main' -- push would create it)" ]]
+  [ "${lines[1]}" = "  new, ahead 2  vendor/a  push creates the branch" ]
 }
 
 @test "status: a missing branch with no new commits for upstream says changed, not ahead 0" {
@@ -229,7 +238,7 @@ assert_state() {
   cd "$monorepo"
   splice clone "$upstream" vendor/a >/dev/null
   run cmd_status
-  [[ "${lines[0]}" == *"(upstream has no such branch; changed since 'main' -- push would create it)" ]]
+  [ "${lines[1]}" = "  new, changed  vendor/a  push creates the branch" ]
 }
 
 @test "status: a missing branch that can't be rebuilt says changed, without the rebuild's error" {
@@ -238,8 +247,7 @@ assert_state() {
   rebuild_splice() { die "vendor/a: synced commit isn't available locally"; }
   run cmd_status
   [ "$status" -eq 0 ]
-  [[ "$output" == *"(upstream has no such branch; changed since 'main' -- push would create it)" ]]
-  [[ "$output" != *"!!"* ]]
+  [ "${lines[*]:1}" = "  new, changed  vendor/a  push creates the branch" ]
 }
 
 @test "status: shows the state without counts if they can't be counted" {
@@ -251,8 +259,7 @@ assert_state() {
   }
   run cmd_status
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "ok   vendor/a -> main (push)" ]
-  [[ "${lines[1]}" == "??   vendor/a has uncommitted changes"* ]]
+  [ "${lines[1]}" = "  ahead  vendor/a  uncommitted changes" ]
 }
 
 @test "status: on the base branch, counts the commits the push creating the branch would publish" {
@@ -260,7 +267,7 @@ assert_state() {
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
   run cmd_status
-  [ "$output" = "??   lib/a -> main (upstream has no such branch; ahead 1 -- push would create it)" ]
+  [ "$output" = "$(printf 'On branch main\n\n  ?? new, ahead 1  lib/a  push creates the branch')" ]
 }
 
 @test "status: a splice moved with git mv still finds its fetched refs" {
@@ -268,7 +275,7 @@ assert_state() {
   cd "$monorepo"
   mkdir libs && git mv vendor/a libs/a && git commit -q -m "move a"
   run cmd_status
-  [ "${lines[0]}" = "ok   libs/a -> main (push: ahead 1)" ]
+  [ "${lines[1]}" = "  ahead 1  libs/a" ]
 }
 
 @test "status: splices at one path with different upstreams on two branches keep their own refs" {
@@ -284,11 +291,69 @@ assert_state() {
 
   splice fetch >/dev/null
   run cmd_status
-  [ "${lines[0]}" = "ok   vendor/a -> release (pull: behind 1)" ]
+  [ "${lines[1]}" = "  behind 1  vendor/a" ]
 
   git checkout -q main
   splice fetch >/dev/null
   git checkout -q release
   run cmd_status
-  [ "${lines[0]}" = "ok   vendor/a -> release (pull: behind 1)" ]
+  [ "${lines[1]}" = "  behind 1  vendor/a" ]
+}
+
+@test "status: lists the splices that need something first, most urgent first, then the quiet ones" {
+  load 'scenarios/many-splices/setup'
+  scenario_many_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_status
+  [ "$output" = "$(cat <<'EOF2'
+On branch main
+
+  ahead 1, behind 1  libs/store
+  behind 2           libs/http
+  ahead 1            libs/parser
+
+  up to date         libs/cli
+  up to date         libs/theme -> master
+EOF2
+  )" ]
+}
+
+@test "status: a quiet splice with uncommitted changes moves up" {
+  load 'scenarios/many-splices/setup'
+  scenario_many_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "work in progress" >>libs/cli/file.txt
+  run cmd_status
+  [ "${lines[4]}" = "  up to date         libs/cli  uncommitted changes" ]
+  [ "${lines[5]}" = "  up to date         libs/theme -> master" ]
+}
+
+@test "status: without a splice that needs something, prints no blank line between groups" {
+  load 'scenarios/many-splices/setup'
+  scenario_many_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  git checkout -q -b feature
+  run cmd_status
+  [ "$output" = "$(cat <<'EOF2'
+On branch feature (base: main)
+
+  unchanged, no upstream branch  libs/cli
+  unchanged, no upstream branch  libs/http
+  unchanged, no upstream branch  libs/parser
+  unchanged, no upstream branch  libs/store
+  unchanged, no upstream branch  libs/theme
+EOF2
+  )" ]
+}
+
+@test "status: dims the quiet splices where git status would be colored" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "local change"
+  cd "$monorepo"
+  run cmd_status
+  [[ "$output" != *$'\e['* ]]
+  git config color.status always
+  run cmd_status
+  [ "${lines[1]}" = "  ahead 1     vendor/a" ]
+  [ "${lines[2]}" = $'\e[2m  up to date  vendor/b\e[m' ]
 }

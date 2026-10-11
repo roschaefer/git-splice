@@ -79,8 +79,10 @@ Up to date, since b's files match b's upstream:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
-ok   vendor/a/b -> main (up to date)
+On branch main
+
+  up to date  vendor/a
+  up to date  vendor/a/b
 ```
 
 The first change to b here:
@@ -95,7 +97,9 @@ monorepo pushed, and only `b other` is new:
 
 ```scrut
 $ git splice status vendor/a/b
-ok   vendor/a/b -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a/b
 ```
 
 ```scrut

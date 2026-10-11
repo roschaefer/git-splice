@@ -23,7 +23,9 @@ $ build_scenario scenario_diverged_unrelated_history
 
 ```scrut
 $ git splice status
-??   vendor/a -> main (unrelated history -- see 'git splice merge vendor/a' for options)
+On branch main
+
+  !! unrelated history  vendor/a  see 'git splice merge vendor/a' for options
 ```
 
 `merge` prints the commands to keep either side, or both:

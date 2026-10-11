@@ -84,7 +84,9 @@ b has only its own history: `b local`, on top of b's synced commit.
 
 ```scrut
 $ git splice status vendor/a/b
-ok   vendor/a/b -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a/b
 ```
 
 ```scrut

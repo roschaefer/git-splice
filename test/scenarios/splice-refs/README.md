@@ -174,7 +174,9 @@ $ git switch -q -c fix-parser main
 
 ```scrut
 $ git splice status
-ok   vendor/a -> fix-parser (diverged: ahead 2, behind 1)
+On branch fix-parser (base: main)
+
+  ahead 2, behind 1  vendor/a
 ```
 
 On a new branch, `push` creates the upstream branch, and with it a new ref:
@@ -268,7 +270,9 @@ refs/remotes/origin/rename-helper
 
 ```scrut
 $ cd ../clone && git splice status; cd - >/dev/null
-??   vendor/a -> main (never fetched -- run 'git splice fetch vendor/a')
+On branch main
+
+  ?? never fetched  vendor/a  run 'git splice fetch vendor/a'
 ```
 
 ### `git mv` keeps the refs
@@ -283,7 +287,9 @@ $ mkdir libs && git mv vendor/a libs/a && git commit -q -m "move a"
 
 ```scrut
 $ git splice status
-ok   libs/a -> main (up to date)
+On branch main
+
+  up to date  libs/a
 ```
 
 ```scrut
@@ -296,7 +302,9 @@ Branches that still have the splice at the old path read the same refs:
 
 ```scrut
 $ git switch -q rename-helper && git splice status
-ok   vendor/a -> rename-helper (up to date)
+On branch rename-helper (base: main)
+
+  up to date  vendor/a
 ```
 
 ## Lifetime, space and garbage collection

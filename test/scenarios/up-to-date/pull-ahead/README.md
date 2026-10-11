@@ -21,7 +21,9 @@ $ build_scenario scenario_pull_ahead
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (pull: behind 1)
+On branch main
+
+  behind 1  vendor/a
 ```
 
 ```scrut
@@ -48,5 +50,7 @@ initial commit
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```

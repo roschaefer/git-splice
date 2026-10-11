@@ -64,7 +64,9 @@ $ echo "b next" >>vendor/a/b/file.txt && git commit -q -a -m "b next"
 
 ```scrut
 $ git splice status vendor/a/b
-ok   vendor/a/b -> main (push: ahead 3)
+On branch main
+
+  ahead 3  vendor/a/b
 ```
 
 The push joins the maintainer's commit in, which b's upstream didn't

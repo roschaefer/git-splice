@@ -119,7 +119,9 @@ Now R has a commit T lacks, and the other way around:
 
 ```scrut
 $ git splice status vendor/pkg-a
-ok   vendor/pkg-a -> main (diverged: ahead 1, behind 1)
+On branch main
+
+  ahead 1, behind 1  vendor/pkg-a
 ```
 
 ```scrut
@@ -177,7 +179,9 @@ write to the monorepo:
 
 ```scrut
 $ git splice status vendor/pkg-a
-ok   vendor/pkg-a -> main (up to date)
+On branch main
+
+  up to date  vendor/pkg-a
 ```
 
 ```scrut

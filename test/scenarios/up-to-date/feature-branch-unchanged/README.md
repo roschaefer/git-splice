@@ -26,7 +26,9 @@ $ build_scenario scenario_feature_branch_unchanged
 
 ```scrut
 $ git splice status
-ok   vendor/a -> feature (upstream has no such branch; unchanged since 'main')
+On branch feature (base: main)
+
+  unchanged, no upstream branch  vendor/a
 ```
 
 ```scrut

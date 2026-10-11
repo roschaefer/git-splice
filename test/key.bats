@@ -39,7 +39,7 @@ setup() {
   [ "$(git config --local splice.lib.url)" = "$upstream" ]
   [ -z "$(git config --local splice.upstream.url || true)" ]
   run "$BATS_TEST_DIRNAME/../git-splice" status vendor/a
-  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+  [ "${lines[*]:1}" = "  up to date  vendor/a" ]
 }
 
 @test "key: a rename applies to every splice with the same URL" {

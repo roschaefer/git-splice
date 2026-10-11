@@ -26,8 +26,8 @@ work_in_upstream_a() {
   cd "$monorepo"
   run splice status
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "ok   vendor/a -> main (up to date)" ]
-  [ "${lines[1]}" = "ok   vendor/a/b -> main (up to date)" ]
+  [ "${lines[1]}" = "  up to date  vendor/a" ]
+  [ "${lines[2]}" = "  up to date  vendor/a/b" ]
 }
 
 @test "nested: push of the splice below sends its files without its .splice" {
@@ -56,7 +56,7 @@ work_in_upstream_a() {
   work_in_upstream_a
   splice fetch b
   run splice status b
-  [ "$output" = "ok   b -> main (up to date)" ]
+  [ "${lines[*]:1}" = "  up to date  b" ]
 }
 
 @test "nested: a pull of b reaches a's upstream with the next push of a" {
@@ -163,8 +163,8 @@ work_in_upstream_a() {
   splice clone "$upstream" vendor/a
   splice fetch
   run splice status
-  [ "${lines[0]}" = "ok   vendor/a -> master (up to date)" ]
-  [ "${lines[1]}" = "ok   vendor/a/b -> master (up to date)" ]
+  [ "${lines[1]}" = "  up to date  vendor/a -> master" ]
+  [ "${lines[2]}" = "  up to date  vendor/a/b -> master" ]
 }
 
 @test "nested: clone inside a splice records default-branch only where it differs from the splice above's" {
@@ -241,8 +241,8 @@ work_in_upstream_a() {
   splice clone "$upstream" lib
   [ "$(git show HEAD:lib/b/.splice)" = "$(git -C "$upstream" show main:b/.splice)" ]
   run splice status
-  [ "${lines[0]}" = "ok   lib -> main (up to date)" ]
-  [ "${lines[1]}" = "??   lib/b -> main (never fetched -- run 'git splice fetch lib/b')" ]
+  [ "${lines[1]}" = "  ?? never fetched  lib/b  run 'git splice fetch lib/b'" ]
+  [ "${lines[2]}" = "  up to date        lib" ]
 }
 
 @test "nested: a merge brings in a .splice the upstream added, and the folder becomes a splice" {
@@ -299,7 +299,7 @@ work_in_upstream_a() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a/b fetched"* ]]
   run splice status vendor/a/b
-  [ "$output" = "ok   vendor/a/b -> main (push: ahead 2)" ]
+  [ "${lines[*]:1}" = "  ahead 2  vendor/a/b" ]
   splice push vendor/a/b
   run git -C "$upstream_b" log --format=%s main
   [[ "$output" == *"b local"* ]]
@@ -339,8 +339,8 @@ work_in_upstream_a() {
   git add vendor/a/b
   git commit -q --no-edit
   run splice status
-  [ "${lines[0]}" = "ok   vendor/a -> main (up to date)" ]
-  [ "${lines[1]}" = "ok   vendor/a/b -> main (up to date)" ]
+  [ "${lines[1]}" = "  up to date  vendor/a" ]
+  [ "${lines[2]}" = "  up to date  vendor/a/b" ]
 }
 
 @test "nested: pull --all skips b if the pull of a removed it" {

@@ -23,7 +23,9 @@ Nothing to do on either side:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```
 
 ```scrut
