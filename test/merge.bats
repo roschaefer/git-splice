@@ -10,6 +10,8 @@ setup() {
   load 'scenarios/never-fetched/setup'
   load 'scenarios/up-to-date/shared-remote-url/setup'
   load 'scenarios/up-to-date/push-ahead/pushed-then-pulled/setup'
+  load 'scenarios/up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed/setup'
+  load 'scenarios/init-new-upstream/setup'
   load 'scenarios/up-to-date/push-ahead/edited-before-push/setup'
   load 'scenarios/upstream-rewritten-equal-tree/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -140,6 +142,101 @@ setup() {
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
+@test "merge --bump: right after a push, records the upstream branch, so the rebuild starts there" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before target
+  before="$(git rev-parse HEAD)"
+  target="$(git rev-parse "$(upstream_refs "$upstream")main")"
+  run cmd_merge --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: bumped the synced commit to ${target:0:7}" ]
+  [ "$(git rev-parse HEAD^)" = "$before" ]
+  [ "$(git diff --name-only HEAD^ HEAD)" = "vendor/a/.splice" ]
+  [ "$(git log -1 --format=%s)" = "splice: bump vendor/a from main at ${target:0:7}" ]
+  [ "$(splice_config vendor/a commit)" = "$target" ]
+  [ "$(splice_boundary vendor/a HEAD)" = "$(git rev-parse HEAD)" ]
+  [ "$(rebuild_splice vendor/a)" = "$target" ]
+}
+
+@test "merge --bump: a later push sends the same commit as without the bump" {
+  # The commit is made twice, and both must get the same hash.
+  export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
+  scenario_pushed_then_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  local unbumped
+  unbumped="$(rebuild_splice vendor/a)"
+  git reset -q --hard HEAD^
+  cmd_merge --bump vendor/a >/dev/null
+  commit_local "$monorepo" vendor/a "later change"
+  [ "$(rebuild_splice vendor/a)" = "$unbumped" ]
+}
+
+@test "merge --bump: while ahead, the unpushed commit stays in the rebuild" {
+  scenario_pushed_then_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before target
+  before="$(rebuild_splice vendor/a)"
+  target="$(git rev-parse "$(upstream_refs "$upstream")main")"
+  run cmd_merge --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$target" ]
+  [ "$(rebuild_splice vendor/a)" = "$before" ]
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = push ]
+}
+
+@test "merge --bump: nothing to bump once the synced commit is the upstream branch" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_merge --bump vendor/a >/dev/null
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: nothing to bump -- already synced at $(splice_config vendor/a commit | cut -c1-7)" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge --bump: nothing to bump while ahead of the upstream branch it's synced at, with the same message" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_merge --bump vendor/a >/dev/null
+  commit_local "$monorepo" vendor/a "unpushed change"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: nothing to bump -- already synced at $(splice_config vendor/a commit | cut -c1-7)" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge --bump: never moves the synced commit back to a stale upstream ref" {
+  scenario_pushed_then_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  local ref synced before
+  ref="$(upstream_refs "$upstream")main"
+  cmd_merge --bump vendor/a >/dev/null
+  synced="$(splice_config vendor/a commit)"
+  git update-ref "$ref" "$synced^"
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: nothing to bump -- the fetched 'main' is older than the synced commit" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge --bump: gives a splice that init made and push published its first synced commit" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null 2>&1
+  splice push lib/a >/dev/null 2>&1
+  [ -z "$(splice_config lib/a commit)" ]
+  run cmd_merge --bump lib/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config lib/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
+}
+
 @test "merge: a push of an edited rebuild becomes the synced commit, so the original commit is never pushed" {
   scenario_edited_before_push "$monorepo" "$upstream"
   cd "$monorepo"
@@ -198,6 +295,21 @@ setup() {
   [[ "$output" == *"vendor/a fetched (main moved"* ]]
   [[ "$output" == *"vendor/a: pulled"* ]]
   [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from main at $(git rev-parse --short=7 "$(upstream_refs "$upstream")main")" ]
+}
+
+@test "pull --bump: fetches, then bumps" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before target
+  before="$(git rev-parse HEAD)"
+  target="$(git -C "$upstream" rev-parse main)"
+  run cmd_pull --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = "ok   vendor/a: bumped the synced commit to ${target:0:7}" ]
+  [ "$(git rev-parse HEAD^)" = "$before" ]
+  [ "$(git diff --name-only HEAD^ HEAD)" = "vendor/a/.splice" ]
+  [ "$(git log -1 --format=%s)" = "splice: bump vendor/a from main at ${target:0:7}" ]
+  [ "$(splice_config vendor/a commit)" = "$target" ]
 }
 
 @test "pull: a failed fetch is reported, the rest still merges" {

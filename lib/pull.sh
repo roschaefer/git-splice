@@ -2,7 +2,7 @@
 
 usage_pull() {
   cat <<'EOF'
-usage: git splice pull (<path>... | --all)
+usage: git splice pull [--bump] (<path>... | --all)
 
 'git splice fetch' followed by 'git splice merge': fetches the splices'
 upstreams in parallel, then splices their changes in, as one ordinary
@@ -12,6 +12,9 @@ ones below it, and a failed fetch stops the splices above and below it.
 
 On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 --abort' to give up), then re-run pull for any splices left.
+
+--bump also moves the synced commit up to the upstream branch when there's
+nothing to pull, e.g. right after a push; see 'git splice merge --help'.
 EOF
 }
 
@@ -27,7 +30,9 @@ below_selected() {
 }
 
 cmd_pull() {
-  parse_args usage_pull "" "$@"
+  parse_args usage_pull "--bump" "$@"
+  MERGE_BUMP=""
+  has_flag --bump && MERGE_BUMP=1
   cd_to_repo_root
   require_head_commit
   discover_splices

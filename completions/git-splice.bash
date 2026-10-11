@@ -100,7 +100,7 @@ _git_splice() {
       __git_splice_paths_or_options "$cur" --graph -h --help
       ;;
     merge | pull)
-      __git_splice_paths_or_options "$cur" --all -h --help
+      __git_splice_paths_or_options "$cur" --all --bump -h --help
       ;;
     push | status | diff)
       if __git_splice_completing_base; then

@@ -30,6 +30,8 @@ More walkthroughs, each starting from a fresh sandbox:
   branch, and `push` creates it only where a splice changed.
 - [Diverged history](diverged.md): both sides changed the same line, and
   you resolve the conflict.
+- [Bumping the sync point](bump.md): `pull --bump` records a push in
+  `.splice`, and how to merge a feature branch that was bumped.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
