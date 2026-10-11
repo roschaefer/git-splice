@@ -23,7 +23,7 @@ commit it last matched, so commands only inspect history since that point.
 
 Working in a monorepo should not import upstream's history. A pull creates one
 ordinary monorepo commit. A push rebuilds the commits that changed the folder
-as upstream commits. Changes cross the boundary; commits do not.
+as upstream commits. Changes cross the splice; commits do not.
 
 ## Principles
 
@@ -31,7 +31,7 @@ as upstream commits. Changes cross the boundary; commits do not.
   can do a job, the tool calls Git: `git config` parses the state file,
   `cherry-pick` merges, `commit-tree` rebuilds, `log --left-right` compares.
   The tool's own code connects these, and stays small.
-- **Changes cross the boundary, commits don't.** The monorepo and each
+- **Changes cross the splice, commits don't.** The monorepo and each
   upstream keep separate histories. Upstream commits never become
   ancestors of the monorepo's commits, and the monorepo's merges and side
   branches never reach upstream.
@@ -74,7 +74,7 @@ can change it, and a push does not update the sync point
 
 From that point, `git-splice` lets Git merge upstream changes and resolve
 conflicts, or rebuild the folder's monorepo commits for a push. Changes cross
-the boundary, but commits do not: both repositories keep their own histories.
+the splice, but commits do not: both repositories keep their own histories.
 
 ## How it compares
 
