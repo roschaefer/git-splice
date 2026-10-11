@@ -85,8 +85,9 @@ $ git splice pull vendor/a
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
-??   vendor/a has uncommitted changes -- push only sends committed ones
+On branch main
+
+  up to date  vendor/a  uncommitted changes
 ```
 
 ### Resolving
@@ -123,5 +124,7 @@ upstream.origin.url=https://git.example.com/a.git
 
 ```scrut
 $ git commit -q --no-edit && git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```

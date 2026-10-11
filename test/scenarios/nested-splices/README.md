@@ -36,8 +36,10 @@ Both splices are up to date:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
-ok   vendor/a/b -> main (up to date)
+On branch main
+
+  up to date  vendor/a
+  up to date  vendor/a/b
 ```
 
 A change in b is a change in a too:
@@ -48,8 +50,10 @@ $ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local"
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push: ahead 1)
-ok   vendor/a/b -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a
+  ahead 1  vendor/a/b
 ```
 
 Each push sends its own folder, bottom-up: b's upstream gets the change,
@@ -114,8 +118,10 @@ push joins it with the change in b's upstream:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push: ahead 2)
-ok   vendor/a/b -> main (push: ahead 2)
+On branch main
+
+  ahead 2  vendor/a
+  ahead 2  vendor/a/b
 ```
 
 ```scrut

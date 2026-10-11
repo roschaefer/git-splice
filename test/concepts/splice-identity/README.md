@@ -138,9 +138,11 @@ history starts with the copy, its mount:
 
 ```scrut
 $ git splice status
-ok   third_party/a -> main (up to date)
-ok   vendor/a-copy -> main (up to date)
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  third_party/a
+  up to date  vendor/a-copy
+  up to date  vendor/a
 ```
 
 A copy isn't the only way to get the same id twice. If two upstreams
@@ -174,9 +176,12 @@ vendor/a/.splice: commit = 6045a986b5afb475cd0af0caf6bb622db918a25b
 
 ```scrut
 $ git splice status
-ok   third_party/a -> main (pull: behind 1)
-ok   vendor/a-copy -> main (pull: behind 1)
-ok   vendor/a -> main (up to date)
+On branch main
+
+  behind 1    third_party/a
+  behind 1    vendor/a-copy
+
+  up to date  vendor/a
 ```
 
 `vendor/a-copy` is meant to mirror `vendor/a`, but has other files now:

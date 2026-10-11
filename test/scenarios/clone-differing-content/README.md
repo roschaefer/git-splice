@@ -59,5 +59,7 @@ history from before it was a splice stays in the monorepo
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a
 ```

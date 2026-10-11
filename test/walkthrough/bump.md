@@ -185,7 +185,9 @@ A  app/main.txt
 
 ```scrut
 $ git commit -q -m "app: use pkg-a's option" && git splice status
-ok   vendor/pkg-a -> main (up to date)
+On branch main
+
+  up to date  vendor/pkg-a
 ```
 
 If the library deleted its `feature` branch after the merge, there's

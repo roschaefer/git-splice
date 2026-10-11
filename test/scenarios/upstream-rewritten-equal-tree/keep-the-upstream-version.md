@@ -22,7 +22,9 @@ $ build_scenario scenario_upstream_rewritten_equal_tree
 
 ```scrut
 $ echo "local change" >>vendor/a/file.txt && git commit -q -a -m "local change" && git splice status
-??   vendor/a -> main (unrelated history -- see 'git splice merge vendor/a' for options)
+On branch main
+
+  !! unrelated history  vendor/a  see 'git splice merge vendor/a' for options
 ```
 
 Save the local change as a patch, with paths inside the folder:

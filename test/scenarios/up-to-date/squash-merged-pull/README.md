@@ -36,7 +36,9 @@ initial commit
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push: ahead 2)
+On branch main
+
+  ahead 2  vendor/a
 ```
 
 ```scrut

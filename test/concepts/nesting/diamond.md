@@ -58,11 +58,13 @@ them of S:
 
 ```scrut
 $ git splice status
-ok   a -> main (up to date)
-ok   a/s -> main (up to date)
-ok   b -> main (up to date)
-ok   b/s -> main (up to date)
-ok   s -> main (up to date)
+On branch main
+
+  up to date  a
+  up to date  a/s
+  up to date  b
+  up to date  b/s
+  up to date  s
 ```
 
 Each is a splice of its own, with its own id: A and B each ran `clone`
@@ -127,11 +129,14 @@ Now `a/s` and `b/s` are behind S's upstream:
 
 ```scrut
 $ git splice status
-ok   a -> main (up to date)
-ok   a/s -> main (pull: behind 1)
-ok   b -> main (up to date)
-ok   b/s -> main (pull: behind 1)
-ok   s -> main (up to date)
+On branch main
+
+  behind 1    a/s
+  behind 1    b/s
+
+  up to date  a
+  up to date  b
+  up to date  s
 ```
 
 In terms of the [sync model](../sync-model/README.md): `s`'s R, the
@@ -172,11 +177,14 @@ ok   b/s: pulled 9854a3b
 
 ```scrut
 $ git splice status
-ok   a -> main (push: ahead 1)
-ok   a/s -> main (up to date)
-ok   b -> main (push: ahead 1)
-ok   b/s -> main (up to date)
-ok   s -> main (up to date)
+On branch main
+
+  ahead 1     a
+  ahead 1     b
+
+  up to date  a/s
+  up to date  b/s
+  up to date  s
 ```
 
 ```scrut

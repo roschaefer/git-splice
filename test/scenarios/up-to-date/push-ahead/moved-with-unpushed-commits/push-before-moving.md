@@ -36,7 +36,9 @@ nothing left to push:
 ```scrut
 $ git splice fetch libs/a && git splice status
 ok   libs/a fetched
-ok   libs/a -> main (up to date)
+On branch main
+
+  up to date  libs/a
 ```
 
 ```scrut

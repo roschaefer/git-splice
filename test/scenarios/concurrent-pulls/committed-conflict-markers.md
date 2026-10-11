@@ -54,5 +54,7 @@ first parent has it:
 
 ```scrut
 $ git checkout HEAD~1^1 -- vendor/a/.splice && git commit -q -m "fix vendor/a/.splice" && git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```

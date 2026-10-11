@@ -49,7 +49,9 @@ fetched last.
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> main (pull: behind 1)
+On branch main
+
+  behind 1  vendor/pkg-a
 ```
 
 The `.splice` file names the upstream, and the upstream commit the folder
@@ -98,7 +100,7 @@ the folder, whether or not they change files elsewhere too, and `.` those
 that don't touch the folder. On the right, as in `git splice log`, `<`
 marks R's commits that T lacks, `>` T's commits that R lacks. Since B, no
 commit changed the folder, so R has nothing to add to U: R = U. U is an
-ancestor of T, so the state is `pull: behind 1`, the commit between them.
+ancestor of T, so `status` shows `behind 1`, the commit between them.
 
 B is the newest commit that changed `.splice`:
 
@@ -270,7 +272,9 @@ $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local 
 
 ```scrut
 $ git splice status vendor/pkg-a
-ok   vendor/pkg-a -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/pkg-a
 ```
 
 Now R has a commit of its own: the local fix, rebuilt on top of U:
@@ -285,7 +289,7 @@ Now R has a commit of its own: the local fix, rebuilt on top of U:
                                              * pkg-a: seed
 ```
 
-T is an ancestor of R, so the state is `push: ahead 1`.
+T is an ancestor of R, so `status` shows `ahead 1`.
 
 `diff` shows what `push` would send, the changes from T to R, with paths
 as the upstream sees them.
@@ -341,8 +345,10 @@ $ git log -1 --oneline splices/pkg-a/main
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> main (up to date)
-ok   vendor/pkg-b -> main (up to date)
+On branch main
+
+  up to date  vendor/pkg-a
+  up to date  vendor/pkg-b
 ```
 
 ## init

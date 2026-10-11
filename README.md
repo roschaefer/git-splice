@@ -105,7 +105,9 @@ handles them like Git does:
 
 ```scrut
 $ git splice status
-ok   path -> main (diverged: ahead 2, behind 3)
+On branch main
+
+  ahead 2, behind 3  path
 ```
 
 - **Ahead 2**: o and p, which the library lacks.

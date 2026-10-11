@@ -33,7 +33,9 @@ upstream.origin.url=$UPSTREAM
 
 ```scrut
 $ git splice status
-ok   vendor/a -> master (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a -> master
 ```
 
 ```scrut

@@ -21,7 +21,9 @@ $ build_scenario scenario_push_ahead
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a
 ```
 
 `log` shows the commit a push would publish, and who wrote it:
@@ -41,5 +43,7 @@ ok   vendor/a: pushed e859a6b to main
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```

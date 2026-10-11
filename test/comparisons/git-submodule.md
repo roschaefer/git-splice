@@ -262,7 +262,9 @@ initialize:
 
 ```scrut
 $ cd ../splice-monorepo && git worktree add -q ../splice-feature -b feature && cd ../splice-feature && git splice status
-ok   vendor/lib -> feature (upstream has no such branch; unchanged since 'main')
+On branch feature (base: main)
+
+  unchanged, no upstream branch  vendor/lib
 ```
 
 What git-splice keeps outside the worktree, the fetched upstream

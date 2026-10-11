@@ -116,7 +116,7 @@
 
           git splice fetch
           git splice status | tee status.txt
-          grep -qF "(pull: behind 1)" status.txt
+          grep -qxF "  behind 1  vendor/a" status.txt
           git splice pull vendor/a
           grep -q two vendor/a/file.txt
           echo three >>vendor/a/file.txt

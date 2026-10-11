@@ -28,7 +28,9 @@ $ build_scenario scenario_pushed_then_changed
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a
 ```
 
 ```scrut
@@ -44,5 +46,7 @@ ok   vendor/a: pushed 8b60a90 to main
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```

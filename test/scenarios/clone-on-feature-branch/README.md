@@ -31,5 +31,7 @@ ok   vendor/a: cloned bde4164 from main
 
 ```scrut
 $ git splice status
-ok   vendor/a -> feature (upstream has no such branch; changed since 'main' -- push would create it)
+On branch feature (base: main)
+
+  new, changed  vendor/a  push creates the branch
 ```

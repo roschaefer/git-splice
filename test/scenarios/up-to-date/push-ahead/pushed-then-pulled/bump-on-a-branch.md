@@ -99,7 +99,9 @@ ok   vendor/a fetched
 
 ```scrut
 $ git splice status
-??   vendor/a -> main (unrelated history -- see 'git splice merge vendor/a' for options)
+On branch main
+
+  !! unrelated history  vendor/a  see 'git splice merge vendor/a' for options
 ```
 
 Without the bump, `main`'s `.splice` would still name `seed`, which the

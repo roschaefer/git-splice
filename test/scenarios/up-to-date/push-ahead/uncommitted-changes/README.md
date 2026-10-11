@@ -26,8 +26,9 @@ $ build_scenario scenario_uncommitted_changes
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (push: ahead 1)
-??   vendor/a has uncommitted changes -- push only sends committed ones
+On branch main
+
+  ahead 1  vendor/a  uncommitted changes
 ```
 
 `push` warns too, and sends what is committed:
@@ -43,8 +44,9 @@ the folder:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
-??   vendor/a has uncommitted changes -- push only sends committed ones
+On branch main
+
+  up to date  vendor/a  uncommitted changes
 ```
 
 Committing it makes it pushable:
@@ -56,5 +58,7 @@ ok   vendor/a: pushed 76bcc31 to main
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```

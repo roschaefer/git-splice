@@ -182,7 +182,7 @@ new_upstream() {
     [ "$status" -eq 0 ]
   done
   run splice status
-  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+  [ "${lines[*]:1}" = "  up to date  vendor/a" ]
 }
 
 @test "clone: refuses a path that is a file" {

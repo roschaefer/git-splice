@@ -86,7 +86,7 @@ setup() {
   run "$bindir/git-splice" clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
   run "$bindir/git-splice" status
-  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+  [ "${lines[*]:1}" = "  up to date  vendor/a" ]
   commit_local "$monorepo" "vendor/a" "local"
   run "$bindir/git-splice" push vendor/a
   [ "$status" -eq 0 ]
@@ -99,7 +99,7 @@ setup() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo/vendor/a"
   run "$entrypoint" status
-  [ "${lines[0]}" = "ok   vendor/a -> main (push: ahead 1)" ]
+  [ "${lines[1]}" = "  ahead 1  vendor/a" ]
 }
 
 @test "cli: every command refuses a detached HEAD" {

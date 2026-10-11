@@ -37,5 +37,7 @@ splice: clone vendor/a from main at bde4164
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
+On branch main
+
+  up to date  vendor/a
 ```

@@ -37,5 +37,7 @@ as up to date even without a fetch:
 
 ```scrut
 $ git splice status
-ok   lib/a -> main (up to date)
+On branch main
+
+  up to date  lib/a
 ```

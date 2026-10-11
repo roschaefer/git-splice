@@ -22,8 +22,10 @@ $ build_scenario scenario_shared_remote_url
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
-ok   vendor/b -> main (up to date)
+On branch main
+
+  up to date  vendor/a
+  up to date  vendor/b
 ```
 
 ```scrut
@@ -32,6 +34,9 @@ $ echo "only in b" >>vendor/b/file.txt && git commit -q -am "change b"
 
 ```scrut
 $ git splice status
-ok   vendor/a -> main (up to date)
-ok   vendor/b -> main (push: ahead 1)
+On branch main
+
+  ahead 1     vendor/b
+
+  up to date  vendor/a
 ```

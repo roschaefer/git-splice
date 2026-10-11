@@ -34,8 +34,10 @@ latter).
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> feature (upstream has no such branch; unchanged since 'main')
-ok   vendor/pkg-b -> feature (upstream has no such branch; unchanged since 'main')
+On branch feature (base: main)
+
+  unchanged, no upstream branch  vendor/pkg-a
+  unchanged, no upstream branch  vendor/pkg-b
 ```
 
 ## Changing one splice
@@ -46,8 +48,11 @@ $ echo "a new option" >>vendor/pkg-b/file.txt && git commit -qam "pkg-b: add an 
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> feature (upstream has no such branch; unchanged since 'main')
-ok   vendor/pkg-b -> feature (upstream has no such branch; ahead 1 since 'main' -- push would create it)
+On branch feature (base: main)
+
+  new, ahead 1                   vendor/pkg-b  push creates the branch
+
+  unchanged, no upstream branch  vendor/pkg-a
 ```
 
 Without an upstream branch there's no [T](README.md#b-u-t-and-r) to
@@ -77,8 +82,10 @@ ok   vendor/pkg-b: pushed 5023101 to feature
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> feature (upstream has no such branch; unchanged since 'main')
-ok   vendor/pkg-b -> feature (up to date)
+On branch feature (base: main)
+
+  up to date                     vendor/pkg-b
+  unchanged, no upstream branch  vendor/pkg-a
 ```
 
 `pull` on `feature` pulls from `pkg-b`'s `feature` branch. `pkg-a`'s
@@ -123,6 +130,8 @@ refs/splices/pkg-b/main
 
 ```scrut
 $ git splice status
-ok   vendor/pkg-a -> main (up to date)
-ok   vendor/pkg-b -> main (up to date)
+On branch main
+
+  up to date  vendor/pkg-a
+  up to date  vendor/pkg-b
 ```
