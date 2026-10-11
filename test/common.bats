@@ -144,20 +144,21 @@ setup() {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   local blob
-  blob="$(state_blob vendor/a commit=abc default-branch=master)"
+  blob="$(state_blob vendor/a commit=abc upstream.origin.default-branch=master)"
   [ "$(git config --blob "$blob" splice.commit)" = abc ]
-  [ "$(git config --blob "$blob" splice.default-branch)" = master ]
+  [ "$(git config --blob "$blob" upstream.origin.default-branch)" = master ]
   [ "$(git config --blob "$blob" upstream.origin.url)" = "$upstream" ]
-  blob="$(state_blob vendor/a default-branch=)"
-  ! git config --blob "$blob" splice.default-branch
+  blob="$(state_blob vendor/a commit=)"
+  ! git config --blob "$blob" splice.commit
 }
 
 @test "upstream_branch_for maps only the monorepo's default branch to default-branch" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   [ "$(upstream_branch_for vendor/a main)" = main ]
-  git config --file vendor/a/.splice splice.default-branch master
+  git config --file vendor/a/.splice upstream.origin.default-branch master
   git commit -q -am "upstream calls it master"
+  discover_splices
   [ "$(upstream_branch_for vendor/a main)" = master ]
   [ "$(upstream_branch_for vendor/a feature)" = feature ]
 }
@@ -257,7 +258,7 @@ add_monorepo_origin() {
 @test "changes_vs_base: a change to .splice alone doesn't count" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
-  git config --file vendor/a/.splice splice.default-branch other
+  git config --file vendor/a/.splice upstream.origin.default-branch other
   git commit -q -am "only .splice"
   changes_vs_base vendor/a
   [ "$SPLICE_CHANGES_VS_BASE" = no ]

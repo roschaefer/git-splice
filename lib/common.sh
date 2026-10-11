@@ -323,6 +323,14 @@ splice_config() {
   git config --blob "$rev:$path/$STATE_FILE" --get "splice.$key" 2>/dev/null || true
 }
 
+# Prints value <key> of upstream <name> in splice <path>'s committed state
+# file, or nothing.
+upstream_config() {
+  local path="$1" name="$2" key="$3"
+  [[ -n "$name" ]] || return 0
+  git config --blob "HEAD:$path/$STATE_FILE" --get "upstream.$name.$key" 2>/dev/null || true
+}
+
 # Prints a blob id: splice <path>'s state file as committed in HEAD (or a
 # new one), with each "key=value" argument set ("key=" unsets it). A key
 # without a section is in [splice], e.g. "commit"; others are given in
@@ -379,6 +387,7 @@ folder_tree() {
 #   	default-upstream = fork
 #   [upstream "origin"]
 #   	url = https://github.com/x/lib.git
+#   	default-branch = master
 #   [upstream "fork"]
 #   	url = https://git.example.com/company/lib.git
 #
@@ -423,6 +432,9 @@ load_splice_upstream() {
         ;;
       splice.id) id="${record#*$'\n'}" ;;
       splice.default-upstream) default="${record#*$'\n'}" ;;
+      splice.default-branch)
+        die "$path/$STATE_FILE has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"
+        ;;
     esac
   done
   q_file="$(shell_quote "$path/$STATE_FILE")"
@@ -814,15 +826,16 @@ splice_above_in() {
   return 1
 }
 
-# Prints the default branch of the upstream of splice $1: its recorded
-# default-branch, else the one of what it lives in (container_default_branch).
+# Prints the default branch of the upstream splice $1 uses: that
+# upstream's recorded default-branch, else the one of what it lives in
+# (container_default_branch).
 # A .splice records it only where it differs from that, so the file means
 # the same in every repository it reaches: a nested one, in the
 # monorepo, follows the splice above it, as it follows its repository
 # in the upstream above.
 splice_default_branch() {
   local name
-  name="$(splice_config "$1" default-branch)"
+  name="$(upstream_config "$1" "${SPLICE_UPSTREAM_NAMES[$1]:-}" default-branch)"
   if [[ -n "$name" ]]; then
     printf '%s\n' "$name"
   else

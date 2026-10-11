@@ -76,6 +76,32 @@ add_upstream() {
   [ "$output" = "!!   vendor/a/.splice: 'my fork' isn't supported as an upstream's name -- use letters, digits, '.', '_' and '-'" ]
 }
 
+@test "upstreams: each upstream has its own default branch, which the monorepo's default branch maps to" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  git -C "$fork" branch -m main trunk
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.fork.url "$fork"
+  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  git config --file vendor/a/.splice splice.default-upstream origin
+  git commit -q -m "vendor/a: add fork, on trunk" -- vendor/a/.splice
+  run splice pull --upstream fork vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from fork/trunk at $(git -C "$fork" rev-parse --short trunk)" ]
+  run splice fetch --upstream origin vendor/a
+  run splice status vendor/a
+  [ "$output" = "ok   vendor/a -> origin/main (push: ahead 1)" ]
+}
+
+@test "upstreams: a default-branch in [splice], from an earlier version, is refused" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice splice.default-branch master
+  git commit -q -m "the earlier format" -- vendor/a/.splice
+  run splice status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"* ]]
+}
+
 @test "fetch: fetches every upstream of a splice, or only the one --upstream names" {
   scenario_several_upstreams "$monorepo" "$upstream"
   cd "$monorepo"

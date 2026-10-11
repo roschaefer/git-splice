@@ -176,8 +176,8 @@ work_in_upstream_a() {
   splice clone "$upstream" vendor/a
   cmd_clone "$upstream_b" vendor/a/c
   cmd_clone "$upstream_main" vendor/a/d
-  [ -z "$(splice_config vendor/a/c default-branch)" ]
-  [ "$(splice_config vendor/a/d default-branch)" = main ]
+  [ -z "$(upstream_config vendor/a/c origin default-branch)" ]
+  [ "$(upstream_config vendor/a/d origin default-branch)" = main ]
   [ "$(upstream_branch_for vendor/a/c main)" = master ]
   [ "$(upstream_branch_for vendor/a/d main)" = main ]
 }
@@ -230,7 +230,7 @@ work_in_upstream_a() {
   splice clone "$upstream" vendor/a
   commit_local "$monorepo" vendor/a/e "e's first version"
   cmd_init vendor/a/e "$empty_master"
-  [ -z "$(splice_config vendor/a/e default-branch)" ]
+  [ -z "$(upstream_config vendor/a/e origin default-branch)" ]
   [ "$(upstream_branch_for vendor/a/e main)" = master ]
 }
 
