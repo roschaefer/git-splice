@@ -11,3 +11,6 @@ scope, and some are impossible with Git. Each page says which is which.
   folder isn't, with Git.
 - [Jujutsu](jj.md): what git splice needs to work in a jj repository,
   e.g. what stands for the current and the default branch there.
+- [Weak parents](weak-parents.md): the sync point as a parent of the
+  commit that wrote it, which Git can't record without making it part of
+  the history. A thought experiment, with earlier proposals.
