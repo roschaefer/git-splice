@@ -108,9 +108,9 @@ it says what to check out, not where the folder's files came from
 
 ## What a splice would need
 
-The `origin` RFC links commits of one repository. A splice links a
-folder to a commit of another one, so a weak parent for it needs more
-than a commit id:
+The `origin` RFC records only a commit id, and a missing target leaves
+the link broken, by design. A splice's target is always in another
+repository, so a weak parent for it needs more than a commit id:
 
 - **the target**, U,
 - **the folder** it maps to, which `git subtree` passes as `--prefix`,
