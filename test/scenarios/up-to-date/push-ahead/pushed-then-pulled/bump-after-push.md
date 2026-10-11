@@ -43,14 +43,24 @@ bde4164 seed
 ```
 
 So the boundary, the newest first-parent commit that changed `.splice`,
-is still the clone. Every rebuild starts there and rebuilds the pushed
-commit again, and a bisect over the synced commits of two pulls would
-include it:
+is still the clone:
 
 ```scrut
 $ git log --first-parent -1 --format=%s -- vendor/a/.splice
 add vendor/a
 ```
+
+Every rebuild walks the folder's commits since the boundary, and so
+rebuilds the pushed commit again:
+
+```scrut
+$ git log --first-parent --format=%s "$(git log --first-parent -1 --format=%H -- vendor/a/.splice)"..HEAD -- vendor/a
+local change
+```
+
+And the synced commits of the next two pulls span the push, which
+misleads a bisect between them
+([bisect into a pull](../../../bisect-into-a-pull/after-a-push/README.md)).
 
 ## The bump, by hand
 
@@ -58,7 +68,7 @@ What `--bump` would write: the upstream branch as the synced commit,
 in a commit that only changes `.splice`, with a message like a pull's:
 
 ```scrut
-$ git config --file vendor/a/.splice splice.commit "$(git -C "$UPSTREAM" rev-parse main)" && git commit -q -a -m "splice: bump vendor/a from main at e859a6b"
+$ U="$(git -C "$UPSTREAM" rev-parse main)" && git config --file vendor/a/.splice splice.commit "$U" && git commit -q -m "splice: bump vendor/a from main at ${U:0:7}" -- vendor/a/.splice
 ```
 
 ```scrut
@@ -72,7 +82,11 @@ splice: bump vendor/a from main at e859a6b
 ```
 
 The folder has the pushed commit's files, so the rebuild now starts at the
-pushed commit itself, and the bump commit adds nothing to it:
+pushed commit itself, with nothing to walk:
+
+```scrut
+$ git log --first-parent --format=%s "$(git log --first-parent -1 --format=%H -- vendor/a/.splice)"..HEAD -- vendor/a
+```
 
 ```scrut
 $ git splice status
@@ -100,9 +114,12 @@ ok   vendor/a: pushed 8b60a90 to main
 ```
 
 It's `8b60a90` with and without the bump: the rebuild before the bump
-already had the pushed commit as the parent of what came next. A branch
-that never saw the bump pushes the same commits, and merging it brings
-no conflict, since it didn't change `.splice`.
+already had the pushed commit as the parent of what came next. So a
+branch that never saw the bump pushes the same commits.
+
+A bump merged the other way, from a feature branch into `main`, can
+leave `main`'s `.splice` naming a commit the upstream deleted
+([bump-on-a-branch](bump-on-a-branch.md)).
 
 ## A bump while ahead
 
@@ -121,7 +138,7 @@ $ git splice log
 ```
 
 ```scrut
-$ git config --file vendor/a/.splice splice.commit "$(git -C "$UPSTREAM" rev-parse main)" && git commit -q -a -m "splice: bump vendor/a from main at 8b60a90"
+$ U="$(git -C "$UPSTREAM" rev-parse main)" && git config --file vendor/a/.splice splice.commit "$U" && git commit -q -m "splice: bump vendor/a from main at ${U:0:7}" -- vendor/a/.splice
 ```
 
 ```scrut
@@ -136,6 +153,6 @@ $ git splice log
 ```
 
 It's `ea43c10` before and after the bump. That bump is safe, but it
-saves the rebuild nothing: the walk still
-starts at the previous boundary. Bumping pays off right after a push,
-when the folder has the upstream branch's files.
+saves the rebuild nothing: the walk still starts at the previous
+boundary. Bumping pays off right after a push, when the folder has the
+upstream branch's files.
