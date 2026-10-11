@@ -357,3 +357,13 @@ EOF2
   [ "${lines[1]}" = "  ahead 1     vendor/a" ]
   [ "${lines[2]}" = $'\e[2m  up to date  vendor/b\e[m' ]
 }
+
+@test "status: dims the quiet splices in a terminal, with Git's default color.ui=auto" {
+  script --version 2>/dev/null | grep -q util-linux || skip "no util-linux script to run status in a terminal"
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "local change"
+  cd "$monorepo"
+  run script -qec "$BATS_TEST_DIRNAME/../git-splice status" /dev/null
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\e[2m  up to date  vendor/b\e[m'* ]]
+}

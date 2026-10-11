@@ -163,8 +163,10 @@ add_status_row() {
 # state, the path, and what to do. The quiet rows come last, after a blank
 # line, and dimmed where Git would color `git status`.
 print_status_rows() {
-  local label_width=0 path_width=0 i rank shown_rank=-1 line dim="" reset=""
-  if [[ "$(git config --get-colorbool color.status "$([[ -t 1 ]] && echo true || echo false)")" == true ]]; then
+  local label_width=0 path_width=0 i rank shown_rank=-1 line dim="" reset="" tty=false
+  # Not inside the command substitution below: its stdout is a pipe.
+  [[ ! -t 1 ]] || tty=true
+  if [[ "$(git config --get-colorbool color.status "$tty")" == true ]]; then
     dim=$'\e[2m' reset=$'\e[m'
   fi
   for i in "${!STATUS_RANKS[@]}"; do
