@@ -23,6 +23,10 @@ splice is *never fetched*, or the upstream has *no such branch*.
 The [walkthrough](../../walkthrough/README.md#b-u-t-and-r) shows the
 Git commands that find each of them.
 
+Once B records a U, B could have been a merge, with U as its second
+parent:
+[weak parents](../../../docs/going-forward/weak-parents.md) compares the two.
+
 ## R, the rebuild
 
 The monorepo's commits that changed the folder are the splice's own
