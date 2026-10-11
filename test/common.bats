@@ -523,52 +523,14 @@ assert_candidates() {
   [ "$UPSTREAM_KEY" = lib ]
 }
 
-@test "discover_splices refuses an old .splice and prints how to convert it" {
-  scenario_up_to_date "$monorepo" "$upstream"
-  cd "$monorepo"
-  printf '[splice]\n\turl = %s\n\tcommit = %s\n' "$upstream" "$(splice_config vendor/a commit)" >vendor/a/.splice
-  git commit -q -am "old format"
-  run discover_splices
-  [ "$status" -eq 1 ]
-  [[ "${lines[0]}" == "!!   vendor/a/.splice has its URL in the old format, splice.url -- convert it with:" ]]
-  [[ "$output" == *"git config --file vendor/a/.splice upstream.origin.url $upstream"* ]]
-  [[ "$output" == *"git config --file vendor/a/.splice --unset splice.url"* ]]
-}
-
-@test "discover_splices: the printed commands convert an old .splice" {
-  scenario_up_to_date "$monorepo" "$upstream"
-  cd "$monorepo"
-  printf '[splice]\n\turl = %s\n\tcommit = %s\n' "$upstream" "$(splice_config vendor/a commit)" >vendor/a/.splice
-  git commit -q -am "old format"
-  run discover_splices
-  eval "$(printf '%s\n' "$output" | grep '^  git ')"
-  run "$BATS_TEST_DIRNAME/../git-splice" status
-  [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a -> main (up to date)" ]
-}
-
-@test "discover_splices refuses a .splice without an id and prints how to give it one" {
+@test "discover_splices refuses a .splice without an id" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   git config --file vendor/a/.splice --unset splice.id
-  git commit -q -am "a splice from before ids"
+  git commit -q -am "no id"
   run discover_splices
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a/.splice has no id, so it's from before ids -- give it one with:" ]
-  [[ "$output" == *"git config --file vendor/a/.splice splice.id "* ]]
-}
-
-@test "discover_splices: the printed commands give a .splice from before ids an id" {
-  scenario_up_to_date "$monorepo" "$upstream"
-  cd "$monorepo"
-  git config --file vendor/a/.splice --unset splice.id
-  git commit -q -am "a splice from before ids"
-  run discover_splices
-  eval "$(printf '%s\n' "$output" | grep '^  git ')"
-  [[ "$(splice_config vendor/a id)" =~ ^[0-9a-f]{16}$ ]]
-  run "$BATS_TEST_DIRNAME/../git-splice" status
-  [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+  [ "$output" = "!!   vendor/a/.splice has no id" ]
 }
 
 @test "discover_splices refuses a .splice without an upstream, with an empty URL, or with two" {

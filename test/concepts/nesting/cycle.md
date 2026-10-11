@@ -52,15 +52,15 @@ The first pull brings in a's `i/`, a copy of the monorepo with
 
 ```scrut
 $ git splice pull vendor/a
-ok   vendor/a fetched (main moved bde4164..2073178)
-ok   vendor/a: pulled 2073178
+ok   vendor/a fetched (main moved bde4164..885fc31)
+ok   vendor/a: pulled 885fc31
 ```
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
-vendor/a/.splice: id = b23b165ba51e3878
-vendor/a/i/.splice: id = f0e176bed8253789
-vendor/a/i/vendor/a/.splice: id = b23b165ba51e3878
+vendor/a/.splice: id = 224f2c2563d3b6f7
+vendor/a/i/.splice: id = 0ceff458bb3bb1f7
+vendor/a/i/vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
 `vendor/a/i/vendor/a` has the id of `vendor/a`, above it: the cycle.
@@ -76,16 +76,16 @@ ok   vendor/a/i fetched
 ok   vendor/a/i/vendor/a fetched
 ok   vendor/a: nothing to pull
 ok   vendor/a/i: nothing to pull
-ok   vendor/a/i/vendor/a: pulled 2073178
+ok   vendor/a/i/vendor/a: pulled 885fc31
 ```
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
-vendor/a/.splice: id = b23b165ba51e3878
-vendor/a/i/.splice: id = f0e176bed8253789
-vendor/a/i/vendor/a/.splice: id = b23b165ba51e3878
-vendor/a/i/vendor/a/i/.splice: id = f0e176bed8253789
-vendor/a/i/vendor/a/i/vendor/a/.splice: id = b23b165ba51e3878
+vendor/a/.splice: id = 224f2c2563d3b6f7
+vendor/a/i/.splice: id = 0ceff458bb3bb1f7
+vendor/a/i/vendor/a/.splice: id = 224f2c2563d3b6f7
+vendor/a/i/vendor/a/i/.splice: id = 0ceff458bb3bb1f7
+vendor/a/i/vendor/a/i/vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
 Once the monorepo is pushed, the `i/` splices sync with a version that
@@ -106,7 +106,7 @@ $ echo "note" >vendor/a/i/note.txt && git add vendor/a/i/note.txt && git commit 
 
 ```scrut
 $ git splice push vendor/a/i
-ok   vendor/a/i: pushed 920d94a to main
+ok   vendor/a/i: pushed 298b249 to main
 ```
 
 Nobody pushed the monorepo since the setup, so this was a fast-forward.
@@ -116,7 +116,7 @@ monorepo's history nor its tree:
 ```scrut
 $ git -C "$UPSTREAM-m" log --format=%s main
 note in i
-splice: pull vendor/a/i/vendor/a from main at 2073178
+splice: pull vendor/a/i/vendor/a from main at 885fc31
 add vendor/a
 initial commit
 ```

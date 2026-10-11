@@ -46,9 +46,9 @@ $ build_scenario scenario_diamond
 ```scrut
 $ git splice clone https://git.example.com/a.git a && git splice clone https://git.example.com/b.git b && git splice clone https://git.example.com/s.git s
 ===  a: fetching https://git.example.com/a.git
-ok   a: cloned d8c030f from main
+ok   a: cloned 11829af from main
 ===  b: fetching https://git.example.com/b.git
-ok   b: cloned e8f5762 from main
+ok   b: cloned 00ab69b from main
 ===  s: fetching https://git.example.com/s.git
 ok   s: cloned 1917a62 from main
 ```
@@ -72,11 +72,11 @@ All three share S's upstream, and with it one key and one fetch
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
-a/.splice: id = ada385bc3fe39937
-a/s/.splice: id = 2207a2e3260b644a
-b/.splice: id = 40ff492029bce288
-b/s/.splice: id = 2b29a3b662c7595b
-s/.splice: id = b34eca1503aaac78
+a/.splice: id = e3f68e8830b0e334
+a/s/.splice: id = e2264d9c3ad8858f
+b/.splice: id = 914c00d41a3ba0b3
+b/s/.splice: id = 0ce46de52bb97f47
+s/.splice: id = 9106877100555ed6
 ```
 
 By their ids, the three copies of S are independent splices
@@ -99,11 +99,11 @@ files differ, in their ids:
 
 ```scrut
 $ git ls-tree -r --abbrev=7 --format='%(objectname) %(path)' HEAD -- s a/s b/s
-0803847 a/s/.splice
+d178ec5 a/s/.splice
 afc5fd8 a/s/file.txt
-65cd514 b/s/.splice
+0b0c103 b/s/.splice
 afc5fd8 b/s/file.txt
-df06afb s/.splice
+8f22970 s/.splice
 afc5fd8 s/file.txt
 ```
 
@@ -181,8 +181,8 @@ ok   s -> main (up to date)
 
 ```scrut
 $ git splice push a b
-ok   a: pushed 7b7b00d to main
-ok   b: pushed ff1ad96 to main
+ok   a: pushed cf7eca2 to main
+ok   b: pushed daaf6f9 to main
 ```
 
 A clone of A on its own, e.g. by an outside contributor, has S's new

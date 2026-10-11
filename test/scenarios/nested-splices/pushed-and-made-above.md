@@ -48,9 +48,9 @@ $ git clone -q "$UPSTREAM" ../a-work && cd ../a-work && echo "b local" >>b/file.
 
 ```scrut
 $ git splice pull vendor/a
-ok   vendor/a fetched (main moved da334c3..2e5cd72)
+ok   vendor/a fetched (main moved ddf42f3..5e4833c)
 ok   vendor/a/b fetched
-ok   vendor/a: pulled 2e5cd72
+ok   vendor/a: pulled 5e4833c
 ```
 
 b's files are the same as in a's upstream. The next change to b goes on
@@ -72,13 +72,13 @@ have yet, and goes on top of `b local`:
 
 ```scrut
 $ git splice push vendor/a/b
-ok   vendor/a/b: pushed bb6d650 to main
+ok   vendor/a/b: pushed d599698 to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" log --graph --format='%s (%an)' main
 * b next (Test)
-*   splice: pull vendor/a from main at 2e5cd72 (Test)
+*   splice: pull vendor/a from main at 5e4833c (Test)
 |\  
 | * the same change, made in a's upstream (Maintainer)
 * | b local (Test)
