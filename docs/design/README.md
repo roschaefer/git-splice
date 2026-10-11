@@ -200,10 +200,10 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   recorded only when it differs from that default branch. That keeps it stable if upstream later
   renames its default branch, and visible to anyone wondering why `main`
   syncs with `master`.
-- **Its upstream is named**, like a Git remote, so a library can later
-  sync with more than one, e.g. a company fork and the original. Exactly
-  one `[upstream "<name>"]` is supported for now. `clone` and `init` name
-  it `origin`. `commit` stays one per splice: a sync point is a commit,
+- **Its upstreams are named**, like Git remotes, so a library can sync
+  with more than one, e.g. a company fork and the original
+  ([several-upstreams](../../test/scenarios/several-upstreams/README.md)).
+  `clone` and `init` name theirs `origin`. `commit` stays one per splice: a sync point is a commit,
   whichever upstream it came from.
 - **Every command checks it can read it.** A `.splice` that `git config`
   can't parse, e.g. one committed with conflict markers, stops every
