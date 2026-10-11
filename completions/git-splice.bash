@@ -87,7 +87,7 @@ _git_splice() {
   [[ "${COMP_WORDS[0]}" == git ]] && start=2
 
   if ((COMP_CWORD == start)); then
-    mapfile -t COMPREPLY < <(compgen -W "clone init fetch merge pull push status diff log key -h --help --version" -- "$cur")
+    mapfile -t COMPREPLY < <(compgen -W "clone init fetch merge pull push status diff log boundary key -h --help --version" -- "$cur")
     return
   fi
 
@@ -124,6 +124,11 @@ _git_splice() {
         mapfile -t COMPREPLY < <(compgen -W "-h --help" -- "$cur")
       elif (($(__git_splice_positionals "$start") == 0)); then
         __git_splice_reply "" < <(compgen -d -- "$cur")
+      fi
+      ;;
+    boundary)
+      if [[ "$cur" == -* ]] || (($(__git_splice_positionals "$start") == 0)); then
+        __git_splice_paths_or_options "$cur" -h --help
       fi
       ;;
     key)

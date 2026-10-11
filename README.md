@@ -118,7 +118,7 @@ ok   path -> main (diverged: ahead 2, behind 3)
 
 When both sides moved, as here, pull first, then push, as with
 `git pull` and `git push`. Point the URL at your fork, and the pushed
-branch is ready for a pull request. Changes cross the boundary, but
+branch is ready for a pull request. Changes cross the splice, but
 commits don't: both repositories keep their own histories.
 
 Everything else follows from two rules:
