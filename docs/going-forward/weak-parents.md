@@ -11,7 +11,10 @@ B, the commit that wrote U into `path/.splice`
 been a merge instead, with two parents: the monorepo's previous commit,
 and U. Its tree would be the same as B's: U's files in `path/`, merged
 with the folder's changes since the last sync, if there are any. That's
-the commit `git subtree add` and `git subtree pull` create ([`git subtree` compared](../../test/comparisons/git-subtree.md)).
+the commit `git subtree add` and `git subtree pull` create without
+`--squash` ([`git subtree` compared](../../test/comparisons/git-subtree.md)).
+With `--squash`, the second parent is a new commit with U's files, and
+U isn't in the history at all.
 
 Both record one fact: the folder continues U. A second parent records it
 in the commit graph, `.splice` as content of the tree. The fact is the
@@ -23,12 +26,12 @@ same, but different tools see it:
 | U's objects | Required: every full clone of the monorepo fetches U and all its ancestors, and `gc` keeps them | Optional: git splice fetches U when it needs it |
 | Which folder | Git doesn't know: U has the library at its root. `git subtree` needs `--prefix`, and with several splices, which parent belongs to which folder | Where the file is. `git mv` moves it along |
 | Finding the current U | Search the history for the newest such merge | Read one file at `HEAD` |
-| Rebase, squash merge | Lost: `rebase` drops merges, unless it runs with `--rebase-merges`, and a squash merge keeps one parent | Kept: both keep the tree |
-| The merge base for a pull | `git merge-base` finds U | git splice reads U, and uses it as the base |
+| Rebase, squash merge | Lost: `rebase` drops merges, unless it runs with `--rebase-merges`, and a squash merge keeps one parent | Kept: `.splice` is a file, carried along like the folder's other files |
+| The merge base for a pull | `git merge-base HEAD T` finds U, even after a push, whose commits aren't in the monorepo's history | git splice rebuilds R on top of U, and takes `git merge-base R T`: U, or a commit pushed since |
 
-The second-to-last row is the reason for the file. Every way of
-rewriting history keeps a commit's tree; a squash merge keeps nothing
-else.
+The rebase and squash merge row is the reason for the file. A rewrite
+carries a commit's changes to files along, `.splice` included, and a
+squash merge keeps nothing else.
 
 The two also don't claim the same. A merge says U's whole history is
 part of the monorepo's. `.splice` says only that the folder's files came
@@ -122,5 +125,5 @@ than a commit id:
 - **where to fetch it from**, which object ids alone don't say.
 
 And it has to survive the squash merges that Linus listed, which keep
-only the tree. That's what `.splice` holds: the URL, and U,
+only the changes to files. That's what `.splice` holds: the URL, and U,
 in the folder they belong to.
