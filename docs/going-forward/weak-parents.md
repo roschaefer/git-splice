@@ -9,9 +9,9 @@ here changes how git splice works.
 B, the commit that wrote U into `path/.splice`
 ([sync model](../../test/concepts/sync-model/README.md)), could have
 been a merge instead, with two parents: the monorepo's previous commit,
-and U. Its tree would be the same: the monorepo, with U's files in
-`path/`. That's the commit `git subtree add` and `git subtree pull`
-create ([`git subtree` compared](../../test/comparisons/git-subtree.md)).
+and U. Its tree would be the same as B's: U's files in `path/`, merged
+with the folder's changes since the last sync, if there are any. That's
+the commit `git subtree add` and `git subtree pull` create ([`git subtree` compared](../../test/comparisons/git-subtree.md)).
 
 Both record one fact: the folder continues U. A second parent records it
 in the commit graph, `.splice` as content of the tree. The fact is the
@@ -20,15 +20,15 @@ same, but different tools see it:
 | | U as a second parent | `commit = U` in `.splice` |
 |---|---|---|
 | Who sees it | Git: `log`, `merge-base`, `bisect` and `blame` walk into the library's history | Only git splice. To Git, it's a line in a file, and the monorepo's history stays linear |
-| U's objects | Required: every clone of the monorepo fetches U and all its ancestors, and `gc` keeps them | Optional: git splice fetches U when it needs it |
+| U's objects | Required: every full clone of the monorepo fetches U and all its ancestors, and `gc` keeps them | Optional: git splice fetches U when it needs it |
 | Which folder | Git doesn't know: U has the library at its root. `git subtree` needs `--prefix`, and with several splices, which parent belongs to which folder | Where the file is. `git mv` moves it along |
 | Finding the current U | Search the history for the newest such merge | Read one file at `HEAD` |
-| Rebase, squash merge | Lost: `rebase` drops merges, a squash merge keeps one parent | Kept: both keep the tree |
+| Rebase, squash merge | Lost: `rebase` drops merges, unless it runs with `--rebase-merges`, and a squash merge keeps one parent | Kept: both keep the tree |
 | The merge base for a pull | `git merge-base` finds U | git splice reads U, and uses it as the base |
 
 The second-to-last row is the reason for the file. Every way of
-rewriting history keeps a commit's tree, and most drop or rewrite
-everything else.
+rewriting history keeps a commit's tree; a squash merge keeps nothing
+else.
 
 The two also don't claim the same. A merge says U's whole history is
 part of the monorepo's. `.splice` says only that the folder's files came
@@ -121,6 +121,6 @@ than a commit id:
 - **the folder** it maps to, which `git subtree` passes as `--prefix`,
 - **where to fetch it from**, which object ids alone don't say.
 
-And it has to survive the squash merges and rebases that Linus listed,
-which only the tree does. That's what `.splice` holds: the URL, and U,
+And it has to survive the squash merges that Linus listed, which keep
+only the tree. That's what `.splice` holds: the URL, and U,
 in the folder they belong to.
