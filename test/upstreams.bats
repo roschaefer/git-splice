@@ -136,6 +136,21 @@ add_upstream() {
   [ "$(git rev-parse refs/splices/upstream-fork/main)" = "$(git -C "$fork" rev-parse main)" ]
 }
 
+@test "fetch: says which branch moved in each upstream, by that upstream's default branch" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  git -C "$fork" branch -m main trunk
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.fork.url "$fork"
+  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  add_upstream vendor/a fork "$fork" origin
+  splice fetch
+  seed_bare_repo "$fork" "moved" trunk
+  run splice fetch
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "ok   vendor/a fetched from origin" ]
+  [[ "${lines[1]}" == "ok   vendor/a fetched from fork (trunk moved "* ]]
+}
+
 @test "fetch: a failing upstream of a splice fails the fetch, and the other one is still fetched" {
   scenario_several_upstreams "$monorepo" "$upstream"
   cd "$monorepo"
@@ -193,6 +208,39 @@ add_upstream() {
   [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull --upstream fork vendor/a' first" ]
   run splice status
   [ "$output" = "ok   vendor/a -> origin/main (push: ahead 1)" ]
+}
+
+@test "upstreams: a splice below follows the default branch its upstreams above agree on, even without a default-upstream" {
+  scenario_outer_fork "$monorepo" "$upstream"
+  cd "$monorepo"
+  add_upstream vendor/a fork "${upstream%.git}-fork.git"
+  run splice status vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a/b -> main (up to date)" ]
+}
+
+@test "upstreams: a splice below refuses to guess when the upstreams above have different default branches and none is the default" {
+  scenario_outer_fork "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  add_upstream vendor/a fork "${upstream%.git}-fork.git"
+  for command in "status vendor/a/b" "pull vendor/a/b" "merge vendor/a/b" "push vendor/a/b" "diff vendor/a/b" "log vendor/a/b"; do
+    # shellcheck disable=SC2086 # the command and its arguments
+    run splice $command
+    [ "$status" -eq 1 ]
+    [ "$output" = "!!   vendor/a/b follows the default branch of vendor/a, whose upstreams have different default branches (origin: main, fork: trunk), but no default -- commit one: git config --file vendor/a/.splice splice.default-upstream <name>" ]
+  done
+  run splice clone "$upstream" vendor/a/c
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a/c follows the default branch of vendor/a, whose upstreams have different default branches (origin: main, fork: trunk), but no default -- commit one: git config --file vendor/a/.splice splice.default-upstream <name>" ]
+  [ ! -e vendor/a/c ]
+  make_bare_repo "$BATS_TEST_TMPDIR/empty.git"
+  mkdir vendor/a/d && echo d >vendor/a/d/file.txt
+  git add vendor/a/d && git commit -q -m "add vendor/a/d"
+  run splice init vendor/a/d "$BATS_TEST_TMPDIR/empty.git"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a/d follows the default branch of vendor/a, whose upstreams have different default branches (origin: main, fork: trunk), but no default -- commit one: git config --file vendor/a/.splice splice.default-upstream <name>" ]
+  [ ! -e vendor/a/d/.splice ]
 }
 
 @test "pull --upstream: the splices below are fetched from every upstream they name" {

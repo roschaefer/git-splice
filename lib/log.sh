@@ -127,5 +127,6 @@ cmd_log() {
   use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   local branch
   branch="$(current_branch)"
+  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
   page_git_output log_paths "$branch" "${SELECTED_PATHS[@]}"
 }

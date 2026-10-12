@@ -12,6 +12,8 @@ O's company fork carries a patch to `b/`.
 - **a's fork** (`$UPSTREAM-fork.git`, reached as
   `https://git.example.com/company/a.git`): a copy of a's upstream, then
   `a fork patch to b`, which changes `b/file.txt`.
+  [fork-default-branch-below](fork-default-branch-below.md) renames its
+  `main` to `trunk`.
 - **b's fork** (`$UPSTREAM-b-fork.git`, reached as
   `https://git.example.com/company/b.git`): a copy of b's upstream, then
   `b fork patch`. Only [same-name-below](same-name-below.md) uses it.

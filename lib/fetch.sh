@@ -50,7 +50,9 @@ fetch_shared_upstream() {
     has_several_upstreams "$path" && from=" from ${entry#*:}"
     labels[i]="$path fetched$from"
     failed_labels[i]="$path fetch$from failed"
-    upstream_branches[i]="$(upstream_branch_for "$path" "$branch")"
+    # Empty if the upstreams of the splice above disagree on it, and none
+    # is its default: the commands that need it refuse then.
+    upstream_branches[i]="$(upstream_branch_for "$path" "$branch" "${entry#*:}" 2>/dev/null)" || true
     target_refs[i]="refs/splices/$key/${upstream_branches[i]}"
     old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
     synced+=("$(splice_config "$path" commit)")

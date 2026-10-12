@@ -137,6 +137,7 @@ cmd_push() {
   use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   local branch path failed paths=() failures=()
   branch="$(current_branch)"
+  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
 
   # Pushes to the same host share one SSH connection.
   local ssh_control_dir

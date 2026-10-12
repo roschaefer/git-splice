@@ -192,10 +192,14 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   ids. Every command refuses a `.splice` without an id.
 - **Without `default-branch`**, an upstream's default branch has the
   name of the default branch of what the splice lives in: the splice
-  above it, with the upstream that one uses, or the monorepo. So a nested `.splice` means the same in the
-  monorepo as in the upstream above, where the repository stands in for
-  the splice above
-  ([example](../../test/scenarios/nested-default-branch/README.md)).
+  above it, with the upstream that one uses, or the monorepo. So a nested
+  `.splice` means the same in the monorepo as in the upstream above,
+  where the repository stands in for the splice above
+  ([example](../../test/scenarios/nested-default-branch/README.md)). If
+  the splice above has several upstreams with different default branches
+  and no `default-upstream`, commands refuse rather than fall back to the
+  monorepo's
+  ([example](../../test/scenarios/nested-splices/outer-fork/fork-default-branch-below.md)).
 - **An upstream's `default-branch`** is looked up once, by `clone` and
   `init`, and recorded only when it differs from that default branch.
   That keeps it stable if upstream later renames its default branch, and

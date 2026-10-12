@@ -227,6 +227,7 @@ cmd_status() {
   select_paths overview status
   use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   branch="$(current_branch)"
+  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
   STATUS_RANKS=() STATUS_LABELS=() STATUS_PATHS=() STATUS_HINTS=()
   for path in "${SELECTED_PATHS[@]}"; do
     add_status_row "$path" "$branch" "$base"

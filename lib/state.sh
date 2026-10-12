@@ -27,6 +27,8 @@ classify_splice() {
   SPLICE_STATE=""
   SPLICE_TARGET_REF=""
   SPLICE_REBUILT=""
+  # Also for a splice a merge above just brought in.
+  require_upstream_branches "$branch" "$path"
   SPLICE_UPSTREAM_BRANCH="$(upstream_branch_for "$path" "$branch")"
   SPLICE_UPSTREAM_LABEL="$(upstream_branch_label "$path" "$SPLICE_UPSTREAM_BRANCH")"
   SPLICE_SYNCED="$(splice_config "$path" commit)"

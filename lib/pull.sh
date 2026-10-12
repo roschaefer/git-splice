@@ -46,6 +46,7 @@ cmd_pull() {
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
   local branch i path failed fetched=() top=() below=() entries=()
   branch="$(current_branch)"
+  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
 
   for path in "${SELECTED_PATHS[@]}"; do
     below_selected "$path" || top+=("$path")

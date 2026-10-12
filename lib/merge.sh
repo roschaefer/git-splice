@@ -214,5 +214,6 @@ cmd_merge() {
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
   local branch
   branch="$(current_branch)"
+  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
   merge_paths "$branch" merge "${SELECTED_PATHS[@]}"
 }

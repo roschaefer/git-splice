@@ -59,6 +59,8 @@ cmd_clone() {
     die "$path is a file, not a folder"
   fi
 
+  # Before the fetch: refuses if the splice above leaves it open.
+  container_default_branch "$path" >/dev/null
   create_upstream_key "$url"
   SPLICE_UPSTREAM_LISTS[$path]="$DEFAULT_UPSTREAM"
   UPSTREAM_URLS["$path:$DEFAULT_UPSTREAM"]="$url"

@@ -111,5 +111,6 @@ cmd_diff() {
   select_paths overview diff
   use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   branch="$(current_branch)"
+  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
   page_git_output diff_paths "$branch" "$base" "${SELECTED_PATHS[@]}"
 }

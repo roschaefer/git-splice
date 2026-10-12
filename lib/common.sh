@@ -826,44 +826,73 @@ splice_above_in() {
   return 1
 }
 
-# Prints the default branch of the upstream splice $1 uses: that
-# upstream's recorded default-branch, else the one of what it lives in
-# (container_default_branch).
+# Prints the default branch of upstream $2 of splice $1, or of the one it
+# uses if $2 isn't given: that upstream's recorded default-branch, else the
+# one of what it lives in (container_default_branch).
 # A .splice records it only where it differs from that, so the file means
 # the same in every repository it reaches: a nested one, in the
 # monorepo, follows the splice above it, as it follows its repository
 # in the upstream above.
 splice_default_branch() {
-  local name
-  name="$(upstream_config "$1" "${SPLICE_UPSTREAM_NAMES[$1]:-}" default-branch)"
+  local path="$1" upstream="${2-${SPLICE_UPSTREAM_NAMES[$1]:-}}" name
+  name="$(upstream_config "$path" "$upstream" default-branch)"
   if [[ -n "$name" ]]; then
     printf '%s\n' "$name"
   else
-    container_default_branch "$1"
+    container_default_branch "$path"
   fi
 }
 
 # Prints the default branch of what folder $1 lives in: the default branch
-# of the splice above it, or the monorepo's.
+# of the upstream the splice above it uses, or the monorepo's. Dies if that
+# splice names several upstreams with different default branches, but none
+# is chosen: the monorepo's default branch would be a guess the splice
+# above never made.
 container_default_branch() {
-  local above
-  if above="$(splice_above_in HEAD "$1")"; then
-    splice_default_branch "$above"
-  else
+  local path="$1" above names=() name branch branches="" seen=()
+  if ! above="$(splice_above_in HEAD "$path")"; then
     monorepo_default_branch
+    return
   fi
+  require_splice_upstream_list "$above"
+  if [[ -n "${SPLICE_UPSTREAM_NAMES[$above]}" ]]; then
+    splice_default_branch "$above"
+    return
+  fi
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$above]}"
+  for name in "${names[@]}"; do
+    branch="$(splice_default_branch "$above" "$name")"
+    branches+="${branches:+, }$name: $branch"
+    [[ " ${seen[*]} " == *" $branch "* ]] || seen+=("$branch")
+  done
+  if [[ ${#seen[@]} -gt 1 ]]; then
+    die "$path follows the default branch of $above, whose upstreams have different default branches ($branches), but no default -- commit one: git config --file $(shell_quote "$above/$STATE_FILE") splice.default-upstream <name>"
+  fi
+  printf '%s\n' "$branch"
 }
 
-# Prints the upstream branch splice $1 syncs with while the monorepo is on
-# branch $2: the same name, except that the monorepo's default branch maps
-# to the splice's default branch (splice_default_branch).
+# Prints the upstream branch splice $1 syncs with, from its upstream $3 or
+# the one it uses, while the monorepo is on branch $2: the same name,
+# except that the monorepo's default branch maps to that upstream's
+# default branch (splice_default_branch).
 upstream_branch_for() {
   local path="$1" branch="$2"
   if [[ "$branch" == "$(monorepo_default_branch)" ]]; then
-    splice_default_branch "$path"
+    splice_default_branch "$path" "${@:3}"
   else
     printf '%s\n' "$branch"
   fi
+}
+
+# Dies unless each splice <path>... has an upstream branch while the
+# monorepo is on branch <branch> (upstream_branch_for): before any splice is
+# touched, and outside $(...), where a refusal wouldn't end the command.
+require_upstream_branches() {
+  local branch="$1" path
+  shift
+  for path in "$@"; do
+    upstream_branch_for "$path" "$branch" >/dev/null
+  done
 }
 
 # Prints the upstream's default branch (its HEAD), or nothing if it has
