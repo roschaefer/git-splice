@@ -1,10 +1,10 @@
 # Why "splice"
 
-![Steps of splicing the end of a rope, Scientific American, 1871](images/rope-splices-1871.png)
+![Rope splices from the Nordisk familjebok, a long splice on the left](images/rope-splices-nordisk-familjebok.png)
 
-*Rope splices, from Scientific American Vol. XXIV No. 12 (1871).
-Public domain, via
-[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:1871_illustration_rope_splices.png).*
+*Rope splices, a) a long splice, from the Nordisk familjebok, 2nd edition,
+vol. 26 (1917). Public domain, via
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Splitsar.png).*
 
 A [splice](https://en.wikipedia.org/wiki/Splice) joins two things into
 one: ropes, film, tape, wires, optical fibres, wooden beams, genes. The
@@ -12,10 +12,10 @@ name git-splice borrows from all of them.
 
 ## Rope splicing
 
-A [rope splice](https://en.wikipedia.org/wiki/Rope_splicing) unlays the
-strands of two ropes and weaves each into the other. Unlike a knot, it adds
-no lump: the joint has nearly the rope's own diameter and runs through a
-block like the rest of the rope.
+A [long splice](https://en.wikipedia.org/wiki/Rope_splicing) unlays the
+strands of two ropes and weaves each into the other. Unlike a knot, or
+even a short splice, it adds no lump: the joint has nearly the rope's own
+diameter and runs through a pulley like the rest of the rope.
 
 git-splice works the same way. The upstream's files are woven into the
 monorepo as an ordinary folder, with no pointer to another repository and
