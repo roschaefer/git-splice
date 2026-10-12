@@ -166,15 +166,51 @@ bump_synced() {
   log_ok "$path: bumped the synced commit to ${target:0:7}"
 }
 
+# Reads splice <path>'s upstreams again after a merge above changed its
+# .splice, and uses the one the command chose (use_upstreams). A pull
+# (<verb>) fetches the upstreams it names now, but didn't before: the
+# synced commit the merge above moved it to may be in any of them. Fails,
+# saying why, if one can't be fetched, or if a merge would use one that
+# wasn't.
+reload_splice_upstream() {
+  local path="$1" branch="$2" verb="$3" names=() name old_urls=() url entries=() i used_is_new=""
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
+  for name in "${names[@]}"; do
+    old_urls+=("${UPSTREAM_URLS["$path:$name"]}")
+  done
+  load_splice_upstream "$path"
+  use_upstreams "$UPSTREAM_ARG" "$path"
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
+  for name in "${names[@]}"; do
+    for url in "${old_urls[@]}"; do
+      [[ "$url" == "${UPSTREAM_URLS["$path:$name"]}" ]] && continue 2
+    done
+    entries+=("$path:$name")
+    [[ "$name" != "${SPLICE_UPSTREAM_NAMES[$path]}" ]] || used_is_new=1
+  done
+  [[ ${#entries[@]} -gt 0 ]] || return 0
+  if [[ "$verb" == pull ]]; then
+    fetch_all_parallel "$branch" "${entries[@]}"
+    for i in "${!entries[@]}"; do
+      print_fetch_output "$i"
+    done
+    [[ ${#FETCH_FAILURES[@]} -eq 0 ]]
+  elif [[ -n "$used_is_new" ]] && ! splice_fetched "$path"; then
+    log_warn "$path: not fetched yet -- run 'git splice fetch $(upstream_option "$path")$path' first"
+    return 1
+  fi
+}
+
 # Merges every given path, stopping at the first one that leaves a conflict:
 # another cherry-pick can't start before it's resolved. Top-down: a splice
 # goes before the ones below it, whose synced commit its pull may move, and
 # a failure stops them. `verb` as for merge_one. Exits 1 if anything was
 # skipped or failed.
 merge_paths() {
-  local branch="$1" verb="$2" path failed paths=() failures=() skipped=()
+  local branch="$1" verb="$2" path failed paths=() failures=() skipped=() loaded
   shift 2
   mapfile -t paths < <(splices_in_order top-down "$@")
+  loaded="$(git rev-parse HEAD)"
   for path in "${paths[@]}"; do
     if splice_in_progress; then
       skipped+=("$path")
@@ -188,6 +224,12 @@ merge_paths() {
     # A pull of a splice above this one may have removed it.
     if ! git cat-file -e "HEAD:$path/$STATE_FILE" 2>/dev/null; then
       log_ok "$path: not a splice any more -- nothing to $verb"
+      continue
+    fi
+    # ... or changed its upstreams, read before it merged.
+    if ! git diff --quiet "$loaded" HEAD -- "$path/$STATE_FILE" &&
+      ! reload_splice_upstream "$path" "$branch" "$verb"; then
+      failures+=("$path")
       continue
     fi
     merge_one "$path" "$branch" "$verb" || failures+=("$path")

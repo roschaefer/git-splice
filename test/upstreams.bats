@@ -243,6 +243,44 @@ add_upstream() {
   [ ! -e vendor/a/d/.splice ]
 }
 
+@test "pull --all: a splice below uses the upstreams its .splice names after the pull above, not before" {
+  scenario_outer_fork "$monorepo" "$upstream"
+  local b_fork="$BATS_TEST_TMPDIR/upstream-b-fork.git" work="$BATS_TEST_TMPDIR/a"
+  git clone -q "$upstream" "$work"
+  (
+    cd "$work"
+    git config user.name Test && git config user.email test@example.com
+    add_upstream b fork "$b_fork" fork
+    git push -q origin HEAD:main
+  )
+  cd "$monorepo"
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [ "${lines[3]}" = "ok   vendor/a/b fetched from fork" ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse main)" ]
+}
+
+@test "merge --all: a splice below whose new upstream, from the merge above, isn't fetched yet says so" {
+  scenario_outer_fork "$monorepo" "$upstream"
+  local b_fork="$BATS_TEST_TMPDIR/upstream-b-fork.git" work="$BATS_TEST_TMPDIR/a"
+  git clone -q "$upstream" "$work"
+  (
+    cd "$work"
+    git config user.name Test && git config user.email test@example.com
+    add_upstream b fork "$b_fork" fork
+    git push -q origin HEAD:main
+  )
+  cd "$monorepo"
+  splice fetch
+  run splice merge --all
+  [ "$status" -eq 1 ]
+  [ "${lines[1]}" = "??   vendor/a/b: not fetched yet -- run 'git splice fetch vendor/a/b' first" ]
+  splice fetch vendor/a/b
+  run splice merge vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse main)" ]
+}
+
 @test "pull --upstream: the splices below are fetched from every upstream they name" {
   scenario_outer_fork "$monorepo" "$upstream"
   cd "$monorepo"
