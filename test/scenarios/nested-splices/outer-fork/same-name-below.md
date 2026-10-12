@@ -43,8 +43,10 @@ ok   vendor/a/b fetched from fork
 
 ```scrut
 $ git splice status --upstream fork
-ok   vendor/a -> fork/main (diverged: ahead 1, behind 1)
-ok   vendor/a/b -> fork/main (pull: behind 1)
+On branch main
+
+  ahead 1, behind 1  vendor/a -> fork/main
+  behind 1           vendor/a/b -> fork/main
 ```
 
 ### Pulling each from its fork
@@ -66,14 +68,18 @@ ok   vendor/a/b: pulled d5d5b62
 
 ```scrut
 $ git splice status --upstream fork
-ok   vendor/a -> fork/main (push: ahead 3)
-ok   vendor/a/b -> fork/main (push: ahead 2)
+On branch main
+
+  ahead 3  vendor/a -> fork/main
+  ahead 2  vendor/a/b -> fork/main
 ```
 
 ```scrut
 $ git splice status
-ok   vendor/a -> origin/main (push: ahead 4)
-ok   vendor/a/b -> origin/main (push: ahead 3)
+On branch main
+
+  ahead 4  vendor/a -> origin/main
+  ahead 3  vendor/a/b -> origin/main
 ```
 
 ### The default travels with the `.splice`

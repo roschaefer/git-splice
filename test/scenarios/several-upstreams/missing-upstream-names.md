@@ -46,7 +46,9 @@ $ git splice status
 ```scrut
 $ git splice fetch --upstream fork && git splice status --upstream fork
 ok   vendor/a fetched from fork
-ok   vendor/a -> fork/main (pull: behind 1)
+On branch main
+
+  behind 1  vendor/a -> fork/main
 ```
 
 `fetch` without it fetches every upstream, so it needs no default:
@@ -63,7 +65,9 @@ $ git config --file vendor/a/.splice splice.default-upstream fork && git commit 
 
 ```scrut
 $ git splice status
-ok   vendor/a -> fork/main (pull: behind 1)
+On branch main
+
+  behind 1  vendor/a -> fork/main
 ```
 
 ### A name the splice doesn't have
@@ -102,5 +106,7 @@ $ git splice status --upstream fork
 
 ```scrut
 $ git splice status --upstream fork vendor/a
-ok   vendor/a -> fork/main (pull: behind 1)
+On branch main
+
+  behind 1  vendor/a -> fork/main
 ```

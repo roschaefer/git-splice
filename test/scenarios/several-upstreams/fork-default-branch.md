@@ -50,8 +50,12 @@ On `main`, the original syncs with its `main`, the fork with `trunk`:
 
 ```scrut
 $ git splice fetch >/dev/null && git splice status && git splice status --upstream fork
-ok   vendor/a -> origin/main (up to date)
-ok   vendor/a -> fork/trunk (pull: behind 1)
+On branch main
+
+  up to date  vendor/a -> origin/main
+On branch main
+
+  behind 1  vendor/a -> fork/trunk
 ```
 
 ### The earlier format

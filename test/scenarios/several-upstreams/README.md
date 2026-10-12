@@ -83,14 +83,18 @@ fork, which has the patch:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> fork/main (pull: behind 1)
+On branch main
+
+  behind 1  vendor/a -> fork/main
 ```
 
 `--upstream` compares with the original instead:
 
 ```scrut
 $ git splice status --upstream origin
-ok   vendor/a -> origin/main (up to date)
+On branch main
+
+  up to date  vendor/a -> origin/main
 ```
 
 ```scrut
@@ -104,7 +108,9 @@ the original would contribute it:
 
 ```scrut
 $ git splice status --upstream origin
-ok   vendor/a -> origin/main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a -> origin/main
 ```
 
 ### Taking a release of the original
@@ -122,7 +128,9 @@ ok   vendor/a fetched from origin (main moved bde4164..3fd09f0)
 
 ```scrut
 $ git splice status --upstream origin
-ok   vendor/a -> origin/main (diverged: ahead 1, behind 1)
+On branch main
+
+  ahead 1, behind 1  vendor/a -> origin/main
 ```
 
 ```scrut
@@ -137,7 +145,9 @@ the fork:
 
 ```scrut
 $ git splice status
-ok   vendor/a -> fork/main (push: ahead 2)
+On branch main
+
+  ahead 2  vendor/a -> fork/main
 ```
 
 ```scrut
@@ -157,5 +167,7 @@ $ git -C "$UPSTREAM-fork.git" log --graph --format=%s main
 
 ```scrut
 $ git splice status
-ok   vendor/a -> fork/main (up to date)
+On branch main
+
+  up to date  vendor/a -> fork/main
 ```

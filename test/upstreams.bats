@@ -33,7 +33,7 @@ add_upstream() {
   cd "$monorepo"
   run splice status
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a -> main (up to date)" ]
+  [ "$output" = "$(printf 'On branch main\n\n  up to date  vendor/a')" ]
   run splice fetch
   [ "$output" = "ok   vendor/a fetched" ]
 }
@@ -89,7 +89,7 @@ add_upstream() {
   [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from fork/trunk at $(git -C "$fork" rev-parse --short trunk)" ]
   run splice fetch --upstream origin vendor/a
   run splice status vendor/a
-  [ "$output" = "ok   vendor/a -> origin/main (push: ahead 1)" ]
+  [ "$output" = "$(printf 'On branch main\n\n  ahead 1  vendor/a -> origin/main')" ]
 }
 
 @test "upstreams: a default-branch in [splice], from an earlier version, is refused" {
@@ -207,7 +207,7 @@ add_upstream() {
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull --upstream fork vendor/a' first" ]
   run splice status
-  [ "$output" = "ok   vendor/a -> origin/main (push: ahead 1)" ]
+  [ "$output" = "$(printf 'On branch main\n\n  ahead 1  vendor/a -> origin/main')" ]
 }
 
 @test "upstreams: a splice below follows the default branch its upstreams above agree on, even without a default-upstream" {
@@ -216,7 +216,7 @@ add_upstream() {
   add_upstream vendor/a fork "${upstream%.git}-fork.git"
   run splice status vendor/a/b
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a/b -> main (up to date)" ]
+  [ "$output" = "$(printf 'On branch main\n\n  up to date  vendor/a/b')" ]
 }
 
 @test "upstreams: a splice below refuses to guess when the upstreams above have different default branches and none is the default" {

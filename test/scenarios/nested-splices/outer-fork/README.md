@@ -43,8 +43,10 @@ $ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/c
 
 ```scrut
 $ git splice status
-ok   vendor/a -> origin/main (up to date)
-ok   vendor/a/b -> main (up to date)
+On branch main
+
+  up to date  vendor/a -> origin/main
+  up to date  vendor/a/b
 ```
 
 ### `--upstream` applies to the splices named
@@ -76,8 +78,10 @@ it's a commit a's upstream lacks, like any other the fork has.
 
 ```scrut
 $ git splice status
-ok   vendor/a -> origin/main (push: ahead 1)
-ok   vendor/a/b -> main (push: ahead 1)
+On branch main
+
+  ahead 1  vendor/a -> origin/main
+  ahead 1  vendor/a/b
 ```
 
 ```scrut

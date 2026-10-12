@@ -54,5 +54,7 @@ $ git config --file vendor/a/.splice splice.default-upstream origin && git commi
 
 ```scrut
 $ git splice status vendor/a/b
-ok   vendor/a/b -> main (up to date)
+On branch main
+
+  up to date  vendor/a/b
 ```
