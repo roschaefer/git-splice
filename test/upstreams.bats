@@ -102,6 +102,25 @@ add_upstream() {
   [[ "$output" == *"vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"* ]]
 }
 
+@test "merge --bump: the bump names the upstream branch it records, like a pull" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  local mirror="$BATS_TEST_TMPDIR/mirror.git" target
+  git clone -q --bare "$upstream" "$mirror"
+  cd "$monorepo"
+  add_upstream vendor/a mirror "$mirror" origin
+  echo "local" >>vendor/a/file.txt
+  git commit -q -am "a local change"
+  splice push --upstream mirror vendor/a
+  target="$(git -C "$mirror" rev-parse main)"
+  run splice merge --upstream mirror --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "splice: bump vendor/a from mirror/main at ${target:0:7}" ]
+  git -C "$mirror" update-ref refs/heads/main "$target^"
+  splice fetch --upstream mirror vendor/a
+  run splice merge --upstream mirror --bump vendor/a
+  [ "$output" = "ok   vendor/a: nothing to bump -- the fetched 'mirror/main' is older than the synced commit" ]
+}
+
 @test "fetch: fetches every upstream of a splice, or only the one --upstream names" {
   scenario_several_upstreams "$monorepo" "$upstream"
   cd "$monorepo"

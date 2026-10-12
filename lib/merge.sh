@@ -152,14 +152,14 @@ bump_synced() {
     return 0
   fi
   if [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target"; then
-    log_ok "$path: nothing to bump -- the fetched '$SPLICE_UPSTREAM_BRANCH' is older than the synced commit"
+    log_ok "$path: nothing to bump -- the fetched '$SPLICE_UPSTREAM_LABEL' is older than the synced commit"
     return 0
   fi
   folder="$(git rev-parse "HEAD:$path")"
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
   new_blob="$(state_blob "$path" "commit=$target")"
   if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
-    "splice: bump $path from $SPLICE_UPSTREAM_BRANCH at ${target:0:7}"; then
+    "splice: bump $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
     log_err "$path: bump failed"
     return 1
   fi
