@@ -2,14 +2,18 @@
 
 usage_merge() {
   cat <<'EOF'
-usage: git splice merge [--bump] (<path>... | --all)
+usage: git splice merge [--upstream <name>] [--bump] (<path>... | --all)
 
 Splices already-fetched upstream changes into each splice, as one ordinary
 commit per splice. Never touches the network: run 'git splice fetch'
 first, or 'git splice pull' to do both.
 
 The upstream branch is the one named like the current branch; on the
-monorepo's default branch, the splice's default-branch if it has one.
+monorepo's default branch, the upstream's default-branch if it has one.
+
+--upstream names one of the upstreams a splice's .splice names; without
+it, the splice's default upstream. A splice without the named upstream
+stops the command before it starts.
 
 Top-down: a splice is merged before the ones below it, since its merge
 can move their synced commits, and a failure stops them.
@@ -42,11 +46,11 @@ merge_one() {
   classify_splice "$path" "$branch"
   case "$SPLICE_STATE" in
     never-fetched)
-      log_warn "$path: not fetched yet -- run 'git splice fetch $path' first"
+      log_warn "$path: not fetched yet -- run 'git splice fetch $(upstream_option "$path")$path' first"
       return 1
       ;;
     missing-branch)
-      log_ok "$path: upstream has no '$SPLICE_UPSTREAM_BRANCH' branch -- nothing to $verb"
+      log_ok "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch -- nothing to $verb"
       return 0
       ;;
     up-to-date)
@@ -82,7 +86,7 @@ merge_one() {
   new_blob="$(state_blob "$path" "commit=$target")"
 
   if ! splice_in "$path" "$base_folder" "$base_blob" "$target^{tree}" "$new_blob" \
-    "splice: $verb $path from $SPLICE_UPSTREAM_BRANCH at ${target:0:7}"; then
+    "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
     log_err "$path: $verb failed"
     return 1
   fi
@@ -127,7 +131,7 @@ record_equal_tree() {
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
   new_blob="$(state_blob "$path" "commit=$target")"
   if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
-    "splice: $verb $path from $SPLICE_UPSTREAM_BRANCH at ${target:0:7}"; then
+    "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
     log_err "$path: $verb failed"
     return 1
   fi
@@ -148,18 +152,53 @@ bump_synced() {
     return 0
   fi
   if [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target"; then
-    log_ok "$path: nothing to bump -- the fetched '$SPLICE_UPSTREAM_BRANCH' is older than the synced commit"
+    log_ok "$path: nothing to bump -- the fetched '$SPLICE_UPSTREAM_LABEL' is older than the synced commit"
     return 0
   fi
   folder="$(git rev-parse "HEAD:$path")"
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
   new_blob="$(state_blob "$path" "commit=$target")"
   if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
-    "splice: bump $path from $SPLICE_UPSTREAM_BRANCH at ${target:0:7}"; then
+    "splice: bump $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
     log_err "$path: bump failed"
     return 1
   fi
   log_ok "$path: bumped the synced commit to ${target:0:7}"
+}
+
+# Reads splice <path>'s upstreams again after a merge above changed its
+# .splice, and uses the one the command chose (use_upstreams). A pull
+# (<verb>) fetches the upstreams it names now, but didn't before: the
+# synced commit the merge above moved it to may be in any of them. Fails,
+# saying why, if one can't be fetched, or if a merge would use one that
+# wasn't.
+reload_splice_upstream() {
+  local path="$1" branch="$2" verb="$3" names=() name old_urls=() url entries=() i used_is_new=""
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
+  for name in "${names[@]}"; do
+    old_urls+=("${UPSTREAM_URLS["$path:$name"]}")
+  done
+  load_splice_upstream "$path"
+  use_upstreams "$UPSTREAM_ARG" "$path"
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
+  for name in "${names[@]}"; do
+    for url in "${old_urls[@]}"; do
+      [[ "$url" == "${UPSTREAM_URLS["$path:$name"]}" ]] && continue 2
+    done
+    entries+=("$path:$name")
+    [[ "$name" != "${SPLICE_UPSTREAM_NAMES[$path]}" ]] || used_is_new=1
+  done
+  [[ ${#entries[@]} -gt 0 ]] || return 0
+  if [[ "$verb" == pull ]]; then
+    fetch_all_parallel "$branch" "${entries[@]}"
+    for i in "${!entries[@]}"; do
+      print_fetch_output "$i"
+    done
+    [[ ${#FETCH_FAILURES[@]} -eq 0 ]]
+  elif [[ -n "$used_is_new" ]] && ! splice_fetched "$path"; then
+    log_warn "$path: not fetched yet -- run 'git splice fetch $(upstream_option "$path")$path' first"
+    return 1
+  fi
 }
 
 # Merges every given path, stopping at the first one that leaves a conflict:
@@ -168,9 +207,10 @@ bump_synced() {
 # a failure stops them. `verb` as for merge_one. Exits 1 if anything was
 # skipped or failed.
 merge_paths() {
-  local branch="$1" verb="$2" path failed paths=() failures=() skipped=()
+  local branch="$1" verb="$2" path failed paths=() failures=() skipped=() loaded
   shift 2
   mapfile -t paths < <(splices_in_order top-down "$@")
+  loaded="$(git rev-parse HEAD)"
   for path in "${paths[@]}"; do
     if splice_in_progress; then
       skipped+=("$path")
@@ -186,6 +226,12 @@ merge_paths() {
       log_ok "$path: not a splice any more -- nothing to $verb"
       continue
     fi
+    # ... or changed its upstreams, read before it merged.
+    if ! git diff --quiet "$loaded" HEAD -- "$path/$STATE_FILE" &&
+      ! reload_splice_upstream "$path" "$branch" "$verb"; then
+      failures+=("$path")
+      continue
+    fi
     merge_one "$path" "$branch" "$verb" || failures+=("$path")
   done
 
@@ -199,15 +245,17 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "--bump" "$@"
+  parse_args usage_merge "--upstream --bump" "$@"
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
   cd_to_repo_root
   require_head_commit
   discover_splices
   select_paths explicit merge
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
   local branch
   branch="$(current_branch)"
+  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
   merge_paths "$branch" merge "${SELECTED_PATHS[@]}"
 }

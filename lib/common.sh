@@ -4,13 +4,22 @@
 
 # Every splice path in the repository, from its committed .splice file.
 declare -ga ALL_PATHS=()
-# Each splice's upstream URL, and the key its fetched refs live under (see
-# upstream_key; empty until the upstream is first fetched), by path. Set by
-# discover_splices, and by clone for the splice it creates.
+# Every upstream each splice's .splice names, [upstream "<name>"], by path:
+# their names, in the file's order, space-separated; each one's URL, by
+# "<path>:<name>" (neither has a ":", see usable_splice_path and
+# valid_upstream_name); and the name of the one commands use unless
+# --upstream names another, or nothing if the .splice names several and no
+# default-upstream. Set by discover_splices, and by clone for the splice it
+# creates.
+declare -gA SPLICE_UPSTREAM_LISTS=()
+declare -gA UPSTREAM_URLS=()
+declare -gA SPLICE_DEFAULT_UPSTREAMS=()
+# The upstream a command uses for each splice (see use_upstream): its name,
+# its URL, and the key its fetched refs live under (see upstream_key; empty
+# until the upstream is first fetched), by path.
+declare -gA SPLICE_UPSTREAM_NAMES=()
 declare -gA SPLICE_URLS=()
 declare -gA SPLICE_KEYS=()
-# Each splice's upstream's name in its .splice, [upstream "<name>"], by path.
-declare -gA SPLICE_UPSTREAM_NAMES=()
 
 # Name of the one upstream clone and init write into a new .splice.
 DEFAULT_UPSTREAM=origin
@@ -314,6 +323,14 @@ splice_config() {
   git config --blob "$rev:$path/$STATE_FILE" --get "splice.$key" 2>/dev/null || true
 }
 
+# Prints value <key> of upstream <name> in splice <path>'s committed state
+# file, or nothing.
+upstream_config() {
+  local path="$1" name="$2" key="$3"
+  [[ -n "$name" ]] || return 0
+  git config --blob "HEAD:$path/$STATE_FILE" --get "upstream.$name.$key" 2>/dev/null || true
+}
+
 # Prints a blob id: splice <path>'s state file as committed in HEAD (or a
 # new one), with each "key=value" argument set ("key=" unsets it). A key
 # without a section is in [splice], e.g. "commit"; others are given in
@@ -361,15 +378,24 @@ folder_tree() {
   return 0
 }
 
-# Reads splice <path>'s upstream from its committed state file into
-# SPLICE_URLS and SPLICE_KEYS, or dies explaining what's wrong with it:
+# Reads the upstreams of splice <path> from its committed state file into
+# SPLICE_UPSTREAM_LISTS, UPSTREAM_URLS and SPLICE_DEFAULT_UPSTREAMS, and
+# uses its default one (use_upstream), or dies explaining what's wrong with
+# the file:
 #
+#   [splice]
+#   	default-upstream = fork
 #   [upstream "origin"]
 #   	url = https://github.com/x/lib.git
+#   	default-branch = master
+#   [upstream "fork"]
+#   	url = https://git.example.com/company/lib.git
 #
-# Exactly one [upstream] section is supported for now.
+# default-upstream can be left out while there's one upstream. With
+# several, a command without --upstream needs it (require_default_upstream),
+# so that no order or name in the file decides by accident.
 load_splice_upstream() {
-  local path="$1" records=() record urls=() names=() name id="" error
+  local path="$1" records=() record urls=() names=() name id="" default="" error q_file i
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
@@ -394,23 +420,146 @@ load_splice_upstream() {
       # An empty URL names no upstream.
       upstream.*.url)
         [[ -n "${record#*$'\n'}" ]] || continue
-        urls+=("${record#*$'\n'}")
         name="${record%%$'\n'*}"
         name="${name#upstream.}"
-        names+=("${name%.url}")
+        name="${name%.url}"
+        valid_upstream_name "$name" ||
+          die "$path/$STATE_FILE: '$name' isn't supported as an upstream's name -- use letters, digits, '.', '_' and '-'"
+        [[ " ${names[*]} " != *" $name "* ]] ||
+          die "$path/$STATE_FILE names upstream '$name' twice -- keep one"
+        urls+=("${record#*$'\n'}")
+        names+=("$name")
         ;;
       splice.id) id="${record#*$'\n'}" ;;
+      splice.default-upstream) default="${record#*$'\n'}" ;;
+      splice.default-branch)
+        die "$path/$STATE_FILE has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"
+        ;;
     esac
   done
+  q_file="$(shell_quote "$path/$STATE_FILE")"
   [[ ${#urls[@]} -gt 0 ]] ||
-    die "$path/$STATE_FILE names no upstream -- add one: git config --file $(shell_quote "$path/$STATE_FILE") upstream.$DEFAULT_UPSTREAM.url <url>"
-  [[ ${#urls[@]} -eq 1 ]] ||
-    die "$path/$STATE_FILE names ${#urls[@]} upstreams -- only one is supported so far"
+    die "$path/$STATE_FILE names no upstream -- add one: git config --file $q_file upstream.$DEFAULT_UPSTREAM.url <url>"
+  if [[ -n "$default" && " ${names[*]} " != *" $default "* ]]; then
+    die "$path/$STATE_FILE: default-upstream '$default' isn't one of its upstreams ($(join_names "${names[@]}")) -- fix it: git config --file $q_file splice.default-upstream <name>"
+  fi
   [[ -n "$id" ]] || die "$path/$STATE_FILE has no id"
-  upstream_key "${urls[0]}"
-  SPLICE_URLS[$path]="${urls[0]}"
-  SPLICE_UPSTREAM_NAMES[$path]="${names[0]}"
+  [[ ${#names[@]} -gt 1 ]] || default="${names[0]}"
+  SPLICE_UPSTREAM_LISTS[$path]="${names[*]}"
+  for i in "${!names[@]}"; do
+    UPSTREAM_URLS["$path:${names[i]}"]="${urls[i]}"
+  done
+  SPLICE_DEFAULT_UPSTREAMS[$path]="$default"
+  if [[ -n "$default" ]]; then
+    use_upstream "$path" "$default"
+  else
+    SPLICE_UPSTREAM_NAMES[$path]=""
+    SPLICE_URLS[$path]=""
+    SPLICE_KEYS[$path]=""
+  fi
+}
+
+# Succeeds if <name> can name an upstream in a .splice: letters, digits,
+# ".", "_" and "-", starting with a letter or digit. Messages print it
+# as <name>/<branch>, and fetch tells it from the path by the ":" it lacks.
+valid_upstream_name() {
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
+}
+
+# Prints names $@ for a message: 'a', 'a' and 'b', or 'a', 'b' and 'c'.
+join_names() {
+  local out="" i
+  for ((i = 1; i <= $#; i++)); do
+    if ((i == 1)); then
+      out="'${!i}'"
+    elif ((i == $#)); then
+      out+=" and '${!i}'"
+    else
+      out+=", '${!i}'"
+    fi
+  done
+  printf '%s' "$out"
+}
+
+# Makes commands use upstream <name> of splice <path>: sets its
+# SPLICE_UPSTREAM_NAMES, SPLICE_URLS and SPLICE_KEYS.
+use_upstream() {
+  local path="$1" name="$2"
+  SPLICE_UPSTREAM_NAMES[$path]="$name"
+  SPLICE_URLS[$path]="${UPSTREAM_URLS["$path:$name"]}"
+  upstream_key "${SPLICE_URLS[$path]}"
   SPLICE_KEYS[$path]="$UPSTREAM_KEY"
+}
+
+# Succeeds if splice <path>'s .splice names more than one upstream: then
+# messages name its upstream branches as <name>/<branch>.
+has_several_upstreams() {
+  [[ "${SPLICE_UPSTREAM_LISTS[$1]:-}" == *" "* ]]
+}
+
+# Prints upstream branch <branch> of splice <path> as messages name it:
+# <branch>, or <name>/<branch> of the upstream in use if the splice has
+# several, like origin/main in Git.
+upstream_branch_label() {
+  if has_several_upstreams "$1"; then
+    printf '%s/%s\n' "${SPLICE_UPSTREAM_NAMES[$1]}" "$2"
+  else
+    printf '%s\n' "$2"
+  fi
+}
+
+# Prints "--upstream <name> " if splice <path> uses another upstream than
+# its default, for the commands that messages suggest: without it, they
+# would use the default one.
+upstream_option() {
+  [[ "${SPLICE_UPSTREAM_NAMES[$1]}" == "${SPLICE_DEFAULT_UPSTREAMS[$1]}" ]] ||
+    printf -- '--upstream %s ' "${SPLICE_UPSTREAM_NAMES[$1]}"
+}
+
+# Dies unless splice <path> has a default upstream, explaining how to
+# choose one.
+require_default_upstream() {
+  local path="$1" names=()
+  [[ -z "${SPLICE_DEFAULT_UPSTREAMS[$path]}" ]] || return 0
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
+  die "$path names upstreams $(join_names "${names[@]}"), but no default -- pass --upstream <name>, or commit one: git config --file $(shell_quote "$path/$STATE_FILE") splice.default-upstream <name>"
+}
+
+# Makes each of splices <path>... use its upstream <name> (from
+# --upstream), or its default one if <name> is empty. Dies before any
+# splice is touched if one of them lacks it, naming those that have it:
+# falling back to another upstream would pull from, or push to, a
+# repository nobody named, and skipping would leave half the work done.
+# Names are unique only within one .splice, so this applies to the
+# splices a command selects, not to those below them.
+use_upstreams() {
+  local name="$1" path missing=() having=() names=()
+  shift
+  for path in "$@"; do
+    require_splice_upstream_list "$path"
+    if [[ -z "$name" ]]; then
+      require_default_upstream "$path"
+    elif [[ " ${SPLICE_UPSTREAM_LISTS[$path]} " == *" $name "* ]]; then
+      having+=("$path")
+    else
+      missing+=("$path")
+    fi
+  done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    if [[ $# -eq 1 ]]; then
+      read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$1]}"
+      if [[ ${#names[@]} -eq 1 ]]; then
+        die "$1 has no upstream '$name' -- its upstream is '${names[0]}'"
+      fi
+      die "$1 has no upstream '$name' -- its upstreams are $(join_names "${names[@]}")"
+    elif [[ ${#having[@]} -eq 0 ]]; then
+      die "none of these splices has an upstream '$name': ${missing[*]}"
+    fi
+    die "no upstream '$name' in ${missing[*]} -- name only the splices that have one: ${having[*]}"
+  fi
+  for path in "$@"; do
+    use_upstream "$path" "${name:-${SPLICE_DEFAULT_UPSTREAMS[$path]}}"
+  done
 }
 
 # Each upstream URL's key, and each key's URL, as recorded in the
@@ -627,22 +776,18 @@ splice_ref() {
   printf '%s%s\n' "$(splice_refs_prefix "$1")" "$2"
 }
 
-# Dies unless upstream <name> (from --upstream) is one of splice <path>'s,
-# or <name> is empty. Leaving it out picks the splice's only upstream; once
-# a .splice can name several, it will have to name one of them.
-require_upstream_name() {
-  local path="$1" name="$2"
-  require_splice_upstream "$path"
-  [[ -z "$name" || "$name" == "${SPLICE_UPSTREAM_NAMES[$path]}" ]] ||
-    die "$path has no upstream '$name' -- its upstream is '${SPLICE_UPSTREAM_NAMES[$path]}'"
+# Loads splice <path>'s upstreams, unless discover_splices or clone has,
+# e.g. for a splice a merge above it brought in.
+require_splice_upstream_list() {
+  [[ -n "${SPLICE_UPSTREAM_LISTS[$1]+set}" ]] || load_splice_upstream "$1"
 }
 
-# Loads splice <path>'s upstream, unless discover_splices or clone has, and
-# looks up its key again if it had none yet.
+# Loads splice <path>'s upstreams if needed, dies unless one is in use
+# (use_upstreams), and looks up its key again if it had none yet.
 require_splice_upstream() {
-  if [[ -z "${SPLICE_URLS[$1]:-}" ]]; then
-    load_splice_upstream "$1"
-  elif [[ -z "${SPLICE_KEYS[$1]}" ]]; then
+  require_splice_upstream_list "$1"
+  [[ -n "${SPLICE_UPSTREAM_NAMES[$1]}" ]] || require_default_upstream "$1"
+  if [[ -z "${SPLICE_KEYS[$1]}" ]]; then
     upstream_key "${SPLICE_URLS[$1]}"
     SPLICE_KEYS[$1]="$UPSTREAM_KEY"
   fi
@@ -681,43 +826,73 @@ splice_above_in() {
   return 1
 }
 
-# Prints the default branch of the upstream of splice $1: its recorded
-# default-branch, else the one of what it lives in (container_default_branch).
+# Prints the default branch of upstream $2 of splice $1, or of the one it
+# uses if $2 isn't given: that upstream's recorded default-branch, else the
+# one of what it lives in (container_default_branch).
 # A .splice records it only where it differs from that, so the file means
 # the same in every repository it reaches: a nested one, in the
 # monorepo, follows the splice above it, as it follows its repository
 # in the upstream above.
 splice_default_branch() {
-  local name
-  name="$(splice_config "$1" default-branch)"
+  local path="$1" upstream="${2-${SPLICE_UPSTREAM_NAMES[$1]:-}}" name
+  name="$(upstream_config "$path" "$upstream" default-branch)"
   if [[ -n "$name" ]]; then
     printf '%s\n' "$name"
   else
-    container_default_branch "$1"
+    container_default_branch "$path"
   fi
 }
 
 # Prints the default branch of what folder $1 lives in: the default branch
-# of the splice above it, or the monorepo's.
+# of the upstream the splice above it uses, or the monorepo's. Dies if that
+# splice names several upstreams with different default branches, but none
+# is chosen: the monorepo's default branch would be a guess the splice
+# above never made.
 container_default_branch() {
-  local above
-  if above="$(splice_above_in HEAD "$1")"; then
-    splice_default_branch "$above"
-  else
+  local path="$1" above names=() name branch branches="" seen=()
+  if ! above="$(splice_above_in HEAD "$path")"; then
     monorepo_default_branch
+    return
   fi
+  require_splice_upstream_list "$above"
+  if [[ -n "${SPLICE_UPSTREAM_NAMES[$above]}" ]]; then
+    splice_default_branch "$above"
+    return
+  fi
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$above]}"
+  for name in "${names[@]}"; do
+    branch="$(splice_default_branch "$above" "$name")"
+    branches+="${branches:+, }$name: $branch"
+    [[ " ${seen[*]} " == *" $branch "* ]] || seen+=("$branch")
+  done
+  if [[ ${#seen[@]} -gt 1 ]]; then
+    die "$path follows the default branch of $above, whose upstreams have different default branches ($branches), but no default -- commit one: git config --file $(shell_quote "$above/$STATE_FILE") splice.default-upstream <name>"
+  fi
+  printf '%s\n' "$branch"
 }
 
-# Prints the upstream branch splice $1 syncs with while the monorepo is on
-# branch $2: the same name, except that the monorepo's default branch maps
-# to the splice's default branch (splice_default_branch).
+# Prints the upstream branch splice $1 syncs with, from its upstream $3 or
+# the one it uses, while the monorepo is on branch $2: the same name,
+# except that the monorepo's default branch maps to that upstream's
+# default branch (splice_default_branch).
 upstream_branch_for() {
   local path="$1" branch="$2"
   if [[ "$branch" == "$(monorepo_default_branch)" ]]; then
-    splice_default_branch "$path"
+    splice_default_branch "$path" "${@:3}"
   else
     printf '%s\n' "$branch"
   fi
+}
+
+# Dies unless each splice <path>... has an upstream branch while the
+# monorepo is on branch <branch> (upstream_branch_for): before any splice is
+# touched, and outside $(...), where a refusal wouldn't end the command.
+require_upstream_branches() {
+  local branch="$1" path
+  shift
+  for path in "$@"; do
+    upstream_branch_for "$path" "$branch" >/dev/null
+  done
 }
 
 # Prints the upstream's default branch (its HEAD), or nothing if it has

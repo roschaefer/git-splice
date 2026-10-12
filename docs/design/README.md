@@ -158,9 +158,9 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
 [splice]
 	commit = 3f1c…              # the synced commit U
 	id = 9b2e41c07d5a8f36       # which splice this is, wherever it moves
-	default-branch = master     # only if upstream's differs from the monorepo's
 [upstream "origin"]
 	url = git@github.com:x/a.git
+	default-branch = master     # only if it differs from what the splice lives in
 ```
 
 - **Git's config format, read and written by Git:**
@@ -190,20 +190,27 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
   the same commit, while two splices of different upstreams mounted at
   the same path on branches from the same commit still get different
   ids. Every command refuses a `.splice` without an id.
-- **Without `default-branch`**, the upstream's default branch has the
+- **Without `default-branch`**, an upstream's default branch has the
   name of the default branch of what the splice lives in: the splice
-  above it, or the monorepo. So a nested `.splice` means the same in the
-  monorepo as in the upstream above, where the repository stands in for
-  the splice above
-  ([example](../../test/scenarios/nested-default-branch/README.md)).
-- **Its `default-branch`** is looked up once, by `clone` and `init`, and
-  recorded only when it differs from that default branch. That keeps it stable if upstream later
-  renames its default branch, and visible to anyone wondering why `main`
-  syncs with `master`.
-- **Its upstream is named**, like a Git remote, so a library can later
-  sync with more than one, e.g. a company fork and the original. Exactly
-  one `[upstream "<name>"]` is supported for now. `clone` and `init` name
-  it `origin`. `commit` stays one per splice: a sync point is a commit,
+  above it, with the upstream that one uses, or the monorepo. So a nested
+  `.splice` means the same in the monorepo as in the upstream above,
+  where the repository stands in for the splice above
+  ([example](../../test/scenarios/nested-default-branch/README.md)). If
+  the splice above has several upstreams with different default branches
+  and no `default-upstream`, commands refuse rather than fall back to the
+  monorepo's
+  ([example](../../test/scenarios/nested-splices/outer-fork/fork-default-branch-below.md)).
+- **An upstream's `default-branch`** is looked up once, by `clone` and
+  `init`, and recorded only when it differs from that default branch.
+  That keeps it stable if upstream later renames its default branch, and
+  visible to anyone wondering why `main` syncs with `master`. It belongs
+  to the upstream, like its URL: a company fork may name its default
+  branch differently from the original. A `default-branch` in
+  `[splice]`, from an earlier version, is refused.
+- **Its upstreams are named**, like Git remotes, so a library can sync
+  with more than one, e.g. a company fork and the original
+  ([several-upstreams](../../test/scenarios/several-upstreams/README.md)).
+  `clone` and `init` name theirs `origin`. `commit` stays one per splice: a sync point is a commit,
   whichever upstream it came from.
 - **Every command checks it can read it.** A `.splice` that `git config`
   can't parse, e.g. one committed with conflict markers, stops every
@@ -529,7 +536,7 @@ rebuilding.
   current branch, for every command. Switching branches switches every
   splice.
 - The monorepo's default branch maps to upstream's default branch
-  (`default-branch` in `.splice` if the names differ). Every other branch
+  (the upstream's `default-branch` in `.splice` if the names differ). Every other branch
   keeps its name on both sides.
 - The monorepo's default branch is `origin/HEAD`, else
   `init.defaultBranch`. If neither works, commands that need it ask for
