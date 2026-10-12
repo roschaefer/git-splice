@@ -2,7 +2,7 @@
 
 The company fork names its default branch `trunk`, the original `main`
 ([#122](https://github.com/roschaefer/git-splice/issues/122)). Each
-upstream in `.splice` records its own `default-branch`, so on the
+upstream in `.splice` can record its own `default-branch`, so on the
 monorepo's `main`, each syncs with its own default branch.
 
 [`setup.bash`](setup.bash) builds the state of

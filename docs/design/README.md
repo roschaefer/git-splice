@@ -160,7 +160,7 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
 	id = 9b2e41c07d5a8f36       # which splice this is, wherever it moves
 [upstream "origin"]
 	url = git@github.com:x/a.git
-	default-branch = master     # only if upstream's differs from the monorepo's
+	default-branch = master     # only if it differs from what the splice lives in
 ```
 
 - **Git's config format, read and written by Git:**
