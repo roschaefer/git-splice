@@ -104,6 +104,7 @@ parse_args() {
   ALL_ARG=""
   BASE_ARG=""
   UPSTREAM_ARG=""
+  REBUILT_COMMIT_ARG=""
   PATH_ARGS=()
   EXTRA_FLAGS=()
   while [[ $# -gt 0 ]]; do
@@ -136,6 +137,20 @@ parse_args() {
         else
           UPSTREAM_ARG="${1#--upstream=}"
           [[ -n "$UPSTREAM_ARG" ]] || die "--upstream needs an upstream's name"
+        fi
+        ;;
+      --rebuilt-commit | --rebuilt-commit=*)
+        [[ "$allowed" == *" --rebuilt-commit "* ]] || {
+          "$usage_fn" >&2
+          die "unknown option: ${1%%=*}"
+        }
+        if [[ "$1" == --rebuilt-commit ]]; then
+          [[ $# -ge 2 && -n "$2" ]] || die "--rebuilt-commit needs a commit"
+          REBUILT_COMMIT_ARG="$2"
+          shift
+        else
+          REBUILT_COMMIT_ARG="${1#--rebuilt-commit=}"
+          [[ -n "$REBUILT_COMMIT_ARG" ]] || die "--rebuilt-commit needs a commit"
         fi
         ;;
       --)

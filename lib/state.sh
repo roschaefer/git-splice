@@ -9,7 +9,7 @@
 #   SPLICE_UPSTREAM_LABEL   how messages name it (upstream_branch_label)
 #   SPLICE_TARGET_REF       refs/splices/<key>/<upstream branch>
 #   SPLICE_SYNCED           the synced commit U from the state file
-#   SPLICE_REBUILT          the rebuild R of HEAD (see rebuild_splice), when
+#   SPLICE_REBUILT          the rebuild R of HEAD (see splice_rebuild), when
 #                           the state needed it
 #
 # SPLICE_STATE is one of:
@@ -68,7 +68,7 @@ classify_splice() {
     return
   fi
 
-  SPLICE_REBUILT="$(rebuild_splice "$path" HEAD)"
+  SPLICE_REBUILT="$(splice_rebuild "$path")"
   remote_head="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
   if [[ -z "$SPLICE_REBUILT" ]]; then
     SPLICE_STATE="unrelated-history"

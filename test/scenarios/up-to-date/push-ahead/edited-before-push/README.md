@@ -2,7 +2,7 @@
 
 The commits a push would send, R, are edited before they're pushed:
 here, a message that names an internal ticket is reworded. They're
-pushed with plain Git. R is computed from the monorepo's history, which
+pushed with `git splice push --rebuilt-commit`. R is computed from the monorepo's history, which
 still has the original commit, so a `pull` right after the push records
 the edited commit as the synced commit. From there on, the monorepo
 builds on the edited commit.
@@ -17,8 +17,10 @@ The recipe:
 2. Check it out in a worktree of its own: R has the upstream's layout,
    and a `git switch` would replace the monorepo's whole checkout.
 3. Edit the commits after the synced commit U, e.g. with
-   `git rebase -i`, and push the result with `git push`. Change only the
-   history, not the files.
+   `git rebase -i`, and push the result with
+   `git splice push --rebuilt-commit <commit> <path>`. It refuses a
+   commit whose files differ from the folder's, or that doesn't contain
+   U.
 4. **`git splice pull`**, before the next change to the splice. The
    folder has the pushed commit's files, so the pull records it as the
    synced commit. A change before the pull publishes the original commit
@@ -53,7 +55,8 @@ file.txt
 ```
 
 ```scrut
-$ git -C ../edited commit -q --amend -m "fix the parser" && git -C ../edited push -q "$UPSTREAM" edited:main
+$ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuilt-commit edited vendor/a
+ok   vendor/a: pushed ce80186 to main
 ```
 
 ### Pull
@@ -64,7 +67,7 @@ commit that changes only `.splice`:
 
 ```scrut
 $ git splice pull vendor/a
-ok   vendor/a fetched (main moved bde4164..ce80186)
+ok   vendor/a fetched
 ok   vendor/a: recorded ce80186 as the synced commit -- the folder already has its files
 ```
 
