@@ -2,7 +2,8 @@
 
 A folder is a splice because it has a `.splice` file, committed like any
 other file. It names the upstream, and the upstream commit the folder
-last matched, the synced commit U. That's all the state there is: a
+last matched, the synced commit U of the
+[sync model](../sync-model/README.md). That's all the state there is: a
 clone of the monorepo has every splice, with nothing to set up.
 
 ```text

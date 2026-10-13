@@ -11,8 +11,8 @@ module.exports = {
         'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key', 'sandbox',
       ].map((command) => `test/walkthrough/${command}`),
     },
-    {type: 'doc', id: 'test/concepts/splice-file/README', label: 'The .splice file'},
     {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},
+    {type: 'doc', id: 'test/concepts/splice-file/README', label: 'The .splice file'},
     {type: 'doc', id: 'test/concepts/upstreams/README', label: 'Upstreams'},
     {type: 'doc', id: 'test/concepts/splice-identity/README', label: 'Splice identity'},
     {

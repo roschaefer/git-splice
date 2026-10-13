@@ -52,7 +52,7 @@ $ git splice log
 > 4527a78 pkg-a: an upstream fix  (Walkthrough <walkthrough@example.com>)
 ```
 
-In terms of the [four commits](status.md#b-u-t-and-r), R and T each
+In terms of the [four commits](../concepts/sync-model/README.md), R and T each
 have a commit the other lacks, and U is where they part:
 
 ```text

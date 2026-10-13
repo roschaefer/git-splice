@@ -28,7 +28,7 @@ $ git splice log
 
 `--graph` draws both sides as a graph, down to the commit they build on,
 `o`, and labels T, the fetched upstream branch, and R, the rebuild
-`push` would send ([B, U, T and R](status.md#b-u-t-and-r)):
+`push` would send ([B, U, T and R](../concepts/sync-model/README.md)):
 
 ```scrut
 $ git splice log --graph vendor/pkg-a
