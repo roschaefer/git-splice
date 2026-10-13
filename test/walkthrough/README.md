@@ -206,7 +206,8 @@ pkg-a
 ## Next
 
 The [sync model](../concepts/sync-model/README.md) explains what these
-commands compute, and the [scenarios](../scenarios/README.md) show them
-in many more situations, e.g. on
-[feature branches](feature-branches.md) or with
-[diverged history](diverged.md).
+commands compute. The workflows combine them for everyday work:
+[feature branches](feature-branches.md),
+[diverged history](diverged.md) and
+[bumping the sync point](bump.md). The [scenarios](../scenarios/README.md)
+show them in many more situations.
