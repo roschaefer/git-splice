@@ -67,12 +67,14 @@ $ git worktree add -q --detach ../edited "$(git splice rebuild vendor/pkg-a)" &&
 
 `--rebuilt-commit` pushes the edited commit instead of the rebuild. It
 refuses a commit whose files differ from the folder's, or that doesn't
-contain the synced commit; the rest of its history goes upstream as it
-is, as with `git push`:
+contain the synced commit -- unless `--force` is given too, to edit
+commits the upstream already has. The rest of its history goes upstream
+as it is, as with `git push`:
 
 ```scrut
 $ git splice push --rebuilt-commit "$(git -C ../edited rev-parse HEAD)" vendor/pkg-a
 ok   vendor/pkg-a: pushed f3dbe32 to main
+??   vendor/pkg-a: run 'git splice pull vendor/pkg-a' before the next change to it -- that records f3dbe32 as the synced commit
 ```
 
 ```scrut
@@ -81,7 +83,8 @@ pkg-a: fix the parser
 ```
 
 Like every push, it records no sync point, and the monorepo still has
-the original commit. Pull before the next change to the splice: the
+the original commit. Pull before the next change to the splice, as `push`
+reminds you: the
 folder has the pushed commit's files, so the pull records it as the
 synced commit, and later pushes build on it:
 
