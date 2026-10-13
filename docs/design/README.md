@@ -87,7 +87,7 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 
 | Term | Meaning |
 |---|---|
-| **splice** | A folder of the monorepo that has its own upstream repository: "`vendor/a` is spliced in from `github.com/x/a`", "the `vendor/a` splice". Strictly, the noun means the joint, not the inserted piece ([why "splice"](../name.md)). |
+| **splice** | A folder of the monorepo that has its own upstream repository: "`vendor/a` is spliced in from `github.com/x/a`", "the `vendor/a` splice". Strictly, the noun means the joint, not the inserted piece ([why "splice"](name.md)). |
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
@@ -595,7 +595,7 @@ and Git 2.40, and their newer counterparts.
 | Unit and command tests | `test/*.bats` | Functions and commands, called directly after `load_lib`, against a scenario. |
 | Oracle tests | `test/rebuild.bats` | The rebuild against `git subtree split`. |
 | Scenario READMEs | `test/scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
-| Walkthroughs | `test/walkthrough/*.md` | Every command in order, on a sandbox, checked by scrut. |
+| Walkthroughs | `test/walkthrough/*.md` | Every command once, in order, then a page per command, each on a fresh sandbox, checked by scrut. |
 | Benchmark | `bench/`, `test/bench.bats` | `status` timings on a synthetic monorepo, reported on PRs out of draft. |
 
 ### Writing a bats test

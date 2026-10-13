@@ -3,7 +3,7 @@
 Each folder here is one reusable test setup: a state a splice and its
 upstream can be in, or a situation a command has to handle. A folder may
 contain several Markdown documents, but each document explains and executes
-one problem. The root README's [sync states](../../docs/sync-states.md)
+one problem. `status`'s [sync states](../walkthrough/status.md#sync-states)
 link to them as examples.
 
 A scenario folder has:

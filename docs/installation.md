@@ -40,3 +40,9 @@ them; for a clone:
     mkdir -p ~/.config/fish/completions
     ln -s /path/to/git-splice/completions/git-splice.fish \
       ~/.config/fish/completions/git-splice.fish
+
+## Try it first
+
+A clone of git-splice can also build a throwaway monorepo and open a
+shell in it, to try the commands without touching your own repositories:
+see [the sandbox](sandbox.md).

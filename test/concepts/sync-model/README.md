@@ -20,8 +20,7 @@ U and T may be missing: right after `init`, there's no U yet, and R
 starts as a root commit; before the first fetch, there's no T, and the
 splice is *never fetched*, or the upstream has *no such branch*.
 
-The [walkthrough](../../walkthrough/README.md#b-u-t-and-r) shows the
-Git commands that find each of them.
+[Output](#output) shows the Git commands that find each of them.
 
 Once B records a U, B could have been a merge, with U as its second
 parent:
@@ -62,7 +61,7 @@ squash merge would invalidate
 ## Three ways, both directions
 
 R and T are two histories of the same folder, as upstream commits. How
-they relate is the [sync state](../../../docs/sync-states.md):
+they relate is the [sync state](../../walkthrough/status.md#sync-states):
 
 | R and T | State | What crosses |
 |---|---|---|
@@ -90,7 +89,7 @@ monorepo.
 
 ## Output
 
-The walkthrough's [sandbox](../../walkthrough/README.md), where
+The walkthrough's [sandbox](../../../docs/sandbox.md), where
 `vendor/pkg-a` is behind its upstream by one commit.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
@@ -99,7 +98,50 @@ $ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
 ```
 -->
 
-`log --graph` draws R and T, labeled, down to the commit they have in
+For `vendor/pkg-a`:
+
+```text
+      monorepo, newest first                 pkg-a.git, newest first
+
+      . lib-c: first version             T   > pkg-a: a second commit, after the clone
+  B   = splice: clone vendor/pkg-a           |
+          (folder = U)                 U = R * pkg-a: seed
+```
+
+On the left, as in the [README](../../../README.md#the-solution), `=` marks
+the commits that change `.splice`, `*` those that change other files in
+the folder, whether or not they change files elsewhere too, and `.` those
+that don't touch the folder. On the right, as in `git splice log`, `<`
+marks R's commits that T lacks, `>` T's commits that R lacks. Since B, no
+commit changed the folder, so R has nothing to add to U: R = U. U is an
+ancestor of T, so `status` shows `behind 1`, the commit between them.
+
+B is the newest commit that changed `.splice`, what
+[`boundary`](../../walkthrough/boundary.md) prints:
+
+```scrut
+$ git log --first-parent -1 --oneline -- vendor/pkg-a/.splice
+3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
+```
+
+U is the commit recorded there. `fetch` copied it into the monorepo, so
+Git can show it:
+
+```scrut
+$ git log -1 --oneline "$(git config --file vendor/pkg-a/.splice splice.commit)"
+9bb866a pkg-a: seed
+```
+
+T is the fetched branch. Its history leads to U:
+
+```scrut
+$ git log --oneline splices/pkg-a/main
+703b936 pkg-a: a second commit, after the clone
+9bb866a pkg-a: seed
+```
+
+R is what [`rebuild`](../../walkthrough/rebuild.md) prints, and
+`log --graph` draws it and T, labeled, down to the commit they have in
 common, `o`. Nothing changed the folder since B, so R is U:
 
 ```scrut

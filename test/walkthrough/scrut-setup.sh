@@ -10,11 +10,14 @@
 WALKTHROUGH="$PWD"
 export WALKTHROUGH
 walkthrough_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATH="$(cd "$walkthrough_dir/../.." && pwd):$walkthrough_dir:$PATH"
+PATH="$(cd "$walkthrough_dir/../.." && pwd):$PATH"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
 
 "$walkthrough_dir/setup.sh" --dir "$WALKTHROUGH" --no-shell >/dev/null 2>&1 || return
+# The sandbox's git config, as `just walkthrough` uses it: here, only who
+# commits in a clone of an upstream.
+export GIT_CONFIG_GLOBAL="$WALKTHROUGH/.gitconfig"
 unset walkthrough_dir
 cd "$WALKTHROUGH/monorepo" || return
 

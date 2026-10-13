@@ -2,7 +2,7 @@
 
 Every splice syncs with the upstream branch named like your current
 branch. This walkthrough starts a feature branch in the
-[sandbox](README.md), changes one splice on it and pushes, and cleans up
+[sandbox](../../docs/sandbox.md), changes one splice on it and pushes, and cleans up
 once the feature is merged on both sides.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
@@ -55,7 +55,7 @@ On branch feature (base: main)
   unchanged, no upstream branch  vendor/pkg-a
 ```
 
-Without an upstream branch there's no [T](README.md#b-u-t-and-r) to
+Without an upstream branch there's no [T](../concepts/sync-model/README.md) to
 compare R with, so `diff` compares with `main`:
 
 ```scrut

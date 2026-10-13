@@ -1,6 +1,6 @@
 # Why "splice"
 
-![Rope splices from the Nordisk familjebok, a long splice on the left](images/rope-splices-nordisk-familjebok.png)
+![Rope splices from the Nordisk familjebok, a long splice on the left](../images/rope-splices-nordisk-familjebok.png)
 
 *Rope splices, a) a long splice, from the Nordisk familjebok, 2nd edition,
 vol. 26 (1917). Public domain, via
@@ -34,7 +34,7 @@ As a verb, you splice something in or out:
   `merge` and `pull`.
 - **splice out**: publish the monorepo's changes upstream, with `push`.
 
-The [vocabulary](design/README.md#vocabulary) defines these and the
+The [vocabulary](README.md#vocabulary) defines these and the
 other terms.
 
 ## RNA splicing
