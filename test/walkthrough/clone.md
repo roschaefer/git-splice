@@ -18,7 +18,8 @@ $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b
 ok   vendor/pkg-b: cloned 9b3cb02 from main
 ```
 
-The commit adds the upstream's files and `.splice`, which records the
+The commit adds the upstream's files and
+[`.splice`](../concepts/splice-file/README.md), which records the
 upstream and the commit the folder now matches, U:
 
 ```scrut

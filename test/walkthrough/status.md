@@ -2,7 +2,8 @@
 
 `git splice status [--upstream <name>] [--base <branch>] [path…]`
 
-Lists every splice: a folder with a `.splice` file. Each one gets its sync
+Lists every splice: a folder with a
+[`.splice` file](../concepts/splice-file/README.md). Each one gets its sync
 state, with commits counted like `git status` counts them against a
 tracking branch: "behind 1" is one commit for `pull` to bring in.
 `status` doesn't fetch; it uses what was fetched last.
@@ -40,25 +41,6 @@ as in [this monorepo with many splices](../scenarios/many-splices/README.md).
 | `ahead N, behind M` | Both sides changed since they last matched. ([example](../scenarios/up-to-date/push-ahead/diverged-common-ancestor/README.md)) | Run `git splice pull`, then `push`. On a conflict, resolve it and `git commit` first. |
 | `!! unrelated history` | Both sides changed and share no history, e.g. the upstream was rebuilt from scratch. ([example](../scenarios/up-to-date/push-ahead/diverged-unrelated-history/README.md)) | Pick a side. `merge`, `pull` and `push` refuse to guess and print the commands to keep either side, or both. |
 | `unchanged, no upstream branch` or `new, ahead N` | The upstream has no branch with your branch's name. The splice is unchanged since the base branch, or changed on this branch. ([unchanged](../scenarios/up-to-date/feature-branch-unchanged/README.md), [changed](../scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/README.md)) | Run `git splice push`. It creates the branch only if the splice changed. |
-
-## The `.splice` file
-
-The `.splice` file names the upstream, and the upstream commit the folder
-last matched. That's all the state there is:
-
-```scrut
-$ git config --file vendor/pkg-a/.splice --list
-splice.id=679c78b9916de804
-splice.commit=9bb866a3ba726f2229597a45e8ea3368f7e669a8
-upstream.origin.url=https://git.example.com/pkg-a.git
-```
-
-There's no Git remote, so nothing can push the monorepo to an upstream by
-mistake:
-
-```scrut
-$ git remote
-```
 
 ## B, U, T and R
 
