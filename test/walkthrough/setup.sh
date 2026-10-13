@@ -52,6 +52,24 @@ fi
 
 mkdir -p "$dir"
 dir="$(cd "$dir" && pwd)"
+
+# The sandbox's global git config: the developer's own, then who commits
+# in a clone of an upstream, which stands in for someone else's work.
+global_config="$dir/.gitconfig"
+if [[ -n "${GIT_CONFIG_GLOBAL:-}" ]]; then
+  own_configs=("$GIT_CONFIG_GLOBAL")
+else
+  own_configs=("$HOME/.gitconfig" "${XDG_CONFIG_HOME:-$HOME/.config}/git/config")
+fi
+{
+  echo "[include]"
+  printf '\tpath = "%s"\n' "${own_configs[@]}"
+  cat <<'EOF'
+[user]
+	name = Walkthrough
+	email = walkthrough@example.com
+EOF
+} >"$global_config"
 upstream_dir="$dir/upstream"
 mono_dir="$dir/monorepo"
 mkdir -p "$upstream_dir"
@@ -151,7 +169,7 @@ Dropping you into a shell there now -- 'exit' to leave it.
 EOF
   print_reminder
   cd "$mono_dir"
-  WALKTHROUGH="$dir" exec "${SHELL:-bash}"
+  WALKTHROUGH="$dir" GIT_CONFIG_GLOBAL="$global_config" exec "${SHELL:-bash}"
 fi
 
 # Non-interactive (piped, scripted, or --no-shell): print the path instead
@@ -163,6 +181,7 @@ $mono_dir
 
   cd $(printf '%q' "$mono_dir")
   export WALKTHROUGH=$(printf '%q' "$dir")
+  export GIT_CONFIG_GLOBAL=$(printf '%q' "$global_config")
 
 $(print_chapters)
 
