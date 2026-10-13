@@ -6,10 +6,10 @@ here changes how `git-splice` works.
 
 ## The sync point is a parent, written into the tree
 
-B, the commit that wrote U into `path/.splice`
+A pull, the commit that wrote U into `path/.splice`
 ([sync model](../../test/concepts/sync-model/README.md)), could have
 been a merge instead, with two parents: the monorepo's previous commit,
-and U. Its tree would be the same as B's: U's files in `path/`, merged
+and U. Its tree would be the same as the pull's: U's files in `path/`, merged
 with the folder's changes since the last sync, if there are any. That's
 the commit `git subtree add` and `git subtree pull` create without
 `--squash` ([`git subtree` compared](../../test/comparisons/git-subtree.md)).

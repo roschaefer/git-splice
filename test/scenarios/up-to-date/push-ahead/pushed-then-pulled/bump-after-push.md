@@ -29,8 +29,8 @@ $ build_scenario scenario_pushed_then_pulled
 ## Without a bump
 
 As in [pushed-then-pulled](README.md), a pull brings nothing in, and
-`.splice` keeps naming `seed`. So the boundary, the newest first-parent
-commit that changed `.splice`, is still the clone:
+`.splice` keeps naming `seed`. So the newest first-parent commit that
+changed `.splice` is still the clone, and so is the boundary:
 
 ```scrut
 $ git log --first-parent -1 --format=%s -- vendor/a/.splice
@@ -122,9 +122,9 @@ leave `main`'s `.splice` naming a commit the upstream deleted
 
 ## A bump while ahead
 
-A bump that comes after an unpushed commit keeps that commit. When the
-boundary's folder differs from the synced commit, the rebuild also
-rebuilds the history before the boundary, and continues from there:
+A bump that comes after an unpushed commit keeps that commit. The bump's
+folder differs from the synced commit it records, so it isn't the new
+boundary: the rebuild still starts before it, and continues from there:
 
 ```scrut
 $ echo "unpushed change" >>vendor/a/file.txt && git commit -q -a -m "unpushed change"
@@ -156,6 +156,5 @@ $ git splice log
 ```
 
 It's `ea43c10` before and after the bump. That bump is safe, but it
-saves the rebuild nothing: the walk still starts at the previous
-boundary. Bumping pays off right after a push, when the folder has the
+saves the rebuild nothing: the boundary is still the clone. Bumping pays off right after a push, when the folder has the
 upstream branch's files.

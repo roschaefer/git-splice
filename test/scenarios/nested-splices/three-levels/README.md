@@ -14,7 +14,7 @@ the clone comes from an upstream above. But not from b's: b's `.splice`
 still names b's synced commit from before the change, since a push writes
 nothing to the monorepo, and b's upstream at that commit doesn't have it.
 a's upstream does. So the rebuild takes c's history from the splice above
-whose boundary is the newest, and on a tie, as here, from the outermost
+whose last pull is the newest, and on a tie, as here, from the outermost
 one: its upstream has the ones below too, at least as new as their own
 synced commits. Before, it took b's, made the change a new commit, and c
 read as diverged after its next change.

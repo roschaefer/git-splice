@@ -22,9 +22,9 @@ $ git splice merge vendor/pkg-a
 ok   vendor/pkg-a: merged 703b936
 ```
 
-The commit `merge` made is `vendor/pkg-a/`'s new
-[boundary](boundary.md), B, and its `.splice` records the fetched branch,
-T, as the new synced commit, U:
+The commit `merge` made records the fetched branch, T, as the new synced
+commit, U. Nothing was waiting to be pushed, so its folder is U, and it's
+`vendor/pkg-a/`'s new [boundary](boundary.md), B:
 
 ```scrut
 $ git log -1 --stat --format=%s

@@ -8,8 +8,9 @@ The local change is still waiting to be pushed.
 - **Upstream**: `seed`, then a commit adding `upstream.txt`. It has never
   seen `local.txt`.
 
-The pull's commit is the boundary, and its folder differs from the synced
-commit: it contains `local.txt`. So the push rebuilds the pull as a merge
+The pull's commit is the newest that changed `.splice`, but its folder
+differs from the synced commit: it contains `local.txt`. So the boundary
+stays the clone, and the push rebuilds the pull as a merge
 of the local commit with upstream's, and the local commit keeps its own
 identity upstream.
 

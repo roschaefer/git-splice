@@ -124,17 +124,18 @@ $ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline 
 d27a1cd splice: pull vendor/pkg-a from main at 4527a78
 ```
 
-The resolved commit is the new B, and U moved to T. B's folder is U plus
-the local fix, so R joins the rebuilt local fix with U by a merge, as a
-plain `git pull` would have:
+The resolved commit records T as the new U. Its folder is U plus the
+local fix, which was never pushed, so B stays the earlier pull, and R
+joins the rebuilt local fix with U by a merge, as a plain `git pull`
+would have:
 
 ```text
       monorepo, newest first                 pkg-a.git, newest first
 
-  B   = splice: pull vendor/pkg-a        R   <   splice: pull vendor/pkg-a from main at 4527a78
+      = splice: pull vendor/pkg-a        R   <   splice: pull vendor/pkg-a from main at 4527a78
           (folder = U + local fix)           |\
       * pkg-a: a local fix                   < | pkg-a: a local fix
-      = splice: pull vendor/pkg-a        U = T | * pkg-a: an upstream fix
+  B   = splice: pull vendor/pkg-a        U = T | * pkg-a: an upstream fix
                                              |/
                                              * pkg-a: a second commit, after the clone
 ```
