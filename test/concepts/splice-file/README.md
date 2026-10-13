@@ -16,25 +16,37 @@ clone of the monorepo has every splice, with nothing to set up.
 ```
 
 - **It's in Git's config format**, so `git config --file` reads and
-  writes it. It looks like TOML, but isn't.
+  writes it. It looks like TOML, but isn't. A `.splice` that `git config`
+  can't parse, e.g. one committed with conflict markers, stops every
+  command with Git's message.
+- **Only a committed one counts.** Commands find splices by every
+  `*/.splice` in `HEAD`, at any depth. A staged `.splice` isn't a splice
+  yet.
 - **`clone` and `init` create it, `merge` and `pull` update it.** `push`
   never changes the monorepo, so it never writes `.splice`.
 - **It stores no path and no monorepo commit.** The folder that contains
   it is the splice, so it moves along with `git mv`, and rebases or
   squash merges in the monorepo can't invalidate it.
-- **The upstream never gets it.** A push leaves it out of every commit it
-  sends.
+- **Its own upstream never gets it.** A push leaves it out of every
+  commit it sends. The `.splice` of a [nested](../nesting/README.md)
+  splice is content of the splice above, whose push sends it.
 - **Its `id` names the splice**, not an upstream: it stays the same when
   the folder moves or the upstream's URL changes
-  ([splice identity](../splice-identity/README.md)).
+  ([splice identity](../splice-identity/README.md)). Commands refuse a
+  `.splice` without one.
 - **Its upstreams are named**, like Git remotes, so a splice can follow
   several, e.g. a company fork and the original
-  ([upstreams](../upstreams/README.md)).
+  ([upstreams](../upstreams/README.md)). `clone` and `init` name theirs
+  `origin`.
 - **Without `default-branch`**, an upstream's default branch is named
-  like the monorepo's, or, for a [nested](../nesting/README.md) splice,
-  like the splice above's. `clone` and `init` record it only where it
-  differs, e.g. when `main` syncs with `master`
-  ([default-branch](../../scenarios/default-branch/README.md)).
+  like the monorepo's, or, for a nested splice, like the splice above's
+  ([nested-default-branch](../../scenarios/nested-default-branch/README.md)).
+  `clone` and `init` record it only where it differs, e.g. when `main`
+  syncs with `master`
+  ([default-branch](../../scenarios/default-branch/README.md)). If the
+  splice above has several upstreams with different default branches and
+  no `default-upstream`, commands refuse
+  ([example](../../scenarios/nested-splices/outer-fork/fork-default-branch-below.md)).
 - **Two branches that both pulled conflict in it** when they're merged.
   Resolve it by keeping the newer synced commit
   ([concurrent-pulls](../../scenarios/concurrent-pulls/README.md)).

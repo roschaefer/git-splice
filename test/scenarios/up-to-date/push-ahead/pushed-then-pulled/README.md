@@ -9,24 +9,8 @@ brings in an upstream change moves it.
 - **Upstream**: `seed`, then the pushed commit.
 - **Synced commit**: still `seed`.
 
-## Why the push isn't recorded
-
-`.splice` is committed in the monorepo, so recording the push would take a
-monorepo commit, on the branch that pushed. Merging that branch would then
-carry the record to a branch that syncs with a different upstream branch:
-a feature branch's `.splice` would name a commit of the upstream's feature
-branch, and after the merge, `main`'s would too.
-
-It isn't needed either. `status` compares the folder's content with the
-upstream branch, and after the push they're the same, so the splice is
-`up to date` though `.splice` still names `seed`. And `pull` doesn't merge
-from the synced commit, but from where the monorepo's history and the
-upstream's meet. It finds that by rebuilding the monorepo's commits from
-the synced commit on, as `push` does. The rebuild is deterministic: it
-produces the pushed commit again, with the same hash, so the histories meet
-at the pushed commit, not at `seed`.
-[The design](../../../../../docs/design/README.md#the-sync-point) explains the
-sync point.
+A push never writes to the monorepo
+([why](../../../../concepts/sync-model/README.md#why-a-push-isnt-recorded)).
 [bump-after-push](bump-after-push.md) shows what bumping after the push
 changes, with `git splice pull --bump`
 ([#115](https://github.com/roschaefer/git-splice/issues/115)).

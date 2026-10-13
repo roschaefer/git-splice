@@ -62,7 +62,7 @@ ok up-to-date/push-ahead/diverged-common-ancestor (1 document)
 ok up-to-date/push-ahead/diverged-unrelated-history (1 document)
 ok up-to-date/push-ahead/edited-before-push (2 documents)
 ok up-to-date/push-ahead/moved-with-unpushed-commits (2 documents)
-ok up-to-date/push-ahead/pushed-then-pulled (3 documents)
+ok up-to-date/push-ahead/pushed-then-pulled (2 documents)
 ok up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed (1 document)
 ok up-to-date/push-ahead/uncommitted-changes (1 document)
 ok up-to-date/push-ahead/upstream-moved (1 document)
@@ -73,24 +73,17 @@ ok upstream-rewritten-equal-tree (3 documents)
 
 ## The output is real
 
-The output in a scenario's README isn't pasted in.
-[scrut](https://facebookincubator.github.io/scrut/) runs every command
-shown and compares what it prints. `just docs-check` does this for all
-scenarios, in CI too, and `just docs-check --write` updates the READMEs
-after an intended change.
-
-Under "Output", each document first calls its folder's scenario function,
-so it runs in the state the bats tests use:
+As on every page with output, [scrut](../../docs/sandbox.md#the-output-is-real)
+runs the commands. Under "Output", each document first calls its
+folder's scenario function, so it runs in the state the bats tests use:
 
     $ build_scenario scenario_pull_ahead
 
 `build_scenario` runs the function with a monorepo and an upstream, hides
 what it prints, and changes into the monorepo. It comes from
-[`readme-setup.sh`](readme-setup.sh), which a block that GitHub doesn't
-render sources first. That file also fixes the commit dates and ignores
-your git config, so commit hashes are the same on every run. The splice is
-`vendor/a/` unless the document says otherwise, and the upstream's path
-shows as `$UPSTREAM`.
+[`readme-setup.sh`](readme-setup.sh). The splice is `vendor/a/` unless
+the document says otherwise, and the upstream's path shows as
+`$UPSTREAM`.
 
 ## Adding a scenario
 
@@ -102,4 +95,8 @@ shows as `$UPSTREAM`.
    scenario at the same depth, change the function name, and add a `scrut`
    block per command with just its `$ ` line.
 3. Run `just docs-check --write` to fill in the output, including the
-   new folder's line under "Every scenario", and read it.
+   new folder's line under "Every scenario". Read it: it's the
+   documentation, so it has to say what the prose claims. Run
+   `just docs-check` once more: output that differs between runs is a
+   bug in the setup.
+4. Add a bats test that asserts the state, e.g. in `test/status.bats`.

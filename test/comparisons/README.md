@@ -33,9 +33,6 @@ Josh, splitsh-lite and Copybara.
 
 ## The output is real
 
-[scrut](https://facebookincubator.github.io/scrut/) runs every command on
-these pages and compares what it prints, in CI too (`just docs-check`). A
-hidden first block sources [`scrut-setup.sh`](scrut-setup.sh), which
-builds the library and the monorepo, fixes the commit dates and ignores
-your git config, so commit hashes are the same on every run. The work
-directory shows as `$COMPARISON`.
+As on every page with output, [scrut](../../docs/sandbox.md#the-output-is-real)
+runs the commands. Here [`scrut-setup.sh`](scrut-setup.sh) builds the
+library and the monorepo, and the work directory shows as `$COMPARISON`.

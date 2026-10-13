@@ -5,7 +5,8 @@
 
 Rebuilds the commits that changed each splice since the last sync,
 without `.splice`, and pushes them to the upstream branch named like
-yours. It writes nothing to the monorepo.
+yours. It writes nothing to the monorepo
+([why](../concepts/sync-model/README.md#why-a-push-isnt-recorded)).
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
