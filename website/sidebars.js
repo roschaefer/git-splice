@@ -8,7 +8,7 @@ module.exports = {
       label: 'Walkthrough',
       link: {type: 'doc', id: 'test/walkthrough/README'},
       items: [
-        'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key',
+        'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key', 'sandbox',
       ].map((command) => `test/walkthrough/${command}`),
     },
     {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},

@@ -15,10 +15,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 Someone pushes to `pkg-a`'s upstream:
 
 ```scrut
-$ simulate-remote-change vendor/pkg-a "pkg-a: add a feature"
-ok   vendor/pkg-a: pushed a new commit upstream ('pkg-a: add a feature')
-     git splice status         # to see it
-     git splice pull vendor/pkg-a   # to bring it in
+$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a && echo "pkg-a: add a feature" >>../pkg-a/file.txt && git -C ../pkg-a commit -qam "pkg-a: add a feature" && git -C ../pkg-a push -q
 ```
 
 ```scrut

@@ -2,7 +2,7 @@
 
 Every splice syncs with the upstream branch named like your current
 branch. This walkthrough starts a feature branch in the
-[sandbox](README.md), changes one splice on it and pushes, and cleans up
+[sandbox](sandbox.md), changes one splice on it and pushes, and cleans up
 once the feature is merged on both sides.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.

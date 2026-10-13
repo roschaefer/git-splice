@@ -1,7 +1,7 @@
 # Diverged history
 
 A splice has diverged when both the monorepo and the upstream changed it
-since the last sync. This walkthrough, in the [sandbox](README.md), makes
+since the last sync. This walkthrough, in the [sandbox](sandbox.md), makes
 both sides change the same line, then resolves the conflict.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
@@ -27,10 +27,7 @@ $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local 
 ```
 
 ```scrut
-$ simulate-remote-change vendor/pkg-a "pkg-a: an upstream fix"
-ok   vendor/pkg-a: pushed a new commit upstream ('pkg-a: an upstream fix')
-     git splice status         # to see it
-     git splice pull vendor/pkg-a   # to bring it in
+$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a && echo "pkg-a: an upstream fix" >>../pkg-a/file.txt && git -C ../pkg-a commit -qam "pkg-a: an upstream fix" && git -C ../pkg-a push -q
 ```
 
 Once fetched, `status` reports the splice as `diverged`, and `log` shows

@@ -124,7 +124,7 @@ print_chapters() {
     reader="glow -p"
   fi
   echo "Read the walkthrough alongside, one chapter at a time:"
-  for chapter in README feature-branches diverged bump; do
+  for chapter in README sandbox feature-branches diverged bump; do
     printf '  %s %q\n' "$reader" "$docs/$chapter.md"
   done
 }
@@ -146,7 +146,6 @@ $(print_chapters)
 Or start with:
   git splice status
   git splice clone https://git.example.com/pkg-b.git vendor/pkg-b
-  simulate-remote-change vendor/pkg-a   # push a commit upstream, as if someone else had
 
 Dropping you into a shell there now -- 'exit' to leave it.
 EOF
@@ -170,7 +169,6 @@ $(print_chapters)
 Or start with:
   git splice status
   git splice clone https://git.example.com/pkg-b.git vendor/pkg-b
-  simulate-remote-change vendor/pkg-a   # push a commit upstream, as if someone else had
 EOF
 
 print_reminder

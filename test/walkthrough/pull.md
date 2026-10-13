@@ -13,10 +13,10 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null && simulate-remote-change vendor/pkg-b "pkg-b: add a feature" >/dev/null
+$ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null && git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b && echo "pkg-b: add a feature" >>../pkg-b/file.txt && git -C ../pkg-b commit -qam "pkg-b: add a feature" && git -C ../pkg-b push -q
 ```
 
-Both splices in the [sandbox](README.md) are behind now. Commands that
+Both splices in the [sandbox](sandbox.md) are behind now. Commands that
 change the monorepo or an upstream name their splices, or take `--all`:
 
 ```scrut

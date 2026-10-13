@@ -1,29 +1,8 @@
 # Walkthrough
 
-`just walkthrough` builds a throwaway monorepo in a temporary directory and
-opens a shell in it. This page runs every command there once, in order,
-with the output each one prints. Each command has a page of its own with
-the details. CI runs these pages with
-[scrut](https://facebookincubator.github.io/scrut/), so the output is what
-the current version prints (`just docs-check`).
-
-What you get:
-
-- `$WALKTHROUGH/monorepo`: the monorepo, on `main`. You start here.
-- `$WALKTHROUGH/upstream/pkg-a.git`, `pkg-b.git` and `lib-c.git`: bare
-  repositories on the same machine that stand in for the splices'
-  upstreams. The monorepo reaches them as
-  `https://git.example.com/<name>.git`: its `url.<base>.insteadOf` maps
-  that prefix to `$WALKTHROUGH/upstream/`. The walkthrough shell exports
-  `$WALKTHROUGH`, so you can paste the commands below as they are.
-- `vendor/pkg-a`: a splice whose upstream has one commit the monorepo
-  doesn't have yet. It's already fetched.
-- `pkg-b.git`: a repository that isn't spliced in yet.
-- `libs/c`: a folder of the monorepo, to be published to the empty
-  `lib-c.git`.
-
-`simulate-remote-change <path> [message]` pushes a commit to a splice's
-upstream, as if someone else had.
+Every command once, in order, with the output it prints. Each command
+has a page of its own with the details. To try them yourself, run
+`just walkthrough`: it opens a shell in a throwaway [sandbox](sandbox.md).
 
 ## Commands
 
@@ -100,10 +79,7 @@ Someone pushes to `pkg-b`'s upstream. `fetch` fetches every splice's
 upstream in parallel and calls out which branch moved ([more](fetch.md)):
 
 ```scrut
-$ simulate-remote-change vendor/pkg-b "pkg-b: add a feature"
-ok   vendor/pkg-b: pushed a new commit upstream ('pkg-b: add a feature')
-     git splice status         # to see it
-     git splice pull vendor/pkg-b   # to bring it in
+$ git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b && echo "pkg-b: add a feature" >>../pkg-b/file.txt && git -C ../pkg-b commit -qam "pkg-b: add a feature" && git -C ../pkg-b push -q
 ```
 
 ```scrut
