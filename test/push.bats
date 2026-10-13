@@ -430,6 +430,66 @@ reworded_synced() {
   [ "$(splice_config vendor/a commit)" = "$root" ]
 }
 
+# Builds a monorepo at $1 and upstream at $2 for history shape $3, with
+# the synced commit U "second" on top of "seed", and prints the commit to
+# give --rebuilt-commit.
+rebuilt_commit_shape() {
+  local monorepo="$1" upstream="$2" shape="$3" synced rebuilt
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  seed_bare_repo "$upstream" "second"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  synced="$(splice_config vendor/a commit)"
+  case "$shape" in
+    reworded-after-U | reworded-U | rebuild | root)
+      commit_local "$monorepo" vendor/a "local change"
+      ;;
+    without-cancelling-commits)
+      commit_local "$monorepo" vendor/a "local change"
+      commit_local "$monorepo" vendor/a "temporary" tmp.txt
+      git rm -q vendor/a/tmp.txt && git commit -q -m "revert temporary"
+      ;;
+    U)
+      commit_local "$monorepo" vendor/a "temporary" tmp.txt
+      git rm -q vendor/a/tmp.txt && git commit -q -m "revert temporary"
+      ;;
+    older-than-U)
+      echo seed >vendor/a/file.txt && git commit -q -am "revert second"
+      ;;
+  esac
+  rebuilt="$(rebuild_splice vendor/a)"
+  case "$shape" in
+    reworded-after-U) git commit-tree --no-gpg-sign "$rebuilt^{tree}" -p "$rebuilt^" -m "reworded" ;;
+    reworded-U) reworded_synced "second, reworded" ;;
+    rebuild) echo "$rebuilt" ;;
+    root) git commit-tree --no-gpg-sign "$rebuilt^{tree}" -m "squashed" ;;
+    without-cancelling-commits) git rev-parse "$rebuilt~2" ;;
+    U) echo "$synced" ;;
+    older-than-U) git rev-parse "$synced^" ;;
+  esac
+}
+
+@test "push --rebuilt-commit: accepts exactly the commits the monorepo rebuilds after pull --bump, so the next push sends nothing else" {
+  local shape given accepted rebuilds
+  for shape in reworded-after-U reworded-U rebuild root without-cancelling-commits U older-than-U; do
+    given="$(rebuilt_commit_shape "$BATS_TEST_TMPDIR/$shape/m" "$BATS_TEST_TMPDIR/$shape/u.git" "$shape")"
+    cd "$BATS_TEST_TMPDIR/$shape/m"
+    run cmd_push --force --rebuilt-commit "$given" vendor/a
+    accepted=$([ "$status" -eq 0 ] && echo yes || echo no)
+
+    given="$(rebuilt_commit_shape "$BATS_TEST_TMPDIR/$shape/m2" "$BATS_TEST_TMPDIR/$shape/u2.git" "$shape")"
+    cd "$BATS_TEST_TMPDIR/$shape/m2"
+    git push -q --force "$BATS_TEST_TMPDIR/$shape/u2.git" "$given:refs/heads/main"
+    run cmd_pull --bump vendor/a
+    rebuilds=$([ "$(rebuild_splice vendor/a)" = "$given" ] && echo yes || echo no)
+
+    echo "$shape: push accepts: $accepted, rebuilt after pull --bump: $rebuilds"
+    [ "$accepted" = "$rebuilds" ]
+  done
+}
+
 @test "push --rebuilt-commit: refuses while the synced commit isn't here, since the given commit can't contain it" {
   scenario_never_fetched "$monorepo" "$upstream"
   cd "$monorepo"
