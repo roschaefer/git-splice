@@ -273,6 +273,19 @@ reworded_rebuild() {
   ! git -C "$upstream" rev-parse --verify --quiet feature
 }
 
+@test "push --rebuilt-commit: refuses while the synced commit isn't here, since the given commit can't contain it" {
+  scenario_never_fetched "$monorepo" "$upstream"
+  cd "$monorepo"
+  local root synced
+  content_tree HEAD vendor/a
+  root="$(git commit-tree --no-gpg-sign "$CONTENT_TREE" -m "squashed")"
+  synced="$(splice_config vendor/a commit)"
+  run cmd_push --rebuilt-commit "$root" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch vendor/a'" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$synced" ]
+}
+
 @test "push --rebuilt-commit: takes a commit and exactly one splice" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"

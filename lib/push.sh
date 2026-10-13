@@ -149,7 +149,9 @@ give_rebuild() {
   [[ "$(git rev-parse "$rebuilt^{tree}")" == "$CONTENT_TREE" ]] ||
     die "$path: ${rebuilt:0:7} has other files than the folder -- --rebuilt-commit only takes edits to the history; commit changes to files in the monorepo"
   synced="$(splice_config "$path" commit)"
-  if [[ -n "$synced" ]] && git cat-file -e "$synced^{commit}" 2>/dev/null; then
+  if [[ -n "$synced" ]]; then
+    git cat-file -e "$synced^{commit}" 2>/dev/null ||
+      die "$path: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch $(upstream_option "$path")$path'"
     git merge-base --is-ancestor "$synced" "$rebuilt" ||
       die "$path: ${rebuilt:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it"
   fi
