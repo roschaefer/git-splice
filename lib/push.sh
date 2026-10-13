@@ -137,7 +137,10 @@ push_one() {
     return 1
   fi
   log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $label"
+  # A commit the monorepo's own rebuild contains, e.g. the unchanged
+  # rebuild, needs no record: the pull finds nothing to do.
   [[ -z "${REBUILD_GIVEN[$path]:-}" ]] ||
+    git merge-base --is-ancestor "$SPLICE_REBUILT" "$(REBUILD_WITHOUT_SYNCED=1 rebuild_splice "$path" HEAD)" ||
     log_warn "$path: run 'git splice pull $option$path' before the next change to it -- that records ${SPLICE_REBUILT:0:7} as the synced commit"
 }
 

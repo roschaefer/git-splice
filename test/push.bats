@@ -239,6 +239,18 @@ reworded_rebuild() {
   [ "$(git rev-parse "$(upstream_refs "$upstream")main")" = "$edited" ]
 }
 
+@test "push --rebuilt-commit: doesn't ask for a pull for the unchanged rebuild, which the monorepo builds on already" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  run cmd_push --rebuilt-commit "$rebuilt" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: pushed ${rebuilt:0:7} to main" ]
+  run cmd_pull vendor/a
+  [ "$output" = "$(printf '%s\n' "ok   vendor/a fetched" "ok   vendor/a: nothing to pull")" ]
+}
+
 @test "push --rebuilt-commit: replaces a published commit with a reworded one, with --force" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
