@@ -51,6 +51,26 @@ copied, since its folder is U already. When it isn't, after a pull merged
 a divergence, R joins the commits since the earlier B with T by a merge
 (see [Output](#output)).
 
+<div align="center">
+
+![The same graphs after a pull: the pull commit e is the new B and records n as U, and R is a merge q of the rebuilt p and n](../../../docs/images/sync-model-after-pull.svg)
+
+</div>
+
+The same splice after `git splice pull`. The pull commit e merged T into
+the folder, wrote n into `path/.splice`, and is the new B. b and d were
+never pushed, so the upstream still lacks their changes, and e's folder
+isn't U. R keeps them as the commits they were: o and p on k, the U the
+earlier B recorded, merged with n into q, as `git pull` would have. q is
+e's copy: e's folder and message, with p and n as parents. Nothing points
+at b and d, but e is their descendant: the rebuild finds them by
+rebuilding e's parent d first, as of its own B, a.
+
+A `git splice push` then sends o, p and q, and moves T to q, a
+fast-forward. U stays n: a pull right after the push has nothing to bring
+in, and only [`git splice pull --bump`](../../walkthrough/bump.md) records
+q as U.
+
 R is never stored. It's computed from `HEAD` each time, and the same
 `HEAD` always gives the same R. So a commit pushed once is rebuilt
 identically, and the next push is a fast-forward. And since R is
