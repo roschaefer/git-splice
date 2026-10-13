@@ -22,6 +22,13 @@ The recipe:
    commit whose files differ from the folder's, or that doesn't contain
    U. Everything else about the commit is up to you: see
    [What push checks](#what-push-checks).
+
+   Or push with plain Git, right from the worktree where you edited the
+   commits: `git push <url> HEAD:<branch>`, with the upstream's URL from
+   the splice's `.splice` file, e.g.
+   `git config --blob HEAD:vendor/a/.splice upstream.origin.url` in the
+   monorepo. Then nothing checks the commit, and `refs/splices` learns
+   about it with the pull in step 4.
 4. **`git splice pull`**, before the next change to the splice. The
    folder has the pushed commit's files, so the pull records it as the
    synced commit. A change before the pull publishes the original commit
