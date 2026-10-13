@@ -6,6 +6,12 @@ upstream branch anyway, in a commit that only changes `.splice`, like a
 submodule bump. Later rebuilds then start at the pushed commit, instead
 of rebuilding every commit pushed since the last pull.
 
+Don't bump too often. A bump only saves work: without it, a push still
+sends only what isn't upstream yet. But each bump is one more commit
+that changes `.splice`, and two branches that record different commits
+there conflict when they're merged, even where the files would merge
+cleanly.
+
 Bump on `main`. On a feature branch that also changes code outside the
 splice, a bump makes `.splice` conflict when the branch is merged, if the
 library squash-merges its pull requests. This walkthrough shows both, and

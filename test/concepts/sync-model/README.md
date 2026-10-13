@@ -20,7 +20,7 @@ U and T may be missing: right after `init`, there's no U yet, and R
 starts as a root commit; before the first fetch, there's no T, and the
 splice is *never fetched*, or the upstream has *no such branch*.
 
-The [walkthrough](../../walkthrough/README.md#b-u-t-and-r) shows the
+The [walkthrough](../../walkthrough/status.md#b-u-t-and-r) shows the
 Git commands that find each of them.
 
 Once B records a U, B could have been a merge, with U as its second
@@ -62,7 +62,7 @@ squash merge would invalidate
 ## Three ways, both directions
 
 R and T are two histories of the same folder, as upstream commits. How
-they relate is the [sync state](../../../docs/sync-states.md):
+they relate is the [sync state](../../walkthrough/status.md#sync-states):
 
 | R and T | State | What crosses |
 |---|---|---|

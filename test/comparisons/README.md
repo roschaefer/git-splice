@@ -29,7 +29,7 @@ also says where it is the better tool.
 | Best for | libraries kept apart, with their own access | moving a repository in for good, history included | changing a library in the monorepo and sending the changes back |
 
 [Third-party tools](third-party/README.md) compares git-subrepo,
-splitsh-lite, Josh and Copybara.
+Josh, splitsh-lite and Copybara.
 
 ## The output is real
 

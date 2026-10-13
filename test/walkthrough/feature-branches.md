@@ -55,7 +55,7 @@ On branch feature (base: main)
   unchanged, no upstream branch  vendor/pkg-a
 ```
 
-Without an upstream branch there's no [T](README.md#b-u-t-and-r) to
+Without an upstream branch there's no [T](status.md#b-u-t-and-r) to
 compare R with, so `diff` compares with `main`:
 
 ```scrut

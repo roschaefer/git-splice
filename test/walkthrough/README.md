@@ -1,8 +1,9 @@
 # Walkthrough
 
 `just walkthrough` builds a throwaway monorepo in a temporary directory and
-opens a shell in it. This page walks through every command there, in
-order, with the output each one prints. CI runs this page with
+opens a shell in it. This page runs every command there once, in order,
+with the output each one prints. Each command has a page of its own with
+the details. CI runs these pages with
 [scrut](https://facebookincubator.github.io/scrut/), so the output is what
 the current version prints (`just docs-check`).
 
@@ -24,14 +25,47 @@ What you get:
 `simulate-remote-change <path> [message]` pushes a commit to a splice's
 upstream, as if someone else had.
 
-More walkthroughs, each starting from a fresh sandbox:
+## Commands
 
-- [Feature branches](feature-branches.md): the upstream branch follows your
-  branch, and `push` creates it only where a splice changed.
-- [Diverged history](diverged.md): both sides changed the same line, and
-  you resolve the conflict.
-- [Bumping the sync point](bump.md): `pull --bump` records a push in
-  `.splice`, and how to merge a feature branch that was bumped.
+| Command | What it does |
+| --- | --- |
+| [`status`](status.md) | Shows each splice's sync state, with how many commits `push` would publish and `pull` would bring in. |
+| [`clone`](clone.md) | Splices an existing repository into a new folder, as one commit. |
+| [`fetch`](fetch.md) | Fetches every branch of each upstream into `refs/splices/<key>/`. |
+| [`log`](log.md) | Shows the commits `push` would publish and `pull` would bring in. |
+| [`merge`](merge.md) | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
+| [`pull`](pull.md) | `fetch` + `merge`. |
+| [`diff`](diff.md) | Shows the file changes `push` would send. |
+| [`push`](push.md) | Rebuilds the commits that changed each splice since the last sync and pushes them upstream. Writes nothing to the monorepo. |
+| [`init`](init.md) | Makes a folder a splice of a new, empty repository. |
+| [`boundary`](boundary.md) | Prints the monorepo commit where a splice last synced. |
+| [`rebuild`](rebuild.md) | Prints the commit `push` would send, without pushing it. |
+| [`key`](key.md) | Prints the key of a splice's upstream, or renames it, refs included. |
+
+`clone`, `init`, `fetch`, `merge`, `pull`, `push`, `status`, `diff` and
+`log` are named after Git's commands, and do to a splice what their
+namesakes do to a repository. `boundary`, `rebuild` and `key` are new:
+their names come from splicing.
+
+`merge`, `pull` and `push` change the monorepo or an upstream, so they
+name their splices, or take `--all`. `clone` and `init` start one splice
+each, and `boundary`, `rebuild` and `key` look at one. The other commands
+only look, and cover every splice unless you name some. `status`, `diff`,
+`log` and `merge` only use what was last fetched. Run
+`git splice <command> --help` for options.
+
+A splice can have several [upstreams](../concepts/upstreams/README.md),
+e.g. a company fork and the original it follows
+([several-upstreams](../scenarios/several-upstreams/README.md)).
+`--upstream <name>` picks one for `fetch`, `merge`, `pull`, `push`,
+`status`, `diff`, `log` and `key`. Without it, commands use the splice's
+`default-upstream`, which `.splice` needs once it names several; `fetch`
+fetches all of them. A splice that lacks the named upstream stops the
+command before it starts
+([missing upstream names](../scenarios/several-upstreams/missing-upstream-names.md)).
+Each upstream records its own `default-branch`, e.g. for a fork whose
+default branch is named differently
+([fork-default-branch](../scenarios/several-upstreams/fork-default-branch.md)).
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -41,11 +75,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 
 ## status
 
-Lists every splice: a folder with a `.splice` file. Each one gets its
-[sync state](../../docs/sync-states.md), with commits counted like
-`git status` counts them against a tracking branch: "behind 1" is one
-commit for `pull` to bring in. `status` doesn't fetch; it uses what was
-fetched last.
+Lists every splice with its sync state ([more](status.md)):
 
 ```scrut
 $ git splice status
@@ -54,92 +84,9 @@ On branch main
   behind 1  vendor/pkg-a
 ```
 
-The `.splice` file names the upstream, and the upstream commit the folder
-last matched. That's all the state there is:
-
-```scrut
-$ git config --file vendor/pkg-a/.splice --list
-splice.id=679c78b9916de804
-splice.commit=9bb866a3ba726f2229597a45e8ea3368f7e669a8
-upstream.origin.url=https://git.example.com/pkg-a.git
-```
-
-There's no Git remote, so nothing can push the monorepo to an upstream by
-mistake:
-
-```scrut
-$ git remote
-```
-
-## B, U, T and R
-
-Every command works a splice's state out from four commits, named as in
-the [design](../../docs/design/README.md#vocabulary). One lives in the
-monorepo's history, two in the upstream's, and one is computed:
-
-| | Commit | Lives in |
-|---|---|---|
-| **B** | The boundary: the newest commit on the monorepo's first-parent history that changed `.splice`. | the monorepo |
-| **U** | The synced commit: the upstream commit `.splice` records at B. | the upstream |
-| **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
-| **R** | The rebuild, *ours*: the splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends ([how](../../docs/design/README.md#splicing-out-push-and-the-rebuild)). | computed |
-
-For `vendor/pkg-a` in the sandbox:
-
-```text
-      monorepo, newest first                 pkg-a.git, newest first
-
-      . lib-c: first version             T   > pkg-a: a second commit, after the clone
-  B   = splice: clone vendor/pkg-a           |
-          (folder = U)                 U = R * pkg-a: seed
-```
-
-On the left, as in the [README](../../README.md#the-solution), `=` marks
-the commits that change `.splice`, `*` those that change other files in
-the folder, whether or not they change files elsewhere too, and `.` those
-that don't touch the folder. On the right, as in `git splice log`, `<`
-marks R's commits that T lacks, `>` T's commits that R lacks. Since B, no
-commit changed the folder, so R has nothing to add to U: R = U. U is an
-ancestor of T, so `status` shows `behind 1`, the commit between them.
-
-B is the newest commit that changed `.splice`:
-
-```scrut
-$ git log --first-parent -1 --oneline -- vendor/pkg-a/.splice
-3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
-```
-
-U is the commit recorded there. `fetch` copied it into the monorepo, so
-Git can show it:
-
-```scrut
-$ git log -1 --oneline "$(git config --file vendor/pkg-a/.splice splice.commit)"
-9bb866a pkg-a: seed
-```
-
-T is the fetched branch. Its history leads to U:
-
-```scrut
-$ git log --oneline splices/pkg-a/main
-703b936 pkg-a: a second commit, after the clone
-9bb866a pkg-a: seed
-```
-
-R has no command of its own yet
-([#54](https://github.com/roschaefer/git-splice/issues/54)), but
-`log --graph` draws it together with T, labeled, down to the commit they
-build on, `o`. Here, that's R itself:
-
-```scrut
-$ git splice log --graph vendor/pkg-a
-===  vendor/pkg-a (main)
-> 703b936 (T) pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
-o 9bb866a (R) pkg-a: seed  (Walkthrough <walkthrough@example.com>)
-```
-
 ## clone
 
-`clone` splices an existing repository into a new folder, as one commit.
+Splices in `pkg-b` ([more](clone.md)):
 
 ```scrut
 $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b
@@ -150,7 +97,7 @@ ok   vendor/pkg-b: cloned 9b3cb02 from main
 ## fetch
 
 Someone pushes to `pkg-b`'s upstream. `fetch` fetches every splice's
-upstream in parallel and calls out which branch moved.
+upstream in parallel and calls out which branch moved ([more](fetch.md)):
 
 ```scrut
 $ simulate-remote-change vendor/pkg-b "pkg-b: add a feature"
@@ -167,9 +114,8 @@ ok   vendor/pkg-b fetched (main moved 9b3cb02..b937c4f)
 
 ## log
 
-`log` shows the commits between each splice and its upstream branch: `>`
-for what a pull brings in, `<` for what a push publishes. `--graph` draws
-them as a graph, as [above](#b-u-t-and-r).
+`>` marks what a pull brings in, `<` what a push publishes
+([more](log.md)):
 
 ```scrut
 $ git splice log
@@ -179,66 +125,19 @@ $ git splice log
 > b937c4f pkg-b: add a feature  (Walkthrough <walkthrough@example.com>)
 ```
 
-## Looking at an upstream
-
-`fetch` keeps each upstream's complete history in the monorepo, under
-`refs/splices/<key>/<branch>`, where the key is the upstream's short name
-in this repository, from its URL: `https://git.example.com/pkg-b.git`
-gets `pkg-b`.
-Every Git command reads it as `splices/<key>/<branch>`, so there's
-nothing to clone:
-
-```scrut
-$ git log --oneline splices/pkg-b/main
-b937c4f pkg-b: add a feature
-9b3cb02 pkg-b: seed
-```
-
-```scrut
-$ git show splices/pkg-b/main:file.txt
-pkg-b: seed
-pkg-b: add a feature
-```
-
-For a checkout of the upstream, without a network round trip, add a
-worktree, and remove it when you're done. Commits made there don't reach
-upstream; changes belong in the monorepo, and `push` publishes them.
-
-```scrut
-$ git worktree add -q --detach ../pkg-b-upstream splices/pkg-b/main && ls ../pkg-b-upstream
-file.txt
-```
-
-```scrut
-$ git worktree remove ../pkg-b-upstream
-```
-
-`git log --all` shows the upstreams' histories too;
-`git log --exclude='refs/splices/*' --all` leaves them out.
-
 ## merge
 
-`merge` splices in what was fetched, without contacting the upstream, as
-one ordinary commit per splice. Commands that change the monorepo or an
-upstream name their splices, or take `--all`.
+Splices in what was fetched, without contacting the upstream
+([more](merge.md)):
 
 ```scrut
 $ git splice merge vendor/pkg-a
 ok   vendor/pkg-a: merged 703b936
 ```
 
-The commit `merge` made is `vendor/pkg-a`'s new B, and its `.splice` records T
-as the new U:
-
-```scrut
-$ git config --file vendor/pkg-a/.splice splice.commit
-703b9360f7ac335a1134e9b5771a90a7c09ba39a
-```
-
 ## pull
 
-`pull` is `fetch` and `merge` in one: this brings in the `pkg-b` change
-fetched above.
+`fetch` and `merge` in one ([more](pull.md)):
 
 ```scrut
 $ git splice pull --all
@@ -248,66 +147,14 @@ ok   vendor/pkg-a: nothing to pull
 ok   vendor/pkg-b: pulled b937c4f
 ```
 
-The monorepo's history stays linear. Upstream's commits stay upstream,
-and in `refs/splices/`:
-
-```scrut
-$ git log --oneline
-45432a2 splice: pull vendor/pkg-b from main at b937c4f
-6dbb42b splice: merge vendor/pkg-a from main at 703b936
-a73990e splice: clone vendor/pkg-b from main at 9b3cb02
-d2867e9 lib-c: first version
-3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
-ebe3b2b initial commit
-```
-
 ## diff
 
-A commit in the monorepo changes `vendor/pkg-a`, so its state becomes
-`push`.
+A commit in the monorepo changes `vendor/pkg-a`. `diff` shows what `push`
+would send, with paths as the upstream sees them ([more](diff.md)):
 
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
 ```
-
-```scrut
-$ git splice status vendor/pkg-a
-On branch main
-
-  ahead 1  vendor/pkg-a
-```
-
-Now R has a commit of its own: the local fix, rebuilt on top of U:
-
-```text
-      monorepo, newest first                 pkg-a.git, newest first
-
-      * pkg-a: a local fix               R   < pkg-a: a local fix
-      . splice: pull vendor/pkg-b            |
-  B   = splice: merge vendor/pkg-a           |
-          (folder = U)                 U = T * pkg-a: a second commit, after the clone
-                                             * pkg-a: seed
-```
-
-T is an ancestor of R, so `status` shows `ahead 1`.
-
-`diff` shows what `push` would send, the changes from T to R, with paths
-as the upstream sees them.
-
-```scrut
-$ git splice diff
-===  vendor/pkg-a
-diff --git a/file.txt b/file.txt
-index 1b6c064..15c0cbd 100644
---- a/file.txt
-+++ b/file.txt
-@@ -1,2 +1,3 @@
- pkg-a: seed
- pkg-a: a second commit, after the clone
-+a local fix
-```
-
-`--stat` summarizes the changes per file:
 
 ```scrut
 $ git splice diff --stat
@@ -318,29 +165,12 @@ $ git splice diff --stat
 
 ## push
 
-`push` rebuilds the commits that changed each splice since the last sync,
-without `.splice`, and pushes them to the branch named like yours. It
-writes nothing to the monorepo.
+Sends it to the upstream branch named like yours ([more](push.md)):
 
 ```scrut
 $ git splice push --all
 ok   vendor/pkg-a: pushed 2d02eb8 to main
 ok   vendor/pkg-b: nothing to push
-```
-
-```scrut
-$ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --format=%s main
-pkg-a: a local fix
-pkg-a: a second commit, after the clone
-pkg-a: seed
-```
-
-`push` updates T too, so now T = R. B and U stay where they were: a push
-writes nothing to the monorepo.
-
-```scrut
-$ git log -1 --oneline splices/pkg-a/main
-2d02eb8 pkg-a: a local fix
 ```
 
 ```scrut
@@ -353,9 +183,8 @@ On branch main
 
 ## init
 
-`libs/c` grew inside the monorepo. `init` makes it a splice of the new,
-empty `lib-c.git`; the first push publishes it as one commit, the init
-commit. Its history before that stays in the monorepo.
+Makes `libs/c` a splice of the empty `lib-c.git`; the first push
+publishes it ([more](init.md)):
 
 ```scrut
 $ git splice init libs/c https://git.example.com/lib-c.git
@@ -368,7 +197,38 @@ $ git splice push libs/c
 ok   libs/c: pushed 9dc1e6a to main
 ```
 
+## boundary
+
+The monorepo commit where `vendor/pkg-a` last synced ([more](boundary.md)):
+
 ```scrut
-$ git -C "$WALKTHROUGH/upstream/lib-c.git" log --format=%s main
-splice: init libs/c
+$ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
+6dbb42b splice: merge vendor/pkg-a from main at 703b936
 ```
+
+## rebuild
+
+The commit `push` would send ([more](rebuild.md)):
+
+```scrut
+$ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
+2d02eb8 pkg-a: a local fix
+```
+
+## key
+
+The short name of `vendor/pkg-a`'s upstream in `refs/splices/`
+([more](key.md)):
+
+```scrut
+$ git splice key vendor/pkg-a
+pkg-a
+```
+
+## Next
+
+The [sync model](../concepts/sync-model/README.md) explains what these
+commands compute, and the [scenarios](../scenarios/README.md) show them
+in many more situations, e.g. on
+[feature branches](feature-branches.md) or with
+[diverged history](diverged.md).
