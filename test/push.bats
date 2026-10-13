@@ -239,6 +239,25 @@ reworded_rebuild() {
   [ "$(git rev-parse "$(upstream_refs "$upstream")main")" = "$edited" ]
 }
 
+@test "push --rebuilt-commit: replaces a published commit with a reworded one, with --force" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  local published edited
+  published="$(git -C "$upstream" rev-parse main)"
+  edited="$(reworded_rebuild "fix the parser")"
+  run cmd_push --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$published" ]
+  run cmd_push --force --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$edited" ]
+  run cmd_push --rebuilt-commit "$edited" vendor/a
+  [ "$output" = "ok   vendor/a: nothing to push" ]
+}
+
 @test "push --rebuilt-commit: creates a missing upstream branch with the given commit" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"

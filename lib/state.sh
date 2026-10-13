@@ -56,7 +56,9 @@ classify_splice() {
   content_tree HEAD "$path"
   local_tree="$CONTENT_TREE"
   remote_tree="$(git rev-parse "$SPLICE_TARGET_REF^{tree}")"
-  if [[ -n "$local_tree" && "$local_tree" == "$remote_tree" ]]; then
+  # A commit given with push --rebuilt-commit differs in its history, not
+  # its files: only comparing commits tells whether it's there yet.
+  if [[ -z "${REBUILD_GIVEN[$path]:-}" && -n "$local_tree" && "$local_tree" == "$remote_tree" ]]; then
     SPLICE_STATE="up-to-date"
     return
   fi
