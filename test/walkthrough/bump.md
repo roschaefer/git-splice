@@ -1,9 +1,9 @@
 # Bumping the sync point
 
-A push never writes to the monorepo, so after one, `.splice` still names
-the upstream commit from before it. `git splice pull --bump` records the
-upstream branch anyway, in a commit that only changes `.splice`, like a
-submodule bump. Later rebuilds then start at the pushed commit, instead
+A push [never writes to the monorepo](../concepts/sync-model/README.md#why-a-push-isnt-recorded),
+so after one, `.splice` still names the upstream commit from before it.
+`git splice pull --bump` records the upstream branch anyway, in a
+commit that only changes `.splice`, like a submodule bump. Later rebuilds then start at the pushed commit, instead
 of rebuilding every commit pushed since the last pull.
 
 Don't bump too often. A bump only saves work: without it, a push still
@@ -12,10 +12,12 @@ that changes `.splice`, and two branches that record different commits
 there conflict when they're merged, even where the files would merge
 cleanly.
 
-Bump on `main`. On a feature branch that also changes code outside the
-splice, a bump makes `.splice` conflict when the branch is merged, if the
-library squash-merges its pull requests. This walkthrough shows both, and
-how to get out of the conflict.
+Bump on `main`. If the library squash-merges its pull requests, a bump
+on a feature branch makes `.splice` conflict when the branch is merged
+after the library's. Merged before, it leaves `main`'s `.splice` naming
+the pull request's commit, which the library may delete. This workflow
+shows a bump on `main`, both cases on a feature branch, and how to get
+out of the conflict.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -72,6 +74,9 @@ pkg-a: a faster parser
 $ git log -1 --format=%s
 splice: bump vendor/pkg-a from main at 9816d9f
 ```
+
+[bump-after-push](../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md)
+shows what that changes for the rebuild.
 
 ## On a feature branch: a conflict
 
@@ -199,6 +204,78 @@ On branch main
 If the library deleted its `feature` branch after the merge, there's
 nothing to pull. Merge `main` into the monorepo's `feature` instead, and
 resolve `.splice` to `main`'s version.
+
+## Merged first: a commit that disappears
+
+Another feature, with a bump on its branch. This time, `main` merges it
+before the library merges its pull request:
+
+```scrut
+$ git switch -q -c feature-2 && echo "a second option" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a second option"
+```
+
+```scrut
+$ git splice push vendor/pkg-a >/dev/null && git splice pull --bump vendor/pkg-a
+ok   vendor/pkg-a fetched
+ok   vendor/pkg-a: bumped the synced commit to f7e1048
+```
+
+```scrut
+$ git switch -q main && git merge -q --no-ff -m "Merge branch 'feature-2'" feature-2
+```
+
+`main`'s `.splice` now names a commit of the library's `feature-2`:
+
+```scrut
+$ git log -1 --format=%s "$(git config --file vendor/pkg-a/.splice splice.commit)"
+pkg-a: a second option
+```
+
+The library squash-merges the pull request and deletes its branch, as
+many hosts do:
+
+```scrut
+$ cd "$WALKTHROUGH/pkg-a" && git fetch -q && git switch -q main && git merge -q --squash origin/feature-2 && git commit -q -m "a second option (#2)" && git push -q origin main :feature-2
+Squash commit -- not updating HEAD
+```
+
+Then it goes on with a change of its own:
+
+```scrut
+$ echo "a third option" >>file.txt && git commit -qam "a third option" && git push -q origin main
+```
+
+Nothing refers to the pull request's commit any more, and the library's
+`gc` removes it:
+
+```scrut
+$ git -C "$WALKTHROUGH/upstream/pkg-a.git" gc -q --prune=now && git -C "$WALKTHROUGH/upstream/pkg-a.git" cat-file -t "$(git -C "$WALKTHROUGH/monorepo" config --file vendor/pkg-a/.splice splice.commit)"
+fatal: git cat-file: could not get object info
+[128]
+```
+
+The monorepo that bumped still has the commit, but a fresh clone of it
+can't fetch it:
+
+```scrut
+$ cd "$WALKTHROUGH" && git clone -q --config "url.$WALKTHROUGH/upstream/.insteadOf=https://git.example.com/" "file://$WALKTHROUGH/monorepo" colleague && cd colleague
+```
+
+```scrut
+$ git splice fetch vendor/pkg-a
+ok   vendor/pkg-a fetched
+```
+
+```scrut
+$ git splice status vendor/pkg-a
+On branch main
+
+  !! unrelated history  vendor/pkg-a  see 'git splice merge vendor/pkg-a' for options
+```
+
+Without the bump, `main`'s `.splice` would name a commit on the
+library's `main`, which it keeps, and a pull would bring in
+`a third option`.
 
 ## A company fork
 

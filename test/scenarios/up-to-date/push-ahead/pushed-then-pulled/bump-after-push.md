@@ -28,21 +28,9 @@ $ build_scenario scenario_pushed_then_pulled
 
 ## Without a bump
 
-The pull brings nothing in, and `.splice` keeps naming `seed`:
-
-```scrut
-$ git splice pull vendor/a
-ok   vendor/a fetched
-ok   vendor/a: nothing to pull
-```
-
-```scrut
-$ git log -1 --format='%h %s' "$(git config --file vendor/a/.splice splice.commit)"
-bde4164 seed
-```
-
-So the boundary, the newest first-parent commit that changed `.splice`,
-is still the clone:
+As in [pushed-then-pulled](README.md), a pull brings nothing in, and
+`.splice` keeps naming `seed`. So the boundary, the newest first-parent
+commit that changed `.splice`, is still the clone:
 
 ```scrut
 $ git log --first-parent -1 --format=%s -- vendor/a/.splice
@@ -130,7 +118,7 @@ branch that never saw the bump pushes the same commits.
 
 A bump merged the other way, from a feature branch into `main`, can
 leave `main`'s `.splice` naming a commit the upstream deleted
-([bump-on-a-branch](bump-on-a-branch.md)).
+([merged first](../../../../walkthrough/bump.md#merged-first-a-commit-that-disappears)).
 
 ## A bump while ahead
 

@@ -70,7 +70,7 @@ commit says which revision should be checked out. A splice commit is a sync
 point: the upstream revision the folder matched when changes were last spliced
 in. It does not determine the folder's current content; later monorepo commits
 can change it, and a push does not update the sync point
-([example](../../test/scenarios/up-to-date/push-ahead/pushed-then-pulled/README.md)).
+([why](../../test/concepts/sync-model/README.md#why-a-push-isnt-recorded)).
 
 From that point, `git-splice` lets Git merge upstream changes and resolve
 conflicts, or rebuild the folder's monorepo commits for a push. Changes cross
@@ -154,70 +154,43 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
 
 ## The `.splice` file
 
-```
-[splice]
-	commit = 3f1c…              # the synced commit U
-	id = 9b2e41c07d5a8f36       # which splice this is, wherever it moves
-[upstream "origin"]
-	url = git@github.com:x/a.git
-	default-branch = master     # only if it differs from what the splice lives in
-```
+[The `.splice` file](../../test/concepts/splice-file/README.md) shows
+what it holds and which commands write it. Why it looks like that:
 
-- **Git's config format, read and written by Git:**
-  `git config --file <path>/.splice splice.commit`. There's no parser of
+- **Git's config format, read and written by Git.** There's no parser of
   our own, and the file is never sourced, since that would run whatever
-  someone commits into it. It looks like TOML, but isn't.
-- **Only `clone`, `init`, `merge` and `pull` write it.** `push` never
-  changes the monorepo.
-- **It contains no monorepo SHAs.** The boundary is derived from history
-  instead, so rebases and squash merges can't break it.
-- **It stores no path.** The folder that contains it is the splice, and it
-  moves along with `git mv`. Discovery reads every `*/.splice` committed in
-  `HEAD`, at any depth, not the index: a staged `.splice` isn't a splice
-  yet.
-- **A splice's own push never sends it.** The rebuild drops the entry at
-  the splice's root from every tree it exports; a pull adds it back. The
-  `.splice` of a nested splice is content of the splice above it, whose
-  push sends it (see below). Build or package globs in the monorepo do see it,
-  which is fine: the name clashes with no known configuration file.
-- **Its `id`** names the splice, not an upstream: it's written once, when
-  `clone` or `init` makes the folder a splice, and stays the same when
-  the folder moves, its upstream's URL changes, or upstreams are added.
-  The rebuild uses it to tell this splice from another one that had the
-  same path before (see the push section). It's derived from the path,
-  `HEAD`, the upstream's URL and, for `clone`, the commit it splices in,
-  not random, so a command gives the same result each time it runs on
-  the same commit, while two splices of different upstreams mounted at
-  the same path on branches from the same commit still get different
-  ids. Every command refuses a `.splice` without an id.
-- **Without `default-branch`**, an upstream's default branch has the
-  name of the default branch of what the splice lives in: the splice
-  above it, with the upstream that one uses, or the monorepo. So a nested
-  `.splice` means the same in the monorepo as in the upstream above,
-  where the repository stands in for the splice above
-  ([example](../../test/scenarios/nested-default-branch/README.md)). If
-  the splice above has several upstreams with different default branches
-  and no `default-upstream`, commands refuse rather than fall back to the
-  monorepo's
-  ([example](../../test/scenarios/nested-splices/outer-fork/fork-default-branch-below.md)).
-- **An upstream's `default-branch`** is looked up once, by `clone` and
-  `init`, and recorded only when it differs from that default branch.
-  That keeps it stable if upstream later renames its default branch, and
-  visible to anyone wondering why `main` syncs with `master`. It belongs
-  to the upstream, like its URL: a company fork may name its default
-  branch differently from the original. A `default-branch` in
-  `[splice]`, from an earlier version, is refused.
-- **Its upstreams are named**, like Git remotes, so a library can sync
-  with more than one, e.g. a company fork and the original
-  ([several-upstreams](../../test/scenarios/several-upstreams/README.md)).
-  `clone` and `init` name theirs `origin`. `commit` stays one per splice: a sync point is a commit,
+  someone commits into it.
+- **No monorepo SHAs.** The boundary is derived from history instead, so
+  rebases and squash merges can't break it.
+- **No path.** The folder that contains it is the splice, so `git mv`
+  moves the splice with nothing else to update.
+- **Its name** clashes with no known configuration file, so build or
+  package globs that see it in the monorepo don't mistake it for theirs.
+- **Its `id` is derived, not random,** from the path, `HEAD`, the
+  upstream's URL and, for `clone`, the commit it splices in. So a command
+  gives the same result each time it runs on the same commit, while two
+  splices of different upstreams mounted at the same path on branches
+  from the same commit still get different ids. The rebuild uses it to
+  tell this splice from another one that had the same path before (see
+  the push section).
+- **Without `default-branch`**, an upstream's default branch is named
+  like that of what the splice lives in: the splice above, or the
+  monorepo. So a nested `.splice` means the same in the monorepo as in
+  the upstream above, where that repository stands in for the splice
+  above. Where the splice above leaves it open, commands refuse rather
+  than fall back to the monorepo's.
+- **`default-branch` is recorded once**, by `clone` and `init`, and only
+  when it differs. That keeps it stable if the upstream later renames its
+  default branch, and visible to anyone wondering why `main` syncs with
+  `master`. It belongs to the upstream, like its URL: a company fork may
+  name its default branch differently from the original.
+- **One `commit` for several upstreams:** a sync point is a commit,
   whichever upstream it came from.
-- **Every command checks it can read it.** A `.splice` that `git config`
-  can't parse, e.g. one committed with conflict markers, stops every
-  command with Git's message, instead of being half read.
-- **Two branches that both pulled** conflict in this file. You resolve it
-  by keeping the newer synced commit. A merge driver can follow if that
-  turns out to be common.
+- **A `.splice` that can't be read stops every command**, instead of
+  being half read.
+- **No merge driver:** two branches that both pulled conflict in the
+  file, and keeping the newer synced commit resolves it. A merge driver
+  can follow if that turns out to be common.
 
 ## Refs instead of remotes
 
@@ -487,7 +460,8 @@ reads all commit metadata with one `git log` and all folder trees with one
 
 **Never writes to the monorepo.** Recording a push as a sync point would be
 incorrect: merging a branch that pushed would bring that record onto another
-upstream branch.
+upstream branch
+([sync model](../../test/concepts/sync-model/README.md#why-a-push-isnt-recorded)).
 
 **A new upstream branch** is created only if the splice changed on this
 branch, measured against the base. So starting a feature branch doesn't
@@ -499,20 +473,13 @@ publishes nothing. Push it from the default branch instead
 
 ### `status`: the sync state
 
-`classify_splice` works the state out each time, from R and T:
-
-| Condition | State |
-|---|---|
-| No `refs/splices/<key>/*`, and U is recorded but isn't available locally (a fresh clone of the monorepo) | never fetched |
-| No ref for this branch | upstream has no such branch |
-| The splice's content equals T's tree, or R = T | up to date |
-| T is an ancestor of R | push |
-| R is an ancestor of T | pull |
-| A common ancestor, neither contains the other | diverged |
-| No common ancestor, or U isn't available locally | unrelated history |
-
-The content check comes first: when the trees are equal, nothing needs
-rebuilding.
+`classify_splice` works the state out each time, from R and T, as the
+[sync model](../../test/concepts/sync-model/README.md#three-ways-both-directions)
+describes. It compares the files first: when they're equal, nothing
+needs rebuilding. Before that, it checks there's something to compare:
+without `refs/splices/<key>/*`, and with U recorded but not available
+locally, as in a fresh clone of the monorepo, the splice was never
+fetched.
 
 ### `diff` and `log`
 
@@ -640,21 +607,8 @@ setup() {
 ### Writing a scenario
 
 A scenario is one state a splice can be in, or one situation a command
-has to handle. [`test/scenarios/README.md`](../../test/scenarios/README.md)
-has the steps. In short:
-
-1. `<name>/setup.bash` defines `scenario_<name>` (`-` becomes `_`), which
-   builds the state from the fixture helpers, given a monorepo path and an
-   upstream path.
-2. `<name>/README.md` describes the state, with a hidden scrut block that
-   builds it, and one `scrut` block per command, with only its `$ ` line.
-3. `just docs-check --write` fills in the real output. Read it: it's the
-   documentation, so it has to say what the prose claims.
-4. Add a bats test that asserts the state, e.g. in `test/status.bats`.
-
-`readme-setup.sh` fixes commit dates and ignores the developer's git
-config, so commit hashes are the same on every run. Run `docs-check` twice
-after a change; output that differs between runs is a bug in the setup.
+has to handle. [Adding a scenario](../../test/scenarios/README.md#adding-a-scenario)
+has the steps.
 
 ### `git subtree split` as the test oracle
 

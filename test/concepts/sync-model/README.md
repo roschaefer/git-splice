@@ -84,8 +84,26 @@ monorepo commit, which records T as the new U, and is the new B.
 The base is usually U. After a push, it's the pushed commit: R contains
 it, so the merge doesn't replay changes the upstream already has. That's
 also why U alone says little about where a splice stands. A push moves
-T, and with it R's relation to T, but not U: a push never writes to the
-monorepo.
+T, and with it R's relation to T, but not U.
+
+## Why a push isn't recorded
+
+A push never writes to the monorepo, so U stays what the last pull
+brought in. Recording the push would take a monorepo commit that changes
+`.splice`, on the branch that pushed. Merging that branch would then
+carry the record to a branch that syncs with a different upstream
+branch: a feature branch's `.splice` would name a commit of the
+upstream's feature branch, and after the merge, `main`'s would too.
+
+It isn't needed either. `status` compares the folder's files with T, and
+after the push they're the same, so the splice is up to date. And a pull
+merges from where R and T meet, not from U. The rebuild is
+deterministic, so R contains the pushed commit, with the same hash, and
+they meet there ([example](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/README.md)).
+
+The cost is that each rebuild walks every commit since B, pushed or not.
+[Bumping](../../walkthrough/bump.md) records the pushed commit as U where
+that matters.
 
 ## Output
 

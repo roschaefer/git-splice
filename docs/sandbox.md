@@ -11,9 +11,7 @@ Without Nix, [install](installation.md) `git-splice` first, then run
 
 It builds a throwaway monorepo in a temporary directory and opens a shell
 in it. The [walkthrough](../test/walkthrough/README.md) shows what to
-type there. Each of its pages starts from a fresh sandbox, and CI runs
-them with [scrut](https://facebookincubator.github.io/scrut/), so the
-output they show is what the current version prints.
+type there, and each of its pages starts from a fresh sandbox.
 
 What you get:
 
@@ -35,3 +33,17 @@ To push a commit to an upstream as if someone else had, clone it next to
 the monorepo, commit there and push, as in the walkthrough's
 [fetch](../test/walkthrough/README.md#fetch). The sandbox's shell names
 you "Walkthrough" for such commits, and otherwise uses your git config.
+
+## The output is real
+
+No output in these docs is pasted in.
+[scrut](https://facebookincubator.github.io/scrut/) runs every command
+on the walkthrough, concept, scenario and comparison pages and compares
+what it prints, so the output is what the current version prints.
+`just docs-check` runs them all, in CI too, and
+`just docs-check --write` updates the pages after an intended change.
+
+Each page starts with a block that GitHub doesn't render. It sources a
+setup script, here [`scrut-setup.sh`](../test/walkthrough/scrut-setup.sh),
+which builds the repositories, fixes the commit dates and ignores your
+git config, so commit hashes are the same on every run.
