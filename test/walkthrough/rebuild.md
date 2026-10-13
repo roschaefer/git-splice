@@ -36,6 +36,10 @@ $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --oneline release
 9bb866a pkg-a: seed
 ```
 
+To reword or squash its commits before they go upstream, edit them in a
+worktree and push the result with
+[`push --rebuilt-commit`](push.md#an-edited-history---rebuilt-commit).
+
 With nothing changed since the last sync, it prints the synced commit
 itself. It can also be checked out in a separate worktree, like a
 [fetched upstream](fetch.md#looking-at-an-upstream).
