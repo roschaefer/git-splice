@@ -94,6 +94,7 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **synced commit** (U) | The upstream commit `.splice` records: the one last spliced in. |
 | **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U. |
 | **boundary** (B) | Where the rebuild starts: the newest last sync, or one before it, whose folder is the synced commit it recorded. Usually the last sync. Derived, never stored. |
+| **start** (S) | The synced commit the boundary records, and the boundary's folder: R starts on it. Usually U. |
 | **rebuild** (R) | The splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends, and *ours* when compared with T, in the upstream's history; in the monorepo's history, *ours* is HEAD. |
 | **upstream branch** (T, for *theirs*) | `refs/splices/<key>/<branch>`: the upstream branch as the monorepo last saw it, under the upstream's key. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
@@ -398,7 +399,7 @@ commits. `rebuild_splice` is a function of HEAD alone:
    identity, and upstream gets them joined with its own by a merge, as a
    plain `git pull` would have made. Where that recursive rebuild is a
    parent, its boundary is B, so B is the first last sync, going back,
-   whose folder equals its synced commit
+   whose folder equals its synced commit, S
    ([sync model](../../test/concepts/sync-model/README.md)), and the
    recursion only costs something after pulls of divergences.
    If L is the splice's mount, its first parent isn't rebuilt at all, and
