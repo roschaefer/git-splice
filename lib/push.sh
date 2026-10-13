@@ -25,11 +25,13 @@ two share no history, or to discard commits only upstream has.
 
 --rebuilt-commit pushes <commit> instead of the rebuild, e.g. one whose
 history was edited after 'git splice rebuild <path>' printed it:
-messages reworded, commits squashed. Only the history: its files must be the
-folder's, and it must contain the synced commit. Like every push, it
-records no sync point: the monorepo keeps rebuilding the original
-commits, and a later push publishes them too, unless <commit> is
-recorded as the synced commit before the next change.
+messages reworded, commits squashed. Only the history: its files must be
+the folder's, and it must contain the synced commit. push checks only
+that; the rest of <commit>'s history -- its parents, the files of the
+commits before it -- is pushed as it is, as with 'git push'. Like every
+push, it records no sync point: the monorepo keeps rebuilding the
+original commits, and a later push publishes them too, unless <commit>
+is recorded as the synced commit before the next change.
 
 Only committed changes are pushed; push warns about uncommitted ones in a
 splice's folder.
