@@ -2,7 +2,8 @@
 
 A pull merged local commits that were never pushed. The pull's commit is
 the newest that changed `.splice`, but the rebuild starts further back,
-at B: the newest such commit whose folder is the U it recorded
+at B: the newest such commit whose folder is the upstream commit it
+recorded, S
 ([sync model](../../concepts/sync-model/README.md)). The commits are
 named as in the drawing there:
 
@@ -86,14 +87,14 @@ splice: pull vendor/a from main at df79a48
 add vendor/a
 ```
 
-a's folder is the U it recorded, k. It's `HEAD~4`:
+a's folder is the commit it recorded, k. It's `HEAD~4`:
 
 ```scrut
 $ git diff --quiet "$(git config --blob 'HEAD~4:vendor/a/.splice' splice.commit)" HEAD~4:vendor/a -- ':!.splice' && echo "a's folder is k"
 a's folder is k
 ```
 
-So a is B, what `git splice boundary` prints:
+So a is B, what `git splice boundary` prints, and k is S:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"
@@ -112,7 +113,7 @@ b
 
 ### R
 
-From B, the rebuild copies b and d on top of k, as o and p, and skips c.
+From B, the rebuild copies b and d on top of S, k,, as o and p, and skips c.
 Then it copies e as q, a merge of p and n, with e's message.
 `log --graph` draws R and T down to n, where they meet. k shows up as
 o's parent:
@@ -163,7 +164,7 @@ ok   vendor/a fetched
 ok   vendor/a: bumped the synced commit to 854864a
 ```
 
-Its folder is q, so it's the new B, and rebuilds start there:
+Its folder is q, so it's the new B, q is S, and rebuilds start there:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"

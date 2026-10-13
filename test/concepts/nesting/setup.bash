@@ -18,17 +18,17 @@ splice_into_upstream() {
 
 scenario_diamond() {
   local monorepo="$1" upstream="$2" app
-  # The shared library S.
+  # The shared library C.
   make_bare_repo "$upstream"
-  seed_bare_repo "$upstream" "s seed"
-  # The apps A and B, each with S spliced in at s/.
+  seed_bare_repo "$upstream" "c seed"
+  # The apps A and B, each with C spliced in at c/.
   for app in a b; do
     make_bare_repo "$upstream-$app"
     seed_bare_repo "$upstream-$app" "$app seed"
-    splice_into_upstream "$upstream-$app" https://git.example.com/s.git "$upstream" s
+    splice_into_upstream "$upstream-$app" https://git.example.com/c.git "$upstream" c
   done
   init_monorepo "$monorepo"
-  git -C "$monorepo" config "url.$upstream.insteadOf" https://git.example.com/s.git
+  git -C "$monorepo" config "url.$upstream.insteadOf" https://git.example.com/c.git
   git -C "$monorepo" config "url.$upstream-a.insteadOf" https://git.example.com/a.git
   git -C "$monorepo" config "url.$upstream-b.insteadOf" https://git.example.com/b.git
 }
