@@ -81,8 +81,9 @@ ok   vendor/pkg-b: pushed 5023101 to feature
 ```
 
 `pkg-b`'s `feature` branch is ready for a pull request. For a library you
-can't push to, point the splice's URL at your fork, or add the fork as
-another [upstream](../concepts/upstreams/README.md).
+can't push to, point the splice's URL at your fork. Or add the fork as
+another [upstream](../concepts/upstreams/README.md), and push to it with
+`--upstream <name>`, or make it the `default-upstream`.
 
 ```scrut
 $ git splice status
