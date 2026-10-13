@@ -53,32 +53,9 @@ $ git splice clone https://github.com/x/lib.git path
 ok   path: cloned e849115 from main
 ```
 
-(If `path` already holds a changed copy, `clone --merge` keeps both,
-and every file that differs becomes a conflict to resolve.)
-
 The folder is now a splice: a folder of the monorepo that is also the
-library. One committed file inside it says which repository, and the sync
-point **U**, the library commit the folder last matched:
-
-```text
-  monorepo/
-  ├── app/
-  └── path/
-      ├── .splice    url    = https://github.com/x/lib.git
-      │              commit = U
-      └── src/
-```
-
-In the real file, U is a commit hash:
-
-```scrut
-$ cat path/.splice
-[splice]
-\tid = e6e54cc2c95133ae (escaped)
-	commit = e8491155fe5db4e87fd6c1227ab65fd61da8af0a
-[upstream "origin"]
-	url = https://github.com/x/lib.git
-```
+library. A committed `.splice` file inside it records which repository,
+and **U**, the library commit the folder last matched.
 
 From U, both sides move on. Say you fix a bug in the library while working
 on the app, and the library gets a release meanwhile:
@@ -97,11 +74,9 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 git-splice rebuilds the monorepo's commits on top of U, with only the
 folder's changes, and skips those like c that don't touch it. The result,
-**R**, is a commit of the library, ready to send upstream as it is.
-
-R and **T**, where the library's branch points, relate like the tips of
-a branch and its tracking branch, with U as their merge base. git-splice
-handles them like Git does:
+**R**, is a commit of the library, ready to send upstream as it is. R and
+**T**, where the library's branch points, relate like a branch and its
+tracking branch:
 
 ```scrut
 $ git splice status
@@ -110,42 +85,15 @@ On branch main
   ahead 2, behind 3  path
 ```
 
-- **Ahead 2**: o and p, which the library lacks.
-  `git splice push path` rebuilds them from b and d,
-  each containing only that folder's changes.
-- **Behind 3**: l, m and n, the library's commits since U, which the
-  folder lacks.
-  `git splice pull path` merges them in as one ordinary monorepo
-  commit, and moves U to the library's newest commit.
-
-When both sides moved, as here, pull first, then push, as with
-`git pull` and `git push`. Point the URL at your fork, and the pushed
-branch is ready for a pull request. Changes cross the splice, but
-commits don't: both repositories keep their own histories.
-
-Everything else follows from two rules:
-
-1. **The folder carries its own state.** Move it with `git mv`, and the
-   splice moves along. Push unpushed commits first: a push after the move
-   squashes them into it
-   ([#4](test/scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)). A clone of the monorepo has every splice, with no
-   setup.
-2. **Your local branch name is the upstream branch name.** On `feature-x`,
-   every splice syncs with its upstream's `feature-x`. On the monorepo's
-   default branch, it syncs with the upstream's default branch, whatever
-   its name ([example](test/scenarios/default-branch/README.md)).
-
-[The design](docs/design/README.md) explains the model and its
-[limits](docs/design/README.md#limits).
-[Comparisons](test/comparisons/README.md) shows how it compares to
-`git submodule`, `git subtree`, git-subrepo, Josh, Copybara and others.
+`git splice pull path` merges l, m and n in, as one ordinary monorepo
+commit. Then `git splice push path` sends o and p. Changes cross the
+splice, but commits don't: both repositories keep their own histories.
 
 ## Getting started
 
-Head over to the
-[getting started guide](https://roschaefer.github.io/git-splice/docs/installation/)
-to install git-splice, learn its commands and sync states, and follow a
-walkthrough of every command.
+Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/installation/)
+to install git-splice, try it in a sandbox, and walk through every
+command.
 
 ## Contribute
 
