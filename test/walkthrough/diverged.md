@@ -10,7 +10,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
-First, bring `vendor/pkg-a` up to date:
+First, bring `vendor/pkg-a/` up to date:
 
 ```scrut
 $ git splice pull vendor/pkg-a

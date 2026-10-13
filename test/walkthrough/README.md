@@ -127,7 +127,7 @@ ok   vendor/pkg-b: pulled b937c4f
 
 ## diff
 
-A commit in the monorepo changes `vendor/pkg-a`. `diff` shows what `push`
+A commit in the monorepo changes `vendor/pkg-a/`. `diff` shows what `push`
 would send, with paths as the upstream sees them ([diff in detail](diff.md)):
 
 ```scrut
@@ -161,7 +161,7 @@ On branch main
 
 ## init
 
-Makes `libs/c` a splice of the empty `lib-c.git`; the first push
+Makes `libs/c/` a splice of the empty `lib-c.git`; the first push
 publishes it ([init in detail](init.md)):
 
 ```scrut
@@ -177,7 +177,7 @@ ok   libs/c: pushed 9dc1e6a to main
 
 ## boundary
 
-The monorepo commit where `vendor/pkg-a` last synced ([boundary in detail](boundary.md)):
+The monorepo commit where `vendor/pkg-a/` last synced ([boundary in detail](boundary.md)):
 
 ```scrut
 $ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
@@ -195,7 +195,7 @@ $ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
 
 ## key
 
-The short name of `vendor/pkg-a`'s upstream in `refs/splices/`
+The short name of `vendor/pkg-a/`'s upstream in `refs/splices/`
 ([key in detail](key.md)):
 
 ```scrut

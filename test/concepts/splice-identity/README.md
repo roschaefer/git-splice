@@ -36,7 +36,7 @@ So the id says which folders are meant to stay alike:
 | Different content | fine | **drift**, to resolve |
 | Made by | `clone` or `init` | a copy, or one nested splice reached twice |
 
-Mirrors can't be enforced, only reported, and git splice doesn't report
+Mirrors can't be enforced, only reported, and `git-splice` doesn't report
 them yet: [mirrors](../../../docs/going-forward/mirrors.md) explains why,
 and what you can do meanwhile.
 
@@ -129,7 +129,7 @@ vendor/a-copy/.splice: id = 224f2c2563d3b6f7
 vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
-The copy declares a **mirror** of `vendor/a`. For a copy that should go
+The copy declares a **mirror** of `vendor/a/`. For a copy that should go
 its own way, `git splice clone` gives the same files, at the same synced
 commit, with an id of its own. Every command works on a splice by its
 path, and nothing compares ids across paths, so each copy is pulled and
@@ -154,7 +154,7 @@ two ids, as in the [diamond](../nesting/diamond.md).
 ### A mirror drifts
 
 Nothing keeps mirrors alike: each is pulled on its own. The upstream
-moves on, and only `vendor/a` is pulled:
+moves on, and only `vendor/a/` is pulled:
 
 ```scrut
 $ seed_bare_repo "$UPSTREAM" "upstream change"
@@ -184,9 +184,9 @@ On branch main
   up to date  vendor/a
 ```
 
-`vendor/a-copy` is meant to mirror `vendor/a`, but has other files now:
+`vendor/a-copy/` is meant to mirror `vendor/a/`, but has other files now:
 it has **drifted**. `status` only says it's behind its upstream, just as
-`third_party/a`, which is independent and may stay behind. A report of
+`third_party/a/`, which is independent and may stay behind. A report of
 mirrors that differ is possible, but not there yet
 ([mirrors](../../../docs/going-forward/mirrors.md)).
 
@@ -241,7 +241,7 @@ Then they swap paths:
 $ git mv vendor/a tmp && git mv vendor/a-copy vendor/a && git mv tmp vendor/a-copy && git commit -q -m "swap the mirrors"
 ```
 
-`vendor/a` has the copy's files now, without the secret. But its history
+`vendor/a/` has the copy's files now, without the secret. But its history
 is still the one of the path: a push sends `a secret`, then the swap,
 which removes it again and brings in the copy's change.
 
@@ -275,7 +275,7 @@ vendor/a/.splice: id = 224f2c2563d3b6f7
 vendor/a/.splice: url = https://git.example.com/a.git
 ```
 
-A copy of `vendor/a` whose URL is changed to the fork's would keep the
+A copy of `vendor/a/` whose URL is changed to the fork's would keep the
 id, and so declare a mirror of something that isn't one. The id can't
 tell that from an upstream that moved to a new URL, which keeps it on
 purpose, and nothing warns about it yet.

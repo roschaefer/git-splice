@@ -3,7 +3,7 @@
 The monorepo pushed a change, then changed the splice again. Upstream has
 nothing but that push.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, a commit pushed with `git
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, a commit pushed with `git
   splice push`, then another local commit.
 - **Upstream**: `seed`, then the pushed commit.
 - **Synced commit**: still `seed` -- a push doesn't write to the monorepo.

@@ -1,7 +1,7 @@
 # git-subrepo compared
 
 [git-subrepo](https://github.com/ingydotnet/git-subrepo) looks the most
-like git-splice. The library's files are ordinary monorepo files, a
+like `git-splice`. The library's files are ordinary monorepo files, a
 committed file in the folder, `.gitrepo`, names the library, and `push`
 turns the monorepo's commits that touched the folder into library commits.
 Every pull is one squashed commit, so the monorepo's history stays linear.
@@ -181,7 +181,7 @@ git-subrepo: The last sync point (where upstream and the subrepo were equal) is 
 As the message says, a rebase does the same: the pushed commit gets a new
 hash, and `parent` names the old one.
 
-## The same with `git splice`
+## The same with `git-splice`
 
 The library goes back to its 30 commits, without the pushes above:
 
@@ -273,7 +273,7 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
 ## Fetched refs: keyed by folder or by upstream
 
 Both tools keep what they fetched under refs of their own. git-subrepo
-keys them by the folder's path, `refs/subrepo/<path>/`; git-splice by the
+keys them by the folder's path, `refs/subrepo/<path>/`; `git-splice` by the
 upstream, `refs/splices/<key>/<branch>`, with one key per URL. They differ
 when another branch uses the same folder for another upstream, here a
 second library:
@@ -282,7 +282,7 @@ second library:
 $ git init -q -b main ../other && echo "other" >../other/README && git -C ../other add README && git -C ../other commit -q -m "other library" && git init -q --bare "$COMPARISON/upstream/other.git" && git -C ../other push -q https://git.example.com/other.git main
 ```
 
-Back in git-subrepo's monorepo, `vendor/lib` on `main` was last fetched
+Back in git-subrepo's monorepo, `vendor/lib/` on `main` was last fetched
 from `lib.git`:
 
 ```scrut
@@ -298,7 +298,7 @@ $ git switch -q -c other ':/^app commit 40' && git subrepo clone https://git.exa
 Subrepo 'https://git.example.com/other.git' (main) cloned into 'vendor/lib'.
 ```
 
-Back on `main`, `vendor/lib` still names `lib.git`, but its refs now hold
+Back on `main`, `vendor/lib/` still names `lib.git`, but its refs now hold
 the other library, and `status` shows its commit as the upstream's:
 
 ```scrut
@@ -311,7 +311,7 @@ other library
 `pull` and `push` fetch again before they use the refs, so they still
 reach the right library. `status` doesn't.
 
-The same with `git splice`:
+The same with `git-splice`:
 
 ```scrut
 $ cd ../splice-monorepo && git switch -q -c other ':/^app commit 40' && git splice clone https://git.example.com/other.git vendor/lib && git switch -q main
@@ -352,11 +352,11 @@ On branch main
 - **Fetched refs are keyed by folder, not by upstream.** Two branches
   that use the same folder for different upstreams share
   `refs/subrepo/<path>/`, and `status` shows whichever was fetched last.
-  git-splice keys its refs by the upstream's URL.
+  `git-splice` keys its refs by the upstream's URL.
 
 ## In short
 
-| | git-subrepo | `git splice` |
+| | git-subrepo | `git-splice` |
 | --- | --- | --- |
 | Monorepo history | linear | linear |
 | Commits per sync | one per pull, one per push | one per pull |

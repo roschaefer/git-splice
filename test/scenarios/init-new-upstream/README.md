@@ -3,7 +3,7 @@
 A folder that grew inside the monorepo, to be published to a new, empty
 repository.
 
-- **Monorepo (`lib/a`)**: two commits.
+- **Monorepo (`lib/a/`)**: two commits.
 - **Upstream**: empty.
 
 `init` only commits `.splice`. The first push starts the upstream at that

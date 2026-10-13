@@ -14,7 +14,7 @@ Otherwise, clone it:
     ln -s "$(pwd)/git-splice/git-splice" ~/.local/bin/git-splice
 
 Git runs any `git-<name>` executable on your `PATH` as `git <name>`, so make
-sure `~/.local/bin` is on it. Symlink only the `git-splice` file. The `lib/`
+sure `~/.local/bin/` is on it. Symlink only the `git-splice` file. The `lib/`
 folder must stay next to it.
 
 Requires:
@@ -43,6 +43,6 @@ them; for a clone:
 
 ## Try it first
 
-A clone of git-splice can also build a throwaway monorepo and open a
+A clone of `git-splice` can also build a throwaway monorepo and open a
 shell in it, to try the commands without touching your own repositories:
 see [the sandbox](sandbox.md).

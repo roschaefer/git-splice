@@ -2,7 +2,7 @@
 
 A folder that was copied in by hand, with exactly upstream's content.
 
-- **Monorepo (`vendor/a`)**: `file.txt`, identical to upstream's.
+- **Monorepo (`vendor/a/`)**: `file.txt`, identical to upstream's.
 - **Upstream**: `seed`.
 
 Nothing can be lost, so `clone` only adds `.splice`.

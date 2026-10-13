@@ -6,7 +6,7 @@ commits squashed into it. Which one?
 
 - **Upstream**: `seed`, then three commits: `add config.txt`,
   `log at debug level` and `fix a typo`.
-- **Monorepo**: `vendor/a` spliced in at `seed`, then `check.sh`, a
+- **Monorepo**: `vendor/a/` spliced in at `seed`, then `check.sh`, a
   test outside the splice that fails when the library logs at debug
   level. Then a pull of the three upstream commits, and one more commit.
 

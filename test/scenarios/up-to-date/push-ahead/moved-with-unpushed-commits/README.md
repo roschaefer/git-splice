@@ -5,7 +5,7 @@ sends the right content, but squashes the unpushed commit into the move:
 its message and author are lost. This is a known bug,
 [#4](https://github.com/roschaefer/git-splice/issues/4).
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit,
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit,
   `local change`, not pushed yet.
 - **Upstream**: `seed`.
 

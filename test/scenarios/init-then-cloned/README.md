@@ -5,7 +5,7 @@ monorepo. Until the clone fetches, `status`, `merge`, `log` and `diff`
 treat the upstream as empty, though it has commits. This is a known bug,
 [#11](https://github.com/roschaefer/git-splice/issues/11).
 
-- **Monorepo (`lib/a`)**: a fresh clone of a monorepo in which `lib/a` was
+- **Monorepo (`lib/a/`)**: a fresh clone of a monorepo in which `lib/a/` was
   made a splice with `init` and pushed twice.
 - **Upstream**: the two pushed commits, `splice: init lib/a` and
   `second version`.

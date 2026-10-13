@@ -5,7 +5,7 @@ upstream. Its second push sends only what happened since it became a
 splice again. What the folder went through in between, or before, stays
 in the monorepo, even if it was committed while the folder was a splice.
 
-- **Monorepo (`lib/a`)**: made a splice with `init` and pushed.
+- **Monorepo (`lib/a/`)**: made a splice with `init` and pushed.
 - **Upstream**: the pushed commit, `splice: init lib/a`.
 
 A splice's history starts at its **mount**: the newest commit whose
@@ -33,7 +33,7 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_unspliced_then_cloned_again
 ```
 
-A password is committed and not pushed. Then `lib/a` stops being a
+A password is committed and not pushed. Then `lib/a/` stops being a
 splice, and the password is removed again:
 
 ```scrut
@@ -52,7 +52,7 @@ $ git rm -q lib/a/config.txt && git commit -q -m "remove the password again"
 $ echo "notes" >lib/a/notes.txt && git add lib/a/notes.txt && git commit -q -m "add notes"
 ```
 
-Later, `lib/a` becomes a splice of the same upstream again. The folder
+Later, `lib/a/` becomes a splice of the same upstream again. The folder
 differs from the upstream, so it takes `clone --merge`:
 
 ```scrut

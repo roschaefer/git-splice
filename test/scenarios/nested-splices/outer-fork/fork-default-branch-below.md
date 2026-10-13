@@ -3,7 +3,7 @@
 a's fork calls its default branch `trunk`, a's upstream `main`. b's
 `.splice` records no default branch of its own: in a's repository, `b/`
 follows a's. In the monorepo, it follows the default branch of the
-upstream `vendor/a` uses. With two upstreams and no default, that's
+upstream `vendor/a/` uses. With two upstreams and no default, that's
 `main` or `trunk`, and the monorepo's `main` would only be a guess
 ([#122](https://github.com/roschaefer/git-splice/issues/122)).
 
@@ -31,8 +31,8 @@ $ git -C "$UPSTREAM-fork.git" branch -m main trunk
 $ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git && git config --file vendor/a/.splice upstream.fork.default-branch trunk && git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
 ```
 
-Commands on `vendor/a/b` refuse before they start, as those on
-`vendor/a` do:
+Commands on `vendor/a/b/` refuse before they start, as those on
+`vendor/a/` do:
 
 ```scrut
 $ git splice status vendor/a/b
@@ -46,7 +46,7 @@ $ git splice pull vendor/a/b
 [1]
 ```
 
-With a's upstream as the default, `vendor/a/b` follows its `main`:
+With a's upstream as the default, `vendor/a/b/` follows its `main`:
 
 ```scrut
 $ git config --file vendor/a/.splice splice.default-upstream origin && git commit -q -m "vendor/a: a's upstream by default" -- vendor/a/.splice

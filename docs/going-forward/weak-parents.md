@@ -2,7 +2,7 @@
 
 A thought experiment, not a plan: what the sync point U would be if Git
 could record it, and who has proposed something like it before. Nothing
-here changes how git splice works.
+here changes how `git-splice` works.
 
 ## The sync point is a parent, written into the tree
 
@@ -22,12 +22,12 @@ same, but different tools see it:
 
 | | U as a second parent | `commit = U` in `.splice` |
 |---|---|---|
-| Who sees it | Git: `log`, `merge-base`, `bisect` and `blame` walk into the library's history | Only git splice. To Git, it's a line in a file, and the monorepo's history stays linear |
-| U's objects | Required: every full clone of the monorepo fetches U and all its ancestors, and `gc` keeps them | Optional: git splice fetches U when it needs it |
+| Who sees it | Git: `log`, `merge-base`, `bisect` and `blame` walk into the library's history | Only `git-splice`. To Git, it's a line in a file, and the monorepo's history stays linear |
+| U's objects | Required: every full clone of the monorepo fetches U and all its ancestors, and `gc` keeps them | Optional: `git-splice` fetches U when it needs it |
 | Which folder | Git doesn't know: U has the library at its root. `git subtree` needs `--prefix`, and with several splices, which parent belongs to which folder | Where the file is. `git mv` moves it along |
 | Finding the current U | Search the history for the newest such merge | Read one file at `HEAD` |
 | Rebase, squash merge | Lost: `rebase` drops merges, unless it runs with `--rebase-merges`, and a squash merge keeps one parent | Kept: `.splice` is a file, carried along like the folder's other files |
-| The merge base for a pull | `git merge-base HEAD T` finds U, even after a push, whose commits aren't in the monorepo's history | git splice rebuilds R on top of U, and takes `git merge-base R T`: U, or a commit pushed since |
+| The merge base for a pull | `git merge-base HEAD T` finds U, even after a push, whose commits aren't in the monorepo's history | `git-splice` rebuilds R on top of U, and takes `git merge-base R T`: U, or a commit pushed since |
 
 The rebase and squash merge row is the reason for the file. A rewrite
 carries a commit's changes to files along, `.splice` included, and a

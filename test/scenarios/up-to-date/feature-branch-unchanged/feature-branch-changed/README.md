@@ -3,7 +3,7 @@
 The monorepo is on a branch upstream doesn't have, and the splice changed
 on it.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed` on `main`, then the branch
+- **Monorepo (`vendor/a/`)**: cloned at `seed` on `main`, then the branch
   `feature` with a local commit.
 - **Upstream**: only `main`.
 

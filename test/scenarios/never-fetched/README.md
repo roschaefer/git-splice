@@ -4,7 +4,7 @@ A splice whose upstream hasn't been fetched in this clone yet, as right
 after cloning the monorepo: the commits are there, the private refs with
 upstream's branches aren't.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`.
+- **Monorepo (`vendor/a/`)**: cloned at `seed`.
 - **Upstream**: `seed`, never fetched here.
 
 ## Output

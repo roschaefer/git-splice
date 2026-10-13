@@ -3,7 +3,7 @@
 Both sides changed different files, then upstream's change was pulled in.
 The local change is still waiting to be pushed.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, a local commit adding
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, a local commit adding
   `local.txt`, then `git splice pull`, which merged cleanly.
 - **Upstream**: `seed`, then a commit adding `upstream.txt`. It has never
   seen `local.txt`.

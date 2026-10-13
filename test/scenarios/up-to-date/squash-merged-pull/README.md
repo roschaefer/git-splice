@@ -3,7 +3,7 @@
 A pull on a feature branch, squash-merged into `main`.
 
 - **Upstream**: `seed` on `main`, and someone else's commit on `feature`.
-- **Monorepo (`vendor/a`)**: cloned at `seed`. On `feature`, `git splice
+- **Monorepo (`vendor/a/`)**: cloned at `seed`. On `feature`, `git splice
   pull` brought in the upstream commit. `feature` was squash-merged into
   `main` and deleted, then a local commit followed on `main`.
 

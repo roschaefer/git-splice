@@ -3,7 +3,7 @@
 Why a splice's upstream history starts at `init`: everything the folder
 held before stays in the monorepo, including what was removed again.
 
-- **Monorepo (`lib/a`)**: two commits, then a commit that adds a password
+- **Monorepo (`lib/a/`)**: two commits, then a commit that adds a password
   to `config.txt`, and one that removes it again.
 - **Upstream**: empty.
 

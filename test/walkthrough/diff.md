@@ -15,7 +15,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 $ git splice pull vendor/pkg-a >/dev/null
 ```
 
-A commit in the monorepo changes `vendor/pkg-a`:
+A commit in the monorepo changes `vendor/pkg-a/`:
 
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"

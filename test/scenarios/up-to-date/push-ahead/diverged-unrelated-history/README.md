@@ -2,7 +2,7 @@
 
 Upstream was rebuilt from scratch: it shares no history with the splice.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit.
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit.
 - **Upstream**: deleted and recreated with one unrelated commit, fetched.
 
 There's no common ancestor to merge from, so the tool doesn't guess.

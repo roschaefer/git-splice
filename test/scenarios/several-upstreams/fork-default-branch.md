@@ -6,7 +6,7 @@ upstream in `.splice` can record its own `default-branch`, so on the
 monorepo's `main`, each syncs with its own default branch.
 
 [`setup.bash`](setup.bash) builds the state of
-[several-upstreams](README.md): `vendor/a` from the original, and its
+[several-upstreams](README.md): `vendor/a/` from the original, and its
 company fork.
 
 ## Output

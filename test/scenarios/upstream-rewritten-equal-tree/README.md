@@ -7,7 +7,7 @@ the new commit as the synced commit, so the next change builds on the
 rewritten history
 ([#17](https://github.com/roschaefer/git-splice/issues/17)).
 
-- **Monorepo (`vendor/a`)**: cloned at `release`.
+- **Monorepo (`vendor/a/`)**: cloned at `release`.
 - **Upstream**: `seed`, `release`, then rewritten and force-pushed as one
   root commit, `release, history rewritten`, with `release`'s files.
   Already fetched.

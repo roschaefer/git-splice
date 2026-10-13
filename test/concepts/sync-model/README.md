@@ -90,7 +90,7 @@ monorepo.
 ## Output
 
 The walkthrough's [sandbox](../../../docs/sandbox.md), where
-`vendor/pkg-a` is behind its upstream by one commit.
+`vendor/pkg-a/` is behind its upstream by one commit.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -98,7 +98,7 @@ $ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
 ```
 -->
 
-For `vendor/pkg-a`:
+For `vendor/pkg-a/`:
 
 ```text
       monorepo, newest first                 pkg-a.git, newest first

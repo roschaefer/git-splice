@@ -1,9 +1,9 @@
 # Accidentally pushing the monorepo to a subfolder's remote
 
-`git splice` has no Git remotes for its upstreams. This document explains
+`git-splice` has no Git remotes for its upstreams. This document explains
 why: a remote that points to a subfolder's repository is one mistyped
 command away from publishing the whole monorepo. It was written in
-October 2026, while the predecessor of `git splice` still kept one Git
+October 2026, while the predecessor of `git-splice` still kept one Git
 remote per `git subtree`.
 
 A subtree remote is an ordinary Git remote. Any push to it that isn't a
@@ -22,7 +22,7 @@ So this shouldn't be left to the user being careful.
 
 Typing `git push vendor/foo main` by mistake is the obvious way, but not
 the only one. These cases were checked with Git 2.55 on a monorepo with a
-subtree `vendor/a`:
+subtree `vendor/a/`:
 
 - **`push.autoSetupRemote` on a repo whose only remote is a subtree
   remote.** A plain `git push` on a new branch picks the only remote,
@@ -181,9 +181,9 @@ Small setups are invisible from the outside: a correct `git subtree split`
 leaves no trace in the public repository, so we can't tell how others with
 a private monorepo avoid this, or how often it goes wrong.
 
-## What `git splice` does instead
+## What `git-splice` does instead
 
-Like the large exporters, `git splice` leaves nothing to mistype: Git
+Like the large exporters, `git-splice` leaves nothing to mistype: Git
 remotes should only point to repositories of the whole monorepo, never to
 a subfolder's. Upstreams are fetched and pushed by URL, from the committed
 `.splice` file, into private refs
@@ -192,7 +192,7 @@ a subfolder's. Upstreams are fetched and pushed by URL, from the committed
 - With no remote, `push.autoSetupRemote`, `remote.pushDefault`, tracking
   branches, `git switch <name>`, LazyGit's suggestion, `--all` and
   `--mirror` have no subfolder repository to pick.
-- `git push vendor/a main` fails, because `vendor/a` is neither a remote
+- `git push vendor/a main` fails, because `vendor/a/` is neither a remote
   nor a repository.
 - Nothing needs installing per clone, `--no-verify` has nothing to skip,
   and no tool sees an invalid or unusual URL.

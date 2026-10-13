@@ -5,7 +5,7 @@ with the merge from the folder's base scenario, then changes `main`, merges
 it into `feature` a second time, and adds one more feature commit.
 
 `git subtree split` retains both merge edges and all commits from `main`.
-`git splice` emits the first-parent story: each merge is one ordinary commit
+`git-splice` emits the first-parent story: each merge is one ordinary commit
 whose tree includes the newly merged content.
 
 ## Output

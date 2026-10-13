@@ -52,7 +52,7 @@ On branch main
 ### Pulling each from its fork
 
 Top-down, as every pull: a's fork's patch to `b/` first, then b's
-fork's patch. Since `vendor/a/b` is selected too, its `fork` is b's
+fork's patch. Since `vendor/a/b/` is selected too, its `fork` is b's
 fork, and it pulls from that one. It's fetched from both of its
 upstreams, as when it isn't selected: a's fork may move its synced commit
 to one only b's origin has.
@@ -84,7 +84,7 @@ On branch main
 
 ### The default travels with the `.splice`
 
-The push of `vendor/a` publishes I's `.splice` with the rest of its
+The push of `vendor/a/` publishes I's `.splice` with the rest of its
 folder. Its `default-upstream` goes along, so in a's upstream, `b/`
 pulls and pushes by default where it does in the monorepo:
 

@@ -1,13 +1,13 @@
 # Package managers
 
-git splice isn't meant to become a package manager. But since splices can
+`git-splice` isn't meant to become a package manager. But since splices can
 nest, they form a dependency graph, and a package manager like npm, Yarn
 or Cargo has solved many of the same problems. This page collects what
 maps, and what doesn't.
 
 ## What maps
 
-| Package manager | git splice |
+| Package manager | `git-splice` |
 |---|---|
 | package name | upstream ([upstreams](../../test/concepts/upstreams/README.md)) |
 | what you ask for: a version range or tag, e.g. `^1.2` (a *descriptor* in Yarn) | the upstream branch a splice syncs with |
@@ -42,7 +42,7 @@ files of the splice above. So:
 - **Cycles** never end, and aren't supported, though not prevented yet
   ([cycle](../../test/concepts/nesting/cycle.md)).
 
-Containment is the point of git splice, not an accident: a splice's
+Containment is the point of `git-splice`, not an accident: a splice's
 upstream is complete on its own, and anyone can clone it without git
 splice. And you can change a splice in place, and send the change back
 with `push`. A package manager can only patch a package (`yarn patch`,
@@ -82,7 +82,7 @@ command.
 
 That would help [Jujutsu](https://github.com/jj-vcs/jj) (`jj`) in
 particular. In a colocated repository, jj leaves Git's `HEAD` detached,
-and has bookmarks instead of a current branch. git splice stops on a
+and has bookmarks instead of a current branch. `git-splice` stops on a
 detached `HEAD`, since it has no branch name to follow
 ([#41](https://github.com/roschaefer/git-splice/issues/41)). An explicit
 branch would make the current branch only a default.

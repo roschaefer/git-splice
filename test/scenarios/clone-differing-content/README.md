@@ -2,7 +2,7 @@
 
 A folder maintained by hand, and an upstream with different content.
 
-- **Monorepo (`vendor/a`)**: `file.txt` and `local.txt`.
+- **Monorepo (`vendor/a/`)**: `file.txt` and `local.txt`.
 - **Upstream**: `file.txt` with other content, and `upstream.txt`.
 
 The two share no history, so there is no merge base but an empty folder.

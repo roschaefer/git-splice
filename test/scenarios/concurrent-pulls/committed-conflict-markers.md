@@ -1,7 +1,7 @@
 # Committed conflict markers
 
 In the [same state](README.md), the conflict in `vendor/a/.splice` is
-committed with its markers. git-splice reads `.splice` with `git config`,
+committed with its markers. `git-splice` reads `.splice` with `git config`,
 which can't read past the first marker. So every command stops with Git's
 message, before a half-read `.splice` could make the splice look
 unrelated to its upstream and suggest `push --force`
@@ -35,7 +35,7 @@ error: bad config line 3 in blob HEAD:vendor/a/.splice
 [1]
 ```
 
-Neither can git-splice, so it stops:
+Neither can `git-splice`, so it stops:
 
 ```scrut
 $ git splice status

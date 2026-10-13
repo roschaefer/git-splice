@@ -1,6 +1,6 @@
 # Scenario: splice-refs
 
-How everyday `git splice` commands change the refs a splice keeps in the
+How everyday `git-splice` commands change the refs a splice keeps in the
 monorepo, and what those refs cost.
 
 - **Monorepo**: one commit, no splice yet.
@@ -13,7 +13,7 @@ monorepo, and what those refs cost.
 A ref is a name for a commit. Branches are refs under `refs/heads/`, tags
 under `refs/tags/`, and `git fetch` keeps a remote's branches under
 `refs/remotes/<remote>/`. These are only conventions: a ref can live under
-any `refs/` path, and git-splice keeps each upstream's branches under
+any `refs/` path, and `git-splice` keeps each upstream's branches under
 `refs/splices/<key>/`. The key is the upstream's short name in this
 repository, from its URL, so `https://git.example.com/a.git` gets `a`.
 The first fetch records it in the repository's config, and

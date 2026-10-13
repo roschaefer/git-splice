@@ -2,14 +2,14 @@
 
 Two lines of work under the splice, joined by a merge in the monorepo.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`. `main` and `feature` each
-  committed under `vendor/a`, then `main` was merged into `feature`, and
+- **Monorepo (`vendor/a/`)**: cloned at `seed`. `main` and `feature` each
+  committed under `vendor/a/`, then `main` was merged into `feature`, and
   `feature` committed again.
 - **Upstream**: `seed` only.
 
 [`git subtree split`](https://github.com/git/git/blob/master/contrib/subtree/git-subtree.adoc#split-local-commit-repository)
 translates every commit that affected the folder, including the side branch
-and merge. `git splice` follows first parents from its recorded sync point
+and merge. `git-splice` follows first parents from its recorded sync point
 instead. The merge becomes one ordinary upstream commit carrying `main`'s
 content; the monorepo's private branch topology is not published.
 

@@ -5,7 +5,7 @@ while a commit is still unpushed. The next push sends that commit to the
 new URL, with its own message and author: the splice's history doesn't
 depend on its URL.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit,
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit,
   `local change`, not pushed yet.
 - **Upstream**: `seed`, at `$UPSTREAM` and, as a copy, at
   `$UPSTREAM-moved`.
