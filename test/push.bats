@@ -227,14 +227,14 @@ reworded_rebuild() {
   git commit-tree --no-gpg-sign "$rebuilt^{tree}" -p "$rebuilt^" -m "$1"
 }
 
-@test "push --rebuilt-commit: pushes the given commit instead of the rebuild, e.g. with a reworded message" {
+@test "push --rebuilt-commit: pushes the given commit instead of the rebuild, e.g. with a reworded message, and asks for a pull before the next change" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local edited
   edited="$(reworded_rebuild "fix the parser")"
   run cmd_push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
+  [ "$output" = "$(printf '%s\n' "ok   vendor/a: pushed ${edited:0:7} to main" "??   vendor/a: run 'git splice pull vendor/a' before the next change to it -- that records ${edited:0:7} as the synced commit")" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$edited" ]
   [ "$(git rev-parse "$(upstream_refs "$upstream")main")" = "$edited" ]
 }
@@ -252,7 +252,7 @@ reworded_rebuild() {
   [ "$(git -C "$upstream" rev-parse main)" = "$published" ]
   run cmd_push --force --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
+  [ "${lines[0]}" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$edited" ]
   run cmd_push --rebuilt-commit "$edited" vendor/a
   [ "$output" = "ok   vendor/a: nothing to push" ]
@@ -288,8 +288,70 @@ reworded_rebuild() {
   synced="$(splice_config vendor/a commit)"
   run cmd_push --rebuilt-commit "$root" vendor/a
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   vendor/a: ${root:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it" ]
+  [ "$output" = "!!   vendor/a: ${root:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it, or replace published ones with --force" ]
   ! git -C "$upstream" rev-parse --verify --quiet feature
+}
+
+# Like scenario_push_ahead, but the synced commit U ("second") has a
+# parent ("seed"), so a commit before U can be edited.
+scenario_push_ahead_after_two() {
+  make_bare_repo "$2"
+  seed_bare_repo "$2" "seed"
+  seed_bare_repo "$2" "second"
+  init_monorepo "$1"
+  add_splice "$1" "$2" "vendor/a"
+  commit_local "$1" "vendor/a" "local change"
+}
+
+# Prints the rebuild of vendor/a with the synced commit's message replaced
+# by <message>: an edit to history the upstream already has.
+reworded_synced() {
+  local synced rebuilt second
+  synced="$(splice_config vendor/a commit)"
+  rebuilt="$(rebuild_splice vendor/a)"
+  second="$(git commit-tree --no-gpg-sign "$synced^{tree}" -p "$synced^" -m "$1")"
+  git commit-tree --no-gpg-sign "$rebuilt^{tree}" -p "$second" -m "local change"
+}
+
+@test "push --rebuilt-commit: refuses to edit the synced commit without --force" {
+  scenario_push_ahead_after_two "$monorepo" "$upstream"
+  cd "$monorepo"
+  local edited synced
+  edited="$(reworded_synced "second, reworded")"
+  synced="$(splice_config vendor/a commit)"
+  run cmd_push --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: ${edited:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it, or replace published ones with --force" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$synced" ]
+}
+
+@test "push --force --rebuilt-commit: edits history before the synced commit, and the next pull records it" {
+  scenario_push_ahead_after_two "$monorepo" "$upstream"
+  cd "$monorepo"
+  local edited
+  edited="$(reworded_synced "second, reworded")"
+  run cmd_push --force --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
+  [ "$(git -C "$upstream" log --format=%s main)" = "$(printf '%s\n' "local change" "second, reworded" "seed")" ]
+  run cmd_pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$edited" ]
+  run cmd_push vendor/a
+  [ "$output" = "ok   vendor/a: nothing to push" ]
+}
+
+@test "push --force --rebuilt-commit: takes a commit without shared history too, as push --force does" {
+  scenario_push_ahead_after_two "$monorepo" "$upstream"
+  cd "$monorepo"
+  local root
+  root="$(git commit-tree --no-gpg-sign "$(rebuild_splice vendor/a)^{tree}" -m "squashed")"
+  run cmd_push --force --rebuilt-commit "$root" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$root" ]
+  run cmd_pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$root" ]
 }
 
 @test "push --rebuilt-commit: refuses while the synced commit isn't here, since the given commit can't contain it" {

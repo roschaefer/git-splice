@@ -23,6 +23,9 @@ The recipe:
    U. Everything else about the commit is up to you: see
    [What push checks](#what-push-checks).
 
+   Commits up to U are on the upstream already. Editing those rewrites
+   published history, so the push needs `--force` as well.
+
    Or push with plain Git, right from the worktree where you edited the
    commits: `git push <url> HEAD:<branch>`, with the upstream's URL from
    the splice's `.splice` file, e.g.
@@ -42,7 +45,9 @@ a slip while editing would get wrong:
 
 - **Its files are the folder's.** A file changed in the worktree would
   never reach the monorepo, and the next pull would merge it back in.
-- **It contains U,** the merge base the next pull uses.
+- **It contains U,** the merge base the next pull uses. With `--force`,
+  it may replace U and the commits before it: the pull right after the
+  push records the commit as the new U all the same.
 
 The rest of its history goes upstream as it is, as with `git push`: its
 parents, and the files of every commit before it. A merge that keeps
@@ -84,6 +89,7 @@ file.txt
 ```scrut
 $ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuilt-commit edited vendor/a
 ok   vendor/a: pushed ce80186 to main
+??   vendor/a: run 'git splice pull vendor/a' before the next change to it -- that records ce80186 as the synced commit
 ```
 
 ### Pull

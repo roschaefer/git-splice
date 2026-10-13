@@ -34,6 +34,7 @@ $ R="$(git splice rebuild vendor/a)" && git worktree add -q -b edited ../edited 
 ```scrut
 $ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuilt-commit edited vendor/a
 ok   vendor/a: pushed ce80186 to main
+??   vendor/a: run 'git splice pull vendor/a' before the next change to it -- that records ce80186 as the synced commit
 ```
 
 The next change, before any pull:

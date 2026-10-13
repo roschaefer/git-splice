@@ -26,12 +26,14 @@ two share no history, or to discard commits only upstream has.
 --rebuilt-commit pushes <commit> instead of the rebuild, e.g. one whose
 history was edited after 'git splice rebuild <path>' printed it:
 messages reworded, commits squashed. Only the history: its files must be
-the folder's, and it must contain the synced commit. push checks only
+the folder's, and it must contain the synced commit -- with --force, it
+may also replace commits the upstream already has. push checks only
 that; the rest of <commit>'s history -- its parents, the files of the
 commits before it -- is pushed as it is, as with 'git push'. Like every
 push, it records no sync point: the monorepo keeps rebuilding the
-original commits, and a later push publishes them too, unless <commit>
-is recorded as the synced commit before the next change.
+original commits, and a later push publishes them too, unless a 'git
+splice pull' records <commit> as the synced commit before the next
+change. push reminds you of it.
 
 Only committed changes are pushed; push warns about uncommitted ones in a
 splice's folder.
@@ -135,25 +137,28 @@ push_one() {
     return 1
   fi
   log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $label"
+  [[ -z "${REBUILD_GIVEN[$path]:-}" ]] ||
+    log_warn "$path: run 'git splice pull $option$path' before the next change to it -- that records ${SPLICE_REBUILT:0:7} as the synced commit"
 }
 
 # Records <commit> as the rebuild push sends for splice <path>
 # (REBUILD_GIVEN), after checking that it differs from the rebuild only in
 # its history: the same files as <path> in HEAD, on top of the synced
-# commit. An upstream that has moved on is left to the push to reject.
+# commit -- unless $3 is "force", which may replace the published history
+# too. An upstream that has moved on is left to the push to reject.
 give_rebuild() {
-  local path="$1" commit="$2" rebuilt synced
+  local path="$1" commit="$2" force="${3:-}" rebuilt synced
   rebuilt="$(git rev-parse --verify --quiet "$commit^{commit}")" ||
     die "--rebuilt-commit: unknown commit: $commit"
   content_tree HEAD "$path"
   [[ "$(git rev-parse "$rebuilt^{tree}")" == "$CONTENT_TREE" ]] ||
     die "$path: ${rebuilt:0:7} has other files than the folder -- --rebuilt-commit only takes edits to the history; commit changes to files in the monorepo"
   synced="$(splice_config "$path" commit)"
-  if [[ -n "$synced" ]]; then
+  if [[ -n "$synced" && -z "$force" ]]; then
     git cat-file -e "$synced^{commit}" 2>/dev/null ||
       die "$path: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch $(upstream_option "$path")$path'"
     git merge-base --is-ancestor "$synced" "$rebuilt" ||
-      die "$path: ${rebuilt:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it"
+      die "$path: ${rebuilt:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it, or replace published ones with --force"
   fi
   REBUILD_GIVEN[$path]="$rebuilt"
 }
@@ -170,7 +175,7 @@ cmd_push() {
   if [[ -n "$REBUILT_COMMIT_ARG" ]]; then
     [[ -z "$ALL_ARG" && ${#SELECTED_PATHS[@]} -eq 1 ]] ||
       die "--rebuilt-commit takes exactly one splice"
-    give_rebuild "${SELECTED_PATHS[0]}" "$REBUILT_COMMIT_ARG"
+    give_rebuild "${SELECTED_PATHS[0]}" "$REBUILT_COMMIT_ARG" "$force"
   fi
   local branch path failed paths=() failures=()
   branch="$(current_branch)"
