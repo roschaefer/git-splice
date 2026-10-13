@@ -27,8 +27,8 @@ two share no history, or to discard commits only upstream has.
 history was edited after 'git splice rebuild <path>' printed it:
 messages reworded, commits squashed. Only the history: its files must be
 the folder's, and it must contain the synced commit -- with --force, it
-may also replace commits the upstream already has. push checks only
-that; the rest of <commit>'s history -- its parents, the files of the
+may also replace commits the upstream already has, but not go back to
+the synced commit or older. push checks only that; the rest of <commit>'s history -- its parents, the files of the
 commits before it -- is pushed as it is, as with 'git push'. Like every
 push, it records no sync point: the monorepo keeps rebuilding the
 original commits, and a later push publishes them too, unless 'git
@@ -166,6 +166,12 @@ give_rebuild() {
   [[ "$(git rev-parse "$rebuilt^{tree}")" == "$CONTENT_TREE" ]] ||
     die "$path: ${rebuilt:0:7} has other files than the folder -- --rebuilt-commit only takes edits to the history; commit changes to files in the monorepo"
   synced="$(splice_config "$path" commit)"
+  # The pull after the push records <commit> only where it's newer than
+  # the synced commit, or on another history.
+  if [[ -n "$synced" ]] && git cat-file -e "$synced^{commit}" 2>/dev/null &&
+    git merge-base --is-ancestor "$rebuilt" "$synced"; then
+    die "$path: ${rebuilt:0:7} is the synced commit ${synced:0:7} or older -- pull can't record it, and the next push would publish the commits after it again"
+  fi
   if [[ -n "$synced" && -z "$force" ]]; then
     git cat-file -e "$synced^{commit}" 2>/dev/null ||
       die "$path: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch $(upstream_option "$path")$path'"

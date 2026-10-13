@@ -271,6 +271,34 @@ reworded_rebuild() {
   [ "$(git -C "$upstream" log --format=%s main)" = "$(printf '%s\n' "next change" "local change" "seed")" ]
 }
 
+@test "push --force --rebuilt-commit: refuses a commit older than the synced commit, which nothing could record" {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  seed_bare_repo "$upstream" "second"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  echo seed >vendor/a/file.txt && git commit -q -am "revert second"
+  local synced
+  synced="$(splice_config vendor/a commit)"
+  run cmd_push --force --rebuilt-commit "$synced^" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: $(git rev-parse --short=7 "$synced^") is the synced commit ${synced:0:7} or older -- pull can't record it, and the next push would publish the commits after it again" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$synced" ]
+}
+
+@test "push --rebuilt-commit: refuses the synced commit itself, e.g. without commits that cancel each other out" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_local "$monorepo" vendor/a "temporary" tmp.txt
+  git rm -q vendor/a/tmp.txt && git commit -q -m "revert temporary"
+  local synced
+  synced="$(splice_config vendor/a commit)"
+  run cmd_push --rebuilt-commit "$synced" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: ${synced:0:7} is the synced commit ${synced:0:7} or older -- pull can't record it, and the next push would publish the commits after it again" ]
+}
+
 @test "push --force --rebuilt-commit: asks for a pull while the synced commit isn't here, even for the rebuild" {
   scenario_push_ahead "$monorepo" "$upstream"
   rm -rf "$upstream"

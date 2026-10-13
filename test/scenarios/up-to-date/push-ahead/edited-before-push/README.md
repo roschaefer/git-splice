@@ -52,6 +52,9 @@ a slip while editing would get wrong:
   `--force` is given, which may replace U and the commits before it, or
   the whole history: the pull right after the push records the commit
   as the new U all the same.
+- **It isn't U or older.** U itself or a commit before it, e.g. after
+  dropping commits that cancel each other out, is a commit no pull
+  records, so the next push would publish the dropped commits again.
 
 The rest of its history goes upstream as it is, as with `git push`: its
 parents, and the files of every commit before it. A merge that keeps
