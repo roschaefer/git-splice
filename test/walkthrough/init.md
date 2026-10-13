@@ -12,7 +12,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
-In the [sandbox](sandbox.md), `libs/c` grew inside the monorepo, and
+In the [sandbox](../../docs/sandbox.md), `libs/c` grew inside the monorepo, and
 `lib-c.git` is empty:
 
 ```scrut

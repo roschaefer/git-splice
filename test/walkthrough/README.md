@@ -2,7 +2,7 @@
 
 Every command once, in order, with the output it prints. Each command
 has a page of its own with the details. To try them yourself, run
-`just walkthrough`: it opens a shell in a throwaway [sandbox](sandbox.md).
+`just walkthrough`: it opens a shell in a throwaway [sandbox](../../docs/sandbox.md).
 
 ## Commands
 

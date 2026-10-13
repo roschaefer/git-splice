@@ -10,7 +10,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
-In the [sandbox](sandbox.md), `pkg-b.git` isn't spliced in yet:
+In the [sandbox](../../docs/sandbox.md), `pkg-b.git` isn't spliced in yet:
 
 ```scrut
 $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b

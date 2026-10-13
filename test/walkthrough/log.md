@@ -12,7 +12,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
-In the [sandbox](sandbox.md), the monorepo changes `vendor/pkg-a`, and so
+In the [sandbox](../../docs/sandbox.md), the monorepo changes `vendor/pkg-a`, and so
 does its upstream:
 
 ```scrut

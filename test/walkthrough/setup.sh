@@ -142,7 +142,7 @@ print_chapters() {
     reader="glow -p"
   fi
   echo "Read the walkthrough alongside, one chapter at a time:"
-  for chapter in README sandbox feature-branches diverged bump; do
+  for chapter in README feature-branches diverged bump; do
     printf '  %s %q\n' "$reader" "$docs/$chapter.md"
   done
 }

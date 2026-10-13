@@ -1,7 +1,7 @@
 # Diverged history
 
 A splice has diverged when both the monorepo and the upstream changed it
-since the last sync. This walkthrough, in the [sandbox](sandbox.md), makes
+since the last sync. This walkthrough, in the [sandbox](../../docs/sandbox.md), makes
 both sides change the same line, then resolves the conflict.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.

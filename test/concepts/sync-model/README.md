@@ -89,7 +89,7 @@ monorepo.
 
 ## Output
 
-The walkthrough's [sandbox](../../walkthrough/sandbox.md), where
+The walkthrough's [sandbox](../../../docs/sandbox.md), where
 `vendor/pkg-a` is behind its upstream by one commit.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.

@@ -2,13 +2,18 @@
 module.exports = {
   docs: [
     {type: 'doc', id: 'README', label: 'Overview'},
-    'docs/installation',
+    {
+      type: 'category',
+      label: 'Installation',
+      link: {type: 'doc', id: 'docs/installation'},
+      items: ['docs/sandbox'],
+    },
     {
       type: 'category',
       label: 'Walkthrough',
       link: {type: 'doc', id: 'test/walkthrough/README'},
       items: [
-        'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key', 'sandbox',
+        'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key',
       ].map((command) => `test/walkthrough/${command}`),
     },
     {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},
