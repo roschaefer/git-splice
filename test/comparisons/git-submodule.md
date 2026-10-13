@@ -267,7 +267,7 @@ On branch feature (base: main)
   unchanged, no upstream branch  vendor/lib
 ```
 
-What git-splice keeps outside the worktree, the fetched upstream
+What `git-splice` keeps outside the worktree, the fetched upstream
 branches under `refs/splices/`, is shared by all worktrees, like
 `refs/remotes/`: it describes the upstream, which is the same from every
 worktree. A push from one worktree is seen by the others:

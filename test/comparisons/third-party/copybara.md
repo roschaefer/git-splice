@@ -7,7 +7,7 @@ a public pull request is imported and submitted there. For example, XLA's
 explain that the original pull request is closed rather than marked as
 merged, while a separate commit is applied publicly.
 
-With `git splice`, the monorepo can pull the contributor's branch for its
+With `git-splice`, the monorepo can pull the contributor's branch for its
 own tests without publishing anything. The maintainers then merge the pull
 request in the public repository, and the monorepo pulls the resulting
 `main`. This page shows that workflow; it doesn't run Copybara.

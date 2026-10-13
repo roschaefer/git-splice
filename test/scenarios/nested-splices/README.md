@@ -1,20 +1,20 @@
 # Scenario: nested-splices
 
-One splice below another. a's upstream uses git splice itself: it has b's
+One splice below another. a's upstream uses `git-splice` itself: it has b's
 upstream spliced in at `b/`, with a `b/.splice` of its own. Cloning a's
-upstream into the monorepo brings that `.splice` along, so `vendor/a/b`
+upstream into the monorepo brings that `.splice` along, so `vendor/a/b/`
 is a splice in the monorepo too.
 
 - **b's upstream** (`$UPSTREAM-b.git`, reached as
   `https://git.example.com/b.git`): `b seed`.
 - **a's upstream** (`$UPSTREAM`): `a seed`, then `add b`, which spliced
   b's upstream in at `b/`.
-- **Monorepo**: `vendor/a` from a's upstream, and `vendor/a/b` below it,
+- **Monorepo**: `vendor/a/` from a's upstream, and `vendor/a/b/` below it,
   from b's upstream, both fetched.
 
 Each push sends its folder without its own `.splice`. So a's push sends
 b's `.splice` with b's files, and in a's upstream, `b/` stays a splice
-that git splice can pull and push there.
+that `git-splice` can pull and push there.
 [The design](../../../docs/design/README.md#refs-instead-of-remotes)
 explains why both repositories agree on b's state.
 

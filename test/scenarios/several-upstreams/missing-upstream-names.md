@@ -10,7 +10,7 @@ both cases they refuse before doing anything:
 | `--upstream fork`, a selected splice has no `fork` | push some splices to their default upstream without saying so, or leave half of `--all` done |
 
 [`setup.bash`](setup.bash) builds the state of
-[several-upstreams](README.md): `vendor/a` from the original, and its
+[several-upstreams](README.md): `vendor/a/` from the original, and its
 company fork.
 
 ## Output
@@ -89,7 +89,7 @@ ok   vendor/b: cloned bde4164 from main
 ```
 
 Names are unique only within one `.splice`. `--upstream fork` with every
-splice would leave `vendor/b` without an upstream to use, so it's
+splice would leave `vendor/b/` without an upstream to use, so it's
 refused, naming the splices that have one:
 
 ```scrut

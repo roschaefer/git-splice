@@ -4,7 +4,7 @@ The monorepo pushed a change. Pulling right after the push brings nothing
 in, and `.splice` keeps the commit it had before the push. Only a pull that
 brings in an upstream change moves it.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit, pushed
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit, pushed
   with `git splice push`.
 - **Upstream**: `seed`, then the pushed commit.
 - **Synced commit**: still `seed`.

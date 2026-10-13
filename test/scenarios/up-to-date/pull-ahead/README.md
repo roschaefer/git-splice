@@ -2,7 +2,7 @@
 
 Only upstream changed since the clone.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, no local changes since.
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, no local changes since.
 - **Upstream**: `seed`, then a commit, already fetched.
 
 ## Output

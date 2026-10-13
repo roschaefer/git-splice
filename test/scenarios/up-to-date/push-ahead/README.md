@@ -2,7 +2,7 @@
 
 Only the monorepo changed since the clone.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit.
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit.
 - **Upstream**: `seed`, unchanged.
 
 ## Output

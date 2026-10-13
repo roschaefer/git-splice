@@ -60,7 +60,7 @@ $ git splice pull --upstream fork --all
 [1]
 ```
 
-Only `vendor/a`, then. Its pull also fetches the splice below it, whose
+Only `vendor/a/`, then. Its pull also fetches the splice below it, whose
 synced commit the pull may move: from every upstream it names, since
 which of them has the new one isn't known. For I, that's its only one:
 
@@ -73,7 +73,7 @@ ok   vendor/a: pulled 1b1cea6
 
 The fork's patch to `b/` is in `vendor/a/b/` now. I's `.splice` didn't
 change, so the patch is a local change to I: the next push sends it to
-b's upstream, as if it had been made in the monorepo. For `vendor/a`,
+b's upstream, as if it had been made in the monorepo. For `vendor/a/`,
 it's a commit a's upstream lacks, like any other the fork has.
 
 ```scrut

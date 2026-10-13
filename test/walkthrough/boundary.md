@@ -36,7 +36,7 @@ A nested splice has two boundaries. In the monorepo, `boundary` prints
 where the monorepo last synced it, often a pull of the splice above.
 Where the upstream above last synced it is a commit of that upstream:
 check out a fetched commit of it in a worktree, and run `boundary` there
-with the path in that upstream, e.g. `b` for `vendor/a/b`:
+with the path in that upstream, e.g. `b/` for `vendor/a/b/`:
 
     git worktree add --detach ../a refs/splices/a/main
     git -C ../a splice boundary b

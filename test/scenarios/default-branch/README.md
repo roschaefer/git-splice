@@ -2,7 +2,7 @@
 
 Upstream's default branch is `master`, the monorepo's is `main`.
 
-- **Monorepo (`vendor/a`)**: cloned on `main`, then a local commit.
+- **Monorepo (`vendor/a/`)**: cloned on `main`, then a local commit.
 - **Upstream**: `seed` on `master`.
 
 `clone` recorded `default-branch = master` for the upstream in

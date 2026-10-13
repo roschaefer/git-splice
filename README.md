@@ -1,6 +1,6 @@
 # git-splice
 
-git-splice is a developer-friendly way to contribute to other repositories
+`git-splice` is a developer-friendly way to contribute to other repositories
 from one monorepo. Edit them as folders, test them together, and sync both
 ways with plain Git.
 
@@ -34,7 +34,7 @@ checkout on your disk. The fix is easy to send back, but it lives outside
 the monorepo, not versioned with the app that needs it.
 
 So it's either or: change the library outside the monorepo and maintain
-it in two places, or inside and have no way out. git-splice gives you
+it in two places, or inside and have no way out. `git-splice` gives you
 both.
 
 ## The solution
@@ -72,7 +72,7 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 </div>
 
-git-splice rebuilds the monorepo's commits on top of U, with only the
+`git-splice` rebuilds the monorepo's commits on top of U, with only the
 folder's changes, and skips those like c that don't touch it. The result,
 **R**, is a commit of the library, ready to send upstream as it is. R and
 **T**, where the library's branch points, relate like a branch and its
@@ -92,7 +92,7 @@ splice, but commits don't: both repositories keep their own histories.
 ## Getting started
 
 Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/installation/)
-to install git-splice, try it in a sandbox, and walk through every
+to install `git-splice`, try it in a sandbox, and walk through every
 command.
 
 ## Contribute

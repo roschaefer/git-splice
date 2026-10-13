@@ -4,7 +4,7 @@ The [parent scenario's](../README.md) recipe takes the upstream commits
 of a pull X from `.splice`: U1 in X's first parent, U2 in X. That's only
 right if X merged from U1. After a push, it didn't.
 
-- **Monorepo**: the parent scenario, then a local change in `vendor/a`,
+- **Monorepo**: the parent scenario, then a local change in `vendor/a/`,
   pushed with `git splice push`. Then a pull X of one more upstream
   commit.
 - **Upstream**: the parent scenario's commits, the pushed one, and
@@ -65,6 +65,6 @@ all, so U1 is empty and the recipe stops at its first command.
 
 In both cases, the lower bound is where X's merge started: where the
 monorepo's history, rebuilt as upstream commits, meets the upstream's.
-Only git splice computes that, so plain Git can't get it from `.splice`.
+Only `git-splice` computes that, so plain Git can't get it from `.splice`.
 [#109](https://github.com/roschaefer/git-splice/issues/109) proposes
 `git splice show <commit>`, which could print the range from there.

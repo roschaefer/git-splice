@@ -14,7 +14,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
-In the [sandbox](../../docs/sandbox.md), `vendor/pkg-a`'s upstream has a commit the
+In the [sandbox](../../docs/sandbox.md), `vendor/pkg-a/`'s upstream has a commit the
 monorepo doesn't have yet, and it's already fetched:
 
 ```scrut
@@ -22,7 +22,7 @@ $ git splice merge vendor/pkg-a
 ok   vendor/pkg-a: merged 703b936
 ```
 
-The commit `merge` made is `vendor/pkg-a`'s new
+The commit `merge` made is `vendor/pkg-a/`'s new
 [boundary](boundary.md), B, and its `.splice` records the fetched branch,
 T, as the new synced commit, U:
 

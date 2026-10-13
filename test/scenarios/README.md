@@ -89,7 +89,7 @@ what it prints, and changes into the monorepo. It comes from
 [`readme-setup.sh`](readme-setup.sh), which a block that GitHub doesn't
 render sources first. That file also fixes the commit dates and ignores
 your git config, so commit hashes are the same on every run. The splice is
-`vendor/a` unless the document says otherwise, and the upstream's path
+`vendor/a/` unless the document says otherwise, and the upstream's path
 shows as `$UPSTREAM`.
 
 ## Adding a scenario

@@ -1,7 +1,7 @@
 # Comparisons
 
 `git submodule` and `git subtree` are what Git offers for a library inside
-a monorepo. These pages run both side by side with `git splice`, on the
+a monorepo. These pages run both side by side with `git-splice`, on the
 same library and monorepo, and show where each one's model gets in the way
 of fixing a library together with your app and sending the fix back. Each
 also says where it is the better tool.
@@ -17,7 +17,7 @@ also says where it is the better tool.
   and a [merge in the monorepo](../scenarios/up-to-date/feature-branch-unchanged/merge-in-monorepo/README.md)
   reaches the upstream as one commit.
 
-| | `git submodule` | `git subtree` | `git splice` |
+| | `git submodule` | `git subtree` | `git-splice` |
 | --- | --- | --- | --- |
 | Library files in the monorepo | no, a gitlink | yes | yes |
 | `status`, `diff`, `log` of library files | `status`: never; `diff`, `log -p`: with `--submodule=diff`; `log -- <file>`: never | yes | yes |

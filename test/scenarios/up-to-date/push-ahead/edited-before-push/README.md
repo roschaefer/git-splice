@@ -7,7 +7,7 @@ monorepo's history, which still has the original commit, so a `pull`
 right after the push records the edited commit as the synced commit. From there on, the monorepo
 builds on the edited commit.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, then the unpushed commit
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, then the unpushed commit
   `fix, see INTERNAL-123`.
 - **Upstream**: `seed`.
 

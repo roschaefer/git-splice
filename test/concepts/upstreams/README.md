@@ -129,13 +129,13 @@ app-a/s/.splice: commit = 6045a986b5afb475cd0af0caf6bb622db918a25b
 app-b/s/.splice: commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 ```
 
-`app-a/s` and `app-b/s` were cloned separately, so they have different
+`app-a/s/` and `app-b/s/` were cloned separately, so they have different
 ids: they're **independent**
 ([splice identity](../splice-identity/README.md#what-an-id-is)). That
 they're at different versions is fine, e.g. while app a tries the new
 one first, and `status` reports app b's only as behind its upstream. If
 both apps should always share one version, the two need to be mirrors,
-with the same id. Then a difference is **drift**, which git splice
+with the same id. Then a difference is **drift**, which `git-splice`
 doesn't report yet ([mirrors](../../../docs/going-forward/mirrors.md)).
 
 Whether two splices differ is a matter of their files, or R in the
@@ -168,9 +168,9 @@ $ git splice key app-c/s
 mirror.example.com-s
 ```
 
-So comparing URLs couldn't tell that `app-c/s` splices the same
+So comparing URLs couldn't tell that `app-c/s/` splices the same
 repository as the others. A splice can name both URLs as two upstreams,
-but they stay two upstreams, each with a key of its own: git splice
+but they stay two upstreams, each with a key of its own: `git-splice`
 doesn't take them for copies of one repository.
 
 How this compares with a package manager's names, versions and lockfile:

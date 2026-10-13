@@ -10,7 +10,7 @@ works with the fork, and takes the original's releases through it
 - **Fork** (`$UPSTREAM-fork.git`, reached as
   `https://git.example.com/company/lib.git`): a copy of the original,
   then `fork patch`.
-- **Monorepo**: `vendor/a`, cloned from the original at `seed`.
+- **Monorepo**: `vendor/a/`, cloned from the original at `seed`.
 
 ## Output
 

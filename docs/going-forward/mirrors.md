@@ -7,7 +7,7 @@ upstream, e.g. a library at two versions
 ([splice identity](../../test/concepts/splice-identity/README.md#what-an-id-is)).
 A mirror whose files differ from the others' has **drifted**.
 
-git splice doesn't act on that yet: each splice is pulled and pushed on
+`git-splice` doesn't act on that yet: each splice is pulled and pushed on
 its own, and compared only with its own upstream. This page says what
 mirrors would need, what of it is possible, and what can be done
 meanwhile.
@@ -17,7 +17,7 @@ meanwhile.
 - **A copy** in the monorepo, e.g. `cp -r vendor/a vendor/a-copy`.
 - **One nested splice, reached twice.** If B's upstream splices in A,
   which has L nested, then a monorepo that splices in both A and B has
-  `a/l` and `b/a/l`, with the same id: A's clone of L. The monorepo copied
+  `a/l/` and `b/a/l/`, with the same id: A's clone of L. The monorepo copied
   nothing.
 
 Not from separate clones: if A, B and M each clone S, the three copies
@@ -27,7 +27,7 @@ mirrors, a clone would need to take over the id of an existing splice.
 There's no command for that yet.
 
 Because of nesting, mirrors can't be forbidden or forced to stay alike:
-`b/a/l` belongs to B's upstream, and may lag behind `a/l` because B has an
+`b/a/l/` belongs to B's upstream, and may lag behind `a/l/` because B has an
 older version of A. The monorepo can't change that alone. Refusing
 duplicate ids would refuse diamonds of that shape.
 
@@ -52,7 +52,7 @@ mirror's files now, and may not have what those commits added
 
 ## Meanwhile: discipline
 
-What git splice can't do yet, a team can do by hand. A report wouldn't
+What `git-splice` can't do yet, a team can do by hand. A report wouldn't
 take that over, only point at it: it names the mirrors that differ and
 how to resolve the difference. For a mirror that's only behind, that's a
 plain `pull`, which anyone can check. Where both changed, the pull

@@ -4,7 +4,7 @@ The splice's folder has a committed change and an uncommitted one. Like
 every command, `push` reads the splice from the last commit, so it sends
 only the committed change.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, then a local commit, then
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit, then
   an edit to `file.txt` that isn't committed.
 - **Upstream**: `seed`, unchanged.
 

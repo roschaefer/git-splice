@@ -8,7 +8,7 @@ vol. 26 (1917). Public domain, via
 
 A [splice](https://en.wikipedia.org/wiki/Splice) joins two things into
 one: ropes, film, tape, wires, optical fibres, wooden beams, genes. The
-name git-splice borrows from all of them.
+name `git-splice` borrows from all of them.
 
 ## Rope splicing
 
@@ -17,7 +17,7 @@ strands of two ropes and weaves each into the other. Unlike a knot, or
 even a short splice, it adds no lump: the joint has nearly the rope's own
 diameter and runs through a pulley like the rest of the rope.
 
-git-splice works the same way. The upstream's files are woven into the
+`git-splice` works the same way. The upstream's files are woven into the
 monorepo as an ordinary folder, with no submodule pointer (gitlink) and
 nothing extra to check out. You see the joint only as one small file,
 `<path>/.splice`, which records the upstream.
@@ -25,8 +25,8 @@ nothing extra to check out. You see the joint only as one small file,
 ## Noun and verb
 
 As a noun, a splice is the joint: here, the folder together with its
-connection to the upstream repository. "The `vendor/a` splice" is the
-folder `vendor/a` and the upstream it syncs with.
+connection to the upstream repository. "The `vendor/a/` splice" is the
+folder `vendor/a/` and the upstream it syncs with.
 
 As a verb, you splice something in or out:
 
@@ -60,6 +60,6 @@ const files = ["app", "lib", "docs"];
 files.splice(1, 1, "lib v2");  // files is now ["app", "lib v2", "docs"]
 ```
 
-git-splice changes the repository it runs in, too. `pull` merges the
+`git-splice` changes the repository it runs in, too. `pull` merges the
 upstream's changes into the folder in place, as an ordinary commit on
 your branch, rather than checking them out somewhere else.

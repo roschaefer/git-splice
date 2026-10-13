@@ -13,8 +13,8 @@ together: A, B, and S once more at the top, to work on it directly.
 ```
 
 That's a **diamond**: two paths lead from M to S, one through A and one
-through B. A monorepo without splices would keep S once and let `a/s` and
-`b/s` be symlinks to `../s`. But then A on its own, cloned from its own
+through B. A monorepo without splices would keep S once and let `a/s/` and
+`b/s/` be symlinks to `../s/`. But then A on its own, cloned from its own
 repository, has a link that points outside of it. With splices, each copy
 is real: A's repository has S's files, and `s/.splice` says where they
 come from. M has S three times, and keeps the copies in sync by pulling
@@ -125,7 +125,7 @@ $ git splice push s
 ok   s: pushed 9854a3b to main
 ```
 
-Now `a/s` and `b/s` are behind S's upstream:
+Now `a/s/` and `b/s/` are behind S's upstream:
 
 ```scrut
 $ git splice status
@@ -139,10 +139,10 @@ On branch main
   up to date  s
 ```
 
-In terms of the [sync model](../sync-model/README.md): `s`'s R, the
-commit its push sent, is S's upstream branch T now. `a/s` and `b/s`
+In terms of the [sync model](../sync-model/README.md): `s/`'s R, the
+commit its push sent, is S's upstream branch T now. `a/s/` and `b/s/`
 still have the old content, so their R is the old commit. `log --graph`
-leaves out `s`, which is up to date:
+leaves out `s/`, which is up to date:
 
 ```scrut
 $ git splice log --graph s a/s b/s
@@ -194,7 +194,7 @@ ok   b: pushed daaf6f9 to main
 ```
 
 A clone of A on its own, e.g. by an outside contributor, has S's new
-version, as plain files, with the `.splice` that lets git splice sync it
+version, as plain files, with the `.splice` that lets `git-splice` sync it
 from there:
 
 ```scrut
@@ -206,7 +206,7 @@ s fix
 ```
 
 After the round trip, the three copies have the same files and every
-splice is up to date. Their synced commits differ, though: `s` pushed
+splice is up to date. Their synced commits differ, though: `s/` pushed
 the change and didn't pull it, and a push doesn't move U:
 
 ```scrut
@@ -224,7 +224,7 @@ $ git diff --quiet HEAD:s HEAD:a/s -- ':!.splice' && git diff --quiet HEAD:s HEA
 the same files
 ```
 
-git splice compares each copy only with its own upstream, not the
+`git-splice` compares each copy only with its own upstream, not the
 copies with each other. Copies with one id,
 [mirrors](../../../docs/going-forward/mirrors.md), are meant to stay
 alike; these three aren't.

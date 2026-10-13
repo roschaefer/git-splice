@@ -27,7 +27,7 @@ $ git switch -c feature
 Switched to a new branch 'feature'
 ```
 
-To tell whether a splice changed on `feature`, git-splice compares it with
+To tell whether a splice changed on `feature`, `git-splice` compares it with
 the branch `feature` was cut from: `--base`, else the monorepo's default
 branch (`origin/HEAD`, else `init.defaultBranch`; the sandbox sets the
 latter).

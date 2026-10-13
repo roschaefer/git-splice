@@ -2,7 +2,7 @@
 
 Three upstreams nest: a splices b in at `b/`, as in the
 [parent scenario](../README.md), and b splices c in at `c/`. The
-monorepo has a at `vendor/a`, so c is at `vendor/a/b/c`.
+monorepo has a at `vendor/a/`, so c is at `vendor/a/b/c/`.
 
 - **Monorepo**: a, with b and c in it, as their upstreams have them.
 - **Upstreams**: c has `c seed`; b has `b seed` and c spliced in; a has

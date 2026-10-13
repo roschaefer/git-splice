@@ -1,6 +1,6 @@
 # git-splice: design
 
-`git splice` keeps folders of a monorepo in sync with their own upstream
+`git-splice` keeps folders of a monorepo in sync with their own upstream
 repositories, in both directions. Switching branches in the monorepo
 switches the branch every folder syncs with.
 
@@ -79,7 +79,7 @@ the splice, but commits do not: both repositories keep their own histories.
 ## How it compares
 
 [Comparisons](../../test/comparisons/README.md) runs `git submodule` and
-`git subtree` side by side with `git splice`, and
+`git subtree` side by side with `git-splice`, and
 [third-party tools](../../test/comparisons/third-party/README.md) compares
 git-subrepo, splitsh-lite, Josh and Copybara.
 
@@ -87,8 +87,8 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 
 | Term | Meaning |
 |---|---|
-| **splice** | A folder of the monorepo that has its own upstream repository: "`vendor/a` is spliced in from `github.com/x/a`", "the `vendor/a` splice". Strictly, the noun means the joint, not the inserted piece ([why "splice"](name.md)). |
-| **path** | Where the splice lives in the monorepo, e.g. `vendor/a`. (`git subtree` calls it `--prefix`.) |
+| **splice** | A folder of the monorepo that has its own upstream repository: "`vendor/a/` is spliced in from `github.com/x/a`", "the `vendor/a/` splice". Strictly, the noun means the joint, not the inserted piece ([why "splice"](name.md)). |
+| **path** | Where the splice lives in the monorepo, e.g. `vendor/a/`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
 | **synced commit** (U) | The upstream commit `.splice` records: the one last spliced in. |
@@ -291,7 +291,7 @@ Two rules follow from the layout:
 - **A splice nested in another is a splice on both sides.** Each push
   sends its folder without its own `.splice`, so the push of the splice
   above sends the `.splice` of the one below along with its files. In the
-  upstream of the splice above, the folder below is then a splice too, which `git splice` can
+  upstream of the splice above, the folder below is then a splice too, which `git-splice` can
   pull and push there. The `.splice` holds nothing specific to the
   monorepo, and fetched refs are keyed by URL, so both repositories find
   the same synced commit under the same refs. An upstream with a `.splice`

@@ -144,7 +144,7 @@ monorepo, as a sync point for the next `split`. That's one more merge
 commit for every push, and a pull request that's squash-merged drops it,
 with the sync point.
 
-## The same with `git splice`
+## The same with `git-splice`
 
 In a copy of the monorepo from before the library, `clone` adds one
 ordinary commit, and the history stays linear:

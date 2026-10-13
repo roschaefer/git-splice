@@ -3,8 +3,8 @@
 The monorepo is on a branch upstream doesn't have, and the splice didn't
 change on it.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed` on `main`, then the branch
-  `feature`, with no changes under `vendor/a`.
+- **Monorepo (`vendor/a/`)**: cloned at `seed` on `main`, then the branch
+  `feature`, with no changes under `vendor/a/`.
 - **Upstream**: only `main`.
 
 `push` creates a branch upstream only where a splice changed, so starting

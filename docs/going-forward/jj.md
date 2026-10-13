@@ -3,14 +3,14 @@
 [Jujutsu](https://github.com/jj-vcs/jj) (`jj`) is a version control
 system that can share a repository with Git: in a *colocated* repository,
 `.jj/` and `.git/` live side by side, and plain Git commands still work.
-git splice doesn't work there yet
+`git-splice` doesn't work there yet
 ([#41](https://github.com/roschaefer/git-splice/issues/41)). This page
 says what it needs.
 
-## git splice in a colocated repository
+## `git-splice` in a colocated repository
 
 jj keeps Git's `HEAD` detached, at the parent of the working-copy commit
-(`@-`). Every git splice command that syncs with an upstream branch
+(`@-`). Every `git-splice` command that syncs with an upstream branch
 stops there, since it follows the branch named like the current one:
 
 ```
@@ -20,7 +20,7 @@ $ git splice status
 
 ## Two branches
 
-git splice reads two branches from Git, and maps each to a branch of the
+`git-splice` reads two branches from Git, and maps each to a branch of the
 upstream ([design](../design/README.md#branches)):
 
 | In Git | Upstream branch | Also used for |

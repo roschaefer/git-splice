@@ -3,7 +3,7 @@
 Two splices with the same upstream URL. They act like two clones of one
 repository: each has its own synced commit and its own private refs.
 
-- **Monorepo**: `vendor/a` and `vendor/b`, both cloned at `seed`.
+- **Monorepo**: `vendor/a/` and `vendor/b/`, both cloned at `seed`.
 - **Upstream**: one repository, `seed`.
 
 ## Output

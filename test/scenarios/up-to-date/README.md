@@ -2,7 +2,7 @@
 
 A splice freshly cloned and never touched again on either side.
 
-- **Monorepo (`vendor/a`)**: cloned at `seed`, no local changes since.
+- **Monorepo (`vendor/a/`)**: cloned at `seed`, no local changes since.
 - **Upstream**: `seed`, unchanged.
 
 ## Output

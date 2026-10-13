@@ -1,12 +1,12 @@
 # Try it in a sandbox
 
-To try git-splice without touching your own repositories, run this in a
-clone of git-splice:
+To try `git-splice` without touching your own repositories, run this in a
+clone of `git-splice`:
 
     nix develop       # a shell with the dev tools and this checkout on PATH
     just walkthrough
 
-Without Nix, [install](installation.md) `git splice` first, then run
+Without Nix, [install](installation.md) `git-splice` first, then run
 `test/walkthrough/setup.sh` in the clone.
 
 It builds a throwaway monorepo in a temporary directory and opens a shell
@@ -25,10 +25,10 @@ What you get:
   that prefix to `$WALKTHROUGH/upstream/`. The sandbox's shell exports
   `$WALKTHROUGH`, so you can paste the walkthrough's commands as they
   are.
-- `vendor/pkg-a`: a splice whose upstream has one commit the monorepo
+- `vendor/pkg-a/`: a splice whose upstream has one commit the monorepo
   doesn't have yet. It's already fetched.
 - `pkg-b.git`: a repository that isn't spliced in yet.
-- `libs/c`: a folder of the monorepo, to be published to the empty
+- `libs/c/`: a folder of the monorepo, to be published to the empty
   `lib-c.git`.
 
 To push a commit to an upstream as if someone else had, clone it next to
