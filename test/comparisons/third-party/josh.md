@@ -368,7 +368,7 @@ library as written.
   trees in Rust, on gitoxide, with a cache, so it can filter whole
   histories quickly, and calls the `git` command for fetches and pushes.
   `git-splice` calls Git for every step, and only walks history since the
-  last sync.
+  boundary.
 - **The monorepo is where Josh starts.** Its views, `josh clone` and
   `josh-proxy` serve folders of the monorepo to people who work on just
   that folder. `git-splice` starts from a library that has its own
@@ -389,7 +389,7 @@ library as written.
 | | Josh | `git-splice` |
 | --- | --- | --- |
 | Library history in the monorepo | whole, as copies under the folder | none, one commit per sync |
-| Commits a push sends | the filtered history, the same as `git subtree split` for commits without a signature or extra headers | the first-parent commits since the last sync, otherwise the same as `git subtree split` |
+| Commits a push sends | the filtered history, the same as `git subtree split` for commits without a signature or extra headers | the first-parent commits since the boundary, otherwise the same as `git subtree split` |
 | `git bisect` for a library bug | finds the monorepo's copy of the library's commit | finds the pull, then a second bisect between the synced commits does |
 | A monorepo branch merged | a merge, with the branch's commits | one commit, with the merge's message |
 | Where both sides meet | commits of the filtered view that the library has | the synced commit in `.splice` |

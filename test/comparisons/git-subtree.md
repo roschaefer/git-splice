@@ -169,8 +169,8 @@ The same two fixes:
 $ for change in "app commit 41" "lib fix 1" "app commit 42" "lib fix 2"; do case $change in app*) echo "$change" >>app/main.txt ;; lib*) echo "$change" >>vendor/lib/src/parse.txt ;; esac; git commit -q -a -m "$change"; done
 ```
 
-`push` only looks at the commits since the last sync, the newest commit
-that changed `.splice`: the last `clone` or `pull`. It doesn't need the
+`push` only looks at the commits since the boundary, usually the newest
+commit that changed `.splice`: the last `clone` or `pull`. It doesn't need the
 library's history in the monorepo, nor the monorepo's history before that
 commit. These are the commits it walks, following first parents:
 

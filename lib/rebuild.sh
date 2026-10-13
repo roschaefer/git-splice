@@ -49,9 +49,9 @@ content_tree() {
 }
 
 # Prints the newest first-parent commit reachable from <rev> that changed
-# <path>'s state file -- the boundary. Every pull, clone and init writes
+# <path>'s state file -- the last sync, L. Every pull, clone and init writes
 # such a commit, and rebases and squash merges can't remove all of them.
-splice_boundary() {
+splice_last_sync() {
   local path="$1" rev="${2:-HEAD}"
   git log --first-parent -1 --no-show-signature --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
 }
@@ -128,15 +128,38 @@ splice_rebuild() {
 
 # Prints the upstream commit that represents splice <path> as of monorepo
 # commit <rev> (default HEAD), or nothing if the splice has no content yet.
+rebuild_splice() {
+  local result
+  result="$(rebuild_with_start "$@")" || return
+  result="${result% *}"
+  [[ "$result" == - ]] || printf '%s
+' "$result"
+}
+
+# Prints the commit the rebuild of splice <path> as of <rev> (default
+# HEAD) starts from, the splice's boundary B: the commits on the
+# first-parent history after it are the ones the rebuild copies.
+splice_start() {
+  local result
+  result="$(rebuild_with_start "$@")" || return
+  result="${result#* }"
+  [[ "$result" == - ]] || printf '%s
+' "$result"
+}
+
+# Prints "<rebuild> <start>": rebuild_splice's commit and splice_start's,
+# each "-" if there's none.
 #
-#   1. B is the boundary (splice_boundary) and U the synced commit recorded
-#      there. If B's folder equals U, the rebuild starts at U.
+#   1. L is the last sync (splice_last_sync) and U the synced commit
+#      recorded there. If L's folder equals U, the rebuild starts at U,
+#      and L is the start.
 #   2. If it differs -- a pull merged local changes in, or a squash merge
-#      mixed local edits into the commit that changed the state file -- B
-#      is rebuilt as a commit with B's folder, whose parents are what the
-#      rebuild had before B (rebuilt from B's first parent, recursively)
+#      mixed local edits into the commit that changed the state file -- L
+#      is rebuilt as a commit with L's folder, whose parents are what the
+#      rebuild had before L (rebuilt from L's first parent, recursively)
 #      and U. Local commits that were never pushed keep their own identity.
-#   3. Then one commit per first-parent commit after B whose folder
+#      Where that rebuild is one of the parents, its start is the start.
+#   3. Then one commit per first-parent commit after L whose folder
 #      differs from the one before. A merge in the monorepo becomes one
 #      ordinary commit.
 # Without a synced commit (after init, before any pull), the rebuild
@@ -144,42 +167,42 @@ splice_rebuild() {
 # it was then. Nothing from before the mount is published, with or
 # without a synced commit: the folder was no splice then, or another one,
 # and its history may hold what was removed before it became this splice.
-rebuild_splice() {
+rebuild_with_start() {
   local path="$1" rev="${2:-HEAD}"
-  local boundary synced prev="" prev_tree="" tree range start
+  local last_sync synced prev="" prev_tree="" tree range start rebuild_start
 
-  boundary="$(splice_boundary "$path" "$rev")"
+  last_sync="$(splice_last_sync "$path" "$rev")"
   synced=""
-  [[ -n "$boundary" ]] && synced="$(splice_config "$path" commit "$boundary")"
+  [[ -n "$last_sync" ]] && synced="$(splice_config "$path" commit "$last_sync")"
 
-  # A nested splice's history up to the boundary of a splice above it is
+  # A nested splice's history up to the last sync of a splice above it is
   # in that splice's upstream: a clone or pull of the splice above
   # squashed it into one commit here. So up to there, it's rebuilt from
   # the upstream's history, at the synced commit of the splice above, and
   # that rebuild stands in for the synced commit. Of the splices above,
-  # the one with the newest boundary covers the most history; on a tie,
+  # the one with the newest last sync covers the most history; on a tie,
   # the outermost, whose upstream has the ones below it too, at least as
   # new as their own synced commits. Only where the upstream above has
   # the same splice at the path: it may have replaced it with another.
-  local dir="$path" above above_boundary above_synced from_above=""
-  local best="" best_boundary="" best_synced=""
-  if [[ -n "$boundary" ]]; then
+  local dir="$path" above above_last_sync above_synced from_above=""
+  local best="" best_last_sync="" best_synced=""
+  if [[ -n "$last_sync" ]]; then
     while above="$(splice_above_in "$rev" "$dir")"; do
       dir="$above"
-      above_boundary="$(splice_boundary "$above" "$rev")"
-      [[ -n "$above_boundary" ]] || continue
-      above_synced="$(splice_config "$above" commit "$above_boundary")"
+      above_last_sync="$(splice_last_sync "$above" "$rev")"
+      [[ -n "$above_last_sync" ]] || continue
+      above_synced="$(splice_config "$above" commit "$above_last_sync")"
       [[ -n "$above_synced" ]] && git cat-file -e "$above_synced^{commit}" 2>/dev/null || continue
-      git merge-base --is-ancestor "$boundary" "$above_boundary" || continue
-      [[ -z "$best" ]] || git merge-base --is-ancestor "$best_boundary" "$above_boundary" || continue
+      git merge-base --is-ancestor "$last_sync" "$above_last_sync" || continue
+      [[ -z "$best" ]] || git merge-base --is-ancestor "$best_last_sync" "$above_last_sync" || continue
       [[ "$(splice_config "${path#"$above/"}" id "$above_synced")" == "$(splice_config "$path" id "$rev")" ]] || continue
-      best="$above" best_boundary="$above_boundary" best_synced="$above_synced"
+      best="$above" best_last_sync="$above_last_sync" best_synced="$above_synced"
     done
   fi
   if [[ -n "$best" ]]; then
     from_above="$(rebuild_splice "${path#"$best/"}" "$best_synced")"
     if [[ -n "$from_above" ]]; then
-      boundary="$best_boundary"
+      last_sync="$best_last_sync"
       synced="$from_above"
     fi
   fi
@@ -194,51 +217,62 @@ rebuild_splice() {
   fi
 
   if [[ -n "$synced" ]]; then
+    rebuild_start="$last_sync"
     prev="$synced"
     prev_tree="$(git rev-parse "$synced^{tree}")"
-    content_tree "$boundary" "$path"
+    content_tree "$last_sync" "$path"
     tree="$CONTENT_TREE"
-    # With the history from above, B's folder may equal it while the
-    # monorepo's history before B has commits it lacks, e.g. one pushed
+    # With the history from above, L's folder may equal it while the
+    # monorepo's history before L has commits it lacks, e.g. one pushed
     # straight to this splice's upstream: they're joined all the same.
     if [[ -n "$tree" && ("$tree" != "$prev_tree" || -n "$from_above") ]]; then
-      local before parents=()
-      before=""
-      # Unless B is the mount: what came before isn't this splice's.
-      git rev-parse --verify --quiet "$boundary^1" >/dev/null &&
-        same_splice "$path" "$boundary^1" "$boundary" &&
-        before="$(rebuild_splice "$path" "$boundary^1")"
+      local before="" before_start="" parents=()
+      # Unless L is the mount: what came before isn't this splice's.
+      if git rev-parse --verify --quiet "$last_sync^1" >/dev/null &&
+        same_splice "$path" "$last_sync^1" "$last_sync"; then
+        before="$(rebuild_with_start "$path" "$last_sync^1")" || return
+        before_start="${before#* }"
+        before="${before% *}"
+        [[ "$before" != - ]] || before=""
+      fi
       if [[ -z "$before" ]] || git merge-base --is-ancestor "$before" "$synced"; then
-        # Nothing unpushed before B: B's changes go on top of U.
+        # Nothing unpushed before L: L's changes go on top of U.
         parents=("$synced")
       elif git merge-base --is-ancestor "$synced" "$before"; then
-        # What came before already contains U, e.g. B only changed the
+        # What came before already contains U, e.g. L only changed the
         # state file: continue from there.
         parents=("$before")
+        rebuild_start="$before_start"
       else
         # A pull merged a divergence: join both sides, as git pull would.
         parents=("$before" "$synced")
+        rebuild_start="$before_start"
       fi
       if [[ ${#parents[@]} -eq 1 && "$tree" == "$(git rev-parse "${parents[0]}^{tree}")" ]]; then
         prev="${parents[0]}"
       else
-        prev="$(copy_commit "$boundary" "$tree" "${parents[@]}")"
+        prev="$(copy_commit "$last_sync" "$tree" "${parents[@]}")"
       fi
       prev_tree="$tree"
     fi
-    range="$boundary..$rev"
+    range="$last_sync..$rev"
   else
     start="$(splice_mount "$path" "$rev")"
-    [[ -n "$start" ]] || return 0
+    if [[ -z "$start" ]]; then
+      printf -- '- -\n'
+      return 0
+    fi
+    rebuild_start="$start"
     range="$rev"
     git rev-parse --verify --quiet "$start^1" >/dev/null && range="$start^1..$rev"
   fi
 
-  rebuild_walk "$path" "$prev" "$range"
+  prev="$(rebuild_walk "$path" "$prev" "$range")"
+  printf '%s %s\n' "${prev:--}" "$rebuild_start"
 }
 
 # Prints the rebuild of splice <path> along <range> (rev-list syntax, e.g.
-# "B..HEAD"), on top of upstream commit <start> (nothing: a new root):
+# "L..HEAD"), on top of upstream commit <start> (nothing: a new root):
 # one commit per first-parent commit whose folder differs from the one
 # before. A merge in the monorepo becomes one ordinary commit.
 #

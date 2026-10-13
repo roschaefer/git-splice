@@ -43,7 +43,7 @@ _git-splice() {
     'status:show each splice'\''s sync state'
     'diff:show the file changes push would send'
     'log:show the commits push and pull would move'
-    'boundary:print the commit where a splice last synced'
+    'boundary:print the commit the rebuild of a splice starts from'
     'rebuild:print the commit push would send'
     'fetch:fetch the upstreams'
     'key:print or rename the key of a splice'\''s fetched refs'

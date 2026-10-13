@@ -15,9 +15,9 @@ has a page of its own with the details. To try them yourself, run
 | [`merge`](merge.md) | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
 | [`pull`](pull.md) | `fetch` + `merge`. |
 | [`diff`](diff.md) | Shows the file changes `push` would send. |
-| [`push`](push.md) | Rebuilds the commits that changed each splice since the last sync and pushes them upstream. Writes nothing to the monorepo. |
+| [`push`](push.md) | Rebuilds the commits that changed each splice since its boundary and pushes them upstream. Writes nothing to the monorepo. |
 | [`init`](init.md) | Makes a folder a splice of a new, empty repository. |
-| [`boundary`](boundary.md) | Prints the monorepo commit where a splice last synced. |
+| [`boundary`](boundary.md) | Prints the monorepo commit a splice's rebuild starts from, usually its last sync. |
 | [`rebuild`](rebuild.md) | Prints the commit `push` would send, without pushing it. |
 | [`key`](key.md) | Prints the key of a splice's upstream, or renames it, refs included. |
 
@@ -177,7 +177,7 @@ ok   libs/c: pushed 9dc1e6a to main
 
 ## boundary
 
-The monorepo commit where `vendor/pkg-a/` last synced ([boundary in detail](boundary.md)):
+The monorepo commit `vendor/pkg-a/`'s rebuild starts from, here its last sync ([boundary in detail](boundary.md)):
 
 ```scrut
 $ git show -s --oneline "$(git splice boundary vendor/pkg-a)"

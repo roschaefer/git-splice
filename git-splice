@@ -85,7 +85,7 @@ Looking -- every splice unless paths are given:
   fetch [--upstream <n>] [path...]    fetch the upstreams
 
 New to git splice -- one splice each:
-  boundary <path>                     print the commit where a splice last synced
+  boundary <path>                     print the commit the rebuild of a splice starts from
   rebuild <path>                      print the commit push would send
   key [--upstream <name>] <path> [<new-key>]
                                       print or rename the key of a splice's fetched refs

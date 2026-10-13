@@ -57,7 +57,7 @@ complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a push -d
 complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a status -d "show each splice's sync state"
 complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a diff -d 'show the file changes push would send'
 complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a log -d 'show the commits push and pull would move'
-complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a boundary -d 'print the commit where a splice last synced'
+complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a boundary -d 'print the commit the rebuild of a splice starts from'
 complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a rebuild -d 'print the commit push would send'
 complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a fetch -d 'fetch the upstreams'
 complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a key -d "print or rename the key of a splice's fetched refs"

@@ -3,7 +3,7 @@
 `git splice push [--upstream <name>] [--base <branch>] [--force] (<path>… | --all)`  
 `git splice push [--upstream <name>] [--base <branch>] [--force] --rebuilt-commit <commit> <path>`
 
-Rebuilds the commits that changed each splice since the last sync,
+Rebuilds the commits that changed each splice since its [boundary](boundary.md),
 without `.splice`, and pushes them to the upstream branch named like
 yours. It writes nothing to the monorepo
 ([why](../concepts/sync-model/README.md#why-a-push-isnt-recorded)).
