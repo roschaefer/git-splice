@@ -35,7 +35,7 @@ without `.splice`, the same author, dates and message, on top of U.
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits o and p on top of U](../../../git-splice.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of U](../../../git-splice.svg)
 
 </div>
 
@@ -47,13 +47,13 @@ In the upstream, U is k, and so is S, the commit B records. T has moved
 on to n.
 
 The rebuild copies the commits in `B..H`, b to d, on top of S. c didn't
-touch `path/`, so it's skipped, and b and d become o and p, dashed
-because they exist only as the rebuild. Their tip is R. B itself isn't
+touch `path/`, so it's skipped, and b and d become b+ and d+, dashed
+because they exist only as the rebuild. A `+` marks a commit rebuilt. Their tip is R. B itself isn't
 copied, since its folder is S already.
 
 <div align="center">
 
-![The same graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is a merge q of the rebuilt p and n](../../../docs/images/sync-model-after-pull.svg)
+![The same graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../../docs/images/sync-model-after-pull.svg)
 
 </div>
 
@@ -65,17 +65,17 @@ one lump, under e's message. So B stays a, the newest commit that changed
 `.splice` and has the commit it recorded, k, as its folder. k is S, and
 no longer U.
 
-From B, R keeps b and d as the commits they were: o and p on S. Then it
-copies e as q, a merge of p and n, as `git pull` would have: e's folder
-and message, with p and n as parents. Nothing points at b and d, but e is
+From B, R keeps b and d as the commits they were: b+ and d+ on S. Then
+it copies e as e+, a merge of d+ and n, as `git pull` would have: e's
+folder and message, with d+ and n as parents. Nothing points at b and d, but e is
 their descendant
 ([scenario](../../scenarios/rebuild-start/README.md)).
 
-A `git splice push` then sends o, p and q, and moves T to q, a
+A `git splice push` then sends b+, d+ and e+, and moves T to e+, a
 fast-forward. U stays n, B stays a, and S stays k: a pull right after the
 push has nothing to bring in, and only [`git splice pull --bump`](../../walkthrough/bump.md)
-records q as U, in a commit whose folder is q. So that commit is the new
-B, and q is S as well as U.
+records e+ as U, in a commit whose folder is e+. So that commit is the
+new B, and e+ is S as well as U.
 
 R is never stored. It's computed from `HEAD` each time, and the same
 `HEAD` always gives the same R. So a commit pushed once is rebuilt
