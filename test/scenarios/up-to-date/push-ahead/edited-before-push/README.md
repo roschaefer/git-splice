@@ -2,9 +2,9 @@
 
 The commits a push would send, R, are edited before they're pushed:
 here, a message that names an internal ticket is reworded. They're
-pushed with plain Git. R is computed from the monorepo's history, which
-still has the original commit, so a `pull` right after the push records
-the edited commit as the synced commit. From there on, the monorepo
+pushed with `git splice push --rebuilt-commit`. R is computed from the
+monorepo's history, which still has the original commit, so a `pull`
+right after the push records the edited commit as the synced commit. From there on, the monorepo
 builds on the edited commit.
 
 - **Monorepo (`vendor/a`)**: cloned at `seed`, then the unpushed commit
@@ -17,12 +17,41 @@ The recipe:
 2. Check it out in a worktree of its own: R has the upstream's layout,
    and a `git switch` would replace the monorepo's whole checkout.
 3. Edit the commits after the synced commit U, e.g. with
-   `git rebase -i`, and push the result with `git push`. Change only the
-   history, not the files.
+   `git rebase -i`, and push the result with
+   `git splice push --rebuilt-commit <commit> <path>`. It refuses a
+   commit whose files differ from the folder's, or that doesn't contain
+   U. Everything else about the commit is up to you: see
+   [What push checks](#what-push-checks).
+
+   Or push with plain Git, right from the worktree where you edited the
+   commits: `git push <url> HEAD:<branch>`, with the upstream's URL from
+   the splice's `.splice` file, e.g.
+   `git config --blob HEAD:vendor/a/.splice upstream.origin.url` in the
+   monorepo. Then nothing checks the commit, and `refs/splices` learns
+   about it with the pull in step 4.
 4. **`git splice pull`**, before the next change to the splice. The
    folder has the pushed commit's files, so the pull records it as the
    synced commit. A change before the pull publishes the original commit
    after all: [change-before-the-pull](change-before-the-pull.md).
+
+## What push checks
+
+`git splice push` builds R itself and knows what it contains. A commit
+given with `--rebuilt-commit` was made by hand, so push checks only what
+a slip while editing would get wrong:
+
+- **Its files are the folder's.** A file changed in the worktree would
+  never reach the monorepo, and the next pull would merge it back in.
+- **It contains U,** the merge base the next pull uses.
+
+The rest of its history goes upstream as it is, as with `git push`: its
+parents, and the files of every commit before it. A merge that keeps
+only R's files but has a monorepo commit as a parent passes both checks
+and publishes the monorepo's history. So does a commit with a
+`git replace` entry, whose original, not its replacement, is pushed.
+Neither happens by accident while rewording or squashing. Whoever builds
+the commit with Git's plumbing checks that it's the right one, e.g. with
+`git log --graph <commit>` before the push.
 
 ## Output
 
@@ -53,7 +82,8 @@ file.txt
 ```
 
 ```scrut
-$ git -C ../edited commit -q --amend -m "fix the parser" && git -C ../edited push -q "$UPSTREAM" edited:main
+$ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuilt-commit edited vendor/a
+ok   vendor/a: pushed ce80186 to main
 ```
 
 ### Pull
@@ -64,7 +94,7 @@ commit that changes only `.splice`:
 
 ```scrut
 $ git splice pull vendor/a
-ok   vendor/a fetched (main moved bde4164..ce80186)
+ok   vendor/a fetched
 ok   vendor/a: recorded ce80186 as the synced commit -- the folder already has its files
 ```
 
