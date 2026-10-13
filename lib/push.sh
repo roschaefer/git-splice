@@ -31,9 +31,9 @@ may also replace commits the upstream already has. push checks only
 that; the rest of <commit>'s history -- its parents, the files of the
 commits before it -- is pushed as it is, as with 'git push'. Like every
 push, it records no sync point: the monorepo keeps rebuilding the
-original commits, and a later push publishes them too, unless a 'git
-splice pull' records <commit> as the synced commit before the next
-change. push reminds you of it.
+original commits, and a later push publishes them too, unless 'git
+splice pull --bump <path>' records <commit> as the synced commit before
+the next change, as push reminds you.
 
 Only committed changes are pushed; push warns about uncommitted ones in a
 splice's folder.
@@ -137,11 +137,20 @@ push_one() {
     return 1
   fi
   log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $label"
-  # A commit the monorepo's own rebuild contains, e.g. the unchanged
-  # rebuild, needs no record: the pull finds nothing to do.
-  [[ -z "${REBUILD_GIVEN[$path]:-}" ]] ||
-    git merge-base --is-ancestor "$SPLICE_REBUILT" "$(REBUILD_WITHOUT_SYNCED=1 rebuild_splice "$path" HEAD)" ||
-    log_warn "$path: run 'git splice pull $option$path' before the next change to it -- that records ${SPLICE_REBUILT:0:7} as the synced commit"
+  [[ -z "${REBUILD_GIVEN[$path]:-}" ]] || given_is_rebuild "$path" ||
+    log_warn "$path: run 'git splice pull --bump $option$path' before the next change to it -- that records ${SPLICE_REBUILT:0:7} as the synced commit"
+}
+
+# Succeeds if the commit given for splice <path> is the monorepo's own
+# rebuild, which needs no record. Any other, even an ancestor of the
+# rebuild with the same files, leaves the rebuild with commits the
+# upstream doesn't have, which the next push would publish. Without the
+# synced commit here, there's no rebuild to compare with.
+given_is_rebuild() {
+  local path="$1" synced
+  synced="$(splice_config "$path" commit)"
+  [[ -z "$synced" ]] || git cat-file -e "$synced^{commit}" 2>/dev/null || return 1
+  [[ "${REBUILD_GIVEN[$path]}" == "$(rebuild_splice "$path" HEAD)" ]]
 }
 
 # Records <commit> as the rebuild push sends for splice <path>

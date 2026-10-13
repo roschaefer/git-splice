@@ -234,7 +234,7 @@ reworded_rebuild() {
   edited="$(reworded_rebuild "fix the parser")"
   run cmd_push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '%s\n' "ok   vendor/a: pushed ${edited:0:7} to main" "??   vendor/a: run 'git splice pull vendor/a' before the next change to it -- that records ${edited:0:7} as the synced commit")" ]
+  [ "$output" = "$(printf '%s\n' "ok   vendor/a: pushed ${edited:0:7} to main" "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${edited:0:7} as the synced commit")" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$edited" ]
   [ "$(git rev-parse "$(upstream_refs "$upstream")main")" = "$edited" ]
 }
@@ -249,6 +249,42 @@ reworded_rebuild() {
   [ "$output" = "ok   vendor/a: pushed ${rebuilt:0:7} to main" ]
   run cmd_pull vendor/a
   [ "$output" = "$(printf '%s\n' "ok   vendor/a fetched" "ok   vendor/a: nothing to pull")" ]
+}
+
+@test "push --rebuilt-commit: asks for pull --bump for an ancestor of the rebuild with its files, e.g. without a commit and its revert" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_local "$monorepo" vendor/a "temporary" tmp.txt
+  git rm -q vendor/a/tmp.txt && git commit -q -m "revert temporary"
+  local edited
+  edited="$(rebuild_splice vendor/a)~2"
+  edited="$(git rev-parse "$edited")"
+  run cmd_push --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${edited:0:7} as the synced commit" ]
+  run cmd_pull --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$edited" ]
+  commit_local "$monorepo" vendor/a "next change"
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log --format=%s main)" = "$(printf '%s\n' "next change" "local change" "seed")" ]
+}
+
+@test "push --force --rebuilt-commit: asks for a pull while the synced commit isn't here, even for the rebuild" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  rm -rf "$upstream"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "brand new unrelated history"
+  cd "$monorepo"
+  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
+  git reflog expire --expire=now --all && git gc -q --prune=now
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  local rebuilt
+  rebuilt="$(REBUILD_WITHOUT_SYNCED=1 rebuild_splice vendor/a)"
+  run cmd_push --force --rebuilt-commit "$rebuilt" vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${rebuilt:0:7} as the synced commit" ]
 }
 
 @test "push --rebuilt-commit: replaces a published commit with a reworded one, with --force" {

@@ -74,7 +74,7 @@ as it is, as with `git push`:
 ```scrut
 $ git splice push --rebuilt-commit "$(git -C ../edited rev-parse HEAD)" vendor/pkg-a
 ok   vendor/pkg-a: pushed f3dbe32 to main
-??   vendor/pkg-a: run 'git splice pull vendor/pkg-a' before the next change to it -- that records f3dbe32 as the synced commit
+??   vendor/pkg-a: run 'git splice pull --bump vendor/pkg-a' before the next change to it -- that records f3dbe32 as the synced commit
 ```
 
 ```scrut
@@ -83,13 +83,13 @@ pkg-a: fix the parser
 ```
 
 Like every push, it records no sync point, and the monorepo still has
-the original commit. Pull before the next change to the splice, as `push`
-reminds you: the
-folder has the pushed commit's files, so the pull records it as the
-synced commit, and later pushes build on it:
+the original commit. Pull with `--bump` before the next change to the
+splice, as `push` reminds you: the folder has the pushed commit's files,
+so the pull records it as the synced commit, and later pushes build on
+it:
 
 ```scrut
-$ git splice pull vendor/pkg-a
+$ git splice pull --bump vendor/pkg-a
 ok   vendor/pkg-a fetched
 ok   vendor/pkg-a: recorded f3dbe32 as the synced commit -- the folder already has its files
 ```

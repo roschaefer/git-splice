@@ -33,9 +33,11 @@ The recipe:
    `git config --blob HEAD:vendor/a/.splice upstream.origin.url` in the
    monorepo. Then nothing checks the commit, and `refs/splices` learns
    about it with the pull in step 4.
-4. **`git splice pull`**, before the next change to the splice. The
-   folder has the pushed commit's files, so the pull records it as the
-   synced commit. A change before the pull publishes the original commit
+4. **`git splice pull --bump`**, before the next change to the splice.
+   The folder has the pushed commit's files, so the pull records it as
+   the synced commit. A plain pull does that too, unless the rebuild
+   already contains the pushed commit, e.g. after dropping a commit and
+   its revert. A change before the pull publishes the original commit
    after all: [change-before-the-pull](change-before-the-pull.md).
 
 ## What push checks
@@ -91,7 +93,7 @@ file.txt
 ```scrut
 $ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuilt-commit edited vendor/a
 ok   vendor/a: pushed ce80186 to main
-??   vendor/a: run 'git splice pull vendor/a' before the next change to it -- that records ce80186 as the synced commit
+??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ce80186 as the synced commit
 ```
 
 ### Pull
@@ -101,7 +103,7 @@ commit, not the edited one. The pull records the edited commit, in a
 commit that changes only `.splice`:
 
 ```scrut
-$ git splice pull vendor/a
+$ git splice pull --bump vendor/a
 ok   vendor/a fetched
 ok   vendor/a: recorded ce80186 as the synced commit -- the folder already has its files
 ```
