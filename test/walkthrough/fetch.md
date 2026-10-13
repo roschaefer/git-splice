@@ -64,4 +64,4 @@ $ git worktree remove ../pkg-a-upstream
 
 Upstreams are fetched and pushed by URL, with no Git remote, so a plain
 `git push` can't send the whole monorepo to one by mistake
-([more](../../docs/design/README.md#refs-instead-of-remotes)).
+([refs instead of remotes](../../docs/design/README.md#refs-instead-of-remotes)).

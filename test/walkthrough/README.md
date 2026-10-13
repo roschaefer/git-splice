@@ -28,9 +28,11 @@ their names come from splicing.
 
 `merge`, `pull` and `push` change the monorepo or an upstream, so they
 name their splices, or take `--all`. `clone` and `init` start one splice
-each, and `boundary`, `rebuild` and `key` look at one. The other commands
-only look, and cover every splice unless you name some. `status`, `diff`,
-`log` and `merge` only use what was last fetched. Run
+each. `boundary` and `rebuild` look at one, and `key` prints or renames
+one's key. `status`, `diff` and `log` only look, and `fetch` only
+updates the fetched branches in `refs/splices/`; these four cover every
+splice unless you name some. `status`, `diff`, `log` and `merge` only use
+what was last fetched. Run
 `git splice <command> --help` for options.
 
 A splice can have several [upstreams](../concepts/upstreams/README.md),
@@ -54,7 +56,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 
 ## status
 
-Lists every splice with its sync state ([more](status.md)):
+Lists every splice with its sync state ([status in detail](status.md)):
 
 ```scrut
 $ git splice status
@@ -65,7 +67,7 @@ On branch main
 
 ## clone
 
-Splices in `pkg-b` ([more](clone.md)):
+Splices in `pkg-b` ([clone in detail](clone.md)):
 
 ```scrut
 $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b
@@ -76,7 +78,7 @@ ok   vendor/pkg-b: cloned 9b3cb02 from main
 ## fetch
 
 Someone pushes to `pkg-b`'s upstream. `fetch` fetches every splice's
-upstream in parallel and calls out which branch moved ([more](fetch.md)):
+upstream in parallel and calls out which branch moved ([fetch in detail](fetch.md)):
 
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b && echo "pkg-b: add a feature" >>../pkg-b/file.txt && git -C ../pkg-b commit -qam "pkg-b: add a feature" && git -C ../pkg-b push -q
@@ -91,7 +93,7 @@ ok   vendor/pkg-b fetched (main moved 9b3cb02..b937c4f)
 ## log
 
 `>` marks what a pull brings in, `<` what a push publishes
-([more](log.md)):
+([log in detail](log.md)):
 
 ```scrut
 $ git splice log
@@ -104,7 +106,7 @@ $ git splice log
 ## merge
 
 Splices in what was fetched, without contacting the upstream
-([more](merge.md)):
+([merge in detail](merge.md)):
 
 ```scrut
 $ git splice merge vendor/pkg-a
@@ -113,7 +115,7 @@ ok   vendor/pkg-a: merged 703b936
 
 ## pull
 
-`fetch` and `merge` in one ([more](pull.md)):
+`fetch` and `merge` in one ([pull in detail](pull.md)):
 
 ```scrut
 $ git splice pull --all
@@ -126,7 +128,7 @@ ok   vendor/pkg-b: pulled b937c4f
 ## diff
 
 A commit in the monorepo changes `vendor/pkg-a`. `diff` shows what `push`
-would send, with paths as the upstream sees them ([more](diff.md)):
+would send, with paths as the upstream sees them ([diff in detail](diff.md)):
 
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
@@ -141,7 +143,7 @@ $ git splice diff --stat
 
 ## push
 
-Sends it to the upstream branch named like yours ([more](push.md)):
+Sends it to the upstream branch named like yours ([push in detail](push.md)):
 
 ```scrut
 $ git splice push --all
@@ -160,7 +162,7 @@ On branch main
 ## init
 
 Makes `libs/c` a splice of the empty `lib-c.git`; the first push
-publishes it ([more](init.md)):
+publishes it ([init in detail](init.md)):
 
 ```scrut
 $ git splice init libs/c https://git.example.com/lib-c.git
@@ -175,7 +177,7 @@ ok   libs/c: pushed 9dc1e6a to main
 
 ## boundary
 
-The monorepo commit where `vendor/pkg-a` last synced ([more](boundary.md)):
+The monorepo commit where `vendor/pkg-a` last synced ([boundary in detail](boundary.md)):
 
 ```scrut
 $ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
@@ -184,7 +186,7 @@ $ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
 
 ## rebuild
 
-The commit `push` would send ([more](rebuild.md)):
+The commit `push` would send ([rebuild in detail](rebuild.md)):
 
 ```scrut
 $ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
@@ -194,7 +196,7 @@ $ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
 ## key
 
 The short name of `vendor/pkg-a`'s upstream in `refs/splices/`
-([more](key.md)):
+([key in detail](key.md)):
 
 ```scrut
 $ git splice key vendor/pkg-a
