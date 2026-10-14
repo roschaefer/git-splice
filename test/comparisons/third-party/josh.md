@@ -375,10 +375,12 @@ library as written.
   suits one team, or one owner, working in one project. `git-splice` keeps
   two histories that meet at the synced commit: the library's maintainers
   review and release in their own repository, the app's team integrates in
-  the monorepo, and neither side's branches or glue commits reach the
-  other ([Whose history is it?](#whose-history-is-it)). `rust-lang/rust`
-  and `rust-lang/miri` work like this too, with `rustc-josh-sync` on top
-  of Josh.
+  the monorepo, the monorepo's merges and app-only commits stay out of the
+  library's history, and the library's commits out of the monorepo's
+  ([Whose history is it?](#whose-history-is-it)). `rust-lang/miri` has its
+  own repository and maintainers too, but `rustc-josh-sync` syncs it with
+  `rust-lang/rust` through Josh, so miri's history has copies of the Rust
+  commits that changed it.
 - **Links are unreleased, and go one way.** `josh link`, experimental
   and on Josh's `master` since September 2026 but in no release yet,
   publishes a folder to a repository of its own. A link's id and the one
