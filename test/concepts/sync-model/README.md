@@ -67,7 +67,18 @@ and n, as `git pull` would have
 ([scenario](../../scenarios/sync-model/after-pull/README.md)).
 
 A push sends b', d' and e'. B and U(B) stay where they are until
-[`git splice pull --bump`](../../walkthrough/bump.md) records e' as U(H).
+[`git splice pull --bump`](../../walkthrough/bump.md) records e' as U(H),
+in a new commit f:
+
+<div align="center">
+
+![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e prime, and T and R point at e prime too](../../scenarios/sync-model/after-pull/pushed-and-bumped/pushed-and-bumped.drawio.svg)
+
+</div>
+
+f's folder is e', so f is the new B, and the rebuild has nothing to add:
+R = T = U(H) = U(B) = e'
+([scenario](../../scenarios/sync-model/after-pull/pushed-and-bumped/README.md)).
 
 ### Pulls in between
 

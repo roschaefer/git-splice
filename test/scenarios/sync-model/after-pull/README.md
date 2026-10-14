@@ -173,7 +173,8 @@ ok   vendor/a fetched
 ok   vendor/a: bumped the synced commit to 854864a
 ```
 
-Its folder is e', so it's the new B, U(B) = e', and rebuilds start there:
+Its folder is e', so it's the new B, U(B) = e', and rebuilds start there
+([pushed-and-bumped](pushed-and-bumped/README.md) draws this state):
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"
