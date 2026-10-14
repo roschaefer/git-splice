@@ -31,6 +31,21 @@ setup() {
   [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from main at $(git rev-parse --short=7 "$(upstream_refs "$upstream")main")" ]
 }
 
+@test "merge: refuses an upstream that added a submodule" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  local inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  add_upstream_submodule "$upstream" "$inner" libs/inner
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_pull vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: upstream has a submodule, libs/inner, which nobody could check out"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "merge: brings upstream's content and records the synced commit" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"

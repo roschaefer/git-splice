@@ -41,6 +41,15 @@ upstream_has_state_file() {
   git cat-file -e "$1:$STATE_FILE" 2>/dev/null
 }
 
+# Prints the path of the first submodule in upstream commit <commit>, or
+# nothing if it has none. A splice can't carry one: the upstream's
+# .gitmodules would sit in the folder, where Git doesn't read it, so
+# nobody could check it out. awk reads all of ls-tree's output: a reader
+# that stopped early would fail ls-tree, and with it the pipeline.
+upstream_submodule() {
+  git ls-tree -r "$1" | awk '$1 == "160000" && !found { sub(/^[^\t]*\t/, ""); print; found = 1 }'
+}
+
 # Prints every state file in commit <commit>, at any depth, NUL-separated.
 # Git filters them (a diff from the empty tree lists every file), so
 # neither a file name with a newline nor a non-GNU grep gets in the way.

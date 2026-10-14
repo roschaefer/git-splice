@@ -139,6 +139,10 @@ cmd_clone() {
   target="$(git rev-parse "$(splice_ref "$path" "$upstream_branch")^{commit}")"
   upstream_has_state_file "$target" &&
     die "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE -- splice a folder of it instead"
+  local inner
+  inner="$(upstream_submodule "$target")"
+  [[ -z "$inner" ]] ||
+    die "$path: upstream has a submodule, $inner, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
   local_folder="$(folder_tree HEAD "$path")"
   if [[ -n "$local_folder" && "$local_folder" != "$(git rev-parse "$target^{tree}")" && -z "$merge" ]]; then
     die "$path exists and differs from '$upstream_branch' upstream -- '--merge' keeps both, and every file that differs becomes a conflict to resolve"
@@ -261,8 +265,10 @@ clone_from_submodule() {
   fi
   upstream_has_state_file "$commit" &&
     die "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE -- splice a folder of it instead"
-  git ls-tree -r "$commit" | grep -q '^160000 ' &&
-    die "$path: the submodule has submodules of its own -- convert them in its upstream first"
+  local inner
+  inner="$(upstream_submodule "$commit")"
+  [[ -z "$inner" ]] ||
+    die "$path: the submodule has a submodule of its own, $inner -- turn it into a splice in its upstream first"
 
   # Keys are submodule.<name>.<setting>, and <name> may contain dots.
   local key setting

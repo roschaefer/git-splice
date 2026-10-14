@@ -107,5 +107,9 @@ avoids a conflict between the submodule and the folder.
 - A clone is a commit on top of `HEAD`, so a monorepo without commits
   needs a first one
   ([clone-without-commits](../scenarios/clone-without-commits/README.md)).
+- An upstream with a submodule is refused, by `clone` and later by
+  `merge` and `pull`: its `.gitmodules` would sit in the folder, where Git
+  doesn't read it, so nobody could check the submodule out. Turn it into a
+  splice in the upstream first.
 - To publish a folder of the monorepo to a new, empty repository, use
   [`init`](init.md).

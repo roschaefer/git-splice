@@ -166,17 +166,14 @@ add_submodule() {
 }
 
 @test "clone --from-submodule: refuses a submodule with submodules of its own" {
-  local inner="$BATS_TEST_TMPDIR/inner.git" tmp="$BATS_TEST_TMPDIR/outer"
+  local inner="$BATS_TEST_TMPDIR/inner.git"
   make_bare_repo "$inner"
   seed_bare_repo "$inner" "inner"
-  git clone -q "$upstream" "$tmp"
-  git -C "$tmp" -c protocol.file.allow=always submodule add -q "$inner" lib
-  git -C "$tmp" commit -q -m "add lib"
-  git -C "$tmp" push -q origin HEAD:main
+  add_upstream_submodule "$upstream" "$inner" libs/inner
   add_submodule
   run cmd_clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a: the submodule has submodules of its own"* ]]
+  [[ "$output" == *"vendor/a: the submodule has a submodule of its own, libs/inner -- turn it into a splice in its upstream first"* ]]
 }
 
 @test "clone --from-submodule: refuses a path that is no submodule, and --merge" {
