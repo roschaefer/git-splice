@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/roschaefer/git-splice/compare/v0.5.0...v0.6.0) (2026-10-14)
+
+
+### Features
+
+* **clone:** --from-submodule turns a submodule into a splice ([#141](https://github.com/roschaefer/git-splice/issues/141)) ([5adf99d](https://github.com/roschaefer/git-splice/commit/5adf99d7423620e9d980f400b9d36ae8fd07c2d7))
+
 ## [0.5.0](https://github.com/roschaefer/git-splice/compare/v0.4.0...v0.5.0) (2026-10-14)
 
 
