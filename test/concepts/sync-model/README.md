@@ -35,7 +35,7 @@ without `.splice`, the same author, dates and message, on top of U.
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of U](../../../git-splice.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of U](../../../git-splice.drawio.svg)
 
 </div>
 
@@ -53,7 +53,7 @@ copied, since its folder is S already.
 
 <div align="center">
 
-![The same graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../../docs/images/sync-model-after-pull.svg)
+![The same graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../../docs/images/sync-model-after-pull.drawio.svg)
 
 </div>
 
