@@ -5,8 +5,9 @@ Cloning while on a branch upstream doesn't have.
 - **Monorepo**: on `feature`.
 - **Upstream**: only `main`.
 
-`clone` takes upstream's default branch instead. The first push creates
-`feature` upstream, if the splice changed by then.
+`clone` takes upstream's default branch instead. `feature` comes upstream
+with the first push that has a commit for it, e.g. after a change on
+`feature`.
 
 ## Output
 

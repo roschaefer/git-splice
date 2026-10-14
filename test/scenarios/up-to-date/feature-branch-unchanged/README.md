@@ -7,8 +7,9 @@ change on it.
   `feature`, with no changes under `vendor/a/`.
 - **Upstream**: only `main`.
 
-`push` creates a branch upstream only where a splice changed, so starting
-a feature branch doesn't spawn empty branches upstream.
+`push` creates a branch upstream only if it publishes commits that no
+upstream branch has yet. Here upstream has every commit, so starting a
+feature branch doesn't spawn empty branches upstream.
 
 ## Output
 
