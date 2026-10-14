@@ -165,14 +165,14 @@ $ cd ../monorepo
 
 The monorepo's commit points at a library commit that only exists in this
 clone. Push the monorepo first, and colleagues get a commit they can't
-check out:
+check out. (The `grep` drops what the server side prints itself, here
+on the same terminal and in a random order with the rest, as the
+"server" is a local folder.)
 
 ```scrut
-$ git clone -q --bare --no-local . ../origin.git && git clone -q --recurse-submodules ../origin.git ../colleague
-fatal: git upload-pack: not our ref a6152f5cee8b2bfd6b5dfc7bbb2bf5d8a7562325
+$ git clone -q --bare --no-local . ../origin.git && git clone -q --recurse-submodules ../origin.git ../colleague 2>&1 | grep -v '^fatal: git upload-pack'
 fatal: remote error: upload-pack: not our ref a6152f5cee8b2bfd6b5dfc7bbb2bf5d8a7562325
 fatal: Fetched in submodule path 'vendor/lib', but it did not contain a6152f5cee8b2bfd6b5dfc7bbb2bf5d8a7562325. Direct fetching of that commit failed.
-[128]
 ```
 
 The library's commit has to be pushed first:
