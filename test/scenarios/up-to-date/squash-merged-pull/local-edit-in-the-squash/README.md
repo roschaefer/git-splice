@@ -10,6 +10,17 @@ the upstream doesn't have.
   `git splice pull` brought in the upstream commit, then a commit added
   `local.txt`. `feature` was squash-merged into `main` and deleted.
 
+<div align="center">
+
+![The monorepo's a and the squash merge s; the upstream's k and f; B is a, and R is s prime on top of f](local-edit-in-the-squash.drawio.svg)
+
+</div>
+
+The drawing names the monorepo's commits a (`add vendor/a`) and s (the
+squash merge), and the upstream's k (`seed`, T) and f
+(`upstream feature work`). s records U(H) = f, but B is a, so R copies s
+onto f.
+
 ## Output
 
 <!--
@@ -22,6 +33,15 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_local_edit_in_the_squash
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/local-edit-in-the-squash.drawio.svg" a=HEAD~1 s=HEAD k=refs/splices/upstream/main f=refs/splices/upstream/feature
+ok   local-edit-in-the-squash.drawio.svg: 5 commits, 8 arrows, 5 boxes, 0 frames
 ```
 
 The squash merge is the last commit, and the only one since the clone:

@@ -10,6 +10,17 @@ only right if X merged from U(X^). After a push, it didn't.
 - **Upstream**: the parent scenario's commits, the pushed one, and
   `add upstream.txt`.
 
+<div align="center">
+
+![The first pull c, d, the pushed change e and the new pull X; upstream n, the pushed e prime and o: U(e) = n, U(X) = o](after-a-push.drawio.svg)
+
+</div>
+
+The drawing names the monorepo's commits c (the parent scenario's pull),
+d (`add notes`), e (`a local change in vendor/a`) and X, and the
+upstream's n (`fix a typo`), e', the pushed copy of e, and o
+(`add upstream.txt`). U(e)..U(X) is e' and o, though X only brought in o.
+
 ## Output
 
 <!--
@@ -22,6 +33,15 @@ $ source "$TESTDIR/../../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_after_a_push
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/after-a-push.drawio.svg" c=HEAD~3 d=HEAD~2 e=HEAD~1 X=HEAD n=refs/splices/upstream/main~2 o=refs/splices/upstream/main
+ok   after-a-push.drawio.svg: 7 commits, 9 arrows, 4 boxes, 2 frames
 ```
 
 ```scrut

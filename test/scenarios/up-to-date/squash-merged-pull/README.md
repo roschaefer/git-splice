@@ -12,6 +12,16 @@ that lost the sync point. Here the squash merge itself
 changed `.splice`, so it is the new boundary, and the rebuild starts at the
 pulled upstream commit: a push sends only the local commit.
 
+<div align="center">
+
+![The monorepo's a, the squash merge s and c; the upstream's k on main and f on feature; R is c prime on top of f, and B is s](squash-merged-pull.drawio.svg)
+
+</div>
+
+The drawing names the monorepo's commits a (`add vendor/a`), s (the
+squash merge) and c (`local change`), and the upstream's k (`seed`, T)
+and f (`upstream feature work`).
+
 ## Output
 
 <!--
@@ -24,6 +34,15 @@ $ source "$TESTDIR/../../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_squash_merged_pull
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/squash-merged-pull.drawio.svg" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/upstream/main f=refs/splices/upstream/feature
+ok   squash-merged-pull.drawio.svg: 6 commits, 9 arrows, 5 boxes, 0 frames
 ```
 
 ```scrut
