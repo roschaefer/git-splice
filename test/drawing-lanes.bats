@@ -56,3 +56,17 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = '!!   the frame "l:vendor/a/b/.splice" names no splice of the monorepo' ]
 }
+
+@test "drawing lanes: a commit in another splice's lane" {
+  edit_drawing -u '//mxCell[@id="m"]/mxGeometry/@x' -v 500
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   m is in the lane vendor/a/, but isn't in that splice's upstream history or R" ]
+}
+
+@test "drawing lanes: U(x) of a label two commits share is ambiguous" {
+  edit_drawing -u '//mxCell[@id="k"]/@value' -v l
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   U(l) points at m, but 2 commits are labelled l: label them apart"* ]]
+}

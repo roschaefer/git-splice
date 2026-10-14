@@ -42,7 +42,7 @@ check_drawing() {
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=()
   local -a errors=() commits=() edges=() boxes=() frames=() lanes=() splices=()
-  local -A id_of_label=()
+  local -A id_of_label=() label_count=()
   local arg id k cells term named sp p
   local name='([HBTR]|U\([^()]+\))'
   local box_label="^$name( = $name)*\$"
@@ -206,6 +206,24 @@ check_drawing() {
     commit_of[$id]="$hash"
     label_of[$hash]="$label"
     id_of_label[$label]="$id"
+    label_count[$label]=$((${label_count[$label]:-0} + 1))
+  done
+
+  # A commit in a lane is in that splice's upstream history: on R, on a
+  # fetched upstream branch, or in a recorded commit's history.
+  of_splice() {
+    local s
+    git merge-base --is-ancestor "$1" "${truth[$2|R]}" && return 0
+    [[ -n "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth[$2|key]}/")" ]] && return 0
+    for s in ${truth[$2|synced]}; do
+      git merge-base --is-ancestor "$1" "$s" 2>/dev/null && return 0
+    done
+    return 1
+  }
+  for id in "${commits[@]}"; do
+    [[ -n "${commit_of[$id]:-}" && -n "${lane_of[$id]}" ]] || continue
+    of_splice "${commit_of[$id]}" "${lane_of[$id]}" ||
+      errors+=("${value[$id]} is in the lane ${lane_of[$id]}/, but isn't in that splice's upstream history or R")
   done
 
   # A commit exists only as the rebuild of splice $2 if R has it, and
@@ -318,6 +336,10 @@ check_drawing() {
           k="${term#U(}" k="${k%)}"
           if [[ "$k" != [HB] && -z "${commit_of[${id_of_label[$k]:-none}]:-}" ]]; then
             errors+=("$term points at ${value[$t]}, but no commit $k is drawn")
+            continue
+          fi
+          if [[ "${label_count[$k]:-0}" -gt 1 ]]; then
+            errors+=("$term points at ${value[$t]}, but ${label_count[$k]} commits are labelled $k: label them apart")
             continue
           fi
         fi
