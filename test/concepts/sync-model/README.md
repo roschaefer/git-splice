@@ -45,19 +45,11 @@ without `.splice`, the same author, dates and message, on top of U.
 
 </div>
 
-Circles are commits, boxes point at them, newest on top. A frame is
-`path/.splice` in the commit it holds, named as Git names that file,
-`a:path/.splice`, and the box next to the commit points at what the file
-records: U(a). In the monorepo, a to d, H is `HEAD`, and B is a: the
-commit that wrote k into `path/.splice`, with k as its folder. b and d
-change the folder, c changes only other files.
-In the upstream, U(a) is k. It's S, since a is B, and it's U, since no
-commit after a changed `.splice`. T has moved on to n.
-
-The rebuild copies the commits in `B..H`, b to d, on top of S. c didn't
-touch `path/`, so it's skipped, and b and d become b' and d', dashed
-because they exist only as the rebuild. A prime marks a commit rebuilt, b' for b, as `git rebase`'s documentation draws a rebased commit. Their tip is R. B itself isn't
-copied, since its folder is S already.
+Circles are commits, newest on top, and boxes point at them. A frame
+shows what `path/.splice` records in the commit it holds. b and d change
+`path/`, so the rebuild copies them as b' and d', on top of S; c doesn't,
+so it's left out. The copies exist only in R, so they're dashed
+([scenario](../../scenarios/sync-model/README.md)).
 
 <div align="center">
 
@@ -65,26 +57,15 @@ copied, since its folder is S already.
 
 </div>
 
-The same splice after `git splice pull`. The pull commit e merged T into
-the folder and wrote n into `path/.splice`: U(e) is n, and since e is H,
-so is U. But b and d were
-never pushed, so the upstream still lacks their changes, and e's folder
-isn't n. If the rebuild started at e, b and d would reach the upstream as
-one lump, under e's message. So B stays a, the newest commit that changed
-`.splice` and has the commit it recorded, k, as its folder. k is S, and
-no longer U.
-
-From B, R keeps b and d as the commits they were: b' and d' on S. Then
-it copies e as e', a merge of d' and n, as `git pull` would have: e's
-folder and message, with d' and n as parents. Nothing points at b and d, but e is
-their descendant
+After `git splice pull`, the pull commit e records n, so U is n. But b
+and d were never pushed, so e's folder isn't n, and a rebuild from e
+would send their changes as one lump under e's message. So B stays a,
+and S stays k. R copies b and d as before, and e as e', a merge of d'
+and n, as `git pull` would have
 ([scenario](../../scenarios/sync-model/after-pull/README.md)).
 
-A `git splice push` then sends b', d' and e', and moves T to e', a
-fast-forward. U stays n, B stays a, and S stays k: a pull right after the
-push has nothing to bring in, and only [`git splice pull --bump`](../../walkthrough/bump.md)
-records e' as U, in a commit whose folder is e'. So that commit is the
-new B, and e' is S as well as U.
+A push sends b', d' and e'. B and S stay where they are until
+[`git splice pull --bump`](../../walkthrough/bump.md) records e' as U.
 
 ### Pulls in between
 
