@@ -369,11 +369,18 @@ library as written.
   histories quickly, and calls the `git` command for fetches and pushes.
   `git-splice` calls Git for every step, and only walks history since the
   last sync.
-- **The monorepo is where Josh starts.** Its views, `josh clone` and
-  `josh-proxy` serve folders of the monorepo to people who work on just
-  that folder. `git-splice` starts from a library that has its own
-  repository, and keeps working in the monorepo, where the library is
-  tested with the app.
+- **One project, or two owners.** With Josh, the library's history is the
+  monorepo's, filtered: a monorepo branch reaches the library with its
+  commits and merge, and pushing to a view lands in the monorepo. That
+  suits one team, or one owner, working in one project. `git-splice` keeps
+  two histories that meet at the synced commit: the library's maintainers
+  review and release in their own repository, the app's team integrates in
+  the monorepo, the monorepo's merges and app-only commits stay out of the
+  library's history, and the library's commits out of the monorepo's
+  ([Whose history is it?](#whose-history-is-it)). `rust-lang/miri` has its
+  own repository and maintainers too, but `rustc-josh-sync` syncs it with
+  `rust-lang/rust` through Josh, so miri's history has copies of the Rust
+  commits that changed it.
 - **Links are unreleased, and go one way.** `josh link`, experimental
   and on Josh's `master` since September 2026 but in no release yet,
   publishes a folder to a repository of its own. A link's id and the one
