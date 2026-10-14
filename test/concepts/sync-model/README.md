@@ -7,7 +7,7 @@ cross from five commits:
 
 | | Commit | Lives in |
 |---|---|---|
-| **B** | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. | the monorepo |
+| **B** | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. Where the splice starts, the mount (its first `.splice`, or a `git mv`), B is that commit whatever its folder, and the rebuild copies B too where its folder isn't S, e.g. after `init`, or a `git mv` with unpushed changes. For a nested splice, the last pull of the splice above can be B ([nesting](../nesting/README.md)). | the monorepo |
 | **U** | The synced commit, U(H): the upstream commit `.splice` records at HEAD, the last one pulled. | the upstream |
 | **S** | The start, U(B): the upstream commit B's `.splice` records, and B's folder. R starts on it. Usually U. | the upstream |
 | **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |

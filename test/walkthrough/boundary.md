@@ -9,7 +9,9 @@ Prints the splice boundary, B: the monorepo commit the
 first-parent history that changed the splice's `.splice`. After a pull
 that merged commits that were never pushed, it's an earlier one, where
 the folder was the upstream commit `.splice` recorded
-([sync model](../concepts/sync-model/README.md#r-the-rebuild)).
+([sync model](../concepts/sync-model/README.md#r-the-rebuild)). To tell,
+it compares the folder with that upstream commit, so the splice must
+have been fetched.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}

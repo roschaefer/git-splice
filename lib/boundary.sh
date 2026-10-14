@@ -12,7 +12,11 @@ change <path> are the ones push sends, as upstream commits.
 
 Usually B is the last pull, merge, clone or init. After a pull that
 merged commits that were never pushed, it's an earlier one, where the
-folder was the upstream commit .splice recorded.
+folder was the upstream commit .splice recorded. Where the splice
+starts with files its upstream doesn't have, e.g. a 'git mv' with
+unpushed changes, or an init, B is that commit, and push sends it too:
+
+  git log --first-parent "$(git splice boundary <path>)"^..HEAD -- <path>
 
 For a nested splice, run it in a worktree of a fetched commit of the
 upstream above, with the path there, to get where that upstream's
@@ -21,7 +25,8 @@ rebuild of it starts:
   git worktree add --detach ../a refs/splices/a/main
   git -C ../a splice boundary b
 
-Purely local; writes nothing.
+Purely local, but the synced commit must have been fetched; writes
+nothing.
 EOF
 }
 
