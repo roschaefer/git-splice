@@ -157,7 +157,7 @@ $ git bisect start HEAD HEAD~1 >/dev/null && git bisect run sh "$COMPARISON/test
 ```
 
 To go deeper, bisect the library's history between the two synced
-commits, U1 and U2, which `.splice` records before and after the pull. Its
+commits, U(X^) and U(X), which `.splice` records before and after the pull X. Its
 commits are fetched into the monorepo already, so a worktree of the
 monorepo can check them out. A second, throwaway worktree runs the app's
 test, so your own checkout stays as it is:
@@ -180,7 +180,7 @@ $ git bisect reset >/dev/null && cd ../splice-monorepo && git worktree remove ..
 
 That's the library's own commit, of which Josh's `092b6b1` is the
 monorepo's copy. Replacing the folder works here because it had no
-changes of its own since U1. With unpushed changes, each step would need
+changes of its own since U(X^). With unpushed changes, each step would need
 them merged in.
 
 ## Both sides move on

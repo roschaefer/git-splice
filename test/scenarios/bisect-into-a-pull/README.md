@@ -61,8 +61,9 @@ $ X="$(git rev-parse refs/bisect/bad)" && git bisect reset >/dev/null
 
 ### The upstream commits in the pull
 
-`.splice` records the synced commit: U1 before the pull, in X's first
-parent, and U2 after it, in X. The commits between them came in with X.
+`.splice` records the synced commit: U(X^) before the pull, in X's
+first parent, and U(X) after it, in X, here saved as `U1` and `U2`. The
+commits between them came in with X.
 The fetched upstream refs have them:
 
 ```scrut
@@ -76,14 +77,14 @@ $ U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" && U2="$(git co
 `git splice show <commit>` to print them.
 
 That range is only right if nothing was pushed since the pull before X.
-A push doesn't write to `.splice`, so U1 then is older than where X
+A push doesn't write to `.splice`, so U(X^) then is older than where X
 merged from, and the range has commits the monorepo already had
 ([after-a-push](after-a-push/README.md)).
 
 ### Bisect the upstream commits inside the monorepo
 
 Two worktrees: `../before`, the monorepo right before the pull, and
-`../lib`, the upstream at U2. U1 and U2 have the upstream's layout, so
+`../lib`, the upstream at U(X). Both have the upstream's layout, so
 they need a worktree of their own.
 
 ```scrut

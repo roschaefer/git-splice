@@ -91,10 +91,10 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a/`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
-| **synced commit** (U) | The upstream commit `.splice` records: the one last spliced in. |
+| **synced commit** (U) | The upstream commit `.splice` records: the one last spliced in. U(X) is the one a monorepo commit X's `.splice` records, so U is U(HEAD). |
 | **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U. |
 | **boundary** (B) | Where the rebuild starts: the newest last sync, or one before it, whose folder is the synced commit it recorded. Usually the last sync. Derived, never stored. |
-| **start** (S) | The synced commit the boundary records, and the boundary's folder: R starts on it. Usually U. |
+| **start** (S) | U(B): the synced commit the boundary records, and the boundary's folder. R starts on it. Usually U. |
 | **rebuild** (R) | The splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends, and *ours* when compared with T, in the upstream's history; in the monorepo's history, *ours* is HEAD. |
 | **upstream branch** (T, for *theirs*) | `refs/splices/<key>/<branch>`: the upstream branch as the monorepo last saw it, under the upstream's key. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |

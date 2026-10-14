@@ -8,14 +8,20 @@ cross from five commits:
 | | Commit | Lives in |
 |---|---|---|
 | **B** | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. | the monorepo |
-| **U** | The synced commit: the upstream commit `.splice` records, the last one pulled. | the upstream |
-| **S** | The start, in the upstream: the commit B's `.splice` records, B's folder. R starts on it. Usually U. | the upstream |
+| **U** | The synced commit, U(H): the upstream commit `.splice` records at HEAD, the last one pulled. | the upstream |
+| **S** | The start, U(B): the upstream commit B's `.splice` records, and B's folder. R starts on it. Usually U. | the upstream |
 | **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
-| **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of S, and merged with each U pulled since. | computed |
+| **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of S, and merged with U(X) for each pull X since that merged unpushed commits. | computed |
 
 For a nested splice, R's history up to the last pull of the splice above
 comes from the upstream above, at its synced commit
 ([nesting](../nesting/README.md)).
+
+Every commit X that changed `.splice` records an upstream commit, its
+sync point **U(X)**: what `git config --blob X:path/.splice splice.commit`
+prints. U and S are two of them, at H and at B. Between B and H, each
+pull X has its own U(X), and the pull before it, X^, had U(X^): the
+synced commits before and after X.
 
 U and T may be missing: right after `init`, there's no U yet, and R
 starts as a root commit; before the first fetch, there's no T, and the
@@ -82,13 +88,13 @@ new B, and e+ is S as well as U.
 Between B and H, every commit that changed `.splice` differs from the
 commit it recorded, or it would be B. The rebuild copies each of them
 with that folder, and picks its parents from two commits: what the
-rebuild has so far, *before*, and the commit it recorded, its U:
+rebuild has so far, *before*, and the commit it recorded, U(X):
 
-| *before* and its U | The copy's parents | When |
+| *before* and U(X) | The copy's parents | When |
 |---|---|---|
-| neither contains the other | *before*, then its U: a merge | a pull merged unpushed commits, as e and e+ above ([scenario](../../scenarios/rebuild-start/README.md)) |
-| its U contains *before*, or there's no *before* | its U | a squash merge put local edits into the pull commit itself, or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
-| *before* contains its U | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
+| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as e and e+ above ([scenario](../../scenarios/rebuild-start/README.md)) |
+| U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself, or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
+| *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
 
 So each pull since B that merged unpushed commits adds one merge to R,
 with the commit it pulled as the second parent. R takes that commit from
