@@ -287,3 +287,33 @@ add_submodule() {
   [[ "$output" != *"dropping submodule.lib+x(1).v2.url"* ]]
   [ ! -e .gitmodules ]
 }
+
+@test "clone --from-submodule: refuses a .gitmodules edit status doesn't show, behind assume-unchanged" {
+  add_submodule
+  git update-index --assume-unchanged .gitmodules
+  echo "# my notes" >>.gitmodules
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: .gitmodules has uncommitted changes"* ]]
+  [ "$(tail -1 .gitmodules)" = "# my notes" ]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+}
+
+@test "clone --from-submodule: refuses a file or symbolic link in place of an uninitialized submodule, before fetching" {
+  add_submodule
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  cd "$BATS_TEST_TMPDIR/colleague"
+  rmdir vendor/a && echo "notes" >vendor/a
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: a file takes the place of the uninitialized submodule"* ]]
+  [ "$(cat vendor/a)" = notes ]
+
+  rm vendor/a && mkdir empty && ln -s ../empty vendor/a
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: a symbolic link takes the submodule's place"* ]]
+  [ -L vendor/a ]
+  [ -z "$(git for-each-ref refs/splices/)" ]
+  git diff --cached --quiet
+}

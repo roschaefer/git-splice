@@ -222,6 +222,36 @@ resolve_submodule_url() {
   fi
 }
 
+# Dies unless converting the submodule at <path>, committed at <commit>,
+# can't lose anything. The conversion writes to the index, .gitmodules,
+# the folder and its .splice, and each must be unchanged from HEAD or
+# missing. Content is compared, not just what git status says: index
+# flags like assume-unchanged hide edits from it.
+refuse_lossy_submodule_conversion() {
+  local path="$1" commit="$2"
+  git diff --cached --quiet ||
+    die "$path: there are staged changes -- commit or unstage them first, the conversion commits only its own"
+  if [[ -e .gitmodules || -L .gitmodules ]] &&
+    [[ "$(git hash-object -- .gitmodules)" != "$(git rev-parse HEAD:.gitmodules)" ]]; then
+    die "$path: .gitmodules has uncommitted changes -- commit or discard them first"
+  fi
+  if [[ -L "$path" ]]; then
+    die "$path: a symbolic link takes the submodule's place -- remove it first"
+  elif [[ -e "$path/.git" ]]; then
+    [[ "$(git -C "$path" rev-parse HEAD 2>/dev/null)" == "$commit" ]] ||
+      die "$path: the submodule's checkout isn't at ${commit:0:7}, the commit in HEAD -- commit the submodule's new commit, or check out ${commit:0:7} in it"
+    [[ -z "$(git -C "$path" status --porcelain --untracked-files=all)" ]] ||
+      die "$path: the submodule's checkout has changes -- commit and push them, or discard them, first"
+    # An ignored one: status doesn't show it.
+    [[ ! -e "$path/$STATE_FILE" && ! -L "$path/$STATE_FILE" ]] ||
+      die "$path/$STATE_FILE exists in the submodule's checkout -- move it away first"
+  elif [[ -e "$path" && ! -d "$path" ]]; then
+    die "$path: a file takes the place of the uninitialized submodule -- move it away first"
+  elif [[ -d "$path" && -n "$(ls -A -- "$path")" ]]; then
+    die "$path: the folder of the uninitialized submodule isn't empty -- move its files away first"
+  fi
+}
+
 clone_from_submodule() {
   local path
   path="$(normalize_path "$1")"
@@ -244,24 +274,9 @@ clone_from_submodule() {
     die "$path: .gitmodules in HEAD has no url for submodule '$name'"
   url="$(resolve_submodule_url "$url")"
 
-  # The conversion commits .gitmodules and the folder, and nothing else.
-  git diff --quiet HEAD -- .gitmodules ||
-    die "$path: .gitmodules has uncommitted changes -- commit or discard them first"
-  git diff --cached --quiet ||
-    die "$path: there are staged changes -- commit or unstage them first, the conversion commits only its own"
+  refuse_lossy_submodule_conversion "$path" "$commit"
   local gitdir=""
-  if [[ -e "$path/.git" ]]; then
-    gitdir="$(git -C "$path" rev-parse --absolute-git-dir)"
-    [[ "$(git -C "$path" rev-parse HEAD 2>/dev/null)" == "$commit" ]] ||
-      die "$path: the submodule's checkout isn't at ${commit:0:7}, the commit in HEAD -- commit the submodule's new commit, or check out ${commit:0:7} in it"
-    [[ -z "$(git -C "$path" status --porcelain --untracked-files=all)" ]] ||
-      die "$path: the submodule's checkout has changes -- commit and push them, or discard them, first"
-    # An ignored one: status doesn't show it.
-    [[ ! -e "$path/$STATE_FILE" && ! -L "$path/$STATE_FILE" ]] ||
-      die "$path/$STATE_FILE exists in the submodule's checkout -- move it away first"
-  elif [[ -d "$path" && -n "$(ls -A -- "$path")" ]]; then
-    die "$path: the folder of the uninitialized submodule isn't empty -- move its files away first"
-  fi
+  [[ ! -e "$path/.git" ]] || gitdir="$(git -C "$path" rev-parse --absolute-git-dir)"
 
   fetch_new_upstream "$path" "$url"
   if ! git cat-file -e "$commit^{commit}" 2>/dev/null ||

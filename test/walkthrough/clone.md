@@ -89,8 +89,23 @@ changes, or `clone` refuses. Settings in `.gitmodules` other than `path`
 and `url` have no equivalent and are dropped, with a warning: a splice
 syncs with the upstream branch named like the monorepo's current branch,
 not with `submodule.<name>.branch`. Other branches still have the
-submodule. Converting it on the main branch and merging that into them
-avoids a conflict between the submodule and the folder.
+submodule; merging the converted main branch into them converts it there
+too.
+
+Every checkout that has the submodule's files, a colleague's clone or a
+linked worktree, can't pull or merge the conversion: Git sees the files
+as untracked ones in the way. `git submodule deinit -f vendor/pkg-b`
+removes them first; it discards changes in the submodule's checkout, so
+push them before.
+
+> **Linked worktrees:** the conversion removes the submodule's settings,
+> `submodule.<name>.*`, from `.git/config`, which all worktrees of the
+> monorepo share. In another worktree that still has the submodule, it
+> then counts as uninitialized
+> ([submodule-in-linked-worktree](../scenarios/submodule-in-linked-worktree/README.md)).
+> Git itself advises against several worktrees of a monorepo with
+> submodules: their support "is incomplete"
+> ([`git worktree`, BUGS](https://git-scm.com/docs/git-worktree#_bugs)).
 
 ## More
 
