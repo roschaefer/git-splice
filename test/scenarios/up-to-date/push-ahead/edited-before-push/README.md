@@ -67,6 +67,15 @@ Neither happens by accident while rewording or squashing. Whoever builds
 the commit with Git's plumbing checks that it's the right one, e.g. with
 `git log --graph <commit>` before the push.
 
+<div align="center">
+
+![The monorepo's a and b, the upstream's k, and R, the rebuilt b prime on top of k](edited-before-push.drawio.svg)
+
+</div>
+
+Before the edit: a is `add vendor/a`, b is `fix, see INTERNAL-123`, and
+k is `seed`. R is b', the copy of b that the recipe edits.
+
 ## Output
 
 <!--
@@ -79,6 +88,15 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_edited_before_push
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/edited-before-push.drawio.svg" a=HEAD~1 b=HEAD k=refs/splices/upstream/main
+ok   edited-before-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 0 frames
 ```
 
 ### Edit and push

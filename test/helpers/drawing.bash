@@ -19,7 +19,7 @@
 #   - A frame labelled "x:<path>/.splice", Git's name for that file in
 #     commit x, holds commit x, and usually the box U(x).
 #   - Dashed commits and arrows into them exist only as the rebuild: in
-#     R's history, but not in T's.
+#     R's history, but on no fetched upstream branch, T or another.
 #
 # Labels that aren't subjects, like the commit add_splice makes, are given
 # as label=rev arguments, revs of the monorepo.
@@ -128,10 +128,11 @@ check_drawing() {
     id_of_label[$label]="$id"
   done
 
-  # A commit exists only as the rebuild if R has it and T doesn't.
+  # A commit exists only as the rebuild if R has it and no fetched
+  # upstream branch does.
   only_rebuilt() {
     git merge-base --is-ancestor "$1" "${truth[R]}" &&
-      ! { [[ -n "${truth[T]}" ]] && git merge-base --is-ancestor "$1" "${truth[T]}"; } &&
+      [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/$(git splice key "$path")/")" ]] &&
       ! git merge-base --is-ancestor "$1" HEAD 2>/dev/null
   }
   dashed() { [[ ";${style[$1]};" == *";dashed=1;"* ]]; }

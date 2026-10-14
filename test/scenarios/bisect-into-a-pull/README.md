@@ -14,6 +14,17 @@ The upstream's own history has no test for it: the bug only shows in
 the monorepo. So the upstream commits are tested inside the monorepo, as
 it was right before the pull.
 
+<div align="center">
+
+![The monorepo's commits a, b, the pull X and d, the upstream commits k to n: U(b) = k, U(X) = n](bisect-into-a-pull.drawio.svg)
+
+</div>
+
+The drawing names the monorepo's commits a (`add vendor/a`), b
+(`add check.sh`), X (the pull) and d (`add notes`), and the upstream's k
+(`seed`), l, m and n, the three pulled commits. X merged from U(b) = k
+and records U(X) = n, so the pulled commits are U(b)..U(X): l, m and n.
+
 ## Output
 
 [`setup.bash`](setup.bash) builds this state:
@@ -26,6 +37,15 @@ $ source "$TESTDIR/../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_bisect_into_a_pull
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/bisect-into-a-pull.drawio.svg" a=HEAD~3 b=HEAD~2 X=HEAD~1 d=HEAD k=refs/splices/upstream/main~3 l=refs/splices/upstream/main~2 m=refs/splices/upstream/main~1 n=refs/splices/upstream/main
+ok   bisect-into-a-pull.drawio.svg: 8 commits, 11 arrows, 5 boxes, 2 frames
 ```
 
 ### Bisect the monorepo
