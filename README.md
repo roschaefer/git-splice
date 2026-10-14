@@ -68,7 +68,7 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 <div align="center">
 
-![Monorepo commits a to d, library commits k to n, and the rebuilt commits b+ and d+ on top of U](git-splice.drawio.svg)
+![Monorepo commits a to d, library commits k to n, and the rebuilt commits b+ and d+ on top of U](test/scenarios/sync-model/before-pull.drawio.svg)
 
 </div>
 

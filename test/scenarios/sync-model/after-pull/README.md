@@ -1,15 +1,15 @@
-# Scenario: rebuild-start
+# Scenario: after-pull
 
 A pull merged local commits that were never pushed. The pull's commit is
 the newest that changed `.splice`, but the rebuild starts further back,
 at B: the newest such commit whose folder is the upstream commit it
 recorded, S
-([sync model](../../concepts/sync-model/README.md)). The commits are
+([sync model](../../../concepts/sync-model/README.md)). The commits are
 named as in the drawing there:
 
 <div align="center">
 
-![The graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../../docs/images/sync-model-after-pull.drawio.svg)
+![The graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](after-pull.drawio.svg)
 
 </div>
 
@@ -21,14 +21,23 @@ named as in the drawing there:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh"
+$ source "$TESTDIR/../../readme-setup.sh"
 ```
 -->
 
 [`setup.bash`](setup.bash) builds this state:
 
 ```scrut
-$ build_scenario scenario_rebuild_start
+$ build_scenario scenario_after_pull
+```
+
+The drawing shows what Git and `git-splice` say about it. a and e aren't
+subjects the drawing can show, so they're named by their place in the
+history ([`check_drawing`](../../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/after-pull.drawio.svg" a=HEAD~4 e=HEAD
+ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames
 ```
 
 The monorepo, with e on top. a is the clone, `add vendor/a`:

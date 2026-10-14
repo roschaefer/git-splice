@@ -1,6 +1,6 @@
-# See README.md in this directory. Commits are named as in the sync
-# model's drawing after a pull, docs/images/sync-model-after-pull.drawio.svg.
-scenario_rebuild_start() {
+# See README.md in this directory. Commits are named as in the drawing
+# there, before-pull.drawio.svg.
+scenario_sync_model() {
   local monorepo="$1" upstream="$2"
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "k" main k.txt
@@ -12,5 +12,5 @@ scenario_rebuild_start() {
   seed_bare_repo "$upstream" "l" main l.txt
   seed_bare_repo "$upstream" "m" main m.txt
   seed_bare_repo "$upstream" "n" main n.txt
-  (cd "$monorepo" && splice pull vendor/a >/dev/null 2>&1)
+  (cd "$monorepo" && splice fetch vendor/a >/dev/null 2>&1)
 }

@@ -41,7 +41,7 @@ without `.splice`, the same author, dates and message, on top of U.
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of U](../../../git-splice.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of U](../../scenarios/sync-model/before-pull.drawio.svg)
 
 </div>
 
@@ -59,7 +59,7 @@ copied, since its folder is S already.
 
 <div align="center">
 
-![The same graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../../docs/images/sync-model-after-pull.drawio.svg)
+![The same graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../scenarios/sync-model/after-pull/after-pull.drawio.svg)
 
 </div>
 
@@ -75,7 +75,7 @@ From B, R keeps b and d as the commits they were: b+ and d+ on S. Then
 it copies e as e+, a merge of d+ and n, as `git pull` would have: e's
 folder and message, with d+ and n as parents. Nothing points at b and d, but e is
 their descendant
-([scenario](../../scenarios/rebuild-start/README.md)).
+([scenario](../../scenarios/sync-model/after-pull/README.md)).
 
 A `git splice push` then sends b+, d+ and e+, and moves T to e+, a
 fast-forward. U stays n, B stays a, and S stays k: a pull right after the
@@ -92,7 +92,7 @@ rebuild has so far, *before*, and the commit it recorded, U(X):
 
 | *before* and U(X) | The copy's parents | When |
 |---|---|---|
-| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as e and e+ above ([scenario](../../scenarios/rebuild-start/README.md)) |
+| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as e and e+ above ([scenario](../../scenarios/sync-model/after-pull/README.md)) |
 | U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
 | *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
 
