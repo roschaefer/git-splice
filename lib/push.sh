@@ -27,9 +27,11 @@ two share no history, or to discard commits only upstream has.
 history was edited after 'git splice rebuild <path>' printed it:
 messages reworded, commits squashed. Only the history: its files must be
 the folder's, and it must contain the synced commit -- with --force, it
-may also replace commits the upstream already has, but not go back to
-the synced commit or older. push checks only that; the rest of <commit>'s history -- its parents, the files of the
-commits before it -- is pushed as it is, as with 'git push'. Like every
+may also replace commits the upstream already has. Either way, a pull
+must be able to record it: a commit of the rebuild's history that isn't
+newer than the synced commit is refused. push checks only that; the
+rest of <commit>'s history -- its parents, the files of the commits
+before it -- is pushed as it is, as with 'git push'. Like every
 push, it records no sync point: the monorepo keeps rebuilding the
 original commits, and a later push publishes them too, unless 'git
 splice pull --bump <path>' records <commit> as the synced commit before
@@ -64,6 +66,7 @@ push_one() {
       ;;
     up-to-date)
       log_ok "$path: nothing to push"
+      remind_pull "$path" "$option"
       return 0
       ;;
     pull)
@@ -137,8 +140,17 @@ push_one() {
     return 1
   fi
   log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $label"
+  remind_pull "$path" "$option"
+}
+
+# Reminds to record the commit given for splice <path> with a pull, if
+# one was given and the monorepo's rebuild isn't that commit already.
+# Also after a retry that finds it upstream: the earlier push may have
+# gone through without its reminder. $2 is the --upstream option, if any.
+remind_pull() {
+  local path="$1" option="$2"
   [[ -z "${REBUILD_GIVEN[$path]:-}" ]] || given_is_rebuild "$path" ||
-    log_warn "$path: run 'git splice pull --bump $option$path' before the next change to it -- that records ${SPLICE_REBUILT:0:7} as the synced commit"
+    log_warn "$path: run 'git splice pull --bump $option$path' before the next change to it -- that records ${REBUILD_GIVEN[$path]:0:7} as the synced commit"
 }
 
 # Succeeds if the commit given for splice <path> is the monorepo's own
@@ -166,8 +178,10 @@ give_rebuild() {
   [[ "$(git rev-parse "$rebuilt^{tree}")" == "$CONTENT_TREE" ]] ||
     die "$path: ${rebuilt:0:7} has other files than the folder -- --rebuilt-commit only takes edits to the history; commit changes to files in the monorepo"
   synced="$(splice_config "$path" commit)"
-  [[ "$(equal_tree_outcome "$path" "$rebuilt")" != keep ]] ||
-    die "$path: ${rebuilt:0:7} is the synced commit ${synced:0:7} or older -- pull can't record it, and the next push would publish the commits after it again"
+  # The monorepo's own rebuild needs no record, even where it's the
+  # synced commit, e.g. with an upstream that's ahead.
+  [[ "$(equal_tree_outcome "$path" "$rebuilt")" != keep || "$rebuilt" == "$(rebuild_splice "$path" HEAD)" ]] ||
+    die "$path: pull can't record ${rebuilt:0:7} as the synced commit -- it isn't newer than ${synced:0:7}, so the next push would publish the rebuild's commits after it again"
   if [[ -n "$synced" && -z "$force" ]]; then
     git cat-file -e "$synced^{commit}" 2>/dev/null ||
       die "$path: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch $(upstream_option "$path")$path'"

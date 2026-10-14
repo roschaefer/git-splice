@@ -239,6 +239,18 @@ reworded_rebuild() {
   [ "$(git rev-parse "$(upstream_refs "$upstream")main")" = "$edited" ]
 }
 
+@test "push --rebuilt-commit: asks for the pull again when a retry finds the commit upstream already" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local edited
+  edited="$(reworded_rebuild "fix the parser")"
+  run cmd_push --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 0 ]
+  run cmd_push --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf '%s\n' "ok   vendor/a: nothing to push" "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${edited:0:7} as the synced commit")" ]
+}
+
 @test "push --rebuilt-commit: doesn't ask for a pull for the unchanged rebuild, which the monorepo builds on already" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
@@ -283,7 +295,7 @@ reworded_rebuild() {
   synced="$(splice_config vendor/a commit)"
   run cmd_push --force --rebuilt-commit "$synced^" vendor/a
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   vendor/a: $(git rev-parse --short=7 "$synced^") is the synced commit ${synced:0:7} or older -- pull can't record it, and the next push would publish the commits after it again" ]
+  [ "$output" = "!!   vendor/a: pull can't record $(git rev-parse --short=7 "$synced^") as the synced commit -- it isn't newer than ${synced:0:7}, so the next push would publish the rebuild's commits after it again" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$synced" ]
 }
 
@@ -296,7 +308,7 @@ reworded_rebuild() {
   synced="$(splice_config vendor/a commit)"
   run cmd_push --rebuilt-commit "$synced" vendor/a
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   vendor/a: ${synced:0:7} is the synced commit ${synced:0:7} or older -- pull can't record it, and the next push would publish the commits after it again" ]
+  [ "$output" = "!!   vendor/a: pull can't record ${synced:0:7} as the synced commit -- it isn't newer than ${synced:0:7}, so the next push would publish the rebuild's commits after it again" ]
 }
 
 @test "push --force --rebuilt-commit: asks for a pull while the synced commit isn't here, even for the rebuild" {
@@ -331,7 +343,7 @@ reworded_rebuild() {
   [ "${lines[0]}" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$edited" ]
   run cmd_push --rebuilt-commit "$edited" vendor/a
-  [ "$output" = "ok   vendor/a: nothing to push" ]
+  [ "${lines[0]}" = "ok   vendor/a: nothing to push" ]
 }
 
 @test "push --rebuilt-commit: creates a missing upstream branch with the given commit" {
@@ -458,12 +470,16 @@ rebuilt_commit_shape() {
     older-than-U)
       echo seed >vendor/a/file.txt && git commit -q -am "revert second"
       ;;
+    unchanged-since-U)
+      seed_bare_repo "$upstream" "upstream change"
+      fetch_splice "$monorepo" "$upstream" vendor/a
+      ;;
   esac
   rebuilt="$(rebuild_splice vendor/a)"
   case "$shape" in
     reworded-after-U) git commit-tree --no-gpg-sign "$rebuilt^{tree}" -p "$rebuilt^" -m "reworded" ;;
     reworded-U) reworded_synced "second, reworded" ;;
-    rebuild) echo "$rebuilt" ;;
+    rebuild | unchanged-since-U) echo "$rebuilt" ;;
     root) git commit-tree --no-gpg-sign "$rebuilt^{tree}" -m "squashed" ;;
     without-cancelling-commits) git rev-parse "$rebuilt~2" ;;
     U) echo "$synced" ;;
@@ -473,7 +489,7 @@ rebuilt_commit_shape() {
 
 @test "push --rebuilt-commit: accepts exactly the commits the monorepo rebuilds after pull --bump, so the next push sends nothing else" {
   local shape given accepted rebuilds
-  for shape in reworded-after-U reworded-U rebuild root without-cancelling-commits U older-than-U; do
+  for shape in reworded-after-U reworded-U rebuild root without-cancelling-commits unchanged-since-U U older-than-U; do
     given="$(rebuilt_commit_shape "$BATS_TEST_TMPDIR/$shape/m" "$BATS_TEST_TMPDIR/$shape/u.git" "$shape")"
     cd "$BATS_TEST_TMPDIR/$shape/m"
     run cmd_push --force --rebuilt-commit "$given" vendor/a
