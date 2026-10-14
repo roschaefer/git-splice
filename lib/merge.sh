@@ -80,6 +80,12 @@ merge_one() {
     log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
     return 1
   fi
+  local inner
+  inner="$(upstream_submodule "$target")"
+  if [[ -n "$inner" ]]; then
+    log_err "$path: upstream has a submodule, $inner, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
+    return 1
+  fi
   merge_base="$(git merge-base "$SPLICE_REBUILT" "$target")"
   base_folder="$(git rev-parse "$merge_base^{tree}")"
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"

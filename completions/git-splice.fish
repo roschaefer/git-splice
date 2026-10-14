@@ -73,7 +73,9 @@ complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l bump -d 'm
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l rebuilt-commit -x -a $branches -d 'push this commit instead of the rebuild'
 complete -c git-splice -n "__fish_seen_subcommand_from log" -l graph -d 'draw both sides as a graph'
 complete -c git-splice -n "__fish_seen_subcommand_from clone" -l merge -d 'merge with an existing folder'
-complete -c git-splice -n "__git_splice_positional clone 1" -a "(__fish_complete_directories)"
+complete -c git-splice -n "__fish_seen_subcommand_from clone" -l from-submodule -d 'turn a submodule into a splice'
+complete -c git-splice -n "__git_splice_positional clone 1; and not __fish_contains_opt from-submodule" -a "(__fish_complete_directories)"
+complete -c git-splice -n "__git_splice_positional clone 0; and __fish_contains_opt from-submodule" -a "(__fish_complete_directories)"
 complete -c git-splice -n "__git_splice_positional init 0" -a "(__fish_complete_directories)"
 complete -c git-splice -n "__git_splice_positional boundary 0" -a "(__git_splice_paths)" -d splice
 complete -c git-splice -n "__git_splice_positional rebuild 0" -a "(__git_splice_paths)" -d splice

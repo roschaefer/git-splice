@@ -157,6 +157,18 @@ new_upstream() {
   [ -z "$(git ls-files vendor/a)" ]
 }
 
+@test "clone: refuses an upstream with a submodule, which nobody could check out" {
+  new_upstream
+  local inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  add_upstream_submodule "$upstream" "$inner" libs/inner
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: upstream has a submodule, libs/inner, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"* ]]
+  [ -z "$(git ls-files vendor/a)" ]
+}
+
 @test "clone: an upstream file whose name only resembles .splice is content" {
   new_upstream
   seed_bare_repo "$upstream" "x" main xsplice

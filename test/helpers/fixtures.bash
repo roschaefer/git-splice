@@ -35,6 +35,21 @@ seed_bare_repo() {
   rm -rf "$tmp"
 }
 
+# Commits a submodule of bare repository $2 at path $3 to branch main of
+# bare repository $1.
+add_upstream_submodule() {
+  local repo="$1" inner="$2" path="$3" tmp
+  tmp="$(mktemp -d)"
+  git clone -q "$repo" "$tmp" 2>/dev/null
+  (
+    cd "$tmp"
+    git -c protocol.file.allow=always submodule add -q "$inner" "$path"
+    git -c user.name=Test -c user.email=test@example.com commit -q -m "add $path as a submodule"
+    git push -q origin HEAD:main
+  )
+  rm -rf "$tmp"
+}
+
 # Initializes a monorepo working tree at $1 with local git identity (CI
 # runners have no global one), main as its default branch, and one
 # initial commit. Does not cd -- callers use their own cwd or a subshell.
