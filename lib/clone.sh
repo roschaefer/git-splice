@@ -188,10 +188,10 @@ submodule_name() {
 # Prints submodule URL <url> as `git submodule` reads it: a relative one,
 # starting with ./ or ../, is relative to the URL of the monorepo's default
 # remote -- the current branch's remote, else origin -- or, without one,
-# to the monorepo itself. A remote URL that is a relative path is relative
-# to the monorepo's top folder.
+# to the monorepo itself. Git resolves it: `git submodule init` in a
+# throwaway repository whose origin has that URL records it resolved.
 resolve_submodule_url() {
-  local url="$1" branch remote base
+  local url="$1" branch remote base tmp resolved
   [[ "$url" == ./* || "$url" == ../* ]] || {
     printf '%s\n' "$url"
     return
@@ -199,32 +199,23 @@ resolve_submodule_url() {
   branch="$(git symbolic-ref --quiet --short HEAD || true)"
   remote="$(git config "branch.$branch.remote" 2>/dev/null || echo origin)"
   base="$(git config "remote.$remote.url" 2>/dev/null || git rev-parse --show-toplevel)"
-  base="${base%/}"
+  # A relative path is relative to the monorepo, not to the throwaway
+  # repository.
   [[ "$base" == /* || "$base" == *:* ]] || base="$(git rev-parse --show-toplevel)/$base"
-  while :; do
-    case "$url" in
-      ./*) url="${url#./}" ;;
-      ../*)
-        url="${url#../}"
-        if [[ "$base" == */* ]]; then
-          base="${base%/*}"
-          # host:/mono.git, scp-like with an absolute path: ../ leaves host:/
-          [[ "$base" != *: ]] || base="$base/"
-        elif [[ "$base" == *:* ]]; then
-          # host:repo.git, scp-like: ../ leaves host:
-          base="${base%%:*}:"
-        else
-          die "can't resolve submodule URL '$1' against '$base'"
-        fi
-        ;;
-      *) break ;;
-    esac
-  done
-  if [[ "$base" == *: || "$base" == */ ]]; then
-    printf '%s%s\n' "$base" "$url"
-  else
-    printf '%s/%s\n' "$base" "$url"
-  fi
+  tmp="$(mktemp -d)"
+  resolved="$(
+    cd "$tmp" &&
+      git init -q &&
+      git config remote.origin.url "$base" &&
+      git config --file .gitmodules submodule.s.path s &&
+      git config --file .gitmodules submodule.s.url "$url" &&
+      git update-index --add --cacheinfo "160000,$(git hash-object -t tree /dev/null),s" &&
+      git submodule --quiet init -- s &&
+      git config submodule.s.url
+  )" || resolved=""
+  rm -rf -- "$tmp"
+  [[ -n "$resolved" ]] || die "can't resolve submodule URL '$url' against '$base'"
+  printf '%s\n' "$resolved"
 }
 
 # Dies unless converting the submodule at <path>, committed at <commit>,
@@ -332,6 +323,8 @@ clone_from_submodule() {
   # assume-unchanged, keeps its edit and shows as changed afterwards.
   git ls-files -z --deleted -- ":(top,literal)$path" | git checkout-index -z --stdin
   git update-index -q --refresh >/dev/null || true
+  # A commit without files left no folder to write .splice into.
+  mkdir -p -- "$path"
   git cat-file blob "$blob" >"$path/$STATE_FILE"
   git add -f -- "$path/$STATE_FILE"
   if [[ -z "$(git config --file "$gitmodules" --list)" ]]; then

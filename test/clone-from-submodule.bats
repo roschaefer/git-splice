@@ -249,6 +249,8 @@ add_submodule() {
   [ "$(resolve_submodule_url ../lib.git)" = host:lib.git ]
   git remote set-url origin git@git.example.com:/mono.git
   [ "$(resolve_submodule_url ../lib.git)" = git@git.example.com:/lib.git ]
+  git remote set-url origin https://git.example.com
+  [ "$(resolve_submodule_url ../lib.git)" = https://lib.git ]
 }
 
 @test "resolve_submodule_url: a remote URL that is a relative path is relative to the monorepo" {
@@ -352,4 +354,21 @@ add_submodule() {
   [[ "$output" == *"vendor/a: vendor is a symbolic link -- the submodule's folder must be inside the repository"* ]]
   [ -z "$(ls -A "$BATS_TEST_TMPDIR/outside/a")" ]
   [ -z "$(git for-each-ref refs/splices/)" ]
+}
+
+@test "clone --from-submodule: a submodule never checked out, at a commit without files, gets its folder" {
+  local empty="$BATS_TEST_TMPDIR/empty.git" tmp="$BATS_TEST_TMPDIR/empty-seed"
+  make_bare_repo "$empty"
+  git init -q -b main "$tmp"
+  git -C "$tmp" commit -q --allow-empty -m "empty"
+  git -C "$tmp" push -q "$empty" main
+  git -c protocol.file.allow=always submodule add -q "$empty" vendor/a
+  git commit -q -m "add vendor/a as a submodule"
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  cd "$BATS_TEST_TMPDIR/colleague"
+  rmdir vendor/a
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(ls -A vendor/a)" = .splice ]
+  [ -z "$(git status --porcelain)" ]
 }
