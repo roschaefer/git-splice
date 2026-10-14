@@ -39,6 +39,29 @@ setup() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
+@test "init: on a feature branch, the first push creates that branch, though the folder is the same as on main" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  git checkout -q -b feature
+  cmd_init lib/a "$upstream" >/dev/null
+  run cmd_push lib/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log --format=%s feature)" = "splice: init lib/a" ]
+}
+
+@test "init: after the first push from main, an unchanged feature branch creates no branch upstream, though .splice records no synced commit" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_init lib/a "$upstream" >/dev/null
+  cmd_push lib/a >/dev/null
+  git checkout -q -b feature
+  [ -z "$(splice_config lib/a commit)" ]
+  run cmd_push lib/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nothing to push"* ]]
+  ! git -C "$upstream" rev-parse --verify --quiet feature
+}
+
 @test "init: the first push records the key before it pushes, so a failure to record it pushes nothing" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"

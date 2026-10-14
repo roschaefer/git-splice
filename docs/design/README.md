@@ -310,9 +310,8 @@ does. An overview such as `status` is only useful if it's complete.
 - `init` refuses an upstream that already has commits, and points to
   `clone --merge`. It writes `.splice` without a synced commit, and the
   first push creates the upstream branch starting at the init commit,
-  followed by any commits after it. On a branch where the folder didn't
-  change, that push publishes nothing
-  ([#3](https://github.com/roschaefer/git-splice/issues/3), see below). The folder's history before it isn't
+  followed by any commits after it, also on a feature branch where the
+  folder didn't change. The folder's history before it isn't
   published: it was written
   for the monorepo, and may hold what was removed before anyone decided
   to publish the folder
@@ -467,13 +466,13 @@ incorrect: merging a branch that pushed would bring that record onto another
 upstream branch
 ([sync model](../../test/concepts/sync-model/README.md#why-a-push-isnt-recorded)).
 
-**A new upstream branch** is created only if the splice changed on this
-branch, measured against the base. So starting a feature branch doesn't
-create empty branches on every upstream. The same rule applies to a
-splice made by `init`: `.splice` doesn't count as a change, so on a
-feature branch where the folder's content didn't change, its first push
-publishes nothing. Push it from the default branch instead
-([#3](https://github.com/roschaefer/git-splice/issues/3)).
+**A new upstream branch** is created only if it publishes commits of R
+that no fetched upstream branch has. So starting a feature branch doesn't
+create empty branches on every upstream, while commits upstream lacks
+always count: the ones the feature branch got from the branch it was cut
+from, and the first push of a splice made by `init`, which has no
+upstream branch at all. Whether the folder changed on this branch doesn't
+matter.
 
 ### `status`: the sync state
 
