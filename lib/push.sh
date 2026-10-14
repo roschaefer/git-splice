@@ -6,7 +6,7 @@ usage: git splice push [--upstream <name>] [--base <branch>] [--force] (<path>..
        git splice push [--upstream <name>] [--base <branch>] [--force] --rebuilt-commit <commit> <path>
 
 Publishes each splice's local changes: rebuilds the commits that changed
-it since the last sync, without its .splice file, and pushes them to its
+it since its boundary, without its .splice file, and pushes them to its
 upstream URL. Nothing is written to the monorepo.
 
 Bottom-up: a splice below another is pushed first, since the push of the

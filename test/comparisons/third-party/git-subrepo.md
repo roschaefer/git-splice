@@ -362,7 +362,7 @@ On branch main
 | Commits per sync | one per pull, one per push | one per pull |
 | Upstream branch | the one in `.gitrepo`, for every monorepo branch | the monorepo branch's name |
 | Sync point, the upstream commit last synced | `commit` in `.gitrepo`, written on clone, pull and push | `commit` in `.splice`, written on clone and pull |
-| Where the last sync is in the monorepo | `parent` in `.gitrepo`, a stored commit | the boundary, derived: the newest commit that changed `.splice` |
+| Where the last sync is in the monorepo | `parent` in `.gitrepo`, a stored commit | derived: the newest commit that changed `.splice` |
 | After a squash merge | push stops until `.gitrepo` is fixed by hand | push works |
 | After rebasing pushed commits | push stops until `.gitrepo` is fixed by hand | diverged, `push --force` as with Git |
 | Fetched refs keyed by | folder path | upstream URL |

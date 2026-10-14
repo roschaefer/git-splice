@@ -157,7 +157,7 @@ $ git bisect start HEAD HEAD~1 >/dev/null && git bisect run sh "$COMPARISON/test
 ```
 
 To go deeper, bisect the library's history between the two synced
-commits, U1 and U2, which `.splice` records before and after the pull. Its
+commits, U(X^) and U(X), which `.splice` records before and after the pull X. Its
 commits are fetched into the monorepo already, so a worktree of the
 monorepo can check them out. A second, throwaway worktree runs the app's
 test, so your own checkout stays as it is:
@@ -180,7 +180,7 @@ $ git bisect reset >/dev/null && cd ../splice-monorepo && git worktree remove ..
 
 That's the library's own commit, of which Josh's `092b6b1` is the
 monorepo's copy. Replacing the folder works here because it had no
-changes of its own since U1. With unpushed changes, each step would need
+changes of its own since U(X^). With unpushed changes, each step would need
 them merged in.
 
 ## Both sides move on
@@ -368,7 +368,7 @@ library as written.
   trees in Rust, on gitoxide, with a cache, so it can filter whole
   histories quickly, and calls the `git` command for fetches and pushes.
   `git-splice` calls Git for every step, and only walks history since the
-  last sync.
+  boundary.
 - **One project, or two owners.** With Josh, the library's history is the
   monorepo's, filtered: a monorepo branch reaches the library with its
   commits and merge, and pushing to a view lands in the monorepo. That
@@ -396,7 +396,7 @@ library as written.
 | | Josh | `git-splice` |
 | --- | --- | --- |
 | Library history in the monorepo | whole, as copies under the folder | none, one commit per sync |
-| Commits a push sends | the filtered history, the same as `git subtree split` for commits without a signature or extra headers | the first-parent commits since the last sync, otherwise the same as `git subtree split` |
+| Commits a push sends | the filtered history, the same as `git subtree split` for commits without a signature or extra headers | the first-parent commits since the boundary, otherwise the same as `git subtree split` |
 | `git bisect` for a library bug | finds the monorepo's copy of the library's commit | finds the pull, then a second bisect between the synced commits does |
 | A monorepo branch merged | a merge, with the branch's commits | one commit, with the merge's message |
 | Where both sides meet | commits of the filtered view that the library has | the synced commit in `.splice` |

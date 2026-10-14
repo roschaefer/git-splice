@@ -20,7 +20,7 @@ meanwhile.
   `a/l/` and `b/a/l/`, with the same id: A's clone of L. The monorepo copied
   nothing.
 
-Not from separate clones: if A, B and M each clone S, the three copies
+Not from separate clones: if A, B and M each clone C, the three copies
 have three ids, and are independent
 ([diamond](../../test/concepts/nesting/diamond.md)). To declare them
 mirrors, a clone would need to take over the id of an existing splice.

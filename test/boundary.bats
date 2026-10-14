@@ -6,6 +6,8 @@ setup() {
   load 'scenarios/up-to-date/pull-ahead/setup'
   load 'scenarios/up-to-date/shared-remote-url/setup'
   load 'scenarios/nested-splices/setup'
+  load 'scenarios/rebuild-start/setup'
+  load 'scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -36,13 +38,51 @@ setup() {
   [ "$output" = "$(git rev-parse HEAD)" ]
 }
 
-@test "boundary: a commit that edits .splice by hand moves it too" {
-  scenario_push_ahead "$monorepo" "$upstream"
+@test "boundary: a commit that edits .splice by hand moves it, if nothing is waiting to be pushed" {
+  scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   git config --file vendor/a/.splice upstream.origin.url https://example.com/a.git
   git commit -q -am "move vendor/a's upstream"
   run cmd_boundary vendor/a
   [ "$output" = "$(git rev-parse HEAD)" ]
+}
+
+@test "boundary: a commit that edits .splice by hand doesn't move it past unpushed commits" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.origin.url https://example.com/a.git
+  git commit -q -am "move vendor/a's upstream"
+  run cmd_boundary vendor/a
+  [ "$output" = "$(git rev-parse HEAD~2)" ]
+}
+
+@test "boundary: a pull that merged unpushed commits leaves it before them" {
+  scenario_rebuild_start "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_boundary vendor/a
+  [ "$output" = "$(git rev-parse HEAD~4)" ]
+  [ "$(git log --first-parent --format=%s "$output"..HEAD -- vendor/a)" = "$(printf '%s\n' 'splice: pull vendor/a from main at '"$(git -C "$upstream" rev-parse --short main)" d b)" ]
+}
+
+@test "boundary: stays before the merged commits after they're pushed, until a bump" {
+  scenario_rebuild_start "$monorepo" "$upstream"
+  cd "$monorepo"
+  cmd_push vendor/a >/dev/null
+  cmd_merge vendor/a >/dev/null
+  run cmd_boundary vendor/a
+  [ "$output" = "$(git rev-parse HEAD~4)" ]
+  cmd_merge --bump vendor/a >/dev/null
+  run cmd_boundary vendor/a
+  [ "$output" = "$(git rev-parse HEAD)" ]
+}
+
+@test "boundary: a squash merge of a pull and a local edit leaves it before the squash, whose edit push sends" {
+  scenario_local_edit_in_the_squash "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_boundary vendor/a
+  [ "$output" = "$(git rev-parse HEAD^)" ]
+  [ "$(git log --format=%s "$output..HEAD" -- vendor/a)" = "feature (squash-merged)" ]
+  [ "$(git log -1 --format=%s "$(rebuild_splice vendor/a)")" = "feature (squash-merged)" ]
 }
 
 @test "boundary: works on a detached HEAD" {
@@ -54,7 +94,7 @@ setup() {
   [ "$output" = "$(git rev-parse HEAD^)" ]
 }
 
-@test "boundary: of a nested splice, in the monorepo, is where the monorepo last synced it" {
+@test "boundary: of a nested splice, in the monorepo, is where the monorepo's rebuild of it starts" {
   scenario_nested_splices "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_boundary vendor/a/b
@@ -62,7 +102,7 @@ setup() {
   [ "$(git log -1 --format=%s "$output")" = "add vendor/a" ]
 }
 
-@test "boundary: of a nested splice, in a worktree of the upstream above, is where that upstream last synced it" {
+@test "boundary: of a nested splice, in a worktree of the upstream above, is where that upstream's rebuild of it starts" {
   scenario_nested_splices "$monorepo" "$upstream"
   git -C "$monorepo" worktree add -q --detach "$BATS_TEST_TMPDIR/a" refs/splices/upstream/main
   cd "$BATS_TEST_TMPDIR/a"

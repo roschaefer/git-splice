@@ -24,7 +24,7 @@ also says where it is the better tool.
 | Fix to app and library | two commits, two pushes, library first | one commit | one commit |
 | Library history in the monorepo | none | whole, or squashed into a merge | none, one commit per sync |
 | Monorepo history | linear | merges | linear |
-| Push walks | nothing, the library is its own repository | the monorepo's history since the last known library commit | the commits since the last sync |
+| Push walks | nothing, the library is its own repository | the monorepo's history since the last known library commit | the commits since the boundary |
 | Second worktree | initialize again, `submodule.*` settings shared, can't be moved | works | works |
 | Best for | libraries kept apart, with their own access | moving a repository in for good, history included | changing a library in the monorepo and sending the changes back |
 

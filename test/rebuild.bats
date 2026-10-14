@@ -118,7 +118,7 @@ split() {
   git config --file vendor/a/.splice upstream.origin.default-branch main
   git commit -q -S -am "a signed commit that changes .splice"
   git config log.showSignature true
-  [ "$(splice_boundary vendor/a HEAD)" = "$(git rev-parse HEAD)" ]
+  [ "$(splice_last_sync vendor/a HEAD)" = "$(git rev-parse HEAD)" ]
   [ "$(splice_mount vendor/a)" = "$mount" ]
   [ "$(rebuild_splice vendor/a)" = "$before" ]
 }

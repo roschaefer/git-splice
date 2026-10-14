@@ -113,7 +113,7 @@ ok   vendor/a/b fetched (main moved 701ab17..527b1a2)
 ok   vendor/a: pulled 1ca3147
 ```
 
-The pull is now b's boundary. b's unpushed commit is kept, and the next
+The pull records b's new synced commit. b's unpushed commit is kept, and the next
 push joins it with the change in b's upstream:
 
 ```scrut
@@ -144,7 +144,7 @@ Once the monorepo has pushed a change in b, another monorepo that splices
 a in rebuilds b's history up to the clone from a's upstream, so b's
 first change there goes on top of the pushed one:
 [spliced into another monorepo](spliced-elsewhere.md). That history comes
-from the splice above with the newest boundary, even two levels up
+from the splice above with the newest last pull, even two levels up
 ([three levels](three-levels/README.md)); not where a's upstream has
 another splice at `b/` ([replaced above](replaced-above.md)); and it
 doesn't drop what b's upstream got from the monorepo directly

@@ -4,22 +4,25 @@ usage_boundary() {
   cat <<'EOF'
 usage: git splice boundary <path>
 
-Prints the commit where splice <path> last synced with its upstream:
-the newest commit on the current branch's first-parent history that
-changed <path>/.splice -- the last pull, merge, clone or init, or a
-commit that edited .splice by hand.
+Prints the commit the rebuild of splice <path> starts from, B. The
+rebuild copies the commits after it on the current branch's
+first-parent history that change the folder's files:
 
-  git show "$(git splice boundary <path>)"
-  git log "$(git splice boundary <path>)"..HEAD -- <path>
+  git log --first-parent "$(git splice boundary <path>)"..HEAD -- <path> ':!<path>/.splice'
+
+Usually B is the last pull, merge, clone or init. After a pull that
+merged commits that were never pushed, it's an earlier one, where the
+folder was the upstream commit .splice recorded.
 
 For a nested splice, run it in a worktree of a fetched commit of the
-upstream above, with the path there, to get where that upstream last
-synced it:
+upstream above, with the path there, to get where that upstream's
+rebuild of it starts:
 
   git worktree add --detach ../a refs/splices/a/main
   git -C ../a splice boundary b
 
-Purely local; writes nothing.
+Purely local, but the synced commit must have been fetched. Writes no
+ref and no monorepo commit.
 EOF
 }
 
@@ -37,5 +40,5 @@ cmd_boundary() {
   require_head_commit
   discover_splices
   is_splice_path "$path" || die "not a splice: $path"
-  splice_boundary "$path" HEAD
+  splice_start "$path" HEAD
 }

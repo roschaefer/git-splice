@@ -155,7 +155,7 @@ setup() {
   [ "$(git diff --name-only HEAD^ HEAD)" = "vendor/a/.splice" ]
   [ "$(git log -1 --format=%s)" = "splice: bump vendor/a from main at ${target:0:7}" ]
   [ "$(splice_config vendor/a commit)" = "$target" ]
-  [ "$(splice_boundary vendor/a HEAD)" = "$(git rev-parse HEAD)" ]
+  [ "$(splice_last_sync vendor/a HEAD)" = "$(git rev-parse HEAD)" ]
   [ "$(rebuild_splice vendor/a)" = "$target" ]
 }
 
