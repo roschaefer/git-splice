@@ -356,6 +356,19 @@ reworded_rebuild() {
   [ "$(git -C "$upstream" rev-parse feature)" = "$edited" ]
 }
 
+@test "push --rebuilt-commit: creates a missing upstream branch with the given commit, even one another upstream branch has, and asks for a pull" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  local edited
+  edited="$(reworded_rebuild "fix the parser")"
+  git push -q "$upstream" "$edited:refs/heads/other"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  run cmd_push --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse feature)" = "$edited" ]
+  [[ "$output" == *"run 'git splice pull --bump vendor/a' before the next change to it"* ]]
+}
+
 @test "push --rebuilt-commit: refuses a commit with other files than the folder, which only a monorepo commit may change" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"

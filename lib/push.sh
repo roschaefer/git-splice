@@ -91,7 +91,9 @@ push_one() {
         log_err "$path: could not count the commits upstream lacks -- not creating '$label'"
         return 1
       fi
-      if [[ -n "$SPLICE_REBUILT" ]] && ((SPLICE_NEW_COMMITS == 0)); then
+      # A commit given with --rebuilt-commit is pushed even if upstream
+      # has it on another branch: it was asked for, and needs recording.
+      if [[ -n "$SPLICE_REBUILT" && -z "${REBUILD_GIVEN[$path]:-}" ]] && ((SPLICE_NEW_COMMITS == 0)); then
         log_ok "$path: nothing to push (upstream has no '$label' branch, but has every commit)"
         return 0
       fi
