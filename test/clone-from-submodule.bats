@@ -151,6 +151,29 @@ add_submodule() {
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
 }
 
+@test "clone --from-submodule: an edit status doesn't show, behind assume-unchanged, is kept" {
+  add_submodule
+  git -C vendor/a update-index --assume-unchanged file.txt
+  echo "local tuning" >vendor/a/file.txt
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = "local tuning" ]
+  [ "$(git show HEAD:vendor/a/file.txt)" = seed ]
+  [ "$(git status --porcelain)" = " M vendor/a/file.txt" ]
+}
+
+@test "clone --from-submodule: refuses an ignored .splice in the checkout" {
+  add_submodule
+  echo ".splice" >"$BATS_TEST_TMPDIR/exclude"
+  git -C vendor/a config core.excludesFile "$BATS_TEST_TMPDIR/exclude"
+  echo "mine" >vendor/a/.splice
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice exists in the submodule's checkout -- move it away first"* ]]
+  [ "$(cat vendor/a/.splice)" = mine ]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+}
+
 @test "clone --from-submodule: refuses staged changes and uncommitted .gitmodules edits" {
   add_submodule
   echo "app" >app.txt && git add app.txt
@@ -215,6 +238,13 @@ add_submodule() {
   [ "$(resolve_submodule_url ../lib.git)" = git@git.example.com:org/lib.git ]
   git remote set-url origin host:mono.git
   [ "$(resolve_submodule_url ../lib.git)" = host:lib.git ]
+}
+
+@test "resolve_submodule_url: a remote URL that is a relative path is relative to the monorepo" {
+  git remote add origin mono.git
+  [ "$(resolve_submodule_url ../lib.git)" = "$monorepo/lib.git" ]
+  git remote set-url origin ../mono.git
+  [ "$(resolve_submodule_url ../lib.git)" = "$monorepo/../lib.git" ]
 }
 
 @test "resolve_submodule_url: the current branch's remote first, the monorepo itself without one" {

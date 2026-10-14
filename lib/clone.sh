@@ -185,7 +185,8 @@ submodule_name() {
 # Prints submodule URL <url> as `git submodule` reads it: a relative one,
 # starting with ./ or ../, is relative to the URL of the monorepo's default
 # remote -- the current branch's remote, else origin -- or, without one,
-# to the monorepo itself.
+# to the monorepo itself. A remote URL that is a relative path is relative
+# to the monorepo's top folder.
 resolve_submodule_url() {
   local url="$1" branch remote base
   [[ "$url" == ./* || "$url" == ../* ]] || {
@@ -196,6 +197,7 @@ resolve_submodule_url() {
   remote="$(git config "branch.$branch.remote" 2>/dev/null || echo origin)"
   base="$(git config "remote.$remote.url" 2>/dev/null || git rev-parse --show-toplevel)"
   base="${base%/}"
+  [[ "$base" == /* || "$base" == *:* ]] || base="$(git rev-parse --show-toplevel)/$base"
   while :; do
     case "$url" in
       ./*) url="${url#./}" ;;
@@ -254,6 +256,9 @@ clone_from_submodule() {
       die "$path: the submodule's checkout isn't at ${commit:0:7}, the commit in HEAD -- commit the submodule's new commit, or check out ${commit:0:7} in it"
     [[ -z "$(git -C "$path" status --porcelain --untracked-files=all)" ]] ||
       die "$path: the submodule's checkout has changes -- commit and push them, or discard them, first"
+    # An ignored one: status doesn't show it.
+    [[ ! -e "$path/$STATE_FILE" && ! -L "$path/$STATE_FILE" ]] ||
+      die "$path/$STATE_FILE exists in the submodule's checkout -- move it away first"
   elif [[ -d "$path" && -n "$(ls -A -- "$path")" ]]; then
     die "$path: the folder of the uninitialized submodule isn't empty -- move its files away first"
   fi
@@ -295,7 +300,11 @@ clone_from_submodule() {
   git config --remove-section "submodule.$name" 2>/dev/null || true
   git rm -q --cached -- ":(top,literal)$path"
   git read-tree --prefix="$path/" "$commit"
-  git checkout -- ":(top,literal)$path"
+  # Writes only the files that are missing, as in a submodule that was
+  # never checked out. A file the checks above missed, e.g. one hidden by
+  # assume-unchanged, keeps its edit and shows as changed afterwards.
+  git ls-files -z --deleted -- ":(top,literal)$path" | git checkout-index -z --stdin
+  git update-index -q --refresh >/dev/null || true
   git cat-file blob "$blob" >"$path/$STATE_FILE"
   git add -f -- "$path/$STATE_FILE"
   if [[ -z "$(git config --file "$gitmodules" --list)" ]]; then
