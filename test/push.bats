@@ -380,8 +380,8 @@ reworded_rebuild() {
   ! git -C "$upstream" rev-parse --verify --quiet feature
 }
 
-# Like scenario_push_ahead, but the synced commit U ("second") has a
-# parent ("seed"), so a commit before U can be edited.
+# Like scenario_push_ahead, but the synced commit U(H) ("second") has a
+# parent ("seed"), so a commit before U(H) can be edited.
 scenario_push_ahead_after_two() {
   make_bare_repo "$2"
   seed_bare_repo "$2" "seed"
@@ -443,7 +443,7 @@ reworded_synced() {
 }
 
 # Builds a monorepo at $1 and upstream at $2 for history shape $3, with
-# the synced commit U "second" on top of "seed", and prints the commit to
+# the synced commit U(H) "second" on top of "seed", and prints the commit to
 # give --rebuilt-commit.
 rebuilt_commit_shape() {
   local monorepo="$1" upstream="$2" shape="$3" synced rebuilt

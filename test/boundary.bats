@@ -6,7 +6,7 @@ setup() {
   load 'scenarios/up-to-date/pull-ahead/setup'
   load 'scenarios/up-to-date/shared-remote-url/setup'
   load 'scenarios/nested-splices/setup'
-  load 'scenarios/rebuild-start/setup'
+  load 'scenarios/sync-model/after-pull/setup'
   load 'scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -57,7 +57,7 @@ setup() {
 }
 
 @test "boundary: a pull that merged unpushed commits leaves it before them" {
-  scenario_rebuild_start "$monorepo" "$upstream"
+  scenario_after_pull "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_boundary vendor/a
   [ "$output" = "$(git rev-parse HEAD~4)" ]
@@ -65,7 +65,7 @@ setup() {
 }
 
 @test "boundary: stays before the merged commits after they're pushed, until a bump" {
-  scenario_rebuild_start "$monorepo" "$upstream"
+  scenario_after_pull "$monorepo" "$upstream"
   cd "$monorepo"
   cmd_push vendor/a >/dev/null
   cmd_merge vendor/a >/dev/null

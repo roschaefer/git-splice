@@ -1,15 +1,15 @@
-# Scenario: rebuild-start
+# Scenario: after-pull
 
 A pull merged local commits that were never pushed. The pull's commit is
 the newest that changed `.splice`, but the rebuild starts further back,
 at B: the newest such commit whose folder is the upstream commit it
-recorded, S
-([sync model](../../concepts/sync-model/README.md)). The commits are
+recorded, U(B)
+([sync model](../../../concepts/sync-model/README.md)). The commits are
 named as in the drawing there:
 
 <div align="center">
 
-![The graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../../docs/images/sync-model-after-pull.drawio.svg)
+![The graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](after-pull.drawio.svg)
 
 </div>
 
@@ -21,14 +21,23 @@ named as in the drawing there:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../readme-setup.sh"
+$ source "$TESTDIR/../../readme-setup.sh"
 ```
 -->
 
 [`setup.bash`](setup.bash) builds this state:
 
 ```scrut
-$ build_scenario scenario_rebuild_start
+$ build_scenario scenario_after_pull
+```
+
+The drawing shows what Git and `git-splice` say about it. a and e aren't
+subjects the drawing can show, so they're named by their place in the
+history ([`check_drawing`](../../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/after-pull.drawio.svg" a=HEAD~4 e=HEAD
+ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames
 ```
 
 The monorepo, with e on top. a is the clone, `add vendor/a`:
@@ -51,9 +60,9 @@ d34c417 m
 ae8b31f k
 ```
 
-### U
+### U(H)
 
-e is the newest commit that changed `.splice`. It records n as U:
+e is the newest commit that changed `.splice`. It records n as U(H):
 
 ```scrut
 $ git log --first-parent -1 --format=%s -- vendor/a/.splice
@@ -94,7 +103,7 @@ $ git diff --quiet "$(git config --blob 'HEAD~4:vendor/a/.splice' splice.commit)
 a's folder is k
 ```
 
-So a is B, what `git splice boundary` prints, and k is S:
+So a is B, what `git splice boundary` prints, and U(B) = k:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"
@@ -113,10 +122,10 @@ b
 
 ### R
 
-From B, the rebuild copies b and d on top of S, k, as b+ and d+, and
-skips c. Then it copies e as e+, a merge of d+ and n, with e's message.
+From B, the rebuild copies b and d on top of U(B) = k, as b' and d', and
+skips c. Then it copies e as e', a merge of d' and n, with e's message.
 `log --graph` draws R and T down to n, where they meet. k shows up as
-b+'s parent:
+the parent of b':
 
 ```scrut
 $ git splice log --graph vendor/a
@@ -132,7 +141,7 @@ o df79a48 (T) n  (Test <test@example.com>)
 
 ### After the push
 
-The push sends b+, d+ and e+, and T moves to e+:
+The push sends b', d' and e', and T moves to e':
 
 ```scrut
 $ git splice push vendor/a
@@ -140,8 +149,8 @@ ok   vendor/a: pushed 854864a to main
 ```
 
 A pull right after it has nothing to bring in, and leaves `.splice` as it
-was. So B is still a: every rebuild still walks from a, and rebuilds b+,
-d+ and e+ with the same hashes.
+was. So B is still a: every rebuild still walks from a, and rebuilds b',
+d' and e' with the same hashes.
 
 ```scrut
 $ git splice pull vendor/a
@@ -156,7 +165,7 @@ add vendor/a
 
 ### After a bump
 
-`git splice pull --bump` records e+ as U, in a new commit:
+`git splice pull --bump` records e' as U(H), in a new commit:
 
 ```scrut
 $ git splice pull --bump vendor/a
@@ -164,7 +173,8 @@ ok   vendor/a fetched
 ok   vendor/a: bumped the synced commit to 854864a
 ```
 
-Its folder is e+, so it's the new B, e+ is S, and rebuilds start there:
+Its folder is e', so it's the new B, U(B) = e', and rebuilds start there
+([pushed-and-bumped](pushed-and-bumped/README.md) draws this state):
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"

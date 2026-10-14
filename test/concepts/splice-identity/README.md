@@ -213,8 +213,8 @@ $ git diff --quiet HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice' && echo "mirr
 mirrors
 ```
 
-Different synced commits alone aren't drift: a push doesn't move U, so
-a mirror that pushed a change has an older U than one that pulled it,
+Different synced commits alone aren't drift: a push doesn't move U(H), so
+a mirror that pushed a change has an older U(H) than one that pulled it,
 with the same files ([diamond](../nesting/diamond.md)).
 
 ### Mirrors that swap paths

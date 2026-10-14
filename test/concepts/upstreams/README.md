@@ -16,7 +16,7 @@ A splice's `.splice` names its upstream like a Git remote:
 company fork and the original; `default-upstream` then says which one
 commands use unless `--upstream` names another
 ([several-upstreams](../../scenarios/several-upstreams/README.md)). The
-synced commit U stays one per splice: a sync point is a commit,
+synced commit U(H) stays one per splice: a sync point is a commit,
 whichever upstream it came from.
 
 The monorepo knows an upstream by its URL. The first command that
@@ -25,7 +25,7 @@ config, and fetches its branches to `refs/splices/<key>/`. So:
 
 | | is one per |
 |---|---|
-| `.splice`, `id`, synced commit U | splice |
+| `.splice`, `id`, synced commit U(H) | splice |
 | key, `refs/splices/<key>/*`, fetch | upstream URL, shared by every splice that names it |
 
 [splice-refs](../../scenarios/splice-refs/README.md) shows what each command does to
@@ -139,8 +139,8 @@ with the same id. Then a difference is **drift**, which `git-splice`
 doesn't report yet ([mirrors](../../../docs/going-forward/mirrors.md)).
 
 Whether two splices differ is a matter of their files, or R in the
-[sync model](../sync-model/README.md), not of their synced commits U. A
-push doesn't move U, so a splice that pushed a change is at an older U
+[sync model](../sync-model/README.md), not of their synced commits U(H). A
+push doesn't move U(H), so a splice that pushed a change is at an older U(H)
 than a copy that pulled it, with the same files
 ([diamond](../nesting/diamond.md)).
 

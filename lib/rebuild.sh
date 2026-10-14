@@ -150,14 +150,14 @@ splice_start() {
 # Prints "<rebuild> <start>": rebuild_splice's commit and splice_start's,
 # each "-" if there's none.
 #
-#   1. L is the last sync (splice_last_sync) and U the synced commit
-#      recorded there. If L's folder equals U, the rebuild starts at U,
+#   1. L is the last sync (splice_last_sync) and U(L) the synced commit
+#      recorded there. If L's folder equals U(L), the rebuild starts at U(L),
 #      and L is the start.
 #   2. If it differs -- a pull merged local changes in, or a squash merge
 #      mixed local edits into the commit that changed the state file -- L
 #      is rebuilt as a commit with L's folder, whose parents are what the
 #      rebuild had before L (rebuilt from L's first parent, recursively)
-#      and U. Local commits that were never pushed keep their own identity.
+#      and U(L). Local commits that were never pushed keep their own identity.
 #      Where that rebuild is one of the parents, its start is the start.
 #   3. Then one commit per first-parent commit after L whose folder
 #      differs from the one before. A merge in the monorepo becomes one
@@ -236,15 +236,15 @@ rebuild_with_start() {
         [[ "$before" != - ]] || before=""
       fi
       if [[ -z "$before" ]] || git merge-base --is-ancestor "$before" "$synced"; then
-        # Nothing unpushed before L: L's changes go on top of U. Where
-        # L's folder isn't U, e.g. a squash merge put a local edit into
+        # Nothing unpushed before L: L's changes go on top of U(L). Where
+        # L's folder isn't U(L), e.g. a squash merge put a local edit into
         # it, L itself is copied, so the rebuild starts where the one
         # before L did.
         parents=("$synced")
         [[ "$tree" == "$prev_tree" || -z "$before_start" || "$before_start" == - ]] ||
           rebuild_start="$before_start"
       elif git merge-base --is-ancestor "$synced" "$before"; then
-        # What came before already contains U, e.g. L only changed the
+        # What came before already contains U(L), e.g. L only changed the
         # state file: continue from there.
         parents=("$before")
         rebuild_start="$before_start"

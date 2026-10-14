@@ -91,10 +91,10 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a/`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
-| **synced commit** (U) | The upstream commit `.splice` records: the one last spliced in. U(X) is the one a monorepo commit X's `.splice` records, so U is U(HEAD). |
-| **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U. |
+| **synced commit** (U(H)) | The upstream commit `.splice` records at HEAD: the one last spliced in. U(X) is the one a monorepo commit X's `.splice` records. |
+| **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U(H). |
 | **boundary** (B) | Where the rebuild starts: the newest last sync, or one before it, whose folder is the synced commit it recorded. Usually the last sync. At the mount, where the splice starts, it's the mount, which the rebuild copies too where its folder isn't the synced commit, e.g. after `init`; for a nested splice, it can be the last sync of the splice above. Derived, never stored. |
-| **start** (S) | U(B): the synced commit the boundary records, and the boundary's folder. R starts on it. Usually U. |
+| **start** (U(B)) | The synced commit the boundary records, and the boundary's folder. R starts on it. Usually U(H). |
 | **rebuild** (R) | The splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends, and *ours* when compared with T, in the upstream's history; in the monorepo's history, *ours* is HEAD. |
 | **upstream branch** (T, for *theirs*) | `refs/splices/<key>/<branch>`: the upstream branch as the monorepo last saw it, under the upstream's key. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
@@ -116,19 +116,19 @@ which would describe only one of their uses.
  ┌──────────────────────────────┐
  │ HEAD                         │  fetch   ┌───────────────────────────┐
  │  └ vendor/a/                 │ <─────── │ refs/heads/*              │
- │      ├ .splice  (url, U)     │          └───────────────────────────┘
+ │      ├ .splice  (url, U(H))  │          └───────────────────────────┘
  │      └ …                     │                  ^
  │                              │                  │ push R
  │ refs/splices/<key>/*     (T) │                  │
  └──────────────────────────────┘                  │
         │ merge: cherry-pick of re-rooted trees    │
-        │ push: rebuild of B..HEAD on top of U ────┘
+        │ push: rebuild of B..HEAD on top of U(B) ─┘
 ```
 
 The state lives in two places, and both are plain Git data:
 
 - **Committed:** `<path>/.splice`, with the upstream's URL and the synced
-  commit U.
+  commit U(H).
 - **Local, rebuilt by `fetch`:** `refs/splices/<key>/<branch>`, a copy of
   every upstream branch, under a key the repository's config maps the
   upstream's URL to.
@@ -343,12 +343,12 @@ explicitly:
    the work, including rename detection.
 
 The merge base is `git merge-base R T`: the newest upstream commit both
-sides contain. Usually that's U. After a push it's the pushed commit, which
+sides contain. Usually that's U(H). After a push it's the pushed commit, which
 spares the merge from replaying changes upstream already has.
 
 **The same files, another history:** if the folder already has T's
 files, there's nothing to merge. But if T isn't part of R's history,
-`merge` still records T as U, in a commit that only changes `.splice`.
+`merge` still records T as U(H), in a commit that only changes `.splice`.
 That happens when the upstream rewrote its history to the same files
 ([example](../../test/scenarios/upstream-rewritten-equal-tree/README.md)),
 squash-merged what was pushed, or got R edited before the push
@@ -389,21 +389,21 @@ commits. `rebuild_splice` is a function of HEAD alone:
 1. **Find the last sync.** L is
    `git log --first-parent -1 -- <path>/.splice`. Every `clone`, `init`
    and pull writes such a commit, and no rebase or squash merge can remove
-   all of them. U is the synced commit recorded at L.
-2. **Start at U.** If L's folder (without `.splice`) equals U's tree, the
-   rebuild continues from U, and L is the boundary B. If it differs, a
+   all of them. U(L) is the synced commit recorded at L.
+2. **Start at U(L).** If L's folder (without `.splice`) equals U(L)'s tree, the
+   rebuild continues from U(L), and L is the boundary B. If it differs, a
    pull merged a divergence, or a squash merge mixed local edits into the
    commit that changed `.splice`. Then L is rebuilt as a commit with L's
    folder, whose parents are the rebuild of L's first parent
-   (recursively) and U. Local commits that were never pushed keep their
+   (recursively) and U(L). Local commits that were never pushed keep their
    identity, and upstream gets them joined with its own by a merge, as a
    plain `git pull` would have made. Where that recursive rebuild is a
    parent, its boundary is B, so B is the first last sync, going back,
-   whose folder equals its synced commit, S
+   whose folder equals its synced commit, U(B)
    ([sync model](../../test/concepts/sync-model/README.md)), and the
    recursion only costs something after pulls of divergences.
    If L is the splice's mount, its first parent isn't rebuilt at all, and
-   L goes on top of U (see below). Without U, e.g. after `init`, the
+   L goes on top of U(L) (see below). Without U(L), e.g. after `init`, the
    rebuild starts at the mount instead, as a root commit, and the mount
    is B.
 3. **Copy each commit.** For each commit in
@@ -482,7 +482,7 @@ publishes nothing. Push it from the default branch instead
 [sync model](../../test/concepts/sync-model/README.md#three-ways-both-directions)
 describes. It compares the files first: when they're equal, nothing
 needs rebuilding. Before that, it checks there's something to compare:
-without `refs/splices/<key>/*`, and with U recorded but not available
+without `refs/splices/<key>/*`, and with U(H) recorded but not available
 locally, as in a fresh clone of the monorepo, the splice was never
 fetched.
 
@@ -625,7 +625,7 @@ running it in production.
 To keep the comparison fair:
 
 - Oracle fixtures are built with `git subtree add --squash`, which `split`
-  understands, and the test passes B and U to `rebuild_walk` directly.
+  understands, and the test passes B and U(B) to `rebuild_walk` directly.
 - `.splice` stays out of oracle fixtures. `split` would include it in every
   tree, so its removal is tested separately.
 
