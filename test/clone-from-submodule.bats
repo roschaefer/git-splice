@@ -247,6 +247,8 @@ add_submodule() {
   [ "$(resolve_submodule_url ../lib.git)" = git@git.example.com:org/lib.git ]
   git remote set-url origin host:mono.git
   [ "$(resolve_submodule_url ../lib.git)" = host:lib.git ]
+  git remote set-url origin git@git.example.com:/mono.git
+  [ "$(resolve_submodule_url ../lib.git)" = git@git.example.com:/lib.git ]
 }
 
 @test "resolve_submodule_url: a remote URL that is a relative path is relative to the monorepo" {
@@ -337,4 +339,17 @@ add_submodule() {
   [ -L vendor/a ]
   [ -z "$(git for-each-ref refs/splices/)" ]
   git diff --cached --quiet
+}
+
+@test "clone --from-submodule: refuses a submodule below a symbolic link, before fetching" {
+  add_submodule
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  cd "$BATS_TEST_TMPDIR/colleague"
+  mkdir -p "$BATS_TEST_TMPDIR/outside/a"
+  rm -r vendor && ln -s "$BATS_TEST_TMPDIR/outside" vendor
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: vendor is a symbolic link -- the submodule's folder must be inside the repository"* ]]
+  [ -z "$(ls -A "$BATS_TEST_TMPDIR/outside/a")" ]
+  [ -z "$(git for-each-ref refs/splices/)" ]
 }

@@ -208,6 +208,8 @@ resolve_submodule_url() {
         url="${url#../}"
         if [[ "$base" == */* ]]; then
           base="${base%/*}"
+          # host:/mono.git, scp-like with an absolute path: ../ leaves host:/
+          [[ "$base" != *: ]] || base="$base/"
         elif [[ "$base" == *:* ]]; then
           # host:repo.git, scp-like: ../ leaves host:
           base="${base%%:*}:"
@@ -218,7 +220,7 @@ resolve_submodule_url() {
       *) break ;;
     esac
   done
-  if [[ "$base" == *: ]]; then
+  if [[ "$base" == *: || "$base" == */ ]]; then
     printf '%s%s\n' "$base" "$url"
   else
     printf '%s/%s\n' "$base" "$url"
@@ -239,6 +241,12 @@ refuse_lossy_submodule_conversion() {
     [[ "$(git hash-object -- .gitmodules)" != "$(git rev-parse HEAD:.gitmodules)" ]]; then
     die "$path: .gitmodules has uncommitted changes -- commit or discard them first"
   fi
+  local parent="$path"
+  while [[ "$parent" == */* ]]; do
+    parent="${parent%/*}"
+    [[ ! -L "$parent" ]] ||
+      die "$path: $parent is a symbolic link -- the submodule's folder must be inside the repository"
+  done
   if [[ -L "$path" ]]; then
     die "$path: a symbolic link takes the submodule's place -- remove it first"
   elif [[ -e "$path/.git" ]]; then
