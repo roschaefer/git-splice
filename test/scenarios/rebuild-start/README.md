@@ -9,7 +9,7 @@ named as in the drawing there:
 
 <div align="center">
 
-![The graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../../docs/images/sync-model-after-pull.svg)
+![The graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../../docs/images/sync-model-after-pull.drawio.svg)
 
 </div>
 

@@ -1,5 +1,5 @@
 # See README.md in this directory. Commits are named as in the sync
-# model's drawing after a pull, docs/images/sync-model-after-pull.svg.
+# model's drawing after a pull, docs/images/sync-model-after-pull.drawio.svg.
 scenario_rebuild_start() {
   local monorepo="$1" upstream="$2"
   make_bare_repo "$upstream"
