@@ -150,7 +150,7 @@ check_drawing() {
   local -A box_arrows=()
   for id in "${edges[@]}"; do
     s="${source[$id]}" t="${target[$id]}"
-    [[ "${kind[$s]:-}" != box ]] || box_arrows[$s]=$((${box_arrows[$s]:-0} + 1))
+    [[ -z "$s" || "${kind[$s]:-}" != box ]] || box_arrows[$s]=$((${box_arrows[$s]:-0} + 1))
     if [[ -z "$s" || -z "$t" ]]; then
       errors+=("an arrow (${id}) isn't attached at both ends: drag its ends onto shapes")
       continue

@@ -113,6 +113,14 @@ edit_drawing() {
   [[ "$output" == "!!   an arrow (e7) isn't attached at both ends: drag its ends onto shapes" ]]
 }
 
+@test "drawing: an arrow whose start isn't attached" {
+  edit_drawing -d '//mxCell[@source="refT"]/@source'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   an arrow (e7) isn't attached at both ends: drag its ends onto shapes" ]
+  [[ "$output" != *"bad array subscript"* ]]
+}
+
 @test "drawing: a label that's no commit's subject" {
   edit_drawing -u '//mxCell[@id="c"]/@value' -v x
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
