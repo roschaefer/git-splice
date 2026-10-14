@@ -85,7 +85,10 @@ splice: clone vendor/pkg-b from submodule at 9b3cb02
 
 The commit has to be on a branch upstream, so it's there for everyone
 after the switch. A checkout of the submodule must be at it, without
-changes, or `clone` refuses. Settings in `.gitmodules` other than `path`
+changes, or `clone` refuses. It finds those changes with `git status`,
+which doesn't see the ones hidden by `git update-index --assume-unchanged`
+or `--skip-worktree`: an edited file keeps its edit, but a deleted one
+comes back. Clear these flags before converting. Settings in `.gitmodules` other than `path`
 and `url` have no equivalent and are dropped, with a warning: a splice
 syncs with the upstream branch named like the monorepo's current branch,
 not with `submodule.<name>.branch`. Other branches still have the

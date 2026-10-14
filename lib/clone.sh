@@ -29,7 +29,10 @@ files of the commit the submodule points to. One commit replaces the
 submodule with the folder, and removes it from .gitmodules (the file too,
 once empty). The commit must be on a branch upstream, and a checkout of
 the submodule must be at that commit without changes; clone refuses
-otherwise. Files Git ignores in the checkout stay, and its repository
+otherwise. It asks git status for those changes, so it can't see the ones
+hidden by 'git update-index --assume-unchanged' or '--skip-worktree': an
+edited file keeps its edit, but a deleted one comes back. Clear these
+flags first. Files Git ignores in the checkout stay, and its repository
 stays in .git/modules/. Settings in .gitmodules other than path and url
 are dropped: a splice syncs with the upstream branch named like the
 current branch, not with submodule.<name>.branch.
@@ -231,7 +234,8 @@ refuse_lossy_submodule_conversion() {
   local path="$1" commit="$2"
   git diff --cached --quiet ||
     die "$path: there are staged changes -- commit or unstage them first, the conversion commits only its own"
-  if [[ -e .gitmodules || -L .gitmodules ]] &&
+  # HEAD has a .gitmodules: it names the submodule.
+  if [[ ! -e .gitmodules && ! -L .gitmodules ]] ||
     [[ "$(git hash-object -- .gitmodules)" != "$(git rev-parse HEAD:.gitmodules)" ]]; then
     die "$path: .gitmodules has uncommitted changes -- commit or discard them first"
   fi

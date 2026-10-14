@@ -162,6 +162,15 @@ add_submodule() {
   [ "$(git status --porcelain)" = " M vendor/a/file.txt" ]
 }
 
+@test "clone --from-submodule: a deletion behind assume-unchanged comes back, as the help says" {
+  add_submodule
+  git -C vendor/a update-index --assume-unchanged file.txt
+  rm vendor/a/file.txt
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = seed ]
+}
+
 @test "clone --from-submodule: refuses an ignored .splice in the checkout" {
   add_submodule
   echo ".splice" >"$BATS_TEST_TMPDIR/exclude"
@@ -296,6 +305,18 @@ add_submodule() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: .gitmodules has uncommitted changes"* ]]
   [ "$(tail -1 .gitmodules)" = "# my notes" ]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+}
+
+@test "clone --from-submodule: refuses a .gitmodules deleted but not committed, when other submodules stay in it" {
+  add_submodule
+  git -c protocol.file.allow=always submodule add -q "$upstream" vendor/b
+  git commit -q -m "add vendor/b as a submodule"
+  rm .gitmodules
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: .gitmodules has uncommitted changes"* ]]
+  [ ! -e .gitmodules ]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
 }
 
