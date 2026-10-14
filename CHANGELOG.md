@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/roschaefer/git-splice/compare/v0.4.0...v0.5.0) (2026-10-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **boundary:** print the commit the rebuild starts from, and draw R after a pull ([#136](https://github.com/roschaefer/git-splice/issues/136))
+
+### Features
+
+* **boundary:** print the commit the rebuild starts from, and draw R after a pull ([#136](https://github.com/roschaefer/git-splice/issues/136)) ([081a8d6](https://github.com/roschaefer/git-splice/commit/081a8d6fea5e548378a292a7abe8f46c1bf811d9))
+
 ## [0.4.0](https://github.com/roschaefer/git-splice/compare/v0.3.0...v0.4.0) (2026-10-14)
 
 
