@@ -62,7 +62,7 @@ $ git log -1 --format=%s "$(git splice boundary vendor/a)"
 add vendor/a
 ```
 
-The commits after B are the ones a push sends:
+The rebuild copies the commits after B:
 
 ```scrut
 $ git log --format=%s "$(git splice boundary vendor/a)..HEAD" -- vendor/a

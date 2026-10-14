@@ -347,7 +347,7 @@ it last synced with. If nothing changed since, that's the synced commit
 itself. The rebuild is deterministic, so a later push sees what was
 pushed of it as already upstream.
 
-Writes nothing: no ref, no monorepo commit. Purely local, but the synced
+Writes no ref and no monorepo commit. Purely local, but the synced
 commit must have been fetched.
 
 Push it to an upstream branch other than the one named like the current
