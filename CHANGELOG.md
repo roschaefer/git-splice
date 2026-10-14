@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/roschaefer/git-splice/compare/v0.3.0...v0.4.0) (2026-10-14)
+
+
+### Features
+
+* **push:** --force --rebuilt-commit may edit commits before the synced commit ([#132](https://github.com/roschaefer/git-splice/issues/132)) ([1ae8552](https://github.com/roschaefer/git-splice/commit/1ae8552291f688f14dfa2cd9179b15084e494ef2)), closes [#131](https://github.com/roschaefer/git-splice/issues/131)
+* **push:** --rebuilt-commit, to push a rebuild whose history was edited ([#105](https://github.com/roschaefer/git-splice/issues/105)) ([87b4e0d](https://github.com/roschaefer/git-splice/commit/87b4e0d6f23ad9d21ea80cb94200f636dafb1c8f))
+
 ## [0.3.0](https://github.com/roschaefer/git-splice/compare/v0.2.0...v0.3.0) (2026-10-12)
 
 
