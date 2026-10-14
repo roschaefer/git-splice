@@ -10,10 +10,12 @@
 #     label with a trailing + is the rebuild's copy of the commit without
 #     it: the same message, author and dates, in R's history.
 #   - An arrow between two commits points from a parent to its child.
-#   - A box labelled H, B, U, S, T or R points at the commit that letter
-#     names (test/concepts/sync-model/README.md).
-#   - A frame labelled "X in <path>/.splice" holds the commit whose
-#     .splice records X.
+#   - A box points at the commit its label names: H, B, U, S, T or R
+#     (test/concepts/sync-model/README.md), or U(x), the commit drawn
+#     commit x's .splice records. Several names are joined by " = ", e.g.
+#     "S = U(a)": each must name that commit.
+#   - A frame labelled "x:<path>/.splice", Git's name for that file in
+#     commit x, holds commit x, and usually the box U(x).
 #   - Dashed commits and arrows into them exist only as the rebuild: in
 #     R's history, but not in T's.
 #
@@ -28,7 +30,10 @@ check_drawing() {
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=()
   local -a errors=() commits=() edges=() boxes=() frames=()
-  local arg id k v cells
+  local -A id_of_label=()
+  local arg id k v cells term named
+  local name='([HBUSTR]|U\([^()]+\))'
+  local box_label="^$name( = $name)*\$"
 
   for arg in "$@"; do
     rev_of[${arg%%=*}]="${arg#*=}"
@@ -59,10 +64,10 @@ check_drawing() {
     if [[ "$c_kind" == *e1 ]]; then
       kind[$c_id]=edge
       edges+=("$c_id")
-    elif [[ "$c_value" =~ ^[A-Z]\ in\ .*/\.splice$ ]]; then
+    elif [[ "$c_value" =~ ^[^\ :]+:.*/\.splice$ ]]; then
       kind[$c_id]=frame
       frames+=("$c_id")
-    elif [[ "$c_value" =~ ^[HBUSTR]$ ]]; then
+    elif [[ "$c_value" =~ $box_label ]]; then
       kind[$c_id]=box
       boxes+=("$c_id")
     elif [[ "$c_style" == ellipse* || "$c_style" == *";ellipse"* ]]; then
@@ -118,6 +123,7 @@ check_drawing() {
     fi
     commit_of[$id]="$hash"
     label_of[$hash]="$label"
+    id_of_label[$label]="$id"
   done
 
   # A commit exists only as the rebuild if R has it and T doesn't.
@@ -146,16 +152,30 @@ check_drawing() {
       continue
     fi
     if [[ "${kind[$s]:-}" == box ]]; then
-      k="${value[$s]}"
       if [[ "${kind[$t]:-}" != commit ]]; then
-        errors+=("$k points at something other than a commit")
-      elif [[ -z "${truth[$k]}" ]]; then
-        errors+=("$k points at ${value[$t]}, but there's no $k")
-      elif [[ "${commit_of[$t]:-}" != "${truth[$k]}" ]]; then
-        label="${label_of[${truth[$k]}]:-}"
-        [[ -n "$label" ]] || label="${truth[$k]:0:7}, which isn't drawn"
-        errors+=("$k points at ${value[$t]}, the code says $label")
+        errors+=("${value[$s]} points at something other than a commit")
+        continue
       fi
+      while IFS= read -r term; do
+        named=""
+        if [[ "$term" == U\(*\) ]]; then
+          k="${term#U(}" k="${k%)}"
+          if [[ -z "${id_of_label[$k]:-}" || -z "${commit_of[${id_of_label[$k]}]:-}" ]]; then
+            errors+=("$term points at ${value[$t]}, but no commit $k is drawn")
+            continue
+          fi
+          named="$(git config --blob "${commit_of[${id_of_label[$k]}]}:$path/.splice" splice.commit 2>/dev/null)"
+        else
+          named="${truth[$term]}"
+        fi
+        if [[ -z "$named" ]]; then
+          errors+=("$term points at ${value[$t]}, but there's no $term")
+        elif [[ "${commit_of[$t]:-}" != "$named" ]]; then
+          label="${label_of[$named]:-}"
+          [[ -n "$label" ]] || label="${named:0:7}, which isn't drawn"
+          errors+=("$term points at ${value[$t]}, the code says $label")
+        fi
+      done < <(sed 's/ = /\n/g' <<<"${value[$s]}")
       continue
     fi
     [[ "${kind[$s]:-}" == commit && "${kind[$t]:-}" == commit ]] || continue
@@ -181,7 +201,7 @@ check_drawing() {
     done
   done
 
-  # Frames: the commit inside records the letter in its .splice.
+  # Frames: "x:<path>/.splice" holds commit x.
   absolute() {
     local cell="$1" x=0 y=0
     while [[ -n "$cell" && "$cell" != 1 && -n "${gx[$cell]+set}" ]]; do
@@ -191,9 +211,9 @@ check_drawing() {
     done
     printf '%s %s\n' "$x" "$y"
   }
-  local f fx fy cx cy inside recorded
+  local f fx fy cx cy inside
   for f in "${frames[@]}"; do
-    k="${value[$f]%% *}"
+    k="${value[$f]%%:*}"
     read -r fx fy < <(absolute "$f")
     inside=()
     for id in "${commits[@]}"; do
@@ -207,10 +227,8 @@ check_drawing() {
       continue
     fi
     id="${inside[0]}"
-    [[ -n "${commit_of[$id]:-}" ]] || continue
-    recorded="$(git config --blob "${commit_of[$id]}:$path/.splice" splice.commit 2>/dev/null)"
-    [[ "$recorded" == "${truth[$k]}" ]] ||
-      errors+=("the frame \"${value[$f]}\" holds ${value[$id]}, whose .splice records ${label_of[$recorded]:-${recorded:0:7}}, but $k is ${label_of[${truth[$k]}]:-${truth[$k]:0:7}}")
+    [[ "${value[$id]}" == "$k" ]] ||
+      errors+=("the frame \"${value[$f]}\" holds ${value[$id]}, not $k")
   done
 
   if [[ ${#errors[@]} -gt 0 ]]; then

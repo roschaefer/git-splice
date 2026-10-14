@@ -7,7 +7,7 @@ named as in the drawing:
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of U](before-pull.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of k, which is U, S and U(a)](before-pull.drawio.svg)
 
 </div>
 

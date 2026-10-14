@@ -64,11 +64,25 @@ edit_drawing() {
   [ "${lines[1]}" = "!!   no arrow c -> d, though c is a parent of d" ]
 }
 
-@test "drawing: a frame around a commit that records something else" {
-  edit_drawing -u '//mxCell[@id="fu"]/@value' -v 'S in path/.splice'
+@test "drawing: a frame named after another commit than the one it holds" {
+  edit_drawing -u '//mxCell[@id="fu"]/@value' -v 'd:path/.splice'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = '!!   the frame "S in path/.splice" holds e, whose .splice records n, but S is k' ]
+  [ "$output" = '!!   the frame "d:path/.splice" holds e, not d' ]
+}
+
+@test "drawing: a box U(X) on a commit X's .splice doesn't record" {
+  edit_drawing -u '//mxCell[@id="refU"]/@value' -v 'U = U(a)'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(a) points at n, the code says k" ]
+}
+
+@test "drawing: a box U(X) for a commit that isn't drawn" {
+  edit_drawing -u '//mxCell[@id="refU"]/@value' -v 'U = U(z)'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(z) points at n, but no commit z is drawn" ]
 }
 
 @test "drawing: an arrow not attached to a shape" {

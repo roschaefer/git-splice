@@ -41,16 +41,18 @@ without `.splice`, the same author, dates and message, on top of U.
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of U](../../scenarios/sync-model/before-pull.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of k, which is U, S and U(a)](../../scenarios/sync-model/before-pull.drawio.svg)
 
 </div>
 
-Circles are commits, boxes point at them, newest on top. In the
-monorepo, a to d, H is `HEAD`, and B is a: the commit that wrote U into
-`path/.splice`, with U as its folder. b and d change the folder, c
-changes only other files.
-In the upstream, U is k, and so is S, the commit B records. T has moved
-on to n.
+Circles are commits, boxes point at them, newest on top. A frame is
+`path/.splice` in the commit it holds, named as Git names that file,
+`a:path/.splice`, and the box next to the commit points at what the file
+records: U(a). In the monorepo, a to d, H is `HEAD`, and B is a: the
+commit that wrote k into `path/.splice`, with k as its folder. b and d
+change the folder, c changes only other files.
+In the upstream, U(a) is k. It's S, since a is B, and it's U, since no
+commit after a changed `.splice`. T has moved on to n.
 
 The rebuild copies the commits in `B..H`, b to d, on top of S. c didn't
 touch `path/`, so it's skipped, and b and d become b+ and d+, dashed
@@ -59,12 +61,13 @@ copied, since its folder is S already.
 
 <div align="center">
 
-![The same graphs after a pull: the pull commit e records n as U, B stays at a with k as S, and R is e+, a merge of the rebuilt d+ and n](../../scenarios/sync-model/after-pull/after-pull.drawio.svg)
+![The same graphs after a pull: the pull commit e records n, so U is U(e), n; B stays at a, and S is U(a), k; R is e+, a merge of the rebuilt d+ and n](../../scenarios/sync-model/after-pull/after-pull.drawio.svg)
 
 </div>
 
 The same splice after `git splice pull`. The pull commit e merged T into
-the folder and wrote n into `path/.splice`: U is n now. But b and d were
+the folder and wrote n into `path/.splice`: U(e) is n, and since e is H,
+so is U. But b and d were
 never pushed, so the upstream still lacks their changes, and e's folder
 isn't n. If the rebuild started at e, b and d would reach the upstream as
 one lump, under e's message. So B stays a, the newest commit that changed
