@@ -103,28 +103,15 @@ merge_one() {
 # an ordinary push, T is the rebuild: nothing to record, unless --bump
 # asks for it. `verb` as for merge_one.
 record_equal_tree() {
-  local path="$1" verb="$2" target rebuilt
+  local path="$1" verb="$2" target
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
-  if [[ "$target" == "$SPLICE_SYNCED" ]]; then
+  if [[ "$(equal_tree_outcome "$path" "$target")" != record ]]; then
     if [[ -n "${MERGE_BUMP:-}" ]]; then
       bump_synced "$path"
       return
     fi
     log_ok "$path: nothing to $verb"
     return 0
-  fi
-  # Without the synced commit there's no rebuild to compare with, and the
-  # folder matches T: recording it is all that's left.
-  if [[ -z "$SPLICE_SYNCED" ]] || git cat-file -e "$SPLICE_SYNCED^{commit}" 2>/dev/null; then
-    rebuilt="$(rebuild_splice "$path" HEAD)"
-    if [[ -n "$rebuilt" ]] && git merge-base --is-ancestor "$target" "$rebuilt"; then
-      if [[ -n "${MERGE_BUMP:-}" ]]; then
-        bump_synced "$path"
-        return
-      fi
-      log_ok "$path: nothing to $verb"
-      return 0
-    fi
   fi
   local folder base_blob new_blob
   folder="$(git rev-parse "$target^{tree}")"
@@ -136,6 +123,40 @@ record_equal_tree() {
     return 1
   fi
   log_ok "$path: recorded ${target:0:7} as the synced commit -- the folder already has its files"
+}
+
+# Prints what a pull does with upstream commit <target> for splice <path>
+# whose folder in HEAD has <target>'s files -- record_equal_tree's choice:
+#   record  records it as the synced commit: it isn't part of the rebuild,
+#           or there's no rebuild to compare with, without the synced
+#           commit here
+#   bump    only --bump records it: it's part of the rebuild, after the
+#           synced commit
+#   keep    nothing records it: it's the synced commit or older
+# push --rebuilt-commit refuses a commit no pull would record.
+equal_tree_outcome() {
+  local path="$1" target="$2" synced rebuilt
+  synced="$(splice_config "$path" commit)"
+  if [[ -z "$synced" ]] || git cat-file -e "$synced^{commit}" 2>/dev/null; then
+    rebuilt="$(rebuild_splice "$path" HEAD)"
+    if [[ -n "$rebuilt" ]] && git merge-base --is-ancestor "$target" "$rebuilt"; then
+      if newer_than_synced "$synced" "$target"; then
+        echo bump
+      else
+        echo keep
+      fi
+      return
+    fi
+  fi
+  echo record
+}
+
+# Succeeds if upstream commit <target> is newer than synced commit
+# <synced>, or there's no synced commit: the only ones --bump moves to.
+newer_than_synced() {
+  local synced="$1" target="$2"
+  [[ -z "$synced" ]] && return 0
+  [[ "$target" != "$synced" ]] && git merge-base --is-ancestor "$synced" "$target"
 }
 
 # For --bump: records the upstream branch T as splice <path>'s synced
@@ -151,7 +172,7 @@ bump_synced() {
     log_ok "$path: nothing to bump -- already synced at ${target:0:7}"
     return 0
   fi
-  if [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target"; then
+  if ! newer_than_synced "$SPLICE_SYNCED" "$target"; then
     log_ok "$path: nothing to bump -- the fetched '$SPLICE_UPSTREAM_LABEL' is older than the synced commit"
     return 0
   fi

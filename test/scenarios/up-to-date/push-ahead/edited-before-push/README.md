@@ -23,15 +23,21 @@ The recipe:
    U. Everything else about the commit is up to you: see
    [What push checks](#what-push-checks).
 
+   Commits up to U are on the upstream already. Editing those rewrites
+   published history, so the push needs `--force` as well, which drops
+   the check for U.
+
    Or push with plain Git, right from the worktree where you edited the
    commits: `git push <url> HEAD:<branch>`, with the upstream's URL from
    the splice's `.splice` file, e.g.
    `git config --blob HEAD:vendor/a/.splice upstream.origin.url` in the
    monorepo. Then nothing checks the commit, and `refs/splices` learns
    about it with the pull in step 4.
-4. **`git splice pull`**, before the next change to the splice. The
-   folder has the pushed commit's files, so the pull records it as the
-   synced commit. A change before the pull publishes the original commit
+4. **`git splice pull --bump`**, before the next change to the splice.
+   The folder has the pushed commit's files, so the pull records it as
+   the synced commit. A plain pull does that too, unless the rebuild
+   already contains the pushed commit, e.g. after dropping a commit and
+   its revert. A change before the pull publishes the original commit
    after all: [change-before-the-pull](change-before-the-pull.md).
 
 ## What push checks
@@ -42,7 +48,15 @@ a slip while editing would get wrong:
 
 - **Its files are the folder's.** A file changed in the worktree would
   never reach the monorepo, and the next pull would merge it back in.
-- **It contains U,** the merge base the next pull uses.
+- **It contains U,** the merge base the next pull uses -- unless
+  `--force` is given, which may replace U and the commits before it, or
+  the whole history: the pull right after the push records the commit
+  as the new U all the same.
+- **A pull can record it.** A commit of R's history that isn't newer
+  than U -- U itself, one before it, or one from a side branch of an
+  earlier pull, e.g. after dropping commits that cancel each other out
+  -- is one no pull records, so the next push would publish the dropped
+  commits again. R itself needs no record.
 
 The rest of its history goes upstream as it is, as with `git push`: its
 parents, and the files of every commit before it. A merge that keeps
@@ -84,6 +98,7 @@ file.txt
 ```scrut
 $ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuilt-commit edited vendor/a
 ok   vendor/a: pushed ce80186 to main
+??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ce80186 as the synced commit
 ```
 
 ### Pull
@@ -93,7 +108,7 @@ commit, not the edited one. The pull records the edited commit, in a
 commit that changes only `.splice`:
 
 ```scrut
-$ git splice pull vendor/a
+$ git splice pull --bump vendor/a
 ok   vendor/a fetched
 ok   vendor/a: recorded ce80186 as the synced commit -- the folder already has its files
 ```
