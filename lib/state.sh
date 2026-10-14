@@ -87,6 +87,20 @@ classify_splice() {
   fi
 }
 
+# For a splice whose upstream lacks the current branch: sets
+# SPLICE_REBUILT, the rebuild R (empty: no content), and SPLICE_NEW_COMMITS,
+# how many of R's commits no fetched upstream branch has -- the ones the
+# push that creates the branch would publish. Commits that came from the
+# monorepo's base branch count too: upstream may never have taken them.
+# Returns 1 if the rebuild or the count fails.
+count_new_commits() {
+  local path="$1"
+  SPLICE_NEW_COMMITS=0
+  SPLICE_REBUILT="$(splice_rebuild "$path")" || return 1
+  [[ -n "$SPLICE_REBUILT" ]] || return 0
+  SPLICE_NEW_COMMITS="$(git rev-list --count "$SPLICE_REBUILT" --not --glob="$(splice_refs_prefix "$path")*")"
+}
+
 # Prints a tree: HEAD's, with folder <path> replaced by <folder-tree>
 # (nothing: no folder) plus state file blob <blob> (nothing: none). Uses a
 # temporary index, so neither the worktree nor the real index changes.

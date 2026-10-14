@@ -1,7 +1,7 @@
 # push
 
-`git splice push [--upstream <name>] [--base <branch>] [--force] (<path>… | --all)`  
-`git splice push [--upstream <name>] [--base <branch>] [--force] --rebuilt-commit <commit> <path>`
+`git splice push [--upstream <name>] [--force] (<path>… | --all)`  
+`git splice push [--upstream <name>] [--force] --rebuilt-commit <commit> <path>`
 
 Rebuilds the commits that changed each splice since its [boundary](boundary.md),
 without `.splice`, and pushes them to the upstream branch named like

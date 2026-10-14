@@ -258,13 +258,14 @@ recommended to make multiple checkouts of a superproject."
 ([`git worktree`, BUGS](https://git-scm.com/docs/git-worktree#_bugs))
 
 A splice lives in the worktree. A new worktree has it, with nothing to
-initialize:
+initialize. The fix from `main` isn't upstream yet, so a push from
+`feature` would bring it along:
 
 ```scrut
 $ cd ../splice-monorepo && git worktree add -q ../splice-feature -b feature && cd ../splice-feature && git splice status
-On branch feature (base: main)
+On branch feature
 
-  unchanged, no upstream branch  vendor/lib
+  new, ahead 1  vendor/lib  push creates the branch
 ```
 
 What `git-splice` keeps outside the worktree, the fetched upstream
@@ -274,7 +275,7 @@ worktree. A push from one worktree is seen by the others:
 
 ```scrut
 $ echo "fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 2" && git splice push vendor/lib
-??   vendor/lib: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+??   vendor/lib: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/lib: pushed 6b3df25 to feature
 ```
 

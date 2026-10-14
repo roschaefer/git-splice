@@ -90,7 +90,7 @@ fetch_new_upstream() {
 
 cmd_clone() {
   parse_args usage_clone "--merge --from-submodule" "$@"
-  [[ -z "$ALL_ARG" && -z "$BASE_ARG" ]] || die "clone takes no --all or --base"
+  [[ -z "$ALL_ARG" ]] || die "clone takes no --all"
   if has_flag --from-submodule; then
     has_flag --merge && die "--from-submodule takes no --merge: the folder gets the submodule's files"
     if [[ ${#PATH_ARGS[@]} -ne 1 ]]; then

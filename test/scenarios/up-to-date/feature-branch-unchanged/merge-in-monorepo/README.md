@@ -67,7 +67,7 @@ $ git splice log
 
 ```scrut
 $ git splice push vendor/a
-??   vendor/a: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+??   vendor/a: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/a: pushed 6648f65 to feature
 ```
 

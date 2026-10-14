@@ -26,12 +26,12 @@ $ build_scenario scenario_feature_branch_unchanged
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
   unchanged, no upstream branch  vendor/a
 ```
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: nothing to push (upstream has no 'feature' branch; unchanged since 'main')
+ok   vendor/a: nothing to push (upstream has no 'feature' branch, but has every commit)
 ```

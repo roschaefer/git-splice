@@ -64,7 +64,7 @@ The splice rebuild is linear even after repeated merges:
 
 ```scrut
 $ git splice push vendor/a
-??   vendor/a: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+??   vendor/a: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/a: pushed d3cbcfa to feature
 ```
 

@@ -34,7 +34,7 @@ ok   lib/a: initialized -- 'git splice push lib/a' publishes it
 $ git splice status
 On branch main
 
-  ?? new, ahead 1  lib/a  push creates the branch
+  new, ahead 1  lib/a  push creates the branch
 ```
 
 ```scrut

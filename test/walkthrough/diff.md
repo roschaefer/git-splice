@@ -1,6 +1,6 @@
 # diff
 
-`git splice diff [--upstream <name>] [--base <branch>] [--stat] [path…]`
+`git splice diff [--upstream <name>] [--stat] [path…]`
 
 Shows what `push` would send: the changes from the fetched upstream
 branch, T, to the rebuild, R, with paths as the upstream sees them.

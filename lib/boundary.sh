@@ -29,7 +29,6 @@ EOF
 cmd_boundary() {
   parse_args usage_boundary "" "$@"
   [[ -z "$ALL_ARG" ]] || die "boundary takes no --all"
-  [[ -z "$BASE_ARG" ]] || die "boundary takes no --base"
   [[ ${#PATH_ARGS[@]} -eq 1 ]] || {
     usage_boundary >&2
     exit 1

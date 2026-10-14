@@ -1,6 +1,6 @@
 # status
 
-`git splice status [--upstream <name>] [--base <branch>] [path…]`
+`git splice status [--upstream <name>] [path…]`
 
 Lists every splice: a folder with a
 [`.splice` file](../concepts/splice-file/README.md). Each one gets its sync
@@ -40,7 +40,7 @@ as in [this monorepo with many splices](../scenarios/many-splices/README.md).
 | `behind N` | Only the upstream changed. ([example](../scenarios/up-to-date/pull-ahead/README.md)) | Run `git splice pull`. |
 | `ahead N, behind M` | Both sides changed since they last matched. ([example](../scenarios/up-to-date/push-ahead/diverged-common-ancestor/README.md)) | Run `git splice pull`, then `push`. On a conflict, resolve it and `git commit` first. |
 | `!! unrelated history` | Both sides changed and share no history, e.g. the upstream was rebuilt from scratch. ([example](../scenarios/up-to-date/push-ahead/diverged-unrelated-history/README.md)) | Pick a side. `merge`, `pull` and `push` refuse to guess and print the commands to keep either side, or both. |
-| `unchanged, no upstream branch` or `new, ahead N` | The upstream has no branch with your branch's name. The splice is unchanged since the base branch, or changed on this branch. ([unchanged](../scenarios/up-to-date/feature-branch-unchanged/README.md), [changed](../scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/README.md)) | Run `git splice push`. It creates the branch only if the splice changed. |
+| `unchanged, no upstream branch` or `new, ahead N` | The upstream has no branch with your branch's name. It has every commit of the splice already, or lacks N of them -- also ones from the branch yours was cut from. ([unchanged](../scenarios/up-to-date/feature-branch-unchanged/README.md), [changed](../scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/README.md), [from `main`](../scenarios/up-to-date/push-ahead/feature-branch-from-main/README.md)) | Run `git splice push`. It creates the branch only if upstream lacks commits. |
 
 What `status` compares to tell the states apart: the
 [sync model](../concepts/sync-model/README.md).

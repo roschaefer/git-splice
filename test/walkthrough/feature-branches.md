@@ -27,14 +27,13 @@ $ git switch -c feature
 Switched to a new branch 'feature'
 ```
 
-To tell whether a splice changed on `feature`, `git-splice` compares it with
-the branch `feature` was cut from: `--base`, else the monorepo's default
-branch (`origin/HEAD`, else `init.defaultBranch`; the sandbox sets the
-latter).
+For each splice, `status` counts the commits that a push creating `feature`
+upstream would publish: those that no upstream branch has yet. Right after
+switching there are none.
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
   unchanged, no upstream branch  vendor/pkg-a
   unchanged, no upstream branch  vendor/pkg-b
@@ -48,7 +47,7 @@ $ echo "a new option" >>vendor/pkg-b/file.txt && git commit -qam "pkg-b: add an 
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
   new, ahead 1                   vendor/pkg-b  push creates the branch
 
@@ -56,7 +55,7 @@ On branch feature (base: main)
 ```
 
 Without an upstream branch there's no [T](../concepts/sync-model/README.md) to
-compare R with, so `diff` compares with `main`:
+compare R with, so `diff` starts from the last commit upstream has:
 
 ```scrut
 $ git splice diff
@@ -70,19 +69,22 @@ index b041961..b509b97 100644
 +a new option
 ```
 
-`push` creates `feature` on `pkg-b`'s upstream only. `pkg-a` didn't
-change, so its upstream doesn't get an empty branch.
+`push` creates `feature` on `pkg-b`'s upstream only. `pkg-a`'s upstream
+has every commit already, so it doesn't get an empty branch. Commits that
+`feature` got from `main` would count too, if upstream lacked them: that's
+how they get upstream when it takes changes only through PRs
+([scenario](../scenarios/up-to-date/push-ahead/feature-branch-from-main/README.md)).
 
 ```scrut
 $ git splice push --all
-ok   vendor/pkg-a: nothing to push (upstream has no 'feature' branch; unchanged since 'main')
-??   vendor/pkg-b: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+ok   vendor/pkg-a: nothing to push (upstream has no 'feature' branch, but has every commit)
+??   vendor/pkg-b: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/pkg-b: pushed 5023101 to feature
 ```
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
   up to date                     vendor/pkg-b
   unchanged, no upstream branch  vendor/pkg-a

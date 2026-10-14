@@ -103,11 +103,10 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **sync state** | How R and T relate: `up to date`, `push`, `pull`, `diverged` and so on. |
 | **default branch** | A repository's main branch (`HEAD` on the remote). The monorepo's default branch corresponds to upstream's. |
 | **nested splice** | A splice below another one's folder. Commands that change things go top-down (`merge`, `pull`: the splice above first) or bottom-up (`push`: the splice below first). |
-| **base** | The branch the current branch was cut from. Defaults to the default branch; `--base` overrides it for stacked branches. |
 
 "Default branch" belongs to a repository and is stored in `.splice` when
-needed. "Base" belongs to one command run. Neither is called "fallback",
-which would describe only one of their uses.
+needed. It isn't called "fallback", which would describe only one of its
+uses.
 
 ## Architecture
 
@@ -144,7 +143,7 @@ layered, each using only the ones above it:
 
 | File | Responsibility |
 |---|---|
-| `lib/common.sh` | Discovery (`discover_splices`), argument parsing and path selection, reading and writing `.splice` (`splice_config`, `state_blob`), upstream keys (`upstream_key`, `create_upstream_key`), branch mapping, base branch resolution. |
+| `lib/common.sh` | Discovery (`discover_splices`), argument parsing and path selection, reading and writing `.splice` (`splice_config`, `state_blob`), upstream keys (`upstream_key`, `create_upstream_key`), branch mapping. |
 | `lib/rebuild.sh` | The push rebuild: `splice_last_sync`, `rebuild_splice`, `splice_start` (B) and the commit loop `rebuild_walk`. |
 | `lib/state.sh` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone --merge`. |
 | `lib/pager.sh` | Paging for `diff` and `log`. |
@@ -489,7 +488,8 @@ fetched.
 ### `diff` and `log`
 
 - **`diff`** shows the file changes a push would send: `git diff T R`, or,
-  for a missing upstream branch, from the merge base with the base branch.
+  for a missing upstream branch, from the last commit on R's first-parent
+  history that upstream has.
 - **`log`** shows commits in both directions:
 
   ```
@@ -511,8 +511,12 @@ fetched.
   (the upstream's `default-branch` in `.splice` if the names differ). Every other branch
   keeps its name on both sides.
 - The monorepo's default branch is `origin/HEAD`, else
-  `init.defaultBranch`. If neither works, commands that need it ask for
-  `--base` instead of guessing.
+  `init.defaultBranch`.
+- If upstream has no branch named like the current one, `push` creates it
+  only if that publishes commits no upstream branch has, so a feature
+  branch doesn't spawn empty branches upstream. Which branch it was cut
+  from doesn't matter: Git doesn't record it, and commits from there that
+  upstream lacks have to get there somehow, e.g. through a PR.
 
 ## Limits
 
@@ -590,8 +594,8 @@ setup() {
 ```
 
 - **Name the behaviour, not the steps:** `<command or function>: <what it
-  does>`, e.g. `"changes_vs_base: a change to .splice alone doesn't
-  count"`. The list of test names should read as a specification.
+  does>`, e.g. `"status: a quiet splice with uncommitted
+  changes moves up"`. The list of test names should read as a specification.
 - **Start from a scenario** if one fits, so the test and the README show
   the same state. Otherwise build the state inline from the helpers in
   `test/helpers/fixtures.bash`: `make_bare_repo`, `seed_bare_repo`,

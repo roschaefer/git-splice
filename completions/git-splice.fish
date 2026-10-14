@@ -67,7 +67,6 @@ complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -l version
 complete -c git-splice -n "__fish_seen_subcommand_from $commands" -s h -l help -d 'show usage'
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull push status diff log fetch" -a "(__git_splice_paths)" -d splice
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull push" -l all -d 'every splice'
-complete -c git-splice -n "__fish_seen_subcommand_from push status diff" -l base -x -a $branches -d 'monorepo base branch to compare against'
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l force -d "overwrite upstream's branch"
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l bump -d 'move the synced commit up to the upstream branch'
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l rebuilt-commit -x -a $branches -d 'push this commit instead of the rebuild'

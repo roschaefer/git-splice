@@ -119,7 +119,6 @@ cmd_log() {
   parse_args usage_log "--graph --upstream" "$@"
   LOG_GRAPH=""
   has_flag --graph && LOG_GRAPH=1
-  [[ -z "$BASE_ARG" ]] || die "log takes no --base"
   cd_to_repo_root
   require_head_commit
   discover_splices

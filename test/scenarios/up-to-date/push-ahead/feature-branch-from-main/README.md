@@ -28,9 +28,9 @@ $ build_scenario scenario_feature_branch_from_main
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
-  unchanged, no upstream branch  vendor/a
+  new, ahead 1  vendor/a  push creates the branch
 ```
 
 ```scrut
@@ -41,16 +41,20 @@ $ git splice log
 
 ```scrut
 $ git splice diff --stat
+===  vendor/a
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
 ```
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: nothing to push (upstream has no 'feature' branch; unchanged since 'main')
+??   vendor/a: upstream has no 'feature' branch yet -- this push creates it
+ok   vendor/a: pushed e859a6b to feature
 ```
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
-  unchanged, no upstream branch  vendor/a
+  up to date  vendor/a
 ```

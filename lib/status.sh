@@ -2,7 +2,7 @@
 
 usage_status() {
   cat <<'EOF'
-usage: git splice status [--upstream <name>] [--base <branch>] [path...]
+usage: git splice status [--upstream <name>] [path...]
 
 Shows the sync state of every splice. Purely local -- run 'git splice
 fetch' first for up-to-date results. Defaults to every splice when no
@@ -16,9 +16,9 @@ Like 'git status' against a tracking branch, it counts commits: "ahead"
 is how many 'git splice push' would publish, "behind" how many 'git
 splice pull' would bring in. 'git splice diff --stat' shows the files.
 
-For a splice whose upstream has no branch named like the current one, the
-state is whether the splice changed on this branch compared with the
-monorepo's base branch (--base, else the monorepo's default branch).
+For a splice whose upstream has no branch named like the current one,
+"new" counts the commits the push that creates it would publish: those no
+upstream branch has yet. "unchanged" means there are none.
 
 Like every command, status reads splices from the last commit. It warns
 about uncommitted changes in a splice's folder, which push leaves out.
@@ -56,57 +56,23 @@ status_rank() {
 }
 
 # Sets STATUS_LABEL, STATUS_KIND and STATUS_HINT for a splice whose
-# upstream has no branch like the current one: what changed on this branch
-# compared with the base branch.
+# upstream has no branch like the current one: whether the push that
+# creates it would publish anything (see count_new_commits).
 classify_missing_branch() {
-  local path="$1" base="$2" count
-  changes_vs_base "$path" "$base"
-  case "$SPLICE_CHANGES_VS_BASE" in
-    no)
-      STATUS_KIND=unchanged STATUS_LABEL="unchanged, no upstream branch"
-      ;;
-    yes)
-      count="$(new_branch_count "$path")"
-      STATUS_KIND=new STATUS_LABEL="new, $count" STATUS_HINT="push creates the branch"
-      ;;
-    self)
-      count="$(new_branch_count "$path")"
-      STATUS_KIND=warning STATUS_LABEL="?? new, $count" STATUS_HINT="push creates the branch"
-      ;;
-    error)
-      STATUS_KIND=warning STATUS_LABEL="?? no upstream branch"
-      STATUS_HINT="could not compare with base branch '$SPLICE_BASE_BRANCH'"
-      ;;
-    unresolved)
-      STATUS_KIND=warning STATUS_LABEL="?? no upstream branch"
-      if [[ -n "$base" ]]; then
-        STATUS_HINT="base branch '$base' not found, or it shares no history"
-      else
-        STATUS_HINT="monorepo base branch unknown -- pass --base <branch>"
-      fi
-      ;;
-  esac
-}
-
-# Prints "ahead <n>" for a splice whose upstream lacks the current
-# branch: the commits the push that creates it would publish, i.e. those
-# of the rebuild on no fetched upstream branch. Prints "changed" if
-# there are none to count, e.g. right after cloning on a feature branch:
-# the push would create the branch at a commit upstream already has, or
-# if they can't be counted, e.g. because the synced commit was pruned.
-new_branch_count() {
-  local path="$1" rebuilt count
-  rebuilt="$(rebuild_splice "$path" HEAD 2>/dev/null)"
-  if [[ -z "$rebuilt" ]] || ! count="$(git rev-list --count "$rebuilt" --not --glob="$(splice_refs_prefix "$path")*")" || ((count == 0)); then
-    printf 'changed'
-    return
+  local path="$1"
+  if ! count_new_commits "$path" 2>/dev/null; then
+    STATUS_KIND=warning STATUS_LABEL="?? no upstream branch"
+    STATUS_HINT="could not count the commits upstream lacks"
+  elif ((SPLICE_NEW_COMMITS == 0)); then
+    STATUS_KIND=unchanged STATUS_LABEL="unchanged, no upstream branch"
+  else
+    STATUS_KIND=new STATUS_LABEL="new, ahead $SPLICE_NEW_COMMITS" STATUS_HINT="push creates the branch"
   fi
-  printf 'ahead %s' "$count"
 }
 
 # Classifies one splice and adds its row.
 add_status_row() {
-  local path="$1" branch="$2" base="${3:-}" counts ahead behind rc=0 column="$1" option
+  local path="$1" branch="$2" counts ahead behind rc=0 column="$1" option
   classify_splice "$path" "$branch"
   STATUS_KIND="" STATUS_LABEL="" STATUS_HINT=""
   [[ "$SPLICE_UPSTREAM_LABEL" == "$branch" ]] || column="$path -> $SPLICE_UPSTREAM_LABEL"
@@ -117,7 +83,7 @@ add_status_row() {
       STATUS_KIND=warning STATUS_LABEL="?? never fetched" STATUS_HINT="run 'git splice fetch $option$path'"
       ;;
     missing-branch)
-      classify_missing_branch "$path" "$base"
+      classify_missing_branch "$path"
       ;;
     up-to-date)
       STATUS_KIND=up-to-date STATUS_LABEL="up to date"
@@ -200,23 +166,9 @@ print_status_rows() {
   done
 }
 
-# Prints the header: the branch every splice syncs with, unless its
-# upstream names it differently, and the base branch that "unchanged" and
-# "new" compare with.
-print_status_header() {
-  local branch="$1" base="$2" base_ref base_branch
-  if base_ref="$(resolve_base_ref "$base")" && [[ "$base_ref" != "$(git symbolic-ref --quiet HEAD)" ]]; then
-    base_branch="${base_ref#refs/heads/}"
-    base_branch="${base_branch#refs/remotes/}"
-    printf 'On branch %s (base: %s)\n\n' "$branch" "$base_branch"
-  else
-    printf 'On branch %s\n\n' "$branch"
-  fi
-}
-
 cmd_status() {
   parse_args usage_status "--upstream" "$@"
-  local base="$BASE_ARG" branch path
+  local branch path
   cd_to_repo_root
   require_head_commit
   discover_splices
@@ -230,8 +182,8 @@ cmd_status() {
   require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
   STATUS_RANKS=() STATUS_LABELS=() STATUS_PATHS=() STATUS_HINTS=()
   for path in "${SELECTED_PATHS[@]}"; do
-    add_status_row "$path" "$branch" "$base"
+    add_status_row "$path" "$branch"
   done
-  print_status_header "$branch" "$base"
+  printf 'On branch %s\n\n' "$branch"
   print_status_rows
 }

@@ -74,20 +74,20 @@ complete_words() {
   run complete_words git-splice pull --b
   [ "$output" = "--bump" ]
   run complete_words git-splice push --b
-  [ "$output" = "--base" ]
+  [ -z "$output" ]
 }
 
-@test "completion: push completes branches for '--base <value>', '--base=<value>' and '--base='" {
-  run complete_words git-splice push --base ma
+@test "completion: push completes branches for '--rebuilt-commit <value>', '--rebuilt-commit=<value>' and '--rebuilt-commit='" {
+  run complete_words git-splice push --rebuilt-commit ma
   [ "$output" = "main" ]
-  run complete_words git-splice push --base = ma
+  run complete_words git-splice push --rebuilt-commit = ma
   [ "$output" = "main" ]
-  run complete_words git-splice status --base =
+  run complete_words git-splice push --rebuilt-commit =
   [ "$output" = "main" ]
 }
 
-@test "completion: push completes paths again after a '--base=<value>'" {
-  run complete_words git-splice push --base = main vend
+@test "completion: push completes paths again after a '--rebuilt-commit=<value>'" {
+  run complete_words git-splice push --rebuilt-commit = main vend
   [ "$output" = "vendor/a" ]
 }
 
@@ -96,7 +96,7 @@ complete_words() {
 @test "completion: a branch name with a command substitution is never run" {
   local name='x$(touch${IFS}pwned)'
   git update-ref "refs/heads/$name" HEAD
-  run complete_words git-splice push --base x
+  run complete_words git-splice push --rebuilt-commit x
   [ ! -e pwned ]
   # Offered shell-quoted, so running the completed line doesn't run it either.
   [ "$output" = 'x\$\(touch\$\{IFS\}pwned\)' ]
@@ -303,12 +303,6 @@ fish_complete() {
   [[ "$output" == *"--upstream"* ]]
 }
 
-@test "zsh completion: push completes branches for --base" {
-  require_shell zsh
-  run zsh_complete "git-splice push --base=ma"
-  [[ "$output" == *"main"* ]]
-}
-
 @test "zsh completion: log completes --graph" {
   require_shell zsh
   run zsh_complete "git-splice log --g"
@@ -404,12 +398,6 @@ fish_complete() {
   [[ "$output" == *"vendor/a"* ]]
 }
 
-@test "fish completion: push completes branches for --base" {
-  require_shell fish
-  run fish_complete "git-splice push --base ma"
-  [[ "$output" == *"main"* ]]
-}
-
 @test "fish completion: log completes --graph" {
   require_shell fish
   run fish_complete "git-splice log --g"
@@ -428,22 +416,22 @@ fish_complete() {
   [ "$output" = "[push][vendor/a]" ]
 }
 
-@test "interactive bash: Tab completes the branch in all three --base forms" {
+@test "interactive bash: Tab completes the branch in all three --rebuilt-commit forms" {
   require_shell zsh
-  run bash_tab_enter "git-splice push --base ma"
-  [ "$output" = "[push][--base][main]" ]
-  run bash_tab_enter "git-splice push --base=ma"
-  [ "$output" = "[push][--base=main]" ]
-  run bash_tab_enter "git-splice push --base="
-  [ "$output" = "[push][--base=main]" ]
+  run bash_tab_enter "git-splice push --rebuilt-commit ma"
+  [ "$output" = "[push][--rebuilt-commit][main]" ]
+  run bash_tab_enter "git-splice push --rebuilt-commit=ma"
+  [ "$output" = "[push][--rebuilt-commit=main]" ]
+  run bash_tab_enter "git-splice push --rebuilt-commit="
+  [ "$output" = "[push][--rebuilt-commit=main]" ]
 }
 
 @test "interactive bash: a completed branch name with a command substitution runs neither on Tab nor on Enter" {
   require_shell zsh
   git update-ref 'refs/heads/x$(touch${IFS}pwned)' HEAD
-  run bash_tab_enter "git-splice push --base x"
+  run bash_tab_enter "git-splice push --rebuilt-commit x"
   [ ! -e pwned ]
-  [ "$output" = '[push][--base][x$(touch${IFS}pwned)]' ]
+  [ "$output" = '[push][--rebuilt-commit][x$(touch${IFS}pwned)]' ]
 }
 
 @test "interactive bash: a completed directory with a command substitution isn't run" {
