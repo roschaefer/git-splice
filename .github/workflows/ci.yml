@@ -78,6 +78,7 @@ jobs:
             "github:NixOS/nixpkgs/$GIT_REV#git" \
             "nixpkgs#bats" \
             "nixpkgs#zsh" \
+            "nixpkgs#xmlstarlet" \
             --command bash -c '
               set -e
               bash_version="${BASH_VERSION%%(*}"
