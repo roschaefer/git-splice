@@ -68,13 +68,13 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 <div align="center">
 
-![Monorepo commits a to d, library commits k to n, and the rebuilt commits b+ and d+ on top of U](test/scenarios/sync-model/before-pull.drawio.svg)
+![Monorepo commits a to d, library commits k to n, and the rebuilt commits b prime and d prime on top of U](test/scenarios/sync-model/before-pull.drawio.svg)
 
 </div>
 
 `git-splice` rebuilds the monorepo's commits on top of U, with only the
-folder's changes, and skips those like c that don't touch it: b+ is b
-rebuilt, d+ is d. The result,
+folder's changes, and skips those like c that don't touch it: b' is b
+rebuilt, d' is d. The result,
 **R**, is a commit of the library, ready to send upstream as it is. R and
 **T**, where the library's branch points, relate like a branch and its
 tracking branch:
@@ -87,7 +87,7 @@ On branch main
 ```
 
 `git splice pull path` merges l, m and n in, as one ordinary monorepo
-commit. Then `git splice push path` sends b+ and d+, and the pull,
+commit. Then `git splice push path` sends b' and d', and the pull,
 rebuilt as their merge with n. Changes cross the
 splice, but commits don't: both repositories keep their own histories.
 

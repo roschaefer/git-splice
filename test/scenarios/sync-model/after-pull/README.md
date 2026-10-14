@@ -9,7 +9,7 @@ named as in the drawing there:
 
 <div align="center">
 
-![The graphs after a pull: the pull commit e records n, so U is U(e), n; B stays at a, and S is U(a), k; R is e+, a merge of the rebuilt d+ and n](after-pull.drawio.svg)
+![The graphs after a pull: the pull commit e records n, so U is U(e), n; B stays at a, and S is U(a), k; R is e prime, a merge of the rebuilt d prime and n](after-pull.drawio.svg)
 
 </div>
 
@@ -122,10 +122,10 @@ b
 
 ### R
 
-From B, the rebuild copies b and d on top of S, k, as b+ and d+, and
-skips c. Then it copies e as e+, a merge of d+ and n, with e's message.
+From B, the rebuild copies b and d on top of S, k, as b' and d', and
+skips c. Then it copies e as e', a merge of d' and n, with e's message.
 `log --graph` draws R and T down to n, where they meet. k shows up as
-b+'s parent:
+the parent of b':
 
 ```scrut
 $ git splice log --graph vendor/a
@@ -141,7 +141,7 @@ o df79a48 (T) n  (Test <test@example.com>)
 
 ### After the push
 
-The push sends b+, d+ and e+, and T moves to e+:
+The push sends b', d' and e', and T moves to e':
 
 ```scrut
 $ git splice push vendor/a
@@ -149,8 +149,8 @@ ok   vendor/a: pushed 854864a to main
 ```
 
 A pull right after it has nothing to bring in, and leaves `.splice` as it
-was. So B is still a: every rebuild still walks from a, and rebuilds b+,
-d+ and e+ with the same hashes.
+was. So B is still a: every rebuild still walks from a, and rebuilds b',
+d' and e' with the same hashes.
 
 ```scrut
 $ git splice pull vendor/a
@@ -165,7 +165,7 @@ add vendor/a
 
 ### After a bump
 
-`git splice pull --bump` records e+ as U, in a new commit:
+`git splice pull --bump` records e' as U, in a new commit:
 
 ```scrut
 $ git splice pull --bump vendor/a
@@ -173,7 +173,7 @@ ok   vendor/a fetched
 ok   vendor/a: bumped the synced commit to 854864a
 ```
 
-Its folder is e+, so it's the new B, e+ is S, and rebuilds start there:
+Its folder is e', so it's the new B, e' is S, and rebuilds start there:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"

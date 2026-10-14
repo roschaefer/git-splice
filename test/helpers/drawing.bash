@@ -7,8 +7,9 @@
 #
 #   - A circle (ellipse) is a commit. Its label is the commit's subject,
 #     looked up on the monorepo's first-parent history, then upstream. A
-#     label with a trailing + is the rebuild's copy of the commit without
-#     it: the same message, author and dates, in R's history.
+#     label with a trailing ' (b' for b) is the rebuild's copy of the
+#     commit without it: the same message, author and dates, in R's
+#     history.
 #   - An arrow between two commits points from a parent to its child.
 #   - A box points at the commit its label names: H, B, U, S, T or R
 #     (test/concepts/sync-model/README.md), or U(x), the commit drawn
@@ -102,16 +103,16 @@ check_drawing() {
   done
   for id in "${commits[@]}"; do
     label="${value[$id]}"
-    base="${label%+}"
+    base="${label%\'}"
     hash=""
     if [[ -n "${rev_of[$base]:-}" ]]; then
       hash="$(git rev-parse --verify --quiet "${rev_of[$base]}^{commit}")"
     else
       hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
-      [[ -n "$hash" || "$label" == *+ ]] ||
+      [[ -n "$hash" || "$label" == *\' ]] ||
         hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
     fi
-    if [[ -n "$hash" && "$label" == *+ ]]; then
+    if [[ -n "$hash" && "$label" == *\' ]]; then
       subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
       hash="$(git log --format='%H' "${truth[R]}" | while read -r k; do
         [[ "$k" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$k")" == "$subject" ]] && { echo "$k"; break; }

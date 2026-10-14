@@ -41,7 +41,7 @@ without `.splice`, the same author, dates and message, on top of U.
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b+ and d+ on top of k, which is U, S and U(a)](../../scenarios/sync-model/before-pull.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k, which is U, S and U(a)](../../scenarios/sync-model/before-pull.drawio.svg)
 
 </div>
 
@@ -55,13 +55,13 @@ In the upstream, U(a) is k. It's S, since a is B, and it's U, since no
 commit after a changed `.splice`. T has moved on to n.
 
 The rebuild copies the commits in `B..H`, b to d, on top of S. c didn't
-touch `path/`, so it's skipped, and b and d become b+ and d+, dashed
-because they exist only as the rebuild. A `+` marks a commit rebuilt. Their tip is R. B itself isn't
+touch `path/`, so it's skipped, and b and d become b' and d', dashed
+because they exist only as the rebuild. A prime marks a commit rebuilt, b' for b, as `git rebase`'s documentation draws a rebased commit. Their tip is R. B itself isn't
 copied, since its folder is S already.
 
 <div align="center">
 
-![The same graphs after a pull: the pull commit e records n, so U is U(e), n; B stays at a, and S is U(a), k; R is e+, a merge of the rebuilt d+ and n](../../scenarios/sync-model/after-pull/after-pull.drawio.svg)
+![The same graphs after a pull: the pull commit e records n, so U is U(e), n; B stays at a, and S is U(a), k; R is e prime, a merge of the rebuilt d prime and n](../../scenarios/sync-model/after-pull/after-pull.drawio.svg)
 
 </div>
 
@@ -74,17 +74,17 @@ one lump, under e's message. So B stays a, the newest commit that changed
 `.splice` and has the commit it recorded, k, as its folder. k is S, and
 no longer U.
 
-From B, R keeps b and d as the commits they were: b+ and d+ on S. Then
-it copies e as e+, a merge of d+ and n, as `git pull` would have: e's
-folder and message, with d+ and n as parents. Nothing points at b and d, but e is
+From B, R keeps b and d as the commits they were: b' and d' on S. Then
+it copies e as e', a merge of d' and n, as `git pull` would have: e's
+folder and message, with d' and n as parents. Nothing points at b and d, but e is
 their descendant
 ([scenario](../../scenarios/sync-model/after-pull/README.md)).
 
-A `git splice push` then sends b+, d+ and e+, and moves T to e+, a
+A `git splice push` then sends b', d' and e', and moves T to e', a
 fast-forward. U stays n, B stays a, and S stays k: a pull right after the
 push has nothing to bring in, and only [`git splice pull --bump`](../../walkthrough/bump.md)
-records e+ as U, in a commit whose folder is e+. So that commit is the
-new B, and e+ is S as well as U.
+records e' as U, in a commit whose folder is e'. So that commit is the
+new B, and e' is S as well as U.
 
 ### Pulls in between
 
@@ -95,7 +95,7 @@ rebuild has so far, *before*, and the commit it recorded, U(X):
 
 | *before* and U(X) | The copy's parents | When |
 |---|---|---|
-| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as e and e+ above ([scenario](../../scenarios/sync-model/after-pull/README.md)) |
+| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as e and e' above ([scenario](../../scenarios/sync-model/after-pull/README.md)) |
 | U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
 | *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
 

@@ -32,28 +32,28 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@source="refR"]/@target' -v d_
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   R points at d+, the code says e+" ]
+  [ "$output" = "!!   R points at d', the code says e'" ]
 }
 
 @test "drawing: a solid arrow into a rebuilt commit is to be dashed" {
   edit_drawing -u '//mxCell[@source="n" and @target="e_"]/@style' -v 'endArrow=block;endFill=1;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   n -> e+ is solid, but e+ exists only as the rebuild: dash it" ]
+  [ "$output" = "!!   n -> e' is solid, but e' exists only as the rebuild: dash it" ]
 }
 
 @test "drawing: a solid rebuilt commit is to be dashed" {
   edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   b+ is solid, but only the rebuild has it: dash it" ]
+  [ "$output" = "!!   b' is solid, but only the rebuild has it: dash it" ]
 }
 
 @test "drawing: a missing parent arrow is named" {
   edit_drawing -d '//mxCell[@source="d_" and @target="e_"]'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   no arrow d+ -> e+, though d+ is a parent of e+" ]
+  [ "$output" = "!!   no arrow d' -> e', though d' is a parent of e'" ]
 }
 
 @test "drawing: an arrow from a commit that isn't the parent" {
@@ -89,7 +89,7 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@source="refR"]/@source' -v e_ -u '//mxCell[@source="e_" and @target="e_"]/@target' -v refR
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   an arrow from e+ points at the box R: draw it from the box to its commit" ]
+  [ "$output" = "!!   an arrow from e' points at the box R: draw it from the box to its commit" ]
 }
 
 @test "drawing: U is what HEAD records, whatever the working tree's .splice says" {
