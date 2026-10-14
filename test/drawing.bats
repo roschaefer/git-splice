@@ -89,13 +89,21 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@source="refR"]/@source' -v e_ -u '//mxCell[@source="e_" and @target="e_"]/@target' -v refR
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   an arrow from e' points at the box R: draw it from the box to its commit" ]
+  [ "${lines[0]}" = "!!   an arrow from e' points at the box R: draw it from the box to its commit" ]
+  [ "${lines[1]}" = "!!   R has 0 arrows, not one: draw one from the box to its commit" ]
 }
 
 @test "drawing: U(H) is what HEAD records, whatever the working tree's .splice says" {
   git config --file vendor/a/.splice splice.commit "$(git rev-parse HEAD)"
   run check_drawing "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
+}
+
+@test "drawing: a box without an arrow points nowhere" {
+  edit_drawing -d '//mxCell[@source="refT"]'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   T has 0 arrows, not one: draw one from the box to its commit" ]
 }
 
 @test "drawing: an arrow not attached to a shape" {

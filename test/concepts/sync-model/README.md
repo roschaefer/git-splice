@@ -8,7 +8,7 @@ cross from five commits:
 | | Commit | Lives in |
 |---|---|---|
 | **B** | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. Where the splice starts, the mount (its first `.splice`, or a `git mv`), B is that commit whatever its folder, and the rebuild copies B too where its folder isn't U(B), e.g. after `init`, or a `git mv` with unpushed changes. For a nested splice, the last pull of the splice above can be B ([nesting](../nesting/README.md)). | the monorepo |
-| **U(H)** | The synced commit: the upstream commit `.splice` records at HEAD, the last one pulled. | the upstream |
+| **U(H)** | The synced commit: the upstream commit `.splice` records at HEAD. | the upstream |
 | **U(B)** | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | the upstream |
 | **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
 | **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B), and merged with U(X) for each pull X since that merged unpushed commits. | computed |
@@ -17,8 +17,8 @@ For a nested splice, R's history up to the last pull of the splice above
 comes from the upstream above, at its synced commit
 ([nesting](../nesting/README.md)).
 
-Every monorepo commit X has a sync point **U(X)**, the upstream commit
-its `.splice` records: what
+A monorepo commit X whose `.splice` records an upstream commit has that
+as its sync point **U(X)**: what
 `git config --blob X:path/.splice splice.commit` prints. It only changes
 where a commit changes `.splice`, e.g. a pull, so the commits in between
 share one, as commits can share a tree. A pull X brought in

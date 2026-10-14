@@ -84,7 +84,7 @@ check_drawing() {
   fi
 
   # The splice, and the commits its letters name.
-  path="$(git ls-files -- '*/.splice')"
+  path="$(git ls-tree -r --name-only HEAD | grep '/\.splice$' || true)"
   path="${path%/.splice}"
   [[ -n "$path" && "$path" != *$'\n'* ]] || {
     printf '!!   the monorepo must have exactly one splice\n'
@@ -147,8 +147,10 @@ check_drawing() {
 
   # Arrows: between commits, parent to child; from a box, to its commit.
   local s t drawn_edges=" "
+  local -A box_arrows=()
   for id in "${edges[@]}"; do
     s="${source[$id]}" t="${target[$id]}"
+    [[ "${kind[$s]:-}" != box ]] || box_arrows[$s]=$((${box_arrows[$s]:-0} + 1))
     if [[ -z "$s" || -z "$t" ]]; then
       errors+=("an arrow (${id}) isn't attached at both ends: drag its ends onto shapes")
       continue
@@ -198,6 +200,11 @@ check_drawing() {
     else
       dashed "$id" && errors+=("${value[$s]} -> ${value[$t]} is dashed, but ${value[$t]} exists outside the rebuild: draw it solid")
     fi
+  done
+  # Every box points at one commit.
+  for id in "${boxes[@]}"; do
+    [[ "${box_arrows[$id]:-0}" -eq 1 ]] ||
+      errors+=("${value[$id]} has ${box_arrows[$id]:-0} arrows, not one: draw one from the box to its commit")
   done
   # Every parent link between two drawn commits is drawn.
   local p
