@@ -145,6 +145,10 @@ after the push they're the same, so the splice is up to date. And a pull
 merges from where R and T meet, not from U. The rebuild is
 deterministic, so R contains the pushed commit, with the same hash, and
 they meet there ([example](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/README.md)).
+Except after `git splice push --rebuilt-commit`: R doesn't contain an
+edited commit, so `git splice pull --bump` has to record it as U before
+the next change, as `push` reminds you
+([edited-before-push](../../scenarios/up-to-date/push-ahead/edited-before-push/README.md)).
 
 The cost is that each rebuild walks every commit since B, pushed or not.
 [Bumping](../../walkthrough/bump.md) records the pushed commit as U where
