@@ -236,8 +236,13 @@ rebuild_with_start() {
         [[ "$before" != - ]] || before=""
       fi
       if [[ -z "$before" ]] || git merge-base --is-ancestor "$before" "$synced"; then
-        # Nothing unpushed before L: L's changes go on top of U.
+        # Nothing unpushed before L: L's changes go on top of U. Where
+        # L's folder isn't U, e.g. a squash merge put a local edit into
+        # it, L itself is copied, so the rebuild starts where the one
+        # before L did.
         parents=("$synced")
+        [[ "$tree" == "$prev_tree" || -z "$before_start" || "$before_start" == - ]] ||
+          rebuild_start="$before_start"
       elif git merge-base --is-ancestor "$synced" "$before"; then
         # What came before already contains U, e.g. L only changed the
         # state file: continue from there.

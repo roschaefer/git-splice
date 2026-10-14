@@ -93,7 +93,7 @@ rebuild has so far, *before*, and the commit it recorded, U(X):
 | *before* and U(X) | The copy's parents | When |
 |---|---|---|
 | neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as e and e+ above ([scenario](../../scenarios/rebuild-start/README.md)) |
-| U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself, or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
+| U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
 | *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
 
 So each pull since B that merged unpushed commits adds one merge to R,

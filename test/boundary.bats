@@ -7,6 +7,7 @@ setup() {
   load 'scenarios/up-to-date/shared-remote-url/setup'
   load 'scenarios/nested-splices/setup'
   load 'scenarios/rebuild-start/setup'
+  load 'scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -73,6 +74,15 @@ setup() {
   cmd_merge --bump vendor/a >/dev/null
   run cmd_boundary vendor/a
   [ "$output" = "$(git rev-parse HEAD)" ]
+}
+
+@test "boundary: a squash merge of a pull and a local edit leaves it before the squash, whose edit push sends" {
+  scenario_local_edit_in_the_squash "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_boundary vendor/a
+  [ "$output" = "$(git rev-parse HEAD^)" ]
+  [ "$(git log --format=%s "$output..HEAD" -- vendor/a)" = "feature (squash-merged)" ]
+  [ "$(git log -1 --format=%s "$(rebuild_splice vendor/a)")" = "feature (squash-merged)" ]
 }
 
 @test "boundary: works on a detached HEAD" {

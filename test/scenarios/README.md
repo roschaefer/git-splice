@@ -69,6 +69,7 @@ ok up-to-date/push-ahead/uncommitted-changes (1 document)
 ok up-to-date/push-ahead/upstream-moved (1 document)
 ok up-to-date/shared-remote-url (1 document)
 ok up-to-date/squash-merged-pull (1 document)
+ok up-to-date/squash-merged-pull/local-edit-in-the-squash (1 document)
 ok upstream-rewritten-equal-tree (3 documents)
 ```
 
