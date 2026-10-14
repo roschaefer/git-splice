@@ -25,6 +25,16 @@ again](push-force-undoes-the-rewrite.md). Keeping both publishes the
 monorepo's own history of the folder, which contains whatever the
 monorepo pulled before the rewrite.
 
+<div align="center">
+
+![The monorepo's a records r, the old release on top of k; T is w, the rewritten release, a root commit of its own](upstream-rewritten-equal-tree.drawio.svg)
+
+</div>
+
+The drawing names the monorepo's a (`add vendor/a`), and the upstream's
+k (`seed`), r (`release`) and w (`release, history rewritten`). U(H) is
+r, but T is w, which shares no history with it.
+
 ## Output
 
 <!--
@@ -37,6 +47,20 @@ $ source "$TESTDIR/../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_upstream_rewritten_equal_tree
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../helpers/drawing.bash)). k and r are on no
+upstream branch any more, only in the history of the synced commit:
+
+```scrut
+$ r="$(git config --file vendor/a/.splice splice.commit)"
+```
+
+```scrut
+$ check_drawing "$TESTDIR/upstream-rewritten-equal-tree.drawio.svg" a=HEAD k="$r~1" r="$r" w=refs/splices/upstream/main
+ok   upstream-rewritten-equal-tree.drawio.svg: 4 commits, 4 arrows, 3 boxes, 0 frames
 ```
 
 ```scrut
