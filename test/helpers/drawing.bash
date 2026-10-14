@@ -90,7 +90,7 @@ check_drawing() {
   }
   truth[H]="$(git rev-parse HEAD)"
   truth[B]="$(git splice boundary "$path")"
-  truth[U]="$(git config --file "$path/.splice" splice.commit)"
+  truth[U]="$(git config --blob "HEAD:$path/.splice" splice.commit)"
   truth[S]="$(git config --blob "${truth[B]}:$path/.splice" splice.commit)"
   truth[T]="$(git rev-parse --verify --quiet "refs/splices/$(git splice key "$path")/$(git branch --show-current)")"
   truth[R]="$(git splice rebuild "$path")"
@@ -176,6 +176,10 @@ check_drawing() {
           errors+=("$term points at ${value[$t]}, the code says $label")
         fi
       done < <(sed 's/ = /\n/g' <<<"${value[$s]}")
+      continue
+    fi
+    if [[ "${kind[$t]:-}" == box ]]; then
+      errors+=("an arrow from ${value[$s]} points at the box ${value[$t]}: draw it from the box to its commit")
       continue
     fi
     [[ "${kind[$s]:-}" == commit && "${kind[$t]:-}" == commit ]] || continue

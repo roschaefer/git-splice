@@ -85,6 +85,19 @@ edit_drawing() {
   [ "$output" = "!!   U(z) points at n, but no commit z is drawn" ]
 }
 
+@test "drawing: an arrow from a commit into a box is to be reversed" {
+  edit_drawing -u '//mxCell[@source="refR"]/@source' -v e_ -u '//mxCell[@source="e_" and @target="e_"]/@target' -v refR
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   an arrow from e+ points at the box R: draw it from the box to its commit" ]
+}
+
+@test "drawing: U is what HEAD records, whatever the working tree's .splice says" {
+  git config --file vendor/a/.splice splice.commit "$(git rev-parse HEAD)"
+  run check_drawing "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+}
+
 @test "drawing: an arrow not attached to a shape" {
   edit_drawing -d '//mxCell[@source="refT"]/@target'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
