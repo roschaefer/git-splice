@@ -118,6 +118,14 @@ complete_words() {
   [ "$output" = "libs" ]
 }
 
+@test "completion: clone --from-submodule completes a directory right away" {
+  mkdir -p libs
+  run complete_words git-splice clone --fr
+  [ "$output" = "--from-submodule" ]
+  run complete_words git-splice clone --from-submodule li
+  [ "$output" = "libs" ]
+}
+
 @test "completion: init completes a directory for the path, not for the url" {
   run complete_words git-splice init vend
   [ "$output" = "vendor" ]
@@ -240,6 +248,16 @@ fish_complete() {
   [ -z "$output" ]
 }
 
+@test "zsh completion: clone --from-submodule completes the path, and excludes --merge" {
+  require_shell zsh
+  run zsh_complete "git-splice clone --fr"
+  [[ "$output" == "--from-submodule "* ]]
+  run zsh_complete "git-splice clone --from-submodule vend"
+  [[ "$output" == *"vendor/"* ]]
+  run zsh_complete "git-splice clone --from-submodule vendor/a --"
+  [[ "$output" != *"--merge"* ]]
+}
+
 @test "zsh completion: boundary completes one splice path" {
   require_shell zsh
   run zsh_complete "git-splice boundary vendor/"
@@ -326,6 +344,16 @@ fish_complete() {
   run fish_complete "git-splice init vend"
   [[ "$output" == *"vendor/"* ]]
   run fish_complete "git-splice init vendor/a vend"
+  [ -z "$output" ]
+}
+
+@test "fish completion: clone --from-submodule completes the path first" {
+  require_shell fish
+  run fish_complete "git-splice clone --fr"
+  [ "$output" = "--from-submodule" ]
+  run fish_complete "git-splice clone --from-submodule vend"
+  [[ "$output" == *"vendor/"* ]]
+  run fish_complete "git-splice clone vend"
   [ -z "$output" ]
 }
 

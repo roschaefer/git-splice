@@ -115,9 +115,15 @@ _git_splice() {
       fi
       ;;
     clone)
+      # The path is the second argument, after the url, or the only one
+      # with --from-submodule.
+      local i path_position=1
+      for ((i = start + 1; i < COMP_CWORD; i++)); do
+        [[ "${COMP_WORDS[i]}" != --from-submodule ]] || path_position=0
+      done
       if [[ "$cur" == -* ]]; then
-        mapfile -t COMPREPLY < <(compgen -W "--merge -h --help" -- "$cur")
-      elif (($(__git_splice_positionals "$start") == 1)); then
+        mapfile -t COMPREPLY < <(compgen -W "--merge --from-submodule -h --help" -- "$cur")
+      elif (($(__git_splice_positionals "$start") == path_position)); then
         # compgen -d only lists matching directories; quote them like the rest.
         __git_splice_reply "" < <(compgen -d -- "$cur")
       fi

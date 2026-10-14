@@ -4,6 +4,7 @@
 usage_clone() {
   cat <<'EOF'
 usage: git splice clone [--merge] <url> [<path>]
+   or: git splice clone --from-submodule <path>
 
 Splices an existing upstream repository into <path> (default: the
 repository's name), as one ordinary commit with a new <path>/.splice.
@@ -20,6 +21,18 @@ If <path> already exists with exactly the upstream's content, clone only
 adds .splice. If its content differs, clone refuses, unless --merge is
 given: then every file that differs becomes a conflict to resolve, and
 nothing is lost. Resolve it and run 'git commit'.
+
+With --from-submodule, <path> is a submodule committed in HEAD, and clone
+turns it into a splice of the same upstream, at the same commit: the
+upstream is the submodule's URL in .gitmodules, and the folder gets the
+files of the commit the submodule points to. One commit replaces the
+submodule with the folder, and removes it from .gitmodules (the file too,
+once empty). The commit must be on a branch upstream, and a checkout of
+the submodule must be at that commit without changes; clone refuses
+otherwise. Files Git ignores in the checkout stay, and its repository
+stays in .git/modules/. Settings in .gitmodules other than path and url
+are dropped: a splice syncs with the upstream branch named like the
+current branch, not with submodule.<name>.branch.
 EOF
 }
 
@@ -32,11 +45,60 @@ default_clone_path() {
   printf '%s\n' "$name"
 }
 
+# Fetches <url>, a new upstream of a splice to be created at <path>, and
+# registers it as that splice's default upstream. Sets NEW_DEFAULT_BRANCH
+# to the default-branch .splice has to record: the upstream's default
+# branch where it's named differently from the default branch of what
+# the splice lives in, else nothing. Also sets UPSTREAM_DEFAULT,
+# MONOREPO_DEFAULT and CONTAINER_DEFAULT, the default branches it compared.
+NEW_DEFAULT_BRANCH=""
+UPSTREAM_DEFAULT=""
+MONOREPO_DEFAULT=""
+CONTAINER_DEFAULT=""
+fetch_new_upstream() {
+  local path="$1" url="$2"
+  # Before the fetch: refuses if the splice above leaves it open.
+  container_default_branch "$path" >/dev/null
+  create_upstream_key "$url"
+  SPLICE_UPSTREAM_LISTS[$path]="$DEFAULT_UPSTREAM"
+  UPSTREAM_URLS["$path:$DEFAULT_UPSTREAM"]="$url"
+  SPLICE_DEFAULT_UPSTREAMS[$path]="$DEFAULT_UPSTREAM"
+  use_upstream "$path" "$DEFAULT_UPSTREAM"
+  log_step "$path: fetching $url"
+  fetch_upstream "$url" "$(splice_refs_prefix "$path")" || die "$path: fetch failed"
+  splice_fetched "$path" || die "$url has no branches yet -- to publish $path there, use 'git splice init $(shell_quote "$path") $(shell_quote "$url")'"
+
+  # Map the monorepo's default branch to the upstream's, if it differs from
+  # the default branch of what the splice lives in: the splice above it,
+  # or the monorepo (container_default_branch).
+  NEW_DEFAULT_BRANCH=""
+  UPSTREAM_DEFAULT="$(upstream_default_branch "$url")"
+  MONOREPO_DEFAULT="$(monorepo_default_branch)"
+  CONTAINER_DEFAULT="$(container_default_branch "$path")"
+  if [[ -n "$UPSTREAM_DEFAULT" && -z "$MONOREPO_DEFAULT" && "$UPSTREAM_DEFAULT" != "$(current_branch)" ]]; then
+    # Without the monorepo's default branch, the splice couldn't map it to
+    # upstream's: it would look for the current branch upstream from the
+    # start, even inside a splice whose default branch is known.
+    die "$path: upstream's default branch is '$UPSTREAM_DEFAULT', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+  elif [[ -n "$UPSTREAM_DEFAULT" && -n "$CONTAINER_DEFAULT" && "$UPSTREAM_DEFAULT" != "$CONTAINER_DEFAULT" ]]; then
+    NEW_DEFAULT_BRANCH="$UPSTREAM_DEFAULT"
+  fi
+}
+
 cmd_clone() {
-  parse_args usage_clone "--merge" "$@"
+  parse_args usage_clone "--merge --from-submodule" "$@"
+  [[ -z "$ALL_ARG" && -z "$BASE_ARG" ]] || die "clone takes no --all or --base"
+  if has_flag --from-submodule; then
+    has_flag --merge && die "--from-submodule takes no --merge: the folder gets the submodule's files"
+    if [[ ${#PATH_ARGS[@]} -ne 1 ]]; then
+      usage_clone >&2
+      exit 1
+    fi
+    clone_from_submodule "${PATH_ARGS[0]}"
+    return
+  fi
   local merge=""
   has_flag --merge && merge=1
-  [[ -z "$ALL_ARG" && -z "$BASE_ARG" ]] || die "clone takes no --all or --base"
   local url="${PATH_ARGS[0]:-}" path="${PATH_ARGS[1]:-}"
   if [[ -z "$url" || ${#PATH_ARGS[@]} -gt 2 ]]; then
     usage_clone >&2
@@ -55,46 +117,22 @@ cmd_clone() {
   branch="$(current_branch)"
   is_splice_path "$path" && die "$path is a splice already"
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
+  [[ "$(path_mode HEAD "$path")" == 160000 ]] &&
+    die "$path is a submodule -- 'git splice clone --from-submodule $(shell_quote "$path")' turns it into a splice"
   if git cat-file -e "HEAD:$path" 2>/dev/null && [[ -z "$(folder_tree HEAD "$path")" ]]; then
     die "$path is a file, not a folder"
   fi
 
-  # Before the fetch: refuses if the splice above leaves it open.
-  container_default_branch "$path" >/dev/null
-  create_upstream_key "$url"
-  SPLICE_UPSTREAM_LISTS[$path]="$DEFAULT_UPSTREAM"
-  UPSTREAM_URLS["$path:$DEFAULT_UPSTREAM"]="$url"
-  SPLICE_DEFAULT_UPSTREAMS[$path]="$DEFAULT_UPSTREAM"
-  use_upstream "$path" "$DEFAULT_UPSTREAM"
-  log_step "$path: fetching $url"
-  fetch_upstream "$url" "$(splice_refs_prefix "$path")" || die "$path: fetch failed"
-  splice_fetched "$path" || die "$url has no branches yet -- to publish $path there, use 'git splice init $(shell_quote "$path") $(shell_quote "$url")'"
-
-  # Map the monorepo's default branch to the upstream's, if it differs from
-  # the default branch of what the splice lives in: the splice above it,
-  # or the monorepo (container_default_branch).
-  local upstream_default monorepo_default container_default default_branch=""
-  upstream_default="$(upstream_default_branch "$url")"
-  monorepo_default="$(monorepo_default_branch)"
-  container_default="$(container_default_branch "$path")"
-  if [[ -n "$upstream_default" && -z "$monorepo_default" && "$upstream_default" != "$branch" ]]; then
-    # Without the monorepo's default branch, the splice couldn't map it to
-    # upstream's: it would look for '$branch' upstream from the start, even
-    # inside a splice whose default branch is known.
-    die "$path: upstream's default branch is '$upstream_default', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
-  elif [[ -n "$upstream_default" && -n "$container_default" && "$upstream_default" != "$container_default" ]]; then
-    default_branch="$upstream_default"
-  fi
-
-  local upstream_branch="$branch"
-  [[ -n "$monorepo_default" && "$branch" == "$monorepo_default" ]] && upstream_branch="${default_branch:-$container_default}"
+  fetch_new_upstream "$path" "$url"
+  local default_branch="$NEW_DEFAULT_BRANCH" upstream_branch="$branch"
+  [[ -n "$MONOREPO_DEFAULT" && "$branch" == "$MONOREPO_DEFAULT" ]] && upstream_branch="${default_branch:-$CONTAINER_DEFAULT}"
   if ! git show-ref --verify --quiet "$(splice_ref "$path" "$upstream_branch")"; then
     # On the monorepo's default branch inside a splice, '$upstream_branch'
     # is the splice above's default branch. The monorepo's branch name says
     # nothing about this upstream then, so it isn't tried instead.
-    [[ -n "$upstream_default" ]] || die "$path: upstream has no '$upstream_branch' branch and names no default branch"
-    log_step "$path: upstream has no '$upstream_branch' branch -- using '$upstream_default'; your first push creates '$upstream_branch'"
-    upstream_branch="$upstream_default"
+    [[ -n "$UPSTREAM_DEFAULT" ]] || die "$path: upstream has no '$upstream_branch' branch and names no default branch"
+    log_step "$path: upstream has no '$upstream_branch' branch -- using '$UPSTREAM_DEFAULT'; your first push creates '$upstream_branch'"
+    upstream_branch="$UPSTREAM_DEFAULT"
   fi
 
   local target local_folder
@@ -115,4 +153,153 @@ cmd_clone() {
     exit 1
   fi
   log_ok "$path: cloned ${target:0:7} from $upstream_branch"
+}
+
+# Prints the mode of <path> in commit <rev>, e.g. 160000 for a submodule,
+# or nothing if it isn't there.
+path_mode() {
+  local entry
+  entry="$(git ls-tree -z "$1" -- "$2" | tr -d '\0')"
+  [[ "${entry#*$'\t'}" == "$2" ]] || return 0
+  printf '%s\n' "${entry%% *}"
+}
+
+# Prints the name of the submodule at <path> in HEAD's .gitmodules, or
+# nothing if none has that path.
+submodule_name() {
+  local path="$1" entry key
+  while IFS= read -r -d '' entry; do
+    key="${entry%%$'\n'*}"
+    if [[ "$(normalize_path "${entry#*$'\n'}")" == "$path" ]]; then
+      key="${key#submodule.}"
+      printf '%s\n' "${key%.path}"
+      return
+    fi
+  done < <(git config -z --blob HEAD:.gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null)
+}
+
+# Prints submodule URL <url> as `git submodule` reads it: a relative one,
+# starting with ./ or ../, is relative to the URL of the monorepo's default
+# remote -- the current branch's remote, else origin -- or, without one,
+# to the monorepo itself.
+resolve_submodule_url() {
+  local url="$1" branch remote base
+  [[ "$url" == ./* || "$url" == ../* ]] || {
+    printf '%s\n' "$url"
+    return
+  }
+  branch="$(git symbolic-ref --quiet --short HEAD || true)"
+  remote="$(git config "branch.$branch.remote" 2>/dev/null || echo origin)"
+  base="$(git config "remote.$remote.url" 2>/dev/null || git rev-parse --show-toplevel)"
+  base="${base%/}"
+  while :; do
+    case "$url" in
+      ./*) url="${url#./}" ;;
+      ../*)
+        url="${url#../}"
+        if [[ "$base" == */* ]]; then
+          base="${base%/*}"
+        elif [[ "$base" == *:* ]]; then
+          # host:repo.git, scp-like: ../ leaves host:
+          base="${base%%:*}:"
+        else
+          die "can't resolve submodule URL '$1' against '$base'"
+        fi
+        ;;
+      *) break ;;
+    esac
+  done
+  if [[ "$base" == *: ]]; then
+    printf '%s%s\n' "$base" "$url"
+  else
+    printf '%s/%s\n' "$base" "$url"
+  fi
+}
+
+clone_from_submodule() {
+  local path
+  path="$(normalize_path "$1")"
+  [[ -n "$path" && "$path" != . && "$path" != /* ]] || die "'$path' isn't a folder inside the repository"
+  usable_splice_path "$path" ||
+    die "'$path' isn't supported as a splice path yet -- rename the submodule's folder (e.g. no spaces)"
+
+  cd_to_repo_root
+  require_head_commit
+  current_branch >/dev/null
+  discover_splices
+  is_splice_path "$path" && die "$path is a splice already"
+  splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
+  [[ "$(path_mode HEAD "$path")" == 160000 ]] || die "$path: no submodule committed here"
+  local commit name url
+  commit="$(git rev-parse "HEAD:$path")"
+  name="$(submodule_name "$path")"
+  [[ -n "$name" ]] || die "$path: .gitmodules in HEAD has no submodule with this path"
+  url="$(git config --blob HEAD:.gitmodules "submodule.$name.url" 2>/dev/null)" ||
+    die "$path: .gitmodules in HEAD has no url for submodule '$name'"
+  url="$(resolve_submodule_url "$url")"
+
+  # The conversion commits .gitmodules and the folder, and nothing else.
+  git diff --quiet HEAD -- .gitmodules ||
+    die "$path: .gitmodules has uncommitted changes -- commit or discard them first"
+  git diff --cached --quiet ||
+    die "$path: there are staged changes -- commit or unstage them first, the conversion commits only its own"
+  local gitdir=""
+  if [[ -e "$path/.git" ]]; then
+    gitdir="$(git -C "$path" rev-parse --absolute-git-dir)"
+    [[ "$(git -C "$path" rev-parse HEAD 2>/dev/null)" == "$commit" ]] ||
+      die "$path: the submodule's checkout isn't at ${commit:0:7}, the commit in HEAD -- commit the submodule's new commit, or check out ${commit:0:7} in it"
+    [[ -z "$(git -C "$path" status --porcelain --untracked-files=all)" ]] ||
+      die "$path: the submodule's checkout has changes -- commit and push them, or discard them, first"
+  elif [[ -d "$path" && -n "$(ls -A -- "$path")" ]]; then
+    die "$path: the folder of the uninitialized submodule isn't empty -- move its files away first"
+  fi
+
+  fetch_new_upstream "$path" "$url"
+  if ! git cat-file -e "$commit^{commit}" 2>/dev/null ||
+    [[ -z "$(git for-each-ref --count=1 --contains "$commit" --format="%(refname)" "$(splice_refs_prefix "$path")")" ]]; then
+    die "$path: no upstream branch has the submodule's commit ${commit:0:7} -- push it there first"
+  fi
+  upstream_has_state_file "$commit" &&
+    die "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE -- splice a folder of it instead"
+  git ls-tree -r "$commit" | grep -q '^160000 ' &&
+    die "$path: the submodule has submodules of its own -- convert them in its upstream first"
+
+  # Keys are submodule.<name>.<setting>, and <name> may contain dots.
+  local key setting
+  while IFS= read -r key; do
+    [[ "$key" == "submodule.$name."* ]] || continue
+    setting="${key#"submodule.$name."}"
+    [[ "$setting" != *.* && "$setting" != path && "$setting" != url ]] || continue
+    log_warn "$path: dropping $key from .gitmodules -- a splice has no such setting"
+  done < <(git config --blob HEAD:.gitmodules --name-only --get-regexp '^submodule\.')
+
+  local blob gitmodules
+  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$commit")" "commit=$commit" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$NEW_DEFAULT_BRANCH")"
+  gitmodules="$(mktemp)"
+  git cat-file blob HEAD:.gitmodules >"$gitmodules"
+  git config --file "$gitmodules" --remove-section "submodule.$name"
+
+  if [[ -n "$gitdir" ]]; then
+    # An embedded repository moves to .git/modules/ first: removing the
+    # checkout's .git then loses nothing.
+    [[ -d "$path/.git" ]] && git submodule --quiet absorbgitdirs -- "$path"
+    gitdir="$(git -C "$path" rev-parse --absolute-git-dir)"
+    rm -f -- "$path/.git"
+  fi
+  git config --remove-section "submodule.$name" 2>/dev/null || true
+  git rm -q --cached -- ":(top,literal)$path"
+  git read-tree --prefix="$path/" "$commit"
+  git checkout -- ":(top,literal)$path"
+  git cat-file blob "$blob" >"$path/$STATE_FILE"
+  git add -f -- "$path/$STATE_FILE"
+  if [[ -z "$(git config --file "$gitmodules" --list)" ]]; then
+    git rm -q -- .gitmodules
+  else
+    cat "$gitmodules" >.gitmodules
+    git add -- .gitmodules
+  fi
+  rm -f -- "$gitmodules"
+  git commit --quiet -m "splice: clone $path from submodule at ${commit:0:7}"
+  log_ok "$path: cloned ${commit:0:7} from the submodule"
+  [[ -z "$gitdir" ]] || log_step "$path: the submodule's repository stays in $gitdir -- remove it once you don't need it"
 }
