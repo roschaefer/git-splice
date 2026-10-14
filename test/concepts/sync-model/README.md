@@ -77,6 +77,24 @@ push has nothing to bring in, and only [`git splice pull --bump`](../../walkthro
 records e+ as U, in a commit whose folder is e+. So that commit is the
 new B, and e+ is S as well as U.
 
+### Pulls in between
+
+Between B and H, every commit that changed `.splice` differs from the
+commit it recorded, or it would be B. The rebuild copies each of them
+with that folder, and picks its parents from two commits: what the
+rebuild has so far, *before*, and the commit it recorded, its U:
+
+| *before* and its U | The copy's parents | When |
+|---|---|---|
+| neither contains the other | *before*, then its U: a merge | a pull merged unpushed commits, as e and e+ above ([scenario](../../scenarios/rebuild-start/README.md)) |
+| its U contains *before*, or there's no *before* | its U | a squash merge put local edits into the pull commit itself, or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
+| *before* contains its U | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
+
+So each pull since B that merged unpushed commits adds one merge to R,
+with the commit it pulled as the second parent. R takes that commit from
+the pull's `.splice`, not from T: T may have moved on since, with a
+fetch, and the merge would then claim changes the pull never brought in.
+
 R is never stored. It's computed from `HEAD` each time, and the same
 `HEAD` always gives the same R. So a commit pushed once is rebuilt
 identically, and the next push is a fast-forward. And since R is
