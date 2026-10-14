@@ -3,13 +3,13 @@
 A pull merged local commits that were never pushed. The pull's commit is
 the newest that changed `.splice`, but the rebuild starts further back,
 at B: the newest such commit whose folder is the upstream commit it
-recorded, S
+recorded, U(B)
 ([sync model](../../../concepts/sync-model/README.md)). The commits are
 named as in the drawing there:
 
 <div align="center">
 
-![The graphs after a pull: the pull commit e records n, so U is U(e), n; B stays at a, and S is U(a), k; R is e prime, a merge of the rebuilt d prime and n](after-pull.drawio.svg)
+![The graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](after-pull.drawio.svg)
 
 </div>
 
@@ -60,9 +60,9 @@ d34c417 m
 ae8b31f k
 ```
 
-### U
+### U(H)
 
-e is the newest commit that changed `.splice`. It records n as U:
+e is the newest commit that changed `.splice`. It records n as U(H):
 
 ```scrut
 $ git log --first-parent -1 --format=%s -- vendor/a/.splice
@@ -103,7 +103,7 @@ $ git diff --quiet "$(git config --blob 'HEAD~4:vendor/a/.splice' splice.commit)
 a's folder is k
 ```
 
-So a is B, what `git splice boundary` prints, and k is S:
+So a is B, what `git splice boundary` prints, and U(B) = k:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"
@@ -122,7 +122,7 @@ b
 
 ### R
 
-From B, the rebuild copies b and d on top of S, k, as b' and d', and
+From B, the rebuild copies b and d on top of U(B) = k, as b' and d', and
 skips c. Then it copies e as e', a merge of d' and n, with e's message.
 `log --graph` draws R and T down to n, where they meet. k shows up as
 the parent of b':
@@ -165,7 +165,7 @@ add vendor/a
 
 ### After a bump
 
-`git splice pull --bump` records e' as U, in a new commit:
+`git splice pull --bump` records e' as U(H), in a new commit:
 
 ```scrut
 $ git splice pull --bump vendor/a
@@ -173,7 +173,7 @@ ok   vendor/a fetched
 ok   vendor/a: bumped the synced commit to 854864a
 ```
 
-Its folder is e', so it's the new B, e' is S, and rebuilds start there:
+Its folder is e', so it's the new B, U(B) = e', and rebuilds start there:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"

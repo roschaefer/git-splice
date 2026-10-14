@@ -53,7 +53,7 @@ $ git splice log
 ```
 
 In terms of the [four commits](../concepts/sync-model/README.md), R and T each
-have a commit the other lacks, and U is where they part:
+have a commit the other lacks, and U(H) is where they part:
 
 ```text
       monorepo, newest first                 pkg-a.git, newest first
@@ -61,7 +61,7 @@ have a commit the other lacks, and U is where they part:
       * pkg-a: a local fix               R   < | pkg-a: a local fix
                                          T   | > pkg-a: an upstream fix
   B   = splice: pull vendor/pkg-a            |/
-          (folder = U)                   U   * pkg-a: a second commit, after the clone
+          (folder = U(B))               U(B) * pkg-a: a second commit, after the clone
 ```
 
 `log --graph` draws that right-hand side:
@@ -124,18 +124,18 @@ $ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline 
 d27a1cd splice: pull vendor/pkg-a from main at 4527a78
 ```
 
-The resolved commit records T as the new U. Its folder is U plus the
+The resolved commit records T as the new U(H). Its folder is U(H) plus the
 local fix, which was never pushed, so B stays the earlier pull, and R
-joins the rebuilt local fix with U by a merge, as a plain `git pull`
+joins the rebuilt local fix with U(H) by a merge, as a plain `git pull`
 would have:
 
 ```text
       monorepo, newest first                 pkg-a.git, newest first
 
       = splice: pull vendor/pkg-a        R   <   splice: pull vendor/pkg-a from main at 4527a78
-          (folder = U + local fix)           |\
+          (folder = U(H) + local fix)        |\
       * pkg-a: a local fix                   < | pkg-a: a local fix
-  B   = splice: pull vendor/pkg-a        U = T | * pkg-a: an upstream fix
+  B   = splice: pull vendor/pkg-a     U(H) = T | * pkg-a: an upstream fix
                                              |/
                                              * pkg-a: a second commit, after the clone
 ```

@@ -20,7 +20,7 @@ ok   vendor/pkg-b: cloned 9b3cb02 from main
 
 The commit adds the upstream's files and
 [`.splice`](../concepts/splice-file/README.md), which records the
-upstream and the commit the folder now matches, U:
+upstream and the commit the folder now matches, U(H):
 
 ```scrut
 $ git show --stat --format=%s

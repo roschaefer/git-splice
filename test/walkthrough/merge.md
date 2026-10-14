@@ -23,7 +23,7 @@ ok   vendor/pkg-a: merged 703b936
 ```
 
 The commit `merge` made records the fetched branch, T, as the new synced
-commit, U. Nothing was waiting to be pushed, so its folder is U, and it's
+commit, U(H). Nothing was waiting to be pushed, so its folder is U(H), and it's
 `vendor/pkg-a/`'s new [boundary](boundary.md), B:
 
 ```scrut

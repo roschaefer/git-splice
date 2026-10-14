@@ -207,7 +207,7 @@ c fix
 
 After the round trip, the three copies have the same files and every
 splice is up to date. Their synced commits differ, though: `c/` pushed
-the change and didn't pull it, and a push doesn't move U:
+the change and didn't pull it, and a push doesn't move U(H):
 
 ```scrut
 $ git grep 'commit = ' -- c/.splice a/c/.splice b/c/.splice | tr '\t' ' '

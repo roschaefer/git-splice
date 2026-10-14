@@ -2,14 +2,14 @@
 
 A folder is a splice because it has a `.splice` file, committed like any
 other file. It names the upstream, and the upstream commit the folder
-last matched, the synced commit U of the
+last matched, the synced commit U(H) of the
 [sync model](../sync-model/README.md). That's all the state there is: a
 clone of the monorepo has every splice, with nothing to set up.
 
 ```text
 [splice]
 	id = 9b2e41c07d5a8f36       # which splice this is, wherever it moves
-	commit = 3f1c…              # the synced commit U
+	commit = 3f1c…              # the synced commit U(H)
 [upstream "origin"]
 	url = git@github.com:x/a.git
 	default-branch = master     # only if it's named differently, see below

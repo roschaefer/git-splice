@@ -7,29 +7,31 @@ cross from five commits:
 
 | | Commit | Lives in |
 |---|---|---|
-| **B** | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. Where the splice starts, the mount (its first `.splice`, or a `git mv`), B is that commit whatever its folder, and the rebuild copies B too where its folder isn't S, e.g. after `init`, or a `git mv` with unpushed changes. For a nested splice, the last pull of the splice above can be B ([nesting](../nesting/README.md)). | the monorepo |
-| **U** | The synced commit, U(H): the upstream commit `.splice` records at HEAD, the last one pulled. | the upstream |
-| **S** | The start, U(B): the upstream commit B's `.splice` records, and B's folder. R starts on it. Usually U. | the upstream |
+| **B** | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. Where the splice starts, the mount (its first `.splice`, or a `git mv`), B is that commit whatever its folder, and the rebuild copies B too where its folder isn't U(B), e.g. after `init`, or a `git mv` with unpushed changes. For a nested splice, the last pull of the splice above can be B ([nesting](../nesting/README.md)). | the monorepo |
+| **U(H)** | The synced commit: the upstream commit `.splice` records at HEAD, the last one pulled. | the upstream |
+| **U(B)** | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | the upstream |
 | **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
-| **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of S, and merged with U(X) for each pull X since that merged unpushed commits. | computed |
+| **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B), and merged with U(X) for each pull X since that merged unpushed commits. | computed |
 
 For a nested splice, R's history up to the last pull of the splice above
 comes from the upstream above, at its synced commit
 ([nesting](../nesting/README.md)).
 
-Every commit X that changed `.splice` records an upstream commit, its
-sync point **U(X)**: what `git config --blob X:path/.splice splice.commit`
-prints. U and S are two of them, at H and at B. Between B and H, each
-pull X has its own U(X), and the pull before it, X^, had U(X^): the
-synced commits before and after X.
+Every monorepo commit X has a sync point **U(X)**, the upstream commit
+its `.splice` records: what
+`git config --blob X:path/.splice splice.commit` prints. It only changes
+where a commit changes `.splice`, e.g. a pull, so the commits in between
+share one, as commits can share a tree. A pull X brought in
+U(X^)..U(X), the synced commits before and after it, unless a push came
+in between ([scenario](../../scenarios/bisect-into-a-pull/after-a-push/README.md)).
 
-U and T may be missing: right after `init`, there's no U yet, and R
+U(H) and T may be missing: right after `init`, there's no U(H) yet, and R
 starts as a root commit; before the first fetch, there's no T, and the
 splice is *never fetched*, or the upstream has *no such branch*.
 
 [Output](#output) shows the Git commands that find each of them.
 
-A pull could have been a merge, with U as its second parent:
+A pull could have been a merge, with U(H) as its second parent:
 [weak parents](../../../docs/going-forward/weak-parents.md) compares the two.
 
 ## R, the rebuild
@@ -37,35 +39,35 @@ A pull could have been a merge, with U as its second parent:
 The monorepo's commits that changed the folder are the splice's own
 changes, but they have the monorepo's layout and the monorepo's history.
 R copies each of them, since B, as an upstream commit: the folder's tree
-without `.splice`, the same author, dates and message, on top of U.
+without `.splice`, the same author, dates and message, on top of U(B).
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k, which is U, S and U(a)](../../scenarios/sync-model/before-pull.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](../../scenarios/sync-model/before-pull.drawio.svg)
 
 </div>
 
 Circles are commits, newest on top, and boxes point at them. A frame
 shows what `path/.splice` records in the commit it holds. b and d change
-`path/`, so the rebuild copies them as b' and d', on top of S; c doesn't,
+`path/`, so the rebuild copies them as b' and d', on top of U(B); c doesn't,
 so it's left out. The copies exist only in R, so they're dashed
 ([scenario](../../scenarios/sync-model/README.md)).
 
 <div align="center">
 
-![The same graphs after a pull: the pull commit e records n, so U is U(e), n; B stays at a, and S is U(a), k; R is e prime, a merge of the rebuilt d prime and n](../../scenarios/sync-model/after-pull/after-pull.drawio.svg)
+![The same graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](../../scenarios/sync-model/after-pull/after-pull.drawio.svg)
 
 </div>
 
-After `git splice pull`, the pull commit e records n, so U is n. But b
+After `git splice pull`, the pull commit e records n, so U(H) = n. But b
 and d were never pushed, so e's folder isn't n, and a rebuild from e
 would send their changes as one lump under e's message. So B stays a,
-and S stays k. R copies b and d as before, and e as e', a merge of d'
+and U(B) = k still. R copies b and d as before, and e as e', a merge of d'
 and n, as `git pull` would have
 ([scenario](../../scenarios/sync-model/after-pull/README.md)).
 
-A push sends b', d' and e'. B and S stay where they are until
-[`git splice pull --bump`](../../walkthrough/bump.md) records e' as U.
+A push sends b', d' and e'. B and U(B) stay where they are until
+[`git splice pull --bump`](../../walkthrough/bump.md) records e' as U(H).
 
 ### Pulls in between
 
@@ -113,17 +115,17 @@ A pull is a **three-way merge**, in the monorepo's layout:
 
 Git merges them as usual. Only the folder differs between base and
 theirs, so only the folder can conflict. The result is one ordinary
-monorepo commit, which records T as the new U. It's the new B too,
+monorepo commit, which records T as the new U(H). It's the new B too,
 unless it merged commits that were never pushed.
 
-The base is usually U. After a push, it's the pushed commit: R contains
+The base is usually U(H). After a push, it's the pushed commit: R contains
 it, so the merge doesn't replay changes the upstream already has. That's
-also why U alone says little about where a splice stands. A push moves
-T, and with it R's relation to T, but not U.
+also why U(H) alone says little about where a splice stands. A push moves
+T, and with it R's relation to T, but not U(H).
 
 ## Why a push isn't recorded
 
-A push never writes to the monorepo, so U stays what the last pull
+A push never writes to the monorepo, so U(H) stays what the last pull
 brought in. Recording the push would take a monorepo commit that changes
 `.splice`, on the branch that pushed. Merging that branch would then
 carry the record to a branch that syncs with a different upstream
@@ -132,16 +134,16 @@ upstream's feature branch, and after the merge, `main`'s would too.
 
 It isn't needed either. `status` compares the folder's files with T, and
 after the push they're the same, so the splice is up to date. And a pull
-merges from where R and T meet, not from U. The rebuild is
+merges from where R and T meet, not from U(H). The rebuild is
 deterministic, so R contains the pushed commit, with the same hash, and
 they meet there ([example](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/README.md)).
 Except after `git splice push --rebuilt-commit`: R doesn't contain an
-edited commit, so `git splice pull --bump` has to record it as U before
+edited commit, so `git splice pull --bump` has to record it as U(H) before
 the next change, as `push` reminds you
 ([edited-before-push](../../scenarios/up-to-date/push-ahead/edited-before-push/README.md)).
 
 The cost is that each rebuild walks every commit since B, pushed or not.
-[Bumping](../../walkthrough/bump.md) records the pushed commit as U where
+[Bumping](../../walkthrough/bump.md) records the pushed commit as U(H) where
 that matters.
 
 ## Output
@@ -162,7 +164,7 @@ For `vendor/pkg-a/`:
 
       . lib-c: first version             T   > pkg-a: a second commit, after the clone
   B   = splice: clone vendor/pkg-a           |
-          (folder = U)                 U = R * pkg-a: seed
+          (folder = U(B))           U(H) = R * pkg-a: seed
 ```
 
 On the left, as in the [README](../../../README.md#the-solution), `=` marks
@@ -170,7 +172,7 @@ the commits that change `.splice`, `*` those that change other files in
 the folder, whether or not they change files elsewhere too, and `.` those
 that don't touch the folder. On the right, as in `git splice log`, `<`
 marks R's commits that T lacks, `>` T's commits that R lacks. Since B, no
-commit changed the folder, so R has nothing to add to U: R = U. U is an
+commit changed the folder, so R has nothing to add to U(H): R = U(H). U(H) is an
 ancestor of T, so `status` shows `behind 1`, the commit between them.
 
 B is what [`boundary`](../../walkthrough/boundary.md) prints. Here,
@@ -181,7 +183,7 @@ $ git log --first-parent -1 --oneline -- vendor/pkg-a/.splice
 3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
 ```
 
-U is the commit recorded there. `fetch` copied it into the monorepo, so
+U(H) is the commit recorded there. `fetch` copied it into the monorepo, so
 Git can show it:
 
 ```scrut
@@ -189,14 +191,14 @@ $ git log -1 --oneline "$(git config --file vendor/pkg-a/.splice splice.commit)"
 9bb866a pkg-a: seed
 ```
 
-Its folder is U, so it's B, and U is S, where R starts:
+Its folder is U(H), so it's B, and U(B) = U(H), where R starts:
 
 ```scrut
-$ git diff --quiet "$(git config --file vendor/pkg-a/.splice splice.commit)" "$(git log --first-parent -1 --format=%H -- vendor/pkg-a/.splice):vendor/pkg-a" -- ':!.splice' && echo "B's folder is U"
-B's folder is U
+$ git diff --quiet "$(git config --file vendor/pkg-a/.splice splice.commit)" "$(git log --first-parent -1 --format=%H -- vendor/pkg-a/.splice):vendor/pkg-a" -- ':!.splice' && echo "B's folder is U(B)"
+B's folder is U(B)
 ```
 
-T is the fetched branch. Its history leads to U:
+T is the fetched branch. Its history leads to U(H):
 
 ```scrut
 $ git log --oneline splices/pkg-a/main
@@ -206,7 +208,7 @@ $ git log --oneline splices/pkg-a/main
 
 R is what [`rebuild`](../../walkthrough/rebuild.md) prints, and
 `log --graph` draws it and T, labeled, down to the commit they have in
-common, `o`. Nothing changed the folder since B, so R is U:
+common, `o`. Nothing changed the folder since B, so R is U(H):
 
 ```scrut
 $ git splice log --graph vendor/pkg-a
@@ -247,8 +249,8 @@ ok   vendor/pkg-a fetched
 ok   vendor/pkg-a: pulled 703b936
 ```
 
-The pull commit records T as U. Its folder isn't T's tree, since it has
-the local file too, so it isn't the new B: B stays the clone, and S its synced commit,
+The pull commit records T as U(H). Its folder isn't T's tree, since it has
+the local file too, so it isn't the new B: B stays the clone, and U(B) its synced commit,
 `pkg-a: seed`,
 
 ```scrut
@@ -286,7 +288,7 @@ $ git log --graph --format='%h %s' splices/pkg-a/main
 * 9bb866a pkg-a: seed
 ```
 
-Now R and T are equal, and the splice is up to date. U is still the
+Now R and T are equal, and the splice is up to date. U(H) is still the
 commit the pull brought in. It lags behind T, since the push didn't
 write to the monorepo:
 

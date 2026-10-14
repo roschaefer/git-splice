@@ -72,14 +72,14 @@ edit_drawing() {
 }
 
 @test "drawing: a box U(X) on a commit X's .splice doesn't record" {
-  edit_drawing -u '//mxCell[@id="refU"]/@value' -v 'U = U(a)'
+  edit_drawing -u '//mxCell[@id="refU"]/@value' -v 'U(a)'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   U(a) points at n, the code says k" ]
 }
 
 @test "drawing: a box U(X) for a commit that isn't drawn" {
-  edit_drawing -u '//mxCell[@id="refU"]/@value' -v 'U = U(z)'
+  edit_drawing -u '//mxCell[@id="refU"]/@value' -v 'U(z)'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   U(z) points at n, but no commit z is drawn" ]
@@ -92,7 +92,7 @@ edit_drawing() {
   [ "$output" = "!!   an arrow from e' points at the box R: draw it from the box to its commit" ]
 }
 
-@test "drawing: U is what HEAD records, whatever the working tree's .splice says" {
+@test "drawing: U(H) is what HEAD records, whatever the working tree's .splice says" {
   git config --file vendor/a/.splice splice.commit "$(git rev-parse HEAD)"
   run check_drawing "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]

@@ -11,10 +11,11 @@
 #     commit without it: the same message, author and dates, in R's
 #     history.
 #   - An arrow between two commits points from a parent to its child.
-#   - A box points at the commit its label names: H, B, U, S, T or R
-#     (test/concepts/sync-model/README.md), or U(x), the commit drawn
-#     commit x's .splice records. Several names are joined by " = ", e.g.
-#     "S = U(a)": each must name that commit.
+#   - A box points at the commit its label names: H, B, T or R
+#     (test/concepts/sync-model/README.md), or U(x), the commit x's
+#     .splice records, where x is H, B or a drawn commit. Several names
+#     are joined by " = ", e.g. "U(H) = U(B)": each must name that
+#     commit.
 #   - A frame labelled "x:<path>/.splice", Git's name for that file in
 #     commit x, holds commit x, and usually the box U(x).
 #   - Dashed commits and arrows into them exist only as the rebuild: in
@@ -33,7 +34,7 @@ check_drawing() {
   local -a errors=() commits=() edges=() boxes=() frames=()
   local -A id_of_label=()
   local arg id k v cells term named
-  local name='([HBUSTR]|U\([^()]+\))'
+  local name='([HBTR]|U\([^()]+\))'
   local box_label="^$name( = $name)*\$"
 
   for arg in "$@"; do
@@ -161,11 +162,15 @@ check_drawing() {
         named=""
         if [[ "$term" == U\(*\) ]]; then
           k="${term#U(}" k="${k%)}"
-          if [[ -z "${id_of_label[$k]:-}" || -z "${commit_of[${id_of_label[$k]}]:-}" ]]; then
+          if [[ "$k" == [HB] ]]; then
+            hash="${truth[$k]}"
+          elif [[ -n "${id_of_label[$k]:-}" && -n "${commit_of[${id_of_label[$k]}]:-}" ]]; then
+            hash="${commit_of[${id_of_label[$k]}]}"
+          else
             errors+=("$term points at ${value[$t]}, but no commit $k is drawn")
             continue
           fi
-          named="$(git config --blob "${commit_of[${id_of_label[$k]}]}:$path/.splice" splice.commit 2>/dev/null)"
+          named="$(git config --blob "$hash:$path/.splice" splice.commit 2>/dev/null)"
         else
           named="${truth[$term]}"
         fi

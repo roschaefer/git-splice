@@ -1,41 +1,41 @@
 # Weak parents
 
-A thought experiment, not a plan: what the sync point U would be if Git
+A thought experiment, not a plan: what the sync point U(H) would be if Git
 could record it, and who has proposed something like it before. Nothing
 here changes how `git-splice` works.
 
 ## The sync point is a parent, written into the tree
 
-A pull, the commit that wrote U into `path/.splice`
+A pull, the commit that wrote U(H) into `path/.splice`
 ([sync model](../../test/concepts/sync-model/README.md)), could have
 been a merge instead, with two parents: the monorepo's previous commit,
-and U. Its tree would be the same as the pull's: U's files in `path/`, merged
+and U(H). Its tree would be the same as the pull's: U(H)'s files in `path/`, merged
 with the folder's changes since the last sync, if there are any. That's
 the commit `git subtree add` and `git subtree pull` create without
 `--squash` ([`git subtree` compared](../../test/comparisons/git-subtree.md)).
-With `--squash`, the second parent is a new commit with U's files, and
-U isn't in the history at all.
+With `--squash`, the second parent is a new commit with U(H)'s files, and
+U(H) isn't in the history at all.
 
-Both record one fact: the folder continues U. A second parent records it
+Both record one fact: the folder continues U(H). A second parent records it
 in the commit graph, `.splice` as content of the tree. The fact is the
 same, but different tools see it:
 
-| | U as a second parent | `commit = U` in `.splice` |
+| | U(H) as a second parent | `commit = U(H)` in `.splice` |
 |---|---|---|
 | Who sees it | Git: `log`, `merge-base`, `bisect` and `blame` walk into the library's history | Only `git-splice`. To Git, it's a line in a file, and the monorepo's history stays linear |
-| U's objects | Required: every full clone of the monorepo fetches U and all its ancestors, and `gc` keeps them | Optional: `git-splice` fetches U when it needs it |
-| Which folder | Git doesn't know: U has the library at its root. `git subtree` needs `--prefix`, and with several splices, which parent belongs to which folder | Where the file is. `git mv` moves it along |
-| Finding the current U | Search the history for the newest such merge | Read one file at `HEAD` |
+| U(H)'s objects | Required: every full clone of the monorepo fetches U(H) and all its ancestors, and `gc` keeps them | Optional: `git-splice` fetches U(H) when it needs it |
+| Which folder | Git doesn't know: U(H) has the library at its root. `git subtree` needs `--prefix`, and with several splices, which parent belongs to which folder | Where the file is. `git mv` moves it along |
+| Finding the current U(H) | Search the history for the newest such merge | Read one file at `HEAD` |
 | Rebase, squash merge | Lost: `rebase` drops merges, unless it runs with `--rebase-merges`, and a squash merge keeps one parent | Kept: `.splice` is a file, carried along like the folder's other files |
-| The merge base for a pull | `git merge-base HEAD T` finds U, even after a push, whose commits aren't in the monorepo's history | `git-splice` rebuilds R on top of U, and takes `git merge-base R T`: U, or a commit pushed since |
+| The merge base for a pull | `git merge-base HEAD T` finds U(H), even after a push, whose commits aren't in the monorepo's history | `git-splice` rebuilds R on top of U(H), and takes `git merge-base R T`: U(H), or a commit pushed since |
 
 The rebase and squash merge row is the reason for the file. A rewrite
 carries a commit's changes to files along, `.splice` included, and a
 squash merge keeps nothing else.
 
-The two also don't claim the same. A merge says U's whole history is
+The two also don't claim the same. A merge says U(H)'s whole history is
 part of the monorepo's. `.splice` says only that the folder's files came
-from U: changes cross the splice, commits don't.
+from U(H): changes cross the splice, commits don't.
 
 ## A weak parent in Git
 
@@ -85,7 +85,7 @@ It wasn't merged. The objections, and how they apply to a splice:
   target is the other way round: not local, but a commit of another
   repository, and the link has to survive the clean-up.
 - **Petr Baudis** objected that "cherrypicks can be from completely
-  unrelated histories". For a splice, that's the normal case: U is in
+  unrelated histories". For a splice, that's the normal case: U(H) is in
   the library's history, not the monorepo's.
 - **Theodore Ts'o** pointed to `git cherry-pick -x`, which records the
   source in the message, as `(cherry picked from commit …)`. That's
@@ -112,14 +112,14 @@ The `origin` RFC records only a commit id, and a missing target leaves
 the link broken, by design. A splice's target is always in another
 repository, so a weak parent for it needs more than a commit id:
 
-- **the target**, U,
+- **the target**, U(H),
 - **the folder** it maps to, which `git subtree` passes as `--prefix`,
 - **where to fetch it from**, which object ids alone don't say.
 
 A gitlink has all three: its place in the tree, and the URL in
 `.gitmodules`. What it lacks is the meaning of a parent, that the
-folder's files came from U and may have changed since.
+folder's files came from U(H) and may have changed since.
 
 And it has to survive the squash merges that Linus listed, which keep
-only the changes to files. That's what `.splice` holds: the URL, and U,
+only the changes to files. That's what `.splice` holds: the URL, and U(H),
 in the folder they belong to.

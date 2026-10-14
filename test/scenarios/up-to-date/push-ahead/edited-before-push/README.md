@@ -16,16 +16,16 @@ The recipe:
 1. Get R: `git splice rebuild` prints it.
 2. Check it out in a worktree of its own: R has the upstream's layout,
    and a `git switch` would replace the monorepo's whole checkout.
-3. Edit the commits after the synced commit U, e.g. with
+3. Edit the commits after the synced commit U(H), e.g. with
    `git rebase -i`, and push the result with
    `git splice push --rebuilt-commit <commit> <path>`. It refuses a
    commit whose files differ from the folder's, or that doesn't contain
-   U. Everything else about the commit is up to you: see
+   U(H). Everything else about the commit is up to you: see
    [What push checks](#what-push-checks).
 
-   Commits up to U are on the upstream already. Editing those rewrites
+   Commits up to U(H) are on the upstream already. Editing those rewrites
    published history, so the push needs `--force` as well, which drops
-   the check for U.
+   the check for U(H).
 
    Or push with plain Git, right from the worktree where you edited the
    commits: `git push <url> HEAD:<branch>`, with the upstream's URL from
@@ -48,12 +48,12 @@ a slip while editing would get wrong:
 
 - **Its files are the folder's.** A file changed in the worktree would
   never reach the monorepo, and the next pull would merge it back in.
-- **It contains U,** the merge base the next pull uses -- unless
-  `--force` is given, which may replace U and the commits before it, or
+- **It contains U(H),** the merge base the next pull uses -- unless
+  `--force` is given, which may replace U(H) and the commits before it, or
   the whole history: the pull right after the push records the commit
-  as the new U all the same.
+  as the new U(H) all the same.
 - **A pull can record it.** A commit of R's history that isn't newer
-  than U -- U itself, one before it, or one from a side branch of an
+  than U(H) -- U(H) itself, one before it, or one from a side branch of an
   earlier pull, e.g. after dropping commits that cancel each other out
   -- is one no pull records, so the next push would publish the dropped
   commits again. R itself needs no record.
