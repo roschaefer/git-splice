@@ -124,6 +124,8 @@ complete_words() {
   [ "$output" = "--from-submodule" ]
   run complete_words git-splice clone --from-submodule li
   [ "$output" = "libs" ]
+  run complete_words git-splice clone --from-submodule --re
+  [ "$output" = "--recursive" ]
 }
 
 @test "completion: init completes a directory for the path, not for the url" {
@@ -256,6 +258,7 @@ fish_complete() {
   [[ "$output" == *"vendor/"* ]]
   run zsh_complete "git-splice clone --from-submodule vendor/a --"
   [[ "$output" != *"--merge"* ]]
+  [[ "$output" == *"--recursive"* ]]
 }
 
 @test "zsh completion: boundary completes one splice path" {
@@ -347,6 +350,8 @@ fish_complete() {
   [ "$output" = "--from-submodule" ]
   run fish_complete "git-splice clone --from-submodule vend"
   [[ "$output" == *"vendor/"* ]]
+  run fish_complete "git-splice clone --from-submodule --rec"
+  [ "$output" = "--recursive" ]
   run fish_complete "git-splice clone vend"
   [ -z "$output" ]
 }

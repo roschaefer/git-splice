@@ -67,7 +67,8 @@ upstream branch named like the current branch.
 
 Splicing in or out -- name the splices, or pass --all:
   clone [--merge] <url> [<path>]      splice an existing repository in
-  clone --from-submodule <path>       turn a submodule into a splice
+  clone --from-submodule [--recursive] <path>
+                                      turn a submodule into a splice
   init <path> <url>                   make a folder a splice of an empty repository
   merge [--upstream <n>] (<path>... | --all)
                                       splice in already-fetched upstream changes

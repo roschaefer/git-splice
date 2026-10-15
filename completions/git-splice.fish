@@ -73,6 +73,7 @@ complete -c git-splice -n "__fish_seen_subcommand_from push" -l rebuilt-commit -
 complete -c git-splice -n "__fish_seen_subcommand_from log" -l graph -d 'draw both sides as a graph'
 complete -c git-splice -n "__fish_seen_subcommand_from clone" -l merge -d 'merge with an existing folder'
 complete -c git-splice -n "__fish_seen_subcommand_from clone" -l from-submodule -d 'turn a submodule into a splice'
+complete -c git-splice -n "__fish_seen_subcommand_from clone" -l recursive -d 'with --from-submodule, convert its submodules too'
 complete -c git-splice -n "__git_splice_positional clone 1; and not __fish_contains_opt from-submodule" -a "(__fish_complete_directories)"
 complete -c git-splice -n "__git_splice_positional clone 0; and __fish_contains_opt from-submodule" -a "(__fish_complete_directories)"
 complete -c git-splice -n "__git_splice_positional init 0" -a "(__fish_complete_directories)"

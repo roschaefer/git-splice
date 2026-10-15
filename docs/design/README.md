@@ -534,6 +534,12 @@ These are known and accepted, each to keep the design simple:
   `git checkout --theirs -- <above>/<below>`, then `git add` and
   `git commit`. Pushing the splice above right after pulling the one below
   avoids the conflict.
+- **An upstream that keeps its submodules:** `clone --from-submodule
+  --recursive` converts a submodule's own submodules too, so the first
+  `push` of the splice above replaces them with splices upstream. If that
+  upstream's owners keep their submodules, every commit of theirs that
+  moves one is refused by `pull`
+  ([#153](https://github.com/roschaefer/git-splice/issues/153)).
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
 - **Moving a splice with unpushed changes:** the `git mv` commit changes
   `.splice`, and the splice's history starts there, so the unpushed
