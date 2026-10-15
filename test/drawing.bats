@@ -25,7 +25,7 @@ edit_drawing() {
 @test "drawing: the committed one matches its scenario" {
   run check_drawing "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames" ]
+  [ "$output" = "ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames, 1 lanes" ]
 }
 
 @test "drawing: a box pointing at the wrong commit names the right one" {

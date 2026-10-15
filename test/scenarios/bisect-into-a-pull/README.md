@@ -44,7 +44,7 @@ commit named by its place in the history
 
 ```scrut
 $ check_drawing "$TESTDIR/bisect-into-a-pull.drawio.svg" a=HEAD~3 b=HEAD~2 X=HEAD~1 d=HEAD k=refs/splices/upstream/main~3 l=refs/splices/upstream/main~2 m=refs/splices/upstream/main~1 n=refs/splices/upstream/main
-ok   bisect-into-a-pull.drawio.svg: 8 commits, 11 arrows, 5 boxes, 2 frames
+ok   bisect-into-a-pull.drawio.svg: 8 commits, 11 arrows, 5 boxes, 2 frames, 1 lanes
 ```
 
 ### Bisect the monorepo

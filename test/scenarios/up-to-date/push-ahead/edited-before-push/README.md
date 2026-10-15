@@ -95,7 +95,7 @@ commit named by its place in the history
 
 ```scrut
 $ check_drawing "$TESTDIR/edited-before-push.drawio.svg" a=HEAD~1 b=HEAD k=refs/splices/upstream/main
-ok   edited-before-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 0 frames
+ok   edited-before-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 0 frames, 1 lanes
 ```
 
 ### Edit and push
