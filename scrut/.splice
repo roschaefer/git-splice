@@ -1,0 +1,5 @@
+[splice]
+	id = 68163f34d1b20df3
+	commit = 9c354fb8961ea03f4c4df73970880b8cb9a4bfc7
+[upstream "origin"]
+	url = https://github.com/roschaefer/scrut

@@ -1,0 +1,27 @@
+# No time constraints
+
+Run howeverlong
+
+## Run the first test
+
+```scrut
+$ echo TestA && sleep 0.1 && echo Test1
+TestA
+Test1
+```
+
+## Run the second test
+
+```scrut
+$ echo TestB && sleep 2 && echo Test2
+TestB
+Test2
+```
+
+## Run the third test
+
+```scrut
+$ echo TestC && sleep 0.1 && echo Test3
+TestC
+Test3
+```
