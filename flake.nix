@@ -59,15 +59,16 @@
           };
         };
         # Runs the walkthroughs and scenario READMEs (`just docs-check`). Not in
-        # nixpkgs yet, so this uses the upstream release binaries.
+        # nixpkgs yet, so this uses release binaries of our fork, spliced in at
+        # scrut/, for `scrut test --jobs` until it's released upstream.
         scrut =
           let
-            version = "0.4.3";
+            version = "0.5.0-jobs.1";
             platforms = {
-              x86_64-linux = { name = "linux-x86_64"; hash = "sha256-au+wv/KbRQ+9GwQIPu/q5DiNbJMC4x0aJLeqnt0DuzU="; };
-              aarch64-linux = { name = "linux-aarch64"; hash = "sha256-pnEX9DINEpx9cHOl5mfbrSXnqD8xSApjMQglD+QGndU="; };
-              x86_64-darwin = { name = "macos-x86_64"; hash = "sha256-JYlzAFESfhFOIBSRblHn6s6wH1nqe/sqpZvzbI+izJ4="; };
-              aarch64-darwin = { name = "macos-aarch64"; hash = "sha256-PAvI1FX92zguHpCZ9fSk4LjpJbGfpYjCF2vARjg9mrw="; };
+              x86_64-linux = { name = "linux-x86_64"; hash = "sha256-464snd/zBsv5z2fF97x29BrJgUZDQjv8i+4pz2Wim3k="; };
+              aarch64-linux = { name = "linux-aarch64"; hash = "sha256-+uxmo7dMbzB/mwnrCiL+n8kInAq3pMGrzCZQklrzbuc="; };
+              x86_64-darwin = { name = "macos-x86_64"; hash = "sha256-vY7fJFeAFcx0Kux/TAcpuq86cr3Z6CWKoKKUrx0ChIc="; };
+              aarch64-darwin = { name = "macos-aarch64"; hash = "sha256-bdPRBY08aVgAXfzcHyhwwhdBUZXgmT15fCMOJOPrB18="; };
             };
             platform = platforms.${system};
           in
@@ -75,7 +76,7 @@
             pname = "scrut";
             inherit version;
             src = pkgs.fetchurl {
-              url = "https://github.com/facebookincubator/scrut/releases/download/v${version}/scrut-v${version}-${platform.name}.tar.gz";
+              url = "https://github.com/roschaefer/scrut/releases/download/v${version}/scrut-v${version}-${platform.name}.tar.gz";
               inherit (platform) hash;
             };
             sourceRoot = "scrut-${platform.name}";
