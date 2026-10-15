@@ -309,6 +309,15 @@ add_nested_submodule() {
   [ "$SPLICE_STATE" = pull ]
 }
 
+@test "clone --from-submodule --recursive: the fetch doesn't look for upstream's submodules in the monorepo" {
+  add_nested_submodule
+  # As git clone --recurse-submodules leaves it: every submodule is active.
+  git config submodule.active .
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Could not access submodule"* ]]
+}
+
 @test "clone --from-submodule --recursive: nested checkouts lose their .git, their repositories stay" {
   add_nested_submodule
   git -c protocol.file.allow=always submodule -q update --init --recursive

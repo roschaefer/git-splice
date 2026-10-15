@@ -24,12 +24,12 @@ EOF
 fetch_upstream() {
   local url="$1" prefix="$2" commit
   shift 2
-  git fetch --quiet --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
+  git fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
   for commit in "$@"; do
     # A splice made by init has no synced commit until its first pull.
     [[ -n "$commit" ]] || continue
     if ! git cat-file -e "$commit^{commit}" 2>/dev/null; then
-      git fetch --quiet --no-tags --no-write-fetch-head -- "$url" "$commit" 2>/dev/null || true
+      git fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head -- "$url" "$commit" 2>/dev/null || true
     fi
   done
 }
