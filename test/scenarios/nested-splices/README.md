@@ -168,3 +168,7 @@ from the splice above with the newest last pull, even two levels up
 another splice at `b/` ([replaced above](replaced-above.md)); and it
 doesn't drop what b's upstream got from the monorepo directly
 ([pushed and made above](pushed-and-made-above.md)).
+
+A pull of a can move b to a synced commit b's upstream has dropped from
+its branches; the pull of b then fetches it by its hash
+([dropped below](dropped-below.md)).

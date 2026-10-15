@@ -370,6 +370,68 @@ work_in_upstream_a() {
   [ "$(git show HEAD:vendor/a/b/other.txt)" = $'b change 1\nb change 2' ]
 }
 
+# a's upstream pulls "b change" into b/, then b's upstream drops it from
+# main: the synced commit a's upstream records for b is on no branch.
+b_moved_to_a_commit_no_branch_has() {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b change" main other.txt
+  work_in_upstream_a
+  splice pull b >/dev/null
+  git push -q origin main
+  git -C "$upstream_b" update-ref refs/heads/main refs/heads/main^
+  cd "$monorepo"
+}
+
+@test "nested: pull --all fetches the synced commit the pull of a moves b to, though no branch of b's upstream has it" {
+  b_moved_to_a_commit_no_branch_has
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [ "$(git show HEAD:vendor/a/b/other.txt)" = "b change" ]
+}
+
+@test "nested: pull of a alone fetches the synced commit it moves b to, though no branch of b's upstream has it" {
+  b_moved_to_a_commit_no_branch_has
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  synced="$(splice_config vendor/a/b commit)"
+  git cat-file -e "$synced^{commit}"
+  run splice status vendor/a/b
+  [[ "$output" != *"no common"* && "$output" != *"unrelated"* ]]
+}
+
+# As above, and b's upstream lost the dropped commit for good, e.g. to gc.
+b_moved_to_a_commit_upstream_lost() {
+  b_moved_to_a_commit_no_branch_has
+  git -C "$upstream_b" reflog expire --expire=now --all
+  git -C "$upstream_b" gc -q --prune=now
+  synced_after="$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)"
+}
+
+@test "nested: pull of a says so when the synced commit it moves b to is gone from b's upstream" {
+  b_moved_to_a_commit_upstream_lost
+  run splice pull vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b: its synced commit ${synced_after:0:7}, from a pull above, isn't on its upstream any more"* ]]
+}
+
+@test "nested: pull --all says so when the synced commit a moves b to is gone from b's upstream, rather than that b shares no history" {
+  b_moved_to_a_commit_upstream_lost
+  run splice pull --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b: its synced commit ${synced_after:0:7}, from a pull above, isn't on its upstream any more"* ]]
+  [[ "$output" != *"no common"* ]]
+}
+
+@test "nested: merge --all says b's synced commit, from the merge of a, isn't fetched yet, rather than that b shares no history" {
+  b_moved_to_a_commit_no_branch_has
+  splice fetch >/dev/null
+  run splice merge --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"??   vendor/a/b: not fetched yet -- run 'git splice fetch vendor/a/b' first"* ]]
+  run splice pull vendor/a/b
+  [ "$status" -eq 0 ]
+}
+
 @test "nested: top-down puts each splice after the ones above it, bottom-up before them, and keeps the order given otherwise" {
   run splices_in_order top-down deep/x/y other deep/x z
   [ "$output" = $'deep/x\ndeep/x/y\nother\nz' ]

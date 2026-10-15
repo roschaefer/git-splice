@@ -193,12 +193,22 @@ bump_synced() {
   log_ok "$path: bumped the synced commit to ${target:0:7}"
 }
 
+# Succeeds if splice <path>'s synced commit is here, or it has none.
+synced_commit_here() {
+  local synced
+  synced="$(splice_config "$1" commit)"
+  [[ -z "$synced" ]] || git cat-file -e "$synced^{commit}" 2>/dev/null
+}
+
 # Reads splice <path>'s upstreams again after a merge above changed its
 # .splice, and uses the one the command chose (use_upstreams). A pull
 # (<verb>) fetches the upstreams it names now, but didn't before: the
-# synced commit the merge above moved it to may be in any of them. Fails,
-# saying why, if one can't be fetched, or if a merge would use one that
-# wasn't.
+# synced commit the merge above moved it to may be in any of them. It
+# also fetches the one it uses if that synced commit isn't here: it may
+# be on no branch of an upstream it had, e.g. after a force-push, and
+# fetch_upstream fetches it by its hash. Fails, saying why, if one can't
+# be fetched, if the synced commit is on none of them, or if a merge would
+# use one that wasn't.
 reload_splice_upstream() {
   local path="$1" branch="$2" verb="$3" names=() name old_urls=() url entries=() i used_is_new=""
   read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
@@ -215,14 +225,24 @@ reload_splice_upstream() {
     entries+=("$path:$name")
     [[ "$name" != "${SPLICE_UPSTREAM_NAMES[$path]}" ]] || used_is_new=1
   done
+  if [[ ${#entries[@]} -eq 0 ]] && ! synced_commit_here "$path"; then
+    entries=("$path:${SPLICE_UPSTREAM_NAMES[$path]}")
+    used_is_new=1
+  fi
   [[ ${#entries[@]} -gt 0 ]] || return 0
   if [[ "$verb" == pull ]]; then
     fetch_all_parallel "$branch" "${entries[@]}"
     for i in "${!entries[@]}"; do
       print_fetch_output "$i"
     done
-    [[ ${#FETCH_FAILURES[@]} -eq 0 ]]
-  elif [[ -n "$used_is_new" ]] && ! splice_fetched "$path"; then
+    [[ ${#FETCH_FAILURES[@]} -eq 0 ]] || return 1
+    # A fetch by hash fails quietly when no upstream has the commit any
+    # more, e.g. after a gc.
+    if ! synced_commit_here "$path"; then
+      log_err "$path: its synced commit $(splice_config "$path" commit | cut -c1-7), from a pull above, isn't on its upstream any more"
+      return 1
+    fi
+  elif [[ -n "$used_is_new" ]] && { ! splice_fetched "$path" || ! synced_commit_here "$path"; }; then
     log_warn "$path: not fetched yet -- run 'git splice fetch $(upstream_option "$path")$path' first"
     return 1
   fi
@@ -261,6 +281,20 @@ merge_paths() {
     fi
     merge_one "$path" "$branch" "$verb" || failures+=("$path")
   done
+  # A pull above may also move the synced commit of a splice below it that
+  # isn't pulled itself: fetch that commit too, or the splice would look
+  # like it shares no history with its upstream. --upstream names one of
+  # the pulled splice's upstreams, so this uses the default one.
+  if [[ "$verb" == pull ]] && ! splice_in_progress; then
+    for path in "${ALL_PATHS[@]}"; do
+      [[ " ${paths[*]} " != *" $path "* ]] || continue
+      first_above "$path" "${paths[@]}" >/dev/null || continue
+      git cat-file -e "HEAD:$path/$STATE_FILE" 2>/dev/null || continue
+      ! git diff --quiet "$loaded" HEAD -- "$path/$STATE_FILE" || continue
+      synced_commit_here "$path" && continue
+      UPSTREAM_ARG="" reload_splice_upstream "$path" "$branch" pull || failures+=("$path")
+    done
+  fi
 
   if [[ ${#skipped[@]} -gt 0 ]]; then
     log_err "Not $(past_tense "$verb") yet: ${skipped[*]} -- resolve the conflict, run 'git commit', then re-run $verb"
