@@ -49,7 +49,7 @@ check_drawing() {
   local -a errors=() commits=() edges=() boxes=() frames=() lanes=() splices=()
   local -A id_of_label=() label_count=()
   local arg id k cells term named sp p
-  local name='([HBTR]|U\([^()]+\)|[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)'
+  local name='([HBTR]|U\([^()]+\)|[^ =]+)'
   local box_label="^$name( = $name)*\$"
 
   for arg in "$@"; do
