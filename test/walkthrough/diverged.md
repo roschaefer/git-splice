@@ -55,14 +55,21 @@ $ git splice log
 In terms of the [four commits](../concepts/sync-model/README.md), R and T each
 have a commit the other lacks, and U(H) is where they part:
 
-```text
-      monorepo, newest first                 pkg-a.git, newest first
+<div align="center">
 
-      * pkg-a: a local fix               R   < | pkg-a: a local fix
-                                         T   | > pkg-a: an upstream fix
-  B   = splice: pull vendor/pkg-a            |/
-          (folder = U(B))               U(B) * pkg-a: a second commit, after the clone
+![The monorepo's pull p is B, the local fix f is H; upstream, s is U(H) = U(B), T is the upstream fix u, and R is f prime, the rebuilt local fix](diverged.drawio.svg)
+
+</div>
+
+p is the pull, f the local fix; s is `pkg-a: a second commit, after the
+clone`, u the upstream fix, and f' the local fix as R has it.
+
+<!--
+```scrut
+$ source "$TESTDIR/../../check-drawing/check-drawing" && check_drawing "$TESTDIR/diverged.drawio.svg" p=HEAD~1 f=HEAD s=refs/splices/pkg-a/main~1 u=refs/splices/pkg-a/main
+ok   diverged.drawio.svg: 5 commits, 8 arrows, 5 boxes, 0 frames, 1 lanes
 ```
+-->
 
 `log --graph` draws that right-hand side:
 

@@ -7,9 +7,17 @@ monorepo's history, which still has the original commit, so a `pull`
 right after the push records the edited commit as the synced commit. From there on, the monorepo
 builds on the edited commit.
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, then the unpushed commit
-  `fix, see INTERNAL-123`.
-- **Upstream**: `seed`.
+- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k, then the
+  unpushed commit b (`fix, see INTERNAL-123`).
+- **Upstream**: k (`seed`).
+
+<div align="center">
+
+![The monorepo's a and b, the upstream's k, and R, the rebuilt b prime on top of k](edited-before-push.drawio.svg)
+
+</div>
+
+R is b', the copy of b that the recipe edits.
 
 The recipe:
 
@@ -67,15 +75,6 @@ Neither happens by accident while rewording or squashing. Whoever builds
 the commit with Git's plumbing checks that it's the right one, e.g. with
 `git log --graph <commit>` before the push.
 
-<div align="center">
-
-![The monorepo's a and b, the upstream's k, and R, the rebuilt b prime on top of k](edited-before-push.drawio.svg)
-
-</div>
-
-Before the edit: a is `add vendor/a`, b is `fix, see INTERNAL-123`, and
-k is `seed`. R is b', the copy of b that the recipe edits.
-
 ## Output
 
 <!--
@@ -92,11 +91,11 @@ $ build_scenario scenario_edited_before_push
 
 The drawing shows what Git and `git-splice` say about it, with each
 commit named by its place in the history
-([`check_drawing`](../../../../helpers/drawing.bash)):
+([`check_drawing`](../../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/edited-before-push.drawio.svg" a=HEAD~1 b=HEAD k=refs/splices/upstream/main
-ok   edited-before-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 0 frames
+ok   edited-before-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 0 frames, 1 lanes
 ```
 
 ### Edit and push

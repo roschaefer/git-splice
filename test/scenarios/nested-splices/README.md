@@ -6,17 +6,27 @@ upstream into the monorepo brings that `.splice` along, so `vendor/a/b/`
 is a splice in the monorepo too.
 
 - **b's upstream** (`$UPSTREAM-b.git`, reached as
-  `https://git.example.com/b.git`): `b seed`.
-- **a's upstream** (`$UPSTREAM`): `a seed`, then `add b`, which spliced
-  b's upstream in at `b/`.
-- **Monorepo**: `vendor/a/` from a's upstream, and `vendor/a/b/` below it,
-  from b's upstream, both fetched.
+  `https://git.example.com/b.git`): m (`b seed`).
+- **a's upstream** (`$UPSTREAM`): k (`a seed`), then l (`add b`), which
+  spliced b's upstream in at `b/`.
+- **Monorepo**: a (`add vendor/a`) cloned l into `vendor/a/`, and with it
+  `vendor/a/b/`, from b's upstream. Both are fetched.
 
 Each push sends its folder without its own `.splice`. So a's push sends
 b's `.splice` with b's files, and in a's upstream, `b/` stays a splice
 that `git-splice` can pull and push there.
 [The design](../../../docs/design/README.md#refs-instead-of-remotes)
 explains why both repositories agree on b's state.
+
+<div align="center">
+
+![The monorepo's a; in the lane vendor/a/, a's upstream commits k and l; in vendor/a/b/, drawn inside it, b's upstream commit m, which l's b/.splice records](nested-splices.drawio.svg)
+
+</div>
+
+Each splice has a lane, labelled with its folder, and the lanes nest
+as the folders do. l's `b/.splice` records m: U(l) = m, the same commit
+as the monorepo's U(H) for `vendor/a/b/`.
 
 ## Output
 
@@ -30,6 +40,15 @@ $ source "$TESTDIR/../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_K
 
 ```scrut
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../../check-drawing/)):
+
+```scrut
+$ check_drawing "$TESTDIR/nested-splices.drawio.svg" a=HEAD k=refs/splices/upstream/main~1 l=refs/splices/upstream/main m=refs/splices/b/main
+ok   nested-splices.drawio.svg: 4 commits, 5 arrows, 4 boxes, 1 frames, 2 lanes
 ```
 
 Both splices are up to date:

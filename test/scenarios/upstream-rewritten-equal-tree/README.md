@@ -7,10 +7,10 @@ the new commit as the synced commit, so the next change builds on the
 rewritten history
 ([#17](https://github.com/roschaefer/git-splice/issues/17)).
 
-- **Monorepo (`vendor/a/`)**: cloned at `release`.
-- **Upstream**: `seed`, `release`, then rewritten and force-pushed as one
-  root commit, `release, history rewritten`, with `release`'s files.
-  Already fetched.
+- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned r.
+- **Upstream**: k (`seed`), r (`release`), then rewritten and
+  force-pushed as one root commit, w (`release, history rewritten`), with
+  r's files. Already fetched.
 
 That only works while the folder still has the upstream's files. After a
 local change, the splice is `unrelated history`, and `merge` and `pull`
@@ -25,6 +25,15 @@ again](push-force-undoes-the-rewrite.md). Keeping both publishes the
 monorepo's own history of the folder, which contains whatever the
 monorepo pulled before the rewrite.
 
+<div align="center">
+
+![The monorepo's a records r, the old release on top of k; T is w, the rewritten release, a root commit of its own](upstream-rewritten-equal-tree.drawio.svg)
+
+</div>
+
+U(H) is r, but T is w, which shares no history with it. No upstream
+branch has k and r any more, so they're dashed.
+
 ## Output
 
 <!--
@@ -37,6 +46,19 @@ $ source "$TESTDIR/../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_upstream_rewritten_equal_tree
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../../check-drawing/)):
+
+```scrut
+$ r="$(git config --file vendor/a/.splice splice.commit)"
+```
+
+```scrut
+$ check_drawing "$TESTDIR/upstream-rewritten-equal-tree.drawio.svg" a=HEAD k="$r~1" r="$r" w=refs/splices/upstream/main
+ok   upstream-rewritten-equal-tree.drawio.svg: 4 commits, 4 arrows, 3 boxes, 0 frames, 1 lanes
 ```
 
 ```scrut

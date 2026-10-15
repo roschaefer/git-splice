@@ -2,25 +2,26 @@
 
 A pull on a feature branch, squash-merged into `main`.
 
-- **Upstream**: `seed` on `main`, and someone else's commit on `feature`.
-- **Monorepo (`vendor/a/`)**: cloned at `seed`. On `feature`, `git splice
-  pull` brought in the upstream commit. `feature` was squash-merged into
-  `main` and deleted, then a local commit followed on `main`.
-
-A squash merge keeps the content and drops the history. With `git subtree`,
-that lost the sync point. Here the squash merge itself
-changed `.splice`, so it is the new boundary, and the rebuild starts at the
-pulled upstream commit: a push sends only the local commit.
-
 <div align="center">
 
 ![The monorepo's a, the squash merge s and c; the upstream's k on main and f on feature; R is c prime on top of f, and B is s](squash-merged-pull.drawio.svg)
 
 </div>
 
-The drawing names the monorepo's commits a (`add vendor/a`), s (the
-squash merge) and c (`local change`), and the upstream's k (`seed`, T)
-and f (`upstream feature work`).
+- **Upstream**: k (`seed`) on `main`, and someone else's commit f
+  (`upstream feature work`) on `feature`.
+- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k. On `feature`,
+  `git splice pull` brought in f. `feature` was squash-merged into `main`
+  as s and deleted, then a local commit c followed on `main`.
+
+`.splice` records a commit, not a branch: s records f as U(H). The
+upstream's `main`, T, is still at k, since nobody merged `feature` into
+it there. f is on the upstream's `feature`, so it's solid. R's copy c'
+is dashed: no upstream branch has it yet.
+
+A squash merge keeps the content and drops the history. With `git subtree`,
+that lost the sync point. Here s itself changed `.splice`, so it is B, and
+the rebuild starts at f: R is c', the copy of c, on top of f.
 
 ## Output
 
@@ -38,11 +39,11 @@ $ build_scenario scenario_squash_merged_pull
 
 The drawing shows what Git and `git-splice` say about it, with each
 commit named by its place in the history
-([`check_drawing`](../../../helpers/drawing.bash)):
+([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/squash-merged-pull.drawio.svg" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/upstream/main f=refs/splices/upstream/feature
-ok   squash-merged-pull.drawio.svg: 6 commits, 9 arrows, 5 boxes, 0 frames
+ok   squash-merged-pull.drawio.svg: 6 commits, 9 arrows, 5 boxes, 0 frames, 1 lanes
 ```
 
 ```scrut

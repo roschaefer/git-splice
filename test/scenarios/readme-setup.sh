@@ -14,8 +14,8 @@ export UPSTREAM
 
 # shellcheck source=test/helpers/fixtures.bash
 source "$(dirname "${BASH_SOURCE[0]}")/../helpers/fixtures.bash"
-# shellcheck source=test/helpers/drawing.bash
-source "$(dirname "${BASH_SOURCE[0]}")/../helpers/drawing.bash"
+# shellcheck source=check-drawing/check-drawing
+source "$(dirname "${BASH_SOURCE[0]}")/../../check-drawing/check-drawing"
 
 # Runs scenario function $1 from the README's setup.bash, the function the
 # bats tests call too, with any further arguments, and cds into the

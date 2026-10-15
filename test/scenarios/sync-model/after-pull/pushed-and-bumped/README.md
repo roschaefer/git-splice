@@ -35,11 +35,11 @@ $ build_scenario scenario_pushed_and_bumped
 
 The drawing shows what Git and `git-splice` say about it. a, e and f
 aren't subjects the drawing can show, so they're named by their place in
-the history ([`check_drawing`](../../../../helpers/drawing.bash)):
+the history ([`check_drawing`](../../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/pushed-and-bumped.drawio.svg" a=HEAD~5 e=HEAD~1 f=HEAD
-ok   pushed-and-bumped.drawio.svg: 13 commits, 17 arrows, 5 boxes, 3 frames
+ok   pushed-and-bumped.drawio.svg: 13 commits, 17 arrows, 5 boxes, 3 frames, 1 lanes
 ```
 
 The monorepo, with f on top:

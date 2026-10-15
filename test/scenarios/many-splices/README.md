@@ -3,11 +3,11 @@
 A monorepo with five splices, each in a different state, on the
 monorepo's default branch.
 
-- **Monorepo (`libs/*`)**: `cli`, `http`, `parser`, `store` and `theme`,
-  each with its own upstream. Then a local commit in `parser` and one in
-  `store`.
-- **Upstreams**: two new commits in `http`'s, one in `store`'s. `theme`'s
-  default branch is `master`.
+- **Monorepo (`libs/*`)**: a to e add `cli`, `http`, `parser`, `store`
+  and `theme`, each from its own upstream's `seed`. Then a local commit
+  in `parser`, f, and one in `store`, g.
+- **Upstreams**: two new commits in `http`'s, m and n, one in
+  `store`'s, o. `theme`'s default branch is `master`.
 
 `status` gives every splice a line. Those that need something come first,
 most urgent first: diverged, then behind, then ahead. Those with nothing
@@ -18,6 +18,15 @@ The other documents here show the same monorepo
 [on a feature branch](feature-branch.md),
 [with uncommitted changes](uncommitted-changes.md) and
 [in a fresh clone](fresh-clone.md).
+
+<div align="center">
+
+![Monorepo commits a to g, and one lane per splice: cli up to date, http behind by m and n, parser ahead by f prime, store diverged with o and g prime, theme up to date](many-splices.drawio.svg)
+
+</div>
+
+Each splice has a lane, labelled with its folder. f' and g' are R's
+copies of f and g.
 
 ## Output
 
@@ -31,6 +40,15 @@ $ source "$TESTDIR/../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_many_splices
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../../check-drawing/)):
+
+```scrut
+$ check_drawing "$TESTDIR/many-splices.drawio.svg" a=HEAD~6 b=HEAD~5 c=HEAD~4 d=HEAD~3 e=HEAD~2 f=HEAD~1 g=HEAD m=refs/splices/upstream-http/main~1 n=refs/splices/upstream-http/main o=refs/splices/upstream-store/main
+ok   many-splices.drawio.svg: 17 commits, 20 arrows, 9 boxes, 0 frames, 5 lanes
 ```
 
 ```scrut

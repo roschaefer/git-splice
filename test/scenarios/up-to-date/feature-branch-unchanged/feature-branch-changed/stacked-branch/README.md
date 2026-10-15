@@ -3,15 +3,24 @@
 A branch stacked on a feature branch that upstream already has, and the
 splice didn't change on the stacked branch.
 
-- **Monorepo (`vendor/a/`)**: `feature` with a local commit under
-  `vendor/a/`, pushed; then the branch `stacked` on top, with a commit
-  outside `vendor/a/` only.
-- **Upstream**: `main`, and `feature` from the push.
+<div align="center">
 
-Upstream has no `stacked` branch, so `git-splice` compares with
-upstream's default branch, as a PR from `stacked` would. `main` lacks the
-commit from `feature`, so the splice counts as new, and `push` creates
-`stacked` upstream at the same commit as `feature`. A PR from it into
+![The monorepo's a, b and c; the upstream's k on main and b prime on feature; R is b prime, and there is no T](stacked-branch.drawio.svg)
+
+</div>
+
+- **Upstream**: k (`seed`) on `main`, and b', the copy of b, on `feature`
+  from the push.
+- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k. On `feature`,
+  a local commit b (`local change`) under `vendor/a/`, pushed; then the
+  branch `stacked` on top, with a commit c (`app work`) outside
+  `vendor/a/` only.
+
+Upstream has no `stacked` branch, so there's no T, and `git-splice`
+compares with upstream's default branch, as a PR from `stacked` would. R
+is b', the commit `feature` has, so it's solid. `main` lacks it, so the
+splice counts as new, and `push` creates `stacked` upstream at b', the
+same commit as `feature`. A PR from it into
 `main` would show the same change as the PR from `feature`; one into
 `feature` would be empty. That's the cost of comparing with the default
 branch (#150): pushing only the splices that changed on `stacked`, here
@@ -29,6 +38,15 @@ $ source "$TESTDIR/../../../../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_stacked_branch
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../../../../../check-drawing/)):
+
+```scrut
+$ check_drawing "$TESTDIR/stacked-branch.drawio.svg" a=HEAD~2 b=HEAD~1 c=HEAD k=refs/splices/upstream/main
+ok   stacked-branch.drawio.svg: 5 commits, 7 arrows, 4 boxes, 0 frames, 1 lanes
 ```
 
 ```scrut

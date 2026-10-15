@@ -33,11 +33,11 @@ $ build_scenario scenario_after_pull
 
 The drawing shows what Git and `git-splice` say about it. a and e aren't
 subjects the drawing can show, so they're named by their place in the
-history ([`check_drawing`](../../../helpers/drawing.bash)):
+history ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/after-pull.drawio.svg" a=HEAD~4 e=HEAD
-ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames
+ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames, 1 lanes
 ```
 
 The monorepo, with e on top. a is the clone, `add vendor/a`:
