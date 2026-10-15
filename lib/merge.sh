@@ -274,6 +274,20 @@ merge_paths() {
     fi
     merge_one "$path" "$branch" "$verb" || failures+=("$path")
   done
+  # A pull above may also move the synced commit of a splice below it that
+  # isn't pulled itself: fetch that commit too, or the splice would look
+  # like it shares no history with its upstream. --upstream names one of
+  # the pulled splice's upstreams, so this uses the default one.
+  if [[ "$verb" == pull ]] && ! splice_in_progress; then
+    for path in "${ALL_PATHS[@]}"; do
+      [[ " ${paths[*]} " != *" $path "* ]] || continue
+      first_above "$path" "${paths[@]}" >/dev/null || continue
+      git cat-file -e "HEAD:$path/$STATE_FILE" 2>/dev/null || continue
+      ! git diff --quiet "$loaded" HEAD -- "$path/$STATE_FILE" || continue
+      synced_commit_here "$path" && continue
+      UPSTREAM_ARG="" reload_splice_upstream "$path" "$branch" pull || failures+=("$path")
+    done
+  fi
 
   if [[ ${#skipped[@]} -gt 0 ]]; then
     log_err "Not $(past_tense "$verb") yet: ${skipped[*]} -- resolve the conflict, run 'git commit', then re-run $verb"

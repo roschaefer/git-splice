@@ -389,6 +389,16 @@ b_moved_to_a_commit_no_branch_has() {
   [ "$(git show HEAD:vendor/a/b/other.txt)" = "b change" ]
 }
 
+@test "nested: pull of a alone fetches the synced commit it moves b to, though no branch of b's upstream has it" {
+  b_moved_to_a_commit_no_branch_has
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  synced="$(splice_config vendor/a/b commit)"
+  git cat-file -e "$synced^{commit}"
+  run splice status vendor/a/b
+  [[ "$output" != *"no common"* && "$output" != *"unrelated"* ]]
+}
+
 @test "nested: merge --all says b's synced commit, from the merge of a, isn't fetched yet, rather than that b shares no history" {
   b_moved_to_a_commit_no_branch_has
   splice fetch >/dev/null
