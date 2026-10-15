@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/roschaefer/git-splice/compare/v0.8.0...v0.8.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **fetch:** don't recurse into submodules when fetching an upstream ([#161](https://github.com/roschaefer/git-splice/issues/161)) ([6271d56](https://github.com/roschaefer/git-splice/commit/6271d56702d61338ba469f217905ffe66290028a)), closes [#162](https://github.com/roschaefer/git-splice/issues/162)
+
 ## [0.8.0](https://github.com/roschaefer/git-splice/compare/v0.7.0...v0.8.0) (2026-10-15)
 
 
