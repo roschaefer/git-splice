@@ -76,9 +76,10 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   - What a lane shows stays in it: arrows between commits don't cross
     into another lane.
   - A box sits on the side of what it names: H and B outside every lane,
-    T, R and upstream branches in their splice's lane, and U(x) next to
-    x, pointing into the lane. With one splice, a box outside every lane
-    is that splice's.
+    T, R and upstream branches in their splice's lane. U(x) bridges the
+    two: it sits next to x, or in the lane of the commit it names. With
+    one splice, a box outside every lane is that splice's; with several,
+    a frame around x says whose U(x) it is.
 - **Frame**: labelled `x:<path>/.splice`, Git's name for that file in
   commit x, holds commit x, and usually the box U(x). `<path>` is the
   splice's folder in x's repository: in the monorepo, or in the upstream
@@ -112,6 +113,8 @@ What no drawing has needed yet, it doesn't handle:
 - **Branch names that read as names of the vocabulary**: an upstream
   branch called H, B, T, R, `U(…)` or `path/`.
 - **Several upstreams**: only a splice's default upstream is checked.
+- **B with several splices**: outside every lane, B can't say which
+  splice's boundary it is, so drawings with several splices leave it out.
 - **Rewrites of shared history**: an upstream that shares commits with
   the monorepo and later drops one of them.
 - **Old sync points**: a commit reachable only from an earlier `.splice`

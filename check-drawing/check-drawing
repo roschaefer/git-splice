@@ -346,7 +346,7 @@ check_drawing() {
       sp="${splice_of[$s]}"
       while IFS= read -r term; do
         # A box sits on the side of what it names. U(x) bridges the two:
-        # it sits next to x and points into the lane.
+        # next to x, or in the lane of the commit it names.
         if [[ ${#lanes[@]} -gt 0 ]]; then
           case "$term" in
             H | B)
@@ -364,8 +364,13 @@ check_drawing() {
               ;;
           esac
         fi
-        if [[ "$term" != H && -z "$sp" ]]; then
-          errors+=("$term is in no lane: draw it in the lane of its splice")
+        # With several splices, only a lane or a frame says whose B or U(x)
+        # a box outside every lane is.
+        if [[ "$term" == B && -z "$sp" ]]; then
+          errors+=("B outside every lane doesn't say which splice's boundary it is: with several splices, leave B out")
+          continue
+        elif [[ "$term" != H && -z "$sp" ]]; then
+          errors+=("$term doesn't say which splice's it is: draw it in the lane of the commit it names, or in a frame x:<path>/.splice")
           continue
         fi
         if [[ "$term" == U\(*\) ]]; then

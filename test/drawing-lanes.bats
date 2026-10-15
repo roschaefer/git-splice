@@ -125,3 +125,16 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   the lane vendor/a/b/ is a folder inside vendor/a/: draw it inside that lane" ]
 }
+
+@test "drawing lanes: U(x) may sit in the lane of the commit it names" {
+  edit_drawing -u '//mxCell[@value="U(l)"]/mxGeometry/@x' -v 760 -u '//mxCell[@value="U(l)"]/mxGeometry/@y' -v 300
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing lanes: with several splices, B outside every lane says why it can't be checked" {
+  edit_drawing -u '//mxCell[@value="H"]/@value' -v B
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   B outside every lane doesn't say which splice's boundary it is: with several splices, leave B out" ]
+}
