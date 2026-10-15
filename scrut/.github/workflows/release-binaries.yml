@@ -46,6 +46,17 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
+      # `scrut --version` falls back to the crate version: the checkout has no
+      # annotated tag for `git describe`, so it must match the tag
+      - name: Check Version
+        shell: bash
+        run: |
+          crate_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+          if [ "v$crate_version" != "$VERSION" ]; then
+            echo "::error::tag $VERSION doesn't match version $crate_version in Cargo.toml"
+            exit 1
+          fi
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
