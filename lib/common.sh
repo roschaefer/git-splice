@@ -49,6 +49,15 @@ upstream_submodule() {
   git ls-tree -r "$1" | awk '$1 == "160000" && !found { sub(/^[^\t]*\t/, ""); print; found = 1 }'
 }
 
+# Prints the path of the first submodule upstream commit <target> adds,
+# or moves to another commit, since upstream commit <base>, or nothing.
+# One it leaves alone merges cleanly: the monorepo's side keeps what it
+# has there, e.g. a splice that clone --from-submodule --recursive made
+# of it, until the next push turns it into a splice upstream too.
+changed_submodule() {
+  git diff-tree -r --no-renames "$1" "$2" | awk '$2 == "160000" && !found { sub(/^[^\t]*\t/, ""); print; found = 1 }'
+}
+
 # Prints every state file in commit <commit>, at any depth, NUL-separated.
 # Git filters them (a diff from the empty tree lists every file), so
 # neither a file name with a newline nor a non-GNU grep gets in the way.

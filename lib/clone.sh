@@ -4,7 +4,7 @@
 usage_clone() {
   cat <<'EOF'
 usage: git splice clone [--merge] <url> [<path>]
-   or: git splice clone --from-submodule <path>
+   or: git splice clone --from-submodule [--recursive] <path>
 
 Splices an existing upstream repository into <path> (default: the
 repository's name), as one ordinary commit with a new <path>/.splice.
@@ -36,6 +36,17 @@ flags first. Files Git ignores in the checkout stay, and its repository
 stays in .git/modules/. Settings in .gitmodules other than path and url
 are dropped: a splice syncs with the upstream branch named like the
 current branch, not with submodule.<name>.branch.
+
+A submodule whose commit has submodules of its own is refused, unless
+--recursive is given: then clone converts those too, one commit each,
+top-down. Their URLs and settings come from the .gitmodules in the
+folder above, and a relative URL is relative to that folder's upstream.
+The upstream above still has the submodule, so the folder differs from
+it by that commit: the next push of the folder above sends it, which
+turns the submodule into a splice there too. Push it before that
+upstream moves its submodule to another commit: pulling such a change
+is refused. If a nested submodule is refused, the ones above stay
+converted; fix what the message says, then run clone on that path.
 EOF
 }
 
@@ -89,7 +100,7 @@ fetch_new_upstream() {
 }
 
 cmd_clone() {
-  parse_args usage_clone "--merge --from-submodule" "$@"
+  parse_args usage_clone "--merge --from-submodule --recursive" "$@"
   [[ -z "$ALL_ARG" ]] || die "clone takes no --all"
   if has_flag --from-submodule; then
     has_flag --merge && die "--from-submodule takes no --merge: the folder gets the submodule's files"
@@ -97,9 +108,12 @@ cmd_clone() {
       usage_clone >&2
       exit 1
     fi
-    clone_from_submodule "${PATH_ARGS[0]}"
+    local recursive=""
+    has_flag --recursive && recursive=1
+    clone_from_submodule "${PATH_ARGS[0]}" "$recursive"
     return
   fi
+  has_flag --recursive && die "--recursive needs --from-submodule: it converts the submodule's own submodules too"
   local merge=""
   has_flag --merge && merge=1
   local url="${PATH_ARGS[0]:-}" path="${PATH_ARGS[1]:-}"
@@ -171,10 +185,10 @@ path_mode() {
   printf '%s\n' "${entry%% *}"
 }
 
-# Prints the name of the submodule at <path> in HEAD's .gitmodules, or
-# nothing if none has that path.
+# Prints the name of the submodule at <path>, relative to the folder of
+# .gitmodules file <gitmodules> in HEAD, or nothing if none has that path.
 submodule_name() {
-  local path="$1" entry key
+  local gitmodules="$1" path="$2" entry key
   while IFS= read -r -d '' entry; do
     key="${entry%%$'\n'*}"
     if [[ "$(normalize_path "${entry#*$'\n'}")" == "$path" ]]; then
@@ -182,23 +196,27 @@ submodule_name() {
       printf '%s\n' "${key%.path}"
       return
     fi
-  done < <(git config -z --blob HEAD:.gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null)
+  done < <(git config -z --blob "HEAD:$gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null)
 }
 
 # Prints submodule URL <url> as `git submodule` reads it: a relative one,
-# starting with ./ or ../, is relative to the URL of the monorepo's default
-# remote -- the current branch's remote, else origin -- or, without one,
-# to the monorepo itself. Git resolves it: `git submodule init` in a
-# throwaway repository whose origin has that URL records it resolved.
+# starting with ./ or ../, is relative to URL <base>, if given: the
+# upstream of the splice the submodule is in. Else it's relative to the
+# URL of the monorepo's default remote -- the current branch's remote,
+# else origin -- or, without one, to the monorepo itself. Git resolves
+# it: `git submodule init` in a throwaway repository whose origin has
+# that URL records it resolved.
 resolve_submodule_url() {
-  local url="$1" branch remote base tmp resolved
+  local url="$1" base="${2:-}" branch remote tmp resolved
   [[ "$url" == ./* || "$url" == ../* ]] || {
     printf '%s\n' "$url"
     return
   }
-  branch="$(git symbolic-ref --quiet --short HEAD || true)"
-  remote="$(git config "branch.$branch.remote" 2>/dev/null || echo origin)"
-  base="$(git config "remote.$remote.url" 2>/dev/null || git rev-parse --show-toplevel)"
+  if [[ -z "$base" ]]; then
+    branch="$(git symbolic-ref --quiet --short HEAD || true)"
+    remote="$(git config "branch.$branch.remote" 2>/dev/null || echo origin)"
+    base="$(git config "remote.$remote.url" 2>/dev/null || git rev-parse --show-toplevel)"
+  fi
   # A relative path is relative to the monorepo, not to the throwaway
   # repository.
   [[ "$base" == /* || "$base" == *:* ]] || base="$(git rev-parse --show-toplevel)/$base"
@@ -219,18 +237,18 @@ resolve_submodule_url() {
 }
 
 # Dies unless converting the submodule at <path>, committed at <commit>,
-# can't lose anything. The conversion writes to the index, .gitmodules,
-# the folder and its .splice, and each must be unchanged from HEAD or
-# missing. Content is compared, not just what git status says: index
-# flags like assume-unchanged hide edits from it.
+# can't lose anything. The conversion writes to the index, .gitmodules
+# file <gitmodules>, the folder and its .splice, and each must be
+# unchanged from HEAD or missing. Content is compared, not just what git
+# status says: index flags like assume-unchanged hide edits from it.
 refuse_lossy_submodule_conversion() {
-  local path="$1" commit="$2"
+  local path="$1" commit="$2" gitmodules="$3"
   git diff --cached --quiet ||
     die "$path: there are staged changes -- commit or unstage them first, the conversion commits only its own"
   # HEAD has a .gitmodules: it names the submodule.
-  if [[ ! -e .gitmodules && ! -L .gitmodules ]] ||
-    [[ "$(git hash-object -- .gitmodules)" != "$(git rev-parse HEAD:.gitmodules)" ]]; then
-    die "$path: .gitmodules has uncommitted changes -- commit or discard them first"
+  if [[ ! -e "$gitmodules" && ! -L "$gitmodules" ]] ||
+    [[ "$(git hash-object -- "$gitmodules")" != "$(git rev-parse "HEAD:$gitmodules")" ]]; then
+    die "$path: $gitmodules has uncommitted changes -- commit or discard them first"
   fi
   local parent="$path"
   while [[ "$parent" == */* ]]; do
@@ -255,8 +273,13 @@ refuse_lossy_submodule_conversion() {
   fi
 }
 
+# Turns the submodule at <path> into a splice, as clone --from-submodule
+# does; with <recursive> non-empty, its own submodules too, each in a
+# commit of its own after the one above. A submodule inside a splice --
+# a folder above with a .splice -- is listed in that folder's
+# .gitmodules, as in its upstream.
 clone_from_submodule() {
-  local path
+  local path recursive="${2:-}"
   path="$(normalize_path "$1")"
   [[ -n "$path" && "$path" != . && "$path" != /* ]] || die "'$path' isn't a folder inside the repository"
   usable_splice_path "$path" ||
@@ -269,17 +292,27 @@ clone_from_submodule() {
   is_splice_path "$path" && die "$path is a splice already"
   splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
   [[ "$(path_mode HEAD "$path")" == 160000 ]] || die "$path: no submodule committed here"
+  local above="" gitmodules=.gitmodules base=""
+  if above="$(splice_above_in HEAD "$path")"; then
+    gitmodules="$above/.gitmodules"
+    require_default_upstream "$above"
+    base="${SPLICE_URLS[$above]}"
+  fi
   local commit name url
   commit="$(git rev-parse "HEAD:$path")"
-  name="$(submodule_name "$path")"
-  [[ -n "$name" ]] || die "$path: .gitmodules in HEAD has no submodule with this path"
-  url="$(git config --blob HEAD:.gitmodules "submodule.$name.url" 2>/dev/null)" ||
-    die "$path: .gitmodules in HEAD has no url for submodule '$name'"
-  url="$(resolve_submodule_url "$url")"
+  name="$(submodule_name "$gitmodules" "${path#"${above:+$above/}"}")"
+  [[ -n "$name" ]] || die "$path: $gitmodules in HEAD has no submodule with this path"
+  url="$(git config --blob "HEAD:$gitmodules" "submodule.$name.url" 2>/dev/null)" ||
+    die "$path: $gitmodules in HEAD has no url for submodule '$name'"
+  url="$(resolve_submodule_url "$url" "$base")"
 
-  refuse_lossy_submodule_conversion "$path" "$commit"
+  refuse_lossy_submodule_conversion "$path" "$commit" "$gitmodules"
   local gitdir=""
   [[ ! -e "$path/.git" ]] || gitdir="$(git -C "$path" rev-parse --absolute-git-dir)"
+  # The conversion above moved the repositories of nested checkouts to
+  # .git/modules/; one cloned into the folder since would be lost.
+  [[ -z "$above" || ! -d "$path/.git" ]] ||
+    die "$path/.git is a repository of its own, not one in .git/modules/ -- move it away first"
 
   fetch_new_upstream "$path" "$url"
   if ! git cat-file -e "$commit^{commit}" 2>/dev/null ||
@@ -290,8 +323,8 @@ clone_from_submodule() {
     die "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE -- splice a folder of it instead"
   local inner
   inner="$(upstream_submodule "$commit")"
-  [[ -z "$inner" ]] ||
-    die "$path: the submodule has a submodule of its own, $inner -- turn it into a splice in its upstream first"
+  [[ -z "$inner" || -n "$recursive" ]] ||
+    die "$path: the submodule has a submodule of its own, $inner -- turn it into a splice in its upstream first, or add --recursive to convert it here too"
 
   # Keys are submodule.<name>.<setting>, and <name> may contain dots.
   local key setting
@@ -300,22 +333,24 @@ clone_from_submodule() {
     setting="${key#"submodule.$name."}"
     [[ "$setting" != *.* && "$setting" != path && "$setting" != url ]] || continue
     log_warn "$path: dropping $key from .gitmodules -- a splice has no such setting"
-  done < <(git config --blob HEAD:.gitmodules --name-only --get-regexp '^submodule\.')
+  done < <(git config --blob "HEAD:$gitmodules" --name-only --get-regexp '^submodule\.')
 
-  local blob gitmodules
+  local blob edited
   blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$commit")" "commit=$commit" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$NEW_DEFAULT_BRANCH")"
-  gitmodules="$(mktemp)"
-  git cat-file blob HEAD:.gitmodules >"$gitmodules"
-  git config --file "$gitmodules" --remove-section "submodule.$name"
+  edited="$(mktemp)"
+  git cat-file blob "HEAD:$gitmodules" >"$edited"
+  git config --file "$edited" --remove-section "submodule.$name"
 
-  if [[ -n "$gitdir" ]]; then
-    # An embedded repository moves to .git/modules/ first: removing the
-    # checkout's .git then loses nothing.
-    [[ -d "$path/.git" ]] && git submodule --quiet absorbgitdirs -- "$path"
+  if [[ -n "$gitdir" && -z "$above" ]]; then
+    # An embedded repository moves to .git/modules/ first, and so do
+    # those of its own submodules: removing a checkout's .git then loses
+    # nothing.
+    git submodule --quiet absorbgitdirs -- "$path"
     gitdir="$(git -C "$path" rev-parse --absolute-git-dir)"
-    rm -f -- "$path/.git"
   fi
-  git config --remove-section "submodule.$name" 2>/dev/null || true
+  [[ -z "$gitdir" ]] || rm -f -- "$path/.git"
+  # The monorepo's config names only its own submodules.
+  [[ -n "$above" ]] || git config --remove-section "submodule.$name" 2>/dev/null || true
   git rm -q --cached -- ":(top,literal)$path"
   git read-tree --prefix="$path/" "$commit"
   # Writes only the files that are missing, as in a submodule that was
@@ -327,14 +362,29 @@ clone_from_submodule() {
   mkdir -p -- "$path"
   git cat-file blob "$blob" >"$path/$STATE_FILE"
   git add -f -- "$path/$STATE_FILE"
-  if [[ -z "$(git config --file "$gitmodules" --list)" ]]; then
-    git rm -q -- .gitmodules
+  if [[ -z "$(git config --file "$edited" --list)" ]]; then
+    git rm -q -- "$gitmodules"
   else
-    cat "$gitmodules" >.gitmodules
-    git add -- .gitmodules
+    cat "$edited" >"$gitmodules"
+    git add -- "$gitmodules"
   fi
-  rm -f -- "$gitmodules"
+  rm -f -- "$edited"
   git commit --quiet -m "splice: clone $path from submodule at ${commit:0:7}"
   log_ok "$path: cloned ${commit:0:7} from the submodule"
   [[ -z "$gitdir" ]] || log_step "$path: the submodule's repository stays in $gitdir -- remove it once you don't need it"
+  [[ -z "$above" ]] ||
+    log_step "$above: upstream still has ${path#"$above/"} as a submodule -- 'git splice push $(shell_quote "$above")' turns it into a splice there too"
+
+  [[ -n "$recursive" ]] || return 0
+  local entry sub
+  # Paths come from the commit, before any conversion below changes HEAD.
+  while IFS= read -r -d '' entry; do
+    [[ "${entry%% *}" == 160000 ]] || continue
+    sub="${entry#*$'\t'}"
+    # A subshell each: every conversion discovers the splices anew.
+    (clone_from_submodule "$sub" "$recursive") && continue
+    # Converted, but one below it wasn't: that one said so.
+    [[ "$(path_mode HEAD "$sub")" == 160000 ]] || exit 1
+    die "$sub: not converted -- $path and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive $(shell_quote "$sub")'"
+  done < <(git ls-tree -r -z HEAD -- ":(top,literal)$path")
 }

@@ -129,5 +129,12 @@ push them before.
   `merge` and `pull`: its `.gitmodules` would sit in the folder, where Git
   doesn't read it, so nobody could check the submodule out. Turn it into a
   splice in the upstream first.
+- `clone --from-submodule --recursive` converts a submodule's own
+  submodules too, one commit each. Its upstream still has them, so the
+  next push of the folder sends that commit: it turns them into splices
+  upstream too. Until then, `pull` brings in the upstream's other changes,
+  but refuses one that moves such a submodule to another commit. If that
+  upstream's owners keep their submodules, convert it in a fork of yours
+  instead ([#153](https://github.com/roschaefer/git-splice/issues/153)).
 - To publish a folder of the monorepo to a new, empty repository, use
   [`init`](init.md).

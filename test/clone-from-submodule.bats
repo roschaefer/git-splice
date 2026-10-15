@@ -197,15 +197,160 @@ add_submodule() {
   [[ "$output" == *".gitmodules has uncommitted changes"* ]]
 }
 
-@test "clone --from-submodule: refuses a submodule with submodules of its own" {
-  local inner="$BATS_TEST_TMPDIR/inner.git"
+# Makes upstream a repository with a submodule of its own, inner.git at
+# libs/inner, and commits it as a submodule at vendor/a.
+add_nested_submodule() {
+  inner="$BATS_TEST_TMPDIR/inner.git"
   make_bare_repo "$inner"
   seed_bare_repo "$inner" "inner"
   add_upstream_submodule "$upstream" "$inner" libs/inner
   add_submodule
+}
+
+@test "clone --from-submodule: refuses a submodule with submodules of its own, naming --recursive" {
+  add_nested_submodule
   run cmd_clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a: the submodule has a submodule of its own, libs/inner -- turn it into a splice in its upstream first"* ]]
+  [[ "$output" == *"vendor/a: the submodule has a submodule of its own, libs/inner -- turn it into a splice in its upstream first, or add --recursive to convert it here too"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+}
+
+@test "clone --from-submodule --recursive: converts the nested submodule too, in a commit of its own" {
+  add_nested_submodule
+  local before outer_pin inner_pin
+  before="$(git rev-parse HEAD)"
+  outer_pin="$(git rev-parse HEAD:vendor/a)"
+  inner_pin="$(git -C "$upstream" rev-parse main:libs/inner)"
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok   vendor/a: cloned ${outer_pin:0:7} from the submodule"* ]]
+  [[ "$output" == *"ok   vendor/a/libs/inner: cloned ${inner_pin:0:7} from the submodule"* ]]
+  [[ "$output" == *"vendor/a: upstream still has libs/inner as a submodule -- 'git splice push vendor/a' turns it into a splice there too"* ]]
+  [ "$(git rev-parse HEAD~2)" = "$before" ]
+  [ "$(git log -1 --format=%s HEAD^)" = "splice: clone vendor/a from submodule at ${outer_pin:0:7}" ]
+  [ "$(git log -1 --format=%s)" = "splice: clone vendor/a/libs/inner from submodule at ${inner_pin:0:7}" ]
+  [ "$(path_mode HEAD vendor/a/libs/inner)" = 040000 ]
+  [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
+  [ "$(git config --file vendor/a/libs/inner/.splice upstream.origin.url)" = "$inner" ]
+  [ "$(splice_config vendor/a/libs/inner commit)" = "$inner_pin" ]
+  [ "$(splice_config vendor/a commit)" = "$outer_pin" ]
+  ! git cat-file -e HEAD:vendor/a/.gitmodules
+  [ -z "$(git status --porcelain)" ]
+  classify_splice vendor/a/libs/inner main
+  [ "$SPLICE_STATE" = up-to-date ]
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = push ]
+}
+
+@test "clone --from-submodule --recursive: the push turns the submodule into a splice upstream too" {
+  add_nested_submodule
+  local outer_pin
+  outer_pin="$(git rev-parse HEAD:vendor/a)"
+  cmd_clone --from-submodule --recursive vendor/a
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse main^)" = "$outer_pin" ]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "splice: clone vendor/a/libs/inner from submodule at $(git -C "$upstream" rev-parse --short=7 "$outer_pin:libs/inner")" ]
+  [ "$(git -C "$upstream" ls-tree main libs/inner | cut -c1-6)" = 040000 ]
+  git -C "$upstream" cat-file -e main:libs/inner/.splice
+  ! git -C "$upstream" cat-file -e main:.gitmodules
+  ! git -C "$upstream" cat-file -e main:.splice
+  [ "$(git -C "$upstream" rev-parse main:libs/inner/.splice)" = "$(git rev-parse HEAD:vendor/a/libs/inner/.splice)" ]
+  cmd_fetch
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = up-to-date ]
+}
+
+@test "clone --from-submodule --recursive: a relative URL is relative to the upstream above" {
+  inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  add_upstream_submodule "$upstream" ../inner.git libs/inner
+  git remote add origin https://git.example.com/org/mono.git
+  add_submodule
+  cmd_clone --from-submodule --recursive vendor/a
+  [ "$(git config --file vendor/a/libs/inner/.splice upstream.origin.url)" = "$BATS_TEST_TMPDIR/inner.git" ]
+}
+
+@test "clone --from-submodule --recursive: converts every level, top-down" {
+  local deep="$BATS_TEST_TMPDIR/deep.git"
+  make_bare_repo "$deep"
+  seed_bare_repo "$deep" "deep"
+  inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  add_upstream_submodule "$inner" "$deep" deep
+  add_upstream_submodule "$upstream" "$inner" libs/inner
+  add_submodule
+  cmd_clone --from-submodule --recursive vendor/a
+  [ "$(cat vendor/a/libs/inner/deep/file.txt)" = deep ]
+  [ "$(git log -3 --format=%s | cut -d' ' -f3)" = "$(printf '%s\n' vendor/a/libs/inner/deep vendor/a/libs/inner vendor/a)" ]
+  [ -z "$(git status --porcelain)" ]
+  classify_splice vendor/a/libs/inner main
+  [ "$SPLICE_STATE" = push ]
+  classify_splice vendor/a/libs/inner/deep main
+  [ "$SPLICE_STATE" = up-to-date ]
+}
+
+@test "clone --from-submodule --recursive: the same upstream twice makes two splices, each at its own commit" {
+  add_nested_submodule
+  git -c protocol.file.allow=always submodule add -q "$inner" vendor/inner
+  git commit -q -m "add vendor/inner as a submodule"
+  seed_bare_repo "$inner" "newer"
+  git -C vendor/inner pull -q origin main
+  git commit -q -a -m "bump vendor/inner"
+  cmd_clone --from-submodule vendor/inner
+  cmd_clone --from-submodule --recursive vendor/a
+  [ "$(cat vendor/inner/file.txt)" = "$(printf 'inner\nnewer')" ]
+  [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
+  classify_splice vendor/inner main
+  [ "$SPLICE_STATE" = up-to-date ]
+  classify_splice vendor/a/libs/inner main
+  [ "$SPLICE_STATE" = pull ]
+}
+
+@test "clone --from-submodule --recursive: nested checkouts lose their .git, their repositories stay" {
+  add_nested_submodule
+  git -c protocol.file.allow=always submodule -q update --init --recursive
+  [ -e vendor/a/libs/inner/.git ]
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [ ! -e vendor/a/.git ]
+  [ ! -e vendor/a/libs/inner/.git ]
+  [ -d .git/modules/vendor/a/modules/libs/inner ]
+  [[ "$output" == *"vendor/a/libs/inner: the submodule's repository stays in $monorepo/.git/modules/vendor/a/modules/libs/inner"* ]]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule --recursive: a refused nested submodule leaves the one above converted, and clone on it resumes" {
+  add_nested_submodule
+  # The nested submodule's commit is on no branch upstream.
+  local tmp="$BATS_TEST_TMPDIR/outer-work"
+  git clone -q "$upstream" "$tmp"
+  git -C "$tmp" -c protocol.file.allow=always submodule -q update --init
+  git -C "$tmp/libs/inner" commit -q --allow-empty -m "unpushed"
+  git -C "$tmp" commit -q -a -m "bump libs/inner"
+  git -C "$tmp" push -q origin main
+  git -C vendor/a pull -q origin main
+  git commit -q -a -m "bump vendor/a"
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/libs/inner: no upstream branch has the submodule's commit"* ]]
+  [[ "$output" == *"vendor/a/libs/inner: not converted -- vendor/a and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive vendor/a/libs/inner'"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 040000 ]
+  [ "$(path_mode HEAD vendor/a/libs/inner)" = 160000 ]
+
+  git -C "$tmp/libs/inner" push -q origin HEAD:main
+  run cmd_clone --from-submodule --recursive vendor/a/libs/inner
+  [ "$status" -eq 0 ]
+  [ "$(path_mode HEAD vendor/a/libs/inner)" = 040000 ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone: --recursive needs --from-submodule" {
+  run cmd_clone --recursive "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"--recursive needs --from-submodule"* ]]
 }
 
 @test "clone --from-submodule: refuses a path that is no submodule, and --merge" {
@@ -371,4 +516,61 @@ add_submodule() {
   [ "$status" -eq 0 ]
   [ "$(ls -A vendor/a)" = .splice ]
   [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule --recursive: upstream moving on, its submodule unchanged, pulls and then pushes" {
+  add_nested_submodule
+  cmd_clone --from-submodule --recursive vendor/a
+  seed_bare_repo "$upstream" "upstream moved on"
+  cmd_fetch
+  run cmd_pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(path_mode HEAD vendor/a/libs/inner)" = 040000 ]
+  [ "$(tail -1 vendor/a/file.txt)" = "upstream moved on" ]
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" ls-tree main libs/inner | cut -c1-6)" = 040000 ]
+}
+
+@test "clone --from-submodule --recursive: upstream moving its submodule before the push is refused on pull" {
+  add_nested_submodule
+  cmd_clone --from-submodule --recursive vendor/a
+  seed_bare_repo "$inner" "newer"
+  local tmp="$BATS_TEST_TMPDIR/outer-work"
+  git clone -q "$upstream" "$tmp"
+  git -C "$tmp" -c protocol.file.allow=always submodule -q update --init --remote
+  git -C "$tmp" commit -q -a -m "bump libs/inner"
+  git -C "$tmp" push -q origin main
+  cmd_fetch
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_pull vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: upstream has a submodule, libs/inner, which nobody could check out in the monorepo"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "clone --from-submodule --recursive: a refusal two levels down names only the submodule refused" {
+  local deep="$BATS_TEST_TMPDIR/deep.git"
+  make_bare_repo "$deep"
+  seed_bare_repo "$deep" "deep"
+  inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  add_upstream_submodule "$inner" "$deep" deep
+  # deep's commit is on no branch upstream.
+  local tmp="$BATS_TEST_TMPDIR/inner-work"
+  git clone -q "$inner" "$tmp"
+  git -C "$tmp" -c protocol.file.allow=always submodule -q update --init
+  git -C "$tmp/deep" commit -q --allow-empty -m "unpushed"
+  git -C "$tmp" commit -q -a -m "bump deep"
+  git -C "$tmp" push -q origin main
+  add_upstream_submodule "$upstream" "$inner" libs/inner
+  add_submodule
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/libs/inner/deep: not converted -- vendor/a/libs/inner and what was converted before stay"* ]]
+  [[ "$output" != *"vendor/a/libs/inner: not converted"* ]]
+  [ "$(path_mode HEAD vendor/a/libs/inner)" = 040000 ]
+  [ "$(path_mode HEAD vendor/a/libs/inner/deep)" = 160000 ]
 }

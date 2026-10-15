@@ -96,8 +96,9 @@ _git-splice() {
       ;;
     clone)
       _arguments \
-        '(--from-submodule)--merge[merge with an existing folder]' \
+        '(--from-submodule --recursive)--merge[merge with an existing folder]' \
         '(--merge :)--from-submodule[turn a submodule into a splice]:submodule:_files -/' \
+        '(--merge)--recursive[with --from-submodule, convert its submodules too]' \
         '(-h --help)'{-h,--help}'[show usage]' \
         '1:url:' \
         '2:path:_files -/'
