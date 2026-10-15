@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0-jobs.2] - 2026-10-15
+
+A build of the roschaefer/scrut fork: 0.5.0 plus `--jobs`, until it's released upstream.
+
+### Added
+
+- `scrut update --jobs N` runs up to N test documents at the same time. Changes are still shown, confirmed and written one document after another, in the order of the documents.
+
+### Fixed
+
+- `scrut --version` of the release binaries reported 0.5.0 instead of the fork's version. The release workflow now refuses a tag that doesn't match the version in `Cargo.toml`.
+
 ## [0.5.0-jobs.1] - 2026-10-15
 
 A build of the roschaefer/scrut fork: 0.5.0 plus `--jobs`, until it's released upstream.
@@ -135,6 +147,7 @@ No release notes. Not published to crates.io.
 
 No release notes.
 
+[0.5.0-jobs.2]: https://github.com/roschaefer/scrut/compare/v0.5.0-jobs.1...v0.5.0-jobs.2
 [0.5.0-jobs.1]: https://github.com/facebookincubator/scrut/compare/v0.5.0...roschaefer:scrut:v0.5.0-jobs.1
 [0.5.0]: https://github.com/facebookincubator/scrut/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/facebookincubator/scrut/compare/v0.4.2...v0.4.3
