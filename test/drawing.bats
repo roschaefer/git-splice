@@ -147,14 +147,26 @@ edit_drawing() {
   [ "$output" = "!!   f is on an upstream branch, but not T's: draw a box for the branch, e.g. feature" ]
 }
 
+@test "drawing: a lane names a splice whose folder Git quotes" {
+  load 'scenarios/up-to-date/squash-merged-pull/setup'
+  scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"
+  cd "$BATS_TEST_TMPDIR/squash"
+  mkdir -p vendor/é && cp vendor/a/.splice vendor/é/ && git add vendor/é && git commit -qm "copy the splice"
+  xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
+    "$BATS_TEST_DIRNAME/scenarios/up-to-date/squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
+  edit_drawing -u '//mxCell[@value="vendor/a/"]/@value' -v vendor/é/
+  run check_drawing "$drawing"
+  [[ "$output" != *"isn't a splice of the monorepo"* ]]
+}
+
 @test "drawing: a box names an upstream branch with any characters Git allows" {
   load 'scenarios/up-to-date/squash-merged-pull/setup'
   scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"
   cd "$BATS_TEST_TMPDIR/squash"
-  git update-ref refs/splices/squash-upstream/user@feature+1 refs/splices/squash-upstream/feature
+  git update-ref refs/splices/squash-upstream/user@feature+1=next refs/splices/squash-upstream/feature
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/scenarios/up-to-date/squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
-  edit_drawing -u '//mxCell[@value="U(H) = U(B) = feature"]/@value' -v 'U(H) = U(B) = user@feature+1'
+  edit_drawing -u '//mxCell[@value="U(H) = U(B) = feature"]/@value' -v 'U(H) = U(B) = user@feature+1=next'
   run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/main f=refs/splices/squash-upstream/feature
   [ "$status" -eq 0 ]
 }

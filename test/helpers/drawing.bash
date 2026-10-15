@@ -51,7 +51,7 @@ check_drawing() {
   local -a errors=() commits=() edges=() boxes=() frames=() lanes=() splices=()
   local -A id_of_label=() label_count=()
   local arg id k cells term named sp p
-  local name='([HBTR]|U\([^()]+\)|[^ =]+)'
+  local name='([HBTR]|U\([^()]+\)|[^ ]+)'
   local box_label="^$name( = $name)*\$"
 
   for arg in "$@"; do
@@ -120,13 +120,25 @@ check_drawing() {
     awk -v cx="$cx" -v cy="$cy" -v w="${gw[$1]}" -v h="${gh[$1]}" -v fx="$ox" -v fy="$oy" -v fw="${gw[$2]}" -v fh="${gh[$2]}" \
       'BEGIN { x = cx + w / 2; y = cy + h / 2; exit !(x >= fx && x <= fx + fw && y >= fy && y <= fy + fh) }'
   }
+  # Whether a shape lies wholly inside another.
+  contains() {
+    local cx cy ox oy
+    read -r cx cy < <(absolute "$1")
+    read -r ox oy < <(absolute "$2")
+    awk -v cx="$cx" -v cy="$cy" -v w="${gw[$1]}" -v h="${gh[$1]}" -v fx="$ox" -v fy="$oy" -v fw="${gw[$2]}" -v fh="${gh[$2]}" \
+      'BEGIN { exit !(cx >= fx && cx + w <= fx + fw && cy >= fy && cy + h <= fy + fh) }'
+  }
 
   # The splices, and the lanes that name them.
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue
     splices+=("$p")
     is_splice[$p]=1
-  done < <(git ls-tree -r --name-only HEAD | sed -n 's#/\.splice$##p')
+  done < <(
+    # shellcheck source=../../lib/common.sh
+    source "$DRAWING_LIB/common.sh"
+    state_files HEAD | tr '\0' '\n' | sed -n 's#/\.splice$##p'
+  )
   local l
   for l in "${lanes[@]}"; do
     if [[ -n "${is_splice[${value[$l]%/}]:-}" ]]; then
@@ -151,7 +163,7 @@ check_drawing() {
     for o in "${lanes[@]}"; do
       [[ "$o" != "$l" ]] && inside "$l" "$o" && [[ "${value[$l]}" != "${value[$o]}"?* ]] &&
         errors+=("the lane ${value[$l]} is drawn inside ${value[$o]}, but its folder isn't inside that one")
-      [[ "$o" != "$l" && "${value[$l]}" == "${value[$o]}"?* ]] && ! inside "$l" "$o" &&
+      [[ "$o" != "$l" && "${value[$l]}" == "${value[$o]}"?* ]] && ! contains "$l" "$o" &&
         errors+=("the lane ${value[$l]} is a folder inside ${value[$o]}: draw it inside that lane")
     done
   done
@@ -367,7 +379,7 @@ check_drawing() {
             errors+=("$term points at ${value[$t]}, but no commit $k is drawn")
             continue
           fi
-          if [[ "${label_count[$k]:-0}" -gt 1 ]]; then
+          if [[ "$k" != [HB] && "${label_count[$k]:-0}" -gt 1 ]]; then
             errors+=("$term points at ${value[$t]}, but ${label_count[$k]} commits are labelled $k: label them apart")
             continue
           fi

@@ -78,6 +78,12 @@ edit_drawing() {
   [[ "$output" == *"!!   U(l) points at m, but 2 commits are labelled l: label them apart"* ]]
 }
 
+@test "drawing lanes: U(H) is no label, however many commits are labelled H" {
+  edit_drawing -u '//mxCell[@id="k"]/@value' -v H -u '//mxCell[@id="m"]/@value' -v H
+  run check_drawing "$drawing" "${revs[@]}" H=refs/splices/upstream/main~1
+  [[ "$output" != *"commits are labelled H"* ]]
+}
+
 @test "drawing lanes: an upstream commit outside every lane" {
   edit_drawing -u '//mxCell[@id="m"]/mxGeometry/@x' -v 1000
   run check_drawing "$drawing" "${revs[@]}"
@@ -101,6 +107,13 @@ edit_drawing() {
 
 @test "drawing lanes: a nested splice's lane is drawn inside its parent's" {
   edit_drawing -u '//mxCell[@id="lane_b"]/mxGeometry/@x' -v 1000 -u '//mxCell[@id="m"]/mxGeometry/@x' -v 1050
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the lane vendor/a/b/ is a folder inside vendor/a/: draw it inside that lane" ]
+}
+
+@test "drawing lanes: a nested splice's lane lies wholly inside its parent's" {
+  edit_drawing -u '//mxCell[@id="lane_b"]/mxGeometry/@width' -v 400
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   the lane vendor/a/b/ is a folder inside vendor/a/: draw it inside that lane" ]
