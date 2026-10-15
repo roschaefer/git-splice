@@ -17,9 +17,9 @@ fmt:
 fmt-check:
     shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh check-drawing/check-drawing
 
-# Run the bats tests
+# Run the bats tests, one job per CPU
 test:
-    bats --recursive test
+    bats --recursive --jobs "$(nproc)" test
 
 # Time commands on a synthetic monorepo; see `just bench --help`
 [positional-arguments]
