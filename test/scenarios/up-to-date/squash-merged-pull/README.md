@@ -2,26 +2,25 @@
 
 A pull on a feature branch, squash-merged into `main`.
 
-- **Upstream**: `seed` on `main`, and someone else's commit on `feature`.
-- **Monorepo (`vendor/a/`)**: cloned at `seed`. On `feature`, `git splice
-  pull` brought in the upstream commit. `feature` was squash-merged into
-  `main` and deleted, then a local commit followed on `main`.
-
-A squash merge keeps the content and drops the history. With `git subtree`,
-that lost the sync point. Here the squash merge itself
-changed `.splice`, so it is the new boundary, and the rebuild starts at the
-pulled upstream commit: a push sends only the local commit.
-
 <div align="center">
 
 ![The monorepo's a, the squash merge s and c; the upstream's k on main and f on feature; R is c prime on top of f, and B is s](squash-merged-pull.drawio.svg)
 
 </div>
 
-The drawing names the monorepo's commits a (`add vendor/a`), s (the
-squash merge) and c (`local change`), and the upstream's k (`seed`, T)
-and f (`upstream feature work`). f is on the upstream's `feature`
-branch, which T, its `main`, lacks: so f is dashed, like R's copy c'.
+- **Upstream**: k (`seed`) on `main`, and someone else's commit f
+  (`upstream feature work`) on `feature`.
+- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k. On `feature`,
+  `git splice pull` brought in f. `feature` was squash-merged into `main`
+  as s and deleted, then a local commit c followed on `main`.
+
+`.splice` records a commit, not a branch: s records f as U(H). The
+upstream's `main`, T, is still at k, since nobody merged `feature` into
+it there. T lacks f, so f is dashed, like R's copy c'.
+
+A squash merge keeps the content and drops the history. With `git subtree`,
+that lost the sync point. Here s itself changed `.splice`, so it is B, and
+the rebuild starts at f: R is c', the copy of c, on top of f.
 
 ## Output
 

@@ -4,11 +4,11 @@ The [parent scenario's](../README.md) recipe takes the upstream commits
 of a pull X from `.splice`: U(X^) in X's first parent, U(X) in X. That's
 only right if X merged from U(X^). After a push, it didn't.
 
-- **Monorepo**: the parent scenario, then a local change in `vendor/a/`,
-  pushed with `git splice push`. Then a pull X of one more upstream
-  commit.
-- **Upstream**: the parent scenario's commits, the pushed one, and
-  `add upstream.txt`.
+- **Monorepo**: the parent scenario, with its pull now named c, and d
+  (`add notes`). Then e, a local change in `vendor/a/`, pushed with
+  `git splice push`. Then X, a pull of one more upstream commit.
+- **Upstream**: the parent scenario's commits up to n (`fix a typo`),
+  e', the pushed copy of e, and o (`add upstream.txt`).
 
 <div align="center">
 
@@ -16,10 +16,7 @@ only right if X merged from U(X^). After a push, it didn't.
 
 </div>
 
-The drawing names the monorepo's commits c (the parent scenario's pull),
-d (`add notes`), e (`a local change in vendor/a`) and X, and the
-upstream's n (`fix a typo`), e', the pushed copy of e, and o
-(`add upstream.txt`). U(e)..U(X) is e' and o, though X only brought in o.
+U(e)..U(X) is e' and o, though X only brought in o.
 
 ## Output
 

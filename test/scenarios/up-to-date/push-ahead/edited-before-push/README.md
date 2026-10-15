@@ -7,9 +7,17 @@ monorepo's history, which still has the original commit, so a `pull`
 right after the push records the edited commit as the synced commit. From there on, the monorepo
 builds on the edited commit.
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, then the unpushed commit
-  `fix, see INTERNAL-123`.
-- **Upstream**: `seed`.
+- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k, then the
+  unpushed commit b (`fix, see INTERNAL-123`).
+- **Upstream**: k (`seed`).
+
+<div align="center">
+
+![The monorepo's a and b, the upstream's k, and R, the rebuilt b prime on top of k](edited-before-push.drawio.svg)
+
+</div>
+
+R is b', the copy of b that the recipe edits.
 
 The recipe:
 
@@ -66,15 +74,6 @@ and publishes the monorepo's history. So does a commit with a
 Neither happens by accident while rewording or squashing. Whoever builds
 the commit with Git's plumbing checks that it's the right one, e.g. with
 `git log --graph <commit>` before the push.
-
-<div align="center">
-
-![The monorepo's a and b, the upstream's k, and R, the rebuilt b prime on top of k](edited-before-push.drawio.svg)
-
-</div>
-
-Before the edit: a is `add vendor/a`, b is `fix, see INTERNAL-123`, and
-k is `seed`. R is b', the copy of b that the recipe edits.
 
 ## Output
 

@@ -7,10 +7,10 @@ the new commit as the synced commit, so the next change builds on the
 rewritten history
 ([#17](https://github.com/roschaefer/git-splice/issues/17)).
 
-- **Monorepo (`vendor/a/`)**: cloned at `release`.
-- **Upstream**: `seed`, `release`, then rewritten and force-pushed as one
-  root commit, `release, history rewritten`, with `release`'s files.
-  Already fetched.
+- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned r.
+- **Upstream**: k (`seed`), r (`release`), then rewritten and
+  force-pushed as one root commit, w (`release, history rewritten`), with
+  r's files. Already fetched.
 
 That only works while the folder still has the upstream's files. After a
 local change, the splice is `unrelated history`, and `merge` and `pull`
@@ -31,9 +31,8 @@ monorepo pulled before the rewrite.
 
 </div>
 
-The drawing names the monorepo's a (`add vendor/a`), and the upstream's
-k (`seed`), r (`release`) and w (`release, history rewritten`). U(H) is
-r, but T is w, which shares no history with it, so k and r are dashed.
+U(H) is r, but T is w, which shares no history with it, so k and r are
+dashed.
 
 ## Output
 

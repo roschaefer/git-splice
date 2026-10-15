@@ -4,11 +4,12 @@
 changes in as one commit, so the bug came in with one of the upstream
 commits squashed into it. Which one?
 
-- **Upstream**: `seed`, then three commits: `add config.txt`,
-  `log at debug level` and `fix a typo`.
-- **Monorepo**: `vendor/a/` spliced in at `seed`, then `check.sh`, a
-  test outside the splice that fails when the library logs at debug
-  level. Then a pull of the three upstream commits, and one more commit.
+- **Upstream**: k (`seed`), then three commits: l (`add config.txt`),
+  m (`log at debug level`) and n (`fix a typo`).
+- **Monorepo**: a (`add vendor/a`) spliced k in. Then b added
+  `check.sh`, a test outside the splice that fails when the library logs
+  at debug level. Then X, a pull of l, m and n, and one more commit, d
+  (`add notes`).
 
 The upstream's own history has no test for it: the bug only shows in
 the monorepo. So the upstream commits are tested inside the monorepo, as
@@ -20,10 +21,8 @@ it was right before the pull.
 
 </div>
 
-The drawing names the monorepo's commits a (`add vendor/a`), b
-(`add check.sh`), X (the pull) and d (`add notes`), and the upstream's k
-(`seed`), l, m and n, the three pulled commits. X merged from U(b) = k
-and records U(X) = n, so the pulled commits are U(b)..U(X): l, m and n.
+X merged from U(b) = k and records U(X) = n, so the pulled commits are
+U(b)..U(X): l, m and n.
 
 ## Output
 
