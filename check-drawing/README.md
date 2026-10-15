@@ -130,6 +130,8 @@ What no drawing has needed yet, it doesn't handle:
   the monorepo and later drops one of them.
 - **Old sync points**: a commit reachable only from an earlier `.splice`
   value is found by its label only when given as `<label>=<rev>`.
+- **Moved splices**: U(x) reads x's `.splice` under the splice's current
+  folder, so a commit from before the splice moved has none there.
 
 ## Tests
 

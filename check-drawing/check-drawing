@@ -18,7 +18,7 @@ check_drawing() {
   fi
   shift
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
-  local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=()
+  local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=() lane_label=()
   local -a errors=() commits=() edges=() boxes=() lanes=() splices=()
   local -A id_of_label=() label_count=() alias=()
   local id k cells term shown named sp p
@@ -142,14 +142,14 @@ check_drawing() {
     done
   done
   for id in "${commits[@]}" "${boxes[@]}"; do
-    lane_of[$id]="" smallest=""
+    lane_of[$id]="" lane_label[$id]="" smallest=""
     for l in "${lanes[@]}"; do
       if [[ -z "${lane_splice[$l]:-}" ]] || ! contains "$id" "$l"; then
         continue
       fi
       area=$(awk -v w="${gw[$l]}" -v h="${gh[$l]}" 'BEGIN { print w * h }')
       if [[ -z "$smallest" ]] || awk -v a="$area" -v b="$smallest" 'BEGIN { exit !(a < b) }'; then
-        lane_of[$id]="${lane_splice[$l]}" smallest="$area"
+        lane_of[$id]="${lane_splice[$l]}" lane_label[$id]="${value[$l]}" smallest="$area"
       fi
     done
   done
@@ -311,30 +311,22 @@ check_drawing() {
         errors+=("${value[$s]} points at something other than a commit")
         continue
       fi
+      # A box sits with the commit it points at: in its lane, or outside
+      # every lane, like H and B with their monorepo commits.
+      if [[ "${lane_of[$s]}" != "${lane_of[$t]}" ]]; then
+        if [[ -z "${lane_of[$t]}" ]]; then
+          errors+=("${value[$s]} points at ${value[$t]}, which is outside every lane: draw the box outside every lane too")
+        else
+          errors+=("${value[$s]} points at ${value[$t]}, in the lane ${lane_label[$t]}: draw the box in that lane")
+        fi
+        continue
+      fi
       sp="${splice_of[$s]}"
       while IFS= read -r shown; do
         term="${alias[$shown]:-$shown}"
         if [[ "$term" == U\(*\) ]]; then
           k="${term#U(}" k="${k%)}"
           term="U(${alias[$k]:-$k})"
-        fi
-        # A box sits with the commit it points at: H and B outside every
-        # lane, the others in the lane of the commit they name.
-        if [[ ${#lanes[@]} -gt 0 ]]; then
-          case "$term" in
-            H | B)
-              if [[ -n "${lane_of[$s]}" ]]; then
-                errors+=("$shown names a monorepo commit: draw it outside every lane")
-                continue
-              fi
-              ;;
-            *)
-              if [[ -z "${lane_of[$s]}" ]]; then
-                errors+=("$shown names an upstream commit: draw it in the lane of its splice")
-                continue
-              fi
-              ;;
-          esac
         fi
         # With several splices, only a lane says whose B is.
         if [[ "$term" == B && -z "$sp" ]]; then
@@ -351,10 +343,6 @@ check_drawing() {
             errors+=("$shown points at ${value[$t]}, but ${label_count[$k]} commits are labelled $k: label them apart")
             continue
           fi
-        fi
-        if [[ -n "${lane_of[$t]}" && "${lane_of[$t]}" != "$sp" ]]; then
-          errors+=("$shown of $sp/ points at ${value[$t]}, a commit in the lane ${lane_of[$t]}/")
-          continue
         fi
         named="$(resolve_term "$term" "$sp")"
         [[ "$term" == H || "$term" == [BTR] || "$term" == "merge-base(R,T)" || "$term" == U\(*\) || -z "$named" ]] ||

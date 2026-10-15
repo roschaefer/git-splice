@@ -49,7 +49,7 @@ edit_drawing() {
   [ "$output" = "!!   b' is solid, but no upstream branch has it: dash it" ]
 }
 
-@test "drawing: a box sits on the side of what it names" {
+@test "drawing: a box sits with the commit it points at" {
   # box, where it moves (in: into the lane path/, out: outside it), and
   # how the check's output starts.
   local box where expected x y failed=""
@@ -61,11 +61,11 @@ edit_drawing() {
     run check_drawing "$drawing" a=HEAD~4 e=HEAD
     [[ "${lines[0]}" == "$expected"* ]] || failed+=$'\n'"$box $where: ${lines[0]}"
   done <<'EOF'
-refH|in|!!   H names a monorepo commit: draw it outside every lane
-refB|in|!!   B names a monorepo commit: draw it outside every lane
-refT|out|!!   T names an upstream commit: draw it in the lane of its splice
-refR|out|!!   R names an upstream commit: draw it in the lane of its splice
-refS|out|!!   U(B) names an upstream commit: draw it in the lane of its splice
+refH|in|!!   H points at e, which is outside every lane: draw the box outside every lane too
+refB|in|!!   B points at a, which is outside every lane: draw the box outside every lane too
+refT|out|!!   T = U(H) points at n, in the lane path/: draw the box in that lane
+refR|out|!!   R points at e', in the lane path/: draw the box in that lane
+refS|out|!!   U(B) points at k, in the lane path/: draw the box in that lane
 refS|in|ok
 refT|in|ok
 EOF

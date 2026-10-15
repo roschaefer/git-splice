@@ -95,7 +95,7 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@target="l" and @source!="k"]/@target' -v m
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   T of vendor/a/ points at m, a commit in the lane vendor/a/b/" ]
+  [ "${lines[0]}" = "!!   T = R = U(H) points at m, in the lane vendor/a/b/: draw the box in that lane" ]
 }
 
 @test "drawing lanes: an arrow between commits of two lanes" {
