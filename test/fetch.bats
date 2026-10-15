@@ -102,3 +102,19 @@ setup() {
   [ "$(grep -c "warning: from the transport" <<<"$output")" -eq 1 ]
   [[ "$output" == *"ok   vendor/a fetched"* && "$output" == *"ok   vendor/b fetched"* ]]
 }
+
+@test "fetch: leaves the monorepo's submodules alone, even with fetch.recurseSubmodules" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  local sub="$BATS_TEST_TMPDIR/sub.git" before
+  make_bare_repo "$sub"
+  seed_bare_repo "$sub" "sub"
+  cd "$monorepo"
+  git -c protocol.file.allow=always submodule add -q "$sub" vendor/sub
+  git commit -q -m "add vendor/sub as a submodule"
+  before="$(git -C vendor/sub rev-parse origin/main)"
+  seed_bare_repo "$sub" "newer"
+  git config fetch.recurseSubmodules true
+  run cmd_fetch vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C vendor/sub rev-parse origin/main)" = "$before" ]
+}
