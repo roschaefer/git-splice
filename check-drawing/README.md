@@ -40,6 +40,19 @@ A circle's label is the commit's subject. A commit whose subject makes
 a poor label, like `add vendor/a`, gets a short one, given as
 `<label>=<rev>`, a revision of the monorepo: `a=HEAD~3`.
 
+Drawings for readers who don't know the sync model yet can use other
+names, given as `--alias <name>=<term>`, before the labels. With Git's
+names for a three-way merge:
+
+```sh
+check-drawing/check-drawing before-pull-git-names.drawio.svg \
+  --alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T \
+  --alias 'BASE=merge-base(R,T)' a=HEAD~3
+```
+
+An alias works inside `U(…)` too: `U(BOUNDARY)` is U(B). Without
+`--alias`, a name like `OURS` is an upstream branch.
+
 Sourced, the file defines the function `check_drawing`, with the same
 arguments.
 
@@ -65,7 +78,9 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   its child.
 - **Box**: points at the commit its label names: H, B, T or R, U(x),
   the commit x's `.splice` records, where x is H, B or a drawn commit, or
-  an upstream branch by its name, e.g. `main`, as fetched. Several names
+  an upstream branch by its name, e.g. `main`, as fetched, or
+  `merge-base(R,T)`, the newest commit R and T have in common. Several
+  names
   are joined by ` = `, e.g. `U(H) = U(B)`: each must name that commit.
 - **Lane**: a shape labelled with a splice's folder, e.g. `vendor/a/`,
   holds that splice's upstream commits and boxes.

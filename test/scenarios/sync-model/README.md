@@ -41,6 +41,15 @@ $ check_drawing "$TESTDIR/before-pull.drawio.svg" a=HEAD~3
 ok   before-pull.drawio.svg: 10 commits, 13 arrows, 5 boxes, 0 frames, 1 lanes
 ```
 
+The README draws the same state with Git's names for a three-way merge,
+for readers who don't know H, B, T and R yet. Each stands for a term the
+drawing check knows; BASE is where OURS and THEIRS meet:
+
+```scrut
+$ check_drawing "$TESTDIR/before-pull-git-names.drawio.svg" --alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --alias 'BASE=merge-base(R,T)' a=HEAD~3
+ok   before-pull-git-names.drawio.svg: 10 commits, 13 arrows, 5 boxes, 0 frames, 1 lanes
+```
+
 R and T have each moved on from k:
 
 ```scrut

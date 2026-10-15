@@ -75,6 +75,33 @@ EOF
   }
 }
 
+git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --alias 'BASE=merge-base(R,T)')
+
+@test "drawing: aliases let boxes use Git's names for a three-way merge" {
+  edit_drawing -u '//mxCell[@id="refR"]/@value' -v OURS \
+    -u '//mxCell[@id="refT"]/@value' -v 'THEIRS = BASE' \
+    -u '//mxCell[@id="refH"]/@value' -v HEAD \
+    -u '//mxCell[@id="refB"]/@value' -v BOUNDARY \
+    -u '//mxCell[@id="refS"]/@value' -v 'U(BOUNDARY)' \
+    -u '//mxCell[@id="refU"]/@value' -v 'U(HEAD)'
+  run check_drawing "$drawing" "${git_names[@]}" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: without an alias, a name like OURS is an upstream branch" {
+  edit_drawing -u '//mxCell[@id="refR"]/@value' -v OURS
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   OURS points at e', but there's no OURS" ]
+}
+
+@test "drawing: merge-base(R,T) is where R and T meet" {
+  edit_drawing -u '//mxCell[@id="refR"]/@value' -v 'merge-base(R,T)'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   merge-base(R,T) points at e', the code says n" ]
+}
+
 @test "drawing: a missing parent arrow is named" {
   edit_drawing -d '//mxCell[@source="d_" and @target="e_"]'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
