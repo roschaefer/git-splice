@@ -4,9 +4,9 @@
 
 Two folders trade places in one commit: what was `vendor/a/` is now
 `vendor/b/`, and the other way around. Each takes its `.splice` along, so
-each splice keeps its upstream, under the other's old path. A push of
-either path sends only that splice's history: nothing from the folder
-that had the path before.
+each splice keeps its upstream, and its history, under the other's old
+path. A push of either path sends only that splice's history: nothing
+from the folder that had the path before.
 
 - **Monorepo**: `vendor/a/`, a splice of `$UPSTREAM`, cloned at `seed`,
   with a commit not pushed yet, `a's unpushed work`. `vendor/b/`, a folder
@@ -16,12 +16,10 @@ that had the path before.
 
 A path's history alone can't tell the two splices apart:
 `git log -- vendor/a` lists the commits of the splice of `$UPSTREAM`
-before the swap and those of the splice of `$UPSTREAM-b` after it. So
-the rebuild only uses the path's history from the splice's *mount* on:
-the newest commit whose parent had no `.splice` at the path, or one with
-another `id`. Each splice got its own id when it was cloned or
-initialized, and it moves with the `.splice`. For `vendor/a/` after the
-swap, the mount is the swap itself. See
+before the swap and those of the splice of `$UPSTREAM-b` after it. Their
+ids can: each splice got its own when it was cloned or initialized, and
+it moves with the `.splice`. So the rebuild follows each splice back to
+the path where its id was before the swap, and continues there. See
 [the design notes](../../../docs/design/README.md#splicing-out-push-and-the-rebuild).
 
 ## Output
@@ -69,10 +67,10 @@ $UPSTREAM-b
 ```
 
 Seen from the path `vendor/a/`, the swap didn't add a `.splice`, it
-changed the one that was there. That's why "the commit that added
-`.splice`" isn't enough to find where the history of the splice of
-`$UPSTREAM-b` at this path starts: it would find the clone of
-`$UPSTREAM`, and publish that splice's commits to `$UPSTREAM-b`.
+changed the one that was there. Only the id shows that it's another
+splice now, which came from `vendor/b/`. The path's own history before
+the swap is that of the splice of `$UPSTREAM`, and isn't for
+`$UPSTREAM-b` to get.
 
 ```scrut
 $ git diff --name-status HEAD^ HEAD -- vendor/a | tr '\t' ' '
@@ -82,49 +80,46 @@ A vendor/a/b.txt
 D vendor/a/file.txt
 ```
 
-The swap is the mount of the splice now at `vendor/a/`, so only the swap
-is pushed, as the first commit of `$UPSTREAM-b`:
+b's history continues from `vendor/b/`, where it was `init`. The swap
+changed none of b's files, so it adds nothing:
 
 ```scrut
 $ git splice log vendor/a
 ===  vendor/a (upstream has no 'main' branch)
-< 02eb4fc swap a and b  (Test <test@example.com>)
+< 0b18046 splice: init vendor/b  (Test <test@example.com>)
 ```
 
 ```scrut
 $ git splice push vendor/a
 ??   vendor/a: upstream has no 'main' branch yet -- this push creates it
-ok   vendor/a: pushed 02eb4fc to main
+ok   vendor/a: pushed 0b18046 to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM-b" log --format=%s main && git -C "$UPSTREAM-b" ls-tree --name-only main
-swap a and b
+splice: init vendor/b
 b.txt
 ```
 
 `a's unpushed work` and `a.txt` didn't reach `$UPSTREAM-b`.
 
-The other direction: `vendor/b/` is the splice of `$UPSTREAM` now. Its
-push goes to `$UPSTREAM`, so the commits made in `vendor/a/` before the
-swap belong there, but the rebuild doesn't follow moves yet, and
-`a's unpushed work` is folded into the swap commit. This is the known
-bug [#4](https://github.com/roschaefer/git-splice/issues/4), with the
-same workaround: push before moving a splice.
+The other direction: `vendor/b/` is the splice of `$UPSTREAM` now, and
+its history continues from `vendor/a/`, with `a's unpushed work` as a
+commit of its own:
 
 ```scrut
 $ git splice log vendor/b
 ===  vendor/b (main)
-< df45f51 swap a and b  (Test <test@example.com>)
+< 8da07b1 a's unpushed work  (Test <test@example.com>)
 ```
 
 ```scrut
 $ git splice push vendor/b
-ok   vendor/b: pushed df45f51 to main
+ok   vendor/b: pushed 8da07b1 to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main
-swap a and b
+a's unpushed work
 seed
 ```

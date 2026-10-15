@@ -7,7 +7,7 @@ cross from five commits:
 
 | | Commit | Lives in |
 |---|---|---|
-| B | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. Where the splice starts, the mount (its first `.splice`, or a `git mv`), B is that commit whatever its folder, and the rebuild copies B too where its folder isn't U(B), e.g. after `init`, or a `git mv` with unpushed changes. For a nested splice, the last pull of the splice above can be B ([nesting](../nesting/README.md)). | the monorepo |
+| B | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. Where the splice starts, the mount (its first `.splice`), B is that commit whatever its folder, and the rebuild copies B too where its folder isn't U(B), e.g. after `init`. A `git mv` of the folder isn't a start: the rebuild follows it to the old path ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)). For a nested splice, the last pull of the splice above can be B ([nesting](../nesting/README.md)). | the monorepo |
 | U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | the upstream |
 | U(B) | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | the upstream |
 | T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
@@ -92,7 +92,7 @@ rebuild has so far, *before*, and the commit it recorded, U(X):
 | *before* and U(X) | The copy's parents | When |
 |---|---|---|
 | neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as *e* and *e'* above ([scenario](../../scenarios/sync-model/after-pull/README.md)) |
-| U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
+| U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/README.md)), or the commit is where the splice starts |
 | *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
 
 So each pull since B that merged unpushed commits adds one merge to R,

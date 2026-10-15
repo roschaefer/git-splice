@@ -109,7 +109,7 @@ Why pull right away, and what `push` checks:
 - When the upstream moves to a new URL, `.splice` gets the new URL, and
   the next push sends the unpushed commits there
   ([upstream-moved](../scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
-- Push before you move a splice with `git mv`: the push after the move
-  squashes unpushed commits into it, a known bug
+- A splice moved with `git mv` keeps its unpushed commits: the push
+  after the move sends them as they were
   ([moved-with-unpushed-commits](../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)).
 - How the rebuild works: [design](../../docs/design/README.md#splicing-out-push-and-the-rebuild).

@@ -3,9 +3,9 @@
 > **Known bug, [#4](https://github.com/roschaefer/git-splice/issues/4).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../known-bugs.md).
 
 A splice with an unpushed commit is moved with `git mv`. The next push
-sends the right content, but squashes the unpushed commit into the move:
-its message and author are lost. This is a known bug,
-[#4](https://github.com/roschaefer/git-splice/issues/4).
+sends the unpushed commit with its own message and author. The move
+changes no file inside the folder, so it doesn't reach the upstream at
+all.
 
 - **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k* (`seed`),
   then a local commit *b* (`local change`), not pushed yet.
@@ -13,18 +13,16 @@ its message and author are lost. This is a known bug,
 
 <div align="center">
 
-![After the move m: the monorepo's a, b and m, where m is H and B; in the lane libs/a/, R is m prime on top of k, and b has no copy](moved-with-unpushed-commits.drawio.svg)
+![After the move m: the monorepo's a, b and m, where m is H and a is B; in the lane libs/a/, R is b prime on top of k, and m has no copy](moved-with-unpushed-commits.drawio.svg)
 
 </div>
 
-`push` rebuilds the commits that changed the splice's folder. It looks for
-them under the folder's current path only, so it doesn't see the commits
-made under the old one, and the move commit *m* (`reorganize folders`)
-appears to create the whole folder. *m* added `libs/a/.splice`, so it's B,
-and R is *m'*, a copy of *m* alone: *b* has none.
-
-Workaround: push before moving a splice, as
-[shown here](push-before-moving.md).
+`push` rebuilds the commits that changed the splice's folder. It follows
+the folder through the move, by the splice's id, and rebuilds the commits
+from before it under the old path. The move commit *m* (`reorganize
+folders`) leaves `.splice` as it was, so it's no last sync: B is still
+*a*, and R is *b'*, a copy of *b*. *m* changes no file inside the folder,
+so it has no copy.
 
 ## Output
 
@@ -54,53 +52,36 @@ Someone else reorganizes the folders:
 $ git mv vendor/a libs/a && git -c user.name=Mover -c user.email=mover@example.com commit -q -m "reorganize folders"
 ```
 
-The splice's fetched refs stay under the old path
-([#21](https://github.com/roschaefer/git-splice/issues/21)), so fetch
-under the new one first:
-
-```scrut
-$ git splice fetch libs/a
-ok   libs/a fetched
-```
-
 The drawing shows what Git and `git-splice` say about it now
 ([`check_drawing`](../../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/moved-with-unpushed-commits.drawio.svg" a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/main
-ok   moved-with-unpushed-commits.drawio.svg: 5 commits, 6 arrows, 3 boxes, 1 lanes
+ok   moved-with-unpushed-commits.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes
 ```
 
-Now the move is the only commit to push. The local commit is gone from the
-list:
+The local commit is still the one to push:
 
 ```scrut
 $ git splice log
 ===  libs/a (main)
-< a9da2f2 reorganize folders  (Mover <mover@example.com>)
+< e859a6b local change  (Test <test@example.com>)
 ```
-
-The push sends the right content, as one commit with the move's message
-and author:
 
 ```scrut
 $ git splice push libs/a
-ok   libs/a: pushed a9da2f2 to main
+ok   libs/a: pushed e859a6b to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --format='%s  (%an)' main
-reorganize folders  (Mover)
+local change  (Test)
 seed  (Test)
 ```
 
 ```scrut
-$ git -C "$UPSTREAM" show --format= main
-diff --git a/file.txt b/file.txt
-index e31de1f..d939bfa 100644
---- a/file.txt
-+++ b/file.txt
-@@ -1 +1,2 @@
- seed
-+local change
+$ git splice status
+On branch main
+
+  up to date  libs/a
 ```
