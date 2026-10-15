@@ -16,10 +16,10 @@ H, B, T, R and U(x).
 
 ## Usage
 
-In the monorepo:
+In the monorepo, with the path to `check-drawing/check-drawing`:
 
 ```sh
-check-drawing <drawing> [<label>=<rev>...]
+check-drawing/check-drawing <drawing> [<label>=<rev>...]
 ```
 
 `<drawing>` is a `.drawio.svg`, or a `.drawio` file. When everything
@@ -52,7 +52,8 @@ From `git-splice`, it uses the commands `boundary`, `rebuild` and `key`,
 and two functions of its `lib/common.sh`: the list of splices,
 `state_files`, and the upstream branch a monorepo branch maps to,
 `upstream_branch_for`. It finds `lib/` next to the `git-splice` on
-`PATH`, or in `$GIT_SPLICE_LIB`.
+`PATH`, as in a checkout of `git-splice`, or in `share/git-splice/`
+beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 
 ## The drawing's vocabulary
 
