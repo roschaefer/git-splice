@@ -134,9 +134,8 @@ setup() {
   run parse_args usage "--merge" --force vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"unknown option: --force"* ]]
-  parse_args usage "--merge" --merge --base main -- --odd-path
+  parse_args usage "--merge" --merge -- --odd-path
   has_flag --merge
-  [ "$BASE_ARG" = main ]
   [ "${PATH_ARGS[*]}" = "--odd-path" ]
 }
 
@@ -174,121 +173,6 @@ setup() {
 @test "shell_quote leaves plain words alone and quotes everything else as one word" {
   [ "$(shell_quote vendor/a)" = "vendor/a" ]
   [ "$(shell_quote "it's x;y")" = "'it'\\''s x;y'" ]
-}
-
-# Gives the monorepo an "origin" of its own, with origin/HEAD pointing at
-# main.
-add_monorepo_origin() {
-  local origin="$BATS_TEST_TMPDIR/monorepo-origin.git"
-  make_bare_repo "$origin"
-  git remote add origin "$origin"
-  git push -q origin main
-  git fetch -q origin
-  git remote set-head origin main
-}
-
-@test "resolve_base_ref: prefers an explicit branch over the default branch" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git branch other main
-  git config init.defaultBranch other
-  run resolve_base_ref main
-  [ "$output" = "refs/heads/main" ]
-}
-
-@test "resolve_base_ref: uses origin/HEAD before init.defaultBranch" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git branch trunk main
-  git config init.defaultBranch trunk
-  add_monorepo_origin
-  run resolve_base_ref
-  [ "$output" = "refs/heads/main" ]
-}
-
-@test "resolve_base_ref: a stale local branch doesn't hide the fresher origin/<name>" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  add_monorepo_origin
-  local stale
-  stale="$(git rev-parse main)"
-  git checkout -q main
-  commit_local "$monorepo" "vendor/a" "changed on main"
-  git push -q origin main
-  git checkout -q -b fresh origin/main
-  git branch -q -f main "$stale"
-  run resolve_base_ref
-  [ "$output" = "refs/remotes/origin/main" ]
-}
-
-@test "resolve_base_ref: fails when nothing names a base branch" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git config --unset init.defaultBranch
-  run resolve_base_ref
-  [ "$status" -eq 1 ]
-}
-
-@test "resolve_base_ref: rejects a branch that shares no history with HEAD" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git checkout -q --orphan orphan
-  git commit -q --allow-empty -m "unrelated root"
-  git checkout -q feature
-  run resolve_base_ref orphan
-  [ "$status" -eq 1 ]
-}
-
-@test "changes_vs_base: no when the splice is untouched on this branch" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  changes_vs_base vendor/a
-  [ "$SPLICE_CHANGES_VS_BASE" = no ]
-  [ "$SPLICE_BASE_BRANCH" = main ]
-}
-
-@test "changes_vs_base: yes when the splice changed on this branch" {
-  scenario_feature_branch_changed "$monorepo" "$upstream"
-  cd "$monorepo"
-  changes_vs_base vendor/a
-  [ "$SPLICE_CHANGES_VS_BASE" = yes ]
-  [ "$SPLICE_BASE_MERGE_BASE" = "$(git rev-parse main)" ]
-}
-
-@test "changes_vs_base: a change to .splice alone doesn't count" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git config --file vendor/a/.splice upstream.origin.default-branch other
-  git commit -q -am "only .splice"
-  changes_vs_base vendor/a
-  [ "$SPLICE_CHANGES_VS_BASE" = no ]
-}
-
-@test "changes_vs_base: changes made on the base branch after the cut don't count" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git checkout -q main
-  commit_local "$monorepo" "vendor/a" "later, on main"
-  git checkout -q feature
-  changes_vs_base vendor/a
-  [ "$SPLICE_CHANGES_VS_BASE" = no ]
-}
-
-@test "changes_vs_base: self on the base branch itself" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git checkout -q main
-  changes_vs_base vendor/a
-  [ "$SPLICE_CHANGES_VS_BASE" = self ]
-}
-
-@test "changes_vs_base: unresolved without a base branch" {
-  scenario_feature_branch_unchanged "$monorepo" "$upstream"
-  cd "$monorepo"
-  git config --unset init.defaultBranch
-  changes_vs_base vendor/a
-  [ "$SPLICE_CHANGES_VS_BASE" = unresolved ]
-  [ -z "$SPLICE_BASE_REF" ]
 }
 
 @test "print_unrelated_history_guidance quotes names with shell metacharacters" {

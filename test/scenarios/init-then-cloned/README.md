@@ -51,7 +51,7 @@ though it has:
 $ git splice status
 On branch main
 
-  ?? new, ahead 2  lib/a  push creates the branch
+  new, ahead 2  lib/a  push creates the branch
 ```
 
 ```scrut

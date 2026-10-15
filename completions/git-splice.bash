@@ -34,14 +34,16 @@ __git_splice_reply() {
   done
 }
 
-# Branches usable as --base or --rebuilt-commit: local and remote-tracking.
+# Branches usable as --rebuilt-commit: local and remote-tracking.
 __git_splice_branches() {
   git for-each-ref --format='%(refname:short)' refs/heads refs/remotes 2>/dev/null
 }
 
-# True if the word being completed is the value of option $1, e.g. --base.
+# True if the word being completed is the value of option $1, e.g.
+# --rebuilt-commit.
 # bash splits words at "=" (it's in COMP_WORDBREAKS), so the value can
-# follow "--base" or "--base =", and for "--base=" the current word is the
+# follow "--rebuilt-commit" or "--rebuilt-commit =", and for
+# "--rebuilt-commit=" the current word is the
 # "=" itself. Sets value_prefix to the part of the value typed so far.
 __git_splice_completing_value() {
   local option="$1" cur="${COMP_WORDS[COMP_CWORD]}" prev="${COMP_WORDS[COMP_CWORD - 1]:-}"
@@ -105,13 +107,12 @@ _git_splice() {
       __git_splice_paths_or_options "$cur" --upstream --all --bump -h --help
       ;;
     push | status | diff)
-      if __git_splice_completing_value --base ||
-        { [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; }; then
+      if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --all --base --force --rebuilt-commit -h --help
+        __git_splice_paths_or_options "$cur" --upstream --all --force --rebuilt-commit -h --help
       else
-        __git_splice_paths_or_options "$cur" --upstream --base -h --help
+        __git_splice_paths_or_options "$cur" --upstream -h --help
       fi
       ;;
     clone)

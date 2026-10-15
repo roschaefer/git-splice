@@ -34,11 +34,11 @@ setup() {
   [[ "$output" == *"> "*" upstream change"* ]]
 }
 
-@test "log: a missing upstream branch lists everything a push would create" {
+@test "log: a missing upstream branch compares with upstream's default branch, as a PR would" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_log
-  [ "${lines[0]}" = "===  vendor/a (upstream has no 'feature' branch)" ]
+  [ "${lines[0]}" = "===  vendor/a (upstream has no 'feature' branch -- compared with 'main')" ]
   [[ "${lines[1]}" == "< "*" local change  (Test <test@example.com>)" ]]
   [ "${#lines[@]}" -eq 2 ]
 }
@@ -87,14 +87,14 @@ setup() {
   [[ "${lines[-1]}" == "o "*" (R) "* ]]
 }
 
-@test "log --graph: a missing upstream branch draws what push would create on the commit it builds on" {
+@test "log --graph: a missing upstream branch draws what push would create on upstream's default branch" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_log --graph
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "===  vendor/a (upstream has no 'feature' branch)" ]
-  [[ "${lines[1]}" == "* "*" (R) local change  (Test <test@example.com>)" ]]
-  [[ "${lines[2]}" == "o "* ]]
+  [ "${lines[0]}" = "===  vendor/a (upstream has no 'feature' branch -- compared with 'main')" ]
+  [[ "${lines[1]}" == "< "*" (R) local change  (Test <test@example.com>)" ]]
+  [[ "${lines[2]}" == "o "*" (T) seed  "* ]]
   [ "${#lines[@]}" -eq 3 ]
 }
 

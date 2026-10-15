@@ -5,8 +5,9 @@ Cloning while on a branch upstream doesn't have.
 - **Monorepo**: on `feature`.
 - **Upstream**: only `main`.
 
-`clone` takes upstream's default branch instead. The first push creates
-`feature` upstream, if the splice changed by then.
+`clone` takes upstream's default branch instead. `feature` comes upstream
+with the first push that has a commit for it, e.g. after a change on
+`feature`.
 
 ## Output
 
@@ -31,7 +32,7 @@ ok   vendor/a: cloned bde4164 from main
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
-  new, changed  vendor/a  push creates the branch
+  unchanged, no upstream branch  vendor/a
 ```

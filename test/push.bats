@@ -141,29 +141,29 @@ setup() {
   [[ "$output" == *"not fetched"* ]]
 }
 
-@test "push: creates a missing upstream branch only if the splice changed" {
+@test "push: creates a missing upstream branch only if it has commits upstream's default branch lacks" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_push vendor/a
-  [[ "$output" == *"nothing to push (upstream has no 'feature' branch; unchanged since 'main')"* ]]
+  [[ "$output" == *"nothing to push (upstream has no 'feature' branch, and 'main' has every commit)"* ]]
   ! git -C "$upstream" rev-parse --verify --quiet feature
   commit_local "$monorepo" "vendor/a" "local change"
   run cmd_push vendor/a
   [ "$status" -eq 0 ]
-  [[ "$output" == *"this push creates it (changed since 'main')"* ]]
+  [[ "$output" == *"upstream has no 'feature' branch yet -- this push creates it"* ]]
   [ "$(git -C "$upstream" log -1 --format=%s feature)" = "local change" ]
   [ "$(git -C "$upstream" rev-parse feature^)" = "$(git -C "$upstream" rev-parse main)" ]
 }
 
-@test "push: asks for --base when the base branch can't be found" {
-  scenario_feature_branch_changed "$monorepo" "$upstream"
+@test "push: creates a missing upstream branch for commits from the branch it was cut from that upstream lacks" {
+  load 'scenarios/up-to-date/push-ahead/feature-branch-from-main/setup'
+  scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
-  git config --unset init.defaultBranch
   run cmd_push vendor/a
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"re-run with --base <branch>"* ]]
-  run cmd_push --base main vendor/a
   [ "$status" -eq 0 ]
+  [[ "$output" == *"upstream has no 'feature' branch yet -- this push creates it"* ]]
+  [ "$(git -C "$upstream" log -1 --format=%s feature)" = "local change" ]
+  [ "$(git -C "$upstream" rev-parse feature^)" = "$(git -C "$upstream" rev-parse main)" ]
 }
 
 @test "push: removes its SSH control folder and exits cleanly" {
@@ -354,6 +354,19 @@ reworded_rebuild() {
   run cmd_push --rebuilt-commit="$edited" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" rev-parse feature)" = "$edited" ]
+}
+
+@test "push --rebuilt-commit: creates a missing upstream branch with the given commit, even one upstream's default branch has, and asks for a pull" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  local edited
+  edited="$(reworded_rebuild "fix the parser")"
+  git push -q "$upstream" "$edited:refs/heads/main"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  run cmd_push --rebuilt-commit "$edited" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse feature)" = "$edited" ]
+  [[ "$output" == *"run 'git splice pull --bump vendor/a' before the next change to it"* ]]
 }
 
 @test "push --rebuilt-commit: refuses a commit with other files than the folder, which only a monorepo commit may change" {

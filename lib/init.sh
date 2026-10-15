@@ -29,7 +29,7 @@ empty_upstream_default_branch() {
 
 cmd_init() {
   parse_args usage_init "" "$@"
-  [[ -z "$ALL_ARG" && -z "$BASE_ARG" ]] || die "init takes no --all or --base"
+  [[ -z "$ALL_ARG" ]] || die "init takes no --all"
   local path="${PATH_ARGS[0]:-}" url="${PATH_ARGS[1]:-}"
   if [[ -z "$path" || -z "$url" || ${#PATH_ARGS[@]} -gt 2 ]]; then
     usage_init >&2

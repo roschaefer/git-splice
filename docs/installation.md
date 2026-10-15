@@ -26,7 +26,7 @@ Requires:
 ## Shell completions
 
 `completions/` has completions for bash, zsh and fish. They complete
-commands, splice paths and `--base` branches. The Nix package installs
+commands, splice paths and `--rebuilt-commit` branches. The Nix package installs
 them; for a clone:
 
     # bash: source from ~/.bashrc

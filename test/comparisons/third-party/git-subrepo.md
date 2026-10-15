@@ -231,7 +231,7 @@ name, ready for a pull request:
 
 ```scrut
 $ git switch -q -c feature && echo "fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 2" && git splice push vendor/lib
-??   vendor/lib: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+??   vendor/lib: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/lib: pushed 6b3df25 to feature
 ```
 

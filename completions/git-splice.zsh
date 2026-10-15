@@ -20,7 +20,7 @@ __git_splice_paths() {
   _describe -t paths 'splice' paths
 }
 
-# Branches usable as --base or --rebuilt-commit: local and remote-tracking. Listed
+# Branches usable as --rebuilt-commit: local and remote-tracking. Listed
 # here rather than through zsh's own branch completion, which only exists
 # once `_git` has been loaded -- not guaranteed when completing the
 # standalone command.
@@ -82,7 +82,6 @@ _git-splice() {
     status | diff)
       _arguments \
         '--upstream=[upstream named in .splice]:upstream name:' \
-        '--base=[monorepo base branch to compare against]:branch:__git_splice_branches' \
         '(-h --help)'{-h,--help}'[show usage]' \
         '*:splice:__git_splice_paths'
       ;;
@@ -92,7 +91,6 @@ _git-splice() {
         '--all[every splice]' \
         '--force[overwrite upstream'\''s branch]' \
         '--rebuilt-commit=[push this commit instead of the rebuild]:commit:__git_splice_branches' \
-        '--base=[monorepo base branch to compare against]:branch:__git_splice_branches' \
         '(-h --help)'{-h,--help}'[show usage]' \
         '*:splice:__git_splice_paths'
       ;;

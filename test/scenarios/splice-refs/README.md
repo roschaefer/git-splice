@@ -174,7 +174,7 @@ $ git switch -q -c fix-parser main
 
 ```scrut
 $ git splice status
-On branch fix-parser (base: main)
+On branch fix-parser
 
   ahead 2, behind 1  vendor/a
 ```
@@ -191,7 +191,7 @@ $ echo "rename helper" >>vendor/a/file.txt && git commit -q -a -m "rename helper
 
 ```scrut
 $ git splice push vendor/a
-??   vendor/a: upstream has no 'rename-helper' branch yet -- this push creates it (changed since 'main')
+??   vendor/a: upstream has no 'rename-helper' branch yet -- this push creates it
 ok   vendor/a: pushed af0b42b to rename-helper
 ```
 
@@ -302,7 +302,7 @@ Branches that still have the splice at the old path read the same refs:
 
 ```scrut
 $ git switch -q rename-helper && git splice status
-On branch rename-helper (base: main)
+On branch rename-helper
 
   up to date  vendor/a
 ```

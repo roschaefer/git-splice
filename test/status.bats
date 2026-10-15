@@ -141,7 +141,7 @@ assert_state() {
   cd "$monorepo"
   run cmd_status
   [ "$output" = "$(cat <<'EOF'
-On branch feature (base: main)
+On branch feature
 
   new, ahead 1  vendor/a  push creates the branch
 EOF
@@ -149,11 +149,28 @@ EOF
   git checkout -q -b other main
   run cmd_status
   [ "$output" = "$(cat <<'EOF'
-On branch other (base: main)
+On branch other
 
   unchanged, no upstream branch  vendor/a
 EOF
   )" ]
+}
+
+@test "status: a missing branch is new with commits from the branch it was cut from that upstream lacks" {
+  load 'scenarios/up-to-date/push-ahead/feature-branch-from-main/setup'
+  scenario_feature_branch_from_main "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_status
+  [ "${lines[1]}" = "  new, ahead 1  vendor/a  push creates the branch" ]
+}
+
+@test "status: a missing branch also counts the commits upstream's default branch has and it lacks, as a PR would" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  run cmd_status
+  [ "${lines[1]}" = "  new, ahead 1, behind 1  vendor/a  push creates the branch" ]
 }
 
 @test "status: says how to start without splices" {
@@ -232,22 +249,22 @@ EOF
   [ "${lines[1]}" = "  new, ahead 2  vendor/a  push creates the branch" ]
 }
 
-@test "status: a missing branch with no new commits for upstream says changed, not ahead 0" {
+@test "status: a missing branch is unchanged right after cloning on a feature branch: upstream has every commit" {
   load 'scenarios/clone-on-feature-branch/setup'
   scenario_clone_on_feature_branch "$monorepo" "$upstream"
   cd "$monorepo"
   splice clone "$upstream" vendor/a >/dev/null
   run cmd_status
-  [ "${lines[1]}" = "  new, changed  vendor/a  push creates the branch" ]
+  [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
 }
 
-@test "status: a missing branch that can't be rebuilt says changed, without the rebuild's error" {
+@test "status: a missing branch that can't be rebuilt warns, without the rebuild's error" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   rebuild_splice() { die "vendor/a: synced commit isn't available locally"; }
   run cmd_status
   [ "$status" -eq 0 ]
-  [ "${lines[*]:1}" = "  new, changed  vendor/a  push creates the branch" ]
+  [ "${lines[*]:1}" = "  ?? no upstream branch  vendor/a  could not compare with upstream's 'main'" ]
 }
 
 @test "status: shows the state without counts if they can't be counted" {
@@ -262,12 +279,12 @@ EOF
   [ "${lines[1]}" = "  ahead  vendor/a  uncommitted changes" ]
 }
 
-@test "status: on the base branch, counts the commits the push creating the branch would publish" {
+@test "status: a missing branch counts the commits the push creating it would publish" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
   run cmd_status
-  [ "$output" = "$(printf 'On branch main\n\n  ?? new, ahead 1  lib/a  push creates the branch')" ]
+  [ "$output" = "$(printf 'On branch main\n\n  new, ahead 1  lib/a  push creates the branch')" ]
 }
 
 @test "status: a splice moved with git mv still finds its fetched refs" {
@@ -333,14 +350,12 @@ EOF2
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q -b feature
-  run cmd_status
+  run cmd_status libs/cli libs/http libs/theme
   [ "$output" = "$(cat <<'EOF2'
-On branch feature (base: main)
+On branch feature
 
   unchanged, no upstream branch  libs/cli
   unchanged, no upstream branch  libs/http
-  unchanged, no upstream branch  libs/parser
-  unchanged, no upstream branch  libs/store
   unchanged, no upstream branch  libs/theme
 EOF2
   )" ]

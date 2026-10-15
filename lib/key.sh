@@ -50,7 +50,6 @@ rename_upstream_key() {
 cmd_key() {
   parse_args usage_key "--upstream" "$@"
   [[ -z "$ALL_ARG" ]] || die "key takes no --all"
-  [[ -z "$BASE_ARG" ]] || die "key takes no --base"
   [[ ${#PATH_ARGS[@]} -eq 1 || ${#PATH_ARGS[@]} -eq 2 ]] || {
     usage_key >&2
     exit 1

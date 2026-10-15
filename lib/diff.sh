@@ -3,7 +3,7 @@
 
 usage_diff() {
   cat <<'EOF'
-usage: git splice diff [--upstream <name>] [--base <branch>] [--stat] [path...]
+usage: git splice diff [--upstream <name>] [--stat] [path...]
 
 Shows the file changes 'git splice push' would send to each splice's
 upstream, with paths as the upstream sees them. Purely local -- run
@@ -13,9 +13,9 @@ when no paths are given.
 --stat summarizes the changes per file instead, like 'git diff --stat'.
 
 For a splice whose upstream has no branch named like the current one, the
-diff is against the monorepo's base branch (--base, else the monorepo's
-default branch). On the base branch itself, the whole splice is shown as
-new upstream content.
+diff is against upstream's default branch, from where the two meet, as a
+PR from the new branch would show it. Without a default branch upstream,
+the whole splice is new.
 
 --upstream names one of the upstreams a splice's .splice names; without
 it, the splice's default upstream. A splice without the named upstream
@@ -23,10 +23,9 @@ stops the command before it starts.
 EOF
 }
 
-# Shows the upstream-to-local patch for one splice. $3 is an explicit
-# --base branch, if any.
+# Shows the upstream-to-local patch for one splice.
 diff_one() {
-  local path="$1" branch="$2" base="${3:-}" old_tree new_tree
+  local path="$1" branch="$2" old_tree new_tree merge_base
 
   classify_splice "$path" "$branch"
   case "$SPLICE_STATE" in
@@ -42,31 +41,16 @@ diff_one() {
       return 1
       ;;
     missing-branch)
-      changes_vs_base "$path" "$base"
-      case "$SPLICE_CHANGES_VS_BASE" in
-        no)
-          return 0
-          ;;
-        unresolved)
-          if [[ -n "$base" ]]; then
-            log_err "$path: base branch '$base' not found, or it shares no history with '$branch'"
-          else
-            log_err "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch and the monorepo's base branch can't be determined -- re-run with --base <branch>"
-          fi
-          return 1
-          ;;
-        error)
-          log_err "$path: could not compare with base branch '$SPLICE_BASE_BRANCH'"
-          return 1
-          ;;
-        yes)
-          content_tree "$SPLICE_BASE_MERGE_BASE" "$path"
-          old_tree="$CONTENT_TREE"
-          ;;
-        self)
-          old_tree=""
-          ;;
-      esac
+      if ! compare_with_default_branch "$path"; then
+        log_err "$path: could not compare with upstream's default branch${SPLICE_DEFAULT_BRANCH:+ '$SPLICE_DEFAULT_BRANCH'}"
+        return 1
+      fi
+      ((SPLICE_NEW_COMMITS > 0)) || return 0
+      # As a PR shows it: from where R and the default branch meet.
+      old_tree=""
+      if [[ -n "$SPLICE_DEFAULT_REF" ]] && merge_base="$(git merge-base "$SPLICE_REBUILT" "$SPLICE_DEFAULT_REF")"; then
+        old_tree="$(git rev-parse "$merge_base^{tree}")"
+      fi
       ;;
     push | diverged)
       old_tree="$(git rev-parse "$SPLICE_TARGET_REF^{tree}")"
@@ -84,10 +68,10 @@ diff_one() {
 # Emits all selected patches. Kept separate from cmd_diff so one pager can
 # contain every splice rather than opening a new pager for each one.
 diff_paths() {
-  local branch="$1" base="$2" path rc failures=()
-  shift 2
+  local branch="$1" path rc failures=()
+  shift
   for path in "$@"; do
-    if diff_one "$path" "$branch" "$base"; then
+    if diff_one "$path" "$branch"; then
       continue
     else
       rc=$?
@@ -104,7 +88,7 @@ diff_paths() {
 
 cmd_diff() {
   parse_args usage_diff "--stat --upstream" "$@"
-  local base="$BASE_ARG" branch
+  local branch
   cd_to_repo_root
   require_head_commit
   discover_splices
@@ -112,5 +96,5 @@ cmd_diff() {
   use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   branch="$(current_branch)"
   require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
-  page_git_output diff_paths "$branch" "$base" "${SELECTED_PATHS[@]}"
+  page_git_output diff_paths "$branch" "${SELECTED_PATHS[@]}"
 }

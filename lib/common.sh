@@ -24,7 +24,6 @@ declare -gA SPLICE_KEYS=()
 # Name of the one upstream clone and init write into a new .splice.
 DEFAULT_UPSTREAM=origin
 # Results of parse_args.
-declare -g BASE_ARG=""
 declare -g UPSTREAM_ARG=""
 declare -g ALL_ARG=""
 declare -ga PATH_ARGS=()
@@ -102,8 +101,8 @@ normalize_path() {
   printf '%s\n' "$path"
 }
 
-# Parses the arguments of a command that takes `[--all] [--base <branch>]
-# [<flag>...] [path...]`. Sets ALL_ARG, BASE_ARG, PATH_ARGS, and
+# Parses the arguments of a command that takes `[--all] [<flag>...]
+# [path...]`. Sets ALL_ARG, PATH_ARGS, and
 # EXTRA_FLAGS for every flag named in $2 (space-separated, e.g. "--merge").
 # $1 names the command's usage function, which is run (then exit 0) for
 # -h/--help. Everything after `--` is a path.
@@ -111,7 +110,6 @@ parse_args() {
   local usage_fn="$1" allowed=" $2 "
   shift 2
   ALL_ARG=""
-  BASE_ARG=""
   UPSTREAM_ARG=""
   REBUILT_COMMIT_ARG=""
   PATH_ARGS=()
@@ -124,15 +122,6 @@ parse_args() {
         ;;
       --all)
         ALL_ARG=1
-        ;;
-      --base)
-        [[ $# -ge 2 && -n "$2" ]] || die "--base needs a branch name"
-        BASE_ARG="$2"
-        shift
-        ;;
-      --base=*)
-        BASE_ARG="${1#--base=}"
-        [[ -n "$BASE_ARG" ]] || die "--base needs a branch name"
         ;;
       --upstream | --upstream=*)
         [[ "$allowed" == *" --upstream "* ]] || {
@@ -949,91 +938,4 @@ has_uncommitted_changes() {
   local changes
   changes="$(git status --porcelain --untracked-files=normal -- ":(top,literal)$1" 2>/dev/null)" || return 2
   [[ -n "$changes" ]]
-}
-
-# Prints the full ref of the monorepo's base branch -- the branch feature
-# branches are cut from -- or fails if there is none. Git doesn't record
-# which branch a branch was cut from, so this is resolved, in order, from:
-#   1. the explicit branch given as $1 (from --base), which always wins;
-#   2. the monorepo's default branch (see monorepo_default_branch).
-# A name may be a local branch ("main"), a remote-tracking one
-# ("origin/main") or a full ref. A candidate only counts if it exists and
-# shares history with HEAD. There is deliberately no guessing at
-# "main"/"master": callers ask the user for --base instead.
-#
-# When a name matches both a local branch and origin/<name>, the one whose
-# merge base with HEAD is more recent wins, so a stale local branch can't
-# hide the fresher origin/<name> a branch was actually cut from.
-resolve_base_ref() {
-  local explicit="${1:-}" candidates=() candidate ref refs mb best_ref="" best_mb=""
-  if [[ -n "$explicit" ]]; then
-    candidates+=("$explicit")
-  else
-    candidate="$(monorepo_default_branch)"
-    [[ -n "$candidate" ]] && candidates+=("$candidate")
-  fi
-  for candidate in "${candidates[@]}"; do
-    refs=("refs/heads/$candidate" "refs/remotes/$candidate" "refs/remotes/origin/$candidate")
-    [[ "$candidate" == refs/* ]] && refs=("$candidate")
-    for ref in "${refs[@]}"; do
-      git show-ref --verify --quiet "$ref" || continue
-      mb="$(git merge-base HEAD "$ref" 2>/dev/null)" || continue
-      if [[ -z "$best_ref" ]] || { [[ "$mb" != "$best_mb" ]] && git merge-base --is-ancestor "$best_mb" "$mb"; }; then
-        best_ref="$ref"
-        best_mb="$mb"
-      fi
-    done
-    [[ -n "$best_ref" ]] && break
-  done
-  [[ -n "$best_ref" ]] || return 1
-  printf '%s\n' "$best_ref"
-}
-
-# For a splice whose upstream has no branch like the current one: has its
-# content changed on this branch, compared with the monorepo's base branch?
-# Judged purely inside the monorepo, from the merge base of HEAD and the
-# base branch, so later changes on the base branch don't count against this
-# one. The state file doesn't count: a pull alone changes nothing to push.
-# Sets:
-#   SPLICE_CHANGES_VS_BASE  yes | no | unresolved (no usable base branch)
-#                           | self (the current branch is the base branch)
-#                           | error (git could not compare)
-#   SPLICE_BASE_REF         the resolved base ref (empty if unresolved)
-#   SPLICE_BASE_BRANCH      its short name, for messages
-#   SPLICE_BASE_MERGE_BASE  the merge base commit (yes/no only)
-# $2 is an explicit --base branch, if any.
-changes_vs_base() {
-  local path="$1" explicit="${2:-}" head_ref rc pathspec=()
-  SPLICE_CHANGES_VS_BASE="unresolved"
-  SPLICE_BASE_REF=""
-  SPLICE_BASE_BRANCH=""
-  SPLICE_BASE_MERGE_BASE=""
-
-  SPLICE_BASE_REF="$(resolve_base_ref "$explicit")" || {
-    SPLICE_BASE_REF=""
-    return 0
-  }
-  SPLICE_BASE_BRANCH="${SPLICE_BASE_REF#refs/heads/}"
-  SPLICE_BASE_BRANCH="${SPLICE_BASE_BRANCH#refs/remotes/}"
-
-  head_ref="$(git symbolic-ref --quiet HEAD 2>/dev/null || true)"
-  if [[ "$SPLICE_BASE_REF" == "$head_ref" ]]; then
-    SPLICE_CHANGES_VS_BASE="self"
-    return 0
-  fi
-
-  SPLICE_BASE_MERGE_BASE="$(git merge-base HEAD "$SPLICE_BASE_REF")"
-  mapfile -t pathspec < <(content_pathspec "$path")
-  # `git diff --quiet` exits 1 for "differs" and >1 for a real failure; only
-  # the former may be read as "changed", or an error would create a branch.
-  if git diff --quiet "$SPLICE_BASE_MERGE_BASE" HEAD -- "${pathspec[@]}" 2>/dev/null; then
-    SPLICE_CHANGES_VS_BASE="no"
-  else
-    rc=$?
-    if ((rc == 1)); then
-      SPLICE_CHANGES_VS_BASE="yes"
-    else
-      SPLICE_CHANGES_VS_BASE="error"
-    fi
-  fi
 }

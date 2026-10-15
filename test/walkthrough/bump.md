@@ -95,7 +95,7 @@ A bump then records it on the monorepo's `feature`:
 
 ```scrut
 $ git splice push vendor/pkg-a
-??   vendor/pkg-a: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+??   vendor/pkg-a: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/pkg-a: pushed 556e8b7 to feature
 ```
 

@@ -39,7 +39,7 @@ setup() {
   [ -z "$output" ]
 }
 
-@test "diff: a missing upstream branch compares against the monorepo's base" {
+@test "diff: a missing upstream branch shows the commits no upstream branch has" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_diff
@@ -48,7 +48,7 @@ setup() {
   [[ "$output" != *"+seed"* ]]
 }
 
-@test "diff: on the base branch, a missing upstream branch shows everything as new" {
+@test "diff: without upstream's default branch, a missing upstream branch shows everything as new" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q main
@@ -60,6 +60,26 @@ setup() {
   run cmd_diff
   [ "$status" -eq 0 ]
   [[ "$output" == *"+seed"* ]]
+}
+
+@test "diff: a missing upstream branch shows commits from the branch it was cut from that upstream lacks" {
+  load 'scenarios/up-to-date/push-ahead/feature-branch-from-main/setup'
+  scenario_feature_branch_from_main "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_diff
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"+local change"* ]]
+  [[ "$output" != *"+seed"* ]]
+}
+
+@test "diff: a missing upstream branch shows everything when upstream has none of its commits" {
+  load 'scenarios/init-new-upstream/setup'
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null
+  run cmd_diff
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"new file mode"* ]]
 }
 
 @test "diff: path arguments restrict output" {
@@ -87,7 +107,7 @@ setup() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
 
-  TERM=xterm run pipe_to_pager diff_paths cat main "" vendor/a
+  TERM=xterm run pipe_to_pager diff_paths cat main vendor/a
 
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\033['* ]]

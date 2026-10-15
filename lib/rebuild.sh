@@ -365,7 +365,6 @@ EOF
 cmd_rebuild() {
   parse_args usage_rebuild "" "$@"
   [[ -z "$ALL_ARG" ]] || die "rebuild takes no --all"
-  [[ -z "$BASE_ARG" ]] || die "rebuild takes no --base"
   [[ ${#PATH_ARGS[@]} -eq 1 ]] || {
     usage_rebuild >&2
     exit 1

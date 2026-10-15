@@ -7,8 +7,7 @@ on it.
   `feature` with a local commit.
 - **Upstream**: only `main`.
 
-"Changed" is measured against the monorepo's base branch: here `main`, the
-monorepo's default branch.
+"New" counts the commits that upstream's default branch, `main`, lacks.
 
 ## Output
 
@@ -26,14 +25,14 @@ $ build_scenario scenario_feature_branch_changed
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
   new, ahead 1  vendor/a  push creates the branch
 ```
 
 ```scrut
 $ git splice log
-===  vendor/a (upstream has no 'feature' branch)
+===  vendor/a (upstream has no 'feature' branch -- compared with 'main')
 < e859a6b local change  (Test <test@example.com>)
 ```
 
@@ -41,13 +40,13 @@ $ git splice log
 
 ```scrut
 $ git splice push vendor/a
-??   vendor/a: upstream has no 'feature' branch yet -- this push creates it (changed since 'main')
+??   vendor/a: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/a: pushed e859a6b to feature
 ```
 
 ```scrut
 $ git splice status
-On branch feature (base: main)
+On branch feature
 
   up to date  vendor/a
 ```

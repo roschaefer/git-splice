@@ -15,7 +15,11 @@ with, in both directions:
 --graph draws both sides as a graph, like 'git log --graph', with the
 marks as its nodes, and the commit both sides build on as 'o'. The
 rebuild of the splice's commits is labeled (R), the upstream branch (T).
-Without an upstream branch, every '*' is a commit push would publish.
+
+If the upstream has no branch named like the current one, the other side
+is upstream's default branch, as for a PR from the branch push would
+create. If it lacks that one too, every commit is one push would
+publish.
 
 Each line shows the author, who is published along with the commit. Purely
 local -- run 'git splice fetch' first. Defaults to every splice when no
@@ -72,12 +76,24 @@ log_one() {
       return 1
       ;;
     missing-branch)
-      log_step "$path (upstream has no '$SPLICE_UPSTREAM_LABEL' branch)"
-      SPLICE_REBUILT="$(rebuild_splice "$path" HEAD)"
+      if ! compare_with_default_branch "$path"; then
+        log_err "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch, and its default branch${SPLICE_DEFAULT_BRANCH:+ '$SPLICE_DEFAULT_BRANCH'} can't be compared with"
+        return 1
+      fi
       [[ -n "$SPLICE_REBUILT" ]] || return 0
-      # Everything no upstream branch has yet; all of it would be pushed.
-      LOG_FORMAT="${LOG_FORMAT/\%m/<}" splice_git_log "$SPLICE_REBUILT" "" \
-        "$SPLICE_REBUILT" --not --glob="$(splice_refs_prefix "$path")*"
+      if [[ -z "$SPLICE_DEFAULT_REF" ]]; then
+        if [[ "$SPLICE_DEFAULT_BRANCH" == "$SPLICE_UPSTREAM_BRANCH" ]]; then
+          log_step "$path (upstream has no '$SPLICE_UPSTREAM_LABEL' branch)"
+        else
+          log_step "$path (upstream has neither a '$SPLICE_UPSTREAM_LABEL' nor a '$SPLICE_DEFAULT_BRANCH' branch)"
+        fi
+        LOG_FORMAT="${LOG_FORMAT/\%m/<}" splice_git_log "$SPLICE_REBUILT" "" "$SPLICE_REBUILT"
+        return
+      fi
+      # As a PR from the branch push creates would: against the default branch.
+      log_step "$path (upstream has no '$SPLICE_UPSTREAM_LABEL' branch -- compared with '$SPLICE_DEFAULT_BRANCH')"
+      splice_git_log "$SPLICE_REBUILT" "$(git rev-parse "$SPLICE_DEFAULT_REF^{commit}")" \
+        --left-right --cherry-mark "$SPLICE_REBUILT...$SPLICE_DEFAULT_REF"
       return
       ;;
     up-to-date)
@@ -119,7 +135,6 @@ cmd_log() {
   parse_args usage_log "--graph --upstream" "$@"
   LOG_GRAPH=""
   has_flag --graph && LOG_GRAPH=1
-  [[ -z "$BASE_ARG" ]] || die "log takes no --base"
   cd_to_repo_root
   require_head_commit
   discover_splices

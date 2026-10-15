@@ -2,8 +2,8 @@
 
 usage_push() {
   cat <<'EOF'
-usage: git splice push [--upstream <name>] [--base <branch>] [--force] (<path>... | --all)
-       git splice push [--upstream <name>] [--base <branch>] [--force] --rebuilt-commit <commit> <path>
+usage: git splice push [--upstream <name>] [--force] (<path>... | --all)
+       git splice push [--upstream <name>] [--force] --rebuilt-commit <commit> <path>
 
 Publishes each splice's local changes: rebuilds the commits that changed
 it since its boundary, without its .splice file, and pushes them to its
@@ -14,11 +14,10 @@ one above publishes its .splice, and a failed push stops the splices
 above it.
 
 If the upstream has no branch named like the current one, push creates it
--- but only for a splice that changed on this branch compared with the
-monorepo's base branch (the branch this one was cut from), so working on a
-feature branch doesn't spawn empty branches upstream. The base branch is
---base, else the monorepo's default branch (origin/HEAD, else
-init.defaultBranch); if none resolves, push refuses and asks for --base.
+-- but only if it has commits upstream's default branch lacks, so working
+on a feature branch doesn't spawn empty branches upstream. Commits the
+feature branch got from the branch it was cut from count too: when
+upstream takes changes only through PRs, that's how they get there.
 
 --force overwrites the upstream branch with the monorepo's side: when the
 two share no history, or to discard commits only upstream has.
@@ -46,10 +45,9 @@ stops the command before it starts.
 EOF
 }
 
-# Pushes one splice. $3 is an explicit --base branch, if any; $4 is
-# "force" for --force.
+# Pushes one splice. $3 is "force" for --force.
 push_one() {
-  local path="$1" branch="$2" base="${3:-}" force="${4:-}" rc=0
+  local path="$1" branch="$2" force="${3:-}" rc=0
 
   has_uncommitted_changes "$path" || rc=$?
   case "$rc" in
@@ -89,32 +87,21 @@ push_one() {
       [[ -n "$SPLICE_REBUILT" ]] || SPLICE_REBUILT="$(REBUILD_WITHOUT_SYNCED=1 splice_rebuild "$path")"
       ;;
     missing-branch)
-      changes_vs_base "$path" "$base"
-      case "$SPLICE_CHANGES_VS_BASE" in
-        no)
-          log_ok "$path: nothing to push (upstream has no '$label' branch; unchanged since '$SPLICE_BASE_BRANCH')"
-          return 0
-          ;;
-        unresolved)
-          if [[ -n "$base" ]]; then
-            log_err "$path: base branch '$base' not found, or it shares no history with '$branch'"
-          else
-            log_err "$path: upstream has no '$label' branch and the monorepo's base branch can't be determined -- re-run with --base <branch>"
-          fi
-          return 1
-          ;;
-        error)
-          log_err "$path: could not compare with base branch '$SPLICE_BASE_BRANCH' -- not creating '$label'"
-          return 1
-          ;;
-        yes)
-          log_warn "$path: upstream has no '$label' branch yet -- this push creates it (changed since '$SPLICE_BASE_BRANCH')"
-          ;;
-        self)
-          log_warn "$path: upstream has no '$label' branch yet -- this push creates it"
-          ;;
-      esac
-      SPLICE_REBUILT="$(splice_rebuild "$path")"
+      if ! compare_with_default_branch "$path"; then
+        if [[ -z "$SPLICE_DEFAULT_BRANCH" ]]; then
+          log_err "$path: upstream has no '$label' branch, and its default branch is unknown -- not creating '$label'"
+        else
+          log_err "$path: could not compare with upstream's '$SPLICE_DEFAULT_BRANCH' -- not creating '$label'"
+        fi
+        return 1
+      fi
+      # A commit given with --rebuilt-commit is pushed even if upstream's
+      # default branch has it: it was asked for, and needs recording.
+      if [[ -n "$SPLICE_REBUILT" && -z "${REBUILD_GIVEN[$path]:-}" ]] && ((SPLICE_NEW_COMMITS == 0)); then
+        log_ok "$path: nothing to push (upstream has no '$label' branch, and '$SPLICE_DEFAULT_BRANCH' has every commit)"
+        return 0
+      fi
+      [[ -z "$SPLICE_REBUILT" ]] || log_warn "$path: upstream has no '$label' branch yet -- this push creates it"
       ;;
     push) ;;
   esac
@@ -193,7 +180,7 @@ give_rebuild() {
 
 cmd_push() {
   parse_args usage_push "--force --upstream --rebuilt-commit" "$@"
-  local base="$BASE_ARG" force=""
+  local force=""
   has_flag --force && force=force
   cd_to_repo_root
   require_head_commit
@@ -226,7 +213,7 @@ cmd_push() {
       failures+=("$path")
       continue
     fi
-    push_one "$path" "$branch" "$base" "$force" || failures+=("$path")
+    push_one "$path" "$branch" "$force" || failures+=("$path")
   done
   rm -rf "$ssh_control_dir"
 
