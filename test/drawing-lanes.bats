@@ -46,7 +46,7 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@id="lane_b"]/@value' -v vendor/a/ -u '//mxCell[@id="lane_a"]/@value' -v vendor/a/b/
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   the lane vendor/a/ is drawn inside vendor/a/b/, but its folder isn't inside that one" ]
+  [[ "$output" == *"!!   the lane vendor/a/ is drawn inside vendor/a/b/, but its folder isn't inside that one"* ]]
   [[ "$output" == *"!!   T points at m, the code says l"* ]]
 }
 
@@ -90,4 +90,11 @@ edit_drawing() {
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   k -> m crosses lanes: draw a parent and its child in one lane" ]
+}
+
+@test "drawing lanes: a nested splice's lane is drawn inside its parent's" {
+  edit_drawing -u '//mxCell[@id="lane_b"]/mxGeometry/@x' -v 1000 -u '//mxCell[@id="m"]/mxGeometry/@x' -v 1050
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the lane vendor/a/b/ is a folder inside vendor/a/: draw it inside that lane" ]
 }

@@ -145,6 +145,8 @@ check_drawing() {
     for o in "${lanes[@]}"; do
       [[ "$o" != "$l" ]] && inside "$l" "$o" && [[ "${value[$l]}" != "${value[$o]}"?* ]] &&
         errors+=("the lane ${value[$l]} is drawn inside ${value[$o]}, but its folder isn't inside that one")
+      [[ "$o" != "$l" && "${value[$l]}" == "${value[$o]}"?* ]] && ! inside "$l" "$o" &&
+        errors+=("the lane ${value[$l]} is a folder inside ${value[$o]}: draw it inside that lane")
     done
   done
   for id in "${commits[@]}" "${boxes[@]}" "${frames[@]}"; do
