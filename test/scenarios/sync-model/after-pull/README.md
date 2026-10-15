@@ -33,7 +33,7 @@ $ build_scenario scenario_after_pull
 
 The drawing shows what Git and `git-splice` say about it. a and e aren't
 subjects the drawing can show, so they're named by their place in the
-history ([`check_drawing`](../../../helpers/drawing.bash)):
+history ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/after-pull.drawio.svg" a=HEAD~4 e=HEAD

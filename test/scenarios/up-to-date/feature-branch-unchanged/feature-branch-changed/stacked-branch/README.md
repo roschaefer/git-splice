@@ -42,7 +42,7 @@ $ build_scenario scenario_stacked_branch
 
 The drawing shows what Git and `git-splice` say about it, with each
 commit named by its place in the history
-([`check_drawing`](../../../../../helpers/drawing.bash)):
+([`check_drawing`](../../../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/stacked-branch.drawio.svg" a=HEAD~2 b=HEAD~1 c=HEAD k=refs/splices/upstream/main

@@ -38,7 +38,7 @@ $ build_scenario scenario_local_edit_in_the_squash
 
 The drawing shows what Git and `git-splice` say about it, with each
 commit named by its place in the history
-([`check_drawing`](../../../../helpers/drawing.bash)):
+([`check_drawing`](../../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/local-edit-in-the-squash.drawio.svg" a=HEAD~1 s=HEAD k=refs/splices/upstream/main f=refs/splices/upstream/feature

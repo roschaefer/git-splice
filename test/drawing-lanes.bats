@@ -4,7 +4,7 @@
 
 setup() {
   load 'helpers/fixtures'
-  load 'helpers/drawing'
+  load '../check-drawing/check-drawing'
   hermetic_git_config
   load 'scenarios/nested-splices/setup'
   PATH="$BATS_TEST_DIRNAME/..:$PATH"

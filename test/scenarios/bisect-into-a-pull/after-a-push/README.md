@@ -34,7 +34,7 @@ $ build_scenario scenario_after_a_push
 
 The drawing shows what Git and `git-splice` say about it, with each
 commit named by its place in the history
-([`check_drawing`](../../../helpers/drawing.bash)):
+([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/after-a-push.drawio.svg" c=HEAD~3 d=HEAD~2 e=HEAD~1 X=HEAD n=refs/splices/upstream/main~2 o=refs/splices/upstream/main

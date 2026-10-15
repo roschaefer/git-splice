@@ -44,7 +44,7 @@ $ build_scenario scenario_many_splices
 
 The drawing shows what Git and `git-splice` say about it, with each
 commit named by its place in the history
-([`check_drawing`](../../helpers/drawing.bash)):
+([`check_drawing`](../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/many-splices.drawio.svg" a=HEAD~6 b=HEAD~5 c=HEAD~4 d=HEAD~3 e=HEAD~2 f=HEAD~1 g=HEAD m=refs/splices/upstream-http/main~1 n=refs/splices/upstream-http/main o=refs/splices/upstream-store/main

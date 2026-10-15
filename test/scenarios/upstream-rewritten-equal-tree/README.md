@@ -50,7 +50,7 @@ $ build_scenario scenario_upstream_rewritten_equal_tree
 
 The drawing shows what Git and `git-splice` say about it, with each
 commit named by its place in the history
-([`check_drawing`](../../helpers/drawing.bash)):
+([`check_drawing`](../../../check-drawing/)):
 
 ```scrut
 $ r="$(git config --file vendor/a/.splice splice.commit)"

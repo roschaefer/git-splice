@@ -34,7 +34,7 @@ $ build_scenario scenario_sync_model
 The drawing shows what Git and `git-splice` say about it. a is the clone,
 `add vendor/a`, which isn't a subject the drawing can show, so it's named
 by its place in the history
-([`check_drawing`](../../helpers/drawing.bash)):
+([`check_drawing`](../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/before-pull.drawio.svg" a=HEAD~3

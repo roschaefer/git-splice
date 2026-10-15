@@ -1,52 +1,15 @@
-# shellcheck shell=bash
-# Checks a draw.io drawing of splices' commit graphs against the
-# repositories a scenario built: what the drawing shows, not where. Run in
-# the monorepo; see test/scenarios/sync-model/README.md.
-#
-# The drawing's vocabulary:
-#
-#   - A circle (ellipse) is a commit. Its label is the commit's subject,
-#     looked up on the monorepo's first-parent history, then upstream. A
-#     label with a trailing ' (b' for b) is the rebuild's copy of the
-#     commit without it: the same message, author and dates, in R's
-#     history.
-#   - An arrow between two commits points from a parent to its child.
-#   - A box points at the commit its label names: H, B, T or R
-#     (test/concepts/sync-model/README.md), U(x), the commit x's
-#     .splice records, where x is H, B or a drawn commit, or an upstream
-#     branch by its name, e.g. "main", as fetched. Several names
-#     are joined by " = ", e.g. "U(H) = U(B)": each must name that
-#     commit.
-#   - A lane, a shape labelled with a splice's folder, e.g. "vendor/a/",
-#     holds that splice's upstream commits and boxes. A monorepo with
-#     several splices needs one per splice it draws, and what a lane
-#     shows stays in it: arrows between commits, and boxes, don't cross
-#     into another lane. A box sits on the side of what it names: H and
-#     B outside every lane, T, R and upstream branches in their splice's
-#     lane, and U(x) next to x, pointing into the lane. With one splice,
-#     lanes are optional, the generic "path/" names it, and a box outside
-#     every lane, like B, is that splice's. A nested
-#     splice's lane is drawn inside the lane of the splice above it, and
-#     a shape belongs to the innermost lane around it.
-#   - A frame labelled "x:<path>/.splice", Git's name for that file in
-#     commit x, holds commit x, and usually the box U(x). <path> is the
-#     splice's folder in x's repository: in the monorepo, or in the
-#     upstream of the lane x is in. The generic "path" stands for the
-#     splice of the lane the frame is in.
-#   - Dashed commits and arrows into them aren't in the upstream's history
-#     yet: no upstream branch has them, like R's copies of monorepo
-#     commits, or commits a rewrite of the upstream removed. A solid
-#     commit that T lacks needs a box for an upstream branch that has it.
-#
-# Labels that aren't subjects, like the commit add_splice makes, are given
-# as label=rev arguments, revs of the monorepo.
-
-DRAWING_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../lib" && pwd)"
+#!/usr/bin/env bash
+# check-drawing: checks a draw.io drawing of commit graphs against the
+# repositories it shows. See README.md next to this file for the drawing
+# vocabulary and its limits. Runs as a command, or sourced for
+# check_drawing.
 
 # check_drawing <drawing> [<label>=<rev>...]
 # Prints "ok" and what it checked, or each difference, and fails.
 check_drawing() {
   local drawing="$1" xml default=""
+  # git-splice's lib/, next to the git-splice on PATH, unless given.
+  local DRAWING_LIB="${GIT_SPLICE_LIB:-$(dirname "$(readlink -f "$(command -v git-splice)")")/lib}"
   shift
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=()
@@ -137,7 +100,7 @@ check_drawing() {
     splices+=("$p")
     is_splice[$p]=1
   done < <(
-    # shellcheck source=../../lib/common.sh
+    # shellcheck source=/dev/null # git-splice's, linted there
     source "$DRAWING_LIB/common.sh"
     state_files HEAD | tr '\0' '\n' | sed -n 's#/\.splice$##p'
   )
@@ -172,7 +135,9 @@ check_drawing() {
   for id in "${commits[@]}" "${boxes[@]}" "${frames[@]}"; do
     lane_of[$id]="" smallest=""
     for l in "${lanes[@]}"; do
-      [[ -n "${lane_splice[$l]:-}" ]] && contains "$id" "$l" || continue
+      if [[ -z "${lane_splice[$l]:-}" ]] || ! contains "$id" "$l"; then
+        continue
+      fi
       area=$(awk -v w="${gw[$l]}" -v h="${gh[$l]}" 'BEGIN { print w * h }')
       if [[ -z "$smallest" ]] || awk -v a="$area" -v b="$smallest" 'BEGIN { exit !(a < b) }'; then
         lane_of[$id]="${lane_splice[$l]}" smallest="$area"
@@ -185,22 +150,22 @@ check_drawing() {
   truth[H]="$(git rev-parse HEAD)"
   load_truth() {
     local p="$1" c
-    [[ -z "${truth[$p|loaded]:-}" ]] || return 0
-    truth[$p|loaded]=1
-    truth[$p|B]="$(git splice boundary "$p")"
-    truth[$p|U]="$(git config --blob "HEAD:$p/.splice" splice.commit)"
-    truth[$p|S]="$(git config --blob "${truth[$p|B]}:$p/.splice" splice.commit)"
-    truth[$p|T]="$(git rev-parse --verify --quiet "$(
-      # shellcheck source=../../lib/common.sh
+    [[ -z "${truth["$p|loaded"]:-}" ]] || return 0
+    truth["$p|loaded"]=1
+    truth["$p|B"]="$(git splice boundary "$p")"
+    truth["$p|U"]="$(git config --blob "HEAD:$p/.splice" splice.commit)"
+    truth["$p|S"]="$(git config --blob "${truth["$p|B"]}:$p/.splice" splice.commit)"
+    truth["$p|T"]="$(git rev-parse --verify --quiet "$(
+      # shellcheck source=/dev/null # git-splice's, linted there
       source "$DRAWING_LIB/common.sh"
       require_splice_upstream "$p"
       splice_ref "$p" "$(upstream_branch_for "$p" "$(git branch --show-current)")"
     )")"
-    truth[$p|R]="$(git splice rebuild "$p")"
-    truth[$p|key]="$(git splice key "$p")"
-    truth[$p|synced]=""
+    truth["$p|R"]="$(git splice rebuild "$p")"
+    truth["$p|key"]="$(git splice key "$p")"
+    truth["$p|synced"]=""
     for c in $(git log --first-parent --format=%H HEAD -- "$p/.splice"); do
-      truth[$p|synced]+=" $(git config --blob "$c:$p/.splice" splice.commit 2>/dev/null)"
+      truth["$p|synced"]+=" $(git config --blob "$c:$p/.splice" splice.commit 2>/dev/null)"
     done
   }
   for id in "${commits[@]}" "${boxes[@]}"; do
@@ -223,7 +188,7 @@ check_drawing() {
       upstream_tips=()
       if [[ -n "$sp" ]]; then
         for k in T R U S; do
-          [[ -n "${truth[$sp|$k]}" ]] && upstream_tips+=("${truth[$sp|$k]}")
+          [[ -n "${truth["$sp|$k"]}" ]] && upstream_tips+=("${truth["$sp|$k"]}")
         done
       fi
       [[ -n "$hash" || "$label" == *\' || ${#upstream_tips[@]} -eq 0 ]] ||
@@ -235,8 +200,11 @@ check_drawing() {
         continue
       fi
       subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
-      hash="$(git log --format='%H' "${truth[$sp|R]}" | while read -r k; do
-        [[ "$k" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$k")" == "$subject" ]] && { echo "$k"; break; }
+      hash="$(git log --format='%H' "${truth["$sp|R"]}" | while read -r k; do
+        [[ "$k" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$k")" == "$subject" ]] && {
+          echo "$k"
+          break
+        }
       done)"
     fi
     if [[ -z "$hash" ]]; then
@@ -253,9 +221,9 @@ check_drawing() {
   # fetched upstream branch, or in a recorded commit's history.
   of_splice() {
     local s
-    git merge-base --is-ancestor "$1" "${truth[$2|R]}" && return 0
-    [[ -n "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth[$2|key]}/")" ]] && return 0
-    for s in ${truth[$2|synced]}; do
+    git merge-base --is-ancestor "$1" "${truth["$2|R"]}" && return 0
+    [[ -n "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/")" ]] && return 0
+    for s in ${truth["$2|synced"]}; do
       git merge-base --is-ancestor "$1" "$s" 2>/dev/null && return 0
     done
     return 1
@@ -277,7 +245,7 @@ check_drawing() {
   not_upstream() {
     [[ -n "$2" ]] || return 1
     ! git merge-base --is-ancestor "$1" HEAD 2>/dev/null || return 1
-    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth[$2|key]}/")" ]]
+    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/")" ]]
   }
   dashed() { [[ ";${style[$1]};" == *";dashed=1;"* ]]; }
 
@@ -336,14 +304,14 @@ check_drawing() {
     if [[ "$term" == H ]]; then
       printf '%s\n' "${truth[H]}"
     elif [[ "$term" == [BTR] ]]; then
-      printf '%s\n' "${truth[$sp|$term]}"
+      printf '%s\n' "${truth["$sp|$term"]}"
     elif [[ "$term" != U\(*\) ]]; then
-      git rev-parse --verify --quiet "refs/splices/${truth[$sp|key]}/$term^{commit}"
+      git rev-parse --verify --quiet "refs/splices/${truth["$sp|key"]}/$term^{commit}"
     else
       k="${term#U(}" k="${k%)}"
       case "$k" in
-        H) printf '%s\n' "${truth[$sp|U]}" ;;
-        B) printf '%s\n' "${truth[$sp|S]}" ;;
+        H) printf '%s\n' "${truth["$sp|U"]}" ;;
+        B) printf '%s\n' "${truth["$sp|S"]}" ;;
         *)
           c="${id_of_label[$k]}"
           rel="$sp"
@@ -419,7 +387,7 @@ check_drawing() {
           [[ -n "$label" ]] || label="${named:0:7}, which isn't drawn"
           errors+=("$term points at ${value[$t]}, the code says $label")
         fi
-      done < <(sed 's/ = /\n/g' <<<"${value[$s]}")
+      done <<<"${value[$s]// = /$'\n'}"
       continue
     fi
     if [[ "${kind[$t]:-}" == box ]]; then
@@ -449,13 +417,13 @@ check_drawing() {
     [[ -n "${commit_of[$id]:-}" && -n "$sp" ]] || continue
     ! git merge-base --is-ancestor "${commit_of[$id]}" HEAD 2>/dev/null || continue
     not_upstream "${commit_of[$id]}" "$sp" && continue
-    [[ -n "${truth[$sp|T]}" ]] && git merge-base --is-ancestor "${commit_of[$id]}" "${truth[$sp|T]}" && continue
+    [[ -n "${truth["$sp|T"]}" ]] && git merge-base --is-ancestor "${commit_of[$id]}" "${truth["$sp|T"]}" && continue
     found=""
     for b in ${branch_tips[$sp]:-}; do
       git merge-base --is-ancestor "${commit_of[$id]}" "$b" && found=1
     done
     [[ -n "$found" ]] || errors+=("${value[$id]} is on an upstream branch, but not T's: draw a box for the branch, e.g. $(
-      git for-each-ref --count=1 --format='%(refname:lstrip=3)' --contains "${commit_of[$id]}" "refs/splices/${truth[$sp|key]}/"
+      git for-each-ref --count=1 --format='%(refname:lstrip=3)' --contains "${commit_of[$id]}" "refs/splices/${truth["$sp|key"]}/"
     )")
   done
   # Every box points at one commit.
@@ -482,3 +450,7 @@ check_drawing() {
     "${drawing##*/}" "${#commits[@]}" "${#edges[@]}" "${#boxes[@]}" "${#frames[@]}" \
     "$([[ ${#lanes[@]} -eq 0 ]] || printf ', %d lanes' "${#lanes[@]}")"
 }
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  check_drawing "$@"
+fi
