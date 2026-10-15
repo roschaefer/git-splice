@@ -61,8 +61,8 @@ have a commit the other lacks, and U(H) is where they part:
 
 </div>
 
-p is the pull, f the local fix; s is `pkg-a: a second commit, after the
-clone`, u the upstream fix, and f' the local fix as R has it.
+*p* is the pull, *f* the local fix; *s* is `pkg-a: a second commit, after the
+clone`, *u* the upstream fix, and *f'* the local fix as R has it.
 
 <!--
 ```scrut

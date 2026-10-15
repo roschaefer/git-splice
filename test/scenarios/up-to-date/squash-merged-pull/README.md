@@ -8,20 +8,20 @@ A pull on a feature branch, squash-merged into `main`.
 
 </div>
 
-- **Upstream**: k (`seed`) on `main`, and someone else's commit f
+- **Upstream**: *k* (`seed`) on `main`, and someone else's commit *f*
   (`upstream feature work`) on `feature`.
-- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k. On `feature`,
-  `git splice pull` brought in f. `feature` was squash-merged into `main`
-  as s and deleted, then a local commit c followed on `main`.
+- **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k*. On `feature`,
+  `git splice pull` brought in *f*. `feature` was squash-merged into `main`
+  as *s* and deleted, then a local commit *c* followed on `main`.
 
-`.splice` records a commit, not a branch: s records f as U(H). The
-upstream's `main`, T, is still at k, since nobody merged `feature` into
-it there. f is on the upstream's `feature`, so it's solid. R's copy c'
+`.splice` records a commit, not a branch: *s* records *f* as U(H). The
+upstream's `main`, T, is still at *k*, since nobody merged `feature` into
+it there. *f* is on the upstream's `feature`, so it's solid. R's copy *c'*
 is dashed: no upstream branch has it yet.
 
 A squash merge keeps the content and drops the history. With `git subtree`,
-that lost the sync point. Here s itself changed `.splice`, so it is B, and
-the rebuild starts at f: R is c', the copy of c, on top of f.
+that lost the sync point. Here *s* itself changed `.splice`, so it is B, and
+the rebuild starts at *f*: R is *c'*, the copy of *c*, on top of *f*.
 
 ## Output
 

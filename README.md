@@ -72,9 +72,9 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 </div>
 
-At a, the **BOUNDARY**, you spliced in k (`e849115`). To splice out,
-`git-splice` rebuilds the commits since a on top of k. c never touched
-`path/`, so it's left out. The result is d', **OURS**, a library commit
+At *a*, the **BOUNDARY**, you spliced in *k* (`e849115`). To splice out,
+`git-splice` rebuilds the commits since *a* on top of *k*. *c* never touched
+`path/`, so it's left out. The result is *d'*, **OURS**, a library commit
 ready for an ordinary three-way merge with **THEIRS** from **BASE**:
 
 ```scrut
@@ -84,9 +84,9 @@ On branch main
   ahead 2, behind 3  path
 ```
 
-`git splice pull path` merges l, m and n in, as one ordinary monorepo
-commit. Then `git splice push path` sends b' and d', and the pull,
-rebuilt as their merge with n. Changes cross the
+`git splice pull path` merges *l*, *m* and *n* in, as one ordinary monorepo
+commit. Then `git splice push path` sends *b'* and *d'*, and the pull,
+rebuilt as their merge with *n*. Changes cross the
 splice, but commits don't: both repositories keep their own histories.
 
 ## Getting started

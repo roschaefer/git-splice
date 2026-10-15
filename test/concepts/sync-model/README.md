@@ -11,17 +11,17 @@ cross from five commits:
 | **U(H)** | The synced commit: the upstream commit `.splice` records at HEAD. | the upstream |
 | **U(B)** | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | the upstream |
 | **T** | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
-| **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B), and merged with U(X) for each pull X since that merged unpushed commits. | computed |
+| **R** | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B), and merged with U(X) for each pull *X* since that merged unpushed commits. | computed |
 
 For a nested splice, R's history up to the last pull of the splice above
 comes from the upstream above, at its synced commit
 ([nesting](../nesting/README.md)).
 
-A monorepo commit X whose `.splice` records an upstream commit has that
+A monorepo commit *X* whose `.splice` records an upstream commit has that
 as its sync point **U(X)**: what
 `git config --blob X:path/.splice splice.commit` prints. It only changes
 where a commit changes `.splice`, e.g. a pull, so the commits in between
-share one, as commits can share a tree. A pull X brought in
+share one, as commits can share a tree. A pull *X* brought in
 U(X^)..U(X), the synced commits before and after it, unless a push came
 in between ([scenario](../../scenarios/bisect-into-a-pull/after-a-push/README.md)).
 
@@ -48,8 +48,8 @@ without `.splice`, the same author, dates and message, on top of U(B).
 </div>
 
 Circles are commits, newest on top, and boxes point at them. The lane
-`path/` holds the splice's upstream commits. b and d change
-`path/`, so the rebuild copies them as b' and d', on top of U(B); c doesn't,
+`path/` holds the splice's upstream commits. *b* and *d* change
+`path/`, so the rebuild copies them as *b'* and *d'*, on top of U(B); *c* doesn't,
 so it's left out. No upstream branch has the copies yet, so they're
 dashed
 ([scenario](../../scenarios/sync-model/README.md)).
@@ -61,16 +61,16 @@ dashed
 </div>
 
 A frame shows what `path/.splice` records in the commit it holds. After
-`git splice pull`, the pull commit e records n, so U(H) = n. But b
-and d were never pushed, so e's folder isn't n, and a rebuild from e
-would send their changes as one lump under e's message. So B stays a,
-and U(B) = k still. R copies b and d as before, and e as e', a merge of d'
-and n, as `git pull` would have
+`git splice pull`, the pull commit *e* records *n*, so U(H) = *n*. But *b*
+and *d* were never pushed, so *e*'s folder isn't *n*, and a rebuild from *e*
+would send their changes as one lump under *e*'s message. So B stays *a*,
+and U(B) = *k* still. R copies *b* and *d* as before, and *e* as *e'*, a merge of *d'*
+and *n*, as `git pull` would have
 ([scenario](../../scenarios/sync-model/after-pull/README.md)).
 
-A push sends b', d' and e'. B and U(B) stay where they are until
-[`git splice pull --bump`](../../walkthrough/bump.md) records e' as U(H),
-in a new commit f:
+A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
+[`git splice pull --bump`](../../walkthrough/bump.md) records *e'* as U(H),
+in a new commit *f*:
 
 <div align="center">
 
@@ -78,8 +78,8 @@ in a new commit f:
 
 </div>
 
-f's folder is e', so f is the new B, and the rebuild has nothing to add:
-R = T = U(H) = U(B) = e'
+*f*'s folder is *e'*, so *f* is the new B, and the rebuild has nothing to add:
+R = T = U(H) = U(B) = *e'*
 ([scenario](../../scenarios/sync-model/after-pull/pushed-and-bumped/README.md)).
 
 ### Pulls in between
@@ -91,7 +91,7 @@ rebuild has so far, *before*, and the commit it recorded, U(X):
 
 | *before* and U(X) | The copy's parents | When |
 |---|---|---|
-| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as e and e' above ([scenario](../../scenarios/sync-model/after-pull/README.md)) |
+| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as *e* and *e'* above ([scenario](../../scenarios/sync-model/after-pull/README.md)) |
 | U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
 | *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
 
