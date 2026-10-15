@@ -91,6 +91,13 @@ edit_drawing() {
   [ "${lines[0]}" = "!!   m isn't a monorepo commit, but it's outside every lane: draw it in its splice's lane" ]
 }
 
+@test "drawing lanes: a commit that juts out of its lane is outside it" {
+  edit_drawing -u '//mxCell[@id="m"]/mxGeometry/@x' -v 860
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   m isn't a monorepo commit, but it's outside every lane: draw it in its splice's lane" ]
+}
+
 @test "drawing lanes: a box pointing into another splice's lane" {
   edit_drawing -u '//mxCell[@target="l" and @source!="k"]/@target' -v m
   run check_drawing "$drawing" "${revs[@]}"

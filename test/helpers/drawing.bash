@@ -170,7 +170,7 @@ check_drawing() {
   for id in "${commits[@]}" "${boxes[@]}" "${frames[@]}"; do
     lane_of[$id]="" smallest=""
     for l in "${lanes[@]}"; do
-      [[ -n "${lane_splice[$l]:-}" ]] && inside "$id" "$l" || continue
+      [[ -n "${lane_splice[$l]:-}" ]] && contains "$id" "$l" || continue
       area=$(awk -v w="${gw[$l]}" -v h="${gh[$l]}" 'BEGIN { print w * h }')
       if [[ -z "$smallest" ]] || awk -v a="$area" -v b="$smallest" 'BEGIN { exit !(a < b) }'; then
         lane_of[$id]="${lane_splice[$l]}" smallest="$area"
