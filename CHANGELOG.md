@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0](https://github.com/roschaefer/git-splice/compare/v0.6.0...v0.7.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* push, status and diff no longer take --base.
+
+### Bug Fixes
+
+* compare a missing upstream branch with upstream's default branch ([#152](https://github.com/roschaefer/git-splice/issues/152)) ([0bf6d7e](https://github.com/roschaefer/git-splice/commit/0bf6d7e0c3fae6cc6d6ddd6a2a80ad9b45fabf54)), closes [#150](https://github.com/roschaefer/git-splice/issues/150) [#3](https://github.com/roschaefer/git-splice/issues/3)
+
 ## [0.6.0](https://github.com/roschaefer/git-splice/compare/v0.5.0...v0.6.0) (2026-10-14)
 
 
