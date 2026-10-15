@@ -62,7 +62,7 @@ ok   libs/a fetched
 ```
 
 The drawing shows what Git and `git-splice` say about it now
-([`check_drawing`](../../../../helpers/drawing.bash)):
+([`check_drawing`](../../../../../check-drawing/)):
 
 ```scrut
 $ check_drawing "$TESTDIR/moved-with-unpushed-commits.drawio.svg" a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/main
