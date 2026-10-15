@@ -139,6 +139,8 @@
           packages = [
             pkgs.git
             pkgs.bats
+            # For `bats --jobs`, which runs the tests in parallel.
+            pkgs.parallel
             pkgs.shellcheck
             pkgs.shfmt
             pkgs.bashInteractive

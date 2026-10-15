@@ -77,6 +77,7 @@ jobs:
             "github:NixOS/nixpkgs/$BASH_REV#bashInteractive" \
             "github:NixOS/nixpkgs/$GIT_REV#git" \
             "nixpkgs#bats" \
+            "nixpkgs#parallel" \
             "nixpkgs#zsh" \
             "nixpkgs#xmlstarlet" \
             --command bash -c '
@@ -89,7 +90,7 @@ jobs:
                 echo "::error::matrix label says bash $BASH_EXPECTED, git $GIT_EXPECTED -- update the versions in ci.yml"
                 exit 1
               fi
-              bats --recursive test
+              bats --recursive --jobs "$(nproc)" test
             '
 
   release-please:
