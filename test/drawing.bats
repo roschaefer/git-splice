@@ -192,6 +192,15 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   [ "$output" = "!!   f is on an upstream branch, but not T's: draw a box for the branch, e.g. feature" ]
 }
 
+@test "drawing: a commit on another branch of the monorepo is a monorepo commit" {
+  load 'scenarios/concurrent-pulls/setup'
+  scenario_concurrent_pulls "$BATS_TEST_TMPDIR/bob" "$BATS_TEST_TMPDIR/concurrent-upstream.git"
+  cd "$BATS_TEST_TMPDIR/bob"
+  run check_drawing "$BATS_TEST_DIRNAME/scenarios/concurrent-pulls/concurrent-pulls.drawio.svg" \
+    a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/main~2 l=refs/splices/a/main~1 n=refs/splices/a/main
+  [ "$status" -eq 0 ]
+}
+
 @test "drawing: a lane names a splice whose folder Git quotes" {
   load 'scenarios/up-to-date/squash-merged-pull/setup'
   scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"
