@@ -48,7 +48,7 @@ commit named by its place in the history
 
 ```scrut
 $ check_drawing "$TESTDIR/nested-splices.drawio.svg" a=HEAD k=refs/splices/upstream/main~1 l=refs/splices/upstream/main m=refs/splices/b/main
-ok   nested-splices.drawio.svg: 4 commits, 5 arrows, 4 boxes, 1 frames, 2 lanes
+ok   nested-splices.drawio.svg: 4 commits, 5 arrows, 4 boxes, 2 lanes
 ```
 
 Both splices are up to date:

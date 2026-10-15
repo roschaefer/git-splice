@@ -48,7 +48,7 @@ commit named by its place in the history
 
 ```scrut
 $ check_drawing "$TESTDIR/many-splices.drawio.svg" a=HEAD~6 b=HEAD~5 c=HEAD~4 d=HEAD~3 e=HEAD~2 f=HEAD~1 g=HEAD m=refs/splices/upstream-http/main~1 n=refs/splices/upstream-http/main o=refs/splices/upstream-store/main
-ok   many-splices.drawio.svg: 17 commits, 20 arrows, 9 boxes, 0 frames, 5 lanes
+ok   many-splices.drawio.svg: 17 commits, 20 arrows, 9 boxes, 5 lanes
 ```
 
 ```scrut

@@ -25,7 +25,7 @@ edit_drawing() {
 @test "drawing: the committed one matches its scenario" {
   run check_drawing "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames, 1 lanes" ]
+  [ "$output" = "ok   after-pull.drawio.svg: 12 commits, 16 arrows, 5 boxes, 1 lanes" ]
 }
 
 @test "drawing: a box pointing at the wrong commit names the right one" {
@@ -56,7 +56,7 @@ edit_drawing() {
   cp "$drawing" "$BATS_TEST_TMPDIR/committed.drawio"
   while IFS='|' read -r box where expected; do
     cp "$BATS_TEST_TMPDIR/committed.drawio" "$drawing"
-    if [[ "$where" == in ]]; then x=950 y=640; else x=20 y=380; fi
+    if [[ "$where" == in ]]; then x=900 y=640; else x=20 y=380; fi
     edit_drawing -u "//mxCell[@id=\"$box\"]/mxGeometry/@x" -v "$x" -u "//mxCell[@id=\"$box\"]/mxGeometry/@y" -v "$y"
     run check_drawing "$drawing" a=HEAD~4 e=HEAD
     [[ "${lines[0]}" == "$expected"* ]] || failed+=$'\n'"$box $where: ${lines[0]}"
@@ -65,7 +65,7 @@ refH|in|!!   H names a monorepo commit: draw it outside every lane
 refB|in|!!   B names a monorepo commit: draw it outside every lane
 refT|out|!!   T names an upstream commit: draw it in the lane of its splice
 refR|out|!!   R names an upstream commit: draw it in the lane of its splice
-refU|in|ok
+refS|out|!!   U(B) names an upstream commit: draw it in the lane of its splice
 refS|in|ok
 refT|in|ok
 EOF
@@ -79,11 +79,10 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
 
 @test "drawing: aliases let boxes use Git's names for a three-way merge" {
   edit_drawing -u '//mxCell[@id="refR"]/@value' -v OURS \
-    -u '//mxCell[@id="refT"]/@value' -v 'THEIRS = BASE' \
+    -u '//mxCell[@id="refT"]/@value' -v 'THEIRS = BASE = U(HEAD)' \
     -u '//mxCell[@id="refH"]/@value' -v HEAD \
     -u '//mxCell[@id="refB"]/@value' -v BOUNDARY \
-    -u '//mxCell[@id="refS"]/@value' -v 'U(BOUNDARY)' \
-    -u '//mxCell[@id="refU"]/@value' -v 'U(HEAD)'
+    -u '//mxCell[@id="refS"]/@value' -v 'U(BOUNDARY)'
   run check_drawing "$drawing" "${git_names[@]}" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
 }
@@ -117,22 +116,15 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   [ "${lines[1]}" = "!!   no arrow c -> d, though c is a parent of d" ]
 }
 
-@test "drawing: a frame named after another commit than the one it holds" {
-  edit_drawing -u '//mxCell[@id="fu"]/@value' -v 'd:path/.splice'
-  run check_drawing "$drawing" a=HEAD~4 e=HEAD
-  [ "$status" -eq 1 ]
-  [ "$output" = '!!   the frame "d:path/.splice" holds e, not d' ]
-}
-
 @test "drawing: a box U(X) on a commit X's .splice doesn't record" {
-  edit_drawing -u '//mxCell[@id="refU"]/@value' -v 'U(a)'
+  edit_drawing -u '//mxCell[@id="refT"]/@value' -v 'U(a)'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   U(a) points at n, the code says k" ]
 }
 
 @test "drawing: a box U(X) for a commit that isn't drawn" {
-  edit_drawing -u '//mxCell[@id="refU"]/@value' -v 'U(z)'
+  edit_drawing -u '//mxCell[@id="refT"]/@value' -v 'U(z)'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   U(z) points at n, but no commit z is drawn" ]
@@ -156,7 +148,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   edit_drawing -d '//mxCell[@source="refT"]'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   T has 0 arrows, not one: draw one from the box to its commit" ]
+  [ "$output" = "!!   T = U(H) has 0 arrows, not one: draw one from the box to its commit" ]
 }
 
 @test "drawing: an arrow not attached to a shape" {
