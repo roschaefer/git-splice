@@ -11,6 +11,7 @@ mod executorutil;
 mod file_parser;
 mod kill;
 mod namer;
+mod parallel;
 mod ui;
 
 pub(crate) use debug::*;
@@ -18,4 +19,5 @@ pub(crate) use environment::*;
 pub(crate) use executorutil::*;
 pub(crate) use file_parser::*;
 pub(crate) use kill::*;
+pub(crate) use parallel::*;
 pub(crate) use ui::*;

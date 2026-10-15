@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io::IsTerminal;
 use std::io::stdout;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -50,6 +51,7 @@ use crate::utils::confirm;
 use crate::utils::debug_testcases;
 use crate::utils::get_log_level;
 use crate::utils::make_executor;
+use crate::utils::run_in_parallel;
 
 /// Re-run all testcases in given file(s) and update the output expectations
 #[derive(Debug, Parser)]
@@ -113,12 +115,24 @@ pub struct Args {
     #[clap(long)]
     verbose: bool,
 
+    /// Number of test documents to run at the same time. Changes are still
+    /// shown, confirmed and written one document after another, in the order
+    /// of the documents.
+    #[clap(long, short = 'j', default_value = "1")]
+    jobs: NonZeroUsize,
+
     #[clap(flatten)]
     global: GlobalSharedParameters,
 }
 
 impl Args {
     pub(crate) fn run(&self) -> Result<()> {
+        // documents running at the same time would share a user provided
+        // work directory
+        if self.jobs.get() > 1 && self.global.work_directory.is_some() {
+            bail!("--jobs greater than 1 can't be combined with --work-directory");
+        }
+
         // init parser and determine suffices to look for
         let markdown_languages = &self
             .markdown_languages
@@ -150,211 +164,255 @@ impl Args {
 
         // iterate each test file
         pw.println(format!("🔎 Found {} test document(s)", tests.len()));
-        let (mut count_updated, mut count_unchanged, mut count_skipped) = (0, 0, 0);
-        for mut test in tests {
-            pw.inc(1);
-            pw.set_message(format!(
-                "👀 {}",
-                style(test.path.to_string_lossy()).yellow()
-            ));
-
-            let config = test.config.with_overrides_from(&document_config);
-            let shell_path = canonical_shell(config.shell.as_ref().map(|p| p as &Path))?;
-
-            let mut test_environment = TestEnvironment::new(
-                &shell_path,
-                self.global.work_directory.as_deref(),
-                self.global.keep_temporary_directories,
-            )?;
-
-            // must have test-cases to continue
-            if test.testcases.is_empty() {
-                count_skipped += 1;
-                pw.println(format!(
-                    "⏩ {}: skipped, because no testcases were found in the document",
-                    style(test.path.to_string_lossy()).blue()
-                ));
-                continue;
-            }
-
-            // TODO(config): Add support for updating prepended and appended files (or reason why not)
-            if !config.prepend.is_empty() || !config.prepend.is_empty() {
-                count_skipped += 1;
-                pw.println(format!(
-                    "⏩ {}: skipped, because 'prepend' or 'append' are currently not supported in update",
-                    style(test.path.to_string_lossy()).blue()
-                ));
-                continue;
-            }
-
-            // setup test file environment ..
-            let cram_compat = test.parser_type == ParserType::Cram;
-            let (test_work_directory, env_vars) =
-                test_environment.init_test_file(&test.path, cram_compat)?;
-
-            // extract testcases and update with config from parameters
-            let env_vars =
-                BTreeMap::from_iter(env_vars.iter().map(|(k, v)| (k as &str, v as &str)));
-            let testcases = test
-                .testcases
-                .iter_mut()
-                .map(|testcase| {
-                    testcase.config = testcase
-                        .config
-                        .with_overrides_from(&testcase_config)
-                        .with_environment(&env_vars);
-                    testcase as &TestCase
-                })
-                .collect::<Vec<_>>();
-
-            // get the appropriate or requested executor
-            let executor = make_executor(&test_environment.shell, cram_compat)?;
-
-            // execute the tests to use the updated result to update the test file
-            let execution_result = executor.execute_all(
-                &testcases,
-                &ContextBuilder::default()
-                    .work_directory(PathBuf::from(&test_work_directory))
-                    .temp_directory(test_environment.tmp_directory.as_path_buf())
-                    .file(test.path.clone())
-                    .config(test.config.with_overrides_from(&document_config))
-                    .build()
-                    .context("failed to build execution context")?,
-            );
-            match execution_result {
-                // test execution failed ..
-                Err(err) => match err {
-                    // .. intentionally with skip, so skip
-                    ExecutionError::Skipped(idx) => {
-                        count_skipped += 1;
-                        pw.println(format!(
-                            "⏩ {}: skipped, because testcase #{} ended in exit code {}",
-                            style(test.path.to_string_lossy()).blue(),
-                            idx + 1,
-                            testcases.get(idx).map_or(DEFAULT_SKIP_DOCUMENT_CODE, |t| t
-                                .config
-                                .get_skip_document_code())
-                        ));
-                        continue;
-                    }
-
-                    // .. unintentionally with an error -> give up
-                    _ => bail!("failing in {:?}: {}", test.path, err),
-                },
-
-                // test execution succeeded
-                Ok(outputs) => {
-                    let mut outcomes = vec![];
-
-                    // take test execution output, run validation and store all outcomes ...
-                    for (testcase, output) in test.testcases.iter().zip(outputs.iter()) {
-                        let result = testcase.validate(output);
-                        let mut testcase = testcase.to_owned();
-                        testcase.config = testcase.config.without_environment(&env_vars);
-                        outcomes.push(Outcome {
-                            testcase,
-                            location: Some(test.path.to_string_lossy().to_string()),
-                            output: output.to_owned(),
-                            escaping: self.global.output_escaping(Some(test.parser_type)),
-                            format: test.parser_type,
-                            result,
-                        });
-                    }
-
-                    if self.debug {
-                        debug_testcases(&test.testcases, &test.path, &outputs);
-                    }
-
-                    // .. and create an updated content (either from actual update or conversion)
-                    let outcomes = &outcomes.iter().collect::<Vec<_>>();
-                    let is_conversion = self.convert.is_some_and(|c| c != test.parser_type);
-                    let (updated, output_type) = if is_conversion {
-                        self.convert_test(&test, outcomes)
-                    } else {
-                        self.update_test(&test, outcomes)
-                    }?;
-
-                    // .. without changes -> next plz
-                    if updated == test.content {
-                        count_unchanged += 1;
-                        if self.verbose {
-                            pw.println(format!(
-                                "👍 {}: keep as-is, no changes in document content",
-                                style(test.path.to_string_lossy()).blue()
-                            ));
-                        }
-                        continue;
-                    }
-                    self.print_changes(outcomes);
-
-                    // determine new location
-                    let output_path = if is_conversion {
-                        let stripped_path = test
-                            .path
-                            .file_stem()
-                            .map_or(&test.path as &Path, Path::new)
-                            .to_path_buf();
-                        stripped_path.with_extension(output_type.file_extension())
-                    } else if self.replace {
-                        test.path.clone()
-                    } else {
-                        let mut extension = vec![self.output_suffix.clone()];
-                        if let Some(ext) = test.path.extension() {
-                            extension.push(ext.to_string_lossy().to_string())
-                        }
-                        extension.reverse();
-                        test.path.clone().with_extension(extension.join(""))
-                    };
-
-                    // always ask, in case the file exists
-                    if !self.assume_yes && Path::new(&output_path).exists() {
-                        let confirmed = pw.suspend(|| {
-                            confirm(
-                                &format!(
-                                    "Overwrite existing document {}?",
-                                    style(output_path.to_string_lossy()).blue()
-                                ),
-                                false,
-                                self.global.no_color,
-                            )
-                        })?;
-
-                        if !confirmed {
-                            //eprintln!("  Skipping!");
-                            count_skipped += 1;
-
-                            pw.println(format!(
-                                "👎 {}: keep as-is, chosen not to overwrite document",
-                                style(test.path.to_string_lossy()).red()
-                            ));
-                            continue;
-                        }
-                    }
-
-                    count_updated += 1;
-                    fs::write(&output_path, &updated).with_context(|| {
-                        format!("overwrite existing document in {:?}", test.path)
-                    })?;
-                    if output_path == test.path {
-                        pw.println(format!(
-                            "✍️ {}: overwritten document with updated contents",
-                            style(test.path.to_string_lossy()).green()
-                        ));
-                    } else {
-                        pw.println(format!(
-                            "🌟 {}: updated document contents written to {}",
-                            style(test.path.to_string_lossy()).green(),
-                            style(output_path.to_string_lossy()).blue()
-                        ));
-                    }
-                }
-            }
-        }
+        let mut counts = UpdateCounts::default();
+        run_in_parallel(
+            tests,
+            self.jobs.get(),
+            |test| self.prepare_update(test, &document_config, &testcase_config, &pw),
+            |update| self.apply_update(update, &pw, &mut counts),
+        )?;
         pw.println("");
         pw.finish_and_clear();
 
-        self.print_summary(count_updated, count_skipped, count_unchanged);
+        self.print_summary(counts.updated, counts.skipped, counts.unchanged);
 
+        Ok(())
+    }
+
+    /// Runs the test cases of a document and generates its updated content,
+    /// without writing anything
+    fn prepare_update(
+        &self,
+        mut test: ParsedTestFile,
+        document_config: &DocumentConfig,
+        testcase_config: &TestCaseConfig,
+        pw: &ProgressWriter,
+    ) -> Result<DocumentUpdate> {
+        pw.inc(1);
+        pw.set_message(format!(
+            "👀 {}",
+            style(test.path.to_string_lossy()).yellow()
+        ));
+
+        let config = test.config.with_overrides_from(document_config);
+        let shell_path = canonical_shell(config.shell.as_ref().map(|p| p as &Path))?;
+
+        let mut test_environment = TestEnvironment::new(
+            &shell_path,
+            self.global.work_directory.as_deref(),
+            self.global.keep_temporary_directories,
+        )?;
+
+        // must have test-cases to continue
+        if test.testcases.is_empty() {
+            return Ok(DocumentUpdate::Skipped(format!(
+                "⏩ {}: skipped, because no testcases were found in the document",
+                style(test.path.to_string_lossy()).blue()
+            )));
+        }
+
+        // TODO(config): Add support for updating prepended and appended files (or reason why not)
+        if !config.prepend.is_empty() || !config.prepend.is_empty() {
+            return Ok(DocumentUpdate::Skipped(format!(
+                "⏩ {}: skipped, because 'prepend' or 'append' are currently not supported in update",
+                style(test.path.to_string_lossy()).blue()
+            )));
+        }
+
+        // setup test file environment ..
+        let cram_compat = test.parser_type == ParserType::Cram;
+        let (test_work_directory, env_vars) =
+            test_environment.init_test_file(&test.path, cram_compat)?;
+
+        // extract testcases and update with config from parameters
+        let env_vars = BTreeMap::from_iter(env_vars.iter().map(|(k, v)| (k as &str, v as &str)));
+        let testcases = test
+            .testcases
+            .iter_mut()
+            .map(|testcase| {
+                testcase.config = testcase
+                    .config
+                    .with_overrides_from(testcase_config)
+                    .with_environment(&env_vars);
+                testcase as &TestCase
+            })
+            .collect::<Vec<_>>();
+
+        // get the appropriate or requested executor
+        let executor = make_executor(&test_environment.shell, cram_compat)?;
+
+        // execute the tests to use the updated result to update the test file
+        let execution_result = executor.execute_all(
+            &testcases,
+            &ContextBuilder::default()
+                .work_directory(PathBuf::from(&test_work_directory))
+                .temp_directory(test_environment.tmp_directory.as_path_buf())
+                .file(test.path.clone())
+                .config(test.config.with_overrides_from(document_config))
+                .build()
+                .context("failed to build execution context")?,
+        );
+        let outputs = match execution_result {
+            // test execution failed ..
+            Err(err) => match err {
+                // .. intentionally with skip, so skip
+                ExecutionError::Skipped(idx) => {
+                    return Ok(DocumentUpdate::Skipped(format!(
+                        "⏩ {}: skipped, because testcase #{} ended in exit code {}",
+                        style(test.path.to_string_lossy()).blue(),
+                        idx + 1,
+                        testcases.get(idx).map_or(DEFAULT_SKIP_DOCUMENT_CODE, |t| t
+                            .config
+                            .get_skip_document_code())
+                    )));
+                }
+
+                // .. unintentionally with an error -> give up
+                _ => bail!("failing in {:?}: {}", test.path, err),
+            },
+
+            // test execution succeeded
+            Ok(outputs) => outputs,
+        };
+
+        // take test execution output, run validation and store all outcomes ...
+        let mut outcomes = vec![];
+        for (testcase, output) in test.testcases.iter().zip(outputs.iter()) {
+            let result = testcase.validate(output);
+            let mut testcase = testcase.to_owned();
+            testcase.config = testcase.config.without_environment(&env_vars);
+            outcomes.push(Outcome {
+                testcase,
+                location: Some(test.path.to_string_lossy().to_string()),
+                output: output.to_owned(),
+                escaping: self.global.output_escaping(Some(test.parser_type)),
+                format: test.parser_type,
+                result,
+            });
+        }
+
+        if self.debug {
+            debug_testcases(&test.testcases, &test.path, &outputs);
+        }
+
+        // .. and create an updated content (either from actual update or conversion)
+        let is_conversion = self.convert.is_some_and(|c| c != test.parser_type);
+        let (updated, output_type) = {
+            let outcomes = &outcomes.iter().collect::<Vec<_>>();
+            if is_conversion {
+                self.convert_test(&test, outcomes)
+            } else {
+                self.update_test(&test, outcomes)
+            }?
+        };
+
+        // .. without changes -> next plz
+        if updated == test.content {
+            return Ok(DocumentUpdate::Unchanged(test.path));
+        }
+
+        Ok(DocumentUpdate::Changed(Box::new(ChangedDocument {
+            test,
+            outcomes,
+            updated,
+            output_type,
+            is_conversion,
+        })))
+    }
+
+    /// Shows the changes of a prepared update and writes them, after asking
+    /// before overwriting an existing document
+    fn apply_update(
+        &self,
+        update: DocumentUpdate,
+        pw: &ProgressWriter,
+        counts: &mut UpdateCounts,
+    ) -> Result<()> {
+        let ChangedDocument {
+            test,
+            outcomes,
+            updated,
+            output_type,
+            is_conversion,
+        } = match update {
+            DocumentUpdate::Skipped(message) => {
+                counts.skipped += 1;
+                pw.println(message);
+                return Ok(());
+            }
+            DocumentUpdate::Unchanged(path) => {
+                counts.unchanged += 1;
+                if self.verbose {
+                    pw.println(format!(
+                        "👍 {}: keep as-is, no changes in document content",
+                        style(path.to_string_lossy()).blue()
+                    ));
+                }
+                return Ok(());
+            }
+            DocumentUpdate::Changed(changed) => *changed,
+        };
+        self.print_changes(&outcomes.iter().collect::<Vec<_>>());
+
+        // determine new location
+        let output_path = if is_conversion {
+            let stripped_path = test
+                .path
+                .file_stem()
+                .map_or(&test.path as &Path, Path::new)
+                .to_path_buf();
+            stripped_path.with_extension(output_type.file_extension())
+        } else if self.replace {
+            test.path.clone()
+        } else {
+            let mut extension = vec![self.output_suffix.clone()];
+            if let Some(ext) = test.path.extension() {
+                extension.push(ext.to_string_lossy().to_string())
+            }
+            extension.reverse();
+            test.path.clone().with_extension(extension.join(""))
+        };
+
+        // always ask, in case the file exists
+        if !self.assume_yes && Path::new(&output_path).exists() {
+            let confirmed = pw.suspend(|| {
+                confirm(
+                    &format!(
+                        "Overwrite existing document {}?",
+                        style(output_path.to_string_lossy()).blue()
+                    ),
+                    false,
+                    self.global.no_color,
+                )
+            })?;
+
+            if !confirmed {
+                //eprintln!("  Skipping!");
+                counts.skipped += 1;
+
+                pw.println(format!(
+                    "👎 {}: keep as-is, chosen not to overwrite document",
+                    style(test.path.to_string_lossy()).red()
+                ));
+                return Ok(());
+            }
+        }
+
+        counts.updated += 1;
+        fs::write(&output_path, &updated)
+            .with_context(|| format!("overwrite existing document in {:?}", test.path))?;
+        if output_path == test.path {
+            pw.println(format!(
+                "✍️ {}: overwritten document with updated contents",
+                style(test.path.to_string_lossy()).green()
+            ));
+        } else {
+            pw.println(format!(
+                "🌟 {}: updated document contents written to {}",
+                style(test.path.to_string_lossy()).green(),
+                style(output_path.to_string_lossy()).blue()
+            ));
+        }
         Ok(())
     }
 
@@ -461,4 +519,33 @@ impl Args {
     fn to_testcase_config(&self) -> TestCaseConfig {
         self.global.to_testcase_config()
     }
+}
+
+/// What updating one document comes to, before anything is shown or written
+enum DocumentUpdate {
+    /// Not updated, with the message that says why
+    Skipped(String),
+
+    /// Running the test cases reproduced the content of the document
+    Unchanged(PathBuf),
+
+    /// The updated or converted content of the document
+    Changed(Box<ChangedDocument>),
+}
+
+/// A document whose test cases produced a new content
+struct ChangedDocument {
+    test: ParsedTestFile,
+    outcomes: Vec<Outcome>,
+    updated: String,
+    output_type: ParserType,
+    is_conversion: bool,
+}
+
+/// How many documents were updated, skipped or left unchanged
+#[derive(Default)]
+struct UpdateCounts {
+    updated: usize,
+    skipped: usize,
+    unchanged: usize,
 }

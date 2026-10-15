@@ -9,11 +9,6 @@ use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::sync::mpsc;
-use std::thread;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -61,6 +56,7 @@ use crate::utils::debug_testcases;
 use crate::utils::get_log_level;
 use crate::utils::kill_detached_process;
 use crate::utils::make_executor;
+use crate::utils::run_in_parallel;
 
 #[derive(Debug, thiserror::Error)]
 #[error("validation failed")]
@@ -184,23 +180,28 @@ impl Args {
             style(tests.len()).bold()
         ));
 
-        let runs = run_in_parallel(tests, self.jobs.get(), |test| {
-            self.run_document(
-                test,
-                &parser,
-                &document_config,
-                &testcase_config,
-                &current_directory,
-                &pw,
-            )
-        })?;
-        for run in runs {
-            outcomes.extend(run.outcomes);
-            count_success += run.count_success;
-            count_skipped += run.count_skipped;
-            count_failed += run.count_failed;
-            count_detached += run.count_detached;
-        }
+        run_in_parallel(
+            tests,
+            self.jobs.get(),
+            |test| {
+                self.run_document(
+                    test,
+                    &parser,
+                    &document_config,
+                    &testcase_config,
+                    &current_directory,
+                    &pw,
+                )
+            },
+            |run| {
+                outcomes.extend(run.outcomes);
+                count_success += run.count_success;
+                count_skipped += run.count_skipped;
+                count_failed += run.count_failed;
+                count_detached += run.count_detached;
+                Ok(())
+            },
+        )?;
         pw.println("");
         pw.finish_and_clear();
 
@@ -609,66 +610,6 @@ struct DocumentRun {
     count_skipped: usize,
     count_failed: usize,
     count_detached: usize,
-}
-
-/// Calls `run` for every item, on up to `jobs` threads at the same time, and
-/// returns the results in the order of the items. After the first error, no
-/// further items are started, and the error of the earliest item is returned.
-fn run_in_parallel<T, R, F>(items: Vec<T>, jobs: usize, run: F) -> Result<Vec<R>>
-where
-    T: Send,
-    R: Send,
-    F: Fn(T) -> Result<R> + Sync,
-{
-    if jobs <= 1 {
-        return items.into_iter().map(run).collect();
-    }
-
-    let mut results = (0..items.len()).map(|_| None).collect::<Vec<_>>();
-    let threads = jobs.min(items.len());
-    let queue = Mutex::new(items.into_iter().enumerate());
-    let failed = AtomicBool::new(false);
-    let mut first_error: Option<(usize, anyhow::Error)> = None;
-    thread::scope(|scope| {
-        let (sender, receiver) = mpsc::channel();
-        for _ in 0..threads {
-            let (sender, queue, failed, run) = (sender.clone(), &queue, &failed, &run);
-            scope.spawn(move || {
-                while !failed.load(Ordering::Relaxed) {
-                    let Some((index, item)) = queue.lock().expect("queue lock poisoned").next()
-                    else {
-                        break;
-                    };
-                    let result = run(item);
-                    if result.is_err() {
-                        failed.store(true, Ordering::Relaxed);
-                    }
-                    if sender.send((index, result)).is_err() {
-                        break;
-                    }
-                }
-            });
-        }
-        drop(sender);
-        for (index, result) in receiver {
-            match result {
-                Ok(result) => results[index] = Some(result),
-                Err(err) => {
-                    if first_error.as_ref().is_none_or(|(first, _)| index < *first) {
-                        first_error = Some((index, err));
-                    }
-                }
-            }
-        }
-    });
-
-    if let Some((_, err)) = first_error {
-        return Err(err);
-    }
-    Ok(results
-        .into_iter()
-        .map(|result| result.expect("every item has a result without an error"))
-        .collect())
 }
 
 /// Helper function to handle early termination cases (timeout, fail_fast).
