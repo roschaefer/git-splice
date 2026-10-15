@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/roschaefer/git-splice/compare/v0.8.1...v0.8.2) (2026-10-15)
+
+
+### Bug Fixes
+
+* **pull:** fetch the synced commit a pull above moves a splice to ([#127](https://github.com/roschaefer/git-splice/issues/127)) ([dd99dc6](https://github.com/roschaefer/git-splice/commit/dd99dc6a45011b31e4b4241cc236f5eb41bbf1bd))
+
 ## [0.8.1](https://github.com/roschaefer/git-splice/compare/v0.8.0...v0.8.1) (2026-10-15)
 
 
