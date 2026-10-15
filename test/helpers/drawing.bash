@@ -21,7 +21,9 @@
 #     holds that splice's upstream commits and boxes. A monorepo with
 #     several splices needs one per splice it draws, and what a lane
 #     shows stays in it: arrows between commits, and boxes, don't cross
-#     into another lane. With one splice, lanes are optional. A nested
+#     into another lane. With one splice, lanes are optional, the
+#     generic "path/" names it, and a box outside every lane, like B,
+#     is that splice's. A nested
 #     splice's lane is drawn inside the lane of the splice above it, and
 #     a shape belongs to the innermost lane around it.
 #   - A frame labelled "x:<path>/.splice", Git's name for that file in
@@ -45,7 +47,7 @@ check_drawing() {
   local drawing="$1" xml default=""
   shift
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
-  local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=()
+  local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=()
   local -a errors=() commits=() edges=() boxes=() frames=() lanes=() splices=()
   local -A id_of_label=() label_count=()
   local arg id k cells term named sp p
@@ -127,16 +129,20 @@ check_drawing() {
   done < <(git ls-tree -r --name-only HEAD | sed -n 's#/\.splice$##p')
   local l
   for l in "${lanes[@]}"; do
-    [[ -n "${is_splice[${value[$l]%/}]:-}" ]] || errors+=("the lane ${value[$l]} isn't a splice of the monorepo")
-  done
-  if [[ ${#lanes[@]} -eq 0 ]]; then
-    if [[ ${#splices[@]} -eq 1 ]]; then
-      default="${splices[0]}"
+    if [[ -n "${is_splice[${value[$l]%/}]:-}" ]]; then
+      lane_splice[$l]="${value[$l]%/}"
+    elif [[ "${value[$l]}" == path/ && ${#splices[@]} -eq 1 ]]; then
+      lane_splice[$l]="${splices[0]}"
     else
-      printf '!!   the monorepo has %d splices: draw a lane for each one the drawing shows, labelled with its folder, e.g. %s/\n' \
-        "${#splices[@]}" "${splices[0]:-vendor/a}"
-      return 1
+      errors+=("the lane ${value[$l]} isn't a splice of the monorepo")
     fi
+  done
+  if [[ ${#splices[@]} -eq 1 ]]; then
+    default="${splices[0]}"
+  elif [[ ${#lanes[@]} -eq 0 ]]; then
+    printf '!!   the monorepo has %d splices: draw a lane for each one the drawing shows, labelled with its folder, e.g. %s/\n' \
+      "${#splices[@]}" "${splices[0]:-vendor/a}"
+    return 1
   fi
   # A shape is in the innermost lane around it. Lanes nest as their
   # folders do.
@@ -152,10 +158,10 @@ check_drawing() {
   for id in "${commits[@]}" "${boxes[@]}" "${frames[@]}"; do
     lane_of[$id]="" smallest=""
     for l in "${lanes[@]}"; do
-      [[ -n "${is_splice[${value[$l]%/}]:-}" ]] && inside "$id" "$l" || continue
+      [[ -n "${lane_splice[$l]:-}" ]] && inside "$id" "$l" || continue
       area=$(awk -v w="${gw[$l]}" -v h="${gh[$l]}" 'BEGIN { print w * h }')
       if [[ -z "$smallest" ]] || awk -v a="$area" -v b="$smallest" 'BEGIN { exit !(a < b) }'; then
-        lane_of[$id]="${value[$l]%/}" smallest="$area"
+        lane_of[$id]="${lane_splice[$l]}" smallest="$area"
       fi
     done
   done

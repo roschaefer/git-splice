@@ -47,8 +47,8 @@ without `.splice`, the same author, dates and message, on top of U(B).
 
 </div>
 
-Circles are commits, newest on top, and boxes point at them. A frame
-shows what `path/.splice` records in the commit it holds. b and d change
+Circles are commits, newest on top, and boxes point at them. The lane
+`path/` holds the splice's upstream commits. b and d change
 `path/`, so the rebuild copies them as b' and d', on top of U(B); c doesn't,
 so it's left out. No upstream branch has the copies yet, so they're
 dashed
@@ -60,7 +60,8 @@ dashed
 
 </div>
 
-After `git splice pull`, the pull commit e records n, so U(H) = n. But b
+A frame shows what `path/.splice` records in the commit it holds. After
+`git splice pull`, the pull commit e records n, so U(H) = n. But b
 and d were never pushed, so e's folder isn't n, and a rebuild from e
 would send their changes as one lump under e's message. So B stays a,
 and U(B) = k still. R copies b and d as before, and e as e', a merge of d'

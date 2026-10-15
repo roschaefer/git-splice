@@ -35,6 +35,13 @@ edit_drawing() {
   [ "$output" = "!!   the monorepo has 2 splices: draw a lane for each one the drawing shows, labelled with its folder, e.g. vendor/a/" ]
 }
 
+@test "drawing lanes: the generic path/ stands for a splice only when there's one" {
+  edit_drawing -u '//mxCell[@id="lane_b"]/@value' -v path/
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the lane path/ isn't a splice of the monorepo" ]
+}
+
 @test "drawing lanes: a lane that names no splice" {
   edit_drawing -u '//mxCell[@id="lane_b"]/@value' -v vendor/x/
   run check_drawing "$drawing" "${revs[@]}"

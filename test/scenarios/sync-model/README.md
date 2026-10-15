@@ -38,7 +38,7 @@ by its place in the history
 
 ```scrut
 $ check_drawing "$TESTDIR/before-pull.drawio.svg" a=HEAD~3
-ok   before-pull.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 frames
+ok   before-pull.drawio.svg: 10 commits, 13 arrows, 5 boxes, 0 frames, 1 lanes
 ```
 
 R and T have each moved on from k:
