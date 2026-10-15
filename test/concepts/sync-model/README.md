@@ -60,7 +60,7 @@ dashed
 
 </div>
 
-A frame shows what `path/.splice` records in the commit it holds. After
+A box U(x) points at what x's `.splice` records. After
 `git splice pull`, the pull commit *e* records *n*, so U(H) = *n*. But *b*
 and *d* were never pushed, so *e*'s folder isn't *n*, and a rebuild from *e*
 would send their changes as one lump under *e*'s message. So B stays *a*,

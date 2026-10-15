@@ -67,7 +67,7 @@ clone`, *u* the upstream fix, and *f'* the local fix as R has it.
 <!--
 ```scrut
 $ source "$TESTDIR/../../check-drawing/check-drawing" && check_drawing "$TESTDIR/diverged.drawio.svg" p=HEAD~1 f=HEAD s=refs/splices/pkg-a/main~1 u=refs/splices/pkg-a/main
-ok   diverged.drawio.svg: 5 commits, 8 arrows, 5 boxes, 0 frames, 1 lanes
+ok   diverged.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
 -->
 

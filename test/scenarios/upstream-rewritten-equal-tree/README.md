@@ -58,7 +58,7 @@ $ r="$(git config --file vendor/a/.splice splice.commit)"
 
 ```scrut
 $ check_drawing "$TESTDIR/upstream-rewritten-equal-tree.drawio.svg" a=HEAD k="$r~1" r="$r" w=refs/splices/upstream/main
-ok   upstream-rewritten-equal-tree.drawio.svg: 4 commits, 4 arrows, 3 boxes, 0 frames, 1 lanes
+ok   upstream-rewritten-equal-tree.drawio.svg: 4 commits, 4 arrows, 3 boxes, 1 lanes
 ```
 
 ```scrut

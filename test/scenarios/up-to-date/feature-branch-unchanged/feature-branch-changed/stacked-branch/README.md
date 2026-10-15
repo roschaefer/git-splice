@@ -46,7 +46,7 @@ commit named by its place in the history
 
 ```scrut
 $ check_drawing "$TESTDIR/stacked-branch.drawio.svg" a=HEAD~2 b=HEAD~1 c=HEAD k=refs/splices/upstream/main
-ok   stacked-branch.drawio.svg: 5 commits, 7 arrows, 4 boxes, 0 frames, 1 lanes
+ok   stacked-branch.drawio.svg: 5 commits, 7 arrows, 4 boxes, 1 lanes
 ```
 
 ```scrut

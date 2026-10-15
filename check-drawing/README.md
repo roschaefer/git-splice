@@ -26,7 +26,7 @@ check-drawing/check-drawing <drawing> [<label>=<rev>...]
 matches, it prints what it checked and succeeds:
 
 ```
-ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames, 1 lanes
+ok   after-pull.drawio.svg: 12 commits, 16 arrows, 5 boxes, 1 lanes
 ```
 
 Otherwise it prints each difference, with what to change, and fails:
@@ -90,23 +90,19 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
     splice's lane is drawn inside the lane of the splice above it.
   - What a lane shows stays in it: arrows between commits don't cross
     into another lane.
-  - A box sits on the side of what it names: H and B outside every lane,
-    T, R and upstream branches in their splice's lane. U(x) bridges the
-    two: it sits next to x, or in the lane of the commit it names. With
-    one splice, a box outside every lane is that splice's; with several,
-    a frame around x says whose U(x) it is.
-- **Frame**: labelled `x:<path>/.splice`, Git's name for that file in
-  commit x, holds commit x, and usually the box U(x). `<path>` is the
-  splice's folder in x's repository: in the monorepo, or in the upstream
-  of the lane x is in. The generic `path` stands for the splice of the
-  lane the frame is in.
+  - A box sits with the commit it points at: H and B outside every lane,
+    all others, U(x) too, in the lane of the commit they name. With one
+    splice, a box outside every lane is that splice's.
+  - U(x) reads x's `.splice` of the splice whose lane the box is in: in
+    a nested drawing, U(l) in the lane of `vendor/a/b/` reads the
+    `b/.splice` of l, a commit of `vendor/a/`'s upstream.
 - **Dashed**: commits and arrows into them that aren't in the upstream's
   history yet: no upstream branch has them, like R's copies of monorepo
   commits, or commits a rewrite of the upstream removed. A solid commit
   that T lacks needs a box for an upstream branch that has it.
 
 What a drawing shows is checked, not where: positions only matter for
-which lane or frame a shape is in.
+which lane a shape is in.
 
 ## Saving drawings
 
@@ -134,8 +130,8 @@ What no drawing has needed yet, it doesn't handle:
   the monorepo and later drops one of them.
 - **Old sync points**: a commit reachable only from an earlier `.splice`
   value is found by its label only when given as `<label>=<rev>`.
-- **Moved splices**: a frame names the splice's current folder, not the
-  one a commit from before the move had.
+- **Moved splices**: U(x) reads x's `.splice` under the splice's current
+  folder, so a commit from before the splice moved has none there.
 
 ## Tests
 

@@ -18,8 +18,8 @@ check_drawing() {
   fi
   shift
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
-  local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=()
-  local -a errors=() commits=() edges=() boxes=() frames=() lanes=() splices=()
+  local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=() lane_label=()
+  local -a errors=() commits=() edges=() boxes=() lanes=() splices=()
   local -A id_of_label=() label_count=() alias=()
   local id k cells term shown named sp p
   local name='([HBTR]|U\([^()]+\)|[^ ]+)'
@@ -60,9 +60,6 @@ check_drawing() {
     if [[ "$c_kind" == *e1 ]]; then
       kind[$c_id]=edge
       edges+=("$c_id")
-    elif [[ "$c_value" =~ ^[^\ :]+:.*/\.splice$ ]]; then
-      kind[$c_id]=frame
-      frames+=("$c_id")
     elif [[ "$c_style" == ellipse* || "$c_style" == *";ellipse"* ]]; then
       kind[$c_id]=commit
       commits+=("$c_id")
@@ -144,15 +141,15 @@ check_drawing() {
         errors+=("the lane ${value[$l]} is a folder inside ${value[$o]}: draw it inside that lane")
     done
   done
-  for id in "${commits[@]}" "${boxes[@]}" "${frames[@]}"; do
-    lane_of[$id]="" smallest=""
+  for id in "${commits[@]}" "${boxes[@]}"; do
+    lane_of[$id]="" lane_label[$id]="" smallest=""
     for l in "${lanes[@]}"; do
       if [[ -z "${lane_splice[$l]:-}" ]] || ! contains "$id" "$l"; then
         continue
       fi
       area=$(awk -v w="${gw[$l]}" -v h="${gh[$l]}" 'BEGIN { print w * h }')
       if [[ -z "$smallest" ]] || awk -v a="$area" -v b="$smallest" 'BEGIN { exit !(a < b) }'; then
-        lane_of[$id]="${lane_splice[$l]}" smallest="$area"
+        lane_of[$id]="${lane_splice[$l]}" lane_label[$id]="${value[$l]}" smallest="$area"
       fi
     done
   done
@@ -215,9 +212,9 @@ check_drawing() {
         continue
       fi
       subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
-      hash="$(git log --format='%H' "${truth["$sp|R"]}" | while read -r k; do
-        [[ "$k" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$k")" == "$subject" ]] && {
-          echo "$k"
+      hash="$(git log --format='%H' "${truth["$sp|R"]}" | while read -r copy; do
+        [[ "$copy" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$copy")" == "$subject" ]] && {
+          echo "$copy"
           break
         }
       done)"
@@ -273,46 +270,6 @@ check_drawing() {
     fi
   done
 
-  # Frames: "x:<path>/.splice" holds commit x, and its boxes are of the
-  # splice at <path> in x's repository.
-  local f
-  local -A frame_splice=()
-  for f in "${frames[@]}"; do
-    k="${value[$f]%%:*}"
-    p="${value[$f]#*:}" p="${p%/.splice}"
-    local held=()
-    for id in "${commits[@]}"; do
-      inside "$id" "$f" && held+=("$id")
-    done
-    if [[ ${#held[@]} -ne 1 ]]; then
-      errors+=("the frame \"${value[$f]}\" holds ${#held[@]} commits, not one")
-      continue
-    fi
-    id="${held[0]}"
-    if [[ "${value[$id]}" != "$k" ]]; then
-      errors+=("the frame \"${value[$f]}\" holds ${value[$id]}, not $k")
-      continue
-    fi
-    if [[ "$p" == path ]]; then
-      sp="${lane_of[$f]:-$default}"
-    elif [[ -n "${lane_of[$id]}" ]]; then
-      sp="${lane_of[$id]}/$p"
-    else
-      sp="$p"
-    fi
-    if [[ -z "${is_splice[$sp]:-}" ]]; then
-      errors+=("the frame \"${value[$f]}\" names no splice of the monorepo")
-      continue
-    fi
-    frame_splice[$f]="$sp"
-    load_truth "$sp"
-  done
-  for id in "${boxes[@]}"; do
-    for f in "${frames[@]}"; do
-      [[ -n "${frame_splice[$f]:-}" ]] && inside "$id" "$f" && splice_of[$id]="${frame_splice[$f]}"
-    done
-  done
-
   # What box term $1 of splice $2 names, or nothing.
   resolve_term() {
     local term="$1" sp="$2" k c rel
@@ -354,6 +311,16 @@ check_drawing() {
         errors+=("${value[$s]} points at something other than a commit")
         continue
       fi
+      # A box sits with the commit it points at: in its lane, or outside
+      # every lane, like H and B with their monorepo commits.
+      if [[ "${lane_of[$s]}" != "${lane_of[$t]}" ]]; then
+        if [[ -z "${lane_of[$t]}" ]]; then
+          errors+=("${value[$s]} points at ${value[$t]}, which is outside every lane: draw the box outside every lane too")
+        else
+          errors+=("${value[$s]} points at ${value[$t]}, in the lane ${lane_label[$t]}: draw the box in that lane")
+        fi
+        continue
+      fi
       sp="${splice_of[$s]}"
       while IFS= read -r shown; do
         term="${alias[$shown]:-$shown}"
@@ -361,32 +328,9 @@ check_drawing() {
           k="${term#U(}" k="${k%)}"
           term="U(${alias[$k]:-$k})"
         fi
-        # A box sits on the side of what it names. U(x) bridges the two:
-        # next to x, or in the lane of the commit it names.
-        if [[ ${#lanes[@]} -gt 0 ]]; then
-          case "$term" in
-            H | B)
-              if [[ -n "${lane_of[$s]}" ]]; then
-                errors+=("$shown names a monorepo commit: draw it outside every lane")
-                continue
-              fi
-              ;;
-            U\(*\)) ;;
-            *)
-              if [[ -z "${lane_of[$s]}" ]]; then
-                errors+=("$shown names an upstream commit: draw it in the lane of its splice")
-                continue
-              fi
-              ;;
-          esac
-        fi
-        # With several splices, only a lane or a frame says whose B or U(x)
-        # a box outside every lane is.
+        # With several splices, only a lane says whose B is.
         if [[ "$term" == B && -z "$sp" ]]; then
           errors+=("B outside every lane doesn't say which splice's boundary it is: with several splices, leave B out")
-          continue
-        elif [[ "$term" != H && -z "$sp" ]]; then
-          errors+=("$shown doesn't say which splice's it is: draw it in the lane of the commit it names, or in a frame x:<path>/.splice")
           continue
         fi
         if [[ "$term" == U\(*\) ]]; then
@@ -399,10 +343,6 @@ check_drawing() {
             errors+=("$shown points at ${value[$t]}, but ${label_count[$k]} commits are labelled $k: label them apart")
             continue
           fi
-        fi
-        if [[ -n "${lane_of[$t]}" && "${lane_of[$t]}" != "$sp" ]]; then
-          errors+=("$shown of $sp/ points at ${value[$t]}, a commit in the lane ${lane_of[$t]}/")
-          continue
         fi
         named="$(resolve_term "$term" "$sp")"
         [[ "$term" == H || "$term" == [BTR] || "$term" == "merge-base(R,T)" || "$term" == U\(*\) || -z "$named" ]] ||
@@ -473,8 +413,8 @@ check_drawing() {
     printf '!!   %s\n' "${errors[@]}"
     return 1
   fi
-  printf 'ok   %s: %d commits, %d arrows, %d boxes, %d frames%s\n' \
-    "${drawing##*/}" "${#commits[@]}" "${#edges[@]}" "${#boxes[@]}" "${#frames[@]}" \
+  printf 'ok   %s: %d commits, %d arrows, %d boxes%s\n' \
+    "${drawing##*/}" "${#commits[@]}" "${#edges[@]}" "${#boxes[@]}" \
     "$([[ ${#lanes[@]} -eq 0 ]] || printf ', %d lanes' "${#lanes[@]}")"
 }
 

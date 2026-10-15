@@ -25,7 +25,7 @@ edit_drawing() {
 @test "drawing lanes: the committed one matches its scenario" {
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   nested-splices.drawio: 4 commits, 5 arrows, 4 boxes, 1 frames, 2 lanes" ]
+  [ "$output" = "ok   nested-splices.drawio: 4 commits, 5 arrows, 4 boxes, 2 lanes" ]
 }
 
 @test "drawing lanes: several splices without lanes ask for them" {
@@ -55,13 +55,6 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   the lane vendor/a/ is drawn inside vendor/a/b/, but its folder isn't inside that one"* ]]
   [[ "$output" == *"!!   T points at m, the code says l"* ]]
-}
-
-@test "drawing lanes: a frame's path is the splice's folder in the repository of the commit it holds" {
-  edit_drawing -u '//mxCell[@id="frame_l"]/@value' -v 'l:vendor/a/b/.splice'
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [ "${lines[0]}" = '!!   the frame "l:vendor/a/b/.splice" names no splice of the monorepo' ]
 }
 
 @test "drawing lanes: a commit in another splice's lane" {
@@ -102,7 +95,7 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@target="l" and @source!="k"]/@target' -v m
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   T of vendor/a/ points at m, a commit in the lane vendor/a/b/" ]
+  [ "${lines[0]}" = "!!   T = R = U(H) points at m, in the lane vendor/a/b/: draw the box in that lane" ]
 }
 
 @test "drawing lanes: an arrow between commits of two lanes" {
@@ -124,12 +117,6 @@ edit_drawing() {
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   the lane vendor/a/b/ is a folder inside vendor/a/: draw it inside that lane" ]
-}
-
-@test "drawing lanes: U(x) may sit in the lane of the commit it names" {
-  edit_drawing -u '//mxCell[@value="U(l)"]/mxGeometry/@x' -v 760 -u '//mxCell[@value="U(l)"]/mxGeometry/@y' -v 300
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 0 ]
 }
 
 @test "drawing lanes: with several splices, B outside every lane says why it can't be checked" {

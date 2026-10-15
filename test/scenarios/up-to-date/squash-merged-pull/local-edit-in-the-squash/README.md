@@ -42,7 +42,7 @@ commit named by its place in the history
 
 ```scrut
 $ check_drawing "$TESTDIR/local-edit-in-the-squash.drawio.svg" a=HEAD~1 s=HEAD k=refs/splices/upstream/main f=refs/splices/upstream/feature
-ok   local-edit-in-the-squash.drawio.svg: 5 commits, 8 arrows, 5 boxes, 0 frames, 1 lanes
+ok   local-edit-in-the-squash.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
 
 *s* is the last commit, and the only one since the clone *a*:
