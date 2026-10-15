@@ -193,12 +193,21 @@ bump_synced() {
   log_ok "$path: bumped the synced commit to ${target:0:7}"
 }
 
+# Succeeds if splice <path>'s synced commit is here, or it has none.
+synced_commit_here() {
+  local synced
+  synced="$(splice_config "$1" commit)"
+  [[ -z "$synced" ]] || git cat-file -e "$synced^{commit}" 2>/dev/null
+}
+
 # Reads splice <path>'s upstreams again after a merge above changed its
 # .splice, and uses the one the command chose (use_upstreams). A pull
 # (<verb>) fetches the upstreams it names now, but didn't before: the
-# synced commit the merge above moved it to may be in any of them. Fails,
-# saying why, if one can't be fetched, or if a merge would use one that
-# wasn't.
+# synced commit the merge above moved it to may be in any of them. It
+# also fetches the one it uses if that synced commit isn't here: it may
+# be on no branch of an upstream it had, e.g. after a force-push, and
+# fetch_upstream fetches it by its hash. Fails, saying why, if one can't
+# be fetched, or if a merge would use one that wasn't.
 reload_splice_upstream() {
   local path="$1" branch="$2" verb="$3" names=() name old_urls=() url entries=() i used_is_new=""
   read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
@@ -215,6 +224,10 @@ reload_splice_upstream() {
     entries+=("$path:$name")
     [[ "$name" != "${SPLICE_UPSTREAM_NAMES[$path]}" ]] || used_is_new=1
   done
+  if [[ ${#entries[@]} -eq 0 ]] && ! synced_commit_here "$path"; then
+    entries=("$path:${SPLICE_UPSTREAM_NAMES[$path]}")
+    used_is_new=1
+  fi
   [[ ${#entries[@]} -gt 0 ]] || return 0
   if [[ "$verb" == pull ]]; then
     fetch_all_parallel "$branch" "${entries[@]}"
@@ -222,7 +235,7 @@ reload_splice_upstream() {
       print_fetch_output "$i"
     done
     [[ ${#FETCH_FAILURES[@]} -eq 0 ]]
-  elif [[ -n "$used_is_new" ]] && ! splice_fetched "$path"; then
+  elif [[ -n "$used_is_new" ]] && { ! splice_fetched "$path" || ! synced_commit_here "$path"; }; then
     log_warn "$path: not fetched yet -- run 'git splice fetch $(upstream_option "$path")$path' first"
     return 1
   fi
