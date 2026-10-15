@@ -4,7 +4,7 @@
 # vocabulary and its limits. Runs as a command, or sourced for
 # check_drawing.
 
-# check_drawing <drawing> [<label>=<rev>...]
+# check_drawing <drawing> [--alias <name>=<term>...] [<label>=<rev>...]
 # Prints "ok" and what it checked, or each difference, and fails.
 check_drawing() {
   local drawing="$1" xml default=""
@@ -20,13 +20,19 @@ check_drawing() {
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=()
   local -a errors=() commits=() edges=() boxes=() frames=() lanes=() splices=()
-  local -A id_of_label=() label_count=()
-  local arg id k cells term named sp p
+  local -A id_of_label=() label_count=() alias=()
+  local id k cells term shown named sp p
   local name='([HBTR]|U\([^()]+\)|[^ ]+)'
   local box_label="^$name( = $name)*\$"
 
-  for arg in "$@"; do
-    rev_of[${arg%%=*}]="${arg#*=}"
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" == --alias ]]; then
+      alias[${2%%=*}]="${2#*=}"
+      shift 2
+    else
+      rev_of[${1%%=*}]="${1#*=}"
+      shift
+    fi
   done
 
   if [[ "$drawing" == *.svg ]]; then
@@ -168,6 +174,9 @@ check_drawing() {
       splice_ref "$p" "$(upstream_branch_for "$p" "$(git branch --show-current)")"
     )")"
     truth["$p|R"]="$(git splice rebuild "$p")"
+    truth["$p|base"]=""
+    [[ -z "${truth["$p|R"]}" || -z "${truth["$p|T"]}" ]] ||
+      truth["$p|base"]="$(git merge-base "${truth["$p|R"]}" "${truth["$p|T"]}")"
     truth["$p|key"]="$(git splice key "$p")"
     truth["$p|synced"]=""
     for c in $(git log --first-parent --format=%H HEAD -- "$p/.splice"); do
@@ -311,6 +320,8 @@ check_drawing() {
       printf '%s\n' "${truth[H]}"
     elif [[ "$term" == [BTR] ]]; then
       printf '%s\n' "${truth["$sp|$term"]}"
+    elif [[ "$term" == "merge-base(R,T)" ]]; then
+      printf '%s\n' "${truth["$sp|base"]}"
     elif [[ "$term" != U\(*\) ]]; then
       git rev-parse --verify --quiet "refs/splices/${truth["$sp|key"]}/$term^{commit}"
     else
@@ -344,21 +355,26 @@ check_drawing() {
         continue
       fi
       sp="${splice_of[$s]}"
-      while IFS= read -r term; do
+      while IFS= read -r shown; do
+        term="${alias[$shown]:-$shown}"
+        if [[ "$term" == U\(*\) ]]; then
+          k="${term#U(}" k="${k%)}"
+          term="U(${alias[$k]:-$k})"
+        fi
         # A box sits on the side of what it names. U(x) bridges the two:
         # next to x, or in the lane of the commit it names.
         if [[ ${#lanes[@]} -gt 0 ]]; then
           case "$term" in
             H | B)
               if [[ -n "${lane_of[$s]}" ]]; then
-                errors+=("$term names a monorepo commit: draw it outside every lane")
+                errors+=("$shown names a monorepo commit: draw it outside every lane")
                 continue
               fi
               ;;
             U\(*\)) ;;
             *)
               if [[ -z "${lane_of[$s]}" ]]; then
-                errors+=("$term names an upstream commit: draw it in the lane of its splice")
+                errors+=("$shown names an upstream commit: draw it in the lane of its splice")
                 continue
               fi
               ;;
@@ -370,33 +386,33 @@ check_drawing() {
           errors+=("B outside every lane doesn't say which splice's boundary it is: with several splices, leave B out")
           continue
         elif [[ "$term" != H && -z "$sp" ]]; then
-          errors+=("$term doesn't say which splice's it is: draw it in the lane of the commit it names, or in a frame x:<path>/.splice")
+          errors+=("$shown doesn't say which splice's it is: draw it in the lane of the commit it names, or in a frame x:<path>/.splice")
           continue
         fi
         if [[ "$term" == U\(*\) ]]; then
           k="${term#U(}" k="${k%)}"
           if [[ "$k" != [HB] && -z "${commit_of[${id_of_label[$k]:-none}]:-}" ]]; then
-            errors+=("$term points at ${value[$t]}, but no commit $k is drawn")
+            errors+=("$shown points at ${value[$t]}, but no commit $k is drawn")
             continue
           fi
           if [[ "$k" != [HB] && "${label_count[$k]:-0}" -gt 1 ]]; then
-            errors+=("$term points at ${value[$t]}, but ${label_count[$k]} commits are labelled $k: label them apart")
+            errors+=("$shown points at ${value[$t]}, but ${label_count[$k]} commits are labelled $k: label them apart")
             continue
           fi
         fi
         if [[ -n "${lane_of[$t]}" && "${lane_of[$t]}" != "$sp" ]]; then
-          errors+=("$term of $sp/ points at ${value[$t]}, a commit in the lane ${lane_of[$t]}/")
+          errors+=("$shown of $sp/ points at ${value[$t]}, a commit in the lane ${lane_of[$t]}/")
           continue
         fi
         named="$(resolve_term "$term" "$sp")"
-        [[ "$term" == H || "$term" == [BTR] || "$term" == U\(*\) || -z "$named" ]] ||
+        [[ "$term" == H || "$term" == [BTR] || "$term" == "merge-base(R,T)" || "$term" == U\(*\) || -z "$named" ]] ||
           branch_tips[$sp]+=" $named"
         if [[ -z "$named" ]]; then
-          errors+=("$term points at ${value[$t]}, but there's no $term")
+          errors+=("$shown points at ${value[$t]}, but there's no $shown")
         elif [[ "${commit_of[$t]:-}" != "$named" ]]; then
           label="${label_of[$named]:-}"
           [[ -n "$label" ]] || label="${named:0:7}, which isn't drawn"
-          errors+=("$term points at ${value[$t]}, the code says $label")
+          errors+=("$shown points at ${value[$t]}, the code says $label")
         fi
       done <<<"${value[$s]// = /$'\n'}"
       continue
