@@ -55,9 +55,9 @@ ok   path: cloned e849115 from main
 
 The folder is now a splice: a folder of the monorepo that is also the
 library. A committed `.splice` file inside it records which repository,
-and **U(H)**, the library commit the folder last matched.
+and the library commit the folder last matched.
 
-From U(H), both sides move on. Say you fix a bug in the library while working
+From there, both sides move on. Say you fix a bug in the library while working
 on the app, and the library gets a release meanwhile:
 
 <!--
@@ -68,16 +68,14 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 <div align="center">
 
-![Monorepo commits a to d, library commits k to n, and the rebuilt commits b prime and d prime on top of U(H)](test/scenarios/sync-model/before-pull.drawio.svg)
+![Monorepo commits a to d, with HEAD at d and BOUNDARY at a, the clone of k; library commits k to n, THEIRS at n; OURS is d prime, the rebuilt b prime and d prime on top of k, which is U(BOUNDARY) and BASE](test/scenarios/sync-model/before-pull-git-names.drawio.svg)
 
 </div>
 
-`git-splice` rebuilds the monorepo's commits on top of U(H), with only the
-folder's changes, and skips those like c that don't touch it: b' is b
-rebuilt, d' is d. The result,
-**R**, is a commit of the library, ready to send upstream as it is. R and
-**T**, where the library's branch points, relate like a branch and its
-tracking branch:
+At a, the **BOUNDARY**, you spliced in k (`e849115`). To splice out,
+`git-splice` rebuilds the commits since a on top of k. c never touched
+`path/`, so it's left out. The result is d', **OURS**, a library commit
+ready for an ordinary three-way merge with **THEIRS** from **BASE**:
 
 ```scrut
 $ git splice status
