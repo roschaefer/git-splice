@@ -16,7 +16,8 @@ A pull on a feature branch, squash-merged into `main`.
 
 `.splice` records a commit, not a branch: s records f as U(H). The
 upstream's `main`, T, is still at k, since nobody merged `feature` into
-it there. T lacks f, so f is dashed, like R's copy c'.
+it there. f is on the upstream's `feature`, so it's solid. R's copy c'
+is dashed: no upstream branch has it yet.
 
 A squash merge keeps the content and drops the history. With `git subtree`,
 that lost the sync point. Here s itself changed `.splice`, so it is B, and

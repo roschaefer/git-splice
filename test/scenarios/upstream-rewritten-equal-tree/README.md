@@ -31,8 +31,8 @@ monorepo pulled before the rewrite.
 
 </div>
 
-U(H) is r, but T is w, which shares no history with it, so k and r are
-dashed.
+U(H) is r, but T is w, which shares no history with it. No upstream
+branch has k and r any more, so they're dashed.
 
 ## Output
 

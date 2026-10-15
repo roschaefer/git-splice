@@ -19,7 +19,8 @@ edit that the upstream doesn't have.
 
 `.splice` records a commit, not a branch: s records f as U(H). The
 upstream's `main`, T, is still at k, since nobody merged `feature` into
-it there. T lacks f and R's copy s', so they're dashed.
+it there. f is on the upstream's `feature`, so it's solid. R's copy s'
+is dashed: no upstream branch has it yet.
 
 ## Output
 

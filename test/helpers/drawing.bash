@@ -12,8 +12,9 @@
 #     history.
 #   - An arrow between two commits points from a parent to its child.
 #   - A box points at the commit its label names: H, B, T or R
-#     (test/concepts/sync-model/README.md), or U(x), the commit x's
-#     .splice records, where x is H, B or a drawn commit. Several names
+#     (test/concepts/sync-model/README.md), U(x), the commit x's
+#     .splice records, where x is H, B or a drawn commit, or an upstream
+#     branch by its name, e.g. "main", as fetched. Several names
 #     are joined by " = ", e.g. "U(H) = U(B)": each must name that
 #     commit.
 #   - A lane, a shape labelled with a splice's folder, e.g. "vendor/a/",
@@ -26,9 +27,10 @@
 #     splice's folder in x's repository: in the monorepo, or in the
 #     upstream of the lane x is in. The generic "path" stands for the
 #     splice of the lane the frame is in.
-#   - Dashed commits and arrows into them are a splice's commits that T's
-#     history lacks: R's copies of monorepo commits, but also commits on
-#     another upstream branch, or ones a rewrite of the upstream removed.
+#   - Dashed commits and arrows into them aren't in the upstream's history
+#     yet: no upstream branch has them, like R's copies of monorepo
+#     commits, or commits a rewrite of the upstream removed. A solid
+#     commit that T lacks needs a box for an upstream branch that has it.
 #
 # Labels that aren't subjects, like the commit add_splice makes, are given
 # as label=rev arguments, revs of the monorepo.
@@ -45,7 +47,7 @@ check_drawing() {
   local -a errors=() commits=() edges=() boxes=() frames=() lanes=() splices=()
   local -A id_of_label=() label_count=()
   local arg id k cells term named sp p
-  local name='([HBTR]|U\([^()]+\))'
+  local name='([HBTR]|U\([^()]+\)|[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)'
   local box_label="^$name( = $name)*\$"
 
   for arg in "$@"; do
@@ -80,15 +82,15 @@ check_drawing() {
     elif [[ "$c_value" =~ ^[^\ :]+:.*/\.splice$ ]]; then
       kind[$c_id]=frame
       frames+=("$c_id")
-    elif [[ "$c_value" =~ $box_label ]]; then
-      kind[$c_id]=box
-      boxes+=("$c_id")
     elif [[ "$c_style" == ellipse* || "$c_style" == *";ellipse"* ]]; then
       kind[$c_id]=commit
       commits+=("$c_id")
     elif [[ "$c_value" =~ ^[^\ ]+/$ ]]; then
       kind[$c_id]=lane
       lanes+=("$c_id")
+    elif [[ "$c_value" =~ $box_label ]]; then
+      kind[$c_id]=box
+      boxes+=("$c_id")
     fi
   done <<<"$cells"
   if [[ ${#commits[@]} -eq 0 ]]; then
@@ -240,20 +242,21 @@ check_drawing() {
       errors+=("${value[$id]} is in the lane ${lane_of[$id]}/, but isn't in that splice's upstream history or R")
   done
 
-  # A commit of splice $2 is dashed if T's history lacks it.
-  beyond_t() {
+  # A commit of splice $2 is dashed if it isn't in the upstream's history
+  # yet: no fetched upstream branch has it.
+  not_upstream() {
     [[ -n "$2" ]] || return 1
     ! git merge-base --is-ancestor "$1" HEAD 2>/dev/null || return 1
-    [[ -z "${truth[$2|T]}" ]] || ! git merge-base --is-ancestor "$1" "${truth[$2|T]}"
+    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth[$2|key]}/")" ]]
   }
   dashed() { [[ ";${style[$1]};" == *";dashed=1;"* ]]; }
 
   for id in "${commits[@]}"; do
     [[ -n "${commit_of[$id]:-}" ]] || continue
-    if beyond_t "${commit_of[$id]}" "${splice_of[$id]}"; then
-      dashed "$id" || errors+=("${value[$id]} is solid, but T lacks it: dash it")
+    if not_upstream "${commit_of[$id]}" "${splice_of[$id]}"; then
+      dashed "$id" || errors+=("${value[$id]} is solid, but no upstream branch has it: dash it")
     else
-      dashed "$id" && errors+=("${value[$id]} is dashed, but T has it: draw it solid")
+      dashed "$id" && errors+=("${value[$id]} is dashed, but an upstream branch has it: draw it solid")
     fi
   done
 
@@ -304,6 +307,8 @@ check_drawing() {
       printf '%s\n' "${truth[H]}"
     elif [[ "$term" == [BTR] ]]; then
       printf '%s\n' "${truth[$sp|$term]}"
+    elif [[ "$term" != U\(*\) ]]; then
+      git rev-parse --verify --quiet "refs/splices/${truth[$sp|key]}/$term^{commit}"
     else
       k="${term#U(}" k="${k%)}"
       case "$k" in
@@ -321,7 +326,7 @@ check_drawing() {
 
   # Arrows: between commits, parent to child; from a box, to its commit.
   local s t drawn_edges=" "
-  local -A box_arrows=()
+  local -A box_arrows=() branch_tips=()
   for id in "${edges[@]}"; do
     s="${source[$id]}" t="${target[$id]}"
     [[ -z "$s" || "${kind[$s]:-}" != box ]] || box_arrows[$s]=$((${box_arrows[$s]:-0} + 1))
@@ -352,6 +357,8 @@ check_drawing() {
           fi
         fi
         named="$(resolve_term "$term" "$sp")"
+        [[ "$term" == H || "$term" == [BTR] || "$term" == U\(*\) || -z "$named" ]] ||
+          branch_tips[$sp]+=" $named"
         if [[ -z "$named" ]]; then
           errors+=("$term points at ${value[$t]}, but there's no $term")
         elif [[ "${commit_of[$t]:-}" != "$named" ]]; then
@@ -371,11 +378,28 @@ check_drawing() {
     drawn_edges+="$s>$t "
     if ! git rev-parse "${commit_of[$t]}^@" | grep -qx "${commit_of[$s]}"; then
       errors+=("${value[$s]} -> ${value[$t]}: ${value[$s]} isn't a parent of ${value[$t]}")
-    elif beyond_t "${commit_of[$t]}" "${splice_of[$t]}"; then
-      dashed "$id" || errors+=("${value[$s]} -> ${value[$t]} is solid, but T lacks ${value[$t]}: dash it")
+    elif not_upstream "${commit_of[$t]}" "${splice_of[$t]}"; then
+      dashed "$id" || errors+=("${value[$s]} -> ${value[$t]} is solid, but no upstream branch has ${value[$t]}: dash it")
     else
-      dashed "$id" && errors+=("${value[$s]} -> ${value[$t]} is dashed, but T has ${value[$t]}: draw it solid")
+      dashed "$id" && errors+=("${value[$s]} -> ${value[$t]} is dashed, but an upstream branch has ${value[$t]}: draw it solid")
     fi
+  done
+  # A solid commit T lacks is on another upstream branch: its box shows
+  # which.
+  local b found
+  for id in "${commits[@]}"; do
+    sp="${splice_of[$id]}"
+    [[ -n "${commit_of[$id]:-}" && -n "$sp" ]] || continue
+    ! git merge-base --is-ancestor "${commit_of[$id]}" HEAD 2>/dev/null || continue
+    not_upstream "${commit_of[$id]}" "$sp" && continue
+    [[ -n "${truth[$sp|T]}" ]] && git merge-base --is-ancestor "${commit_of[$id]}" "${truth[$sp|T]}" && continue
+    found=""
+    for b in ${branch_tips[$sp]:-}; do
+      git merge-base --is-ancestor "${commit_of[$id]}" "$b" && found=1
+    done
+    [[ -n "$found" ]] || errors+=("${value[$id]} is on an upstream branch, but not T's: draw a box for the branch, e.g. $(
+      git for-each-ref --count=1 --format='%(refname:lstrip=3)' --contains "${commit_of[$id]}" "refs/splices/${truth[$sp|key]}/"
+    )")
   done
   # Every box points at one commit.
   for id in "${boxes[@]}"; do

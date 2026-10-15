@@ -39,14 +39,14 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@source="n" and @target="e_"]/@style' -v 'endArrow=block;endFill=1;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   n -> e' is solid, but T lacks e': dash it" ]
+  [ "$output" = "!!   n -> e' is solid, but no upstream branch has e': dash it" ]
 }
 
 @test "drawing: a solid rebuilt commit is to be dashed" {
   edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   b' is solid, but T lacks it: dash it" ]
+  [ "$output" = "!!   b' is solid, but no upstream branch has it: dash it" ]
 }
 
 @test "drawing: a missing parent arrow is named" {
@@ -133,4 +133,16 @@ edit_drawing() {
   run check_drawing "$drawing"
   [ "$status" -eq 1 ]
   [ "$output" = "!!   after-pull.drawio: no diagram inside, or a compressed one: save it with File > Properties > Compressed off" ]
+}
+
+@test "drawing: a solid commit T lacks needs a box for the branch that has it" {
+  load 'scenarios/up-to-date/squash-merged-pull/setup'
+  scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"
+  cd "$BATS_TEST_TMPDIR/squash"
+  xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
+    "$BATS_TEST_DIRNAME/scenarios/up-to-date/squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
+  edit_drawing -u '//mxCell[@value="U(H) = U(B) = feature"]/@value' -v 'U(H) = U(B)'
+  run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/main f=refs/splices/squash-upstream/feature
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   f is on an upstream branch, but not T's: draw a box for the branch, e.g. feature" ]
 }
