@@ -21,9 +21,11 @@
 #     holds that splice's upstream commits and boxes. A monorepo with
 #     several splices needs one per splice it draws, and what a lane
 #     shows stays in it: arrows between commits, and boxes, don't cross
-#     into another lane. With one splice, lanes are optional, the
-#     generic "path/" names it, and a box outside every lane, like B,
-#     is that splice's. A nested
+#     into another lane. A box sits on the side of what it names: H and
+#     B outside every lane, T, R and upstream branches in their splice's
+#     lane, and U(x) next to x, pointing into the lane. With one splice,
+#     lanes are optional, the generic "path/" names it, and a box outside
+#     every lane, like B, is that splice's. A nested
 #     splice's lane is drawn inside the lane of the splice above it, and
 #     a shape belongs to the innermost lane around it.
 #   - A frame labelled "x:<path>/.splice", Git's name for that file in
@@ -369,6 +371,25 @@ check_drawing() {
       fi
       sp="${splice_of[$s]}"
       while IFS= read -r term; do
+        # A box sits on the side of what it names. U(x) bridges the two:
+        # it sits next to x and points into the lane.
+        if [[ ${#lanes[@]} -gt 0 ]]; then
+          case "$term" in
+            H | B)
+              if [[ -n "${lane_of[$s]}" ]]; then
+                errors+=("$term names a monorepo commit: draw it outside every lane")
+                continue
+              fi
+              ;;
+            U\(*\)) ;;
+            *)
+              if [[ -z "${lane_of[$s]}" ]]; then
+                errors+=("$term names an upstream commit: draw it in the lane of its splice")
+                continue
+              fi
+              ;;
+          esac
+        fi
         if [[ "$term" != H && -z "$sp" ]]; then
           errors+=("$term is in no lane: draw it in the lane of its splice")
           continue
@@ -384,7 +405,7 @@ check_drawing() {
             continue
           fi
         fi
-        if [[ "$term" != H && -n "${lane_of[$t]}" && "${lane_of[$t]}" != "$sp" ]]; then
+        if [[ -n "${lane_of[$t]}" && "${lane_of[$t]}" != "$sp" ]]; then
           errors+=("$term of $sp/ points at ${value[$t]}, a commit in the lane ${lane_of[$t]}/")
           continue
         fi

@@ -49,6 +49,32 @@ edit_drawing() {
   [ "$output" = "!!   b' is solid, but no upstream branch has it: dash it" ]
 }
 
+@test "drawing: a box sits on the side of what it names" {
+  # box, where it moves (in: into the lane path/, out: outside it), and
+  # how the check's output starts.
+  local box where expected x y failed=""
+  cp "$drawing" "$BATS_TEST_TMPDIR/committed.drawio"
+  while IFS='|' read -r box where expected; do
+    cp "$BATS_TEST_TMPDIR/committed.drawio" "$drawing"
+    if [[ "$where" == in ]]; then x=950 y=640; else x=20 y=380; fi
+    edit_drawing -u "//mxCell[@id=\"$box\"]/mxGeometry/@x" -v "$x" -u "//mxCell[@id=\"$box\"]/mxGeometry/@y" -v "$y"
+    run check_drawing "$drawing" a=HEAD~4 e=HEAD
+    [[ "${lines[0]}" == "$expected"* ]] || failed+=$'\n'"$box $where: ${lines[0]}"
+  done <<'EOF'
+refH|in|!!   H names a monorepo commit: draw it outside every lane
+refB|in|!!   B names a monorepo commit: draw it outside every lane
+refT|out|!!   T names an upstream commit: draw it in the lane of its splice
+refR|out|!!   R names an upstream commit: draw it in the lane of its splice
+refU|in|ok
+refS|in|ok
+refT|in|ok
+EOF
+  [ -z "$failed" ] || {
+    echo "$failed"
+    false
+  }
+}
+
 @test "drawing: a missing parent arrow is named" {
   edit_drawing -d '//mxCell[@source="d_" and @target="e_"]'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
