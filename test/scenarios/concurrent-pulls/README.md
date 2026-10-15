@@ -6,11 +6,20 @@ commit, and the same lines of the files the upstream changed. When the
 second developer merges the first one's work, Git reports conflicts in
 both.
 
-- **Upstream**: `seed`, `upstream 1`, `upstream 2`.
-- **Alice's monorepo**, pushed as `origin/main`: cloned at `seed`, then
-  pulled `upstream 1`.
-- **Bob's monorepo**, this one: cloned at `seed`, then pulled `upstream 2`,
-  without pulling the monorepo first.
+- **Upstream**: k (`seed`), l (`upstream 1`), n (`upstream 2`).
+- **Alice's monorepo**, pushed as `origin/main`: a cloned k, then her
+  pull q brought in l.
+- **Bob's monorepo**, this one: from a, his pull p brought in n, without
+  pulling the monorepo first.
+
+<div align="center">
+
+![The clone a with two children: Bob's pull p, which is H and B and whose .splice records n, and Alice's pull q on origin/main, whose .splice records l; upstream k, l and n, with T and R at n](concurrent-pulls.drawio.svg)
+
+</div>
+
+p and q each change the line of `.splice` that records the synced
+commit, from k to n and to l: the frames show what each one records.
 
 To avoid this, pull the monorepo before you pull a splice. To get out of
 it, resolve the conflict as below, or [redo the pull](redo-the-pull.md).
@@ -29,6 +38,15 @@ $ source "$TESTDIR/../readme-setup.sh"
 
 ```scrut
 $ build_scenario scenario_concurrent_pulls
+```
+
+The drawing shows what Git and `git-splice` say about it, with each
+commit named by its place in the history
+([`check_drawing`](../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/concurrent-pulls.drawio.svg" a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/main~2 l=refs/splices/a/main~1 n=refs/splices/a/main
+ok   concurrent-pulls.drawio.svg: 6 commits, 8 arrows, 4 boxes, 2 frames, 1 lanes
 ```
 
 ```scrut

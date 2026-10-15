@@ -5,14 +5,21 @@ sends the right content, but squashes the unpushed commit into the move:
 its message and author are lost. This is a known bug,
 [#4](https://github.com/roschaefer/git-splice/issues/4).
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit,
-  `local change`, not pushed yet.
-- **Upstream**: `seed`.
+- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k (`seed`),
+  then a local commit b (`local change`), not pushed yet.
+- **Upstream**: k.
+
+<div align="center">
+
+![After the move m: the monorepo's a, b and m, where m is H and B; in the lane libs/a/, R is m prime on top of k, and b has no copy](moved-with-unpushed-commits.drawio.svg)
+
+</div>
 
 `push` rebuilds the commits that changed the splice's folder. It looks for
 them under the folder's current path only, so it doesn't see the commits
-made under the old one, and the move commit appears to create the whole
-folder.
+made under the old one, and the move commit m (`reorganize folders`)
+appears to create the whole folder. m added `libs/a/.splice`, so it's B,
+and R is m', a copy of m alone: b has none.
 
 Workaround: push before moving a splice, as
 [shown here](push-before-moving.md).
@@ -52,6 +59,14 @@ under the new one first:
 ```scrut
 $ git splice fetch libs/a
 ok   libs/a fetched
+```
+
+The drawing shows what Git and `git-splice` say about it now
+([`check_drawing`](../../../../helpers/drawing.bash)):
+
+```scrut
+$ check_drawing "$TESTDIR/moved-with-unpushed-commits.drawio.svg" a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/main
+ok   moved-with-unpushed-commits.drawio.svg: 5 commits, 6 arrows, 3 boxes, 0 frames, 1 lanes
 ```
 
 Now the move is the only commit to push. The local commit is gone from the

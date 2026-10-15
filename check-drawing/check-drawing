@@ -240,10 +240,16 @@ check_drawing() {
     done
     return 1
   }
+  # A monorepo commit: on HEAD, or on another branch of the monorepo, like
+  # a colleague's work on origin/main.
+  in_monorepo() {
+    git merge-base --is-ancestor "$1" HEAD 2>/dev/null ||
+      [[ -n "$(git for-each-ref --count=1 --contains "$1" refs/heads/ refs/remotes/)" ]]
+  }
   for id in "${commits[@]}"; do
     [[ -n "${commit_of[$id]:-}" ]] || continue
     if [[ ${#lanes[@]} -gt 0 && -z "${lane_of[$id]}" ]]; then
-      git merge-base --is-ancestor "${commit_of[$id]}" HEAD ||
+      in_monorepo "${commit_of[$id]}" ||
         errors+=("${value[$id]} isn't a monorepo commit, but it's outside every lane: draw it in its splice's lane")
       continue
     fi
@@ -256,7 +262,7 @@ check_drawing() {
   # yet: no fetched upstream branch has it.
   not_upstream() {
     [[ -n "$2" ]] || return 1
-    ! git merge-base --is-ancestor "$1" HEAD 2>/dev/null || return 1
+    ! in_monorepo "$1" || return 1
     [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/")" ]]
   }
   dashed() { [[ ";${style[$1]};" == *";dashed=1;"* ]]; }
@@ -382,7 +388,7 @@ check_drawing() {
   for id in "${commits[@]}"; do
     sp="${splice_of[$id]}"
     [[ -n "${commit_of[$id]:-}" && -n "$sp" ]] || continue
-    ! git merge-base --is-ancestor "${commit_of[$id]}" HEAD 2>/dev/null || continue
+    ! in_monorepo "${commit_of[$id]}" || continue
     not_upstream "${commit_of[$id]}" "$sp" && continue
     [[ -n "${truth["$sp|T"]}" ]] && git merge-base --is-ancestor "${commit_of[$id]}" "${truth["$sp|T"]}" && continue
     found=""
