@@ -1,0 +1,3 @@
+# scrut/ is a splice of our scrut fork, for development only: keep it out of
+# the release tarballs, which CI makes with git archive.
+/scrut/ export-ignore
