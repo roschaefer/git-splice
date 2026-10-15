@@ -399,6 +399,29 @@ b_moved_to_a_commit_no_branch_has() {
   [[ "$output" != *"no common"* && "$output" != *"unrelated"* ]]
 }
 
+# As above, and b's upstream lost the dropped commit for good, e.g. to gc.
+b_moved_to_a_commit_upstream_lost() {
+  b_moved_to_a_commit_no_branch_has
+  git -C "$upstream_b" reflog expire --expire=now --all
+  git -C "$upstream_b" gc -q --prune=now
+  synced_after="$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)"
+}
+
+@test "nested: pull of a says so when the synced commit it moves b to is gone from b's upstream" {
+  b_moved_to_a_commit_upstream_lost
+  run splice pull vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b: its synced commit ${synced_after:0:7}, from a pull above, isn't on its upstream any more"* ]]
+}
+
+@test "nested: pull --all says so when the synced commit a moves b to is gone from b's upstream, rather than that b shares no history" {
+  b_moved_to_a_commit_upstream_lost
+  run splice pull --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b: its synced commit ${synced_after:0:7}, from a pull above, isn't on its upstream any more"* ]]
+  [[ "$output" != *"no common"* ]]
+}
+
 @test "nested: merge --all says b's synced commit, from the merge of a, isn't fetched yet, rather than that b shares no history" {
   b_moved_to_a_commit_no_branch_has
   splice fetch >/dev/null

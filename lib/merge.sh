@@ -207,7 +207,8 @@ synced_commit_here() {
 # also fetches the one it uses if that synced commit isn't here: it may
 # be on no branch of an upstream it had, e.g. after a force-push, and
 # fetch_upstream fetches it by its hash. Fails, saying why, if one can't
-# be fetched, or if a merge would use one that wasn't.
+# be fetched, if the synced commit is on none of them, or if a merge would
+# use one that wasn't.
 reload_splice_upstream() {
   local path="$1" branch="$2" verb="$3" names=() name old_urls=() url entries=() i used_is_new=""
   read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
@@ -234,7 +235,13 @@ reload_splice_upstream() {
     for i in "${!entries[@]}"; do
       print_fetch_output "$i"
     done
-    [[ ${#FETCH_FAILURES[@]} -eq 0 ]]
+    [[ ${#FETCH_FAILURES[@]} -eq 0 ]] || return 1
+    # A fetch by hash fails quietly when no upstream has the commit any
+    # more, e.g. after a gc.
+    if ! synced_commit_here "$path"; then
+      log_err "$path: its synced commit $(splice_config "$path" commit | cut -c1-7), from a pull above, isn't on its upstream any more"
+      return 1
+    fi
   elif [[ -n "$used_is_new" ]] && { ! splice_fetched "$path" || ! synced_commit_here "$path"; }; then
     log_warn "$path: not fetched yet -- run 'git splice fetch $(upstream_option "$path")$path' first"
     return 1
