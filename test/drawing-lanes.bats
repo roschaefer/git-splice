@@ -35,18 +35,18 @@ edit_drawing() {
   [ "$output" = "!!   the monorepo has 2 splices: draw a lane for each one the drawing shows, labelled with its folder, e.g. vendor/a/" ]
 }
 
-@test "drawing lanes: a lane that names no splice, and the boxes in it" {
+@test "drawing lanes: a lane that names no splice" {
   edit_drawing -u '//mxCell[@id="lane_b"]/@value' -v vendor/x/
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   the lane vendor/x/ isn't a splice of the monorepo" ]
-  [[ "$output" == *"!!   T is in no lane: draw it in the lane of its splice"* ]]
 }
 
-@test "drawing lanes: a box in the wrong lane names the right commit" {
+@test "drawing lanes: a lane inside another is a folder inside that one" {
   edit_drawing -u '//mxCell[@id="lane_b"]/@value' -v vendor/a/ -u '//mxCell[@id="lane_a"]/@value' -v vendor/a/b/
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the lane vendor/a/ is drawn inside vendor/a/b/, but its folder isn't inside that one" ]
   [[ "$output" == *"!!   T points at m, the code says l"* ]]
 }
 

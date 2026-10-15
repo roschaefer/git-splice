@@ -19,7 +19,7 @@ the upstream doesn't have.
 The drawing names the monorepo's commits a (`add vendor/a`) and s (the
 squash merge), and the upstream's k (`seed`, T) and f
 (`upstream feature work`). s records U(H) = f, but B is a, so R copies s
-onto f.
+onto f. T lacks f and s', so they're dashed.
 
 ## Output
 

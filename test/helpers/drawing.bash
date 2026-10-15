@@ -19,15 +19,16 @@
 #   - A lane, a shape labelled with a splice's folder, e.g. "vendor/a/",
 #     holds that splice's upstream commits and boxes. A monorepo with
 #     several splices needs one per splice it draws; with one, lanes are
-#     optional.
+#     optional. A nested splice's lane is drawn inside the lane of the
+#     splice above it, and a shape belongs to the innermost lane around it.
 #   - A frame labelled "x:<path>/.splice", Git's name for that file in
 #     commit x, holds commit x, and usually the box U(x). <path> is the
 #     splice's folder in x's repository: in the monorepo, or in the
 #     upstream of the lane x is in. The generic "path" stands for the
 #     splice of the lane the frame is in.
-#   - Dashed commits and arrows into them exist only as the rebuild: in
-#     R's history, but on no fetched upstream branch, T or another, nor in
-#     the history of a commit a .splice recorded.
+#   - Dashed commits and arrows into them are a splice's commits that T's
+#     history lacks: R's copies of monorepo commits, but also commits on
+#     another upstream branch, or ones a rewrite of the upstream removed.
 #
 # Labels that aren't subjects, like the commit add_splice makes, are given
 # as label=rev arguments, revs of the monorepo.
@@ -133,10 +134,23 @@ check_drawing() {
       return 1
     fi
   fi
+  # A shape is in the innermost lane around it. Lanes nest as their
+  # folders do.
+  local o area smallest
+  for l in "${lanes[@]}"; do
+    for o in "${lanes[@]}"; do
+      [[ "$o" != "$l" ]] && inside "$l" "$o" && [[ "${value[$l]}" != "${value[$o]}"?* ]] &&
+        errors+=("the lane ${value[$l]} is drawn inside ${value[$o]}, but its folder isn't inside that one")
+    done
+  done
   for id in "${commits[@]}" "${boxes[@]}" "${frames[@]}"; do
-    lane_of[$id]=""
+    lane_of[$id]="" smallest=""
     for l in "${lanes[@]}"; do
-      [[ -n "${is_splice[${value[$l]%/}]:-}" ]] && inside "$id" "$l" && lane_of[$id]="${value[$l]%/}"
+      [[ -n "${is_splice[${value[$l]%/}]:-}" ]] && inside "$id" "$l" || continue
+      area=$(awk -v w="${gw[$l]}" -v h="${gh[$l]}" 'BEGIN { print w * h }')
+      if [[ -z "$smallest" ]] || awk -v a="$area" -v b="$smallest" 'BEGIN { exit !(a < b) }'; then
+        lane_of[$id]="${value[$l]%/}" smallest="$area"
+      fi
     done
   done
 
@@ -226,26 +240,20 @@ check_drawing() {
       errors+=("${value[$id]} is in the lane ${lane_of[$id]}/, but isn't in that splice's upstream history or R")
   done
 
-  # A commit exists only as the rebuild of splice $2 if R has it, and
-  # neither a fetched upstream branch nor a recorded commit's history does.
-  only_rebuilt() {
-    local s
+  # A commit of splice $2 is dashed if T's history lacks it.
+  beyond_t() {
     [[ -n "$2" ]] || return 1
-    git merge-base --is-ancestor "$1" "${truth[$2|R]}" || return 1
-    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth[$2|key]}/")" ]] || return 1
-    for s in ${truth[$2|synced]}; do
-      ! git merge-base --is-ancestor "$1" "$s" 2>/dev/null || return 1
-    done
-    ! git merge-base --is-ancestor "$1" HEAD 2>/dev/null
+    ! git merge-base --is-ancestor "$1" HEAD 2>/dev/null || return 1
+    [[ -z "${truth[$2|T]}" ]] || ! git merge-base --is-ancestor "$1" "${truth[$2|T]}"
   }
   dashed() { [[ ";${style[$1]};" == *";dashed=1;"* ]]; }
 
   for id in "${commits[@]}"; do
     [[ -n "${commit_of[$id]:-}" ]] || continue
-    if only_rebuilt "${commit_of[$id]}" "${splice_of[$id]}"; then
-      dashed "$id" || errors+=("${value[$id]} is solid, but only the rebuild has it: dash it")
+    if beyond_t "${commit_of[$id]}" "${splice_of[$id]}"; then
+      dashed "$id" || errors+=("${value[$id]} is solid, but T lacks it: dash it")
     else
-      dashed "$id" && errors+=("${value[$id]} is dashed, but it exists outside the rebuild: draw it solid")
+      dashed "$id" && errors+=("${value[$id]} is dashed, but T has it: draw it solid")
     fi
   done
 
@@ -363,10 +371,10 @@ check_drawing() {
     drawn_edges+="$s>$t "
     if ! git rev-parse "${commit_of[$t]}^@" | grep -qx "${commit_of[$s]}"; then
       errors+=("${value[$s]} -> ${value[$t]}: ${value[$s]} isn't a parent of ${value[$t]}")
-    elif only_rebuilt "${commit_of[$t]}" "${splice_of[$t]}"; then
-      dashed "$id" || errors+=("${value[$s]} -> ${value[$t]} is solid, but ${value[$t]} exists only as the rebuild: dash it")
+    elif beyond_t "${commit_of[$t]}" "${splice_of[$t]}"; then
+      dashed "$id" || errors+=("${value[$s]} -> ${value[$t]} is solid, but T lacks ${value[$t]}: dash it")
     else
-      dashed "$id" && errors+=("${value[$s]} -> ${value[$t]} is dashed, but ${value[$t]} exists outside the rebuild: draw it solid")
+      dashed "$id" && errors+=("${value[$s]} -> ${value[$t]} is dashed, but T has ${value[$t]}: draw it solid")
     fi
   done
   # Every box points at one commit.

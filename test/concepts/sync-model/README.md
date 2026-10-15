@@ -50,7 +50,7 @@ without `.splice`, the same author, dates and message, on top of U(B).
 Circles are commits, newest on top, and boxes point at them. A frame
 shows what `path/.splice` records in the commit it holds. b and d change
 `path/`, so the rebuild copies them as b' and d', on top of U(B); c doesn't,
-so it's left out. The copies exist only in R, so they're dashed
+so it's left out. T lacks the copies, so they're dashed
 ([scenario](../../scenarios/sync-model/README.md)).
 
 <div align="center">

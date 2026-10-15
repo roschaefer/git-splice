@@ -39,14 +39,14 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@source="n" and @target="e_"]/@style' -v 'endArrow=block;endFill=1;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   n -> e' is solid, but e' exists only as the rebuild: dash it" ]
+  [ "$output" = "!!   n -> e' is solid, but T lacks e': dash it" ]
 }
 
 @test "drawing: a solid rebuilt commit is to be dashed" {
   edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   b' is solid, but only the rebuild has it: dash it" ]
+  [ "$output" = "!!   b' is solid, but T lacks it: dash it" ]
 }
 
 @test "drawing: a missing parent arrow is named" {

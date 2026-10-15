@@ -20,11 +20,12 @@ explains why both repositories agree on b's state.
 
 <div align="center">
 
-![The monorepo's a; in the lane vendor/a/, a's upstream commits k and l; in vendor/a/b/, b's upstream commit m, which l's b/.splice records](nested-splices.drawio.svg)
+![The monorepo's a; in the lane vendor/a/, a's upstream commits k and l; in vendor/a/b/, drawn inside it, b's upstream commit m, which l's b/.splice records](nested-splices.drawio.svg)
 
 </div>
 
-Each splice has a lane, labelled with its folder. The drawing names the
+Each splice has a lane, labelled with its folder, and the lanes nest
+as the folders do. The drawing names the
 monorepo's a (`add vendor/a`), a's upstream commits k (`a seed`) and l
 (`add b`), and b's upstream commit m (`b seed`). l's `b/.splice` records
 m: U(l) = m, the same commit as the monorepo's U(H) for `vendor/a/b/`.

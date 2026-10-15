@@ -20,7 +20,8 @@ pulled upstream commit: a push sends only the local commit.
 
 The drawing names the monorepo's commits a (`add vendor/a`), s (the
 squash merge) and c (`local change`), and the upstream's k (`seed`, T)
-and f (`upstream feature work`).
+and f (`upstream feature work`). f is on the upstream's `feature`
+branch, which T, its `main`, lacks: so f is dashed, like R's copy c'.
 
 ## Output
 
