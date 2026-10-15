@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/roschaefer/git-splice/compare/v0.7.0...v0.8.0) (2026-10-15)
+
+
+### Features
+
+* **clone:** --from-submodule --recursive converts nested submodules too ([#158](https://github.com/roschaefer/git-splice/issues/158)) ([66fcd54](https://github.com/roschaefer/git-splice/commit/66fcd545494c4790b5c17cad7ad2ff5bfe5466c2)), closes [#153](https://github.com/roschaefer/git-splice/issues/153)
+
 ## [0.7.0](https://github.com/roschaefer/git-splice/compare/v0.6.0...v0.7.0) (2026-10-15)
 
 
