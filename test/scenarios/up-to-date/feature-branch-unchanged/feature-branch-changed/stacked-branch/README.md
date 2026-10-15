@@ -9,17 +9,17 @@ splice didn't change on the stacked branch.
 
 </div>
 
-- **Upstream**: k (`seed`) on `main`, and b', the copy of b, on `feature`
+- **Upstream**: *k* (`seed`) on `main`, and *b'*, the copy of *b*, on `feature`
   from the push.
-- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k. On `feature`,
-  a local commit b (`local change`) under `vendor/a/`, pushed; then the
-  branch `stacked` on top, with a commit c (`app work`) outside
+- **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k*. On `feature`,
+  a local commit *b* (`local change`) under `vendor/a/`, pushed; then the
+  branch `stacked` on top, with a commit *c* (`app work`) outside
   `vendor/a/` only.
 
 Upstream has no `stacked` branch, so there's no T, and `git-splice`
 compares with upstream's default branch, as a PR from `stacked` would. R
-is b', the commit `feature` has, so it's solid. `main` lacks it, so the
-splice counts as new, and `push` creates `stacked` upstream at b', the
+is *b'*, the commit `feature` has, so it's solid. `main` lacks it, so the
+splice counts as new, and `push` creates `stacked` upstream at *b'*, the
 same commit as `feature`. A PR from it into
 `main` would show the same change as the PR from `feature`; one into
 `feature` would be empty. That's the cost of comparing with the default

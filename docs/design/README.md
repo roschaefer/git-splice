@@ -91,7 +91,7 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a/`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
-| **synced commit** (U(H)) | The upstream commit `.splice` records at HEAD: the one last spliced in. U(X) is the one a monorepo commit X's `.splice` records. |
+| **synced commit** (U(H)) | The upstream commit `.splice` records at HEAD: the one last spliced in. U(X) is the one a monorepo commit *X*'s `.splice` records. |
 | **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U(H). |
 | **boundary** (B) | Where the rebuild starts: the newest last sync, or one before it, whose folder is the synced commit it recorded. Usually the last sync. At the mount, where the splice starts, it's the mount, which the rebuild copies too where its folder isn't the synced commit, e.g. after `init`; for a nested splice, it can be the last sync of the splice above. Derived, never stored. |
 | **start** (U(B)) | The synced commit the boundary records, and the boundary's folder. R starts on it. Usually U(H). |
@@ -384,15 +384,15 @@ the splice reads as diverged, or as unrelated history.
 A push sends the splice's history since the last sync, rebuilt as upstream
 commits. `rebuild_splice` is a function of HEAD alone:
 
-1. **Find the last sync.** L is
+1. **Find the last sync.** *L* is
    `git log --first-parent -1 -- <path>/.splice`. Every `clone`, `init`
    and pull writes such a commit, and no rebase or squash merge can remove
-   all of them. U(L) is the synced commit recorded at L.
-2. **Start at U(L).** If L's folder (without `.splice`) equals U(L)'s tree, the
-   rebuild continues from U(L), and L is the boundary B. If it differs, a
+   all of them. U(L) is the synced commit recorded at *L*.
+2. **Start at U(L).** If *L*'s folder (without `.splice`) equals U(L)'s tree, the
+   rebuild continues from U(L), and *L* is the boundary B. If it differs, a
    pull merged a divergence, or a squash merge mixed local edits into the
-   commit that changed `.splice`. Then L is rebuilt as a commit with L's
-   folder, whose parents are the rebuild of L's first parent
+   commit that changed `.splice`. Then *L* is rebuilt as a commit with *L*'s
+   folder, whose parents are the rebuild of *L*'s first parent
    (recursively) and U(L). Local commits that were never pushed keep their
    identity, and upstream gets them joined with its own by a merge, as a
    plain `git pull` would have made. Where that recursive rebuild is a
@@ -400,8 +400,8 @@ commits. `rebuild_splice` is a function of HEAD alone:
    whose folder equals its synced commit, U(B)
    ([sync model](../../test/concepts/sync-model/README.md)), and the
    recursion only costs something after pulls of divergences.
-   If L is the splice's mount, its first parent isn't rebuilt at all, and
-   L goes on top of U(L) (see below). Without U(L), e.g. after `init`, the
+   If *L* is the splice's mount, its first parent isn't rebuilt at all, and
+   *L* goes on top of U(L) (see below). Without U(L), e.g. after `init`, the
    rebuild starts at the mount instead, as a root commit, and the mount
    is B.
 3. **Copy each commit.** For each commit in

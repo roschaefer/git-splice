@@ -13,9 +13,9 @@ named as in the drawing there:
 
 </div>
 
-- **Monorepo (`vendor/a/`)**: cloned at k in a, then b and d change the
-  folder, c changes another one. `git splice pull` then merges n in, as e.
-- **Upstream**: k, then l, m and n. It has never seen b or d.
+- **Monorepo (`vendor/a/`)**: cloned at *k* in *a*, then *b* and *d* change the
+  folder, *c* changes another one. `git splice pull` then merges *n* in, as *e*.
+- **Upstream**: *k*, then *l*, *m* and *n*. It has never seen *b* or *d*.
 
 ## Output
 
@@ -31,7 +31,7 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_after_pull
 ```
 
-The drawing shows what Git and `git-splice` say about it. a and e aren't
+The drawing shows what Git and `git-splice` say about it. *a* and *e* aren't
 subjects the drawing can show, so they're named by their place in the
 history ([`check_drawing`](../../../../check-drawing/)):
 
@@ -40,7 +40,7 @@ $ check_drawing "$TESTDIR/after-pull.drawio.svg" a=HEAD~4 e=HEAD
 ok   after-pull.drawio.svg: 12 commits, 17 arrows, 6 boxes, 2 frames, 1 lanes
 ```
 
-The monorepo, with e on top. a is the clone, `add vendor/a`:
+The monorepo, with *e* on top. *a* is the clone, `add vendor/a`:
 
 ```scrut
 $ git log --format=%s
@@ -62,7 +62,7 @@ ae8b31f k
 
 ### U(H)
 
-e is the newest commit that changed `.splice`. It records n as U(H):
+*e* is the newest commit that changed `.splice`. It records *n* as U(H):
 
 ```scrut
 $ git log --first-parent -1 --format=%s -- vendor/a/.splice
@@ -76,8 +76,8 @@ df79a48 n
 
 ### B
 
-But e's folder isn't n: it has b's and d's files too, which the upstream
-lacks. A rebuild starting at e would send them as one commit, under e's
+But *e*'s folder isn't *n*: it has *b*'s and *d*'s files too, which the upstream
+lacks. A rebuild starting at *e* would send them as one commit, under *e*'s
 message:
 
 ```scrut
@@ -87,7 +87,7 @@ $ git diff --stat "$(git config --file vendor/a/.splice splice.commit)" HEAD:ven
  2 files changed, 2 insertions(+)
 ```
 
-So the rebuild goes back to the commit before e that changed `.splice`.
+So the rebuild goes back to the commit before *e* that changed `.splice`.
 All of them, newest first:
 
 ```scrut
@@ -96,14 +96,14 @@ splice: pull vendor/a from main at df79a48
 add vendor/a
 ```
 
-a's folder is the commit it recorded, k. It's `HEAD~4`:
+*a*'s folder is the commit it recorded, *k*. It's `HEAD~4`:
 
 ```scrut
 $ git diff --quiet "$(git config --blob 'HEAD~4:vendor/a/.splice' splice.commit)" HEAD~4:vendor/a -- ':!.splice' && echo "a's folder is k"
 a's folder is k
 ```
 
-So a is B, what `git splice boundary` prints, and U(B) = k:
+So *a* is B, what `git splice boundary` prints, and U(B) = *k*:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"
@@ -122,10 +122,10 @@ b
 
 ### R
 
-From B, the rebuild copies b and d on top of U(B) = k, as b' and d', and
-skips c. Then it copies e as e', a merge of d' and n, with e's message.
-`log --graph` draws R and T down to n, where they meet. k shows up as
-the parent of b':
+From B, the rebuild copies *b* and *d* on top of U(B) = *k*, as *b'* and *d'*, and
+skips *c*. Then it copies *e* as *e'*, a merge of *d'* and *n*, with *e*'s message.
+`log --graph` draws R and T down to *n*, where they meet. *k* shows up as
+the parent of *b'*:
 
 ```scrut
 $ git splice log --graph vendor/a
@@ -141,7 +141,7 @@ o df79a48 (T) n  (Test <test@example.com>)
 
 ### After the push
 
-The push sends b', d' and e', and T moves to e':
+The push sends *b'*, *d'* and *e'*, and T moves to *e'*:
 
 ```scrut
 $ git splice push vendor/a
@@ -149,8 +149,8 @@ ok   vendor/a: pushed 854864a to main
 ```
 
 A pull right after it has nothing to bring in, and leaves `.splice` as it
-was. So B is still a: every rebuild still walks from a, and rebuilds b',
-d' and e' with the same hashes.
+was. So B is still *a*: every rebuild still walks from *a*, and rebuilds *b'*,
+*d'* and *e'* with the same hashes.
 
 ```scrut
 $ git splice pull vendor/a
@@ -165,7 +165,7 @@ add vendor/a
 
 ### After a bump
 
-`git splice pull --bump` records e' as U(H), in a new commit:
+`git splice pull --bump` records *e'* as U(H), in a new commit:
 
 ```scrut
 $ git splice pull --bump vendor/a
@@ -173,7 +173,7 @@ ok   vendor/a fetched
 ok   vendor/a: bumped the synced commit to 854864a
 ```
 
-Its folder is e', so it's the new B, U(B) = e', and rebuilds start there
+Its folder is *e'*, so it's the new B, U(B) = *e'*, and rebuilds start there
 ([pushed-and-bumped](pushed-and-bumped/README.md) draws this state):
 
 ```scrut

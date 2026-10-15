@@ -6,10 +6,10 @@ upstream into the monorepo brings that `.splice` along, so `vendor/a/b/`
 is a splice in the monorepo too.
 
 - **b's upstream** (`$UPSTREAM-b.git`, reached as
-  `https://git.example.com/b.git`): m (`b seed`).
-- **a's upstream** (`$UPSTREAM`): k (`a seed`), then l (`add b`), which
+  `https://git.example.com/b.git`): *m* (`b seed`).
+- **a's upstream** (`$UPSTREAM`): *k* (`a seed`), then *l* (`add b`), which
   spliced b's upstream in at `b/`.
-- **Monorepo**: a (`add vendor/a`) cloned l into `vendor/a/`, and with it
+- **Monorepo**: *a* (`add vendor/a`) cloned *l* into `vendor/a/`, and with it
   `vendor/a/b/`, from b's upstream. Both are fetched.
 
 Each push sends its folder without its own `.splice`. So a's push sends
@@ -25,7 +25,7 @@ explains why both repositories agree on b's state.
 </div>
 
 Each splice has a lane, labelled with its folder, and the lanes nest
-as the folders do. l's `b/.splice` records m: U(l) = m, the same commit
+as the folders do. *l*'s `b/.splice` records *m*: U(l) = *m*, the same commit
 as the monorepo's U(H) for `vendor/a/b/`.
 
 ## Output

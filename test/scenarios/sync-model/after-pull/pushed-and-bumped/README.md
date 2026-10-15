@@ -9,15 +9,15 @@ The [parent scenario](../README.md) after `git splice push` and a
 
 </div>
 
-- **Monorepo (`vendor/a/`)**: the parent scenario's commits, then f, the
-  bump, which records e' in `.splice` and changes nothing else.
-- **Upstream**: k, l, m and n, then the pushed b', d' and e'.
+- **Monorepo (`vendor/a/`)**: the parent scenario's commits, then *f*, the
+  bump, which records *e'* in `.splice` and changes nothing else.
+- **Upstream**: *k*, *l*, *m* and *n*, then the pushed *b'*, *d'* and *e'*.
 
-The push made b', d' and e' upstream commits, so they're drawn solid.
-The bump made f the new B: its folder is e', the commit it records. So
-the rebuild starts at f, and has nothing to add: R = T = U(H) = U(B) = e'.
-Each frame shows a sync point along the way: U(a) = k from the clone,
-U(e) = n from the pull, and U(f) = e' from the bump.
+The push made *b'*, *d'* and *e'* upstream commits, so they're drawn solid.
+The bump made *f* the new B: its folder is *e'*, the commit it records. So
+the rebuild starts at *f*, and has nothing to add: R = T = U(H) = U(B) = *e'*.
+Each frame shows a sync point along the way: U(a) = *k* from the clone,
+U(e) = *n* from the pull, and U(f) = *e'* from the bump.
 
 ## Output
 
@@ -33,7 +33,7 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 $ build_scenario scenario_pushed_and_bumped
 ```
 
-The drawing shows what Git and `git-splice` say about it. a, e and f
+The drawing shows what Git and `git-splice` say about it. *a*, *e* and *f*
 aren't subjects the drawing can show, so they're named by their place in
 the history ([`check_drawing`](../../../../../check-drawing/)):
 
@@ -42,7 +42,7 @@ $ check_drawing "$TESTDIR/pushed-and-bumped.drawio.svg" a=HEAD~5 e=HEAD~1 f=HEAD
 ok   pushed-and-bumped.drawio.svg: 13 commits, 17 arrows, 5 boxes, 3 frames, 1 lanes
 ```
 
-The monorepo, with f on top:
+The monorepo, with *f* on top:
 
 ```scrut
 $ git log --format=%s
@@ -55,7 +55,7 @@ add vendor/a
 initial commit
 ```
 
-The upstream has the pushed commits, with the messages of b, d and e:
+The upstream has the pushed commits, with the messages of *b*, *d* and *e*:
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s main
@@ -70,7 +70,7 @@ $ git -C "$UPSTREAM" log --graph --format=%s main
 * k
 ```
 
-f is B:
+*f* is B:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/a)"

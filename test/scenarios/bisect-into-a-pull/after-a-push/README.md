@@ -1,14 +1,14 @@
 # Scenario: after-a-push
 
 The [parent scenario's](../README.md) recipe takes the upstream commits
-of a pull X from `.splice`: U(X^) in X's first parent, U(X) in X. That's
-only right if X merged from U(X^). After a push, it didn't.
+of a pull *X* from `.splice`: U(X^) in *X*'s first parent, U(X) in *X*. That's
+only right if *X* merged from U(X^). After a push, it didn't.
 
-- **Monorepo**: the parent scenario, with its pull now named c, and d
-  (`add notes`). Then e, a local change in `vendor/a/`, pushed with
-  `git splice push`. Then X, a pull of one more upstream commit.
-- **Upstream**: the parent scenario's commits up to n (`fix a typo`),
-  e', the pushed copy of e, and o (`add upstream.txt`).
+- **Monorepo**: the parent scenario, with its pull now named *c*, and *d*
+  (`add notes`). Then *e*, a local change in `vendor/a/`, pushed with
+  `git splice push`. Then *X*, a pull of one more upstream commit.
+- **Upstream**: the parent scenario's commits up to *n* (`fix a typo`),
+  *e'*, the pushed copy of *e*, and *o* (`add upstream.txt`).
 
 <div align="center">
 
@@ -16,7 +16,7 @@ only right if X merged from U(X^). After a push, it didn't.
 
 </div>
 
-U(e)..U(X) is e' and o, though X only brought in o.
+U(e)..U(X) is *e'* and *o*, though *X* only brought in *o*.
 
 ## Output
 
@@ -52,7 +52,7 @@ add vendor/a
 initial commit
 ```
 
-X is the newest pull. The recipe's range has the pushed commit too:
+*X* is the newest pull. The recipe's range has the pushed commit too:
 
 ```scrut
 $ X=HEAD && U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" && U2="$(git config --blob "$X:vendor/a/.splice" splice.commit)" && git log --format=%s "$U1..$U2"
@@ -60,11 +60,11 @@ add upstream.txt
 a local change in vendor/a
 ```
 
-A push doesn't write to the monorepo, so `.splice` in X's first parent
+A push doesn't write to the monorepo, so `.splice` in *X*'s first parent
 still names the commit of the first pull
 ([pushed-then-pulled](../../up-to-date/push-ahead/pushed-then-pulled/README.md)).
-X merged from the pushed commit, and only brought in `add upstream.txt`.
-The pushed commit's change was in the monorepo before X:
+*X* merged from the pushed commit, and only brought in `add upstream.txt`.
+The pushed commit's change was in the monorepo before *X*:
 
 ```scrut
 $ git show "$X^:vendor/a/file.txt"
@@ -75,12 +75,12 @@ a local line
 So the second bisect tests a commit the monorepo already had. Bisect
 assumes one change from good to bad in the range. If the pushed commit
 broke the test and a later one fixed it, bisect can name the pushed
-commit, though X didn't bring it in.
+commit, though *X* didn't bring it in.
 
 A splice made with `git splice init` and pushed has no synced commit at
 all, so U(X^) is empty and the recipe stops at its first command.
 
-In both cases, the lower bound is where X's merge started: where the
+In both cases, the lower bound is where *X*'s merge started: where the
 monorepo's history, rebuilt as upstream commits, meets the upstream's.
 Only `git-splice` computes that, so plain Git can't get it from `.splice`.
 [#109](https://github.com/roschaefer/git-splice/issues/109) proposes

@@ -3,11 +3,11 @@
 A monorepo with five splices, each in a different state, on the
 monorepo's default branch.
 
-- **Monorepo (`libs/*`)**: a to e add `cli`, `http`, `parser`, `store`
+- **Monorepo (`libs/*`)**: *a* to *e* add `cli`, `http`, `parser`, `store`
   and `theme`, each from its own upstream's `seed`. Then a local commit
-  in `parser`, f, and one in `store`, g.
-- **Upstreams**: two new commits in `http`'s, m and n, one in
-  `store`'s, o. `theme`'s default branch is `master`.
+  in `parser`, *f*, and one in `store`, *g*.
+- **Upstreams**: two new commits in `http`'s, *m* and *n*, one in
+  `store`'s, *o*. `theme`'s default branch is `master`.
 
 `status` gives every splice a line. Those that need something come first,
 most urgent first: diverged, then behind, then ahead. Those with nothing
@@ -25,8 +25,8 @@ The other documents here show the same monorepo
 
 </div>
 
-Each splice has a lane, labelled with its folder. f' and g' are R's
-copies of f and g.
+Each splice has a lane, labelled with its folder. *f'* and *g'* are R's
+copies of *f* and *g*.
 
 ## Output
 

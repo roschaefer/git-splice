@@ -1,14 +1,14 @@
 # Scenario: bisect-into-a-pull
 
-`git bisect` in the monorepo ends at a pull X. A pull splices upstream
+`git bisect` in the monorepo ends at a pull *X*. A pull splices upstream
 changes in as one commit, so the bug came in with one of the upstream
 commits squashed into it. Which one?
 
-- **Upstream**: k (`seed`), then three commits: l (`add config.txt`),
-  m (`log at debug level`) and n (`fix a typo`).
-- **Monorepo**: a (`add vendor/a`) spliced k in. Then b added
+- **Upstream**: *k* (`seed`), then three commits: *l* (`add config.txt`),
+  *m* (`log at debug level`) and *n* (`fix a typo`).
+- **Monorepo**: *a* (`add vendor/a`) spliced *k* in. Then *b* added
   `check.sh`, a test outside the splice that fails when the library logs
-  at debug level. Then X, a pull of l, m and n, and one more commit, d
+  at debug level. Then *X*, a pull of *l*, *m* and *n*, and one more commit, *d*
   (`add notes`).
 
 The upstream's own history has no test for it: the bug only shows in
@@ -21,8 +21,8 @@ it was right before the pull.
 
 </div>
 
-X merged from U(b) = k and records U(X) = n, so the pulled commits are
-U(b)..U(X): l, m and n.
+*X* merged from U(b) = *k* and records U(X) = *n*, so the pulled commits are
+U(b)..U(X): *l*, *m* and *n*.
 
 ## Output
 
@@ -71,7 +71,7 @@ first bad commit: splice: pull vendor/a from main at 803779d
  3 files changed, 3 insertions(+), 2 deletions(-)
 ```
 
-The first bad commit is the pull X. It has the changes of three upstream
+The first bad commit is the pull *X*. It has the changes of three upstream
 commits in one.
 
 ```scrut
@@ -80,9 +80,9 @@ $ X="$(git rev-parse refs/bisect/bad)" && git bisect reset >/dev/null
 
 ### The upstream commits in the pull
 
-`.splice` records the synced commit: U(X^) before the pull, in X's
-first parent, and U(X) after it, in X, here saved as `U1` and `U2`. The
-commits between them came in with X.
+`.splice` records the synced commit: U(X^) before the pull, in *X*'s
+first parent, and U(X) after it, in *X*, here saved as `U1` and `U2`. The
+commits between them came in with *X*.
 The fetched upstream refs have them:
 
 ```scrut
@@ -95,8 +95,8 @@ $ U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" && U2="$(git co
 [#109](https://github.com/roschaefer/git-splice/issues/109) proposes
 `git splice show <commit>` to print them.
 
-That range is only right if nothing was pushed since the pull before X.
-A push doesn't write to `.splice`, so U(X^) then is older than where X
+That range is only right if nothing was pushed since the pull before *X*.
+A push doesn't write to `.splice`, so U(X^) then is older than where *X*
 merged from, and the range has commits the monorepo already had
 ([after-a-push](after-a-push/README.md)).
 
@@ -139,8 +139,8 @@ alone, `git bisect run` in `../lib` without `../before` is enough.
 The copy leaves files in the folder that a candidate doesn't have, e.g.
 ones an upstream commit deleted. It also only writes files: the index
 of `../before` doesn't change, so a test that asks Git, e.g. with
-`git ls-files` or `git grep`, doesn't see files a candidate added. And if X merged local changes into the
+`git ls-files` or `git grep`, doesn't see files a candidate added. And if *X* merged local changes into the
 folder, the candidates are tested without them.
 [#110](https://github.com/roschaefer/git-splice/issues/110) proposes
-`git splice expand`, which would turn X into one monorepo commit per
+`git splice expand`, which would turn *X* into one monorepo commit per
 upstream commit, so that `git bisect` continues in the monorepo itself.

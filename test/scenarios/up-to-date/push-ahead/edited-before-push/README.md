@@ -7,9 +7,9 @@ monorepo's history, which still has the original commit, so a `pull`
 right after the push records the edited commit as the synced commit. From there on, the monorepo
 builds on the edited commit.
 
-- **Monorepo (`vendor/a/`)**: a (`add vendor/a`) cloned k, then the
-  unpushed commit b (`fix, see INTERNAL-123`).
-- **Upstream**: k (`seed`).
+- **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k*, then the
+  unpushed commit *b* (`fix, see INTERNAL-123`).
+- **Upstream**: *k* (`seed`).
 
 <div align="center">
 
@@ -17,7 +17,7 @@ builds on the edited commit.
 
 </div>
 
-R is b', the copy of b that the recipe edits.
+R is *b'*, the copy of *b* that the recipe edits.
 
 The recipe:
 
