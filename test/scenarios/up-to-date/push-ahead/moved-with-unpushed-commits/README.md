@@ -66,7 +66,7 @@ The drawing shows what Git and `git-splice` say about it now
 
 ```scrut
 $ check_drawing "$TESTDIR/moved-with-unpushed-commits.drawio.svg" a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/main
-ok   moved-with-unpushed-commits.drawio.svg: 5 commits, 6 arrows, 3 boxes, 0 frames, 1 lanes
+ok   moved-with-unpushed-commits.drawio.svg: 5 commits, 6 arrows, 3 boxes, 1 lanes
 ```
 
 Now the move is the only commit to push. The local commit is gone from the

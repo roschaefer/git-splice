@@ -19,7 +19,7 @@ both.
 </div>
 
 *p* and *q* each change the line of `.splice` that records the synced
-commit, from *k* to *n* and to *l*: the frames show what each one records.
+commit, from *k* to *n* and to *l*: U(p) and U(q) show what each one records.
 
 To avoid this, pull the monorepo before you pull a splice. To get out of
 it, resolve the conflict as below, or [redo the pull](redo-the-pull.md).
@@ -46,7 +46,7 @@ commit named by its place in the history
 
 ```scrut
 $ check_drawing "$TESTDIR/concurrent-pulls.drawio.svg" a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/main~2 l=refs/splices/a/main~1 n=refs/splices/a/main
-ok   concurrent-pulls.drawio.svg: 6 commits, 8 arrows, 4 boxes, 2 frames, 1 lanes
+ok   concurrent-pulls.drawio.svg: 6 commits, 7 arrows, 3 boxes, 1 lanes
 ```
 
 ```scrut
