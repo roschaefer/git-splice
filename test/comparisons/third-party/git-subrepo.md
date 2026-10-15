@@ -336,23 +336,62 @@ On branch main
   up to date  vendor/lib
 ```
 
+### After `git mv`
+
+A move changes the key too. In git-subrepo's monorepo, `.gitrepo` moves
+with the folder, and the next fetch starts new refs under the new path,
+for the upstream branch `feature` that the squash merge left in
+`.gitrepo`. The old refs stay behind:
+
+```scrut
+$ cd ../monorepo && mkdir libs && git mv vendor/lib libs/lib && git commit -q -m "move the library" && git subrepo fetch libs/lib
+Fetched 'libs/lib' from 'https://git.example.com/lib.git' (feature).
+```
+
+```scrut
+$ git for-each-ref --format='%(refname)' refs/subrepo
+refs/subrepo/libs/lib/fetch
+refs/subrepo/vendor/lib/branch
+refs/subrepo/vendor/lib/commit
+refs/subrepo/vendor/lib/fetch
+refs/subrepo/vendor/lib/push
+```
+
+In `git-splice`'s, the move leaves the upstream's refs where they are:
+
+```scrut
+$ cd ../splice-monorepo && mkdir libs && git mv vendor/lib libs/lib && git commit -q -m "move the library" && git splice fetch libs/lib
+ok   libs/lib fetched
+```
+
+```scrut
+$ git for-each-ref --format='%(refname)' refs/splices
+refs/splices/lib/feature
+refs/splices/lib/main
+refs/splices/other/main
+```
+
 ## Where git-subrepo is different
 
 - **Explicit vs. implicit upstream branches.** `.gitrepo` names the
   upstream branch, so every monorepo branch syncs with that one, say
   `main` or a release branch, until `--branch` changes it, and a merge
-  carries the change along. A splice names none: each monorepo branch
-  syncs with the upstream branch of its own name, the default branch with
-  the upstream's.
+  carries the change along
+  ([git-subrepo#671](https://github.com/ingydotnet/git-subrepo/issues/671)).
+  A splice names none: each monorepo branch syncs with the upstream branch
+  of its own name, the default branch with the upstream's.
 - **A push commits on the monorepo.** It records the pushed commit and the
   monorepo commit it came from in `.gitrepo`, so the monorepo's history
-  shows every push, and a squash merge or rebase can strand that record.
+  shows every push, and a squash merge or rebase can strand that record
+  ([git-subrepo#464](https://github.com/ingydotnet/git-subrepo/issues/464),
+  [#600](https://github.com/ingydotnet/git-subrepo/issues/600)).
   A splice's push writes nothing to the monorepo; `.splice` changes on
   `clone` and `pull` only.
 - **Fetched refs are keyed by folder, not by upstream.** Two branches
   that use the same folder for different upstreams share
   `refs/subrepo/<path>/`, and `status` shows whichever was fetched last.
-  `git-splice` keys its refs by the upstream's URL.
+  A `git mv` leaves the old path's refs behind. `git-splice` keys its refs
+  by the upstream's URL.
 
 ## In short
 
