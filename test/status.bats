@@ -164,6 +164,15 @@ EOF
   [ "${lines[1]}" = "  new, ahead 1  vendor/a  push creates the branch" ]
 }
 
+@test "status: a missing branch also counts the commits upstream's default branch has and it lacks, as a PR would" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  run cmd_status
+  [ "${lines[1]}" = "  new, ahead 1, behind 1  vendor/a  push creates the branch" ]
+}
+
 @test "status: says how to start without splices" {
   init_monorepo "$monorepo"
   cd "$monorepo"
@@ -255,7 +264,7 @@ EOF
   rebuild_splice() { die "vendor/a: synced commit isn't available locally"; }
   run cmd_status
   [ "$status" -eq 0 ]
-  [ "${lines[*]:1}" = "  ?? no upstream branch  vendor/a  could not count the commits upstream lacks" ]
+  [ "${lines[*]:1}" = "  ?? no upstream branch  vendor/a  could not compare with upstream's 'main'" ]
 }
 
 @test "status: shows the state without counts if they can't be counted" {

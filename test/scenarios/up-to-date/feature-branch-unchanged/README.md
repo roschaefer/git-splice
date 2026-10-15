@@ -7,9 +7,10 @@ change on it.
   `feature`, with no changes under `vendor/a/`.
 - **Upstream**: only `main`.
 
-`push` creates a branch upstream only if it publishes commits that no
-upstream branch has yet. Here upstream has every commit, so starting a
-feature branch doesn't spawn empty branches upstream.
+Without a `feature` branch upstream, `git-splice` compares with upstream's
+default branch, `main`, as a PR would. `push` creates the branch only if
+`main` lacks commits. Here it has every commit, so starting a feature
+branch doesn't spawn empty branches upstream.
 
 ## Output
 
@@ -34,5 +35,5 @@ On branch feature
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: nothing to push (upstream has no 'feature' branch, but has every commit)
+ok   vendor/a: nothing to push (upstream has no 'feature' branch, and 'main' has every commit)
 ```

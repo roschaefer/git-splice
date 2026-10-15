@@ -27,9 +27,9 @@ $ git switch -c feature
 Switched to a new branch 'feature'
 ```
 
-For each splice, `status` counts the commits that a push creating `feature`
-upstream would publish: those that no upstream branch has yet. Right after
-switching there are none.
+Without a `feature` branch upstream, `git-splice` compares each splice
+with upstream's default branch, as a PR from `feature` would. Right after
+switching, `main` has every commit.
 
 ```scrut
 $ git splice status
@@ -55,7 +55,7 @@ On branch feature
 ```
 
 Without an upstream branch there's no [T](../concepts/sync-model/README.md) to
-compare R with, so `diff` starts from the last commit upstream has:
+compare R with, so `diff` compares with upstream's `main`, as a PR would:
 
 ```scrut
 $ git splice diff
@@ -70,14 +70,15 @@ index b041961..b509b97 100644
 ```
 
 `push` creates `feature` on `pkg-b`'s upstream only. `pkg-a`'s upstream
-has every commit already, so it doesn't get an empty branch. Commits that
-`feature` got from `main` would count too, if upstream lacked them: that's
-how they get upstream when it takes changes only through PRs
+`main` has every commit already, so it doesn't get an empty branch.
+Commits that `feature` got from `main` would count too, if upstream's
+`main` lacked them: that's how they get upstream when it takes changes
+only through PRs
 ([scenario](../scenarios/up-to-date/push-ahead/feature-branch-from-main/README.md)).
 
 ```scrut
 $ git splice push --all
-ok   vendor/pkg-a: nothing to push (upstream has no 'feature' branch, but has every commit)
+ok   vendor/pkg-a: nothing to push (upstream has no 'feature' branch, and 'main' has every commit)
 ??   vendor/pkg-b: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/pkg-b: pushed 5023101 to feature
 ```

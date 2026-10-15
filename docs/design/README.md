@@ -466,13 +466,16 @@ incorrect: merging a branch that pushed would bring that record onto another
 upstream branch
 ([sync model](../../test/concepts/sync-model/README.md#why-a-push-isnt-recorded)).
 
-**A new upstream branch** is created only if it publishes commits of R
-that no fetched upstream branch has. So starting a feature branch doesn't
-create empty branches on every upstream, while commits upstream lacks
-always count: the ones the feature branch got from the branch it was cut
-from, and the first push of a splice made by `init`, which has no
-upstream branch at all. Whether the folder changed on this branch doesn't
-matter.
+**A new upstream branch** is created only if R has commits that
+upstream's default branch lacks, which a PR from the new branch would
+show. So starting a feature branch doesn't create empty branches on every
+upstream, while commits the default branch lacks always count: the ones
+the feature branch got from the branch it was cut from, and the first
+push of a splice made by `init`, which has no upstream branch at all.
+Whether the folder changed on this branch doesn't matter. A branch
+stacked on one upstream has already gets its own branch upstream too,
+with nothing new
+([scenario](../../test/scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/stacked-branch/README.md)).
 
 ### `status`: the sync state
 
@@ -487,8 +490,8 @@ fetched.
 ### `diff` and `log`
 
 - **`diff`** shows the file changes a push would send: `git diff T R`, or,
-  for a missing upstream branch, from the last commit on R's first-parent
-  history that upstream has.
+  for a missing upstream branch, from the merge base of R and upstream's
+  default branch, as a PR from the new branch would show them.
 - **`log`** shows commits in both directions:
 
   ```
@@ -511,11 +514,13 @@ fetched.
   keeps its name on both sides.
 - The monorepo's default branch is `origin/HEAD`, else
   `init.defaultBranch`.
-- If upstream has no branch named like the current one, `push` creates it
-  only if that publishes commits no upstream branch has, so a feature
-  branch doesn't spawn empty branches upstream. Which branch it was cut
-  from doesn't matter: Git doesn't record it, and commits from there that
-  upstream lacks have to get there somehow, e.g. through a PR.
+- If upstream has no branch named like the current one, every command
+  compares with upstream's default branch instead, as a PR from that
+  branch would; `push` creates the branch only if the default branch
+  lacks commits, so a feature branch doesn't spawn empty branches
+  upstream. Which branch it was cut from doesn't matter: Git doesn't
+  record it, and commits from there that upstream lacks have to get there
+  somehow, e.g. through a PR.
 
 ## Limits
 

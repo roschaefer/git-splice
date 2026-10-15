@@ -59,7 +59,7 @@ $ git log --graph --format=%s subtree-result | sed 's/ *$//'
 
 ```scrut
 $ git splice log
-===  vendor/a (upstream has no 'feature' branch)
+===  vendor/a (upstream has no 'feature' branch -- compared with 'main')
 < 6648f65 after the merge  (Test <test@example.com>)
 < 0a72413 Merge branch 'main' into feature  (Test <test@example.com>)
 < 8525688 feature work  (Test <test@example.com>)

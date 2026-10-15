@@ -17,8 +17,10 @@ is how many 'git splice push' would publish, "behind" how many 'git
 splice pull' would bring in. 'git splice diff --stat' shows the files.
 
 For a splice whose upstream has no branch named like the current one,
-"new" counts the commits the push that creates it would publish: those no
-upstream branch has yet. "unchanged" means there are none.
+the comparison is with upstream's default branch, as for a PR: "new"
+counts the commits the push that creates the branch would publish, and
+how many the default branch has that this one lacks. "unchanged" means
+the default branch has every commit.
 
 Like every command, status reads splices from the last commit. It warns
 about uncommitted changes in a splice's folder, which push leaves out.
@@ -57,16 +59,21 @@ status_rank() {
 
 # Sets STATUS_LABEL, STATUS_KIND and STATUS_HINT for a splice whose
 # upstream has no branch like the current one: whether the push that
-# creates it would publish anything (see count_new_commits).
+# creates it would publish anything (see compare_with_default_branch).
 classify_missing_branch() {
   local path="$1"
-  if ! count_new_commits "$path" 2>/dev/null; then
+  if ! compare_with_default_branch "$path" 2>/dev/null; then
     STATUS_KIND=warning STATUS_LABEL="?? no upstream branch"
-    STATUS_HINT="could not count the commits upstream lacks"
+    if [[ -z "$SPLICE_DEFAULT_BRANCH" ]]; then
+      STATUS_HINT="upstream's default branch unknown"
+    else
+      STATUS_HINT="could not compare with upstream's '$SPLICE_DEFAULT_BRANCH'"
+    fi
   elif ((SPLICE_NEW_COMMITS == 0)); then
     STATUS_KIND=unchanged STATUS_LABEL="unchanged, no upstream branch"
   else
     STATUS_KIND=new STATUS_LABEL="new, ahead $SPLICE_NEW_COMMITS" STATUS_HINT="push creates the branch"
+    ((SPLICE_BEHIND_COMMITS == 0)) || STATUS_LABEL+=", behind $SPLICE_BEHIND_COMMITS"
   fi
 }
 

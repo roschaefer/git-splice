@@ -9,8 +9,8 @@ changes only go in through a PR from another branch.
 - **Upstream**: only `main`, at `seed`.
 
 The splice didn't change on `feature`, but `feature` has a commit that
-upstream has on no branch. That's what counts: `push` creates `feature`
-upstream with it, ready for a PR (#150).
+upstream's `main` lacks. That's what counts, as for a PR: `push` creates
+`feature` upstream with it, ready for one (#150).
 
 ## Output
 
@@ -35,7 +35,7 @@ On branch feature
 
 ```scrut
 $ git splice log
-===  vendor/a (upstream has no 'feature' branch)
+===  vendor/a (upstream has no 'feature' branch -- compared with 'main')
 < e859a6b local change  (Test <test@example.com>)
 ```
 

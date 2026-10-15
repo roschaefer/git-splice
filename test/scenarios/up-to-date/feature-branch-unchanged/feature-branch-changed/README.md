@@ -7,7 +7,7 @@ on it.
   `feature` with a local commit.
 - **Upstream**: only `main`.
 
-"New" counts the commits that no upstream branch has yet.
+"New" counts the commits that upstream's default branch, `main`, lacks.
 
 ## Output
 
@@ -32,7 +32,7 @@ On branch feature
 
 ```scrut
 $ git splice log
-===  vendor/a (upstream has no 'feature' branch)
+===  vendor/a (upstream has no 'feature' branch -- compared with 'main')
 < e859a6b local change  (Test <test@example.com>)
 ```
 

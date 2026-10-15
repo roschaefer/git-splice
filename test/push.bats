@@ -141,11 +141,11 @@ setup() {
   [[ "$output" == *"not fetched"* ]]
 }
 
-@test "push: creates a missing upstream branch only if it publishes commits no upstream branch has" {
+@test "push: creates a missing upstream branch only if it has commits upstream's default branch lacks" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_push vendor/a
-  [[ "$output" == *"nothing to push (upstream has no 'feature' branch, but has every commit)"* ]]
+  [[ "$output" == *"nothing to push (upstream has no 'feature' branch, and 'main' has every commit)"* ]]
   ! git -C "$upstream" rev-parse --verify --quiet feature
   commit_local "$monorepo" "vendor/a" "local change"
   run cmd_push vendor/a
@@ -356,12 +356,12 @@ reworded_rebuild() {
   [ "$(git -C "$upstream" rev-parse feature)" = "$edited" ]
 }
 
-@test "push --rebuilt-commit: creates a missing upstream branch with the given commit, even one another upstream branch has, and asks for a pull" {
+@test "push --rebuilt-commit: creates a missing upstream branch with the given commit, even one upstream's default branch has, and asks for a pull" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   local edited
   edited="$(reworded_rebuild "fix the parser")"
-  git push -q "$upstream" "$edited:refs/heads/other"
+  git push -q "$upstream" "$edited:refs/heads/main"
   fetch_splice "$monorepo" "$upstream" vendor/a
   run cmd_push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]

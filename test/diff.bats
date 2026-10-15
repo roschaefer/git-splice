@@ -48,7 +48,7 @@ setup() {
   [[ "$output" != *"+seed"* ]]
 }
 
-@test "diff: a missing upstream branch shows nothing when another upstream branch has every commit" {
+@test "diff: without upstream's default branch, a missing upstream branch shows everything as new" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q main
@@ -59,7 +59,7 @@ setup() {
   fetch_splice "$monorepo" "$upstream" vendor/a
   run cmd_diff
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
+  [[ "$output" == *"+seed"* ]]
 }
 
 @test "diff: a missing upstream branch shows commits from the branch it was cut from that upstream lacks" {

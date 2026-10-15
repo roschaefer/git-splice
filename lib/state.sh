@@ -87,18 +87,33 @@ classify_splice() {
   fi
 }
 
-# For a splice whose upstream lacks the current branch: sets
-# SPLICE_REBUILT, the rebuild R (empty: no content), and SPLICE_NEW_COMMITS,
-# how many of R's commits no fetched upstream branch has -- the ones the
-# push that creates the branch would publish. Commits that came from the
-# monorepo's base branch count too: upstream may never have taken them.
-# Returns 1 if the rebuild or the count fails.
-count_new_commits() {
-  local path="$1"
-  SPLICE_NEW_COMMITS=0
+# For a splice whose upstream lacks the current branch, compares the
+# rebuild with upstream's default branch instead, as a PR from the branch
+# would. Sets:
+#   SPLICE_REBUILT          the rebuild R (empty: no content)
+#   SPLICE_DEFAULT_BRANCH   upstream's default branch, for messages
+#   SPLICE_DEFAULT_REF      its fetched ref; empty if upstream doesn't have
+#                           it, e.g. an empty upstream after init
+#   SPLICE_NEW_COMMITS      commits of R the default branch lacks: the
+#                           push that creates the branch publishes them
+#   SPLICE_BEHIND_COMMITS   commits of the default branch R lacks
+# Commits from the monorepo branch the current one was cut from count too:
+# upstream may never have taken them. Returns 1 if upstream's default
+# branch is unknown, or the rebuild or the count fails.
+compare_with_default_branch() {
+  local path="$1" counts
+  SPLICE_NEW_COMMITS=0 SPLICE_BEHIND_COMMITS=0 SPLICE_DEFAULT_REF=""
+  SPLICE_DEFAULT_BRANCH="$(splice_default_branch "$path")"
+  [[ -n "$SPLICE_DEFAULT_BRANCH" ]] || return 1
   SPLICE_REBUILT="$(splice_rebuild "$path")" || return 1
   [[ -n "$SPLICE_REBUILT" ]] || return 0
-  SPLICE_NEW_COMMITS="$(git rev-list --count "$SPLICE_REBUILT" --not --glob="$(splice_refs_prefix "$path")*")"
+  if git show-ref --verify --quiet "$(splice_ref "$path" "$SPLICE_DEFAULT_BRANCH")"; then
+    SPLICE_DEFAULT_REF="$(splice_ref "$path" "$SPLICE_DEFAULT_BRANCH")"
+    counts="$(git rev-list --left-right --count "$SPLICE_REBUILT...$SPLICE_DEFAULT_REF")" || return 1
+    read -r SPLICE_NEW_COMMITS SPLICE_BEHIND_COMMITS <<<"$counts"
+  else
+    SPLICE_NEW_COMMITS="$(git rev-list --count "$SPLICE_REBUILT")" || return 1
+  fi
 }
 
 # Prints a tree: HEAD's, with folder <path> replaced by <folder-tree>

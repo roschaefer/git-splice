@@ -1,11 +1,11 @@
 # Status on a feature branch
 
 On a feature branch, every splice syncs with the upstream branch of the
-same name. Most upstreams don't have it. Where upstream has every commit
-already, the splice shows as unchanged, last. The others come first, and
-`push` would create their branch upstream: `cli`, which changed on
-`feature`, and `parser` and `store`, whose commits on `main` upstream
-doesn't have yet.
+same name. Most upstreams don't have it, so the comparison is with their
+default branch, as for a PR. Where that has every commit already, the
+splice shows as unchanged, last. The others come first, and `push` would
+create their branch upstream: `cli`, which changed on `feature`, and
+`parser` and `store`, whose commits on `main` upstream doesn't have yet.
 
 ## Output
 
@@ -39,7 +39,7 @@ On branch feature
 
   new, ahead 1                   libs/cli     push creates the branch
   new, ahead 1                   libs/parser  push creates the branch
-  new, ahead 1                   libs/store   push creates the branch
+  new, ahead 1, behind 1         libs/store   push creates the branch
 
   unchanged, no upstream branch  libs/http
   unchanged, no upstream branch  libs/theme
@@ -59,7 +59,7 @@ $ git splice status
 On branch feature
 
   new, ahead 1                   libs/parser  push creates the branch
-  new, ahead 1                   libs/store   push creates the branch
+  new, ahead 1, behind 1         libs/store   push creates the branch
 
   up to date                     libs/cli
   unchanged, no upstream branch  libs/http

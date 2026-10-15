@@ -14,9 +14,9 @@ one above publishes its .splice, and a failed push stops the splices
 above it.
 
 If the upstream has no branch named like the current one, push creates it
--- but only if that publishes commits no upstream branch has yet, so
-working on a feature branch doesn't spawn empty branches upstream. Commits
-the feature branch got from the branch it was cut from count too: when
+-- but only if it has commits upstream's default branch lacks, so working
+on a feature branch doesn't spawn empty branches upstream. Commits the
+feature branch got from the branch it was cut from count too: when
 upstream takes changes only through PRs, that's how they get there.
 
 --force overwrites the upstream branch with the monorepo's side: when the
@@ -87,14 +87,18 @@ push_one() {
       [[ -n "$SPLICE_REBUILT" ]] || SPLICE_REBUILT="$(REBUILD_WITHOUT_SYNCED=1 splice_rebuild "$path")"
       ;;
     missing-branch)
-      if ! count_new_commits "$path"; then
-        log_err "$path: could not count the commits upstream lacks -- not creating '$label'"
+      if ! compare_with_default_branch "$path"; then
+        if [[ -z "$SPLICE_DEFAULT_BRANCH" ]]; then
+          log_err "$path: upstream has no '$label' branch, and its default branch is unknown -- not creating '$label'"
+        else
+          log_err "$path: could not compare with upstream's '$SPLICE_DEFAULT_BRANCH' -- not creating '$label'"
+        fi
         return 1
       fi
-      # A commit given with --rebuilt-commit is pushed even if upstream
-      # has it on another branch: it was asked for, and needs recording.
+      # A commit given with --rebuilt-commit is pushed even if upstream's
+      # default branch has it: it was asked for, and needs recording.
       if [[ -n "$SPLICE_REBUILT" && -z "${REBUILD_GIVEN[$path]:-}" ]] && ((SPLICE_NEW_COMMITS == 0)); then
-        log_ok "$path: nothing to push (upstream has no '$label' branch, but has every commit)"
+        log_ok "$path: nothing to push (upstream has no '$label' branch, and '$SPLICE_DEFAULT_BRANCH' has every commit)"
         return 0
       fi
       [[ -z "$SPLICE_REBUILT" ]] || log_warn "$path: upstream has no '$label' branch yet -- this push creates it"
