@@ -19,9 +19,11 @@
 #     commit.
 #   - A lane, a shape labelled with a splice's folder, e.g. "vendor/a/",
 #     holds that splice's upstream commits and boxes. A monorepo with
-#     several splices needs one per splice it draws; with one, lanes are
-#     optional. A nested splice's lane is drawn inside the lane of the
-#     splice above it, and a shape belongs to the innermost lane around it.
+#     several splices needs one per splice it draws, and what a lane
+#     shows stays in it: arrows between commits, and boxes, don't cross
+#     into another lane. With one splice, lanes are optional. A nested
+#     splice's lane is drawn inside the lane of the splice above it, and
+#     a shape belongs to the innermost lane around it.
 #   - A frame labelled "x:<path>/.splice", Git's name for that file in
 #     commit x, holds commit x, and usually the box U(x). <path> is the
 #     splice's folder in x's repository: in the monorepo, or in the
@@ -237,7 +239,13 @@ check_drawing() {
     return 1
   }
   for id in "${commits[@]}"; do
-    [[ -n "${commit_of[$id]:-}" && -n "${lane_of[$id]}" ]] || continue
+    [[ -n "${commit_of[$id]:-}" ]] || continue
+    if [[ ${#lanes[@]} -gt 0 && -z "${lane_of[$id]}" ]]; then
+      git merge-base --is-ancestor "${commit_of[$id]}" HEAD ||
+        errors+=("${value[$id]} isn't a monorepo commit, but it's outside every lane: draw it in its splice's lane")
+      continue
+    fi
+    [[ -n "${lane_of[$id]}" ]] || continue
     of_splice "${commit_of[$id]}" "${lane_of[$id]}" ||
       errors+=("${value[$id]} is in the lane ${lane_of[$id]}/, but isn't in that splice's upstream history or R")
   done
@@ -356,6 +364,10 @@ check_drawing() {
             continue
           fi
         fi
+        if [[ "$term" != H && -n "${lane_of[$t]}" && "${lane_of[$t]}" != "$sp" ]]; then
+          errors+=("$term of $sp/ points at ${value[$t]}, a commit in the lane ${lane_of[$t]}/")
+          continue
+        fi
         named="$(resolve_term "$term" "$sp")"
         [[ "$term" == H || "$term" == [BTR] || "$term" == U\(*\) || -z "$named" ]] ||
           branch_tips[$sp]+=" $named"
@@ -374,6 +386,10 @@ check_drawing() {
       continue
     fi
     [[ "${kind[$s]:-}" == commit && "${kind[$t]:-}" == commit ]] || continue
+    if [[ "${lane_of[$s]}" != "${lane_of[$t]}" ]]; then
+      errors+=("${value[$s]} -> ${value[$t]} crosses lanes: draw a parent and its child in one lane")
+      continue
+    fi
     [[ -n "${commit_of[$s]:-}" && -n "${commit_of[$t]:-}" ]] || continue
     drawn_edges+="$s>$t "
     if ! git rev-parse "${commit_of[$t]}^@" | grep -qx "${commit_of[$s]}"; then

@@ -70,3 +70,24 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   U(l) points at m, but 2 commits are labelled l: label them apart"* ]]
 }
+
+@test "drawing lanes: an upstream commit outside every lane" {
+  edit_drawing -u '//mxCell[@id="m"]/mxGeometry/@x' -v 1000
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   m isn't a monorepo commit, but it's outside every lane: draw it in its splice's lane" ]
+}
+
+@test "drawing lanes: a box pointing into another splice's lane" {
+  edit_drawing -u '//mxCell[@target="l" and @source!="k"]/@target' -v m
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   T of vendor/a/ points at m, a commit in the lane vendor/a/b/" ]
+}
+
+@test "drawing lanes: an arrow between commits of two lanes" {
+  edit_drawing -u '//mxCell[@source="k" and @target="l"]/@target' -v m
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   k -> m crosses lanes: draw a parent and its child in one lane" ]
+}
