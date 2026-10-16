@@ -151,6 +151,17 @@ setup() {
   ! git config --blob "$blob" splice.commit
 }
 
+@test "splice_default_branch reads the .splice files below a merged splice again: its merge may have replaced them" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  discover_splices
+  [ "$(splice_default_branch vendor/a/b)" = main ]
+  git config --file vendor/a/b/.splice upstream.origin.default-branch master
+  git commit -q -am "a merge of vendor/a changed vendor/a/b's .splice"
+  forget_default_branches_below vendor/a
+  [ "$(splice_default_branch vendor/a/b)" = master ]
+}
+
 @test "upstream_branch_for maps only the monorepo's default branch to default-branch" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
