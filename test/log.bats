@@ -104,3 +104,15 @@ setup() {
   run cmd_log
   [[ "$output" != *"(R)"* && "$output" != *"(T)"* ]]
 }
+
+@test "log: in a shallow clone that cuts off the last sync, refuses without calling the history unrelated" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  git clone -q --depth 1 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  splice fetch vendor/a >/dev/null
+  run splice log vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: this shallow clone may cut off where its rebuild starts, at $(git rev-parse --short=7 HEAD) -- run 'git fetch --unshallow'" ]
+  [ "${lines[1]}" = "!!   Failed: vendor/a" ]
+  [ "${#lines[@]}" -eq 2 ]
+}

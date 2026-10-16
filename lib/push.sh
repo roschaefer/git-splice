@@ -54,7 +54,7 @@ push_one() {
     0) log_warn "$path: uncommitted changes aren't pushed -- commit them first" ;;
     2) log_warn "$path: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ;;
   esac
-  classify_splice "$path" "$branch"
+  classify_splice "$path" "$branch" || return 1
   local upstream_branch="$SPLICE_UPSTREAM_BRANCH" label="$SPLICE_UPSTREAM_LABEL" option
   option="$(upstream_option "$path")"
   case "$SPLICE_STATE" in
