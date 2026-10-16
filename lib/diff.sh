@@ -65,36 +65,9 @@ diff_one() {
   git diff "${EXTRA_FLAGS[@]}" "$old_tree" "$new_tree"
 }
 
-# Emits all selected patches. Kept separate from cmd_diff so one pager can
-# contain every splice rather than opening a new pager for each one.
-diff_paths() {
-  local branch="$1" path rc failures=()
-  shift
-  for path in "$@"; do
-    if diff_one "$path" "$branch"; then
-      continue
-    else
-      rc=$?
-      ((rc == 141)) && return 141
-      failures+=("$path")
-    fi
-  done
-
-  if [[ ${#failures[@]} -gt 0 ]]; then
-    log_err "Failed: ${failures[*]}"
-    return 1
-  fi
-}
-
 cmd_diff() {
   parse_args usage_diff "--stat --upstream" "$@"
-  local branch
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
-  select_paths overview diff
-  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
-  branch="$(current_branch)"
-  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
-  page_git_output diff_paths "$branch" "${SELECTED_PATHS[@]}"
+  open_repository
+  select_splices overview diff
+  page_git_output run_each_splice diff_one "$MONOREPO_BRANCH" "${SELECTED_PATHS[@]}"
 }

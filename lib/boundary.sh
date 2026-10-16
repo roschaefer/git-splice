@@ -28,16 +28,10 @@ EOF
 
 cmd_boundary() {
   parse_args usage_boundary "" "$@"
-  [[ -z "$ALL_ARG" ]] || die "boundary takes no --all"
-  [[ ${#PATH_ARGS[@]} -eq 1 ]] || {
-    usage_boundary >&2
-    exit 1
-  }
+  require_args usage_boundary boundary 1 1
   local path
   path="$(normalize_path "${PATH_ARGS[0]}")"
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
-  is_splice_path "$path" || die "not a splice: $path"
+  open_repository
+  require_splice "$path"
   splice_start "$path" HEAD
 }

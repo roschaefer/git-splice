@@ -116,7 +116,7 @@ normalize_path() {
 # $1 names the command's usage function, which is run (then exit 0) for
 # -h/--help. Everything after `--` is a path.
 parse_args() {
-  local usage_fn="$1" allowed=" $2 "
+  local usage_fn="$1" allowed=" $2 " option value
   shift 2
   ALL_ARG=""
   UPSTREAM_ARG=""
@@ -132,33 +132,28 @@ parse_args() {
       --all)
         ALL_ARG=1
         ;;
-      --upstream | --upstream=*)
-        [[ "$allowed" == *" --upstream "* ]] || {
+      --upstream | --upstream=* | --rebuilt-commit | --rebuilt-commit=*)
+        option="${1%%=*}"
+        [[ "$allowed" == *" $option "* ]] || {
           "$usage_fn" >&2
-          die "unknown option: ${1%%=*}"
+          die "unknown option: $option"
         }
-        if [[ "$1" == --upstream ]]; then
-          [[ $# -ge 2 && -n "$2" ]] || die "--upstream needs an upstream's name"
-          UPSTREAM_ARG="$2"
-          shift
+        if [[ "$1" == *=* ]]; then
+          value="${1#*=}"
         else
-          UPSTREAM_ARG="${1#--upstream=}"
-          [[ -n "$UPSTREAM_ARG" ]] || die "--upstream needs an upstream's name"
+          value="${2:-}"
+          [[ $# -lt 2 ]] || shift
         fi
-        ;;
-      --rebuilt-commit | --rebuilt-commit=*)
-        [[ "$allowed" == *" --rebuilt-commit "* ]] || {
-          "$usage_fn" >&2
-          die "unknown option: ${1%%=*}"
-        }
-        if [[ "$1" == --rebuilt-commit ]]; then
-          [[ $# -ge 2 && -n "$2" ]] || die "--rebuilt-commit needs a commit"
-          REBUILT_COMMIT_ARG="$2"
-          shift
-        else
-          REBUILT_COMMIT_ARG="${1#--rebuilt-commit=}"
-          [[ -n "$REBUILT_COMMIT_ARG" ]] || die "--rebuilt-commit needs a commit"
-        fi
+        case "$option" in
+          --upstream)
+            [[ -n "$value" ]] || die "--upstream needs an upstream's name"
+            UPSTREAM_ARG="$value"
+            ;;
+          --rebuilt-commit)
+            [[ -n "$value" ]] || die "--rebuilt-commit needs a commit"
+            REBUILT_COMMIT_ARG="$value"
+            ;;
+        esac
         ;;
       --)
         shift
@@ -201,8 +196,7 @@ discover_splices() {
   while IFS= read -r -d '' file; do
     [[ "$file" == "$STATE_FILE" ]] && die "a $STATE_FILE at the repository root isn't supported -- a splice must be a folder"
     path="${file%/"$STATE_FILE"}"
-    usable_splice_path "$path" ||
-      die "'$path' isn't supported as a splice path yet -- rename the folder (e.g. no spaces)"
+    require_usable_splice_path "$path" "rename the folder"
     ALL_PATHS+=("$path")
   done < <(state_files HEAD 2>/dev/null)
 
@@ -340,11 +334,85 @@ select_paths() {
   local -A seen=()
   for path in "${PATH_ARGS[@]}"; do
     path="$(normalize_path "$path")"
-    is_splice_path "$path" || die "not a splice: $path"
+    require_splice "$path"
     [[ -n "${seen[$path]:-}" ]] && continue
     seen[$path]=1
     SELECTED_PATHS+=("$path")
   done
+}
+
+# Where every command starts: at the repository root, with HEAD a commit,
+# and the splices discovered.
+open_repository() {
+  cd_to_repo_root
+  require_head_commit
+  discover_splices
+}
+
+# The monorepo's current branch, set by select_splices.
+declare -g MONOREPO_BRANCH=""
+
+# Where the commands that sync splices with their upstream branches go on
+# from open_repository: selects the splices (select_paths <kind>
+# <command>), makes each use the upstream --upstream names, or its default
+# one (use_upstreams), and sets MONOREPO_BRANCH. Dies before any splice is
+# touched unless each has an upstream branch then.
+select_splices() {
+  select_paths "$1" "$2"
+  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
+  MONOREPO_BRANCH="$(current_branch)"
+  require_upstream_branches "$MONOREPO_BRANCH" "${SELECTED_PATHS[@]}"
+}
+
+# Dies unless the command, named <command> in messages, got no --all and
+# from <min> to <max> paths; with the wrong number, after the usage
+# function <usage_fn> printed how to call it.
+require_args() {
+  local usage_fn="$1" command="$2" min="$3" max="$4"
+  [[ -z "$ALL_ARG" ]] || die "$command takes no --all"
+  ((${#PATH_ARGS[@]} >= min && ${#PATH_ARGS[@]} <= max)) || {
+    "$usage_fn" >&2
+    exit 1
+  }
+}
+
+require_splice() {
+  is_splice_path "$1" || die "not a splice: $1"
+}
+
+# Dies unless <path> can be a splice's path (usable_splice_path), telling
+# to <fix> it, e.g. "rename the folder".
+require_usable_splice_path() {
+  usable_splice_path "$1" ||
+    die "'$1' isn't supported as a splice path yet -- $2 (e.g. no spaces)"
+}
+
+# Dies while a cherry-pick or merge waits to be concluded: the commands
+# that commit can't start another.
+require_no_splice_in_progress() {
+  ! splice_in_progress || die "a cherry-pick or merge is in progress -- conclude it first"
+}
+
+# Runs <fn> <path> <branch> for each splice <path>..., and reports the
+# splices it failed for. Stops, with status 141, as soon as SIGPIPE ends
+# <fn>: a pager it writes to was quit, and nobody reads the rest.
+run_each_splice() {
+  local fn="$1" branch="$2" path rc failures=()
+  shift 2
+  for path in "$@"; do
+    if "$fn" "$path" "$branch"; then
+      continue
+    else
+      rc=$?
+      ((rc == 141)) && return 141
+      failures+=("$path")
+    fi
+  done
+
+  if [[ ${#failures[@]} -gt 0 ]]; then
+    log_err "Failed: ${failures[*]}"
+    return 1
+  fi
 }
 
 # Prints value <key> of splice <path>'s state file as committed in <rev>

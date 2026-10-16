@@ -29,21 +29,18 @@ empty_upstream_default_branch() {
 
 cmd_init() {
   parse_args usage_init "" "$@"
-  [[ -z "$ALL_ARG" ]] || die "init takes no --all"
-  local path="${PATH_ARGS[0]:-}" url="${PATH_ARGS[1]:-}"
-  if [[ -z "$path" || -z "$url" || ${#PATH_ARGS[@]} -gt 2 ]]; then
+  require_args usage_init init 2 2
+  local path="${PATH_ARGS[0]}" url="${PATH_ARGS[1]}"
+  if [[ -z "$path" || -z "$url" ]]; then
     usage_init >&2
     exit 1
   fi
   path="$(normalize_path "$path")"
-  usable_splice_path "$path" ||
-    die "'$path' isn't supported as a splice path yet -- rename the folder (e.g. no spaces)"
+  require_usable_splice_path "$path" "rename the folder"
 
-  cd_to_repo_root
+  open_repository
   current_branch >/dev/null
-  require_head_commit
-  splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
-  discover_splices
+  require_no_splice_in_progress
   local heads
   is_splice_path "$path" && die "$path is a splice already"
   [[ -n "$(folder_tree HEAD "$path")" ]] ||

@@ -112,36 +112,11 @@ log_one() {
     --left-right --cherry-mark "$SPLICE_REBUILT...$SPLICE_TARGET_REF"
 }
 
-log_paths() {
-  local branch="$1" path rc failures=()
-  shift
-  for path in "$@"; do
-    if log_one "$path" "$branch"; then
-      continue
-    else
-      rc=$?
-      ((rc == 141)) && return 141
-      failures+=("$path")
-    fi
-  done
-
-  if [[ ${#failures[@]} -gt 0 ]]; then
-    log_err "Failed: ${failures[*]}"
-    return 1
-  fi
-}
-
 cmd_log() {
   parse_args usage_log "--graph --upstream" "$@"
   LOG_GRAPH=""
   has_flag --graph && LOG_GRAPH=1
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
-  select_paths overview log
-  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
-  local branch
-  branch="$(current_branch)"
-  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
-  page_git_output log_paths "$branch" "${SELECTED_PATHS[@]}"
+  open_repository
+  select_splices overview log
+  page_git_output run_each_splice log_one "$MONOREPO_BRANCH" "${SELECTED_PATHS[@]}"
 }

@@ -311,14 +311,8 @@ cmd_merge() {
   parse_args usage_merge "--upstream --bump" "$@"
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
-  select_paths explicit merge
-  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
-  splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
-  local branch
-  branch="$(current_branch)"
-  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
-  merge_paths "$branch" merge "${SELECTED_PATHS[@]}"
+  open_repository
+  select_splices explicit merge
+  require_no_splice_in_progress
+  merge_paths "$MONOREPO_BRANCH" merge "${SELECTED_PATHS[@]}"
 }

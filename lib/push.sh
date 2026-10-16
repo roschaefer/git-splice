@@ -183,19 +183,14 @@ cmd_push() {
   parse_args usage_push "--force --upstream --rebuilt-commit" "$@"
   local force=""
   has_flag --force && force=force
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
-  select_paths explicit push
-  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
+  open_repository
+  select_splices explicit push
   if [[ -n "$REBUILT_COMMIT_ARG" ]]; then
     [[ -z "$ALL_ARG" && ${#SELECTED_PATHS[@]} -eq 1 ]] ||
       die "--rebuilt-commit takes exactly one splice"
     give_rebuild "${SELECTED_PATHS[0]}" "$REBUILT_COMMIT_ARG" "$force"
   fi
-  local branch path failed paths=() failures=()
-  branch="$(current_branch)"
-  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
+  local branch="$MONOREPO_BRANCH" path failed paths=() failures=()
 
   # Pushes to the same host share one SSH connection.
   local ssh_control_dir
