@@ -188,6 +188,8 @@ swap_splice_files() {
   swap_splice_files
   seed_bare_repo "$upstream" "a moves on"
   run splice pull vendor/a/b
+  [ "$status" -ne 0 ]
+  [ "$(git diff --name-only --diff-filter=U)" = "vendor/a/b/file.txt" ]
   [ -z "$(git ls-files vendor/a/b/b)" ]
 }
 
