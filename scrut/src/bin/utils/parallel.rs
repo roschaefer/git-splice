@@ -21,7 +21,10 @@ use anyhow::Result;
 /// With `jobs` 1, every item runs and is applied before the next one starts.
 /// Otherwise the first error, from `run` or `apply`, stops starting further
 /// items and is returned once all earlier items are applied, so the items
-/// before it are handled as they would be one after another.
+/// before it are handled as they would be one after another. Items already
+/// running finish first, at most `jobs - 1` of them; their results are
+/// dropped. A panic in `run` stops starting further items too, and is raised
+/// again once the running ones have finished.
 pub(crate) fn run_in_parallel<T, R>(
     items: Vec<T>,
     jobs: usize,
@@ -47,6 +50,7 @@ where
         for _ in 0..threads {
             let (sender, queue, failed, run) = (sender.clone(), &queue, &failed, &run);
             scope.spawn(move || {
+                let _stop_on_panic = StopOnPanic(failed);
                 while !failed.load(Ordering::Relaxed) {
                     let Some((index, item)) = queue.lock().expect("queue lock poisoned").next()
                     else {
@@ -82,8 +86,21 @@ where
     })
 }
 
+/// Sets the flag when the worker thread that holds it unwinds from a panic,
+/// so that the other workers stop taking items
+struct StopOnPanic<'a>(&'a AtomicBool);
+
+impl Drop for StopOnPanic<'_> {
+    fn drop(&mut self) {
+        if thread::panicking() {
+            self.0.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::AtomicUsize;
     use std::time::Duration;
 
     use anyhow::anyhow;
@@ -154,6 +171,29 @@ mod tests {
             assert_eq!(err.to_string(), "item 5 failed");
             assert_eq!(applied, vec![0, 1, 2, 3, 4], "with {jobs} job(s)");
         }
+    }
+
+    #[test]
+    fn stops_starting_items_when_one_panics() {
+        let started = AtomicUsize::new(0);
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            run_in_parallel(
+                (0..100).collect(),
+                4,
+                |item| {
+                    started.fetch_add(1, Ordering::Relaxed);
+                    if item == 2 {
+                        panic!("item {item} panicked");
+                    }
+                    thread::sleep(Duration::from_millis(10));
+                    Ok(item)
+                },
+                |_| Ok(()),
+            )
+        }));
+        assert!(panicked.is_err());
+        let started = started.into_inner();
+        assert!(started < 100, "started {started} of 100 items");
     }
 
     #[test]
