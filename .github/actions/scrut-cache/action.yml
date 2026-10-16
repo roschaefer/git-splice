@@ -1,0 +1,44 @@
+name: scrut from cache
+description: >
+  Puts scrut, built from scrut/, into the Nix store, from the GitHub Actions
+  cache when this exact build was cached before, and caches it otherwise.
+  Compiling scrut takes about four minutes in CI. The key is
+  the derivation, so it changes exactly when the build would: scrut/, its
+  Cargo.lock, nixpkgs or flake.nix.
+
+runs:
+  using: composite
+  steps:
+    # Copies by store path: given the flake, nix copy would also copy
+    # nixpkgs' sources through the cache, which takes minutes.
+    - id: drv
+      shell: bash
+      run: |
+        echo "hash=$(basename "$(nix eval --raw .#scrut.drvPath)" .drv)" >>"$GITHUB_OUTPUT"
+        echo "out=$(nix eval --raw .#scrut.outPath)" >>"$GITHUB_OUTPUT"
+
+    - id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/scrut-cache
+        key: scrut-${{ steps.drv.outputs.hash }}
+
+    - if: steps.restore.outputs.cache-hit == 'true'
+      shell: bash
+      env:
+        OUT: ${{ steps.drv.outputs.out }}
+      run: nix copy --no-check-sigs --from "file://$RUNNER_TEMP/scrut-cache" "$OUT"
+
+    - if: steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        OUT: ${{ steps.drv.outputs.out }}
+      run: |
+        nix build --no-link .#scrut
+        nix copy --to "file://$RUNNER_TEMP/scrut-cache" "$OUT"
+
+    - if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/scrut-cache
+        key: scrut-${{ steps.drv.outputs.hash }}

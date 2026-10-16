@@ -1,0 +1,830 @@
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+use std::sync::Arc;
+use std::sync::LazyLock;
+
+use anyhow::Context;
+use anyhow::Result;
+use anyhow::bail;
+use regex::Regex;
+
+use crate::config::TestCaseConfig;
+use crate::expectation::Expectation;
+use crate::expectation::ExpectationMaker;
+use crate::interactive::InteractiveDirective;
+use crate::parsers::interactive_parser::InteractiveBodyParser;
+use crate::testcase::TestCase;
+use crate::validation::InteractiveBody;
+use crate::validation::JsonSchemaBody;
+use crate::validation::OutputBody;
+use crate::validation::ValidationBody;
+
+/// Exit code expression matches an output line of the form:
+///
+/// ```bnf
+/// <exit-code-expression> ::= "[" <integer> "]"
+/// ```
+static EXIT_CODE_EXPRESSION: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("^\\[([0-9]+)\\]$").expect("exit code expression must compile"));
+
+pub(super) enum CodeType {
+    Config,
+    Comment,
+    CommandStart,
+    CommandContinue,
+    Expectation,
+    ExitCode,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+pub(super) enum LineParserPosition {
+    Start = 0,
+    Config = 1,
+    PreCommand = 2,
+    Command = 3,
+    Body = 4,
+}
+
+/// A meta parser engine, that can be used for any line-by-line test file format
+/// which uses the standard Cram-like encoding of testcase bodies like:
+///
+/// ```txt
+/// $ a-command \
+/// > potential more lines
+/// other lines are
+/// all output
+/// ```
+pub(super) struct LineParser {
+    pub(super) testcases: Vec<TestCase>,
+    expectation_maker: Arc<ExpectationMaker>,
+    title: Option<String>,
+    command_lines: Vec<String>,
+    config_lines: Vec<String>,
+    exit_code: Option<i32>,
+    expectations: Vec<Expectation>,
+    position: LineParserPosition,
+    allow_multiple_commands: bool,
+    allow_multiline_config: bool,
+    output_start_index: Option<usize>,
+    default_config: TestCaseConfig,
+    config: Option<TestCaseConfig>,
+    json_schema_mode: bool,
+    json_schema_lines: Vec<String>,
+    interactive_directives: Vec<InteractiveDirective>,
+    interactive_body_parser: InteractiveBodyParser,
+    interactive_mode: bool,
+}
+
+impl LineParser {
+    pub(super) fn new(
+        expectation_maker: Arc<ExpectationMaker>,
+        default_config: TestCaseConfig,
+        allow_multiple_commands: bool,
+        allow_multiline_config: bool,
+    ) -> Self {
+        let interactive_body_parser = InteractiveBodyParser::new(expectation_maker.clone());
+        Self {
+            expectation_maker,
+            title: None,
+            command_lines: vec![],
+            config_lines: vec![],
+            expectations: vec![],
+            exit_code: None,
+            testcases: vec![],
+            position: LineParserPosition::Start,
+            allow_multiple_commands,
+            allow_multiline_config,
+            output_start_index: None,
+            default_config,
+            config: None,
+            json_schema_mode: false,
+            json_schema_lines: vec![],
+            interactive_directives: vec![],
+            interactive_body_parser,
+            interactive_mode: false,
+        }
+    }
+
+    /// Add a line that is either a command or an expectation
+    pub(super) fn add_testcase_body(&mut self, line: &str, index: usize) -> Result<CodeType> {
+        // comments within / between config or commands, before body
+        if self.position < LineParserPosition::Command && is_comment(line) {
+            return Ok(CodeType::Comment);
+        }
+
+        // config preceding command
+        if self.allow_multiline_config && self.position <= LineParserPosition::Config {
+            if let Some(line) = line.strip_prefix("% ") {
+                self.config_lines.push(line.into());
+                self.position = LineParserPosition::Config;
+                return Ok(CodeType::Config);
+            }
+            self.position = LineParserPosition::PreCommand;
+        }
+
+        // start of command
+        if self.allow_multiple_commands || self.command_lines.is_empty() {
+            if let Some(line) = line.strip_prefix("$ ") {
+                // wrap up previous command, if given
+                if !self.command_lines.is_empty() {
+                    self.end_testcase(index)?;
+                }
+
+                // ensure command can be continued on multiple liens
+                self.position = LineParserPosition::Command;
+
+                // detect json schema mode from accumulated config lines and/or
+                // fence config set via set_testcase_config()
+                self.detect_json_schema_mode();
+
+                // detect interactive mode from accumulated config lines and/or
+                // fence config set via set_testcase_config()
+                self.detect_interactive_mode()
+                    .with_context(|| format!("line {}: parse testcase config lines", index + 1))?;
+                // mark the starting index and store the command line
+                self.output_start_index = Some(index);
+                self.command_lines.push(line.into());
+                return Ok(CodeType::CommandStart);
+            }
+        }
+
+        // continuation of command
+        if self.position == LineParserPosition::Command && (line == ">" || line.starts_with("> ")) {
+            if self.command_lines.is_empty() {
+                bail!(
+                    "line {}: command extender '>' requires previous command start '$' which is not given",
+                    index + 1
+                );
+            }
+            self.command_lines
+                .push(line.strip_prefix("> ").unwrap_or_default().into());
+            return Ok(CodeType::CommandContinue);
+        }
+
+        // body part, where output expectations or interactive directives are
+        self.position = LineParserPosition::Body;
+
+        // exit code notation (supported in both modes)
+        if let Some(exit_code) = extract_exit_code(line) {
+            if self.exit_code.is_some() {
+                bail!("line {}: exit code provided multiple times", index + 1)
+            }
+            self.exit_code = Some(exit_code);
+            return Ok(CodeType::ExitCode);
+        }
+
+        // JSON Schema mode: collect all body lines verbatim
+        if self.json_schema_mode {
+            self.json_schema_lines.push(line.to_string());
+            return Ok(CodeType::Expectation);
+        }
+
+        // Interactive mode: parse as interactive directives
+        if self.interactive_mode {
+            if let Some(directive) = self
+                .interactive_body_parser
+                .parse_line(line, index)
+                .with_context(|| {
+                    format!("parsing interactive directive line {}: {}", index + 1, line)
+                })?
+            {
+                self.interactive_directives.push(directive);
+            }
+            return Ok(CodeType::Expectation);
+        }
+
+        // anything else: output expectation
+        self.expectations.push(
+            self.expectation_maker
+                .parse(line)
+                .with_context(|| format!("parsing line {}", index + 1))?,
+        );
+        Ok(CodeType::Expectation)
+    }
+
+    /// Add a line of title
+    pub(super) fn set_testcase_title(&mut self, line: &str) {
+        self.title = Some(line.to_string())
+    }
+
+    /// Add a line of title
+    pub(super) fn set_testcase_config(&mut self, config: TestCaseConfig) {
+        self.config = Some(config)
+    }
+
+    /// Signify end of currently processed testcase, which will test the
+    /// validity of the testcase, add it to the stack and flush the state
+    /// so that the next testcase(s) can be processed.
+    pub(super) fn end_testcase(&mut self, line_index: usize) -> Result<()> {
+        if self.command_lines.is_empty() {
+            if !self.expectations.is_empty() {
+                bail!(
+                    "line {}: testcase output expectation(s) given, but no shell expression specified. Did you forget to prefix the command with '$'?",
+                    line_index + 1
+                )
+            }
+            return Ok(());
+        }
+
+        if !self.config_lines.is_empty() {
+            let config: TestCaseConfig = serde_yaml::from_str(&self.config_lines.join("\n"))
+                .context("parse testcase config lines")?;
+            let from = self
+                .config
+                .clone()
+                .unwrap_or_else(|| self.default_config.clone());
+            self.config = Some(config.with_defaults_from(&from));
+        }
+
+        // Finalize interactive body parser state if interactive mode was active
+        if self.interactive_mode {
+            self.interactive_body_parser
+                .finish()
+                .context("finalizing interactive directives")?;
+        }
+
+        self.testcases.push(TestCase {
+            title: self.title.to_owned().unwrap_or_default(),
+            shell_expression: self.command_lines.join("\n"),
+            exit_code: self.exit_code,
+            body: if self.interactive_mode {
+                ValidationBody::Interactive(InteractiveBody {
+                    directives: self.interactive_directives.clone(),
+                })
+            } else if self.json_schema_mode {
+                ValidationBody::JsonSchema(JsonSchemaBody {
+                    schema_source: self.json_schema_lines.join("\n"),
+                })
+            } else {
+                ValidationBody::Output(OutputBody {
+                    expectations: self.expectations.clone(),
+                })
+            },
+            line_number: self.output_start_index.unwrap_or(line_index) + 1,
+            config: self
+                .config
+                .clone()
+                .unwrap_or_else(|| self.default_config.clone()),
+        });
+        self.flush();
+        Ok(())
+    }
+
+    // whether shell expression(s) or expectation(s) are given
+    pub(super) fn has_testcase_body(&self) -> bool {
+        !self.command_lines.is_empty() || !self.expectations.is_empty()
+    }
+
+    /// Detect whether the current testcase is in JSON Schema validation mode.
+    fn detect_json_schema_mode(&mut self) {
+        // Check fence config first
+        if let Some(ref config) = self.config {
+            if config.is_json_schema() {
+                self.json_schema_mode = true;
+                return;
+            }
+        }
+
+        // Check accumulated % config lines for mode: jsonschema
+        if !self.config_lines.is_empty() {
+            if let Ok(config) =
+                serde_yaml::from_str::<TestCaseConfig>(&self.config_lines.join("\n"))
+            {
+                if config.is_json_schema() {
+                    self.json_schema_mode = true;
+                    return;
+                }
+            }
+        }
+
+        // Check default config
+        if self.default_config.is_json_schema() {
+            self.json_schema_mode = true;
+        }
+    }
+
+    /// Detect whether the current testcase is in interactive mode.
+    fn detect_interactive_mode(&mut self) -> Result<()> {
+        // Check fence config first
+        if let Some(ref config) = self.config {
+            if config.is_interactive() {
+                self.interactive_mode = true;
+                return Ok(());
+            }
+        }
+
+        // Check accumulated % config lines for mode: interactive. Invalid YAML
+        // must fail here: treating it as "not interactive" would parse the body
+        // in the wrong mode.
+        if !self.config_lines.is_empty() {
+            let config = serde_yaml::from_str::<TestCaseConfig>(&self.config_lines.join("\n"))?;
+            if config.is_interactive() {
+                self.interactive_mode = true;
+                return Ok(());
+            }
+        }
+
+        // Check default config
+        if self.default_config.is_interactive() {
+            self.interactive_mode = true;
+        }
+        Ok(())
+    }
+
+    fn flush(&mut self) {
+        self.title = None;
+        self.command_lines = vec![];
+        self.config_lines = vec![];
+        self.position = LineParserPosition::Start;
+        self.expectations = vec![];
+        self.exit_code = None;
+        self.output_start_index = None;
+        self.config = None;
+        self.json_schema_mode = false;
+        self.json_schema_lines = vec![];
+        self.interactive_directives = vec![];
+        self.interactive_body_parser.reset();
+        self.interactive_mode = false;
+    }
+}
+
+/// Parse a line of output for whether it contains an exit code of
+/// the form `[<numeric code>]` and return the numeric value if it does
+pub(super) fn extract_exit_code(line: &str) -> Option<i32> {
+    // map. and then? map! and then?? map!!1!1!!!1 and ... then? ERRRR
+    EXIT_CODE_EXPRESSION
+        .captures(line)
+        .and_then(|captures| {
+            captures
+                .iter()
+                .nth(1)
+                .and_then(|matching| matching.map(|matching| matching.as_str()))
+        })
+        .and_then(|s| s.parse::<i32>().ok())
+}
+
+/// Lines starting with "#" are considered comments
+pub(super) fn is_comment(line: &str) -> bool {
+    line.starts_with('#')
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    use super::LineParser;
+    use super::extract_exit_code;
+    use crate::config::TestCaseConfig;
+    use crate::config::TestMode;
+    use crate::expectation::tests::expectation_maker;
+    use crate::test_expectation;
+    use crate::testcase::TestCase;
+    use crate::validation::JsonSchemaBody;
+    use crate::validation::OutputBody;
+    use crate::validation::ValidationBody;
+
+    fn engine(
+        allow_multiple_commands: bool,
+        allow_multiline_config: bool,
+        _config: Option<TestCaseConfig>,
+    ) -> LineParser {
+        let maker = expectation_maker();
+        LineParser::new(
+            Arc::new(maker),
+            TestCaseConfig::empty(),
+            allow_multiple_commands,
+            allow_multiline_config,
+        )
+    }
+
+    #[test]
+    fn test_testcase_is_combined() {
+        let mut engine = engine(false, false, None);
+        engine.set_testcase_title("foo");
+        engine.add_testcase_body("$ bar", 1).expect("add command");
+        engine.add_testcase_body("baz", 2).expect("add expectation");
+        engine.add_testcase_body("[5]", 3).expect("add expectation");
+        engine.end_testcase(4).expect("testcase ending");
+        assert_eq!(
+            vec![TestCase {
+                title: "foo".to_string(),
+                exit_code: Some(5),
+                body: ValidationBody::Output(OutputBody {
+                    expectations: vec![test_expectation!("equal", "baz")]
+                }),
+                shell_expression: "bar".to_string(),
+                line_number: 2,
+                ..Default::default()
+            },],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_last_title_is_used() {
+        let mut engine = engine(false, false, None);
+        engine.set_testcase_title("foo1");
+        engine.set_testcase_title("foo2");
+        engine.set_testcase_title("foo3");
+        engine.add_testcase_body("$ bar", 1).expect("add command");
+        engine.add_testcase_body("baz", 2).expect("add expectation");
+        engine.add_testcase_body("[5]", 3).expect("add expectation");
+        engine.end_testcase(4).expect("testcase ending");
+        assert_eq!(
+            vec![TestCase {
+                title: "foo3".to_string(),
+                exit_code: Some(5),
+                body: ValidationBody::Output(OutputBody {
+                    expectations: vec![test_expectation!("equal", "baz")]
+                }),
+                shell_expression: "bar".to_string(),
+                line_number: 2,
+                ..Default::default()
+            },],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_command_is_combined() {
+        let mut engine = engine(false, false, None);
+        engine.set_testcase_title("foo");
+        engine.add_testcase_body("$ bar1", 1).expect("add command");
+        engine.add_testcase_body(">", 1).expect("add command");
+        engine.add_testcase_body("> bar2", 1).expect("add command");
+        engine.add_testcase_body("> bar3", 1).expect("add command");
+        engine.add_testcase_body("baz", 2).expect("add expectation");
+        engine.add_testcase_body("[5]", 3).expect("add expectation");
+        engine.end_testcase(4).expect("testcase ending");
+        assert_eq!(
+            vec![TestCase {
+                title: "foo".to_string(),
+                exit_code: Some(5),
+                body: ValidationBody::Output(OutputBody {
+                    expectations: vec![test_expectation!("equal", "baz")]
+                }),
+                shell_expression: "bar1\n\nbar2\nbar3".to_string(),
+                line_number: 2,
+                ..Default::default()
+            },],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_expectations_are_stacked() {
+        let mut engine = engine(false, false, None);
+        engine.set_testcase_title("foo");
+        engine.add_testcase_body("$ bar", 1).expect("add command");
+        engine
+            .add_testcase_body("baz1", 2)
+            .expect("add expectation");
+        engine
+            .add_testcase_body("baz2", 3)
+            .expect("add expectation");
+        engine
+            .add_testcase_body("baz3", 4)
+            .expect("add expectation");
+        engine.add_testcase_body("[5]", 5).expect("add expectation");
+        engine.end_testcase(6).expect("testcase ending");
+        assert_eq!(
+            vec![TestCase {
+                title: "foo".to_string(),
+                exit_code: Some(5),
+                body: ValidationBody::Output(OutputBody {
+                    expectations: vec![
+                        test_expectation!("equal", "baz1"),
+                        test_expectation!("equal", "baz2"),
+                        test_expectation!("equal", "baz3"),
+                    ]
+                }),
+                shell_expression: "bar".to_string(),
+                line_number: 2,
+                ..Default::default()
+            },],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_multiple_commands_in_block() {
+        let mut engine = engine(true, false, None);
+        engine
+            .add_testcase_body("$ foo1", 1)
+            .expect("add 1st command");
+        engine
+            .add_testcase_body("$ foo2", 2)
+            .expect("add 2nd command");
+        engine
+            .add_testcase_body("$ foo3", 3)
+            .expect("add 3rd command");
+        engine.end_testcase(4).expect("testcase ending");
+        assert_eq!(
+            vec![
+                TestCase {
+                    title: "".to_string(),
+                    exit_code: None,
+                    shell_expression: "foo1".to_string(),
+                    line_number: 2,
+                    ..Default::default()
+                },
+                TestCase {
+                    title: "".to_string(),
+                    exit_code: None,
+                    shell_expression: "foo2".to_string(),
+                    line_number: 3,
+                    ..Default::default()
+                },
+                TestCase {
+                    title: "".to_string(),
+                    exit_code: None,
+                    shell_expression: "foo3".to_string(),
+                    line_number: 4,
+                    ..Default::default()
+                }
+            ],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_single_command_in_block() {
+        let mut engine = engine(false, false, None);
+        engine
+            .add_testcase_body("$ foo1", 1)
+            .expect("add 1st command");
+        engine
+            .add_testcase_body("$ foo2", 2)
+            .expect("add 2nd command");
+        engine
+            .add_testcase_body("$ foo3", 3)
+            .expect("add 3rd command");
+        engine.end_testcase(4).expect("testcase ending");
+        assert_eq!(
+            vec![TestCase {
+                title: "".to_string(),
+                exit_code: None,
+                body: ValidationBody::Output(OutputBody {
+                    expectations: vec![
+                        test_expectation!("equal", "$ foo2"),
+                        test_expectation!("equal", "$ foo3"),
+                    ]
+                }),
+                shell_expression: "foo1".to_string(),
+                line_number: 2,
+                ..Default::default()
+            },],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_multi_line_command() {
+        let mut engine = engine(false, false, None);
+        engine
+            .add_testcase_body("$ foo1", 1)
+            .expect("add 1st command line");
+        engine
+            .add_testcase_body("> foo2", 2)
+            .expect("add 2nd command line");
+        engine
+            .add_testcase_body("> foo3", 3)
+            .expect("add 3rd command line");
+        engine.end_testcase(4).expect("testcase ending");
+        assert_eq!(
+            vec![TestCase {
+                title: "".to_string(),
+                exit_code: None,
+                shell_expression: "foo1\nfoo2\nfoo3".to_string(),
+                line_number: 2,
+                ..Default::default()
+            },],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_testcases_stack() {
+        let mut engine = engine(false, false, None);
+        engine.set_testcase_title("foo1");
+        engine.add_testcase_body("$ bar1", 1).expect("add command1");
+        engine
+            .add_testcase_body("baz1", 2)
+            .expect("add expectation1");
+        engine.add_testcase_body("[1]", 3).expect("add exit code1");
+        engine.end_testcase(10).expect("testcase ending1");
+        engine.set_testcase_title("foo2");
+        engine.add_testcase_body("$ bar2", 4).expect("add command2");
+        engine
+            .add_testcase_body("baz2", 5)
+            .expect("add expectation2");
+        engine.add_testcase_body("[2]", 6).expect("add exit code2");
+        engine.end_testcase(10).expect("testcase ending2");
+        engine.set_testcase_title("foo3");
+        engine.add_testcase_body("$ bar3", 7).expect("add command3");
+        engine
+            .add_testcase_body("baz3", 8)
+            .expect("add expectation3");
+        engine.add_testcase_body("[3]", 9).expect("add exit code3");
+        engine.end_testcase(10).expect("testcase ending3");
+        assert_eq!(
+            vec![
+                TestCase {
+                    title: "foo1".to_string(),
+                    exit_code: Some(1),
+                    body: ValidationBody::Output(OutputBody {
+                        expectations: vec![test_expectation!("equal", "baz1")]
+                    }),
+                    shell_expression: "bar1".to_string(),
+                    line_number: 2,
+                    ..Default::default()
+                },
+                TestCase {
+                    title: "foo2".to_string(),
+                    exit_code: Some(2),
+                    body: ValidationBody::Output(OutputBody {
+                        expectations: vec![test_expectation!("equal", "baz2")]
+                    }),
+                    shell_expression: "bar2".to_string(),
+                    line_number: 5,
+                    ..Default::default()
+                },
+                TestCase {
+                    title: "foo3".to_string(),
+                    exit_code: Some(3),
+                    body: ValidationBody::Output(OutputBody {
+                        expectations: vec![test_expectation!("equal", "baz3")]
+                    }),
+                    shell_expression: "bar3".to_string(),
+                    line_number: 8,
+                    ..Default::default()
+                }
+            ],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_exit_code_provided_is_remembered() {
+        for provided in [true, false] {
+            let mut engine = engine(false, false, None);
+            engine.set_testcase_title("foo1");
+            engine.add_testcase_body("$ bar", 1).expect("add command");
+            if provided {
+                engine.add_testcase_body("[0]", 2).expect("add exit code");
+            }
+            engine.end_testcase(3).expect("testcase ending");
+            assert_eq!(
+                vec![TestCase {
+                    title: "foo1".to_string(),
+                    exit_code: if provided { Some(0) } else { None },
+                    shell_expression: "bar".to_string(),
+                    line_number: 2,
+                    ..Default::default()
+                },],
+                engine.testcases,
+                "provided exit code {provided}",
+            )
+        }
+    }
+
+    #[test]
+    fn test_extract_exit_code() {
+        let tests: Vec<(&str, Option<i32>)> = vec![
+            ("foo", None),
+            ("[]", None),
+            ("[0]", Some(0)),
+            ("[1]", Some(1)),
+            ("[99]", Some(99)),
+            ("[a]", None),
+        ];
+        tests.iter().for_each(|(line, expect)| {
+            let result = extract_exit_code(line);
+            assert_eq!(*expect, result, "parsed '{}'", line);
+        });
+    }
+
+    #[test]
+    fn test_multiline_config_preceding_command() {
+        let mut engine = engine(false, true, None);
+        engine.set_testcase_title("foo");
+        engine
+            .add_testcase_body("% timeout: 99s", 1)
+            .expect("add config 1");
+        engine
+            .add_testcase_body("% environment:", 2)
+            .expect("add config 2");
+        engine
+            .add_testcase_body("%   BLA: BLUB", 3)
+            .expect("add config 3");
+        engine
+            .add_testcase_body("%   THIS: THAT", 4)
+            .expect("add config 4");
+        engine.add_testcase_body("$ bar", 5).expect("add command");
+        engine.end_testcase(6).expect("testcase ending");
+        let config = TestCaseConfig {
+            timeout: Some(std::time::Duration::from_secs(99)),
+            environment: BTreeMap::from_iter([
+                ("BLA".to_string(), "BLUB".to_string()),
+                ("THIS".to_string(), "THAT".to_string()),
+            ]),
+            ..Default::default()
+        };
+        assert_eq!(
+            vec![TestCase {
+                title: "foo".to_string(),
+                shell_expression: "bar".to_string(),
+                line_number: 6,
+                config,
+                ..Default::default()
+            },],
+            engine.testcases,
+        )
+    }
+
+    #[test]
+    fn test_json_schema_mode_collects_body_lines() {
+        let mut engine = engine(false, true, None);
+        engine.set_testcase_title("json schema test");
+        engine
+            .add_testcase_body("% mode: jsonschema", 1)
+            .expect("add config");
+        engine.add_testcase_body("$ cmd", 2).expect("add command");
+        engine.add_testcase_body("---", 3).expect("add schema line");
+        engine
+            .add_testcase_body("type: object", 4)
+            .expect("add schema line");
+        engine
+            .add_testcase_body("properties:", 5)
+            .expect("add schema line");
+        engine
+            .add_testcase_body("  foo:", 6)
+            .expect("add schema line");
+        engine
+            .add_testcase_body("    type: string", 7)
+            .expect("add schema line");
+        engine.end_testcase(8).expect("testcase ending");
+
+        assert_eq!(1, engine.testcases.len(), "should have one testcase");
+        let tc = &engine.testcases[0];
+        assert_eq!(
+            tc.body,
+            ValidationBody::JsonSchema(JsonSchemaBody {
+                schema_source: "---\ntype: object\nproperties:\n  foo:\n    type: string"
+                    .to_string(),
+            }),
+            "body should be JsonSchema with collected lines"
+        );
+        assert_eq!(
+            tc.config.mode,
+            Some(TestMode::JsonSchema),
+            "config mode should be JsonSchema"
+        );
+    }
+
+    #[test]
+    fn test_json_schema_mode_with_exit_code() {
+        let mut engine = engine(false, true, None);
+        engine
+            .add_testcase_body("% mode: jsonschema", 1)
+            .expect("add config");
+        engine.add_testcase_body("$ cmd", 2).expect("add command");
+        engine
+            .add_testcase_body("type: object", 3)
+            .expect("add schema line");
+        engine.add_testcase_body("[0]", 4).expect("add exit code");
+        engine.end_testcase(5).expect("testcase ending");
+
+        assert_eq!(1, engine.testcases.len(), "should have one testcase");
+        let tc = &engine.testcases[0];
+        assert_eq!(tc.exit_code, Some(0), "exit code should be captured");
+        assert_eq!(
+            tc.body,
+            ValidationBody::JsonSchema(JsonSchemaBody {
+                schema_source: "type: object".to_string(),
+            }),
+            "exit code line should not be in schema body"
+        );
+    }
+
+    #[test]
+    fn test_invalid_multiline_config_fails_at_command() {
+        let mut engine = engine(false, true, None);
+        engine
+            .add_testcase_body("% mode: [interactive", 1)
+            .expect("config lines are only collected");
+        let Err(err) = engine.add_testcase_body("$ cmd", 2) else {
+            panic!("invalid config YAML must not be treated as non-interactive");
+        };
+        assert!(
+            format!("{err:#}").contains("line 3: parse testcase config lines"),
+            "error should name the command line, got: {err:#}"
+        );
+    }
+}

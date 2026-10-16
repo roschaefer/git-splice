@@ -27,7 +27,7 @@ checked_documents() {
       [[ "$file" == "$path" || "$file" == "$path"/* ]] && checked=1
     done
     [[ -n "$checked" && "$file" == *.md ]] || missed+=("$file")
-  done < <(git grep --untracked -l -E "^$fence${scrut_language#^}" -- ':!test/docs.bats')
+  done < <(git grep --untracked -l -E "^$fence${scrut_language#^}" -- ':!test/docs.bats' ':!scrut/')
   printf 'not run by docs-check: %s\n' "${missed[@]}" >&2
   [ "${#missed[@]}" -eq 0 ]
 }

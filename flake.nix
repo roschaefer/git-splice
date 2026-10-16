@@ -3,10 +3,12 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    # Only builds scrut/, which needs a newer Rust than nixos-25.05 has.
+    nixpkgs-scrut.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, nixpkgs-scrut, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -58,35 +60,29 @@
             platforms = lib.platforms.unix;
           };
         };
-        # Runs the walkthroughs and scenario READMEs (`just docs-check`). Not in
-        # nixpkgs yet, so this uses the upstream release binaries.
+        # Runs the walkthroughs and scenario READMEs (`just docs-check`). Built
+        # from scrut/, our fork spliced in, so changes there are used without a
+        # release. CI caches the build, see .github/actions/scrut-cache.
         scrut =
           let
-            version = "0.4.3";
-            platforms = {
-              x86_64-linux = { name = "linux-x86_64"; hash = "sha256-au+wv/KbRQ+9GwQIPu/q5DiNbJMC4x0aJLeqnt0DuzU="; };
-              aarch64-linux = { name = "linux-aarch64"; hash = "sha256-pnEX9DINEpx9cHOl5mfbrSXnqD8xSApjMQglD+QGndU="; };
-              x86_64-darwin = { name = "macos-x86_64"; hash = "sha256-JYlzAFESfhFOIBSRblHn6s6wH1nqe/sqpZvzbI+izJ4="; };
-              aarch64-darwin = { name = "macos-aarch64"; hash = "sha256-PAvI1FX92zguHpCZ9fSk4LjpJbGfpYjCF2vARjg9mrw="; };
-            };
-            platform = platforms.${system};
+            pkgs-scrut = nixpkgs-scrut.legacyPackages.${system};
           in
-          pkgs.stdenv.mkDerivation {
+          pkgs-scrut.rustPlatform.buildRustPackage {
             pname = "scrut";
-            inherit version;
-            src = pkgs.fetchurl {
-              url = "https://github.com/facebookincubator/scrut/releases/download/v${version}/scrut-v${version}-${platform.name}.tar.gz";
-              inherit (platform) hash;
-            };
-            sourceRoot = "scrut-${platform.name}";
-            nativeBuildInputs = lib.optionals pkgs.stdenv.isLinux [ pkgs.autoPatchelfHook ];
-            buildInputs = lib.optionals pkgs.stdenv.isLinux [ pkgs.stdenv.cc.cc.lib ];
-            installPhase = "install -Dm755 scrut $out/bin/scrut";
-            meta.platforms = builtins.attrNames platforms;
+            version = (lib.importTOML ./scrut/Cargo.toml).package.version;
+            src = ./scrut;
+            # Upstream doesn't commit a Cargo.lock. Ours lives outside scrut/,
+            # so `git splice push` doesn't send it to the fork; `just
+            # scrut-lock` updates it.
+            cargoLock.lockFile = ./nix/scrut.Cargo.lock;
+            postPatch = "ln -s ${./nix/scrut.Cargo.lock} Cargo.lock";
+            # scrut's own tests run in the fork's CI.
+            doCheck = false;
           };
       in
       {
         packages.default = git-splice;
+        packages.scrut = scrut;
 
         # Runs the installed package the way users do, through `git splice`,
         # against a splice whose upstream got a new commit.

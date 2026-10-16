@@ -1,0 +1,4 @@
+# scrut/ is a splice of our scrut fork, for development only: keep it and its
+# Cargo.lock out of the release tarballs, which CI makes with git archive.
+/scrut/ export-ignore
+/nix/scrut.Cargo.lock export-ignore

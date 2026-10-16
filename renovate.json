@@ -14,5 +14,12 @@
   "commitMessageTopic": "{{depName}}",
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
-  "semanticCommitScope": "deps"
+  "semanticCommitScope": "deps",
+  "packageRules": [
+    {
+      "description": "scrut/ is a splice of our scrut fork: its dependencies are updated upstream",
+      "matchFileNames": ["scrut/**", "nix/scrut.Cargo.lock"],
+      "enabled": false
+    }
+  ]
 }

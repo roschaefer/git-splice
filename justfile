@@ -51,3 +51,9 @@ site-serve:
 
 # Everything CI runs: lint, fmt-check, test, docs-check and site-build
 ci: lint fmt-check test docs-check site-build
+
+# Update nix/scrut.Cargo.lock after scrut/Cargo.toml changed, e.g. after a pull; scrut upstream commits no Cargo.lock
+scrut-lock:
+    cp nix/scrut.Cargo.lock scrut/Cargo.lock
+    cd scrut && nix shell --inputs-from .. nixpkgs-scrut#cargo --command cargo fetch --quiet
+    mv scrut/Cargo.lock nix/scrut.Cargo.lock
