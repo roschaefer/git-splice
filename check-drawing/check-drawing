@@ -157,13 +157,34 @@ check_drawing() {
   # What H names, and B, T, R, U(H) and U(B) of each splice the drawing
   # uses; T through the upstream branch the monorepo's branch maps to.
   truth[H]="$(git rev-parse HEAD)"
+  # The folder splice <path> had in monorepo commit <commit>: git-splice's
+  # rebuild follows it back through moves (`git mv`).
+  path_at() {
+    (
+      # shellcheck source=/dev/null # git-splice's, linted there
+      source "$DRAWING_LIB/common.sh"
+      # shellcheck source=/dev/null
+      source "$DRAWING_LIB/rebuild.sh"
+      local i lower upper
+      splice_lineage "$1" HEAD
+      splice_lineage_to_mount
+      for i in "${!LINEAGE_RANGES[@]}"; do
+        lower="${LINEAGE_RANGES[$i]%%..*}" upper="${LINEAGE_RANGES[$i]#*..}"
+        if git merge-base --is-ancestor "$2" "$upper" && ! git merge-base --is-ancestor "$2" "$lower"; then
+          printf '%s\n' "${LINEAGE_PATHS[$i]}"
+          return
+        fi
+      done
+      printf '%s\n' "$LINEAGE_PATH"
+    )
+  }
   load_truth() {
     local p="$1" c
     [[ -z "${truth["$p|loaded"]:-}" ]] || return 0
     truth["$p|loaded"]=1
     truth["$p|B"]="$(git splice boundary "$p")"
     truth["$p|U"]="$(git config --blob "HEAD:$p/.splice" splice.commit)"
-    truth["$p|S"]="$(git config --blob "${truth["$p|B"]}:$p/.splice" splice.commit)"
+    truth["$p|S"]="$(git config --blob "${truth["$p|B"]}:$(path_at "$p" "${truth["$p|B"]}")/.splice" splice.commit)"
     truth["$p|T"]="$(git rev-parse --verify --quiet "$(
       # shellcheck source=/dev/null # git-splice's, linted there
       source "$DRAWING_LIB/common.sh"
@@ -294,8 +315,11 @@ check_drawing() {
         B) printf '%s\n' "${truth["$sp|S"]}" ;;
         *)
           c="${id_of_label[$k]}"
-          rel="$sp"
-          [[ -z "${lane_of[$c]}" ]] || rel="${sp#"${lane_of[$c]}/"}"
+          if [[ -n "${lane_of[$c]}" ]]; then
+            rel="${sp#"${lane_of[$c]}/"}"
+          else
+            rel="$(path_at "$sp" "${commit_of[$c]}")"
+          fi
           git config --blob "${commit_of[$c]}:$rel/.splice" splice.commit 2>/dev/null
           ;;
       esac

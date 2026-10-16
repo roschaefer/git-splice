@@ -62,9 +62,10 @@ arguments.
 - `git-splice` on `PATH`
 
 From `git-splice`, it uses the commands `boundary`, `rebuild` and `key`,
-and two functions of its `lib/common.sh`: the list of splices,
+two functions of its `lib/common.sh`: the list of splices,
 `state_files`, and the upstream branch a monorepo branch maps to,
-`upstream_branch_for`. It finds `lib/` next to the `git-splice` on
+`upstream_branch_for`, and the folders a splice had before it moved,
+`splice_lineage` and `splice_lineage_to_mount` of `lib/rebuild.sh`. It finds `lib/` next to the `git-splice` on
 `PATH`, as in a checkout of `git-splice`, or in `share/git-splice/`
 beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 
@@ -130,8 +131,6 @@ What no drawing has needed yet, it doesn't handle:
   the monorepo and later drops one of them.
 - **Old sync points**: a commit reachable only from an earlier `.splice`
   value is found by its label only when given as `<label>=<rev>`.
-- **Moved splices**: U(x) reads *x*'s `.splice` under the splice's current
-  folder, so a commit from before the splice moved has none there.
 
 ## Tests
 
