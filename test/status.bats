@@ -19,7 +19,8 @@ setup() {
     default-branch \
     up-to-date/shared-remote-url \
     init-new-upstream \
-    up-to-date/push-ahead/uncommitted-changes; do
+    up-to-date/push-ahead/uncommitted-changes \
+    nested-splices; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -229,6 +230,38 @@ EOF
   echo ignored >vendor/a/build/out.txt
   run cmd_status
   [ "${lines[*]:1}" = "  up to date  vendor/a" ]
+}
+
+@test "status: counts uncommitted changes only for the splice they're in" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo changed >>vendor/b/file.txt
+  run cmd_status
+  [[ "$output" == *"vendor/b  uncommitted changes"* ]]
+  [[ "$output" != *"vendor/a  uncommitted changes"* ]]
+}
+
+@test "status: an untracked folder in a splice below another counts for both" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir vendor/a/b/new
+  echo x >vendor/a/b/new/file.txt
+  run cmd_status
+  [[ "$output" == *"vendor/a  "*"uncommitted changes"* ]]
+  [[ "$output" == *"vendor/a/b  "*"uncommitted changes"* ]]
+}
+
+@test "status: asks git status once for all splices" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo changed >>vendor/b/file.txt
+  git() {
+    [[ "$1" != status ]] || echo status >>"$BATS_TEST_TMPDIR/calls"
+    command git "$@"
+  }
+  run cmd_status
+  [ "$status" -eq 0 ]
+  [ "$(grep -c status "$BATS_TEST_TMPDIR/calls")" -eq 1 ]
 }
 
 @test "status: says so when it can't check for uncommitted changes" {

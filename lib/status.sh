@@ -184,6 +184,7 @@ cmd_status() {
   select_splices overview status
   branch="$MONOREPO_BRANCH"
   STATUS_RANKS=() STATUS_LABELS=() STATUS_PATHS=() STATUS_HINTS=()
+  load_uncommitted_changes "${SELECTED_PATHS[@]}"
   for path in "${SELECTED_PATHS[@]}"; do
     add_status_row "$path" "$branch"
   done

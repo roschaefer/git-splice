@@ -1022,7 +1022,53 @@ content_pathspec() {
 # splice from HEAD, so push leaves them out. Returns 1 for none, and 2 if
 # git status failed, which must not pass for "none".
 has_uncommitted_changes() {
-  local changes
-  changes="$(git status --porcelain --untracked-files=normal -- ":(top,literal)$1" 2>/dev/null)" || return 2
-  [[ -n "$changes" ]]
+  [[ -n "${UNCOMMITTED_CHANGES[$1]+set}" ]] || load_uncommitted_changes "$1"
+  case "${UNCOMMITTED_CHANGES[$1]}" in
+    changes) return 0 ;;
+    none) return 1 ;;
+    *) return 2 ;;
+  esac
+}
+
+# Whether each splice's folder has uncommitted changes, by path: "changes",
+# "none", or "failed" if git status failed. Set by
+# load_uncommitted_changes.
+declare -gA UNCOMMITTED_CHANGES=()
+
+# Asks git status once for all of splices <path>... and records the answer
+# for each in UNCOMMITTED_CHANGES: one git status per splice reads the
+# index again for every one. A change in a splice below another counts for
+# both, as it's in both folders. No renames: one from a splice to outside
+# it still lists the file it removed from the splice.
+load_uncommitted_changes() {
+  local path entry file pathspecs=() entries=()
+  for path in "$@"; do
+    pathspecs+=(":(top,literal)$path")
+  done
+  # git's status follows as the last record, as in load_splice_upstream.
+  mapfile -d '' entries < <(
+    if git status --porcelain -z --no-renames --untracked-files=normal -- "${pathspecs[@]}" 2>/dev/null; then
+      printf 0
+    else
+      printf 1
+    fi
+  )
+  if [[ "${entries[-1]}" != 0 ]]; then
+    for path in "$@"; do
+      UNCOMMITTED_CHANGES[$path]=failed
+    done
+    return 0
+  fi
+  unset 'entries[-1]'
+  for path in "$@"; do
+    UNCOMMITTED_CHANGES[$path]=none
+  done
+  for entry in "${entries[@]}"; do
+    # "XY <file>", where an untracked folder ends with "/".
+    file="${entry:3}"
+    for path in "$@"; do
+      [[ "$file" == "$path" || "$file" == "$path"/* || ("$file" == */ && "$path/" == "$file"*) ]] &&
+        UNCOMMITTED_CHANGES[$path]=changes
+    done
+  done
 }

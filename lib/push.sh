@@ -203,6 +203,7 @@ cmd_push() {
   # Bottom-up: a splice's push publishes the .splice files below it, which
   # should point at what their own pushes published.
   mapfile -t paths < <(splices_in_order bottom-up "${SELECTED_PATHS[@]}")
+  load_uncommitted_changes "${SELECTED_PATHS[@]}"
   for path in "${paths[@]}"; do
     if failed="$(first_below "$path" "${failures[@]}")"; then
       log_err "$path: not pushed, since $failed below it failed"
