@@ -157,27 +157,48 @@ check_drawing() {
   # What H names, and B, T, R, U(H) and U(B) of each splice the drawing
   # uses; T through the upstream branch the monorepo's branch maps to.
   truth[H]="$(git rev-parse HEAD)"
-  # The folder splice <path> had in monorepo commit <commit>: git-splice's
-  # rebuild follows it back through moves (`git mv`).
-  path_at() {
+  # The folders splice <path> had on HEAD's first-parent history, as
+  # git-splice's rebuild follows it back through moves (`git mv`): each
+  # path and the range (rev-list syntax) of commits it applies to, newest
+  # first, each field ending with a NUL. The last range reaches back to
+  # the mount.
+  lineage_segments() {
     (
       # shellcheck source=/dev/null # git-splice's, linted there
       source "$DRAWING_LIB/common.sh"
       # shellcheck source=/dev/null
       source "$DRAWING_LIB/rebuild.sh"
-      local i lower upper at
+      local at upper i
       local -a paths=() ranges=()
       read_lineage 5 paths ranges - - at - upper < <(splice_lineage "$1" HEAD)
       read_lineage 3 paths ranges - at upper < <(splice_lineage_to_mount "$at" "$upper")
-      for i in "${!ranges[@]}"; do
-        lower="${ranges[$i]%%..*}" upper="${ranges[$i]#*..}"
-        if git merge-base --is-ancestor "$2" "$upper" && ! git merge-base --is-ancestor "$2" "$lower"; then
-          printf '%s\n' "${paths[$i]}"
-          return
-        fi
+      paths+=("$at") ranges+=("$upper")
+      for i in "${!paths[@]}"; do
+        printf '%s\0' "${paths[$i]}" "${ranges[$i]}"
       done
-      printf '%s\n' "$at"
     )
+  }
+  # The folder splice <path> had in monorepo commit <commit>. A commit on
+  # another branch has it where HEAD's history had it at the fork, unless
+  # it has the splice's id at <path> already.
+  path_at() {
+    local p="$1" c="$2" path range lower upper
+    if ! git merge-base --is-ancestor "$c" HEAD 2>/dev/null; then
+      if [[ "$(git config --blob "$c:$p/.splice" splice.id 2>/dev/null)" == "$(git config --blob "HEAD:$p/.splice" splice.id)" ]]; then
+        printf '%s\n' "$p"
+        return
+      fi
+      c="$(git merge-base HEAD "$c")" || return 0
+    fi
+    while IFS= read -r -d '' path && IFS= read -r -d '' range; do
+      upper="${range#*..}" lower=""
+      [[ "$range" != *..* ]] || lower="${range%%..*}"
+      if git merge-base --is-ancestor "$c" "$upper" &&
+        { [[ -z "$lower" ]] || ! git merge-base --is-ancestor "$c" "$lower" 2>/dev/null; }; then
+        printf '%s\n' "$path"
+        return
+      fi
+    done < <(lineage_segments "$p")
   }
   load_truth() {
     local p="$1" c
@@ -198,9 +219,12 @@ check_drawing() {
       truth["$p|base"]="$(git merge-base "${truth["$p|R"]}" "${truth["$p|T"]}")"
     truth["$p|key"]="$(git splice key "$p")"
     truth["$p|synced"]=""
-    for c in $(git log --first-parent --format=%H HEAD -- "$p/.splice"); do
-      truth["$p|synced"]+=" $(git config --blob "$c:$p/.splice" splice.commit 2>/dev/null)"
-    done
+    local path range
+    while IFS= read -r -d '' path && IFS= read -r -d '' range; do
+      for c in $(git log --first-parent --format=%H "$range" -- "$path/.splice"); do
+        truth["$p|synced"]+=" $(git config --blob "$c:$path/.splice" splice.commit 2>/dev/null)"
+      done
+    done < <(lineage_segments "$p")
   }
   for id in "${commits[@]}" "${boxes[@]}"; do
     sp="${lane_of[$id]:-$default}"

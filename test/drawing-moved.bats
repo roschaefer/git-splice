@@ -35,3 +35,15 @@ edit_drawing() {
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 0 ]
 }
+
+@test "drawing moved: U(x) of a commit on a branch forked after the move is read under the new folder" {
+  git switch -q -c side
+  echo "side" >>libs/a/file.txt
+  git commit -q -am "side change"
+  git switch -q main
+  # s, outside the lane, as m's child.
+  sed -i 's#</root>#<mxCell id="s" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;"><mxGeometry x="400" y="0" width="70" height="70" as="geometry" /></mxCell><mxCell id="e_s" parent="1" edge="1" source="m" target="s"><mxGeometry relative="1" as="geometry" /></mxCell></root>#' "$drawing"
+  edit_drawing -u '//mxCell[@id="box1"]/@value' -v 'T = U(s)'
+  run check_drawing "$drawing" "${revs[@]}" s=side
+  [ "$status" -eq 0 ]
+}
