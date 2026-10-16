@@ -550,7 +550,9 @@ These are known and accepted, each to keep the design simple:
   monorepo's history alone, not from the upstream above up to that
   splice's boundary: its path there would be another one. So a push of
   its history from before the move may be made again, as before
-  [#74](https://github.com/roschaefer/git-splice/issues/74).
+  [#74](https://github.com/roschaefer/git-splice/issues/74), and commits
+  from the upstream above lose their messages and authors to the pull
+  commit ([#187](https://github.com/roschaefer/git-splice/issues/187)).
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
   on case-insensitive file systems, like macOS's default one: fetching one
