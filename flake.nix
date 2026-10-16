@@ -63,12 +63,12 @@
         # scrut/, for `scrut test --jobs` until it's released upstream.
         scrut =
           let
-            version = "0.5.0-jobs.1";
+            version = "0.5.0-jobs.2";
             platforms = {
-              x86_64-linux = { name = "linux-x86_64"; hash = "sha256-464snd/zBsv5z2fF97x29BrJgUZDQjv8i+4pz2Wim3k="; };
-              aarch64-linux = { name = "linux-aarch64"; hash = "sha256-+uxmo7dMbzB/mwnrCiL+n8kInAq3pMGrzCZQklrzbuc="; };
-              x86_64-darwin = { name = "macos-x86_64"; hash = "sha256-vY7fJFeAFcx0Kux/TAcpuq86cr3Z6CWKoKKUrx0ChIc="; };
-              aarch64-darwin = { name = "macos-aarch64"; hash = "sha256-bdPRBY08aVgAXfzcHyhwwhdBUZXgmT15fCMOJOPrB18="; };
+              x86_64-linux = { name = "linux-x86_64"; hash = "sha256-eVDA32XDzX/C+9D0hEJTz1vO6VfWWrceKawz66CtuRw="; };
+              aarch64-linux = { name = "linux-aarch64"; hash = "sha256-Cky3qTtW221N+CRTm9fPQJ4Way724gwLQ55GIM5eCx4="; };
+              x86_64-darwin = { name = "macos-x86_64"; hash = "sha256-vidZajVypr86Z2HjoUClSCwkw8MH8Z69a4Zjs5pHzJo="; };
+              aarch64-darwin = { name = "macos-aarch64"; hash = "sha256-OMG55/YOzZnynVqYjNXv5W7m0ZSnfNCYwWK/Uy78wZA="; };
             };
             platform = platforms.${system};
           in
