@@ -32,4 +32,8 @@ A few details:
 
 [`test/docs.bats`](../test/docs.bats) checks what a pattern can find: no
 role in bold, and no repository or splice named by a letter's
-possessive, like `a's upstream`.
+possessive, like `a's upstream`. It reads lines, not Markdown: it skips
+fenced code, inline code in single backticks, and whole lines with an
+HTML comment, and checks everything else, indented code included. It
+misses a role inside a longer bold span, like `**the BOUNDARY commit**`.
+An example that trips it belongs in a fenced block.
