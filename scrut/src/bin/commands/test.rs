@@ -194,6 +194,9 @@ impl Args {
                 )
             },
             |run| {
+                for message in run.messages {
+                    pw.println(message);
+                }
                 outcomes.extend(run.outcomes);
                 count_success += run.count_success;
                 count_skipped += run.count_skipped;
@@ -373,7 +376,7 @@ impl Args {
                             format: test.parser_type,
                             result: Err(TestCaseError::Skipped),
                         }));
-                    pw.println(format!(
+                    run.messages.push(format!(
                         "⏩ {}: skipped, because testcase #{} ended in exit code {}",
                         style(test.path.to_string_lossy()).blue(),
                         idx + 1,
@@ -414,7 +417,7 @@ impl Args {
                             ("per-document timeout".to_string(), config.total_timeout)
                         }
                     };
-                    pw.println(format!(
+                    run.messages.push(format!(
                         "⌛️ {}: execution timed out after {} at {}",
                         style(test.path.to_string_lossy()).red(),
                         timeout.map_or_else(
@@ -441,7 +444,7 @@ impl Args {
                         |output, testcase| testcase.validate(output),
                     );
 
-                    pw.println(format!(
+                    run.messages.push(format!(
                         "⚡ {}: stopped at testcase #{} due to fail_fast",
                         style(test.path.to_string_lossy()).red(),
                         idx + 1,
@@ -512,7 +515,7 @@ impl Args {
                         run.count_skipped += remaining;
                     }
 
-                    pw.println(format!(
+                    run.messages.push(format!(
                         "❌ {}: interactive test #{} failed",
                         style(test.path.to_string_lossy()).red(),
                         index + 1,
@@ -560,7 +563,7 @@ impl Args {
                 let total = failed + success;
 
                 if failed > 0 {
-                    pw.println(format!(
+                    run.messages.push(format!(
                         "❌ {}: failed {} out of {} testcase{}",
                         style(test.path.to_string_lossy()).red(),
                         style(failed).red().bold(),
@@ -568,7 +571,7 @@ impl Args {
                         if total == 1 { "" } else { "s" },
                     ));
                 } else if self.verbose {
-                    pw.println(format!(
+                    run.messages.push(format!(
                         "✅ {}: passed {} testcase{}",
                         style(test.path.to_string_lossy()).green(),
                         style(success).green().bold(),
@@ -606,6 +609,8 @@ impl Args {
 #[derive(Default)]
 struct DocumentRun {
     outcomes: Vec<Outcome>,
+    /// Status lines, printed when the run is applied, in document order
+    messages: Vec<String>,
     count_success: usize,
     count_skipped: usize,
     count_failed: usize,
