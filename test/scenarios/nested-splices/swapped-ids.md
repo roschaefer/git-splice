@@ -18,9 +18,10 @@ is:
 - **Nothing refuses it.** No id repeats in one line of nesting, so it
   isn't a cycle either, a splice that contains itself
   ([#86](https://github.com/roschaefer/git-splice/issues/86)).
-- **Each path starts a new history at the swap**, since its `.splice`
-  has another id there. Nothing from before it reaches the other
-  upstream.
+- **Each splice follows its id across the swap**, as across a `git mv`
+  ([swapped-splices](../swapped-splices/README.md)): its history from
+  before the swap is read from its old path. Nothing from before it
+  reaches the other upstream.
 - **But a push replaces the upstream's files.** The swap reads as a
   plain `ahead 1`, and pushing `vendor/a` sends the outer upstream's
   files to the inner upstream, as a fast-forward. `clone` refuses a
@@ -69,7 +70,8 @@ vendor/a/b/.splice: id = [0-9a-f]{16} (regex)
 vendor/a/b/.splice: url = $UPSTREAM
 ```
 
-Both read as an ordinary push, each starting at the swap:
+Both read as an ordinary push, the swap on top of each splice's own
+history:
 
 ```scrut
 $ git splice status

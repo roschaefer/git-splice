@@ -1,7 +1,5 @@
 # Scenario: moved-with-unpushed-commits
 
-> **Known bug, [#4](https://github.com/roschaefer/git-splice/issues/4).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../known-bugs.md).
-
 A splice with an unpushed commit is moved with `git mv`. The next push
 sends the unpushed commit with its own message and author. The move
 changes no file inside the folder, so it doesn't reach the upstream at

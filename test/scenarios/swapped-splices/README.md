@@ -1,7 +1,5 @@
 # Scenario: swapped-splices
 
-> **Known bug, [#4](https://github.com/roschaefer/git-splice/issues/4).** This page shows what `git-splice` does today, bug included. See [all known bugs](../known-bugs.md).
-
 Two folders trade places in one commit: what was `vendor/a/` is now
 `vendor/b/`, and the other way around. Each takes its `.splice` along, so
 each splice keeps its upstream, and its history, under the other's old

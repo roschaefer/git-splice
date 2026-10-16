@@ -10,8 +10,6 @@ back here.
 | --- | --- | --- |
 | [init-then-cloned](init-then-cloned/README.md) | [#11](https://github.com/roschaefer/git-splice/issues/11) | Until a fresh clone fetches, the upstream reads as empty though it has commits. |
 | [init-then-cloned: push before the fetch](init-then-cloned/push-before-fetch.md) | [#11](https://github.com/roschaefer/git-splice/issues/11) | A push before the first fetch says it creates the upstream branch, which already exists. |
-| [moved-with-unpushed-commits](up-to-date/push-ahead/moved-with-unpushed-commits/README.md) | [#4](https://github.com/roschaefer/git-splice/issues/4) | A `git mv` squashes unpushed commits into the move. Workaround: [push before moving](up-to-date/push-ahead/moved-with-unpushed-commits/push-before-moving.md). |
-| [swapped-splices](swapped-splices/README.md) | [#4](https://github.com/roschaefer/git-splice/issues/4) | Two folders that trade places fold unpushed work into the swap commit. |
 | [nested-splices: a and b swap their `.splice`](nested-splices/swapped-ids.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | A push sends one splice's files to the other's upstream. |
 | [upstream-rewritten-equal-tree: `push --force`](upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) | [#38](https://github.com/roschaefer/git-splice/issues/38) | `push --force`, one of the ways out `merge` prints, publishes the history the upstream rewrote away. |
 | [edited-before-push: a change before the pull](up-to-date/push-ahead/edited-before-push/change-before-the-pull.md) | [#82](https://github.com/roschaefer/git-splice/issues/82) | The next push publishes the original commit next to its edited version; `pull -s ours` isn't implemented. |
@@ -32,9 +30,7 @@ $ check_known_bugs
 ok init-then-cloned/README.md #11
 ok init-then-cloned/push-before-fetch.md #11
 ok nested-splices/swapped-ids.md #174
-ok swapped-splices/README.md #4
 ok up-to-date/push-ahead/edited-before-push/change-before-the-pull.md #82
-ok up-to-date/push-ahead/moved-with-unpushed-commits/README.md #4
 ok upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md #38
 ```
 

@@ -166,20 +166,22 @@ swap_splice_files() {
   git commit -q -m "swap the .splice files"
 }
 
-@test "nested: after a and b swap their .splice, nothing from before the swap reaches the other's upstream" {
+@test "nested: after a and b swap their .splice, each follows its id and keeps its own unpushed commits, nothing of the other's" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "a local" a.txt
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
+  local a_before b_before rebuilt
+  a_before="$(rebuild_splice vendor/a)"
+  b_before="$(rebuild_splice vendor/a/b)"
   swap_splice_files
-  [ "$(splice_mount vendor/a)" = "$(git rev-parse HEAD)" ]
-  [ "$(splice_mount vendor/a/b)" = "$(git rev-parse HEAD)" ]
-  local path rebuilt
-  for path in vendor/a vendor/a/b; do
-    rebuilt="$(rebuild_splice "$path")"
-    [ "$(git log -1 --format=%s "$rebuilt")" = "swap the .splice files" ]
-    [ "$(git rev-parse "$rebuilt^")" = "$(splice_config "$path" commit)" ]
-  done
+  # vendor/a has b's id now, vendor/a/b a's.
+  rebuilt="$(rebuild_splice vendor/a)"
+  [ "$(git log -1 --format=%s "$rebuilt")" = "swap the .splice files" ]
+  [ "$(git rev-parse "$rebuilt^")" = "$b_before" ]
+  rebuilt="$(rebuild_splice vendor/a/b)"
+  [ "$(git log -1 --format=%s "$rebuilt")" = "swap the .splice files" ]
+  [ "$(git rev-parse "$rebuilt^")" = "$a_before" ]
 }
 
 @test "nested: after a and b swap their .splice, a pull of the folder below doesn't nest a in it again" {
