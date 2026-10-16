@@ -109,9 +109,10 @@ merge_one() {
 # an ordinary push, T is the rebuild: nothing to record, unless --bump
 # asks for it. `verb` as for merge_one.
 record_equal_tree() {
-  local path="$1" verb="$2" target
+  local path="$1" verb="$2" target outcome
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
-  if [[ "$(equal_tree_outcome "$path" "$target")" != record ]]; then
+  outcome="$(equal_tree_outcome "$path" "$target")" || return 1
+  if [[ "$outcome" != record ]]; then
     if [[ -n "${MERGE_BUMP:-}" ]]; then
       bump_synced "$path"
       return
@@ -139,12 +140,13 @@ record_equal_tree() {
 #   bump    only --bump records it: it's part of the rebuild, after the
 #           synced commit
 #   keep    nothing records it: it's the synced commit or older
-# push --rebuilt-commit refuses a commit no pull would record.
+# push --rebuilt-commit refuses a commit no pull would record. Returns 1
+# if the rebuild fails, after it printed why.
 equal_tree_outcome() {
   local path="$1" target="$2" synced rebuilt
   synced="$(splice_config "$path" commit)"
   if [[ -z "$synced" ]] || git cat-file -e "$synced^{commit}" 2>/dev/null; then
-    rebuilt="$(rebuild_splice "$path" HEAD)"
+    rebuilt="$(rebuild_splice "$path" HEAD)" || return 1
     if [[ -n "$rebuilt" ]] && git merge-base --is-ancestor "$target" "$rebuilt"; then
       if newer_than_synced "$synced" "$target"; then
         echo bump
