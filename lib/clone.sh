@@ -72,7 +72,7 @@ CONTAINER_DEFAULT=""
 fetch_new_upstream() {
   local path="$1" url="$2"
   # Before the fetch: refuses if the splice above leaves it open.
-  container_default_branch "$path" >/dev/null
+  find_container_default_branch "$path"
   create_upstream_key "$url"
   SPLICE_UPSTREAM_LISTS[$path]="$DEFAULT_UPSTREAM"
   UPSTREAM_URLS["$path:$DEFAULT_UPSTREAM"]="$url"
@@ -84,11 +84,12 @@ fetch_new_upstream() {
 
   # Map the monorepo's default branch to the upstream's, if it differs from
   # the default branch of what the splice lives in: the splice above it,
-  # or the monorepo (container_default_branch).
+  # or the monorepo (find_container_default_branch).
   NEW_DEFAULT_BRANCH=""
   UPSTREAM_DEFAULT="$(upstream_default_branch "$url")"
   MONOREPO_DEFAULT="$(monorepo_default_branch)"
-  CONTAINER_DEFAULT="$(container_default_branch "$path")"
+  find_container_default_branch "$path"
+  CONTAINER_DEFAULT="$DEFAULT_BRANCH"
   if [[ -n "$UPSTREAM_DEFAULT" && -z "$MONOREPO_DEFAULT" && "$UPSTREAM_DEFAULT" != "$(current_branch)" ]]; then
     # Without the monorepo's default branch, the splice couldn't map it to
     # upstream's: it would look for the current branch upstream from the

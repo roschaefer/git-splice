@@ -499,7 +499,7 @@ folder_tree() {
 # several, a command without --upstream needs it (require_default_upstream),
 # so that no order or name in the file decides by accident.
 load_splice_upstream() {
-  local path="$1" records=() record urls=() names=() name id="" default="" error q_file i
+  local path="$1" records=() record key value urls=() names=() name id="" default="" error q_file i
   local -A default_branches=()
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
@@ -520,28 +520,30 @@ load_splice_upstream() {
   fi
   unset 'records[-1]'
   for record in "${records[@]}"; do
-    # Each record is <key>, a newline, and the value.
-    case "${record%%$'\n'*}" in
+    # Each record is <key>, a newline, and the value -- or only <key>, for
+    # a key without "= <value>", which git config --get reads as empty.
+    key="${record%%$'\n'*}"
+    value=""
+    [[ "$record" != *$'\n'* ]] || value="${record#*$'\n'}"
+    case "$key" in
       # An empty URL names no upstream.
       upstream.*.url)
-        [[ -n "${record#*$'\n'}" ]] || continue
-        name="${record%%$'\n'*}"
-        name="${name#upstream.}"
+        [[ -n "$value" ]] || continue
+        name="${key#upstream.}"
         name="${name%.url}"
         valid_upstream_name "$name" ||
           die "$path/$STATE_FILE: '$name' isn't supported as an upstream's name -- use letters, digits, '.', '_' and '-'"
         [[ " ${names[*]} " != *" $name "* ]] ||
           die "$path/$STATE_FILE names upstream '$name' twice -- keep one"
-        urls+=("${record#*$'\n'}")
+        urls+=("$value")
         names+=("$name")
         ;;
       upstream.*.default-branch)
-        name="${record%%$'\n'*}"
-        name="${name#upstream.}"
-        default_branches[${name%.default-branch}]="${record#*$'\n'}"
+        name="${key#upstream.}"
+        default_branches[${name%.default-branch}]="$value"
         ;;
-      splice.id) id="${record#*$'\n'}" ;;
-      splice.default-upstream) default="${record#*$'\n'}" ;;
+      splice.id) id="$value" ;;
+      splice.default-upstream) default="$value" ;;
       splice.default-branch)
         die "$path/$STATE_FILE has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"
         ;;
@@ -923,8 +925,14 @@ splice_fetched() {
 # Prints the monorepo's default branch name: the target of origin/HEAD,
 # else init.defaultBranch, else nothing.
 monorepo_default_branch() {
-  [[ -n "$MONOREPO_DEFAULT_BRANCH_LOADED" ]] || load_monorepo_default_branch
+  require_monorepo_default_branch
   printf '%s\n' "$MONOREPO_DEFAULT_BRANCH"
+}
+
+# Loads MONOREPO_DEFAULT_BRANCH unless open_repository has, e.g. in the
+# tests, which call the functions that need it directly.
+require_monorepo_default_branch() {
+  [[ -n "$MONOREPO_DEFAULT_BRANCH_LOADED" ]] || load_monorepo_default_branch
 }
 
 # Sets MONOREPO_DEFAULT_BRANCH to what monorepo_default_branch prints:
@@ -958,7 +966,7 @@ splice_above_in() {
 
 # Prints the default branch of upstream $2 of splice $1, or of the one it
 # uses if $2 isn't given: that upstream's recorded default-branch, else the
-# one of what it lives in (container_default_branch).
+# one of what it lives in (find_container_default_branch).
 # A .splice records it only where it differs from that, so the file means
 # the same in every repository it reaches: a nested one, in the
 # monorepo, follows the splice above it, as it follows its repository
@@ -983,22 +991,15 @@ find_splice_default_branch() {
   [[ -n "$DEFAULT_BRANCH" ]] || find_container_default_branch "$path"
 }
 
-# Prints the default branch of what folder $1 lives in: the default branch
-# of the upstream the splice above it uses, or the monorepo's. Dies if that
-# splice names several upstreams with different default branches, but none
-# is chosen: the monorepo's default branch would be a guess the splice
-# above never made.
-container_default_branch() {
-  find_container_default_branch "$@"
-  printf '%s\n' "$DEFAULT_BRANCH"
-}
-
-# Sets DEFAULT_BRANCH to what container_default_branch prints, without a
-# subshell (see find_splice_default_branch).
+# Sets DEFAULT_BRANCH to the default branch of what folder $1 lives in: the
+# default branch of the upstream the splice above it uses, or the
+# monorepo's. Dies if that splice names several upstreams with different
+# default branches, but none is chosen: the monorepo's default branch would
+# be a guess the splice above never made.
 find_container_default_branch() {
   local path="$1" above names=() name branch branches="" seen=()
   if ! above="$(splice_above_in HEAD "$path")"; then
-    [[ -n "$MONOREPO_DEFAULT_BRANCH_LOADED" ]] || load_monorepo_default_branch
+    require_monorepo_default_branch
     DEFAULT_BRANCH="$MONOREPO_DEFAULT_BRANCH"
     return
   fi
@@ -1034,7 +1035,7 @@ upstream_branch_for() {
 UPSTREAM_BRANCH=""
 find_upstream_branch() {
   local path="$1" branch="$2"
-  [[ -n "$MONOREPO_DEFAULT_BRANCH_LOADED" ]] || load_monorepo_default_branch
+  require_monorepo_default_branch
   if [[ "$branch" == "$MONOREPO_DEFAULT_BRANCH" ]]; then
     find_splice_default_branch "$path" "${@:3}"
     UPSTREAM_BRANCH="$DEFAULT_BRANCH"
