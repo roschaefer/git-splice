@@ -6,7 +6,6 @@
  */
 
 use std::collections::BTreeMap;
-use std::fs;
 use std::io::IsTerminal;
 use std::io::stdout;
 use std::num::NonZeroUsize;
@@ -51,6 +50,7 @@ use crate::utils::confirm;
 use crate::utils::debug_testcases;
 use crate::utils::get_log_level;
 use crate::utils::make_executor;
+use crate::utils::replace_file;
 use crate::utils::run_in_parallel;
 
 /// Re-run all testcases in given file(s) and update the output expectations
@@ -399,7 +399,7 @@ impl Args {
         }
 
         counts.updated += 1;
-        fs::write(&output_path, &updated)
+        replace_file(&output_path, &updated)
             .with_context(|| format!("overwrite existing document in {:?}", test.path))?;
         if output_path == test.path {
             pw.println(format!(
