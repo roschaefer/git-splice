@@ -18,7 +18,7 @@
   "packageRules": [
     {
       "description": "scrut/ is a splice of our scrut fork: its dependencies are updated upstream",
-      "matchFileNames": ["scrut/**"],
+      "matchFileNames": ["scrut/**", "nix/scrut.Cargo.lock"],
       "enabled": false
     }
   ]
