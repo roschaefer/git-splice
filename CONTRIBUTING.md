@@ -15,8 +15,10 @@ they are handled later, not in the pull request that found them.
 2. Change behaviour together with a test whose name states it. If the
    output changes, `just docs-check --write` updates the scenarios and
    walkthroughs, and the diff shows readers what changed.
-3. Run `just ci`: lint, formatting, tests, docs-check and the site build.
-4. Open the pull request as a draft. Expensive checks such as the
+3. Write documentation by the rules in [writing the docs](docs/writing.md):
+   which markup marks a command, a commit, a role or a splice.
+4. Run `just ci`: lint, formatting, tests, docs-check and the site build.
+5. Open the pull request as a draft. Expensive checks such as the
    benchmark run only once it is marked ready for review.
 
 Pull requests are squash-merged, so the title becomes the commit message
