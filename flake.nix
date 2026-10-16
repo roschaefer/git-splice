@@ -72,7 +72,8 @@
             version = (lib.importTOML ./scrut/Cargo.toml).package.version;
             src = ./scrut;
             # Upstream doesn't commit a Cargo.lock. Ours lives outside scrut/,
-            # so `git splice push` doesn't send it to the fork.
+            # so `git splice push` doesn't send it to the fork; `just
+            # scrut-lock` updates it.
             cargoLock.lockFile = ./nix/scrut.Cargo.lock;
             postPatch = "ln -s ${./nix/scrut.Cargo.lock} Cargo.lock";
             # scrut's own tests run in the fork's CI.

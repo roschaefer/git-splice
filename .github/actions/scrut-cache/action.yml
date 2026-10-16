@@ -2,7 +2,7 @@ name: scrut from cache
 description: >
   Puts scrut, built from scrut/, into the Nix store, from the GitHub Actions
   cache when this exact build was cached before, and caches it otherwise.
-  Compiling scrut takes minutes, longer than its --jobs saves. The key is
+  Compiling scrut takes about four minutes in CI. The key is
   the derivation, so it changes exactly when the build would: scrut/, its
   Cargo.lock, nixpkgs or flake.nix.
 
