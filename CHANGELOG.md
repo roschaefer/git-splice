@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.4](https://github.com/roschaefer/git-splice/compare/v0.8.3...v0.8.4) (2026-10-16)
+
+
+### Performance Improvements
+
+* **order:** order splices without a subshell per path ([#184](https://github.com/roschaefer/git-splice/issues/184)) ([72c532f](https://github.com/roschaefer/git-splice/commit/72c532ffbfda0ab0a1d599112cb55903bb58705f))
+* **status:** ask git status once for all splices ([#191](https://github.com/roschaefer/git-splice/issues/191)) ([cc6b002](https://github.com/roschaefer/git-splice/commit/cc6b0026f4c627459433b8284f6b10ec94d9afb6))
+
 ## [0.8.3](https://github.com/roschaefer/git-splice/compare/v0.8.2...v0.8.3) (2026-10-16)
 
 
