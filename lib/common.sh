@@ -1067,8 +1067,9 @@ load_uncommitted_changes() {
     # "XY <file>", where an untracked folder ends with "/".
     file="${entry:3}"
     for path in "$@"; do
-      [[ "$file" == "$path" || "$file" == "$path"/* || ("$file" == */ && "$path/" == "$file"*) ]] &&
+      if [[ "$file" == "$path" || "$file" == "$path"/* || ("$file" == */ && "$path/" == "$file"*) ]]; then
         UNCOMMITTED_CHANGES[$path]=changes
+      fi
     done
   done
 }

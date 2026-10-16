@@ -251,6 +251,15 @@ EOF
   [[ "$output" == *"vendor/a/b  "*"uncommitted changes"* ]]
 }
 
+@test "status: the real command lists uncommitted changes in a splice other than the last one" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo changed >>vendor/a/file.txt
+  run splice status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a  uncommitted changes"* ]]
+}
+
 @test "status: asks git status once for all splices" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
