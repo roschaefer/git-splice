@@ -1,17 +1,18 @@
-# Scenario: nested-splices, a and b swap their `.splice`
+# Scenario: nested-splices, the two splices swap their `.splice`
 
 > **Known bug, [#174](https://github.com/roschaefer/git-splice/issues/174).** This page shows what `git-splice` does today, bug included. See [all known bugs](../known-bugs.md).
 
-a contains b, as in the [README](README.md). Then the two `.splice`
-files trade places, ids and URLs included: the folder `vendor/a` names
-b's upstream, and `vendor/a/b` names a's.
+The outer splice contains the inner one, as in the [README](README.md).
+Then the two `.splice` files trade places, ids and URLs included: the
+folder `vendor/a/` names the inner upstream, and `vendor/a/b/` names the
+outer one.
 
 ```text
 before:  vendor/a    id a, a's upstream      after:  vendor/a    id b, b's upstream
            b/        id b, b's upstream                b/        id a, a's upstream
 ```
 
-Nobody planned for this. This page records what git splice does, as it
+Nobody planned for this. This page records what `git-splice` does, as it
 is:
 
 - **Nothing refuses it.** No id repeats in one line of nesting, so it
@@ -21,13 +22,14 @@ is:
   has another id there. Nothing from before it reaches the other
   upstream.
 - **But a push replaces the upstream's files.** The swap reads as a
-  plain `ahead 1`, and pushing `vendor/a` sends a's files to b's
-  upstream, as a fast-forward. `clone` refuses a folder whose files
-  differ from the upstream's, without `--merge`; a hand-edited `.splice`
-  skips that check
+  plain `ahead 1`, and pushing `vendor/a` sends the outer upstream's
+  files to the inner upstream, as a fast-forward. `clone` refuses a
+  folder whose files differ from the upstream's, without `--merge`; a
+  hand-edited `.splice` skips that check
   ([#174](https://github.com/roschaefer/git-splice/issues/174)).
-- **A later pull of the folder below doesn't nest a again.** The swap
-  removed a's `b/` from it, so the merge keeps it removed.
+- **A later pull of the folder below doesn't nest the outer upstream
+  again.** The swap removed the outer upstream's `b/` from it, so the
+  merge keeps it removed.
 
 ## Output
 
@@ -38,7 +40,8 @@ $ source "$TESTDIR/../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_K
 -->
 
 [`setup.bash`](setup.bash) builds the state of the [README](README.md):
-a with b spliced in at `b/`, cloned into the monorepo:
+the outer upstream with the inner one spliced in at `b/`, cloned into
+the monorepo:
 
 ```scrut
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
@@ -84,9 +87,9 @@ $ git splice log
 < bbd74e2 swap the .splice files  (Test <test@example.com>)
 ```
 
-## A push replaces b's files
+## A push replaces the inner upstream's files
 
-b's upstream before:
+The inner upstream before:
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main
@@ -98,7 +101,8 @@ $ git splice push vendor/a
 ok   vendor/a: pushed [0-9a-f]{7} to main (regex)
 ```
 
-After, it has a's files, and a nested splice of a:
+After, it has the outer upstream's files, and a nested splice of the
+outer upstream:
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main && git -C "$UPSTREAM-b.git" show main:file.txt
@@ -116,7 +120,7 @@ b seed
 
 ## A pull of the folder below
 
-a's upstream moves on, still with b nested in it:
+The outer upstream moves on, still with the inner one nested in it:
 
 ```scrut
 $ seed_bare_repo "$UPSTREAM" "a moves on" >/dev/null 2>&1 && git -C "$UPSTREAM" ls-tree -r --name-only main
@@ -125,8 +129,9 @@ b/file.txt
 file.txt
 ```
 
-The pull of `vendor/a/b`, a's splice now, conflicts on `file.txt`, which
-has b's lines here and a's there. a's `b/` doesn't come back:
+The pull of `vendor/a/b`, the outer upstream's splice now, conflicts on
+`file.txt`, which has the inner upstream's lines here and the outer
+upstream's there. The outer upstream's `b/` doesn't come back:
 
 ```scrut
 $ git splice pull vendor/a/b

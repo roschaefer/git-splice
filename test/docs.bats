@@ -65,3 +65,40 @@ checked_documents() {
   printf 'no setup first: %s\n' "${wrong[@]}" >&2
   [ "${#wrong[@]}" -eq 0 ]
 }
+
+# Prints the running text of every Markdown file as "file:line: text",
+# for the markup rules in docs/writing.md: without code blocks, indented
+# code, HTML comments, inline code, image alt text and link targets.
+prose_lines() {
+  local file
+  while IFS= read -r file; do
+    awk -v file="$file" -v fence="$fence" '
+      { trimmed = $0; sub(/^[[:space:]]+/, "", trimmed) }
+      index(trimmed, fence) == 1 || index(trimmed, "~~~") == 1 { code = !code; next }
+      code { next }
+      /<!--/ { comment = 1 }
+      comment { if (/-->/) comment = 0; next }
+      /^    / { next }
+      {
+        line = $0
+        gsub(/`[^`]*`/, "", line)
+        gsub(/!\[[^]]*\]/, "", line)
+        gsub(/\]\([^)]*\)/, "]", line)
+        print file ":" NR ": " line
+      }
+    ' "$file"
+  done < <(git ls-files '*.md' ':!CHANGELOG.md')
+}
+
+@test "docs: a role like BOUNDARY or U(H) is plain capitals, never bold" {
+  run grep -E '\*\*(U\([^)]*\)|[A-Z][A-Z_]*[0-9'"'"']*)\*\*' < <(prose_lines)
+  printf '%s\n' "$output" >&2
+  [ "$status" -eq 1 ]
+}
+
+@test "docs: a repository or splice isn't named by a letter, as in \"a's upstream\"" {
+  # Capitals that name roles may: R's history, T's files.
+  run grep -E "(^|[^[:alnum:]_*'/.-])([a-z]|[ACD-GIJKM-QSVWYZ])'s([^[:alnum:]]|$)" < <(prose_lines)
+  printf '%s\n' "$output" >&2
+  [ "$status" -eq 1 ]
+}

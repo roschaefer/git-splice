@@ -1,17 +1,19 @@
 # Scenario: nested-splices, replaced in the upstream above
 
-a's upstream replaces b with another repository, b2, at the same
-path `b/`. The monorepo has a change in b that it hasn't pushed yet, so
-its pull of a conflicts there, and it keeps its own b.
+The outer upstream replaces the inner upstream with another repository,
+the replacement, at the same path `b/`. The monorepo has a change in
+`vendor/a/b/` that it hasn't pushed yet, so its pull of `vendor/a/`
+conflicts there, and it keeps its own `vendor/a/b/`.
 
-Up to the pull, b's history would come from a's upstream
-([spliced elsewhere](spliced-elsewhere.md)). But a's upstream has
-another splice at `b/` now, with another `id`: its history isn't b's.
-So b's history comes from the monorepo alone, as if a's upstream
-didn't splice anything in there. Before, the rebuild joined b2's history
-into b's, which a push of b would have published to b's upstream, and
-until b2's commits were fetched, `status` failed on a synced commit of
-b2's.
+Up to the pull, the history of `vendor/a/b/` would come from the outer
+upstream ([spliced elsewhere](spliced-elsewhere.md)). But the outer
+upstream has another splice at `b/` now, with another `id`: its history
+isn't the inner splice's. So the history of `vendor/a/b/` comes from the
+monorepo alone, as if the outer upstream didn't splice anything in
+there. Before, the rebuild joined the replacement's history into it,
+which a push of `vendor/a/b/` would have published to the inner
+upstream, and until the replacement's commits were fetched, `status`
+failed on a synced commit of the replacement's.
 
 ## Output
 
@@ -22,27 +24,29 @@ $ source "$TESTDIR/../readme-setup.sh" && export GIT_CONFIG_COUNT=4 GIT_CONFIG_K
 -->
 
 [`setup.bash`](setup.bash) builds the state of the [README](README.md):
-a with b spliced in at `b/`, cloned into the monorepo:
+the outer upstream with the inner one spliced in at `b/`, cloned into
+the monorepo:
 
 ```scrut
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
-A change in b, not pushed yet:
+A change in `vendor/a/b/`, not pushed yet:
 
 ```scrut
 $ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local"
 ```
 
-## a's upstream replaces b
+## The outer upstream replaces the inner one
 
-b2 is another repository:
+The replacement is another repository, `$UPSTREAM-b2.git`:
 
 ```scrut
 $ make_bare_repo "$UPSTREAM-b2.git" && seed_bare_repo "$UPSTREAM-b2.git" "b2 seed" >/dev/null 2>&1
 ```
 
-In a clone of a's upstream, b is removed and b2 spliced in at `b/`:
+In a clone of the outer upstream, `b/` is removed and the replacement
+spliced in there:
 
 ```scrut
 $ git clone -q "$UPSTREAM" ../a-work && cd ../a-work && git rm -q -r b && git commit -q -m "remove b" && git splice clone https://git.example.com/b2.git b && git push -q origin HEAD:main && cd ../monorepo
@@ -50,7 +54,7 @@ $ git clone -q "$UPSTREAM" ../a-work && cd ../a-work && git rm -q -r b && git co
 ok   b: cloned 4d884bd from main
 ```
 
-b2's `.splice` has another id than b's:
+The replacement's `.splice` has another id than the inner splice's:
 
 ```scrut
 $ git -C ../a-work config --file b/.splice splice.id; git config --file vendor/a/b/.splice splice.id
@@ -58,9 +62,9 @@ $ git -C ../a-work config --file b/.splice splice.id; git config --file vendor/a
 548ac82ad47ea22d
 ```
 
-## The monorepo keeps its own b
+## The monorepo keeps its own `vendor/a/b/`
 
-The pull of a conflicts in b:
+The pull of `vendor/a/` conflicts in `vendor/a/b/`:
 
 ```scrut
 $ git splice pull vendor/a
@@ -74,13 +78,15 @@ CONFLICT (content): Merge conflict in vendor/a/b/file.txt
 [1]
 ```
 
-The monorepo keeps its own b, `.splice` included, and commits the pull:
+The monorepo keeps its own `vendor/a/b/`, `.splice` included, and
+commits the pull:
 
 ```scrut
 $ git checkout HEAD -- vendor/a/b && git commit -q --no-edit
 ```
 
-b has only its own history: `b local`, on top of b's synced commit.
+`vendor/a/b/` has only its own history: `b local`, on top of its synced
+commit.
 
 ```scrut
 $ git splice status vendor/a/b

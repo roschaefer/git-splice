@@ -1,8 +1,9 @@
 # The same name above and below
 
 Both splices name an upstream `fork`, each its company's fork of its own
-upstream. Names are unique only within one `.splice`, so `--upstream
-fork` means a's fork for `vendor/a/` and b's fork for `vendor/a/b/`
+upstream. Names are unique only within one `.splice`, so
+`--upstream fork` means the outer fork for `vendor/a/` and the inner
+fork for `vendor/a/b/`
 ([#107](https://github.com/roschaefer/git-splice/issues/107)).
 
 [`setup.bash`](setup.bash) builds the state of [outer-fork](README.md).
@@ -51,11 +52,11 @@ On branch main
 
 ### Pulling each from its fork
 
-Top-down, as every pull: a's fork's patch to `b/` first, then b's
-fork's patch. Since `vendor/a/b/` is selected too, its `fork` is b's
-fork, and it pulls from that one. It's fetched from both of its
-upstreams, as when it isn't selected: a's fork may move its synced commit
-to one only b's origin has.
+Top-down, as every pull: the outer fork's patch to `b/` first, then the
+inner fork's patch. Since `vendor/a/b/` is selected too, its `fork` is
+the inner fork, and it pulls from that one. It's fetched from both of
+its upstreams, as when it isn't selected: the outer fork may move its
+synced commit to one only the inner upstream has.
 
 ```scrut
 $ git splice pull --upstream fork --all
@@ -84,9 +85,9 @@ On branch main
 
 ### The default travels with the `.splice`
 
-The push of `vendor/a/` publishes I's `.splice` with the rest of its
-folder. Its `default-upstream` goes along, so in a's upstream, `b/`
-pulls and pushes by default where it does in the monorepo:
+The push of `vendor/a/` publishes `vendor/a/b/.splice` with the rest of
+its folder. Its `default-upstream` goes along, so in the outer upstream,
+`b/` pulls and pushes by default where it does in the monorepo:
 
 ```scrut
 $ git splice push vendor/a

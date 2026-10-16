@@ -20,7 +20,7 @@ synced commit U(H) stays one per splice: a sync point is a commit,
 whichever upstream it came from.
 
 The monorepo knows an upstream by its URL. The first command that
-fetches it gives it a **key**, a short name recorded in the repository's
+fetches it gives it a *key*, a short name recorded in the repository's
 config, and fetches its branches to `refs/splices/<key>/`. So:
 
 | | is one per |
@@ -132,11 +132,12 @@ app-b/s/.splice: commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 `app-a/s/` and `app-b/s/` were cloned separately, so they have different
 ids: they're **independent**
 ([splice identity](../splice-identity/README.md#what-an-id-is)). That
-they're at different versions is fine, e.g. while app a tries the new
-one first, and `status` reports app b's only as behind its upstream. If
-both apps should always share one version, the two need to be mirrors,
-with the same id. Then a difference is **drift**, which `git-splice`
-doesn't report yet ([mirrors](../../../docs/going-forward/mirrors.md)).
+they're at different versions is fine, e.g. while `app-a/` tries the new
+one first, and `status` reports the one in `app-b/` only as behind its
+upstream. If both apps should always share one version, the two need to
+be mirrors, with the same id. Then a difference is *drift*, which
+`git-splice` doesn't report yet
+([mirrors](../../../docs/going-forward/mirrors.md)).
 
 Whether two splices differ is a matter of their files, or R in the
 [sync model](../sync-model/README.md), not of their synced commits U(H). A

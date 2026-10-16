@@ -10,7 +10,7 @@ depend on its URL.
 - **Upstream**: `seed`, at `$UPSTREAM` and, as a copy, at
   `$UPSTREAM-moved`.
 
-A splice's history starts at its **mount**: the newest commit whose
+A splice's history starts at its *mount*: the newest commit whose
 parent had no `.splice` at the path, or one with another `id`. The id
 names the splice, not its upstream, so a new URL keeps it, and the
 commits before the change still belong to the splice. Compare

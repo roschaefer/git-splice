@@ -8,7 +8,7 @@ in the monorepo, even if it was committed while the folder was a splice.
 - **Monorepo (`lib/a/`)**: made a splice with `init` and pushed.
 - **Upstream**: the pushed commit, `splice: init lib/a`.
 
-A splice's history starts at its **mount**: the newest commit whose
+A splice's history starts at its *mount*: the newest commit whose
 parent had no `.splice` at the path, or one with another `id`. Removing
 `.splice` ends a mount, and adding it again starts a new one, with a new
 id, even for the same upstream. A

@@ -77,7 +77,7 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 - **Parent arrow**: an arrow between two commits points from a parent to
   its child.
 - **Box**: points at the commit its label names: H, B, T or R, U(x),
-  the commit x's `.splice` records, where x is H, B or a drawn commit, or
+  the commit *x*'s `.splice` records, where *x* is H, B or a drawn commit, or
   an upstream branch by its name, e.g. `main`, as fetched, or
   `merge-base(R,T)`, the newest commit R and T have in common. Several
   names
@@ -93,7 +93,7 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   - A box sits with the commit it points at: H and B outside every lane,
     all others, U(x) too, in the lane of the commit they name. With one
     splice, a box outside every lane is that splice's.
-  - U(x) reads x's `.splice` of the splice whose lane the box is in: in
+  - U(x) reads *x*'s `.splice` of the splice whose lane the box is in: in
     a nested drawing, U(l) in the lane of `vendor/a/b/` reads the
     `b/.splice` of l, a commit of `vendor/a/`'s upstream.
 - **Dashed**: commits and arrows into them that aren't in the upstream's
@@ -130,7 +130,7 @@ What no drawing has needed yet, it doesn't handle:
   the monorepo and later drops one of them.
 - **Old sync points**: a commit reachable only from an earlier `.splice`
   value is found by its label only when given as `<label>=<rev>`.
-- **Moved splices**: U(x) reads x's `.splice` under the splice's current
+- **Moved splices**: U(x) reads *x*'s `.splice` under the splice's current
   folder, so a commit from before the splice moved has none there.
 
 ## Tests

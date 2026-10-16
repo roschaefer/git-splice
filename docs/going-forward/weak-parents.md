@@ -39,7 +39,7 @@ from U(H): changes cross the splice, commits don't.
 
 ## A weak parent in Git
 
-Between the two, there could be a third: a **weak parent**. It's
+Between the two, there could be a third: a *weak parent*. It's
 recorded in the commit, like a parent, but it's not part of the commit's
 history, like the line in `.splice`:
 

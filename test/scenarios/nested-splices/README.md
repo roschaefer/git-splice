@@ -1,22 +1,24 @@
 # Scenario: nested-splices
 
-One splice below another. a's upstream uses `git-splice` itself: it has b's
-upstream spliced in at `b/`, with a `b/.splice` of its own. Cloning a's
-upstream into the monorepo brings that `.splice` along, so `vendor/a/b/`
-is a splice in the monorepo too.
+One splice below another: the outer splice `vendor/a/` and the inner
+splice `vendor/a/b/`. The outer upstream uses `git-splice` itself: it has
+the inner upstream spliced in at `b/`, with a `b/.splice` of its own.
+Cloning the outer upstream into the monorepo brings that `.splice` along,
+so `vendor/a/b/` is a splice in the monorepo too.
 
-- **b's upstream** (`$UPSTREAM-b.git`, reached as
+- **Inner upstream** (`$UPSTREAM-b.git`, reached as
   `https://git.example.com/b.git`): *m* (`b seed`).
-- **a's upstream** (`$UPSTREAM`): *k* (`a seed`), then *l* (`add b`), which
-  spliced b's upstream in at `b/`.
+- **Outer upstream** (`$UPSTREAM`): *k* (`a seed`), then *l* (`add b`),
+  which spliced the inner upstream in at `b/`.
 - **Monorepo**: *a* (`add vendor/a`) cloned *l* into `vendor/a/`, and with it
-  `vendor/a/b/`, from b's upstream. Both are fetched.
+  `vendor/a/b/`, from the inner upstream. Both are fetched.
 
-Each push sends its folder without its own `.splice`. So a's push sends
-b's `.splice` with b's files, and in a's upstream, `b/` stays a splice
-that `git-splice` can pull and push there.
+Each push sends its folder without its own `.splice`. So the push of
+`vendor/a/` sends `vendor/a/b/.splice` with the inner splice's files, and
+in the outer upstream, `b/` stays a splice that `git-splice` can pull and
+push there.
 [The design](../../../docs/design/README.md#refs-instead-of-remotes)
-explains why both repositories agree on b's state.
+explains why both repositories agree on the inner splice's state.
 
 <div align="center">
 
@@ -61,7 +63,7 @@ On branch main
   up to date  vendor/a/b
 ```
 
-A change in b is a change in a too:
+A change in `vendor/a/b/` is a change in `vendor/a/` too:
 
 ```scrut
 $ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local"
@@ -75,7 +77,7 @@ On branch main
   ahead 1  vendor/a/b
 ```
 
-Each push sends its own folder, bottom-up: b's upstream gets the change,
+Each push sends its own folder, bottom-up: the inner upstream gets the change,
 without `.splice`:
 
 ```scrut
@@ -89,7 +91,7 @@ $ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main
 file.txt
 ```
 
-a's upstream gets it too, with b's `.splice`:
+The outer upstream gets it too, with `b/.splice`:
 
 ```scrut
 $ git -C "$UPSTREAM" ls-tree -r --name-only main
@@ -98,12 +100,12 @@ b/file.txt
 file.txt
 ```
 
-## a's upstream pulls b
+## The outer upstream pulls the inner one
 
-Someone working in a's upstream pulls b's new commit there, and pushes
-the result. (`seed_bare_repo`, from
+Someone working in the outer upstream pulls the inner upstream's new
+commit there, and pushes the result. (`seed_bare_repo`, from
 [`fixtures.bash`](../../helpers/fixtures.bash), commits a line to a file
-of b's upstream.)
+of the inner upstream.)
 
 ```scrut
 $ seed_bare_repo "$UPSTREAM-b.git" "b upstream change" main other.txt
@@ -115,15 +117,15 @@ ok   b fetched
 ok   b: pulled 527b1a2
 ```
 
-Meanwhile, the monorepo has a new commit in b:
+Meanwhile, the monorepo has a new commit in `vendor/a/b/`:
 
 ```scrut
 $ echo "b local 2" >>vendor/a/b/file.txt && git commit -q -a -m "b local 2"
 ```
 
-Pulling a brings in b's `.splice` as a's upstream has it, with a newer
-synced commit. `pull` fetches the splices below a too, so that commit is
-there:
+Pulling `vendor/a/` brings in `b/.splice` as the outer upstream has it,
+with a newer synced commit. `pull` fetches the splices below `vendor/a/`
+too, so that commit is there:
 
 ```scrut
 $ git splice pull vendor/a
@@ -132,8 +134,9 @@ ok   vendor/a/b fetched (main moved 701ab17..527b1a2)
 ok   vendor/a: pulled 1ca3147
 ```
 
-The pull records b's new synced commit. b's unpushed commit is kept, and the next
-push joins it with the change in b's upstream:
+The pull records the inner splice's new synced commit. Its unpushed
+commit is kept, and the next push joins it with the change in the inner
+upstream:
 
 ```scrut
 $ git splice status
@@ -155,20 +158,22 @@ ok   vendor/a/b: pushed c5dc450 to main
 * b seed
 ```
 
-If the monorepo had pulled b as well, to a different commit, the pull of
-a would have conflicted: see
+If the monorepo had pulled `vendor/a/b/` as well, to a different commit,
+the pull of `vendor/a/` would have conflicted: see
 [Limits](../../../docs/design/README.md#limits).
 
-Once the monorepo has pushed a change in b, another monorepo that splices
-a in rebuilds b's history up to the clone from a's upstream, so b's
-first change there goes on top of the pushed one:
+Once the monorepo has pushed a change in `vendor/a/b/`, another monorepo
+that splices the outer upstream in rebuilds the inner splice's history up
+to the clone from the outer upstream, so the inner splice's first change
+there goes on top of the pushed one:
 [spliced into another monorepo](spliced-elsewhere.md). That history comes
 from the splice above with the newest last pull, even two levels up
-([three levels](three-levels/README.md)); not where a's upstream has
+([three levels](three-levels/README.md)); not where the outer upstream has
 another splice at `b/` ([replaced above](replaced-above.md)); and it
-doesn't drop what b's upstream got from the monorepo directly
+doesn't drop what the inner upstream got from the monorepo directly
 ([pushed and made above](pushed-and-made-above.md)).
 
-A pull of a can move b to a synced commit b's upstream has dropped from
-its branches; the pull of b then fetches it by its hash
+A pull of `vendor/a/` can move `vendor/a/b/` to a synced commit the inner
+upstream has dropped from its branches; the pull of `vendor/a/b/` then
+fetches it by its hash
 ([dropped below](dropped-below.md)).

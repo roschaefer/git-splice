@@ -91,11 +91,11 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a/`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
-| **synced commit** (U(H)) | The upstream commit `.splice` records at HEAD: the one last spliced in. U(X) is the one a monorepo commit *X*'s `.splice` records. |
+| **synced commit** (U(H)) | The upstream commit `.splice` records at `HEAD`: the one last spliced in. U(X) is the one a monorepo commit *X*'s `.splice` records. |
 | **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U(H). |
 | **boundary** (B) | Where the rebuild starts: the newest last sync, or one before it, whose folder is the synced commit it recorded. Usually the last sync. At the mount, where the splice starts, it's the mount, which the rebuild copies too where its folder isn't the synced commit, e.g. after `init`; for a nested splice, it can be the last sync of the splice above. Derived, never stored. |
 | **start** (U(B)) | The synced commit the boundary records, and the boundary's folder. R starts on it. Usually U(H). |
-| **rebuild** (R) | The splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends, and *ours* when compared with T, in the upstream's history; in the monorepo's history, *ours* is HEAD. |
+| **rebuild** (R) | The splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends, and *ours* when compared with T, in the upstream's history; in the monorepo's history, *ours* is `HEAD`. |
 | **upstream branch** (T, for *theirs*) | `refs/splices/<key>/<branch>`: the upstream branch as the monorepo last saw it, under the upstream's key. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
 | **splice in** | Bring upstream content into the monorepo: `clone`, `merge`, `pull`. |
@@ -330,11 +330,11 @@ explicitly:
 
 1. Build two throwaway commits whose trees have the monorepo's layout
    (`reroot_tree`, using a temporary index):
-   - **base:** HEAD's tree, with `<path>/` replaced by the merge base's
+   - **base:** `HEAD`'s tree, with `<path>/` replaced by the merge base's
      tree and HEAD's `.splice`.
-   - **theirs:** HEAD's tree, with `<path>/` replaced by the upstream branch's
+   - **theirs:** `HEAD`'s tree, with `<path>/` replaced by the upstream branch's
      tree and a `.splice` that records its commit. Its parent is base.
-2. Run `git cherry-pick theirs`. That's a three-way merge of HEAD (ours)
+2. Run `git cherry-pick theirs`. That's a three-way merge of `HEAD` (ours)
    and theirs, with base as the merge base. Only `<path>/` differs between
    base and theirs, so only the splice can conflict. Local edits are kept, and the
    `.splice` update comes along in the same commit. Git's ort merge does
@@ -361,7 +361,7 @@ the splice reads as diverged, or as unrelated history.
   `git cherry-pick --abort`. `git status` says "cherry-picking" although
   you ran `merge`, so `merge` names both commands when it stops.
 - **base and theirs are never referenced** and get garbage-collected. Upstream
-  commits stay in `refs/splices/` and never become ancestors of HEAD.
+  commits stay in `refs/splices/` and never become ancestors of `HEAD`.
 - **Nested splices:** a pull of a splice brings in the `.splice` files
   below it as its upstream has them, and becomes the last sync of those
   splices. If its upstream moved the synced commit of a splice below, the
@@ -382,7 +382,7 @@ the splice reads as diverged, or as unrelated history.
 ### Splicing out: `push` and the rebuild
 
 A push sends the splice's history since the last sync, rebuilt as upstream
-commits. `rebuild_splice` is a function of HEAD alone:
+commits. `rebuild_splice` is a function of `HEAD` alone:
 
 1. **Find the last sync.** *L* is
    `git log --first-parent -1 -- <path>/.splice`. Every `clone`, `init`
@@ -423,7 +423,7 @@ merge shape would add nothing, and leaving it out avoids the
 parent-mapping problems `split` spent years fixing.
 
 **Only this splice's history:** a splice's history starts at its
-**mount**, the newest first-parent commit whose first parent had no
+*mount*, the newest first-parent commit whose first parent had no
 `.splice` at the path, or one with another `id`. Before the
 mount, the folder was no splice, or another one, so nothing from there is
 published, with or without a synced commit. That covers a folder's

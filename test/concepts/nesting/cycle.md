@@ -27,9 +27,10 @@ nothing above it has its id. An upstream URL that is one of the
 monorepo's own remotes would show it one level earlier.
 
 - **Monorepo** (published as `https://git.example.com/m.git`):
-  `vendor/a/`, a splice of a's upstream.
-- **a's upstream** (`https://git.example.com/a.git`): `seed`, then
-  `add i`, which spliced the monorepo in at `i/`, with `vendor/a/` in it.
+  `vendor/a/`, a splice of the upstream below.
+- **Upstream of `vendor/a/`** (`https://git.example.com/a.git`): `seed`,
+  then `add i`, which spliced the monorepo in at `i/`, with `vendor/a/`
+  in it.
 
 ## Output
 
@@ -47,8 +48,8 @@ $ build_scenario scenario_cycle
 
 ### Every pull nests one more copy
 
-The first pull brings in a's `i/`, a copy of the monorepo with
-`vendor/a/` in it:
+The first pull brings in the upstream's `i/`, a copy of the monorepo
+with `vendor/a/` in it:
 
 ```scrut
 $ git splice pull vendor/a
@@ -97,8 +98,8 @@ to different commits (the first of the
 ### The monorepo pushes to itself
 
 `vendor/a/i/` is a splice of the monorepo's own upstream. So its push
-sends a copy of the monorepo, from when a's upstream last pulled it, to
-the monorepo's `main`. A change in the copy:
+sends a copy of the monorepo, from when the upstream of `vendor/a/` last
+pulled it, to the monorepo's `main`. A change in the copy:
 
 ```scrut
 $ echo "note" >vendor/a/i/note.txt && git add vendor/a/i/note.txt && git commit -q -m "note in i"

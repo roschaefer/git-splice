@@ -14,10 +14,11 @@ that had the path before.
 - **Upstreams**: `$UPSTREAM` has `seed`. `$UPSTREAM-b` is empty, created
   for `vendor/b/`.
 
-A path's history alone can't tell the two splices apart: `git log --
-vendor/a` lists a's commits before the swap and b's after it. So the
-rebuild only uses the path's history from the splice's **mount** on: the
-newest commit whose parent had no `.splice` at the path, or one with
+A path's history alone can't tell the two splices apart:
+`git log -- vendor/a` lists the commits of the splice of `$UPSTREAM`
+before the swap and those of the splice of `$UPSTREAM-b` after it. So
+the rebuild only uses the path's history from the splice's *mount* on:
+the newest commit whose parent had no `.splice` at the path, or one with
 another `id`. Each splice got its own id when it was cloned or
 initialized, and it moves with the `.splice`. For `vendor/a/` after the
 swap, the mount is the swap itself. See
@@ -58,7 +59,8 @@ The swap: three `git mv`, with a temporary name, in one commit.
 $ git mv vendor/a tmp && git mv vendor/b vendor/a && git mv tmp vendor/b && git commit -q -m "swap a and b"
 ```
 
-`vendor/a/` is now b's splice, with b's file and b's upstream:
+`vendor/a/` is now the splice of `$UPSTREAM-b`, with its file and its
+upstream:
 
 ```scrut
 $ ls vendor/a && git config --file vendor/a/.splice upstream.origin.url
@@ -68,8 +70,9 @@ $UPSTREAM-b
 
 Seen from the path `vendor/a/`, the swap didn't add a `.splice`, it
 changed the one that was there. That's why "the commit that added
-`.splice`" isn't enough to find where b's history at this path starts:
-it would find a's clone, and publish a's commits to b's upstream.
+`.splice`" isn't enough to find where the history of the splice of
+`$UPSTREAM-b` at this path starts: it would find the clone of
+`$UPSTREAM`, and publish that splice's commits to `$UPSTREAM-b`.
 
 ```scrut
 $ git diff --name-status HEAD^ HEAD -- vendor/a | tr '\t' ' '
@@ -100,13 +103,14 @@ swap a and b
 b.txt
 ```
 
-`a's unpushed work` and `a.txt` didn't reach b's upstream.
+`a's unpushed work` and `a.txt` didn't reach `$UPSTREAM-b`.
 
-The other direction: `vendor/b/` is a's splice now. Its push goes to
-`$UPSTREAM`, so a's commits belong there, but the rebuild doesn't follow
-moves yet, and `a's unpushed work` is folded into the swap commit. This
-is the known bug [#4](https://github.com/roschaefer/git-splice/issues/4),
-with the same workaround: push before moving a splice.
+The other direction: `vendor/b/` is the splice of `$UPSTREAM` now. Its
+push goes to `$UPSTREAM`, so the commits made in `vendor/a/` before the
+swap belong there, but the rebuild doesn't follow moves yet, and
+`a's unpushed work` is folded into the swap commit. This is the known
+bug [#4](https://github.com/roschaefer/git-splice/issues/4), with the
+same workaround: push before moving a splice.
 
 ```scrut
 $ git splice log vendor/b
