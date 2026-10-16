@@ -259,8 +259,9 @@ $ git splice log vendor/a
 ```
 
 Nothing in the monorepo tells this swap apart from edits to one splice
-that make its files look like the other mirror's. Keeping mirrors alike
-avoids it: push one, and pull the others right away
+that make its files look like the other mirror's
+([#193](https://github.com/roschaefer/git-splice/issues/193)). Keeping
+mirrors alike avoids it: push one, and pull the others right away
 ([mirrors](../../../docs/going-forward/mirrors.md#meanwhile-discipline)).
 
 ### A fork is a splice of its own
