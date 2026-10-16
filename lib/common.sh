@@ -215,49 +215,59 @@ discover_splices() {
 # after every splice above it, or bottom-up, each before them. Trees, and
 # subtrees under the same splice, keep the order given, each at the place
 # of its first path. (A path in a ref name has no newline.)
+#
+# Each path is looked at once: its parent, the nearest given path above
+# it, is found by looking up the folders above it, and it joins the
+# children of every splice above it that hasn't got it yet. Commands
+# order every splice this way, so no subshell per path: with 100 splices,
+# that took seconds.
 splices_in_order() {
-  local order="$1"
+  local order="$1" path dir node parent
   shift
-  print_splice_subtrees "$order" "" "$@"
-}
-
-# Prints, in order $1 (see splices_in_order), the subtrees of paths $3...
-# right below splice path $2 (or at the top, if $2 is empty), each at the
-# place of its first path.
-print_splice_subtrees() {
-  local order="$1" top="$2" path child above
-  shift 2
-  local -A printed=()
+  local -A given=() parent_of=() children=()
+  local roots=""
   for path in "$@"; do
-    child="$path"
-    while above="$(splice_above "$child" "$@")" && [[ -n "$above" && "$above" != "$top" ]]; do
-      child="$above"
+    given[$path]=1
+  done
+  for path in "$@"; do
+    [[ -z "${parent_of[$path]+set}" ]] || continue
+    # The chain from <path> up to the top, each node at the place of the
+    # first path in its subtree.
+    node="$path"
+    while [[ -z "${parent_of[$node]+set}" ]]; do
+      parent=""
+      dir="$node"
+      while [[ "$dir" == */* ]]; do
+        dir="${dir%/*}"
+        if [[ -n "${given[$dir]:-}" ]]; then
+          parent="$dir"
+          break
+        fi
+      done
+      parent_of[$node]="$parent"
+      if [[ -z "$parent" ]]; then
+        roots+="$node"$'\n'
+        break
+      fi
+      children[$parent]+="$node"$'\n'
+      node="$parent"
     done
-    [[ "$child" != "$top" && "$above" == "$top" ]] || continue
-    [[ -z "${printed[$child]:-}" ]] || continue
-    printed[$child]=1
-    print_splice_tree "$order" "$child" "$@"
   done
+  print_splice_trees "$order" "$roots"
 }
 
-# Prints splice path $2 and, recursively, those of paths $3... below it, in
-# order $1 (see splices_in_order).
-print_splice_tree() {
-  local order="$1" top="$2"
-  shift 2
-  [[ "$order" == bottom-up ]] || printf '%s\n' "$top"
-  print_splice_subtrees "$order" "$top" "$@"
-  [[ "$order" != bottom-up ]] || printf '%s\n' "$top"
-}
-
-# Prints the nearest of paths $2... above splice path $1, or nothing.
-splice_above() {
-  local below="$1" path nearest=""
-  shift
-  for path in "$@"; do
-    [[ "$below" == "$path"/* && ${#path} -gt ${#nearest} ]] && nearest="$path"
+# Prints, in order $1 (see splices_in_order), the trees of the splices in
+# $2, one per line, and, recursively, those in the global "children" of
+# splices_in_order.
+print_splice_trees() {
+  local order="$1" node nodes=()
+  mapfile -t nodes <<<"${2%$'\n'}"
+  for node in "${nodes[@]}"; do
+    [[ -n "$node" ]] || continue
+    [[ "$order" == bottom-up ]] || printf '%s\n' "$node"
+    print_splice_trees "$order" "${children[$node]:-}"
+    [[ "$order" != bottom-up ]] || printf '%s\n' "$node"
   done
-  printf '%s' "$nearest"
 }
 
 # Prints the first of paths $2... above splice path $1, or fails if there's
@@ -835,7 +845,7 @@ monorepo_default_branch() {
 
 # Prints the nearest splice above splice <path> in commit <rev>: the
 # closest folder above it with a state file. Fails if there's none.
-# (splice_above looks among paths given, not in a commit.)
+# (splices_in_order looks among paths given, not in a commit.)
 splice_above_in() {
   local rev="$1" path="$2" dir="$2"
   while [[ "$dir" == */* ]]; do

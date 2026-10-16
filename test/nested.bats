@@ -482,6 +482,13 @@ b_moved_to_a_commit_upstream_lost() {
   [ "$output" = $'a/b/d\na/b\na/c\na' ]
 }
 
+@test "nested: a splice goes below the nearest splice given above it, also across folders that aren't splices, and a path given twice comes once" {
+  run splices_in_order top-down a/b/c/d x a/b a/b/c/d a
+  [ "$output" = $'a\na/b\na/b/c/d\nx' ]
+  run splices_in_order bottom-up a/b/c/d x a/b a/b/c/d a
+  [ "$output" = $'a/b/c/d\na/b\na\nx' ]
+}
+
 @test "nested: pull skips the splice above when the fetch of the one below fails" {
   scenario_nested_splices "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "a change"
