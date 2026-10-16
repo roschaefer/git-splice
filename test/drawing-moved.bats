@@ -47,3 +47,45 @@ edit_drawing() {
   run check_drawing "$drawing" "${revs[@]}" s=side
   [ "$status" -eq 0 ]
 }
+
+@test "drawing moved: U(x) of a commit on a branch that moved the splice on its own is read under that branch's folder" {
+  git switch -q -c side HEAD~1
+  mkdir other
+  git mv vendor/a other/a
+  git commit -q -m "side move"
+  git switch -q main
+  # s, outside the lane, as b's child.
+  sed -i 's#</root>#<mxCell id="s" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;"><mxGeometry x="400" y="0" width="70" height="70" as="geometry" /></mxCell><mxCell id="e_s" parent="1" edge="1" source="b" target="s"><mxGeometry relative="1" as="geometry" /></mxCell></root>#' "$drawing"
+  edit_drawing -u '//mxCell[@id="box1"]/@value' -v 'T = U(s)'
+  run check_drawing "$drawing" "${revs[@]}" s=side
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing moved: a commit an earlier splice at the old folder recorded isn't this splice's" {
+  # vendor/a/ held a splice of another upstream before this one was
+  # cloned there.
+  rm -rf "$monorepo" "$upstream"
+  local other="$BATS_TEST_TMPDIR/other.git" x
+  make_bare_repo "$other"
+  seed_bare_repo "$other" "other seed"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$other" vendor/a
+  cd "$monorepo"
+  x="$(git config --file vendor/a/.splice splice.commit)"
+  git rm -q -r vendor/a
+  git commit -q -m "drop vendor/a"
+  add_splice "$monorepo" "$upstream" vendor/a
+  commit_local "$monorepo" vendor/a "local change"
+  mkdir libs
+  git mv vendor/a libs/a
+  git commit -q -m "reorganize folders"
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+  # x, the other upstream's commit, in the lane.
+  sed -i 's#</root>#<mxCell id="x" parent="1" vertex="1" value="x" style="ellipse;aspect=fixed;"><mxGeometry x="850" y="208" width="70" height="70" as="geometry" /></mxCell></root>#' "$drawing"
+  run check_drawing "$drawing" "${revs[@]}" x="$x"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   x is in the lane libs/a/, but isn't in that splice's upstream history or R" ]
+}

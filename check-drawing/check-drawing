@@ -160,32 +160,47 @@ check_drawing() {
   # The folders splice <path> had on HEAD's first-parent history, as
   # git-splice's rebuild follows it back through moves (`git mv`): each
   # path and the range (rev-list syntax) of commits it applies to, newest
-  # first, each field ending with a NUL. The last range reaches back to
-  # the mount.
+  # first, each field ending with a NUL. The last range starts at the
+  # mount: before, the folder was no splice, or another one.
   lineage_segments() {
     (
       # shellcheck source=/dev/null # git-splice's, linted there
       source "$DRAWING_LIB/common.sh"
       # shellcheck source=/dev/null
       source "$DRAWING_LIB/rebuild.sh"
-      local at upper i
+      local at upper mount i
       local -a paths=() ranges=()
       read_lineage 5 paths ranges - - at - upper < <(splice_lineage "$1" HEAD)
-      read_lineage 3 paths ranges - at upper < <(splice_lineage_to_mount "$at" "$upper")
-      paths+=("$at") ranges+=("$upper")
+      read_lineage 3 paths ranges mount at upper < <(splice_lineage_to_mount "$at" "$upper")
+      paths+=("$at")
+      if [[ -n "$mount" ]] && git rev-parse --verify --quiet "$mount^1" >/dev/null; then
+        ranges+=("$mount^1..$upper")
+      else
+        ranges+=("$upper")
+      fi
       for i in "${!paths[@]}"; do
         printf '%s\0' "${paths[$i]}" "${ranges[$i]}"
       done
     )
   }
   # The folder splice <path> had in monorepo commit <commit>. A commit on
-  # another branch has it where HEAD's history had it at the fork, unless
-  # it has the splice's id at <path> already.
+  # another branch, which may have moved the splice on its own, has it in
+  # the one folder whose .splice has the splice's id there, or else where
+  # HEAD's history had it at the fork.
   path_at() {
-    local p="$1" c="$2" path range lower upper
+    local p="$1" c="$2" path range lower upper id
+    local -a found=()
     if ! git merge-base --is-ancestor "$c" HEAD 2>/dev/null; then
-      if [[ "$(git config --blob "$c:$p/.splice" splice.id 2>/dev/null)" == "$(git config --blob "HEAD:$p/.splice" splice.id)" ]]; then
-        printf '%s\n' "$p"
+      id="$(git config --blob "HEAD:$p/.splice" splice.id)"
+      while IFS= read -r -d '' path; do
+        [[ "$(git config --blob "$c:$path" splice.id 2>/dev/null)" != "$id" ]] || found+=("${path%/.splice}")
+      done < <(
+        # shellcheck source=/dev/null # git-splice's, linted there
+        source "$DRAWING_LIB/common.sh"
+        state_files "$c"
+      )
+      if [[ ${#found[@]} -eq 1 ]]; then
+        printf '%s\n' "${found[0]}"
         return
       fi
       c="$(git merge-base HEAD "$c")" || return 0
