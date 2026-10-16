@@ -105,6 +105,29 @@ split() {
   [ "$(rebuild_splice vendor/a)" = "$first" ]
 }
 
+@test "rebuild: is the same whatever i18n.commitEncoding or i18n.logOutputEncoding say, so users with different settings agree on it" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_local "$monorepo" "vendor/a" "änderung"
+  local plain
+  plain="$(rebuild_splice vendor/a)"
+  git config i18n.commitEncoding ISO-8859-1
+  [ "$(rebuild_splice vendor/a)" = "$plain" ]
+  git config --unset i18n.commitEncoding
+  git config i18n.logOutputEncoding ISO-8859-1
+  [ "$(rebuild_splice vendor/a)" = "$plain" ]
+  [ "$(git cat-file commit "$plain" | tail -1)" = "änderung" ]
+}
+
+@test "rebuild: a pull that merged local changes is copied the same whatever i18n.commitEncoding says" {
+  scenario_diverged_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  local plain
+  plain="$(rebuild_splice vendor/a)"
+  git config i18n.commitEncoding ISO-8859-1
+  [ "$(rebuild_splice vendor/a)" = "$plain" ]
+}
+
 @test "rebuild: log.showSignature doesn't change where a splice's history starts" {
   command -v ssh-keygen >/dev/null || skip "no ssh-keygen to sign a commit with"
   scenario_push_ahead "$monorepo" "$upstream"
