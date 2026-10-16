@@ -11,7 +11,7 @@ all.
 
 <div align="center">
 
-![After the move m: the monorepo's a, b and m, where m is H and a is B; in the lane libs/a/, R is b prime on top of k, and m has no copy](moved-with-unpushed-commits.drawio.svg)
+![After the move m: the monorepo commits a, b and m, where m is H and a is B; in the lane libs/a/, R is b prime on top of k, and m has no copy](moved-with-unpushed-commits.drawio.svg)
 
 </div>
 
