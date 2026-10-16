@@ -9,9 +9,13 @@ description: >
 runs:
   using: composite
   steps:
+    # Copies by store path: given the flake, nix copy would also copy
+    # nixpkgs' sources through the cache, which takes minutes.
     - id: drv
       shell: bash
-      run: echo "hash=$(basename "$(nix eval --raw .#scrut.drvPath)" .drv)" >>"$GITHUB_OUTPUT"
+      run: |
+        echo "hash=$(basename "$(nix eval --raw .#scrut.drvPath)" .drv)" >>"$GITHUB_OUTPUT"
+        echo "out=$(nix eval --raw .#scrut.outPath)" >>"$GITHUB_OUTPUT"
 
     - id: restore
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -21,13 +25,17 @@ runs:
 
     - if: steps.restore.outputs.cache-hit == 'true'
       shell: bash
-      run: nix copy --no-check-sigs --from "file://$RUNNER_TEMP/scrut-cache" .#scrut
+      env:
+        OUT: ${{ steps.drv.outputs.out }}
+      run: nix copy --no-check-sigs --from "file://$RUNNER_TEMP/scrut-cache" "$OUT"
 
     - if: steps.restore.outputs.cache-hit != 'true'
       shell: bash
+      env:
+        OUT: ${{ steps.drv.outputs.out }}
       run: |
         nix build --no-link .#scrut
-        nix copy --to "file://$RUNNER_TEMP/scrut-cache" .#scrut
+        nix copy --to "file://$RUNNER_TEMP/scrut-cache" "$OUT"
 
     - if: steps.restore.outputs.cache-hit != 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
