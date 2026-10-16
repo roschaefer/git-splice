@@ -71,6 +71,26 @@ check_scenario_setups() {
   done < <(find "$TESTDIR" -mindepth 2 -name setup.bash | sed 's#/setup\.bash$##' | LC_ALL=C sort)
 }
 
+# Used by known-bugs.md to list every document with a known-bug banner,
+# the line right after its title. Fails if the banner doesn't link to
+# known-bugs.md, or if the documents the table's first column links to
+# aren't exactly the ones with a banner.
+check_known_bugs() {
+  local document relative banner issue listed found=
+  listed="$(grep -oE '^\| \[[^]]*\]\([^)]*\)' "$TESTDIR/known-bugs.md" |
+    sed -E 's/.*\(([^)]*)\)/\1/' | LC_ALL=C sort)"
+  while IFS= read -r document; do
+    relative="${document#"$TESTDIR/"}"
+    banner="$(sed -n 3p "$document")"
+    [[ "$banner" == '> **Known bug, ['* ]] || continue
+    issue="$(sed -E 's/^> \*\*Known bug, \[(#[0-9]+)\].*/\1/' <<<"$banner")"
+    [[ "$banner" == *"[all known bugs]($(realpath --relative-to="$(dirname "$document")" "$TESTDIR/known-bugs.md"))." ]] || return
+    printf 'ok %s %s\n' "$relative" "$issue"
+    found+="$relative"$'\n'
+  done < <(find "$TESTDIR" -mindepth 2 -name '*.md' | LC_ALL=C sort)
+  [[ "$listed" == "$(LC_ALL=C sort <<<"${found%$'\n'}")" ]]
+}
+
 # Once the scenario is built, the READMEs show what a terminal shows,
 # stderr included, with the upstream's path as $UPSTREAM. Git's progress
 # counters rewrite themselves with \r; only what follows the last \r of a

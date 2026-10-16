@@ -1,5 +1,7 @@
 # Scenario: moved-with-unpushed-commits
 
+> **Known bug, [#4](https://github.com/roschaefer/git-splice/issues/4).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../known-bugs.md).
+
 A splice with an unpushed commit is moved with `git mv`. The next push
 sends the right content, but squashes the unpushed commit into the move:
 its message and author are lost. This is a known bug,

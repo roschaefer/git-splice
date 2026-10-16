@@ -1,5 +1,7 @@
 # Scenario: init-then-cloned
 
+> **Known bug, [#11](https://github.com/roschaefer/git-splice/issues/11).** This page shows what `git-splice` does today, bug included. See [all known bugs](../known-bugs.md).
+
 A splice made by `init` was published, and a colleague clones the
 monorepo. Until the clone fetches, `status`, `merge`, `log` and `diff`
 treat the upstream as empty, though it has commits. This is a known bug,
