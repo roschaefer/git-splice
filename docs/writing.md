@@ -32,4 +32,4 @@ A few details:
 
 [`test/docs.bats`](../test/docs.bats) checks what a pattern can find: no
 role in bold, and no repository or splice named by a letter's
-possessive, like "a's upstream".
+possessive, like `a's upstream`.

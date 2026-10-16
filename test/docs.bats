@@ -87,7 +87,7 @@ prose_lines() {
         print file ":" NR ": " line
       }
     ' "$file"
-  done < <(git ls-files '*.md' ':!CHANGELOG.md')
+  done < <(git ls-files --cached --others --exclude-standard '*.md' ':!CHANGELOG.md')
 }
 
 @test "docs: a role like BOUNDARY or U(H) is plain capitals, never bold" {
