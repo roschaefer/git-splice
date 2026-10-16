@@ -103,3 +103,30 @@ edit_drawing() {
   run check_drawing "$drawing" a=HEAD~3 b=HEAD~2 m=HEAD~1 M=HEAD k=refs/splices/upstream/main s=side
   [ "$status" -eq 0 ]
 }
+
+@test "drawing moved: U(x) of a commit from before the splice was copied from a mirror isn't the mirror's" {
+  # vendor/a/ is a copy of the mirror vendor/orig/, so both have one id.
+  rm -rf "$monorepo" "$upstream"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream" vendor/orig
+  cd "$monorepo"
+  cp -r vendor/orig vendor/a
+  git add vendor/a
+  git commit -q -m "copy vendor/orig"
+  commit_local "$monorepo" vendor/a "local change"
+  mkdir libs
+  git mv vendor/a libs/a
+  git commit -q -m "reorganize folders"
+  # With two splices, B outside every lane can't say whose it is.
+  edit_drawing -d '//mxCell[@id="box3" or @source="box3"]'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+  # x, the commit that added the mirror, as a's parent.
+  sed -i 's#</root>#<mxCell id="x" parent="1" vertex="1" value="x" style="ellipse;aspect=fixed;"><mxGeometry x="229" y="476" width="70" height="70" as="geometry" /></mxCell><mxCell id="e_x" parent="1" edge="1" source="x" target="a"><mxGeometry relative="1" as="geometry" /></mxCell></root>#' "$drawing"
+  edit_drawing -u '//mxCell[@id="box1"]/@value' -v 'T = U(x)'
+  run check_drawing "$drawing" "${revs[@]}" x=HEAD~3
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(x) points at k, but there's no U(x)" ]
+}
