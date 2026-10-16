@@ -1,5 +1,7 @@
 # Scenario: edited-before-push: a change before the pull
 
+> **Known bug, [#82](https://github.com/roschaefer/git-splice/issues/82).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../known-bugs.md).
+
 The same edit as in [edited-before-push](README.md), but the next change
 comes before the `pull`. Then the folder no longer has the pushed
 commit's files, so nothing tells the edit apart from a divergence. R

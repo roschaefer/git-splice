@@ -1,5 +1,7 @@
 # Scenario: nested-splices, a and b swap their `.splice`
 
+> **Known bug, [#174](https://github.com/roschaefer/git-splice/issues/174).** This page shows what `git-splice` does today, bug included. See [all known bugs](../known-bugs.md).
+
 a contains b, as in the [README](README.md). Then the two `.splice`
 files trade places, ids and URLs included: the folder `vendor/a` names
 b's upstream, and `vendor/a/b` names a's.
