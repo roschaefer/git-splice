@@ -89,3 +89,17 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   x is in the lane libs/a/, but isn't in that splice's upstream history or R" ]
 }
+
+@test "drawing moved: U(x) of a commit on a merged branch that moved the splice on its own is read under that branch's folder" {
+  git switch -q -c side HEAD~1
+  mkdir other
+  git mv vendor/a other/a
+  git commit -q -m "side move"
+  git switch -q main
+  git merge -q -s ours --no-edit side
+  # s as b's child, and the merge M of m and s, now H.
+  sed -i 's#</root>#<mxCell id="s" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;"><mxGeometry x="400" y="74" width="70" height="70" as="geometry" /></mxCell><mxCell id="e_s" parent="1" edge="1" source="b" target="s"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="M" parent="1" vertex="1" value="M" style="ellipse;aspect=fixed;"><mxGeometry x="229" y="0" width="70" height="70" as="geometry" /></mxCell><mxCell id="e_mM" parent="1" edge="1" source="m" target="M"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="e_sM" parent="1" edge="1" source="s" target="M"><mxGeometry relative="1" as="geometry" /></mxCell></root>#' "$drawing"
+  edit_drawing -u '//mxCell[@source="box0"]/@target' -v M -u '//mxCell[@id="box1"]/@value' -v 'T = U(s)'
+  run check_drawing "$drawing" a=HEAD~3 b=HEAD~2 m=HEAD~1 M=HEAD k=refs/splices/upstream/main s=side
+  [ "$status" -eq 0 ]
+}
