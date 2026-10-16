@@ -22,7 +22,8 @@ is:
   plain `ahead 1`, and pushing `vendor/a` sends a's files to b's
   upstream, as a fast-forward. `clone` refuses a folder whose files
   differ from the upstream's, without `--merge`; a hand-edited `.splice`
-  skips that check.
+  skips that check
+  ([#174](https://github.com/roschaefer/git-splice/issues/174)).
 - **A later pull of the folder below doesn't nest a again.** The swap
   removed a's `b/` from it, so the merge keeps it removed.
 
