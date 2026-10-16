@@ -5,6 +5,11 @@
 # same commits -- so status can compare it with the upstream branch without
 # remembering anything about earlier pushes. See docs/design/README.md.
 
+# Options for every git command that reads or writes a rebuilt commit:
+# the rebuild must come out the same for everyone, and i18n.commitEncoding
+# would re-encode each message and add an encoding header.
+REBUILD_ENCODING=(-c i18n.commitEncoding=UTF-8 -c i18n.logOutputEncoding=UTF-8)
+
 # Cache: monorepo tree of a splice folder -> that tree without its state
 # file. The same folder tree recurs in every commit that doesn't touch it.
 declare -gA CONTENT_TREE_CACHE=()
@@ -114,13 +119,13 @@ copy_commit() {
     IFS= read -r cn
     IFS= read -r ce
     IFS= read -r cd
-  } < <(git log -1 --no-show-signature --pretty=format:'%an%n%ae%n%aD%n%cn%n%ce%n%cD%n' "$source")
+  } < <(git "${REBUILD_ENCODING[@]}" log -1 --no-show-signature --pretty=format:'%an%n%ae%n%aD%n%cn%n%ce%n%cD%n' "$source")
   # --pretty=format: has no trailing newline, unlike --format= (tformat),
   # so the message comes out byte for byte as split copies it.
-  git log -1 --no-show-signature --pretty=format:%B "$source" |
+  git "${REBUILD_ENCODING[@]}" log -1 --no-show-signature --pretty=format:%B "$source" |
     GIT_AUTHOR_NAME="$an" GIT_AUTHOR_EMAIL="$ae" GIT_AUTHOR_DATE="$ad" \
       GIT_COMMITTER_NAME="$cn" GIT_COMMITTER_EMAIL="$ce" GIT_COMMITTER_DATE="$cd" \
-      git commit-tree --no-gpg-sign "$tree" "${parents[@]}"
+      git "${REBUILD_ENCODING[@]}" commit-tree --no-gpg-sign "$tree" "${parents[@]}"
 }
 
 # Commits given for a splice's rebuild with push --rebuilt-commit, by path.
@@ -317,7 +322,7 @@ rebuild_walk() {
     cemails+=("$ce")
     cdates+=("$cd")
     messages+=("$message")
-  done < <(git log --reverse --first-parent --no-show-signature \
+  done < <(git "${REBUILD_ENCODING[@]}" log --reverse --first-parent --no-show-signature \
     --pretty=tformat:'%H%x00%an%x00%ae%x00%aD%x00%cn%x00%ce%x00%cD%x00%B%x00' \
     "$range" -- ":(top,literal)$path")
 
@@ -344,7 +349,7 @@ rebuild_walk() {
     prev="$(printf '%s' "${messages[$i]}" |
       GIT_AUTHOR_NAME="${authors[$i]}" GIT_AUTHOR_EMAIL="${emails[$i]}" GIT_AUTHOR_DATE="${dates[$i]}" \
         GIT_COMMITTER_NAME="${cnames[$i]}" GIT_COMMITTER_EMAIL="${cemails[$i]}" GIT_COMMITTER_DATE="${cdates[$i]}" \
-        git commit-tree --no-gpg-sign "$CONTENT_TREE" "${parents[@]}")"
+        git "${REBUILD_ENCODING[@]}" commit-tree --no-gpg-sign "$CONTENT_TREE" "${parents[@]}")"
     prev_tree="$CONTENT_TREE"
   done
   printf '%s\n' "$prev"
