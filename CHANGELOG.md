@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.3](https://github.com/roschaefer/git-splice/compare/v0.8.2...v0.8.3) (2026-10-16)
+
+
+### Bug Fixes
+
+* **rebuild:** make the rebuild independent of i18n.commitEncoding ([#185](https://github.com/roschaefer/git-splice/issues/185)) ([d6b7f5a](https://github.com/roschaefer/git-splice/commit/d6b7f5adc303f0765bade1aaff07d4e9de2cd5a4)), closes [#179](https://github.com/roschaefer/git-splice/issues/179)
+* **rebuild:** refuse when a shallow clone cuts off where the rebuild starts ([#177](https://github.com/roschaefer/git-splice/issues/177)) ([f0489b3](https://github.com/roschaefer/git-splice/commit/f0489b3b5b59017f1784e8e458df89cae1cf4425)), closes [#117](https://github.com/roschaefer/git-splice/issues/117)
+
 ## [0.8.2](https://github.com/roschaefer/git-splice/compare/v0.8.1...v0.8.2) (2026-10-15)
 
 
