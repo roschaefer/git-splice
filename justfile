@@ -34,10 +34,10 @@ walkthrough *args:
 # Check the README, walkthroughs, concepts, scenario READMEs and comparisons against real output; --write updates them
 docs-check flag="":
     @if [[ "{{flag}}" == --write ]]; then \
-      scrut update --replace --assume-yes README.md test/walkthrough test/concepts test/scenarios test/comparisons; \
+      scrut update --jobs "$(nproc)" --replace --assume-yes README.md test/walkthrough test/concepts test/scenarios test/comparisons; \
     elif [[ -n "{{flag}}" ]]; then \
       echo "usage: just docs-check [--write]" >&2; exit 1; \
-    elif ! scrut test README.md test/walkthrough test/concepts test/scenarios test/comparisons; then \
+    elif ! scrut test --jobs "$(nproc)" README.md test/walkthrough test/concepts test/scenarios test/comparisons; then \
       echo "The README, walkthroughs, concepts, scenario READMEs or comparisons don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
     fi
 
