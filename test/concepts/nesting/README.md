@@ -1,7 +1,7 @@
 # Nesting
 
 A splice can be inside another one: its upstream may use `git-splice`
-itself. Then the splice below is **nested** in the splice above.
+itself. Then the splice below is *nested* in the splice above.
 
 The nested `.splice` is part of the files of the splice above, like any
 other file there. So it travels with them: a clone or pull of the splice

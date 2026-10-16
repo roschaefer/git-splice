@@ -1,31 +1,33 @@
 # Diamond
 
-Two apps, A and B, each in a repository of its own, share a library C.
-Each app has C spliced in at `c/`. A monorepo M brings all of them
-together: A, B, and C once more at the top, to work on it directly.
+Two apps, each in a repository of its own, share a library. Each app has
+the library spliced in at `c/`. A monorepo brings all of them together:
+the apps at `a/` and `b/`, and the library once more at `c/`, to work on
+it directly.
 
 ```text
-      M
-     /|\
-    A | B
-     \|/
-      C
+   monorepo
+    /  |  \
+  a/   |   b/
+    \  |  /
+      c/
 ```
 
-That's a **diamond**: two paths lead from M to C, one through A and one
-through B. A monorepo without splices would keep C once and let `a/c/` and
-`b/c/` be symlinks to `../c/`. But then A on its own, cloned from its own
-repository, has a link that points outside of it. With splices, each copy
-is real: A's repository has C's files, and `c/.splice` says where they
-come from. M has C three times, and keeps the copies in sync by pulling
-and pushing, as below.
+That's a *diamond*: two paths lead from the monorepo to the library, one
+through each app. A monorepo without splices would keep the library once
+and let `a/c/` and `b/c/` be symlinks to `../c/`. But then the app on
+its own, cloned from its own repository, has a link that points outside
+of it. With splices, each copy is real: the app's repository has the
+library's files, and `c/.splice` says where they come from. The monorepo
+has the library three times, and keeps the copies in sync by pulling and
+pushing, as below.
 
-- **C** (`$UPSTREAM`, reached as `https://git.example.com/c.git`):
+- **Library** (`$UPSTREAM`, reached as `https://git.example.com/c.git`):
   `c seed`.
-- **A** and **B** (`$UPSTREAM-a`, `$UPSTREAM-b`, reached as
+- **Apps** (`$UPSTREAM-a`, `$UPSTREAM-b`, reached as
   `https://git.example.com/a.git` and `b.git`): a seed commit each, then
-  `add c`, which spliced C in at `c/`.
-- **M**: one commit, no splice yet.
+  `add c`, which spliced the library in at `c/`.
+- **Monorepo**: one commit, no splice yet.
 
 ## Output
 
@@ -41,7 +43,7 @@ $ source "$TESTDIR/../../scenarios/readme-setup.sh"
 $ build_scenario scenario_diamond
 ```
 
-### M brings A, B and C together
+### The monorepo brings them together
 
 ```scrut
 $ git splice clone https://git.example.com/a.git a && git splice clone https://git.example.com/b.git b && git splice clone https://git.example.com/c.git c
@@ -53,8 +55,8 @@ ok   b: cloned 8333d5f from main
 ok   c: cloned 0bfc154 from main
 ```
 
-A's and B's `c/.splice` came along, so M has five splices, three of
-them of C:
+The apps' `c/.splice` came along, so the monorepo has five splices,
+three of them of the library:
 
 ```scrut
 $ git splice status
@@ -67,9 +69,10 @@ On branch main
   up to date  c
 ```
 
-Each is a splice of its own, with its own id: A and B each ran `clone`
-for C, and so did M ([splice identity](../splice-identity/README.md)).
-All three share C's upstream, and with it one key and one fetch
+Each is a splice of its own, with its own id: each app ran `clone` for
+the library, and so did the monorepo
+([splice identity](../splice-identity/README.md)). All three share the
+library's upstream, and with it one key and one fetch
 ([upstreams](../upstreams/README.md)):
 
 ```scrut
@@ -81,12 +84,12 @@ b/c/.splice: id = 7d96e5d8a73e4c4b
 c/.splice: id = 27a7630097a94256
 ```
 
-By their ids, the three copies of C are independent splices
+By their ids, the three copies of the library are independent splices
 ([splice identity](../splice-identity/README.md#what-an-id-is)): each
-repository cloned C itself. They're one library, at possibly different
-versions, as in a package manager's diamond: A may still use an older C
-than B. Keeping them at the same version is up to the monorepo, where
-that's wanted.
+repository cloned the library itself. They're one library, at possibly
+different versions, as in a package manager's diamond: one app may still
+use an older version than the other. Keeping them at the same version is
+up to the monorepo, where that's wanted.
 
 ```scrut
 $ git splice key a/c && git splice key b/c && git splice key c
@@ -112,9 +115,10 @@ b6f8f56 c/.splice
 The checkout does have three copies of each file. A change to one copy
 reaches the others only by a push and their pulls, as below.
 
-### A change to C, round trip
+### A change to the library, round trip
 
-The change is made once, in M's `c/`, and goes to C's upstream:
+The change is made once, in the monorepo's `c/`, and goes to the
+library's upstream:
 
 ```scrut
 $ echo "c fix" >>c/file.txt && git commit -q -a -m "c fix"
@@ -125,7 +129,7 @@ $ git splice push c
 ok   c: pushed 2f685c3 to main
 ```
 
-Now `a/c/` and `b/c/` are behind C's upstream:
+Now `a/c/` and `b/c/` are behind the library's upstream:
 
 ```scrut
 $ git splice status
@@ -139,10 +143,10 @@ On branch main
   up to date  c
 ```
 
-In terms of the [sync model](../sync-model/README.md): `c/`'s R, the
-commit its push sent, is C's upstream branch T now. `a/c/` and `b/c/`
-still have the old content, so their R is the old commit. `log --graph`
-leaves out `c/`, which is up to date:
+In terms of the [sync model](../sync-model/README.md): R of `c/`, the
+commit its push sent, is the library's upstream branch T now. `a/c/` and
+`b/c/` still have the old content, so their R is the old commit.
+`log --graph` leaves out `c/`, which is up to date:
 
 ```scrut
 $ git splice log --graph c a/c b/c
@@ -154,9 +158,9 @@ o 0bfc154 (R) c seed  (Test <test@example.com>)
 o 0bfc154 (R) c seed  (Test <test@example.com>)
 ```
 
-The copies of C differ now: they're at different versions of C.
-`status` shows it only indirectly, as two splices behind their
-upstream. Comparing the folders, without `.splice`, shows it directly:
+The copies of the library differ now: they're at different versions.
+`status` shows it only indirectly, as two splices behind their upstream.
+Comparing the folders, without `.splice`, shows it directly:
 
 ```scrut
 $ git diff --stat HEAD:c HEAD:a/c -- ':!.splice'
@@ -164,8 +168,8 @@ $ git diff --stat HEAD:c HEAD:a/c -- ':!.splice'
  1 file changed, 1 deletion(-)
 ```
 
-Each pulls it in, and A and B are then ahead of their upstreams, by the
-new `c/` content and `c/.splice`:
+Each pulls it in, and `a/` and `b/` are then ahead of their upstreams,
+by the new `c/` content and `c/.splice`:
 
 ```scrut
 $ git splice pull a/c b/c
@@ -193,9 +197,9 @@ ok   a: pushed 7f874c1 to main
 ok   b: pushed e9b20a7 to main
 ```
 
-A clone of A on its own, e.g. by an outside contributor, has C's new
-version, as plain files, with the `.splice` that lets `git-splice` sync it
-from there:
+A clone of one app on its own, e.g. by an outside contributor, has the
+library's new version, as plain files, with the `.splice` that lets
+`git-splice` sync it from there:
 
 ```scrut
 $ git clone -q "$UPSTREAM-a" ../a-standalone && ls -A ../a-standalone/c && cat ../a-standalone/c/file.txt

@@ -9,7 +9,8 @@ With [Nix](https://nixos.org/download/) and
     just site-serve  # this documentation site, reloading on changes
 
 [The design](design/README.md#testing) explains how the tests are
-layered and how to write one.
+layered and how to write one, and [writing the docs](writing.md) which
+markup the documentation uses for what.
 
 Releases come from [release-please](https://github.com/googleapis/release-please):
 it keeps a release PR open with the next version and changelog, built from

@@ -72,10 +72,10 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 </div>
 
-At *a*, the **BOUNDARY**, you spliced in *k* (`e849115`). To splice out,
+At *a*, the BOUNDARY, you spliced in *k* (`e849115`). To splice out,
 `git-splice` rebuilds the commits since *a* on top of *k*. *c* never touched
-`path/`, so it's left out. The result is *d'*, **OURS**, a library commit
-ready for an ordinary three-way merge with **THEIRS** from **BASE**:
+`path/`, so it's left out. The result is *d'*, OURS, a library commit
+ready for an ordinary three-way merge with THEIRS from BASE:
 
 ```scrut
 $ git splice status

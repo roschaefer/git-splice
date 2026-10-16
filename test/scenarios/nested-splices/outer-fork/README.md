@@ -1,22 +1,23 @@
 # Scenario: outer-fork
 
 The splice above has a second upstream, the one below doesn't
-([#107](https://github.com/roschaefer/git-splice/issues/107)). In the
-names of [nesting](../../../concepts/nesting/README.md): O is a's
-upstream, spliced in at `vendor/a/`, and I is b's, at `vendor/a/b/`.
-O's company fork carries a patch to `b/`.
+([#107](https://github.com/roschaefer/git-splice/issues/107)). As in
+[nested-splices](../README.md), the outer upstream is spliced in at
+`vendor/a/`, and the inner one at `vendor/a/b/`. The outer upstream's
+company fork carries a patch to `b/`.
 
-- **b's upstream** (I, reached as `https://git.example.com/b.git`):
+- **Inner upstream** (reached as `https://git.example.com/b.git`):
   `b seed`.
-- **a's upstream** (O, `$UPSTREAM`): `a seed`, then `add b`.
-- **a's fork** (`$UPSTREAM-fork.git`, reached as
-  `https://git.example.com/company/a.git`): a copy of a's upstream, then
-  `a fork patch to b`, which changes `b/file.txt`.
+- **Outer upstream** (`$UPSTREAM`): `a seed`, then `add b`.
+- **Outer fork** (`$UPSTREAM-fork.git`, reached as
+  `https://git.example.com/company/a.git`): a copy of the outer
+  upstream, then `a fork patch to b`, which changes `b/file.txt`.
   [fork-default-branch-below](fork-default-branch-below.md) renames its
   `main` to `trunk`.
-- **b's fork** (`$UPSTREAM-b-fork.git`, reached as
-  `https://git.example.com/company/b.git`): a copy of b's upstream, then
-  `b fork patch`. Only [same-name-below](same-name-below.md) uses it.
+- **Inner fork** (`$UPSTREAM-b-fork.git`, reached as
+  `https://git.example.com/company/b.git`): a copy of the inner
+  upstream, then `b fork patch`. Only
+  [same-name-below](same-name-below.md) uses it.
 - **Monorepo**: `vendor/a/` and `vendor/a/b/`, as in
   [nested-splices](../README.md).
 
@@ -34,8 +35,8 @@ $ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=3 GIT_CONFI
 $ build_scenario scenario_outer_fork https://git.example.com/b.git
 ```
 
-`vendor/a/.splice` gets a's fork as a second upstream, and keeps a's
-upstream as its default:
+`vendor/a/.splice` gets the outer fork as a second upstream, and keeps
+the outer upstream as its default:
 
 ```scrut
 $ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git && git config --file vendor/a/.splice splice.default-upstream origin && git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
@@ -62,7 +63,8 @@ $ git splice pull --upstream fork --all
 
 Only `vendor/a/`, then. Its pull also fetches the splice below it, whose
 synced commit the pull may move: from every upstream it names, since
-which of them has the new one isn't known. For I, that's its only one:
+which of them has the new one isn't known. For `vendor/a/b/`, that's its
+only one:
 
 ```scrut
 $ git splice pull --upstream fork vendor/a
@@ -71,10 +73,11 @@ ok   vendor/a/b fetched
 ok   vendor/a: pulled 1b1cea6
 ```
 
-The fork's patch to `b/` is in `vendor/a/b/` now. I's `.splice` didn't
-change, so the patch is a local change to I: the next push sends it to
-b's upstream, as if it had been made in the monorepo. For `vendor/a/`,
-it's a commit a's upstream lacks, like any other the fork has.
+The fork's patch to `b/` is in `vendor/a/b/` now. Its `.splice` didn't
+change, so the patch is a local change to `vendor/a/b/`: the next push
+sends it to the inner upstream, as if it had been made in the monorepo.
+For `vendor/a/`, it's a commit the outer upstream lacks, like any other
+the fork has.
 
 ```scrut
 $ git splice status

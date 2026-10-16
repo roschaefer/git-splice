@@ -12,7 +12,7 @@ folders have the same one: they're meant to be mirrors.
 ## What an id is
 
 `clone` and `init` write an `id` into the `.splice` they create. The id
-names that **mount**, the act of making this folder a splice of an
+names that *mount*, the act of making this folder a splice of an
 upstream. It names neither a folder nor an upstream:
 
 | What happens | The id |
@@ -32,8 +32,8 @@ So the id says which folders are meant to stay alike:
 
 | | Different ids | The same id |
 |---|---|---|
-| Meaning | **independent** splices, even of one upstream, e.g. a library at two versions | one splice in two places: **mirrors**, meant to have the same files |
-| Different content | fine | **drift**, to resolve |
+| Meaning | *independent* splices, even of one upstream, e.g. a library at two versions | one splice in two places: *mirrors*, meant to have the same files |
+| Different content | fine | *drift*, to resolve |
 | Made by | `clone` or `init` | a copy, or one nested splice reached twice |
 
 Mirrors can't be enforced, only reported, and `git-splice` doesn't report
@@ -129,7 +129,7 @@ vendor/a-copy/.splice: id = 224f2c2563d3b6f7
 vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
-The copy declares a **mirror** of `vendor/a/`. For a copy that should go
+The copy declares a *mirror* of `vendor/a/`. For a copy that should go
 its own way, `git splice clone` gives the same files, at the same synced
 commit, with an id of its own. Every command works on a splice by its
 path, and nothing compares ids across paths, so each copy is pulled and
@@ -185,7 +185,7 @@ On branch main
 ```
 
 `vendor/a-copy/` is meant to mirror `vendor/a/`, but has other files now:
-it has **drifted**. `status` only says it's behind its upstream, just as
+it has *drifted*. `status` only says it's behind its upstream, just as
 `third_party/a/`, which is independent and may stay behind. A report of
 mirrors that differ is possible, but not there yet
 ([mirrors](../../../docs/going-forward/mirrors.md)).

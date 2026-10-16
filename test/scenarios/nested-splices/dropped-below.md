@@ -1,13 +1,15 @@
-# Scenario: nested-splices, a synced commit b's upstream dropped
+# Scenario: nested-splices, a synced commit the inner upstream dropped
 
-a's upstream pulls a change of b into `b/`, then b's upstream drops that
-change from its `main`, e.g. by a force-push. The synced commit a's
-upstream records for b is on no branch of b's upstream any more
+The outer upstream pulls a change of the inner upstream into `b/`, then
+the inner upstream drops that change from its `main`, e.g. by a
+force-push. The synced commit the outer upstream records for `b/` is on
+no branch of the inner upstream any more
 ([#126](https://github.com/roschaefer/git-splice/issues/126)).
 
-A pull fetches b before it pulls a, so that fetch can't ask for the
-synced commit a's pull moves b to. A pull of b afterwards fetches it by
-its hash. Before, b was reported as sharing no history with its
+A pull fetches `vendor/a/b/` before it pulls `vendor/a/`, so that fetch
+can't ask for the synced commit the pull of `vendor/a/` moves
+`vendor/a/b/` to. A pull of `vendor/a/b/` afterwards fetches it by its
+hash. Before, `vendor/a/b/` was reported as sharing no history with its
 upstream, with advice that included overwriting the upstream's branch.
 
 ## Output
@@ -19,22 +21,24 @@ $ source "$TESTDIR/../readme-setup.sh" && export GIT_CONFIG_COUNT=3 GIT_CONFIG_K
 -->
 
 [`setup.bash`](setup.bash) builds the state of the [README](README.md):
-a with b spliced in at `b/`, cloned into the monorepo:
+the outer upstream with the inner one spliced in at `b/`, cloned into
+the monorepo:
 
 ```scrut
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
-## b's upstream drops a change a's upstream has
+## The inner upstream drops a change the outer upstream has
 
-A change in b's upstream, *c* (`b change`), on top of *m* (`b seed`):
+A change in the inner upstream, *c* (`b change`), on top of *m*
+(`b seed`):
 
 ```scrut
 $ seed_bare_repo "$UPSTREAM-b.git" "b change" main other.txt >/dev/null 2>&1
 ```
 
-In a clone of a's upstream, b pulls it, and a's upstream gets it as *n*,
-on top of *k* (`a seed`) and *l* (`add b`):
+In a clone of the outer upstream, `b/` pulls it, and the outer upstream
+gets it as *n*, on top of *k* (`a seed`) and *l* (`add b`):
 
 ```scrut
 $ git clone -q "$UPSTREAM" ../a-work && cd ../a-work && git splice pull b && git push -q origin HEAD:main && cd ../monorepo
@@ -42,7 +46,7 @@ ok   b fetched
 ok   b: pulled 95165ad
 ```
 
-b's upstream drops *c* again:
+The inner upstream drops *c* again:
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" update-ref refs/heads/main refs/heads/main^
@@ -59,7 +63,8 @@ ok   vendor/a/b fetched
 ok   vendor/a/b: nothing to pull
 ```
 
-The pull of a is *p*, on top of the monorepo's *a* (`add vendor/a`):
+The pull of `vendor/a/` is *p*, on top of the monorepo's *a*
+(`add vendor/a`):
 
 <div align="center">
 
@@ -68,9 +73,9 @@ The pull of a is *p*, on top of the monorepo's *a* (`add vendor/a`):
 </div>
 
 *n*'s `b/.splice` records *c*: U(n) = *c*, and so does *p*'s
-`vendor/a/b/.splice`, U(H). *c* is dashed: no branch of b's upstream has
-it any more, but the pull fetched it by its hash. The drawing shows what Git
-and `git-splice` say about it
+`vendor/a/b/.splice`, U(H). *c* is dashed: no branch of the inner
+upstream has it any more, but the pull fetched it by its hash. The
+drawing shows what Git and `git-splice` say about it
 ([`check_drawing`](../../../check-drawing/)):
 
 ```scrut
@@ -78,8 +83,8 @@ $ check_drawing "$TESTDIR/dropped-below.drawio.svg" a=HEAD^ p=HEAD k=refs/splice
 ok   dropped-below.drawio.svg: 7 commits, 8 arrows, 4 boxes, 2 lanes
 ```
 
-*c* is in b's rebuild, R, and b's upstream lacks it, so the next push of
-b brings it back:
+*c* is in the rebuild of `vendor/a/b/`, R, and the inner upstream lacks
+it, so the next push of `vendor/a/b/` brings it back:
 
 ```scrut
 $ git splice status

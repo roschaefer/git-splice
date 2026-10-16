@@ -1,16 +1,19 @@
 # Scenario: nested-splices, spliced into another monorepo
 
-The monorepo pushes a change in b, the splice below a. Then another
-monorepo splices a in. There, b's files already have the change, but b's
-`.splice` still names the synced commit from before it, and `git splice
-clone` squashed a's history into one commit: the other monorepo's own
-history has nothing between that synced commit and b's files.
+The monorepo pushes a change in `vendor/a/b/`, the splice below
+`vendor/a/`. Then another monorepo splices the outer upstream in. There,
+the inner splice's files already have the change, but its `.splice`
+still names the synced commit from before it, and `git splice clone`
+squashed the outer upstream's history into one commit: the other
+monorepo's own history has nothing between that synced commit and the
+inner splice's files.
 
-a's upstream has that history, though, and the other monorepo fetched
-it. So up to the clone, b's history is rebuilt from a's upstream: the
-rebuild gets exactly the commit the first monorepo pushed, b is up to
-date, and its first change is pushed on top. Before, b read as diverged
-there, and `pull` conflicted on a line both sides had
+The outer upstream has that history, though, and the other monorepo
+fetched it. So up to the clone, the inner splice's history is rebuilt
+from the outer upstream: the rebuild gets exactly the commit the first
+monorepo pushed, the inner splice is up to date, and its first change is
+pushed on top. Before, it read as diverged there, and `pull` conflicted
+on a line both sides had
 ([#74](https://github.com/roschaefer/git-splice/issues/74)).
 
 ## Output
@@ -22,13 +25,14 @@ $ source "$TESTDIR/../readme-setup.sh" && export GIT_CONFIG_COUNT=3 GIT_CONFIG_K
 -->
 
 [`setup.bash`](setup.bash) builds the state of the [README](README.md):
-a with b spliced in at `b/`, cloned into the monorepo:
+the outer upstream with the inner one spliced in at `b/`, cloned into
+the monorepo:
 
 ```scrut
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
-The monorepo changes b and pushes both, bottom-up:
+The monorepo changes `vendor/a/b/` and pushes both, bottom-up:
 
 ```scrut
 $ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local" && git splice push vendor/a/b vendor/a
@@ -36,16 +40,17 @@ ok   vendor/a/b: pushed f47c373 to main
 ok   vendor/a: pushed 924e6e3 to main
 ```
 
-b's `.splice` still names b's synced commit from before the change: a
-push writes nothing to the monorepo. a's push publishes this `.splice`,
-along with a commit `b local` in a's upstream:
+`vendor/a/b/.splice` still names the synced commit from before the
+change: a push writes nothing to the monorepo. The push of `vendor/a/`
+publishes this `.splice`, along with a commit `b local` in the outer
+upstream:
 
 ```scrut
 $ git -C "$UPSTREAM" show main:b/.splice | git config --file - splice.commit | xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
 b seed
 ```
 
-## Another monorepo splices a in
+## Another monorepo splices the outer upstream in
 
 ```scrut
 $ git init -q -b main ../other && cd ../other && git commit -q --allow-empty -m "other monorepo"
@@ -59,8 +64,9 @@ ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```
 
-`clone` squashed a's history into one commit. b's files there already
-have `b local`, but its `.splice` names `b seed`:
+`clone` squashed the outer upstream's history into one commit. The files
+of `vendor/a/b/` there already have `b local`, but its `.splice` names
+`b seed`:
 
 ```scrut
 $ git log --format=%s
@@ -75,7 +81,7 @@ b local
 b seed
 ```
 
-Up to date, since b's files match b's upstream:
+Up to date, since the inner splice's files match the inner upstream:
 
 ```scrut
 $ git splice status
@@ -85,15 +91,15 @@ On branch main
   up to date  vendor/a/b
 ```
 
-The first change to b here:
+The first change to `vendor/a/b/` here:
 
 ```scrut
 $ echo "b other" >>vendor/a/b/file.txt && git commit -q -a -m "b other"
 ```
 
-The rebuild of b reads b's history up to the clone in a's upstream,
-where `b local` is a commit of its own. So it gets the commit the first
-monorepo pushed, and only `b other` is new:
+The rebuild of `vendor/a/b/` reads its history up to the clone in the
+outer upstream, where `b local` is a commit of its own. So it gets the
+commit the first monorepo pushed, and only `b other` is new:
 
 ```scrut
 $ git splice status vendor/a/b

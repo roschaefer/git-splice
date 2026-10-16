@@ -2,7 +2,7 @@
 
 A brand-new monorepo without any commits.
 
-A clone is a commit on top of HEAD, so it needs one to exist. The command
+A clone is a commit on top of `HEAD`, so it needs one to exist. The command
 stops before fetching or changing the worktree and explains how to create
 that first commit.
 
