@@ -165,17 +165,18 @@ check_drawing() {
       source "$DRAWING_LIB/common.sh"
       # shellcheck source=/dev/null
       source "$DRAWING_LIB/rebuild.sh"
-      local i lower upper
-      splice_lineage "$1" HEAD
-      splice_lineage_to_mount
-      for i in "${!LINEAGE_RANGES[@]}"; do
-        lower="${LINEAGE_RANGES[$i]%%..*}" upper="${LINEAGE_RANGES[$i]#*..}"
+      local i lower upper at
+      local -a paths=() ranges=()
+      read_lineage 5 paths ranges - - at - upper < <(splice_lineage "$1" HEAD)
+      read_lineage 3 paths ranges - at upper < <(splice_lineage_to_mount "$at" "$upper")
+      for i in "${!ranges[@]}"; do
+        lower="${ranges[$i]%%..*}" upper="${ranges[$i]#*..}"
         if git merge-base --is-ancestor "$2" "$upper" && ! git merge-base --is-ancestor "$2" "$lower"; then
-          printf '%s\n' "${LINEAGE_PATHS[$i]}"
+          printf '%s\n' "${paths[$i]}"
           return
         fi
       done
-      printf '%s\n' "$LINEAGE_PATH"
+      printf '%s\n' "$at"
     )
   }
   load_truth() {

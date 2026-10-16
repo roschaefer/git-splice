@@ -149,74 +149,86 @@ moved_from() {
 # Follows splice <path> back from monorepo commit <upper> to its last
 # sync L (splice_last_sync). Moves of the folder (`git mv`, see
 # moved_from) are followed; one that leaves the state file as it is isn't
-# a last sync. Sets, as globals:
-#   LINEAGE_LAST_SYNC    L, or nothing
-#   LINEAGE_SYNCED       the synced commit U(L) recorded at L, or nothing
-#   LINEAGE_PATH         the splice's path at L
-#   LINEAGE_BEFORE_PATH  its path in L's first parent: another one if L
-#                        moved the folder and changed the state file
-#   LINEAGE_UPPER        the newest commit at LINEAGE_PATH
-#   LINEAGE_PATHS, LINEAGE_RANGES
-#                        the newer paths, newest first, each with the
-#                        range (rev-list syntax) of commits it applies to
+# a last sync. Prints, each field ending with a NUL:
+#   L, or nothing
+#   the synced commit U(L) recorded at L, or nothing
+#   the splice's path at L
+#   its path in L's first parent: another one if L moved the folder and
+#     changed the state file
+#   the newest commit at the path at L
+# then, newest first, each newer path and the range (rev-list syntax) of
+# commits it applies to. Read it with read_lineage.
 splice_lineage() {
-  local path="$1" upper="$2" commit
-  LINEAGE_LAST_SYNC=""
-  LINEAGE_SYNCED=""
-  LINEAGE_BEFORE_PATH=""
-  LINEAGE_PATHS=()
-  LINEAGE_RANGES=()
+  local path="$1" upper="$2" commit last_sync="" synced="" before_path=""
+  local -a moves=()
   while :; do
     commit="$(splice_last_sync "$path" "$upper")"
     [[ -n "$commit" ]] || break
     moved_from "$commit" "$path"
     if [[ -z "$MOVED_STATE_KEPT" ]]; then
-      LINEAGE_LAST_SYNC="$commit"
-      LINEAGE_BEFORE_PATH="${MOVED_FROM:-$path}"
+      last_sync="$commit"
+      before_path="${MOVED_FROM:-$path}"
       break
     fi
-    LINEAGE_PATHS+=("$path")
-    LINEAGE_RANGES+=("$commit^1..$upper")
+    moves+=("$path" "$commit^1..$upper")
     path="$MOVED_FROM"
     upper="$commit^1"
   done
-  [[ -n "$LINEAGE_LAST_SYNC" ]] && LINEAGE_SYNCED="$(splice_config "$path" commit "$LINEAGE_LAST_SYNC")"
-  LINEAGE_PATH="$path"
-  LINEAGE_UPPER="$upper"
+  [[ -z "$last_sync" ]] || synced="$(splice_config "$path" commit "$last_sync")"
+  printf '%s\0' "$last_sync" "$synced" "$path" "$before_path" "$upper" "${moves[@]}"
 }
 
-# Continues splice_lineage back from LINEAGE_PATH and LINEAGE_UPPER to the
-# splice's mount (see splice_mount), following moves of the folder that
-# kept the splice's id, even if the move changed its state file. Sets
-# LINEAGE_MOUNT, or nothing if there's no state file, and extends
-# LINEAGE_PATH, LINEAGE_UPPER, LINEAGE_PATHS and LINEAGE_RANGES. A move
-# from before the mount isn't followed: the folder was no splice then.
+# Continues splice_lineage's walk for splice <path> back from monorepo
+# commit <upper> to the splice's mount (see splice_mount), following moves
+# of the folder that kept the splice's id, even if the move changed its
+# state file. A move from before the mount isn't followed: the folder was
+# no splice then. Prints, each field ending with a NUL, the mount (nothing
+# if there's no state file), the path there, and the newest commit at that
+# path, then the moves as splice_lineage does.
 splice_lineage_to_mount() {
-  local path="$LINEAGE_PATH" upper="$LINEAGE_UPPER" commit id
-  LINEAGE_MOUNT=""
-  git cat-file -e "$upper:$path/$STATE_FILE" 2>/dev/null || return 0
-  while :; do
-    # As in splice_mount, every commit the walk passes at one path has
-    # <upper>'s id, so it's read once per path.
-    id="$(splice_config "$path" id "$upper")"
-    MOVED_FROM=""
-    while read -r commit; do
-      if [[ -n "$id" ]] && git rev-parse --verify --quiet "$commit^1" >/dev/null &&
-        [[ "$(splice_config "$path" id "$commit^1")" == "$id" ]]; then
-        continue
-      fi
-      moved_from "$commit" "$path"
-      [[ -n "$MOVED_FROM" ]] || LINEAGE_MOUNT="$commit"
-      break
-    done < <(git log --first-parent --no-show-signature --format=%H "$upper" -- ":(top,literal)$path/$STATE_FILE")
-    [[ -n "$MOVED_FROM" ]] || break
-    LINEAGE_PATHS+=("$path")
-    LINEAGE_RANGES+=("$commit^1..$upper")
-    path="$MOVED_FROM"
-    upper="$commit^1"
+  local path="$1" upper="$2" commit id mount=""
+  local -a moves=()
+  if git cat-file -e "$upper:$path/$STATE_FILE" 2>/dev/null; then
+    while :; do
+      # As in splice_mount, every commit the walk passes at one path has
+      # <upper>'s id, so it's read once per path.
+      id="$(splice_config "$path" id "$upper")"
+      MOVED_FROM=""
+      while read -r commit; do
+        if [[ -n "$id" ]] && git rev-parse --verify --quiet "$commit^1" >/dev/null &&
+          [[ "$(splice_config "$path" id "$commit^1")" == "$id" ]]; then
+          continue
+        fi
+        moved_from "$commit" "$path"
+        [[ -n "$MOVED_FROM" ]] || mount="$commit"
+        break
+      done < <(git log --first-parent --no-show-signature --format=%H "$upper" -- ":(top,literal)$path/$STATE_FILE")
+      [[ -n "$MOVED_FROM" ]] || break
+      moves+=("$path" "$commit^1..$upper")
+      path="$MOVED_FROM"
+      upper="$commit^1"
+    done
+  fi
+  printf '%s\0' "$mount" "$path" "$upper" "${moves[@]}"
+}
+
+# Reads the output of splice_lineage or splice_lineage_to_mount from
+# stdin: its first <n> fields into the variables named <var>... (a field
+# whose name is - is skipped), and the moves after them appended to the
+# arrays named <paths> and <ranges>.
+read_lineage() {
+  local n="$1" i field move_path move_range
+  local -n lineage_paths="$2" lineage_ranges="$3"
+  shift 3
+  for ((i = 0; i < n; i++)); do
+    IFS= read -r -d '' field || return
+    [[ "$1" == - ]] || printf -v "$1" '%s' "$field"
+    shift
   done
-  LINEAGE_PATH="$path"
-  LINEAGE_UPPER="$upper"
+  while IFS= read -r -d '' move_path && IFS= read -r -d '' move_range; do
+    lineage_paths+=("$move_path")
+    lineage_ranges+=("$move_range")
+  done
 }
 
 # Prints a new commit with tree <tree> and parents <parent>... that copies
@@ -306,16 +318,8 @@ rebuild_with_start() {
   local path="$1" rev="${2:-HEAD}"
   local last_sync synced prev="" prev_tree="" tree range rebuild_start i
   local at before_path upper
-  local -a paths ranges
-  splice_lineage "$path" "$rev"
-  # Recursive calls below overwrite the globals.
-  last_sync="$LINEAGE_LAST_SYNC"
-  synced="$LINEAGE_SYNCED"
-  at="$LINEAGE_PATH"
-  before_path="$LINEAGE_BEFORE_PATH"
-  upper="$LINEAGE_UPPER"
-  paths=("${LINEAGE_PATHS[@]}")
-  ranges=("${LINEAGE_RANGES[@]}")
+  local -a paths=() ranges=()
+  read_lineage 5 paths ranges last_sync synced at before_path upper < <(splice_lineage "$path" "$rev")
   [[ -z "$last_sync" ]] || refuse_shallow_start "$at" "$last_sync"
 
   # A nested splice's history up to the last sync of a splice above it is
@@ -412,21 +416,12 @@ rebuild_with_start() {
     fi
     range="$last_sync..$upper"
   else
-    LINEAGE_PATH="$at"
-    LINEAGE_UPPER="$upper"
-    LINEAGE_PATHS=("${paths[@]}")
-    LINEAGE_RANGES=("${ranges[@]}")
-    splice_lineage_to_mount
-    if [[ -z "$LINEAGE_MOUNT" ]]; then
+    read_lineage 3 paths ranges rebuild_start at upper < <(splice_lineage_to_mount "$at" "$upper")
+    if [[ -z "$rebuild_start" ]]; then
       printf -- '- -\n'
       return 0
     fi
-    refuse_shallow_start "$LINEAGE_PATH" "$LINEAGE_MOUNT"
-    rebuild_start="$LINEAGE_MOUNT"
-    at="$LINEAGE_PATH"
-    upper="$LINEAGE_UPPER"
-    paths=("${LINEAGE_PATHS[@]}")
-    ranges=("${LINEAGE_RANGES[@]}")
+    refuse_shallow_start "$at" "$rebuild_start"
     range="$upper"
     git rev-parse --verify --quiet "$rebuild_start^1" >/dev/null && range="$rebuild_start^1..$upper"
   fi
