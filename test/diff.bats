@@ -107,7 +107,7 @@ setup() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
 
-  TERM=xterm run pipe_to_pager diff_paths cat main vendor/a
+  TERM=xterm run pipe_to_pager run_each_splice cat diff_one main vendor/a
 
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\033['* ]]
@@ -116,7 +116,7 @@ setup() {
 @test "diff: quitting the pager early does not report a splice failure" {
   diff_one() { return 141; }
 
-  run diff_paths main "" vendor/a
+  run run_each_splice diff_one main "" vendor/a
 
   [ "$status" -eq 141 ]
   [[ "$output" != *"Failed:"* ]]

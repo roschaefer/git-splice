@@ -185,9 +185,7 @@ used_upstream_entry() {
 
 cmd_fetch() {
   parse_args usage_fetch "--upstream" "$@"
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
+  open_repository
   select_paths overview fetch
   local branch i entries=()
   branch="$(current_branch)"

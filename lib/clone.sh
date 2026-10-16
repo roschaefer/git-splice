@@ -101,13 +101,9 @@ fetch_new_upstream() {
 
 cmd_clone() {
   parse_args usage_clone "--merge --from-submodule --recursive" "$@"
-  [[ -z "$ALL_ARG" ]] || die "clone takes no --all"
   if has_flag --from-submodule; then
+    require_args usage_clone clone 1 1
     has_flag --merge && die "--from-submodule takes no --merge: the folder gets the submodule's files"
-    if [[ ${#PATH_ARGS[@]} -ne 1 ]]; then
-      usage_clone >&2
-      exit 1
-    fi
     local recursive=""
     has_flag --recursive && recursive=1
     clone_from_submodule "${PATH_ARGS[0]}" "$recursive"
@@ -116,24 +112,22 @@ cmd_clone() {
   has_flag --recursive && die "--recursive needs --from-submodule: it converts the submodule's own submodules too"
   local merge=""
   has_flag --merge && merge=1
-  local url="${PATH_ARGS[0]:-}" path="${PATH_ARGS[1]:-}"
-  if [[ -z "$url" || ${#PATH_ARGS[@]} -gt 2 ]]; then
+  require_args usage_clone clone 1 2
+  local url="${PATH_ARGS[0]}" path="${PATH_ARGS[1]:-}"
+  if [[ -z "$url" ]]; then
     usage_clone >&2
     exit 1
   fi
   [[ -n "$path" ]] || path="$(default_clone_path "$url")"
   path="$(normalize_path "$path")"
   [[ -n "$path" && "$path" != . && "$path" != /* ]] || die "'$path' isn't a folder inside the repository"
-  usable_splice_path "$path" ||
-    die "'$path' isn't supported as a splice path yet -- choose another folder name (e.g. no spaces)"
+  require_usable_splice_path "$path" "choose another folder name"
 
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
+  open_repository
   local branch
   branch="$(current_branch)"
   is_splice_path "$path" && die "$path is a splice already"
-  splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
+  require_no_splice_in_progress
   [[ "$(path_mode HEAD "$path")" == 160000 ]] &&
     die "$path is a submodule -- 'git splice clone --from-submodule $(shell_quote "$path")' turns it into a splice"
   if git cat-file -e "HEAD:$path" 2>/dev/null && [[ -z "$(folder_tree HEAD "$path")" ]]; then
@@ -282,15 +276,12 @@ clone_from_submodule() {
   local path recursive="${2:-}"
   path="$(normalize_path "$1")"
   [[ -n "$path" && "$path" != . && "$path" != /* ]] || die "'$path' isn't a folder inside the repository"
-  usable_splice_path "$path" ||
-    die "'$path' isn't supported as a splice path yet -- rename the submodule's folder (e.g. no spaces)"
+  require_usable_splice_path "$path" "rename the submodule's folder"
 
-  cd_to_repo_root
-  require_head_commit
+  open_repository
   current_branch >/dev/null
-  discover_splices
   is_splice_path "$path" && die "$path is a splice already"
-  splice_in_progress && die "a cherry-pick or merge is in progress -- conclude it first"
+  require_no_splice_in_progress
   [[ "$(path_mode HEAD "$path")" == 160000 ]] || die "$path: no submodule committed here"
   local above="" gitmodules=.gitmodules base=""
   if above="$(splice_above_in HEAD "$path")"; then

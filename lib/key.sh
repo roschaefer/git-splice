@@ -49,17 +49,11 @@ rename_upstream_key() {
 
 cmd_key() {
   parse_args usage_key "--upstream" "$@"
-  [[ -z "$ALL_ARG" ]] || die "key takes no --all"
-  [[ ${#PATH_ARGS[@]} -eq 1 || ${#PATH_ARGS[@]} -eq 2 ]] || {
-    usage_key >&2
-    exit 1
-  }
+  require_args usage_key key 1 2
   local path new="${PATH_ARGS[1]:-}"
   path="$(normalize_path "${PATH_ARGS[0]}")"
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
-  is_splice_path "$path" || die "not a splice: $path"
+  open_repository
+  require_splice "$path"
   use_upstreams "$UPSTREAM_ARG" "$path"
   local key="${SPLICE_KEYS[$path]}"
   [[ -n "$key" ]] || die "$path: its upstream has no key yet -- 'git splice fetch $(shell_quote "$path")' records one"

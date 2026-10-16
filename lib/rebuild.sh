@@ -382,17 +382,11 @@ EOF
 
 cmd_rebuild() {
   parse_args usage_rebuild "" "$@"
-  [[ -z "$ALL_ARG" ]] || die "rebuild takes no --all"
-  [[ ${#PATH_ARGS[@]} -eq 1 ]] || {
-    usage_rebuild >&2
-    exit 1
-  }
+  require_args usage_rebuild rebuild 1 1
   local path rebuilt
   path="$(normalize_path "${PATH_ARGS[0]}")"
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
-  is_splice_path "$path" || die "not a splice: $path"
+  open_repository
+  require_splice "$path"
   rebuilt="$(rebuild_splice "$path" HEAD)" || exit 1
   [[ -n "$rebuilt" ]] || die "$path: has no content yet -- nothing to rebuild"
   printf '%s\n' "$rebuilt"

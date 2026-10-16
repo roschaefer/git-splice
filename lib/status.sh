@@ -176,17 +176,13 @@ print_status_rows() {
 cmd_status() {
   parse_args usage_status "--upstream" "$@"
   local branch path
-  cd_to_repo_root
-  require_head_commit
-  discover_splices
+  open_repository
   if [[ ${#ALL_PATHS[@]} -eq 0 && ${#PATH_ARGS[@]} -eq 0 ]]; then
     log_ok "no splices -- 'git splice clone <url> <path>' adds one"
     return 0
   fi
-  select_paths overview status
-  use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
-  branch="$(current_branch)"
-  require_upstream_branches "$branch" "${SELECTED_PATHS[@]}"
+  select_splices overview status
+  branch="$MONOREPO_BRANCH"
   STATUS_RANKS=() STATUS_LABELS=() STATUS_PATHS=() STATUS_HINTS=()
   for path in "${SELECTED_PATHS[@]}"; do
     add_status_row "$path" "$branch"
