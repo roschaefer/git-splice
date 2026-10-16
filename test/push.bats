@@ -547,3 +547,37 @@ rebuilt_commit_shape() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   unknown option: --rebuilt-commit" ]]
 }
+
+@test "push: refuses in a shallow clone that cuts off the last sync, instead of squashing the unpushed commits" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "second local change"
+  git clone -q --depth 1 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  splice fetch vendor/a >/dev/null
+  local before
+  before="$(git -C "$upstream" rev-parse main)"
+  run splice push vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: this shallow clone may cut off where its rebuild starts, at $(git rev-parse --short=7 HEAD) -- run 'git fetch --unshallow'" ]
+  [ "${lines[1]}" = "!!   Failed: vendor/a" ]
+  [ "${#lines[@]}" -eq 2 ]
+  run splice push --force vendor/a
+  [ "$status" -eq 1 ]
+  [ "${#lines[@]}" -eq 2 ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$before" ]
+}
+
+@test "push --rebuilt-commit: in a shallow clone that cuts off the last sync, refuses before pushing" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  git clone -q --depth 1 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  splice fetch vendor/a >/dev/null
+  local before given
+  before="$(git -C "$upstream" rev-parse main)"
+  content_tree HEAD vendor/a
+  given="$(git -c user.name=Test -c user.email=test@example.com commit-tree --no-gpg-sign "$CONTENT_TREE" -p "$before" -m "reworded")"
+  run splice push --rebuilt-commit "$given" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: this shallow clone may cut off where its rebuild starts, at $(git rev-parse --short=7 HEAD) -- run 'git fetch --unshallow'" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$before" ]
+}

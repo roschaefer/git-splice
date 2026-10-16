@@ -80,7 +80,7 @@ classify_missing_branch() {
 # Classifies one splice and adds its row.
 add_status_row() {
   local path="$1" branch="$2" counts ahead behind rc=0 column="$1" option
-  classify_splice "$path" "$branch"
+  classify_splice "$path" "$branch" || return 1
   STATUS_KIND="" STATUS_LABEL="" STATUS_HINT=""
   [[ "$SPLICE_UPSTREAM_LABEL" == "$branch" ]] || column="$path -> $SPLICE_UPSTREAM_LABEL"
   option="$(upstream_option "$path")"

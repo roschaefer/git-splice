@@ -21,6 +21,7 @@
 #   diverged           both have commits the other lacks, with a common
 #                      ancestor
 #   unrelated-history  no common ancestor at all
+# Returns 1 if the rebuild fails, after it printed why.
 classify_splice() {
   local path="$1" branch="$2"
   require_splice_upstream "$path"
@@ -70,7 +71,7 @@ classify_splice() {
     return
   fi
 
-  SPLICE_REBUILT="$(splice_rebuild "$path")"
+  SPLICE_REBUILT="$(splice_rebuild "$path")" || return 1
   remote_head="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
   if [[ -z "$SPLICE_REBUILT" ]]; then
     SPLICE_STATE="unrelated-history"

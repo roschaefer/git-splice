@@ -56,6 +56,17 @@ splice_last_sync() {
   git log --first-parent -1 --no-show-signature --format=%H "$rev" -- ":(top,literal)$path/$STATE_FILE"
 }
 
+# Dies if <commit> is a shallow clone's cut-off commit. git log takes it
+# as adding every file, so it looks like splice <path>'s last sync or
+# mount whether it is one or not, and the rebuild would fold the commits
+# since the real one into one.
+refuse_shallow_start() {
+  local path="$1" commit="$2" shallow
+  shallow="$(git rev-parse --git-path shallow)"
+  [[ -f "$shallow" ]] && grep -qxF "$commit" "$shallow" || return 0
+  die "$path: this shallow clone may cut off where its rebuild starts, at ${commit:0:7} -- run 'git fetch --unshallow'"
+}
+
 # Succeeds if the state files at <path> in commits <a> and <b> are the
 # same splice: they have the same splice.id. Fails if either has none.
 same_splice() {
@@ -172,6 +183,7 @@ rebuild_with_start() {
   local last_sync synced prev="" prev_tree="" tree range start rebuild_start
 
   last_sync="$(splice_last_sync "$path" "$rev")"
+  [[ -z "$last_sync" ]] || refuse_shallow_start "$path" "$last_sync"
   synced=""
   [[ -n "$last_sync" ]] && synced="$(splice_config "$path" commit "$last_sync")"
 
@@ -267,6 +279,7 @@ rebuild_with_start() {
       printf -- '- -\n'
       return 0
     fi
+    refuse_shallow_start "$path" "$start"
     rebuild_start="$start"
     range="$rev"
     git rev-parse --verify --quiet "$start^1" >/dev/null && range="$start^1..$rev"

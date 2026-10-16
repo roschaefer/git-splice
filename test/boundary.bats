@@ -6,6 +6,7 @@ setup() {
   load 'scenarios/up-to-date/pull-ahead/setup'
   load 'scenarios/up-to-date/shared-remote-url/setup'
   load 'scenarios/nested-splices/setup'
+  load 'scenarios/init-new-upstream/setup'
   load 'scenarios/sync-model/after-pull/setup'
   load 'scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -109,6 +110,39 @@ setup() {
   run cmd_boundary b
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%s "$output")" = "add b" ]
+}
+
+@test "boundary: a shallow clone that cuts off the last sync refuses, since the cut-off commit looks like it" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "second local change"
+  git clone -q --depth 1 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  splice fetch vendor/a >/dev/null
+  run splice boundary vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: this shallow clone may cut off where its rebuild starts, at $(git rev-parse --short=7 HEAD) -- run 'git fetch --unshallow'" ]
+}
+
+@test "boundary: a shallow clone that cuts off the mount refuses" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  (cd "$monorepo" && splice init lib/a "$upstream" >/dev/null)
+  commit_local "$monorepo" lib/a "local change"
+  git clone -q --depth 1 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  run splice boundary lib/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == "!!   lib/a: this shallow clone may cut off where its rebuild starts"* ]]
+}
+
+@test "boundary: a shallow clone deep enough to have the commit before it works" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "second local change"
+  git clone -q --depth 4 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  splice fetch vendor/a >/dev/null
+  run splice boundary vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(git rev-parse HEAD~2)" ]
 }
 
 @test "boundary: takes exactly one splice" {

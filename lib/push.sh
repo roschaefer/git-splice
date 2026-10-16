@@ -54,7 +54,7 @@ push_one() {
     0) log_warn "$path: uncommitted changes aren't pushed -- commit them first" ;;
     2) log_warn "$path: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ;;
   esac
-  classify_splice "$path" "$branch"
+  classify_splice "$path" "$branch" || return 1
   local upstream_branch="$SPLICE_UPSTREAM_BRANCH" label="$SPLICE_UPSTREAM_LABEL" option
   option="$(upstream_option "$path")"
   case "$SPLICE_STATE" in
@@ -84,7 +84,7 @@ push_one() {
         print_unrelated_history_guidance "$path"
         return 1
       fi
-      [[ -n "$SPLICE_REBUILT" ]] || SPLICE_REBUILT="$(REBUILD_WITHOUT_SYNCED=1 splice_rebuild "$path")"
+      [[ -n "$SPLICE_REBUILT" ]] || SPLICE_REBUILT="$(REBUILD_WITHOUT_SYNCED=1 splice_rebuild "$path")" || return 1
       ;;
     missing-branch)
       if ! compare_with_default_branch "$path"; then
@@ -158,7 +158,7 @@ given_is_rebuild() {
 # commit -- unless $3 is "force", which may replace the published history
 # too. An upstream that has moved on is left to the push to reject.
 give_rebuild() {
-  local path="$1" commit="$2" force="${3:-}" rebuilt synced
+  local path="$1" commit="$2" force="${3:-}" rebuilt synced outcome
   rebuilt="$(git rev-parse --verify --quiet "$commit^{commit}")" ||
     die "--rebuilt-commit: unknown commit: $commit"
   content_tree HEAD "$path"
@@ -167,7 +167,8 @@ give_rebuild() {
   synced="$(splice_config "$path" commit)"
   # The monorepo's own rebuild needs no record, even where it's the
   # synced commit, e.g. with an upstream that's ahead.
-  [[ "$(equal_tree_outcome "$path" "$rebuilt")" != keep || "$rebuilt" == "$(rebuild_splice "$path" HEAD)" ]] ||
+  outcome="$(equal_tree_outcome "$path" "$rebuilt")" || exit 1
+  [[ "$outcome" != keep || "$rebuilt" == "$(rebuild_splice "$path" HEAD)" ]] ||
     die "$path: pull can't record ${rebuilt:0:7} as the synced commit -- it isn't newer than ${synced:0:7}, so the next push would publish the rebuild's commits after it again"
   if [[ -n "$synced" && -z "$force" ]]; then
     git cat-file -e "$synced^{commit}" 2>/dev/null ||

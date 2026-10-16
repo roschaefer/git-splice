@@ -27,7 +27,7 @@ EOF
 diff_one() {
   local path="$1" branch="$2" old_tree new_tree merge_base
 
-  classify_splice "$path" "$branch"
+  classify_splice "$path" "$branch" || return 1
   case "$SPLICE_STATE" in
     never-fetched)
       log_warn "$path: not fetched -- run 'git splice fetch $(upstream_option "$path")$path' first"

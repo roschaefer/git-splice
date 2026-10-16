@@ -338,3 +338,19 @@ setup() {
   [[ "$output" == *"vendor/a: pulled"* ]]
   [[ "$output" == *"Not fetched: vendor/b"* ]]
 }
+
+@test "merge: in a shallow clone that cuts off the last sync, refuses instead of recording the upstream branch" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  git clone -q --depth 1 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  splice fetch vendor/a >/dev/null
+  local head
+  head="$(git rev-parse HEAD)"
+  run splice merge vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: this shallow clone may cut off where its rebuild starts, at ${head:0:7} -- run 'git fetch --unshallow'" ]
+  [ "${lines[1]}" = "!!   Failed: vendor/a" ]
+  [ "${#lines[@]}" -eq 2 ]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  [ -z "$(git status --porcelain)" ]
+}
