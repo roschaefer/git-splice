@@ -78,8 +78,9 @@ A vendor/a/b.txt
 D vendor/a/file.txt
 ```
 
-b's history continues from `vendor/b/`, where it was `init`. The swap
-changed none of b's files, so it adds nothing:
+The history of the splice of `$UPSTREAM-b` continues from `vendor/b/`,
+where it was `init`. The swap changed none of its files, so it adds
+nothing:
 
 ```scrut
 $ git splice log vendor/a
