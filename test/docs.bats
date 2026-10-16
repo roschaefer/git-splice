@@ -72,26 +72,47 @@ checked_documents() {
 prose_lines() {
   local file
   while IFS= read -r file; do
-    awk -v file="$file" -v fence="$fence" '
-      { trimmed = $0; sub(/^[[:space:]]+/, "", trimmed) }
-      index(trimmed, fence) == 1 || index(trimmed, "~~~") == 1 { code = !code; next }
-      code { next }
-      /<!--/ { comment = 1 }
-      comment { if (/-->/) comment = 0; next }
-      /^    / { next }
-      {
-        line = $0
-        gsub(/`[^`]*`/, "", line)
-        gsub(/!\[[^]]*\]/, "", line)
-        gsub(/\]\([^)]*\)/, "]", line)
-        print file ":" NR ": " line
-      }
-    ' "$file"
+    prose_of "$file"
   done < <(git ls-files --cached --others --exclude-standard '*.md' ':!CHANGELOG.md')
 }
 
-@test "docs: a role like BOUNDARY or U(H) is plain capitals, never bold" {
-  run grep -E '\*\*(U\([^)]*\)|[A-Z][A-Z_]*[0-9'"'"']*)\*\*' < <(prose_lines)
+# The running text of Markdown file $1, as prose_lines prints it.
+prose_of() {
+  local file="$1"
+  awk -v file="$file" -v fence="$fence" '
+    { trimmed = $0; sub(/^[[:space:]]+/, "", trimmed) }
+    index(trimmed, fence) == 1 || index(trimmed, "~~~") == 1 { code = !code; next }
+    code { next }
+    /<!--/ { comment = 1 }
+    comment { if (/-->/) comment = 0; next }
+    # Indented code, as Markdown reads it: four spaces past the text of
+    # the list item it is in, or past the margin outside a list, starting
+    # after a blank line. The continuation lines of a list item are prose.
+    /^[[:space:]]*$/ { blank = 1; next }
+    {
+      indent = match($0, /[^ ]/) - 1
+      if (indent >= margin + 4 && (blank || indented_code)) {
+        indented_code = 1
+        blank = 0
+        next
+      }
+      indented_code = 0
+      blank = 0
+      if (match($0, /^ *([-*+]|[0-9]+[.)]) +/)) margin = RLENGTH
+      else if (indent == 0) margin = 0
+    }
+    {
+      line = $0
+      gsub(/`[^`]*`/, "", line)
+      gsub(/!\[[^]]*\]/, "", line)
+      gsub(/\]\([^)]*\)/, "]", line)
+      print file ":" NR ": " line
+    }
+  ' "$file"
+}
+
+@test "docs: a role like BOUNDARY, U(H) or B is plain capitals, never bold" {
+  run grep -E '\*\*(BOUNDARY|BASE|OURS|THEIRS|HEAD|U\([^)]*\)|[A-Z]'"'"'?)\*\*' < <(prose_lines)
   printf '%s\n' "$output" >&2
   [ "$status" -eq 1 ]
 }
@@ -101,4 +122,32 @@ prose_lines() {
   run grep -E "(^|[^[:alnum:]_*'/.-])([a-z]|[ACD-GIJKM-QSVWYZ])'s([^[:alnum:]]|$)" < <(prose_lines)
   printf '%s\n' "$output" >&2
   [ "$status" -eq 1 ]
+}
+
+@test "docs: prose is a list item's continuation, not indented code; code is four spaces past it" {
+  local document="$BATS_TEST_TMPDIR/prose.md"
+  cat >"$document" <<'MARKDOWN'
+prose: a paragraph
+
+    code: indented four spaces, after a blank line
+    code: the next line of that block
+
+- prose: a list item
+  prose: its continuation
+
+  prose: a second paragraph in the item
+  - prose: a nested item
+    prose: the nested item's continuation
+
+        code: four spaces past the nested item's text
+
+1. prose: a numbered item
+
+       code: four spaces past its text
+prose: after the list
+MARKDOWN
+  run prose_of "$document"
+  printf '%s\n' "$output" >&2
+  [[ "$output" != *code:* ]]
+  [ "$(grep -c 'prose:' <<<"$output")" -eq 8 ]
 }
