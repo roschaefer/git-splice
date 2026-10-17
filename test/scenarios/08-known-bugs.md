@@ -41,9 +41,11 @@ ok 07-moved-folders/02-swapped-splices/README.md #4
 ## Adding a known bug
 
 1. Put the banner on the line after the document's title, with the
-   issue and a relative link to this page:
+   issue and a relative link to this page. From a scenario at the top of
+   its chapter, that's `../../08-known-bugs.md`, with one more `../` per
+   level below:
 
-       > **Known bug, [#N](https://github.com/roschaefer/git-splice/issues/N).** This page shows what `git-splice` does today, bug included. See [all known bugs](../known-bugs.md).
+       > **Known bug, [#N](https://github.com/roschaefer/git-splice/issues/N).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../08-known-bugs.md).
 
 2. Add a row to the table above.
 3. Run `just docs-check --write` and read the new line under "Every

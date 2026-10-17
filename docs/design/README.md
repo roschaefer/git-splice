@@ -577,7 +577,7 @@ and Git 2.40, and their newer counterparts.
 
 | Layer | Where | What it checks |
 |---|---|---|
-| Scenarios | `test/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from. Shared by everything below. |
+| Scenarios | `test/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from, or at the top of its chapter when that scenario is in an earlier chapter. Shared by everything below. |
 | Unit and command tests | `test/*.bats` | Functions and commands, called directly after `load_lib`, against a scenario. |
 | Oracle tests | `test/rebuild.bats` | The rebuild against `git subtree split`. |
 | Scenario READMEs | `test/scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
