@@ -196,6 +196,7 @@ impl From<ExitStatus> for OutputExitStatus {
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
+    use std::time::Instant;
 
     use super::Runner;
     use super::SubprocessRunner;
@@ -287,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_execute_respects_timeout() {
-        let start = std::time::SystemTime::now();
+        let start = Instant::now();
         let output = SubprocessRunner::default()
             .run(
                 "name",
@@ -298,9 +299,7 @@ mod tests {
                 &ExecutionContext::new_for_test(),
             )
             .expect("execution still ends in non-error");
-        let duration = std::time::SystemTime::now()
-            .duration_since(start)
-            .expect("duration between start and now");
+        let duration = start.elapsed();
 
         assert!(
             duration >= Duration::from_millis(100),
