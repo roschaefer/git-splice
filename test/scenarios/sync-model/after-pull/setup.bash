@@ -5,5 +5,5 @@ source "$(dirname "${BASH_SOURCE[0]}")/../setup.bash"
 scenario_after_pull() {
   local monorepo="$1" upstream="$2"
   scenario_sync_model "$monorepo" "$upstream"
-  (cd "$monorepo" && splice pull vendor/a >/dev/null 2>&1)
+  (cd "$monorepo" && splice pull lib >/dev/null 2>&1)
 }

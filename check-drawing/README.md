@@ -85,7 +85,7 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 - **Lane**: a shape labelled with a splice's folder, e.g. `vendor/a/`,
   holds that splice's upstream commits and boxes.
   - A monorepo with several splices needs one per splice it draws. With
-    one splice, lanes are optional, and the generic `path/` names it.
+    one splice, lanes are optional.
   - A shape belongs to the innermost lane it lies wholly inside. A nested
     splice's lane is drawn inside the lane of the splice above it.
   - What a lane shows stays in it: arrows between commits don't cross
@@ -122,7 +122,7 @@ What no drawing has needed yet, it doesn't handle:
 
 - **Notes**: free text is read by its label, as a box or a lane.
 - **Branch names that read as names of the vocabulary**: an upstream
-  branch called H, B, T, R, `U(…)` or `path/`.
+  branch called H, B, T, R or `U(…)`.
 - **Several upstreams**: only a splice's default upstream is checked.
 - **B with several splices**: outside every lane, B can't say which
   splice's boundary it is, so drawings with several splices leave it out.
