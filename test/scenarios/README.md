@@ -108,3 +108,8 @@ the document says otherwise, and the upstream's path shows as
    `just docs-check` once more: output that differs between runs is a
    bug in the setup.
 4. Add a bats test that asserts the state, e.g. in `test/status.bats`.
+5. Add the folder to a chapter under "Scenarios" in
+   [`website/sidebars.js`](../../website/sidebars.js). The chapters group
+   scenarios by topic, from the common ones to the edge cases, and the
+   site build fails while a folder is in none of them. A new document in
+   an existing folder shows up on its own.
