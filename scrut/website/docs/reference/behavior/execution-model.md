@@ -42,3 +42,4 @@ This is safe for documents that only use what Scrut provides per document: the s
 - If a document can't be executed at all, for example because its shell can't be started, Scrut starts no further documents, waits for the ones already running, and fails. As without `--jobs`, `scrut update` has written the documents before it by then, and none after it.
 - `scrut update` shows, confirms and writes changes one document after another, in the order of the documents, so prompts never interleave. It replaces a document in one step, so another document that reads it at the same time sees either the old or the new content.
 - `--jobs` greater than 1 can't be combined with `--work-directory`, because all documents would share that one directory.
+- Log messages (`--log-level`) of documents that run at the same time are printed as they happen, mixed with each other. To follow one document's log, run it without `--jobs`.
