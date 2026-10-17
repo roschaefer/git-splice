@@ -301,9 +301,11 @@ mod tests {
             .expect("execution still ends in non-error");
         let duration = start.elapsed();
 
+        // poll() waits whole milliseconds and the subprocess crate rounds the
+        // remaining time down, so the timeout may end up to 1 ms early
         assert!(
-            duration >= Duration::from_millis(100),
-            "waited at least 100 ms ({:?})",
+            duration >= Duration::from_millis(99),
+            "waited at least 99 ms ({:?})",
             duration,
         );
         let max_wait = if cfg!(windows) { 10000 } else { 1000 };
