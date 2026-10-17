@@ -117,8 +117,6 @@ check_drawing() {
   for l in "${lanes[@]}"; do
     if [[ -n "${is_splice[${value[$l]%/}]:-}" ]]; then
       lane_splice[$l]="${value[$l]%/}"
-    elif [[ "${value[$l]}" == path/ && ${#splices[@]} -eq 1 ]]; then
-      lane_splice[$l]="${splices[0]}"
     else
       errors+=("the lane ${value[$l]} isn't a splice of the monorepo")
     fi

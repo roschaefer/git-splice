@@ -7,7 +7,7 @@ scenario_pushed_and_bumped() {
   scenario_after_pull "$monorepo" "$upstream"
   (
     cd "$monorepo"
-    splice push vendor/a >/dev/null 2>&1
-    splice pull --bump vendor/a >/dev/null 2>&1
+    splice push lib >/dev/null 2>&1
+    splice pull --bump lib >/dev/null 2>&1
   )
 }

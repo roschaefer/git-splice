@@ -50,7 +50,7 @@ edit_drawing() {
 }
 
 @test "drawing: a box sits with the commit it points at" {
-  # box, where it moves (in: into the lane path/, out: outside it), and
+  # box, where it moves (in: into the lane lib/, out: outside it), and
   # how the check's output starts.
   local box where expected x y failed=""
   cp "$drawing" "$BATS_TEST_TMPDIR/committed.drawio"
@@ -63,9 +63,9 @@ edit_drawing() {
   done <<'EOF'
 refH|in|!!   H points at e, which is outside every lane: draw the box outside every lane too
 refB|in|!!   B points at a, which is outside every lane: draw the box outside every lane too
-refT|out|!!   T = U(H) points at n, in the lane path/: draw the box in that lane
-refR|out|!!   R points at e', in the lane path/: draw the box in that lane
-refS|out|!!   U(B) points at k, in the lane path/: draw the box in that lane
+refT|out|!!   T = U(H) points at n, in the lane lib/: draw the box in that lane
+refR|out|!!   R points at e', in the lane lib/: draw the box in that lane
+refS|out|!!   U(B) points at k, in the lane lib/: draw the box in that lane
 refS|in|ok
 refT|in|ok
 EOF
@@ -139,7 +139,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
 }
 
 @test "drawing: U(H) is what HEAD records, whatever the working tree's .splice says" {
-  git config --file vendor/a/.splice splice.commit "$(git rev-parse HEAD)"
+  git config --file lib/.splice splice.commit "$(git rev-parse HEAD)"
   run check_drawing "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
 }

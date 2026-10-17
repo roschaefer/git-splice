@@ -19,7 +19,7 @@ comes from the upstream above, at its synced commit
 
 A monorepo commit *X* whose `.splice` records an upstream commit has that
 as its sync point U(X): what
-`git config --blob X:path/.splice splice.commit` prints. It only changes
+`git config --blob X:lib/.splice splice.commit` prints. It only changes
 where a commit changes `.splice`, e.g. a pull, so the commits in between
 share one, as commits can share a tree. A pull *X* brought in
 U(X^)..U(X), the synced commits before and after it, unless a push came
@@ -48,8 +48,8 @@ without `.splice`, the same author, dates and message, on top of U(B).
 </div>
 
 Circles are commits, newest on top, and boxes point at them. The lane
-`path/` holds the splice's upstream commits. *b* and *d* change
-`path/`, so the rebuild copies them as *b'* and *d'*, on top of U(B); *c* doesn't,
+`lib/` holds the splice's upstream commits. *b* and *d* change
+`lib/`, so the rebuild copies them as *b'* and *d'*, on top of U(B); *c* doesn't,
 so it's left out. No upstream branch has the copies yet, so they're
 dashed
 ([scenario](../../scenarios/sync-model/README.md)).

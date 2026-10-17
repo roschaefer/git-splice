@@ -60,20 +60,20 @@ setup() {
 @test "boundary: a pull that merged unpushed commits leaves it before them" {
   scenario_after_pull "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_boundary vendor/a
+  run cmd_boundary lib
   [ "$output" = "$(git rev-parse HEAD~4)" ]
-  [ "$(git log --first-parent --format=%s "$output"..HEAD -- vendor/a)" = "$(printf '%s\n' 'splice: pull vendor/a from main at '"$(git -C "$upstream" rev-parse --short main)" d b)" ]
+  [ "$(git log --first-parent --format=%s "$output"..HEAD -- lib)" = "$(printf '%s\n' 'splice: pull lib from main at '"$(git -C "$upstream" rev-parse --short main)" d b)" ]
 }
 
 @test "boundary: stays before the merged commits after they're pushed, until a bump" {
   scenario_after_pull "$monorepo" "$upstream"
   cd "$monorepo"
-  cmd_push vendor/a >/dev/null
-  cmd_merge vendor/a >/dev/null
-  run cmd_boundary vendor/a
+  cmd_push lib >/dev/null
+  cmd_merge lib >/dev/null
+  run cmd_boundary lib
   [ "$output" = "$(git rev-parse HEAD~4)" ]
-  cmd_merge --bump vendor/a >/dev/null
-  run cmd_boundary vendor/a
+  cmd_merge --bump lib >/dev/null
+  run cmd_boundary lib
   [ "$output" = "$(git rev-parse HEAD)" ]
 }
 

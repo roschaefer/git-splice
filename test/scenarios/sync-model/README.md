@@ -11,7 +11,7 @@ named as in the drawing:
 
 </div>
 
-- **Monorepo (`vendor/a/`)**: cloned at *k* in *a*, then *b* and *d* change the
+- **Monorepo (`lib/`)**: cloned at *k* in *a*, then *b* and *d* change the
   folder, *c* changes another one.
 - **Upstream**: *k*, then *l*, *m* and *n*, fetched.
 
@@ -32,7 +32,7 @@ $ build_scenario scenario_sync_model
 ```
 
 The drawing shows what Git and `git-splice` say about it. *a* is the clone,
-`add vendor/a`, which isn't a subject the drawing can show, so it's named
+`add lib`, which isn't a subject the drawing can show, so it's named
 by its place in the history
 ([`check_drawing`](../../../check-drawing/)):
 
@@ -53,8 +53,8 @@ ok   before-pull-git-names.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
 R and T have each moved on from *k*:
 
 ```scrut
-$ git splice log --graph vendor/a
-===  vendor/a (main)
+$ git splice log --graph lib
+===  lib (main)
 < d4da194 (R) d  (Test <test@example.com>)
 < 9ec734f b  (Test <test@example.com>)
 | > df79a48 (T) n  (Test <test@example.com>)

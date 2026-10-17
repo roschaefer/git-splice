@@ -9,7 +9,7 @@ The [parent scenario](../README.md) after `git splice push` and a
 
 </div>
 
-- **Monorepo (`vendor/a/`)**: the parent scenario's commits, then *f*, the
+- **Monorepo (`lib/`)**: the parent scenario's commits, then *f*, the
   bump, which records *e'* in `.splice` and changes nothing else.
 - **Upstream**: *k*, *l*, *m* and *n*, then the pushed *b'*, *d'* and *e'*.
 
@@ -46,12 +46,12 @@ The monorepo, with *f* on top:
 
 ```scrut
 $ git log --format=%s
-splice: bump vendor/a from main at 854864a
-splice: pull vendor/a from main at df79a48
+splice: bump lib from main at 712cf4c
+splice: pull lib from main at df79a48
 d
 c
 b
-add vendor/a
+add lib
 initial commit
 ```
 
@@ -59,7 +59,7 @@ The upstream has the pushed commits, with the messages of *b*, *d* and *e*:
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s main
-*   splice: pull vendor/a from main at df79a48
+*   splice: pull lib from main at df79a48
 |\  
 | * n
 | * m
@@ -73,8 +73,8 @@ $ git -C "$UPSTREAM" log --graph --format=%s main
 *f* is B:
 
 ```scrut
-$ git log -1 --format=%s "$(git splice boundary vendor/a)"
-splice: bump vendor/a from main at 854864a
+$ git log -1 --format=%s "$(git splice boundary lib)"
+splice: bump lib from main at 712cf4c
 ```
 
 And the splice is up to date:
@@ -83,5 +83,5 @@ And the splice is up to date:
 $ git splice status
 On branch main
 
-  up to date  vendor/a
+  up to date  lib
 ```
