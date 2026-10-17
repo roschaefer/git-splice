@@ -392,13 +392,10 @@ impl Args {
                     handle_early_termination(
                         &outputs,
                         &testcases,
-                        &mut run.outcomes,
+                        &mut run,
                         test.path.display().to_string(),
                         escaping.clone(),
                         test.parser_type,
-                        &mut run.count_success,
-                        &mut run.count_failed,
-                        &mut run.count_skipped,
                         |output, testcase| {
                             if matches!(output.exit_code, ExitStatus::Timeout(_)) {
                                 Err(TestCaseError::Timeout)
@@ -434,13 +431,10 @@ impl Args {
                     handle_early_termination(
                         &outputs,
                         &testcases,
-                        &mut run.outcomes,
+                        &mut run,
                         test.path.display().to_string(),
                         escaping.clone(),
                         test.parser_type,
-                        &mut run.count_success,
-                        &mut run.count_failed,
-                        &mut run.count_skipped,
                         |output, testcase| testcase.validate(output),
                     );
 
@@ -458,13 +452,10 @@ impl Args {
                     handle_early_termination(
                         &outputs,
                         &testcases,
-                        &mut run.outcomes,
+                        &mut run,
                         test.path.display().to_string(),
                         escaping.clone(),
                         test.parser_type,
-                        &mut run.count_success,
-                        &mut run.count_failed,
-                        &mut run.count_skipped,
                         |output, testcase| testcase.validate(output),
                     );
 
@@ -622,28 +613,25 @@ struct DocumentRun {
 fn handle_early_termination<F>(
     outputs: &[scrut::output::Output],
     testcases: &[&TestCase],
-    outcomes: &mut Vec<Outcome>,
+    run: &mut DocumentRun,
     location: String,
     escaping: scrut::escaping::Escaper,
     format: ParserType,
-    count_success: &mut usize,
-    count_failed: &mut usize,
-    count_skipped: &mut usize,
     mut validate_output: F,
 ) where
     F: FnMut(&scrut::output::Output, &TestCase) -> Result<(), TestCaseError>,
 {
     // append outcomes for each testcase that was executed
-    outcomes.extend(
+    run.outcomes.extend(
         outputs
             .iter()
             .zip(testcases.iter())
             .map(|(output, testcase)| {
                 let result = validate_output(output, testcase);
                 if result.is_err() {
-                    *count_failed += 1;
+                    run.count_failed += 1;
                 } else {
-                    *count_success += 1;
+                    run.count_success += 1;
                 }
                 Outcome {
                     location: Some(location.clone()),
@@ -659,7 +647,7 @@ fn handle_early_termination<F>(
     // append outcomes for testcases not executed
     let missing = testcases.len() - outputs.len();
     if missing > 0 {
-        outcomes.extend(
+        run.outcomes.extend(
             testcases
                 .iter()
                 .skip(outputs.len())
@@ -672,7 +660,7 @@ fn handle_early_termination<F>(
                     result: Err(TestCaseError::Skipped),
                 }),
         );
-        *count_skipped += missing;
+        run.count_skipped += missing;
     }
 }
 
