@@ -27,3 +27,18 @@ Scrut starts individual `bash` processes for executing each [shell expression](/
 This is less flexible (e.g. Scrut cannot constraint max execution time per [test case](/docs/reference/fundamentals/test-case/)) and more prone to unintended side-effects (e.g. `set -e` terminating all test executions, not only a single test case or detached processes interfering with output association to specific tests). **We recommend to use Markdown**.
 
 :::
+
+## Parallel Documents
+
+By default Scrut executes one [test document](/docs/reference/fundamentals/test-document/) after another. With `--jobs N`, the `test` and `update` commands execute up to `N` documents at the same time:
+
+```bash title="Terminal"
+$ scrut test --jobs 4 tests/
+```
+
+This is safe for documents that only use what Scrut provides per document: the shared shell environment, [working directory](/docs/reference/behavior/working-directory/) and temporary directory described above. Documents that share anything else, such as a file outside these directories, a network port or a database, may interfere with each other.
+
+- The results are still reported in the order of the documents, whatever order they finish in.
+- If a document can't be executed at all, for example because its shell can't be started, Scrut starts no further documents, waits for the ones already running, and fails. As without `--jobs`, `scrut update` has written the documents before it by then, and none after it.
+- `scrut update` shows, confirms and writes changes one document after another, in the order of the documents, so prompts never interleave. It replaces a document in one step, so another document that reads it at the same time sees either the old or the new content.
+- `--jobs` greater than 1 can't be combined with `--work-directory`, because all documents would share that one directory.

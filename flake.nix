@@ -76,8 +76,8 @@
             # scrut-lock` updates it.
             cargoLock.lockFile = ./nix/scrut.Cargo.lock;
             postPatch = "ln -s ${./nix/scrut.Cargo.lock} Cargo.lock";
-            # scrut's own tests run in the fork's CI.
-            doCheck = false;
+            # The sandbox has no /bin/bash, scrut's default shell.
+            preCheck = "export SCRUT_DEFAULT_SHELL=${pkgs-scrut.bash}/bin/bash";
           };
       in
       {
