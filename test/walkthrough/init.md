@@ -34,7 +34,7 @@ splice: init libs/c
 ## More
 
 - Why the folder's history before `init` stays in the monorepo:
-  [init-new-upstream](../scenarios/init-new-upstream/README.md).
+  [init-new-upstream](../scenarios/02-starting-a-splice/04-init-new-upstream/README.md).
 - In a fresh clone of the monorepo, commands treat the upstream as empty
   until the first `fetch`, a known bug
-  ([init-then-cloned](../scenarios/init-then-cloned/README.md)).
+  ([init-then-cloned](../scenarios/02-starting-a-splice/05-init-then-cloned/README.md)).

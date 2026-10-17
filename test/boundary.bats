@@ -2,13 +2,13 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/up-to-date/push-ahead/setup'
-  load 'scenarios/up-to-date/pull-ahead/setup'
-  load 'scenarios/up-to-date/shared-remote-url/setup'
-  load 'scenarios/nested-splices/setup'
-  load 'scenarios/init-new-upstream/setup'
-  load 'scenarios/sync-model/after-pull/setup'
-  load 'scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
+  load 'scenarios/04-upstreams/03-shared-remote-url/setup'
+  load 'scenarios/05-nested-splices/01-nested-splices/setup'
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load 'scenarios/01-everyday-sync/01-sync-model/01-after-pull/setup'
+  load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

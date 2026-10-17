@@ -4,19 +4,19 @@ setup() {
   hermetic_git_config
   local scenario
   for scenario in \
-    up-to-date \
-    up-to-date/push-ahead \
-    up-to-date/pull-ahead \
-    up-to-date/push-ahead/diverged-common-ancestor \
-    up-to-date/push-ahead/diverged-unrelated-history \
-    never-fetched \
-    up-to-date/feature-branch-unchanged \
-    up-to-date/feature-branch-unchanged/feature-branch-changed \
-    up-to-date/diverged-then-pulled \
-    up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed \
-    up-to-date/shared-remote-url \
-    default-branch \
-    up-to-date/push-ahead/uncommitted-changes; do
+    01-everyday-sync/02-up-to-date \
+    01-everyday-sync/02-up-to-date/02-push-ahead \
+    01-everyday-sync/02-up-to-date/01-pull-ahead \
+    01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor \
+    06-rewritten-history/03-diverged-unrelated-history \
+    01-everyday-sync/04-never-fetched \
+    03-branches-and-teamwork/01-feature-branch-unchanged \
+    03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed \
+    01-everyday-sync/02-up-to-date/03-diverged-then-pulled \
+    01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-then-changed \
+    04-upstreams/03-shared-remote-url \
+    04-upstreams/01-default-branch \
+    01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -156,7 +156,7 @@ setup() {
 }
 
 @test "push: creates a missing upstream branch for commits from the branch it was cut from that upstream lacks" {
-  load 'scenarios/up-to-date/push-ahead/feature-branch-from-main/setup'
+  load 'scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_push vendor/a

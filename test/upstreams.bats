@@ -2,8 +2,8 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/several-upstreams/setup'
-  load 'scenarios/nested-splices/outer-fork/setup'
+  load 'scenarios/04-upstreams/02-several-upstreams/setup'
+  load 'scenarios/05-nested-splices/01-nested-splices/01-outer-fork/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   fork="$BATS_TEST_TMPDIR/upstream-fork.git"

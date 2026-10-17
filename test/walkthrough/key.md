@@ -25,6 +25,6 @@ ok   vendor/pkg-a: renamed key 'pkg-a' to 'a'
 
 The first fetch records the key in the repository's config. How the
 commands change these refs, and what they cost:
-[splice-refs](../scenarios/splice-refs/README.md). A splice with several
+[splice-refs](../scenarios/04-upstreams/05-splice-refs/README.md). A splice with several
 [upstreams](../concepts/upstreams/README.md) has a key for each, and
 splices that name the same URL share one.

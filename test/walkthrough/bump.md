@@ -75,7 +75,7 @@ $ git log -1 --format=%s
 splice: bump vendor/pkg-a from main at 9816d9f
 ```
 
-[bump-after-push](../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md)
+[bump-after-push](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md)
 shows what that changes for the rebuild.
 
 ## On a feature branch: a conflict

@@ -40,16 +40,16 @@ clone of the monorepo has every splice, with nothing to set up.
   `origin`.
 - **Without `default-branch`**, an upstream's default branch is named
   like the monorepo's, or, for a nested splice, like the splice above's
-  ([nested-default-branch](../../scenarios/nested-default-branch/README.md)).
+  ([nested-default-branch](../../scenarios/05-nested-splices/02-nested-default-branch/README.md)).
   `clone` and `init` record it only where it differs, e.g. when `main`
   syncs with `master`
-  ([default-branch](../../scenarios/default-branch/README.md)). If the
+  ([default-branch](../../scenarios/04-upstreams/01-default-branch/README.md)). If the
   splice above has several upstreams with different default branches and
   no `default-upstream`, commands refuse
-  ([example](../../scenarios/nested-splices/outer-fork/fork-default-branch-below.md)).
+  ([example](../../scenarios/05-nested-splices/01-nested-splices/01-outer-fork/fork-default-branch-below.md)).
 - **Two branches that both pulled conflict in it** when they're merged.
   Resolve it by keeping the newer synced commit
-  ([concurrent-pulls](../../scenarios/concurrent-pulls/README.md)).
+  ([concurrent-pulls](../../scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).
 
 The [design](../../../docs/design/README.md#the-splice-file) explains
 each of these choices.

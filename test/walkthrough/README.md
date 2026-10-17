@@ -37,16 +37,16 @@ what was last fetched. Run
 
 A splice can have several [upstreams](../concepts/upstreams/README.md),
 e.g. a company fork and the original it follows
-([several-upstreams](../scenarios/several-upstreams/README.md)).
+([several-upstreams](../scenarios/04-upstreams/02-several-upstreams/README.md)).
 `--upstream <name>` picks one for `fetch`, `merge`, `pull`, `push`,
 `status`, `diff`, `log` and `key`. Without it, commands use the splice's
 `default-upstream`, which `.splice` needs once it names several; `fetch`
 fetches all of them. A splice that lacks the named upstream stops the
 command before it starts
-([missing upstream names](../scenarios/several-upstreams/missing-upstream-names.md)).
+([missing upstream names](../scenarios/04-upstreams/02-several-upstreams/missing-upstream-names.md)).
 Each upstream records its own `default-branch`, e.g. for a fork whose
 default branch is named differently
-([fork-default-branch](../scenarios/several-upstreams/fork-default-branch.md)).
+([fork-default-branch](../scenarios/04-upstreams/02-several-upstreams/fork-default-branch.md)).
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}

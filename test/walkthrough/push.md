@@ -99,7 +99,7 @@ $ git worktree remove ../edited
 ```
 
 Why pull right away, and what `push` checks:
-[edited-before-push](../scenarios/up-to-date/push-ahead/edited-before-push/README.md).
+[edited-before-push](../scenarios/06-rewritten-history/01-edited-before-push/README.md).
 
 ## More
 
@@ -108,8 +108,8 @@ Why pull right away, and what `push` checks:
   ([feature branches](feature-branches.md)).
 - When the upstream moves to a new URL, `.splice` gets the new URL, and
   the next push sends the unpushed commits there
-  ([upstream-moved](../scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
+  ([upstream-moved](../scenarios/04-upstreams/04-upstream-moved/README.md)).
 - Push before you move a splice with `git mv`: the push after the move
   squashes unpushed commits into it, a known bug
-  ([moved-with-unpushed-commits](../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)).
+  ([moved-with-unpushed-commits](../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
 - How the rebuild works: [design](../../docs/design/README.md#splicing-out-push-and-the-rebuild).

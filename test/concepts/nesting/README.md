@@ -7,7 +7,7 @@ The nested `.splice` is part of the files of the splice above, like any
 other file there. So it travels with them: a clone or pull of the splice
 above brings it into the monorepo, and a push of the splice above sends
 it to that upstream, where it is a splice again
-([nested-splices](../../scenarios/nested-splices/README.md)). A splice's
+([nested-splices](../../scenarios/05-nested-splices/01-nested-splices/README.md)). A splice's
 own push leaves its own `.splice` out.
 
 Because the splice below is contained in the files above, not referred
@@ -21,11 +21,11 @@ to, some rules follow:
 - **History.** The splice above was squashed into one commit when it was
   cloned or pulled. So the history of the splice below, up to that
   point, is taken from the upstream above, which has it
-  ([spliced-elsewhere](../../scenarios/nested-splices/spliced-elsewhere.md)).
+  ([spliced-elsewhere](../../scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
 - **Default branch.** A nested `.splice` without `default-branch` follows
   the branch of the splice above, so it means the same in the monorepo
   and in the upstream above
-  ([nested-default-branch](../../scenarios/nested-default-branch/README.md)).
+  ([nested-default-branch](../../scenarios/05-nested-splices/02-nested-default-branch/README.md)).
 
 Two shapes need a closer look, as in a package manager's dependency
 graph:

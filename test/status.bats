@@ -4,23 +4,23 @@ setup() {
   hermetic_git_config
   local scenario
   for scenario in \
-    up-to-date \
-    up-to-date/push-ahead \
-    up-to-date/pull-ahead \
-    up-to-date/push-ahead/diverged-common-ancestor \
-    up-to-date/push-ahead/diverged-unrelated-history \
-    never-fetched \
-    up-to-date/feature-branch-unchanged \
-    up-to-date/feature-branch-unchanged/feature-branch-changed \
-    up-to-date/diverged-then-pulled \
-    up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed \
-    up-to-date/squash-merged-pull \
-    up-to-date/feature-branch-unchanged/merge-in-monorepo \
-    default-branch \
-    up-to-date/shared-remote-url \
-    init-new-upstream \
-    up-to-date/push-ahead/uncommitted-changes \
-    nested-splices; do
+    01-everyday-sync/02-up-to-date \
+    01-everyday-sync/02-up-to-date/02-push-ahead \
+    01-everyday-sync/02-up-to-date/01-pull-ahead \
+    01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor \
+    06-rewritten-history/03-diverged-unrelated-history \
+    01-everyday-sync/04-never-fetched \
+    03-branches-and-teamwork/01-feature-branch-unchanged \
+    03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed \
+    01-everyday-sync/02-up-to-date/03-diverged-then-pulled \
+    01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-then-changed \
+    03-branches-and-teamwork/03-squash-merged-pull \
+    03-branches-and-teamwork/01-feature-branch-unchanged/02-merge-in-monorepo \
+    04-upstreams/01-default-branch \
+    04-upstreams/03-shared-remote-url \
+    02-starting-a-splice/04-init-new-upstream \
+    01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
+    05-nested-splices/01-nested-splices; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -158,7 +158,7 @@ EOF
 }
 
 @test "status: a missing branch is new with commits from the branch it was cut from that upstream lacks" {
-  load 'scenarios/up-to-date/push-ahead/feature-branch-from-main/setup'
+  load 'scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
@@ -292,7 +292,7 @@ EOF
 }
 
 @test "status: a missing branch is unchanged right after cloning on a feature branch: upstream has every commit" {
-  load 'scenarios/clone-on-feature-branch/setup'
+  load 'scenarios/02-starting-a-splice/03-clone-on-feature-branch/setup'
   scenario_clone_on_feature_branch "$monorepo" "$upstream"
   cd "$monorepo"
   splice clone "$upstream" vendor/a >/dev/null
@@ -360,7 +360,7 @@ EOF
 }
 
 @test "status: lists the splices that need something first, most urgent first, then the quiet ones" {
-  load 'scenarios/many-splices/setup'
+  load 'scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
@@ -378,7 +378,7 @@ EOF2
 }
 
 @test "status: a quiet splice with uncommitted changes moves up" {
-  load 'scenarios/many-splices/setup'
+  load 'scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   echo "work in progress" >>libs/cli/file.txt
@@ -388,7 +388,7 @@ EOF2
 }
 
 @test "status: without a splice that needs something, prints no blank line between groups" {
-  load 'scenarios/many-splices/setup'
+  load 'scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q -b feature

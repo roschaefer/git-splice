@@ -46,9 +46,9 @@ ebe3b2b initial commit
 - Two developers who pull the same splice at different times get
   conflicts in `.splice` when one merges the other's work. Pull the
   monorepo before you pull a splice
-  ([concurrent-pulls](../scenarios/concurrent-pulls/README.md)).
+  ([concurrent-pulls](../scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).
 - A squash merge of the pull's branch keeps the sync point
-  ([squash-merged-pull](../scenarios/up-to-date/squash-merged-pull/README.md)).
+  ([squash-merged-pull](../scenarios/03-branches-and-teamwork/03-squash-merged-pull/README.md)).
 - When `git bisect` ends at a pull, the upstream commits squashed into
   it can be tested inside the monorepo, to find the one that broke it
-  ([bisect-into-a-pull](../scenarios/bisect-into-a-pull/README.md)).
+  ([bisect-into-a-pull](../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/README.md)).

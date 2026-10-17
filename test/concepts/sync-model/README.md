@@ -23,7 +23,7 @@ as its sync point U(X): what
 where a commit changes `.splice`, e.g. a pull, so the commits in between
 share one, as commits can share a tree. A pull *X* brought in
 U(X^)..U(X), the synced commits before and after it, unless a push came
-in between ([scenario](../../scenarios/bisect-into-a-pull/after-a-push/README.md)).
+in between ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
 
 U(H) and T may be missing: right after `init`, there's no U(H) yet, and R
 starts as a root commit; before the first fetch, there's no T, and the
@@ -43,7 +43,7 @@ without `.splice`, the same author, dates and message, on top of U(B).
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](../../scenarios/sync-model/before-pull.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](../../scenarios/01-everyday-sync/01-sync-model/before-pull.drawio.svg)
 
 </div>
 
@@ -52,11 +52,11 @@ Circles are commits, newest on top, and boxes point at them. The lane
 `lib/`, so the rebuild copies them as *b'* and *d'*, on top of U(B); *c* doesn't,
 so it's left out. No upstream branch has the copies yet, so they're
 dashed
-([scenario](../../scenarios/sync-model/README.md)).
+([scenario](../../scenarios/01-everyday-sync/01-sync-model/README.md)).
 
 <div align="center">
 
-![The same graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](../../scenarios/sync-model/after-pull/after-pull.drawio.svg)
+![The same graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg)
 
 </div>
 
@@ -66,7 +66,7 @@ and *d* were never pushed, so *e*'s folder isn't *n*, and a rebuild from *e*
 would send their changes as one lump under *e*'s message. So B stays *a*,
 and U(B) = *k* still. R copies *b* and *d* as before, and *e* as *e'*, a merge of *d'*
 and *n*, as `git pull` would have
-([scenario](../../scenarios/sync-model/after-pull/README.md)).
+([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/README.md)).
 
 A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
 [`git splice pull --bump`](../../walkthrough/bump.md) records *e'* as U(H),
@@ -74,13 +74,13 @@ in a new commit *f*:
 
 <div align="center">
 
-![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e prime, and T and R point at e prime too](../../scenarios/sync-model/after-pull/pushed-and-bumped/pushed-and-bumped.drawio.svg)
+![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e prime, and T and R point at e prime too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/pushed-and-bumped.drawio.svg)
 
 </div>
 
 *f*'s folder is *e'*, so *f* is the new B, and the rebuild has nothing to add:
 R = T = U(H) = U(B) = *e'*
-([scenario](../../scenarios/sync-model/after-pull/pushed-and-bumped/README.md)).
+([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/README.md)).
 
 ### Pulls in between
 
@@ -91,9 +91,9 @@ rebuild has so far, *before*, and the commit it recorded, U(X):
 
 | *before* and U(X) | The copy's parents | When |
 |---|---|---|
-| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as *e* and *e'* above ([scenario](../../scenarios/sync-model/after-pull/README.md)) |
-| U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)) |
-| *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
+| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits, as *e* and *e'* above ([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/README.md)) |
+| U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)) |
+| *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)) |
 
 So each pull since B that merged unpushed commits adds one merge to R,
 with the commit it pulled as the second parent. R takes that commit from
@@ -149,11 +149,11 @@ It isn't needed either. `status` compares the folder's files with T, and
 after the push they're the same, so the splice is up to date. And a pull
 merges from where R and T meet, not from U(H). The rebuild is
 deterministic, so R contains the pushed commit, with the same hash, and
-they meet there ([example](../../scenarios/up-to-date/push-ahead/pushed-then-pulled/README.md)).
+they meet there ([example](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/README.md)).
 Except after `git splice push --rebuilt-commit`: R doesn't contain an
 edited commit, so `git splice pull --bump` has to record it as U(H) before
 the next change, as `push` reminds you
-([edited-before-push](../../scenarios/up-to-date/push-ahead/edited-before-push/README.md)).
+([edited-before-push](../../scenarios/06-rewritten-history/01-edited-before-push/README.md)).
 
 The cost is that each rebuild walks every commit since B, pushed or not.
 [Bumping](../../walkthrough/bump.md) records the pushed commit as U(H) where
