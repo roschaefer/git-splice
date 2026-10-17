@@ -3,9 +3,9 @@
 # see `just docs-check`.
 #
 # Builds the README's example in the scrut work directory: a monorepo with
-# an app, and the upstream <them>/lib with one release. The monorepo reaches
-# <them>/lib as https://github.com/<them>/lib.git, which url.<base>.insteadOf maps to
-# a bare repository next door. Dates are fixed and the developer's git
+# an app, and the upstream <you>/lib, your fork of a library, with one
+# release. The monorepo reaches it as https://github.com/<you>/lib.git,
+# which url.<base>.insteadOf maps to a bare repository next door. Dates are fixed and the developer's git
 # config is ignored, so commit hashes are the same on every run.
 
 PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd):$PATH"
@@ -16,8 +16,8 @@ export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:
 source "$(dirname "${BASH_SOURCE[0]}")/../helpers/fixtures.bash"
 
 {
-  make_bare_repo "$PWD/github.com/<them>/lib.git" &&
-    seed_bare_repo "$PWD/github.com/<them>/lib.git" "release 1.2" main src/parse.txt &&
+  make_bare_repo "$PWD/github.com/<you>/lib.git" &&
+    seed_bare_repo "$PWD/github.com/<you>/lib.git" "release 1.2" main src/parse.txt &&
     init_monorepo monorepo &&
     git -C monorepo config "url.$PWD/github.com/.insteadOf" https://github.com/ &&
     mkdir monorepo/app &&

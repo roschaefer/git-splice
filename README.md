@@ -71,7 +71,7 @@ A splice works for any repositories you change together:
 
 ## How it works
 
-Splice the library in once:
+Splice your fork of the library in once:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
@@ -80,18 +80,17 @@ $ source "$TESTDIR/test/readme/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice clone 'https://github.com/<them>/lib.git' lib
-===  lib: fetching https://github.com/<them>/lib.git
+$ git splice clone 'https://github.com/<you>/lib.git' lib
+===  lib: fetching https://github.com/<you>/lib.git
 ok   lib: cloned e849115 from main
 ```
 
 The folder is now a splice: a folder of the monorepo that is also the
 library. A committed `.splice` file inside it records which repository,
-and the library commit the folder last matched. Your fork is one more
-upstream in that file.
+and the library commit the folder last matched.
 
 From there, both sides move on. Say you fix a bug in the library while working
-on the app, and the library gets a release meanwhile:
+on the app, and the fork takes in a release of the original meanwhile:
 
 <!--
 ```scrut
