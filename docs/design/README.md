@@ -315,7 +315,7 @@ does. An overview such as `status` is only useful if it's complete.
   published: it was written
   for the monorepo, and may hold what was removed before anyone decided
   to publish the folder
-  ([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)).
+  ([example](../../test/scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)).
 - The name `add` is avoided on purpose: it suggests `git add`.
 
 ### Splicing in: `merge`, and `pull` = `fetch` + `merge`
@@ -348,9 +348,9 @@ spares the merge from replaying changes upstream already has.
 files, there's nothing to merge. But if T isn't part of R's history,
 `merge` still records T as U(H), in a commit that only changes `.splice`.
 That happens when the upstream rewrote its history to the same files
-([example](../../test/scenarios/upstream-rewritten-equal-tree/README.md)),
+([example](../../test/scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/README.md)),
 squash-merged what was pushed, or got R edited before the push
-([example](../../test/scenarios/up-to-date/push-ahead/edited-before-push/README.md)).
+([example](../../test/scenarios/06-rewritten-history/01-edited-before-push/README.md)).
 Without the record, R would keep the monorepo's original commits, and
 the next push would publish them. Right after an ordinary push, R is T,
 and nothing is recorded. Once the folder changes again, it's too late:
@@ -428,13 +428,13 @@ parent-mapping problems `split` spent years fixing.
 mount, the folder was no splice, or another one, so nothing from there is
 published, with or without a synced commit. That covers a folder's
 history from before `init`
-([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)),
+([example](../../test/scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)),
 two splices that swap paths
-([example](../../test/scenarios/swapped-splices/README.md)), and a splice
+([example](../../test/scenarios/07-moved-folders/02-swapped-splices/README.md)), and a splice
 removed and spliced in again
-([example](../../test/scenarios/init-new-upstream/unspliced-then-cloned-again/README.md)).
+([example](../../test/scenarios/02-starting-a-splice/04-init-new-upstream/02-unspliced-then-cloned-again/README.md)).
 A new upstream URL keeps the history: the `id` stays
-([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
+([example](../../test/scenarios/04-upstreams/04-upstream-moved/README.md)).
 
 **A nested splice's history up to the splice above's last sync** comes
 from that splice's upstream. A clone or pull of the splice above squashes
@@ -444,18 +444,18 @@ pushed, or who made them. The upstream's history can, and the monorepo
 has it: the synced commit of the splice above, fetched. So the rebuild of
 the splice below first rebuilds it in that upstream, at that synced
 commit, and continues from there with the monorepo's commits
-([example](../../test/scenarios/nested-splices/spliced-elsewhere.md)).
+([example](../../test/scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
 Of the splices above, it takes the one with the newest last sync, and on
 a tie the outermost: a push writes nothing to the monorepo, so the
 `.splice` of the splice in between may name a commit from before the
 change, while the outermost upstream has it
-([three levels](../../test/scenarios/nested-splices/three-levels/README.md)).
+([three levels](../../test/scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
 Only if the upstream above has the same splice there, by its `id`
-([replaced above](../../test/scenarios/nested-splices/replaced-above.md)).
+([replaced above](../../test/scenarios/05-nested-splices/01-nested-splices/replaced-above.md)).
 And the monorepo's own commits before the last sync are joined in even if
 the folder's files equal that rebuild, so a commit pushed straight to
 the splice's upstream stays in its history
-([pushed and made above](../../test/scenarios/nested-splices/pushed-and-made-above.md)).
+([pushed and made above](../../test/scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
 
 **Costs** O(commits since B), not O(all history). The commit loop
 reads all commit metadata with one `git log` and all folder trees with one
@@ -475,7 +475,7 @@ push of a splice made by `init`, which has no upstream branch at all.
 Whether the folder changed on this branch doesn't matter. A branch
 stacked on one upstream has already gets its own branch upstream too,
 with nothing new
-([scenario](../../test/scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/stacked-branch/README.md)).
+([scenario](../../test/scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/01-stacked-branch/README.md)).
 
 ### `status`: the sync state
 
@@ -577,7 +577,7 @@ and Git 2.40, and their newer counterparts.
 
 | Layer | Where | What it checks |
 |---|---|---|
-| Scenarios | `test/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from. Shared by everything below. |
+| Scenarios | `test/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from, or at the top of its chapter when that scenario is in an earlier chapter. Shared by everything below. |
 | Unit and command tests | `test/*.bats` | Functions and commands, called directly after `load_lib`, against a scenario. |
 | Oracle tests | `test/rebuild.bats` | The rebuild against `git subtree split`. |
 | Scenario READMEs | `test/scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
@@ -591,7 +591,7 @@ setup() {
   load 'helpers/fixtures'
   load_lib                  # source lib/*.sh, to call functions directly
   hermetic_git_config       # ignore the developer's git config
-  load 'scenarios/up-to-date/push-ahead/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

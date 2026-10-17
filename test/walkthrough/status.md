@@ -30,17 +30,17 @@ On branch main
 and `push` act on it. Each example is a small, tested scenario;
 [all scenarios](../scenarios/README.md) cover more situations.
 `status` lists the splices that need something first, most urgent first,
-as in [this monorepo with many splices](../scenarios/many-splices/README.md).
+as in [this monorepo with many splices](../scenarios/01-everyday-sync/03-many-splices/README.md).
 
 | `status` shows | Meaning | What to do |
 | --- | --- | --- |
-| `?? never fetched` | The upstream wasn't fetched in this clone yet. ([example](../scenarios/never-fetched/README.md)) | Run `git splice fetch`. |
-| `up to date` | Both sides are the same. ([example](../scenarios/up-to-date/README.md)) | Nothing to do. |
-| `ahead N` | Only your side changed. ([example](../scenarios/up-to-date/push-ahead/README.md)) | Run `git splice push`. |
-| `behind N` | Only the upstream changed. ([example](../scenarios/up-to-date/pull-ahead/README.md)) | Run `git splice pull`. |
-| `ahead N, behind M` | Both sides changed since they last matched. ([example](../scenarios/up-to-date/push-ahead/diverged-common-ancestor/README.md)) | Run `git splice pull`, then `push`. On a conflict, resolve it and `git commit` first. |
-| `!! unrelated history` | Both sides changed and share no history, e.g. the upstream was rebuilt from scratch. ([example](../scenarios/up-to-date/push-ahead/diverged-unrelated-history/README.md)) | Pick a side. `merge`, `pull` and `push` refuse to guess and print the commands to keep either side, or both. |
-| `unchanged, no upstream branch` or `new, ahead N` | The upstream has no branch with your branch's name. Compared with upstream's default branch, as for a PR: it has every commit of the splice already, or lacks N of them -- also ones from the branch yours was cut from. ([unchanged](../scenarios/up-to-date/feature-branch-unchanged/README.md), [changed](../scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/README.md), [from `main`](../scenarios/up-to-date/push-ahead/feature-branch-from-main/README.md), [stacked](../scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/stacked-branch/README.md)) | Run `git splice push`. It creates the branch only if the default branch lacks commits. |
+| `?? never fetched` | The upstream wasn't fetched in this clone yet. ([example](../scenarios/01-everyday-sync/04-never-fetched/README.md)) | Run `git splice fetch`. |
+| `up to date` | Both sides are the same. ([example](../scenarios/01-everyday-sync/02-up-to-date/README.md)) | Nothing to do. |
+| `ahead N` | Only your side changed. ([example](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/README.md)) | Run `git splice push`. |
+| `behind N` | Only the upstream changed. ([example](../scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/README.md)) | Run `git splice pull`. |
+| `ahead N, behind M` | Both sides changed since they last matched. ([example](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor/README.md)) | Run `git splice pull`, then `push`. On a conflict, resolve it and `git commit` first. |
+| `!! unrelated history` | Both sides changed and share no history, e.g. the upstream was rebuilt from scratch. ([example](../scenarios/06-rewritten-history/03-diverged-unrelated-history/README.md)) | Pick a side. `merge`, `pull` and `push` refuse to guess and print the commands to keep either side, or both. |
+| `unchanged, no upstream branch` or `new, ahead N` | The upstream has no branch with your branch's name. Compared with upstream's default branch, as for a PR: it has every commit of the splice already, or lacks N of them -- also ones from the branch yours was cut from. ([unchanged](../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/README.md), [changed](../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/README.md), [from `main`](../scenarios/03-branches-and-teamwork/02-feature-branch-from-main/README.md), [stacked](../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/01-stacked-branch/README.md)) | Run `git splice push`. It creates the branch only if the default branch lacks commits. |
 
 What `status` compares to tell the states apart: the
 [sync model](../concepts/sync-model/README.md).

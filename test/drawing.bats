@@ -6,14 +6,14 @@ setup() {
   load 'helpers/fixtures'
   load '../check-drawing/check-drawing'
   hermetic_git_config
-  load 'scenarios/sync-model/after-pull/setup'
+  load 'scenarios/01-everyday-sync/01-sync-model/01-after-pull/setup'
   PATH="$BATS_TEST_DIRNAME/..:$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   scenario_after_pull "$monorepo" "$upstream"
   drawing="$BATS_TEST_TMPDIR/after-pull.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg" >"$drawing" 2>/dev/null
   cd "$monorepo"
 }
 
@@ -23,7 +23,7 @@ edit_drawing() {
 }
 
 @test "drawing: the committed one matches its scenario" {
-  run check_drawing "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
+  run check_drawing "$BATS_TEST_DIRNAME/scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
   [ "$output" = "ok   after-pull.drawio.svg: 12 commits, 16 arrows, 5 boxes, 1 lanes" ]
 }
@@ -140,7 +140,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
 
 @test "drawing: U(H) is what HEAD records, whatever the working tree's .splice says" {
   git config --file lib/.splice splice.commit "$(git rev-parse HEAD)"
-  run check_drawing "$BATS_TEST_DIRNAME/scenarios/sync-model/after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
+  run check_drawing "$BATS_TEST_DIRNAME/scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
 }
 
@@ -181,11 +181,11 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
 }
 
 @test "drawing: a solid commit T lacks needs a box for the branch that has it" {
-  load 'scenarios/up-to-date/squash-merged-pull/setup'
+  load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
   scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"
   cd "$BATS_TEST_TMPDIR/squash"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/scenarios/up-to-date/squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/03-squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
   edit_drawing -u '//mxCell[@value="U(H) = U(B) = feature"]/@value' -v 'U(H) = U(B)'
   run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/main f=refs/splices/squash-upstream/feature
   [ "$status" -eq 1 ]
@@ -193,33 +193,33 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
 }
 
 @test "drawing: a commit on another branch of the monorepo is a monorepo commit" {
-  load 'scenarios/concurrent-pulls/setup'
+  load 'scenarios/03-branches-and-teamwork/04-concurrent-pulls/setup'
   scenario_concurrent_pulls "$BATS_TEST_TMPDIR/bob" "$BATS_TEST_TMPDIR/concurrent-upstream.git"
   cd "$BATS_TEST_TMPDIR/bob"
-  run check_drawing "$BATS_TEST_DIRNAME/scenarios/concurrent-pulls/concurrent-pulls.drawio.svg" \
+  run check_drawing "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/04-concurrent-pulls/concurrent-pulls.drawio.svg" \
     a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/main~2 l=refs/splices/a/main~1 n=refs/splices/a/main
   [ "$status" -eq 0 ]
 }
 
 @test "drawing: a lane names a splice whose folder Git quotes" {
-  load 'scenarios/up-to-date/squash-merged-pull/setup'
+  load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
   scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"
   cd "$BATS_TEST_TMPDIR/squash"
   mkdir -p vendor/é && cp vendor/a/.splice vendor/é/ && git add vendor/é && git commit -qm "copy the splice"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/scenarios/up-to-date/squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/03-squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
   edit_drawing -u '//mxCell[@value="vendor/a/"]/@value' -v vendor/é/
   run check_drawing "$drawing"
   [[ "$output" != *"isn't a splice of the monorepo"* ]]
 }
 
 @test "drawing: a box names an upstream branch with any characters Git allows" {
-  load 'scenarios/up-to-date/squash-merged-pull/setup'
+  load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
   scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"
   cd "$BATS_TEST_TMPDIR/squash"
   git update-ref refs/splices/squash-upstream/user@feature+1=next refs/splices/squash-upstream/feature
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/scenarios/up-to-date/squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/03-squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
   edit_drawing -u '//mxCell[@value="U(H) = U(B) = feature"]/@value' -v 'U(H) = U(B) = user@feature+1=next'
   run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/main f=refs/splices/squash-upstream/feature
   [ "$status" -eq 0 ]

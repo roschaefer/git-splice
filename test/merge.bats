@@ -2,18 +2,18 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/up-to-date/setup'
-  load 'scenarios/up-to-date/push-ahead/setup'
-  load 'scenarios/up-to-date/pull-ahead/setup'
-  load 'scenarios/up-to-date/push-ahead/diverged-common-ancestor/setup'
-  load 'scenarios/up-to-date/push-ahead/diverged-unrelated-history/setup'
-  load 'scenarios/never-fetched/setup'
-  load 'scenarios/up-to-date/shared-remote-url/setup'
-  load 'scenarios/up-to-date/push-ahead/pushed-then-pulled/setup'
-  load 'scenarios/up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed/setup'
-  load 'scenarios/init-new-upstream/setup'
-  load 'scenarios/up-to-date/push-ahead/edited-before-push/setup'
-  load 'scenarios/upstream-rewritten-equal-tree/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor/setup'
+  load 'scenarios/06-rewritten-history/03-diverged-unrelated-history/setup'
+  load 'scenarios/01-everyday-sync/04-never-fetched/setup'
+  load 'scenarios/04-upstreams/03-shared-remote-url/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-then-changed/setup'
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load 'scenarios/06-rewritten-history/01-edited-before-push/setup'
+  load 'scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

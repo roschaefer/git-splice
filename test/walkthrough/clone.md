@@ -105,7 +105,7 @@ push them before.
 > `submodule.<name>.*`, from `.git/config`, which all worktrees of the
 > monorepo share. In another worktree that still has the submodule, it
 > then counts as uninitialized
-> ([submodule-in-linked-worktree](../scenarios/submodule-in-linked-worktree/README.md)).
+> ([submodule-in-linked-worktree](../scenarios/02-starting-a-splice/07-submodule-in-linked-worktree/README.md)).
 > Git itself advises against several worktrees of a monorepo with
 > submodules: their support "is incomplete"
 > ([`git worktree`, BUGS](https://git-scm.com/docs/git-worktree#_bugs)).
@@ -115,16 +115,16 @@ push them before.
 - If the folder already exists and differs, `clone` refuses. With
   `--merge`, every file that differs becomes a conflict to resolve, and
   nothing is lost
-  ([clone-differing-content](../scenarios/clone-differing-content/README.md)).
+  ([clone-differing-content](../scenarios/02-starting-a-splice/02-clone-differing-content/README.md)).
   If the folder already has exactly the upstream's files, `clone` only
-  adds `.splice` ([clone-copied-content](../scenarios/clone-copied-content/README.md)).
+  adds `.splice` ([clone-copied-content](../scenarios/02-starting-a-splice/01-clone-copied-content/README.md)).
 - On a branch the upstream doesn't have, `clone` takes the upstream's
   default branch. The first push creates the branch upstream, if the
   splice changed by then
-  ([clone-on-feature-branch](../scenarios/clone-on-feature-branch/README.md)).
+  ([clone-on-feature-branch](../scenarios/02-starting-a-splice/03-clone-on-feature-branch/README.md)).
 - A clone is a commit on top of `HEAD`, so a monorepo without commits
   needs a first one
-  ([clone-without-commits](../scenarios/clone-without-commits/README.md)).
+  ([clone-without-commits](../scenarios/02-starting-a-splice/06-clone-without-commits/README.md)).
 - An upstream with a submodule is refused, by `clone` and later by
   `merge` and `pull`: its `.gitmodules` would sit in the folder, where Git
   doesn't read it, so nobody could check the submodule out. Turn it into a

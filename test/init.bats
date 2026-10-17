@@ -2,8 +2,8 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/init-new-upstream/setup'
-  load 'scenarios/up-to-date/setup'
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

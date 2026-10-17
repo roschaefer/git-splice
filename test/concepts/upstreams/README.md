@@ -15,7 +15,7 @@ A splice's `.splice` names its upstream like a Git remote:
 `[upstream "origin"]` with a `url`. It can name more than one, e.g. a
 company fork and the original; `default-upstream` then says which one
 commands use unless `--upstream` names another
-([several-upstreams](../../scenarios/several-upstreams/README.md)). The
+([several-upstreams](../../scenarios/04-upstreams/02-several-upstreams/README.md)). The
 synced commit U(H) stays one per splice: a sync point is a commit,
 whichever upstream it came from.
 
@@ -28,7 +28,7 @@ config, and fetches its branches to `refs/splices/<key>/`. So:
 | `.splice`, `id`, synced commit U(H) | splice |
 | key, `refs/splices/<key>/*`, fetch | upstream URL, shared by every splice that names it |
 
-[splice-refs](../../scenarios/splice-refs/README.md) shows what each command does to
+[splice-refs](../../scenarios/04-upstreams/05-splice-refs/README.md) shows what each command does to
 those refs, and [splice-identity](../splice-identity/README.md) what
 the `id` names.
 
@@ -51,7 +51,7 @@ $ build_scenario scenario_upstreams
 Two apps each get their own copy of a shared library, s. Each `clone` is
 a splice of its own. (It would be the same if each app were a splice
 with s nested in it, as in
-[nested-splices](../../scenarios/nested-splices/README.md).)
+[nested-splices](../../scenarios/05-nested-splices/01-nested-splices/README.md).)
 
 ```scrut
 $ git splice clone https://git.example.com/s.git app-a/s

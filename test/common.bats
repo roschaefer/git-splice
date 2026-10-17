@@ -2,12 +2,12 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/up-to-date/setup'
-  load 'scenarios/up-to-date/push-ahead/setup'
-  load 'scenarios/up-to-date/shared-remote-url/setup'
-  load 'scenarios/nested-splices/setup'
-  load 'scenarios/up-to-date/feature-branch-unchanged/setup'
-  load 'scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load 'scenarios/04-upstreams/03-shared-remote-url/setup'
+  load 'scenarios/05-nested-splices/01-nested-splices/setup'
+  load 'scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/setup'
+  load 'scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

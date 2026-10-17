@@ -74,7 +74,7 @@ index b041961..b509b97 100644
 Commits that `feature` got from `main` would count too, if upstream's
 `main` lacked them: that's how they get upstream when it takes changes
 only through PRs
-([scenario](../scenarios/up-to-date/push-ahead/feature-branch-from-main/README.md)).
+([scenario](../scenarios/03-branches-and-teamwork/02-feature-branch-from-main/README.md)).
 
 ```scrut
 $ git splice push --all

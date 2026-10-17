@@ -107,11 +107,11 @@ The rebuild doesn't follow the move yet: it reads the folder's history
 under its current path only, so the move starts it there, and commits
 from before the move that weren't pushed yet reach upstream folded into
 it. Push before moving
-([moved-with-unpushed-commits](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md),
+([moved-with-unpushed-commits](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md),
 [#4](https://github.com/roschaefer/git-splice/issues/4)). Where a
 `.splice` is new at a path, or has another id, the splice's history
 starts: its mount. That's what keeps two splices that swap paths apart
-([swapped-splices](../../scenarios/swapped-splices/README.md)).
+([swapped-splices](../../scenarios/07-moved-folders/02-swapped-splices/README.md)).
 
 ### A copy shares the id
 
@@ -221,7 +221,7 @@ with the same files ([diamond](../nesting/diamond.md)).
 
 Mirrors are one splice, so the rebuild can't tell them apart either.
 Two splices that swap paths each start a new history with the swap
-([swapped-splices](../../scenarios/swapped-splices/README.md)); two
+([swapped-splices](../../scenarios/07-moved-folders/02-swapped-splices/README.md)); two
 mirrors don't. Each path keeps its own history, whichever mirror's files
 it has now.
 

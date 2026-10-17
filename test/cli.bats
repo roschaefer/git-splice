@@ -47,7 +47,7 @@ setup() {
 }
 
 @test "cli: -- terminates options so a path named like a flag is treated literally" {
-  load 'scenarios/up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   local cmd
@@ -59,7 +59,7 @@ setup() {
 }
 
 @test "cli: splicing in or out needs a path or --all, looking doesn't" {
-  load 'scenarios/up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   local cmd
@@ -95,7 +95,7 @@ setup() {
 }
 
 @test "cli: runs from any subfolder" {
-  load 'scenarios/up-to-date/push-ahead/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo/vendor/a"
   run "$entrypoint" status
@@ -103,7 +103,7 @@ setup() {
 }
 
 @test "cli: every command refuses a detached HEAD" {
-  load 'scenarios/up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q --detach

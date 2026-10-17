@@ -2,11 +2,11 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/up-to-date/setup'
-  load 'scenarios/up-to-date/push-ahead/diverged-common-ancestor/setup'
-  load 'scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/setup'
-  load 'scenarios/up-to-date/feature-branch-unchanged/merge-in-monorepo/setup'
-  load 'scenarios/up-to-date/pull-ahead/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor/setup'
+  load 'scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
+  load 'scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/02-merge-in-monorepo/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
