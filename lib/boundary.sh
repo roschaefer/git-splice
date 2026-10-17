@@ -10,6 +10,12 @@ first-parent history that change the folder's files:
 
   git log --first-parent "$(git splice boundary <path>)"..HEAD -- <path> ':!<path>/.splice'
 
+After a 'git mv' of the folder, the commits from before the move
+changed it under its old path. List those with the old path, up to the
+move's first parent, since another folder may take the old path later:
+
+  git log --first-parent "$(git splice boundary <path>)"..<move>^ -- <old-path> ':!<old-path>/.splice'
+
 Usually B is the last pull, merge, clone or init. After a pull that
 merged commits that were never pushed, it's an earlier one, where the
 folder was the upstream commit .splice recorded.

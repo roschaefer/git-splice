@@ -387,7 +387,9 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
 1. **Find the last sync.** *L* is
    `git log --first-parent -1 -- <path>/.splice`. Every `clone`, `init`
    and pull writes such a commit, and no rebase or squash merge can remove
-   all of them. U(L) is the synced commit recorded at *L*.
+   all of them. U(L) is the synced commit recorded at *L*. A `git mv` of
+   the whole folder that leaves `.splice` as it was isn't a last sync:
+   the rebuild follows the folder to its old path, by its id.
 2. **Start at U(L).** If *L*'s folder (without `.splice`) equals U(L)'s tree, the
    rebuild continues from U(L), and *L* is the boundary B. If it differs, a
    pull merged a divergence, or a squash merge mixed local edits into the
@@ -433,6 +435,9 @@ two splices that swap paths
 ([example](../../test/scenarios/swapped-splices/README.md)), and a splice
 removed and spliced in again
 ([example](../../test/scenarios/init-new-upstream/unspliced-then-cloned-again/README.md)).
+A `git mv` keeps it too: the rebuild follows the folder back to the path
+whose `.splice` had the same `id` in the commit before, also when two
+splices swap paths, or a new folder takes the old one.
 A new upstream URL keeps the history: the `id` stays
 ([example](../../test/scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
 
@@ -541,10 +546,13 @@ These are known and accepted, each to keep the design simple:
   moves one is refused by `pull`
   ([#153](https://github.com/roschaefer/git-splice/issues/153)).
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
-- **Moving a splice with unpushed changes:** the `git mv` commit changes
-  `.splice`, and the splice's history starts there, so the unpushed
-  commits before it reach upstream folded into the move commit. Push before moving
-  ([#4](https://github.com/roschaefer/git-splice/issues/4)).
+- **A nested splice moved since its boundary** is rebuilt from the
+  monorepo's history alone, not from the upstream above up to that
+  splice's boundary: its path there would be another one. So a push of
+  its history from before the move may be made again, as before
+  [#74](https://github.com/roschaefer/git-splice/issues/74), and commits
+  from the upstream above lose their messages and authors to the pull
+  commit ([#187](https://github.com/roschaefer/git-splice/issues/187)).
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
   on case-insensitive file systems, like macOS's default one: fetching one
