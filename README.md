@@ -70,7 +70,7 @@ A splice works for any repositories you change together:
   as before.
 - **Private monorepo, public folders:** open-source part of your code
   as its own repository. `push` sends only the folder's changes, never
-  the monorepo's history, so the rest stays private.
+  the monorepo's history, so the rest of the files stay private.
 
 ## How it works
 
