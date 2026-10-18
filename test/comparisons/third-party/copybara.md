@@ -7,6 +7,41 @@ a public pull request is imported and submitted there. For example, XLA's
 explain that the original pull request is closed rather than marked as
 merged, while a separate commit is applied publicly.
 
+Meta works the same way, with its own tools. This repository splices
+[scrut](https://github.com/facebookincubator/scrut) into `scrut/`, so we
+see it from outside:
+
+- **The source of truth is internal.** scrut's commit messages name a
+  `scrut/BUCK` file and dependencies in `fbsource//third-party`, which
+  aren't on GitHub, and say that `Cargo.toml` is generated from them.
+- **Every public commit is an export.** Almost all of them end with
+  `Differential Revision: D…`, an internal review, and
+  `fbshipit-source-id: …`, the internal commit it came from. The committer
+  is a bot, `meta-codesync`, and the author keeps their name.
+- **A pull request is imported, not merged.** The bot comments that the
+  pull request was "imported" into an internal review, and later "merged
+  this pull request in" a new commit, with
+  `Pull Request resolved: …/pull/48` in its message
+  ([#48](https://github.com/facebookincubator/scrut/pull/48)). On GitHub,
+  the pull request is closed.
+- **Drift is fixed by hand.** When the two sides differ, the bot opens a
+  pull request to "re-sync with internal repository", to be merged on
+  GitHub with the export turned off
+  ([#59](https://github.com/facebookincubator/scrut/pull/59)).
+
+The tool behind this was [FBShipIt](https://github.com/facebook/fbshipit),
+now archived: it maps a folder of the internal repository to the
+public one and leaves out internal files. `meta-codesync` likely
+continues it. The internal repository is likely on
+[Sapling](../vcs/sapling.md), Meta's version control system, whose own
+public commits are exported the same way. `fbshipit-source-id` is a sync
+point as text in the commit message, like `cherry-pick -x`
+([weak parents](../../../docs/going-forward/weak-parents.md)).
+
+For a contribution, that means it comes back as a different commit, and
+a change that adds a Rust dependency also needs one in Meta's
+`third-party` folder.
+
 With `git-splice`, the monorepo can pull the contributor's branch for its
 own tests without publishing anything. The maintainers then merge the pull
 request in the public repository, and the monorepo pulls the resulting
