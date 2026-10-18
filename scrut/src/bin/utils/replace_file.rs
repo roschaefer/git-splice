@@ -20,29 +20,54 @@ use anyhow::Result;
 /// symlink, like [`fs::write`]. Where renaming would do something
 /// `fs::write` doesn't, it uses `fs::write`, see [`replaceable_target`].
 pub(crate) fn replace_file(path: &Path, contents: impl AsRef<[u8]>) -> Result<()> {
+    let contents = contents.as_ref();
+    let write_in_place = || fs::write(path, contents).with_context(|| format!("write {:?}", path));
     let Some(target) = replaceable_target(path) else {
-        return fs::write(path, contents).with_context(|| format!("write {:?}", path));
+        return write_in_place();
     };
     let mut temp_name = std::ffi::OsString::from(".");
     temp_name.push(target.file_name().context("path without a file name")?);
     temp_name.push(format!(".{}.tmp", std::process::id()));
     let temp_path = target.with_file_name(temp_name);
 
-    let written = fs::write(&temp_path, contents)
-        .with_context(|| format!("write temporary file {:?}", temp_path))
-        .and_then(|_| match fs::metadata(&target) {
-            Ok(metadata) => fs::set_permissions(&temp_path, metadata.permissions())
-                .with_context(|| format!("copy permissions of {:?}", target)),
-            Err(_) => Ok(()),
-        })
+    // a folder new files can't be created in, or a document someone else
+    // owns, which renaming would hand over to us
+    if fs::write(&temp_path, contents).is_err() {
+        let _ = fs::remove_file(&temp_path);
+        return write_in_place();
+    }
+    if !same_owner(&temp_path, &target) {
+        let _ = fs::remove_file(&temp_path);
+        return write_in_place();
+    }
+
+    let replaced = fs::metadata(&target)
+        .and_then(|metadata| fs::set_permissions(&temp_path, metadata.permissions()))
+        .with_context(|| format!("copy permissions of {:?}", target))
         .and_then(|_| {
             fs::rename(&temp_path, &target)
                 .with_context(|| format!("rename {:?} to {:?}", temp_path, target))
         });
-    if written.is_err() {
+    if replaced.is_err() {
         let _ = fs::remove_file(&temp_path);
     }
-    written
+    replaced
+}
+
+/// Whether both files have the same owner and group
+#[cfg(unix)]
+fn same_owner(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    match (fs::metadata(a), fs::metadata(b)) {
+        (Ok(a), Ok(b)) => a.uid() == b.uid() && a.gid() == b.gid(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn same_owner(_: &Path, _: &Path) -> bool {
+    true
 }
 
 /// The file that renaming a new file onto replaces just as `fs::write` would
@@ -120,6 +145,28 @@ mod tests {
         }
         assert!(replace_file(&path, "new").is_err());
         assert_eq!(fs::read_to_string(&path).unwrap(), "old");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn writes_a_document_in_a_folder_it_cannot_create_files_in() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = TempDir::new().unwrap();
+        let folder = dir.path().join("read-only");
+        fs::create_dir(&folder).unwrap();
+        let path = folder.join("doc.md");
+        fs::write(&path, "old").unwrap();
+        fs::set_permissions(&folder, fs::Permissions::from_mode(0o555)).unwrap();
+        let can_create = fs::write(folder.join("probe"), "").is_ok();
+        let result = replace_file(&path, "new");
+        fs::set_permissions(&folder, fs::Permissions::from_mode(0o755)).unwrap();
+        if can_create {
+            return; // root can create files anyway
+        }
+        result.unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new");
+        assert_eq!(fs::read_dir(&folder).unwrap().count(), 1);
     }
 
     #[cfg(unix)]
