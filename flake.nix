@@ -79,7 +79,7 @@
             # The sandbox has no /bin/bash, scrut's default shell.
             preCheck = "export SCRUT_DEFAULT_SHELL=${pkgs-scrut.bash}/bin/bash";
           };
-        # Runs in the Sapling comparison, test/comparisons/third-party/. nixpkgs
+        # Runs in the Sapling comparison, test/comparisons/vcs/. nixpkgs
         # has 0.2.20250521, which can't merge from an external repository
         # (`sl subtree merge --url`); the release binary can. Linux only.
         sapling =
@@ -124,6 +124,33 @@
               cp -r sl lib $out/libexec/sapling/
               ln -s $out/libexec/sapling/sl $out/bin/sl
             '';
+          };
+        # Runs in the Jujutsu comparison, test/comparisons/vcs/. nixos-25.05
+        # has 0.29; the release binary is static.
+        jujutsu =
+          let
+            version = "0.46.0";
+            target = {
+              x86_64-linux = "x86_64-unknown-linux-musl";
+              aarch64-linux = "aarch64-unknown-linux-musl";
+              x86_64-darwin = "x86_64-apple-darwin";
+              aarch64-darwin = "aarch64-apple-darwin";
+            }.${system};
+          in
+          pkgs.stdenvNoCC.mkDerivation {
+            pname = "jujutsu";
+            inherit version;
+            src = pkgs.fetchurl {
+              url = "https://github.com/jj-vcs/jj/releases/download/v${version}/jj-v${version}-${target}.tar.gz";
+              hash = {
+                x86_64-unknown-linux-musl = "sha256-/OAnEVjmZc64LcZsXrlbFyhkkJTpEzB087W67ONF/Ag=";
+                aarch64-unknown-linux-musl = "sha256-gOKPdQHBHlDgygbNah+h2YLP+cxZv+RBGp02qlAdhn4=";
+                x86_64-apple-darwin = "sha256-ENlB3idsfFB07105UxKBO0V19M6Sy5wLBXOO+5C9O2A=";
+                aarch64-apple-darwin = "sha256-Q9qjfOD5cWzfb7ZaKcvK50oxYK7wSM88s9Fm1By0q1g=";
+              }.${target};
+            };
+            sourceRoot = ".";
+            installPhase = "install -Dm755 jj $out/bin/jj";
           };
       in
       {
@@ -197,6 +224,7 @@
             pkgs.git-subrepo
             # Runs in the Josh comparison, test/comparisons/third-party/.
             pkgs.josh
+            jujutsu
           ] ++ lib.optionals pkgs.stdenv.isLinux [
             sapling
           ] ++ [
