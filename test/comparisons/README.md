@@ -30,6 +30,8 @@ also says where it is the better tool.
 
 [Third-party tools](third-party/README.md) compares git-subrepo,
 Josh, splitsh-lite and Copybara.
+[Version control systems](vcs/README.md) compares Sapling and Jujutsu,
+which work in a Git repository, and `git-splice` running next to them.
 
 ## The output is real
 

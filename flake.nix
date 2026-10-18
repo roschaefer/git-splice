@@ -79,6 +79,79 @@
             # The sandbox has no /bin/bash, scrut's default shell.
             preCheck = "export SCRUT_DEFAULT_SHELL=${pkgs-scrut.bash}/bin/bash";
           };
+        # Runs in the Sapling comparison, test/comparisons/vcs/. nixpkgs
+        # has 0.2.20250521, which can't merge from an external repository
+        # (`sl subtree merge --url`); the release binary can. Linux only.
+        sapling =
+          let
+            version = "0.2.20260929-102736+288e0c2d";
+            arch = { x86_64-linux = "x64"; aarch64-linux = "arm64"; }.${system};
+          in
+          pkgs.stdenv.mkDerivation {
+            pname = "sapling";
+            inherit version;
+            src = pkgs.fetchurl {
+              url = "https://github.com/facebook/sapling/releases/download/${lib.escapeURL version}/sapling-${version}-linux-${arch}.tar.xz";
+              hash = {
+                x64 = "sha256-8pa0t9WY3AmdQADp8u9lbjZrY5httpyJEP5thectBzw=";
+                arm64 = "sha256-Qo0jFPfRPDFiqZQT5zSt9IGnBZIjqOgAPRJNDbLa2uA=";
+              }.${arch};
+            };
+            sourceRoot = ".";
+            nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+            # The bundled Python's extension modules link these.
+            buildInputs = with pkgs; [
+              stdenv.cc.cc.lib
+              zlib
+              libffi
+              ncurses
+              sqlite
+              bzip2
+              readline
+              openssl
+              xz
+            ];
+            # For tkinter, crypt and dbm, which Sapling doesn't import.
+            autoPatchelfIgnoreMissingDeps = [
+              "libtk8.6.so"
+              "libtcl8.6.so"
+              "libcrypt.so.2"
+              "libgdbm.so.6"
+              "libgdbm_compat.so.4"
+            ];
+            installPhase = ''
+              mkdir -p $out/libexec/sapling $out/bin
+              cp -r sl lib $out/libexec/sapling/
+              ln -s $out/libexec/sapling/sl $out/bin/sl
+            '';
+          };
+        # Runs in the Jujutsu comparison, test/comparisons/vcs/. nixos-25.05
+        # has 0.29; the release binary is static.
+        jujutsu =
+          let
+            version = "0.46.0";
+            target = {
+              x86_64-linux = "x86_64-unknown-linux-musl";
+              aarch64-linux = "aarch64-unknown-linux-musl";
+              x86_64-darwin = "x86_64-apple-darwin";
+              aarch64-darwin = "aarch64-apple-darwin";
+            }.${system};
+          in
+          pkgs.stdenvNoCC.mkDerivation {
+            pname = "jujutsu";
+            inherit version;
+            src = pkgs.fetchurl {
+              url = "https://github.com/jj-vcs/jj/releases/download/v${version}/jj-v${version}-${target}.tar.gz";
+              hash = {
+                x86_64-unknown-linux-musl = "sha256-/OAnEVjmZc64LcZsXrlbFyhkkJTpEzB087W67ONF/Ag=";
+                aarch64-unknown-linux-musl = "sha256-gOKPdQHBHlDgygbNah+h2YLP+cxZv+RBGp02qlAdhn4=";
+                x86_64-apple-darwin = "sha256-ENlB3idsfFB07105UxKBO0V19M6Sy5wLBXOO+5C9O2A=";
+                aarch64-apple-darwin = "sha256-Q9qjfOD5cWzfb7ZaKcvK50oxYK7wSM88s9Fm1By0q1g=";
+              }.${target};
+            };
+            sourceRoot = ".";
+            installPhase = "install -Dm755 jj $out/bin/jj";
+          };
       in
       {
         packages.default = git-splice;
@@ -151,6 +224,10 @@
             pkgs.git-subrepo
             # Runs in the Josh comparison, test/comparisons/third-party/.
             pkgs.josh
+            jujutsu
+          ] ++ lib.optionals pkgs.stdenv.isLinux [
+            sapling
+          ] ++ [
             # Builds the documentation site in website/.
             pkgs.nodejs
             pkgs.pnpm

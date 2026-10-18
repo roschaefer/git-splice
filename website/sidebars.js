@@ -50,13 +50,19 @@ module.exports = {
           link: {type: 'doc', id: 'test/comparisons/third-party/README'},
           items: ['git-subrepo', 'josh', 'copybara'].map((tool) => `test/comparisons/third-party/${tool}`),
         },
+        {
+          type: 'category',
+          label: 'Version control systems',
+          link: {type: 'doc', id: 'test/comparisons/vcs/README'},
+          items: ['sapling', 'jj'].map((vcs) => `test/comparisons/vcs/${vcs}`),
+        },
       ],
     },
     {
       type: 'category',
       label: 'Going forward',
       link: {type: 'doc', id: 'docs/going-forward/README'},
-      items: ['docs/going-forward/package-managers', 'docs/going-forward/mirrors', 'docs/going-forward/jj', 'docs/going-forward/weak-parents'],
+      items: ['docs/going-forward/package-managers', 'docs/going-forward/mirrors', 'docs/going-forward/jj', 'docs/going-forward/sapling', 'docs/going-forward/weak-parents'],
     },
     {
       type: 'category',
