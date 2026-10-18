@@ -14,13 +14,13 @@ see it from outside:
 - **The source of truth is internal.** scrut's commit messages name a
   `scrut/BUCK` file and dependencies in `fbsource//third-party`, which
   aren't on GitHub, and say that `Cargo.toml` is generated from them.
-- **Every public commit is an export.** Almost all of them end with
-  `Differential Revision: D…`, an internal review, and
+- **Public commits are exports**, except for the re-syncs below. They
+  end with `Differential Revision: D…`, an internal review, and
   `fbshipit-source-id: …`, the internal commit it came from. The committer
   is a bot, `meta-codesync`, and the author keeps their name.
-- **A pull request is imported, not merged.** The bot comments that the
-  pull request was "imported" into an internal review, and later "merged
-  this pull request in" a new commit, with
+- **A contributor's pull request is imported, not merged.** The bot
+  comments that the pull request was "imported" into an internal review,
+  and later "merged this pull request in" a new commit, with
   `Pull Request resolved: …/pull/48` in its message
   ([#48](https://github.com/facebookincubator/scrut/pull/48)). On GitHub,
   the pull request is closed.
