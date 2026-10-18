@@ -121,7 +121,7 @@ ok   vendor/lib: pushed 5069701 to main
 
 The patch, applied by hand, gave the same commit. For one commit, that's
 the work `git splice push` saves. For several, a branch, or a merge in the
-monorepo, see [what a push sends](josh.md#whose-history-is-it).
+monorepo, see [what a push sends](../third-party/josh.md#whose-history-is-it).
 
 ## Both sides move on
 
@@ -211,7 +211,7 @@ eacfd6697aff lib commit 29
 Git's own `git log` stops at the import, and in the `git-splice` monorepo
 at the clone. There, the library's commits are fetched into the
 monorepo's repository, for `git log` on the library's history
-([bisecting into a pull](josh.md#git-splice-the-culprit-is-the-pull)).
+([bisecting into a pull](../third-party/josh.md#git-splice-the-culprit-is-the-pull)).
 
 ## A squash merge drops the record
 
@@ -345,6 +345,67 @@ new feature
 `git-splice` has no equivalent: a splice is a folder with a repository of
 its own. Two folders of one monorepo, merged into each other, are
 Sapling's case.
+
+## `git-splice` next to `sl`
+
+`sl` works in the Git repository, so `git-splice` can run in the same
+one. A commit with `sl` keeps Git on its branch:
+
+```scrut
+$ cd ../splice-monorepo && echo "fix" >>vendor/lib/src/parse.txt && sl commit -q -m "fix parse() again" && git status | head -n 1
+On branch main
+```
+
+```scrut
+$ git splice status
+On branch main
+
+  ahead 5  vendor/lib
+```
+
+`sl amend` leaves Git's index behind: Git still has the file as it was
+before the amend, staged
+([sapling#1316](https://github.com/facebook/sapling/issues/1316)):
+
+```scrut
+$ echo "more" >>vendor/lib/src/parse.txt && sl amend -q && git status --short
+MM vendor/lib/src/parse.txt
+```
+
+```scrut
+$ git splice push vendor/lib
+??   vendor/lib: uncommitted changes aren't pushed -- commit them first
+ok   vendor/lib: pushed 2394809 to main
+```
+
+The push sends the amended commit, but warns about changes that aren't
+there.
+
+`git reset` brings the index back to the commit:
+
+```scrut
+$ git reset -q && git status --short
+```
+
+`sl goto` moves to another commit with a detached `HEAD`, where
+`git-splice` stops, as it does in a
+[jj repository](jj.md#git-splice-stops-at-the-detached-head):
+
+```scrut
+$ sl prev -q && git splice status
+[346c47] splice: pull vendor/lib from main at d9ba6ce
+!!   not on a branch (detached HEAD) -- git splice requires a named branch
+[1]
+```
+
+`git checkout` puts Git back on the branch:
+
+```scrut
+$ git checkout -q main && git splice status
+On branch main
+
+  up to date  vendor/lib
+```
 
 ## Where Sapling is better
 
