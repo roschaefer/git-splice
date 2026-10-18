@@ -352,7 +352,8 @@ impl Args {
             }
             DocumentUpdate::Changed(changed) => *changed,
         };
-        self.print_changes(&outcomes.iter().collect::<Vec<_>>());
+        // workers update the progress bar while this prints
+        pw.suspend(|| self.print_changes(&outcomes.iter().collect::<Vec<_>>()));
 
         // determine new location
         let output_path = if is_conversion {
