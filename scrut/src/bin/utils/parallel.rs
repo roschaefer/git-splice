@@ -6,9 +6,9 @@
  */
 
 use std::collections::BTreeMap;
+use std::panic;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+use std::sync::PoisonError;
 use std::sync::mpsc;
 use std::thread;
 
@@ -24,7 +24,7 @@ use anyhow::Result;
 /// before it are handled as they would be one after another. Items already
 /// running finish first, at most `jobs - 1` of them; their results are
 /// dropped. A panic in `run` stops starting further items too, and is raised
-/// again once the running ones have finished.
+/// again, with its own payload, once the running ones have finished.
 pub(crate) fn run_in_parallel<T, R>(
     items: Vec<T>,
     jobs: usize,
@@ -43,57 +43,89 @@ where
     }
 
     let threads = jobs.min(items.len());
-    let queue = Mutex::new(items.into_iter().enumerate());
-    let failed = AtomicBool::new(false);
+    let queue = Mutex::new(Queue {
+        items: items.into_iter().enumerate(),
+        stopped: false,
+    });
     thread::scope(|scope| {
         let (sender, receiver) = mpsc::channel();
-        for _ in 0..threads {
-            let (sender, queue, failed, run) = (sender.clone(), &queue, &failed, &run);
-            scope.spawn(move || {
-                let _stop_on_panic = StopOnPanic(failed);
-                while !failed.load(Ordering::Relaxed) {
-                    let Some((index, item)) = queue.lock().expect("queue lock poisoned").next()
-                    else {
-                        break;
-                    };
-                    let result = run(item);
-                    if result.is_err() {
-                        failed.store(true, Ordering::Relaxed);
+        let workers = (0..threads)
+            .map(|_| {
+                let (sender, queue, run) = (sender.clone(), &queue, &run);
+                scope.spawn(move || {
+                    let _stop_on_panic = StopOnPanic(queue);
+                    while let Some((index, item)) = next_item(queue) {
+                        let result = run(item);
+                        if result.is_err() {
+                            stop(queue);
+                        }
+                        if sender.send((index, result)).is_err() {
+                            break;
+                        }
                     }
-                    if sender.send((index, result)).is_err() {
-                        break;
-                    }
-                }
-            });
-        }
+                })
+            })
+            .collect::<Vec<_>>();
         drop(sender);
 
         // items are handed out in order, so every item before a failed one
         // has started and its result arrives
+        let mut outcome = Ok(());
         let mut pending = BTreeMap::new();
         let mut next = 0;
-        for (index, result) in receiver {
+        'receive: for (index, result) in &receiver {
             pending.insert(index, result);
             while let Some(result) = pending.remove(&next) {
                 next += 1;
                 if let Err(err) = result.and_then(&mut apply) {
-                    failed.store(true, Ordering::Relaxed);
-                    return Err(err);
+                    stop(&queue);
+                    outcome = Err(err);
+                    break 'receive;
                 }
             }
         }
-        Ok(())
+        drop(receiver);
+
+        // joined here rather than by the scope, which would raise a panic
+        // of its own instead of the worker's
+        for worker in workers {
+            if let Err(panic) = worker.join() {
+                panic::resume_unwind(panic);
+            }
+        }
+        outcome
     })
 }
 
-/// Sets the flag when the worker thread that holds it unwinds from a panic,
-/// so that the other workers stop taking items
-struct StopOnPanic<'a>(&'a AtomicBool);
+/// The items not handed out yet, and whether to stop handing them out
+struct Queue<I> {
+    items: I,
+    stopped: bool,
+}
 
-impl Drop for StopOnPanic<'_> {
+/// The next item, unless the queue was stopped: checked under the same lock
+/// that takes the item, so no item starts after a failure was recorded
+fn next_item<I: Iterator>(queue: &Mutex<Queue<I>>) -> Option<I::Item> {
+    let mut queue = queue.lock().unwrap_or_else(PoisonError::into_inner);
+    if queue.stopped {
+        None
+    } else {
+        queue.items.next()
+    }
+}
+
+fn stop<I>(queue: &Mutex<Queue<I>>) {
+    queue.lock().unwrap_or_else(PoisonError::into_inner).stopped = true;
+}
+
+/// Stops the queue when the worker thread that holds it unwinds from a
+/// panic, so that the other workers stop taking items
+struct StopOnPanic<'a, I>(&'a Mutex<Queue<I>>);
+
+impl<I> Drop for StopOnPanic<'_, I> {
     fn drop(&mut self) {
         if thread::panicking() {
-            self.0.store(true, Ordering::Relaxed);
+            stop(self.0);
         }
     }
 }
@@ -101,6 +133,7 @@ impl Drop for StopOnPanic<'_> {
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
     use std::time::Duration;
 
     use anyhow::anyhow;
@@ -174,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn stops_starting_items_when_one_panics() {
+    fn stops_starting_items_and_raises_the_panic_again_when_one_panics() {
         let started = AtomicUsize::new(0);
         let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             run_in_parallel(
@@ -191,7 +224,11 @@ mod tests {
                 |_| Ok(()),
             )
         }));
-        assert!(panicked.is_err());
+        let panic = panicked.unwrap_err();
+        assert_eq!(
+            panic.downcast_ref::<String>().map(String::as_str),
+            Some("item 2 panicked")
+        );
         let started = started.into_inner();
         assert!(started < 100, "started {started} of 100 items");
     }
