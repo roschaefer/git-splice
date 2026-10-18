@@ -21,9 +21,9 @@ use anyhow::Result;
 /// With `jobs` 1, every item runs and is applied before the next one starts.
 /// Otherwise the first error, from `run` or `apply`, stops starting further
 /// items and is returned once all earlier items are applied, so the items
-/// before it are handled as they would be one after another. Items already
-/// running finish first, at most `jobs - 1` of them; their results are
-/// dropped. A panic in `run` stops starting further items too, and is raised
+/// before it are handled as they would be one after another. Later items may
+/// have run by then: those that finished before the error, and those still
+/// running, which finish first. Their results are dropped. A panic in `run` stops starting further items too, and is raised
 /// again, with its own payload, once the running ones have finished.
 pub(crate) fn run_in_parallel<T, R>(
     items: Vec<T>,

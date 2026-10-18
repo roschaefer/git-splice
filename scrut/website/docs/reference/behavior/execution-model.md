@@ -30,7 +30,7 @@ This is less flexible (e.g. Scrut cannot constraint max execution time per [test
 
 ## Parallel Documents
 
-By default Scrut executes one [test document](/docs/reference/fundamentals/test-document/) after another. With `--jobs N`, the `test` and `update` commands execute up to `N` documents at the same time:
+By default Scrut executes one [test document](/docs/reference/fundamentals/test-document/) after another. With `--jobs N`, the `test` command executes up to `N` documents at the same time:
 
 ```bash title="Terminal"
 $ scrut test --jobs 4 tests/
@@ -39,7 +39,7 @@ $ scrut test --jobs 4 tests/
 This is safe for documents that only use what Scrut provides per document: the shared shell environment, [working directory](/docs/reference/behavior/working-directory/) and temporary directory described above. Documents that share anything else, such as a file outside these directories, a network port or a database, may interfere with each other.
 
 - The results are still reported in the order of the documents, whatever order they finish in.
-- If a document can't be executed at all, for example because its shell can't be started, Scrut starts no further documents, waits for the ones already running, and fails. As without `--jobs`, `scrut update` has written the documents before it by then, and none after it.
-- `scrut update` shows, confirms and writes changes one document after another, in the order of the documents, so prompts never interleave. It replaces a document in one step, so another document that reads it at the same time sees either the old or the new content.
+- If a document can't be executed at all, for example because its shell can't be started, Scrut starts no further documents, waits for the ones already running, and fails.
+- `scrut update` has no `--jobs`: it writes documents, which other documents running at the same time could read half-written, so it executes one document after another.
 - `--jobs` greater than 1 can't be combined with `--work-directory`, because all documents would share that one directory.
 - Log messages (`--log-level`) of documents that run at the same time are printed as they happen, mixed with each other. To follow one document's log, run it without `--jobs`. The output of `--debug` stays together per document, in the order the documents finish.

@@ -83,37 +83,14 @@ $ "$SCRUT_BIN" test --jobs 2 --work-directory "$TMPDIR" --match-markdown "*.mdte
 [1]
 ```
 
-## update with --jobs writes every document
+## update runs one document after another
+
+`update` writes documents, which documents running at the same time could
+read half-written, so it has no `--jobs`.
 
 ```scrut
-$ cp "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest" .
-```
-
-```scrut
-$ rm -f "$SIGNAL_FILE"; "$SCRUT_BIN" update --jobs 2 --replace --assume-yes --match-markdown "*.mdtest" first.mdtest second.mdtest
-Result: 2 document(s) of which 2 updated, 0 skipped and 0 unchanged
-```
-
-````scrut
-$ cat first.mdtest second.mdtest
-# Waits up to two seconds for the second document
-
-```scrut
-$ for i in $(seq 20); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
-signal: from the second document
-```
-# Sends the signal the first document waits for
-
-```scrut
-$ echo "from the second document" > "$SIGNAL_FILE" && echo sent
-sent
-```
-````
-
-## update can't share a user provided work directory either
-
-```scrut
-$ "$SCRUT_BIN" update --jobs 2 --work-directory "$TMPDIR" --match-markdown "*.mdtest" first.mdtest 2>&1
-* ERROR scrut: Error: --jobs greater than 1 can't be combined with --work-directory (glob)
-[1]
+$ "$SCRUT_BIN" update --jobs 2 --match-markdown "*.mdtest" "$TESTDIR/first.mdtest" 2>&1
+error: unexpected argument '--jobs' found
+* (glob+)
+[2]
 ```

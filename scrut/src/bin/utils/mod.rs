@@ -12,7 +12,6 @@ mod file_parser;
 mod kill;
 mod namer;
 mod parallel;
-mod replace_file;
 mod ui;
 
 pub(crate) use debug::*;
@@ -21,5 +20,4 @@ pub(crate) use executorutil::*;
 pub(crate) use file_parser::*;
 pub(crate) use kill::*;
 pub(crate) use parallel::*;
-pub(crate) use replace_file::*;
 pub(crate) use ui::*;
