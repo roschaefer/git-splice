@@ -68,6 +68,9 @@ A splice works for any repositories you change together:
 - **Each repository keeps its pipeline:** your pushes arrive as ordinary
   commits, so GitHub Actions, reviews and releases run in each repository
   as before.
+- **Private monorepo, public folders:** open-source part of your code
+  as its own repository. `push` sends only the folder's changes, never
+  the monorepo's history, so the rest stays private.
 
 ## How it works
 
