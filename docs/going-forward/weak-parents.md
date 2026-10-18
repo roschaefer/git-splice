@@ -106,6 +106,45 @@ the tree, not in the commit, so it survives a rebase. Unlike `.splice`,
 it says what to check out, not where the folder's files came from
 ([the sync point](../design/README.md#the-sync-point)).
 
+### Extra commit headers: Sapling and jj
+
+The RFC's `origin` was a new line among a commit's headers, next to
+`tree`, `parent` and `author`. Git keeps headers it doesn't know: they are
+part of the commit's hash, and `git cat-file -p` shows them. Nothing in
+Git writes them, and nothing follows them. Two tools that work in Git
+repositories use them today:
+
+- **Sapling** records each `sl subtree` import and merge in a header,
+  `test_subtree`, with the library's URL, its commit and the folder
+  ([Sapling compared](../../test/comparisons/vcs/sapling.md#import-the-library)).
+  That's all three facts a splice needs ([below](#what-a-splice-would-need)).
+- **jj** writes a `change-id` header in every commit, the identity a
+  change keeps across rewrites. A `jj graft` prototype, discussed on jj's
+  Discord, records a folder's sync point in a header too
+  ([Jujutsu compared](../../test/comparisons/vcs/jj.md#what-jj-plans)).
+
+A header is half a weak parent: it's in the commit, and `log`,
+`merge-base` and `fetch` don't follow it, since Git doesn't know it points
+anywhere. The other half needs Git, and Git doesn't know about it either:
+`gc` doesn't keep its target, and most rewrites drop it. As of Git 2.56:
+
+| Command | The header |
+| --- | --- |
+| `commit --amend` | kept |
+| `cherry-pick` | dropped |
+| `rebase`, with or without `-i` or `--apply` | dropped |
+| `merge --squash` | dropped |
+| `merge` | stays on the merged commit; the merge commit doesn't get one |
+
+That works for Sapling and jj, since each rewrites commits with its own
+commands, which copy the header along: `sl fold` keeps Sapling's record,
+and jj keeps the change id. Rewrites with Git, or a squash merge on a
+forge, lose it. Then Sapling's next merge starts from an older record,
+and a file the library removed
+[comes back](../../test/comparisons/vcs/sapling.md#a-squash-merge-drops-the-record).
+`git-splice` works with plain Git and squash-merged pull requests, where
+only the files survive every rewrite. So the sync point is in a file.
+
 ## What a splice would need
 
 The `origin` RFC records only a commit id, and a missing target leaves
