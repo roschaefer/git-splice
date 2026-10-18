@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/roschaefer/git-splice/compare/v0.8.4...v0.9.0) (2026-10-18)
+
+
+### Features
+
+* **scrut:** run docs-check's documents in parallel with scrut --jobs ([#189](https://github.com/roschaefer/git-splice/issues/189)) ([283e8b6](https://github.com/roschaefer/git-splice/commit/283e8b6d412d9dc30a5a67a7c9c8118fe740e928))
+
 ## [0.8.4](https://github.com/roschaefer/git-splice/compare/v0.8.3...v0.8.4) (2026-10-16)
 
 
