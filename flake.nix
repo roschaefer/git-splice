@@ -79,6 +79,52 @@
             # The sandbox has no /bin/bash, scrut's default shell.
             preCheck = "export SCRUT_DEFAULT_SHELL=${pkgs-scrut.bash}/bin/bash";
           };
+        # Runs in the Sapling comparison, test/comparisons/third-party/. nixpkgs
+        # has 0.2.20250521, which can't merge from an external repository
+        # (`sl subtree merge --url`); the release binary can. Linux only.
+        sapling =
+          let
+            version = "0.2.20260929-102736+288e0c2d";
+            arch = { x86_64-linux = "x64"; aarch64-linux = "arm64"; }.${system};
+          in
+          pkgs.stdenv.mkDerivation {
+            pname = "sapling";
+            inherit version;
+            src = pkgs.fetchurl {
+              url = "https://github.com/facebook/sapling/releases/download/${lib.escapeURL version}/sapling-${version}-linux-${arch}.tar.xz";
+              hash = {
+                x64 = "sha256-8pa0t9WY3AmdQADp8u9lbjZrY5httpyJEP5thectBzw=";
+                arm64 = "sha256-Qo0jFPfRPDFiqZQT5zSt9IGnBZIjqOgAPRJNDbLa2uA=";
+              }.${arch};
+            };
+            sourceRoot = ".";
+            nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+            # The bundled Python's extension modules link these.
+            buildInputs = with pkgs; [
+              stdenv.cc.cc.lib
+              zlib
+              libffi
+              ncurses
+              sqlite
+              bzip2
+              readline
+              openssl
+              xz
+            ];
+            # For tkinter, crypt and dbm, which Sapling doesn't import.
+            autoPatchelfIgnoreMissingDeps = [
+              "libtk8.6.so"
+              "libtcl8.6.so"
+              "libcrypt.so.2"
+              "libgdbm.so.6"
+              "libgdbm_compat.so.4"
+            ];
+            installPhase = ''
+              mkdir -p $out/libexec/sapling $out/bin
+              cp -r sl lib $out/libexec/sapling/
+              ln -s $out/libexec/sapling/sl $out/bin/sl
+            '';
+          };
       in
       {
         packages.default = git-splice;
@@ -151,6 +197,9 @@
             pkgs.git-subrepo
             # Runs in the Josh comparison, test/comparisons/third-party/.
             pkgs.josh
+          ] ++ lib.optionals pkgs.stdenv.isLinux [
+            sapling
+          ] ++ [
             # Builds the documentation site in website/.
             pkgs.nodejs
             pkgs.pnpm
