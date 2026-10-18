@@ -86,6 +86,8 @@ ok 05-nested-splices/02-nested-default-branch (1 document)
 ok 06-rewritten-history/01-edited-before-push (2 documents)
 ok 06-rewritten-history/02-upstream-rewritten-equal-tree (3 documents)
 ok 06-rewritten-history/03-diverged-unrelated-history (1 document)
+ok 06-rewritten-history/04-patch-branch-rebased (1 document)
+ok 06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit (2 documents)
 ok 07-moved-folders/01-moved-with-unpushed-commits (2 documents)
 ok 07-moved-folders/02-swapped-splices (1 document)
 ```

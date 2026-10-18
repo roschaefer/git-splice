@@ -14,6 +14,7 @@ setup() {
   load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   load 'scenarios/06-rewritten-history/01-edited-before-push/setup'
   load 'scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
+  load 'scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -144,6 +145,57 @@ setup() {
   classify_splice vendor/a main
   [ "$SPLICE_STATE" = push ]
   [ "$(git rev-parse "$SPLICE_REBUILT^")" = "$target" ]
+}
+
+@test "merge: a rebased upstream branch merges from the synced commit, so its dropped patch doesn't conflict" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  cd "$monorepo"
+  local target
+  target="$(git rev-parse "$(upstream_refs "$upstream")patches")"
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: merged ${target:0:7}" ]
+  [ "$(splice_config vendor/a commit)" = "$target" ]
+  [ "$(git rev-parse HEAD:vendor/a/file.txt)" = "$(git rev-parse "$target:file.txt")" ]
+  [ "$(rebuild_splice vendor/a)" = "$target" ]
+}
+
+@test "merge: a rebased upstream branch is refused while the folder has changes it lacks, which the next push would publish on the dropped patch" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before synced
+  before="$(git rev-parse HEAD)"
+  synced="$(splice_config vendor/a commit)"
+  run cmd_merge vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream rewrote 'patches' since the synced commit ${synced:0:7}, and the folder has changes 'patches' lacks -- set them aside, merge, and redo them on top: a merge now would publish the rewritten-away commits again with the next push" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  git diff --quiet HEAD
+}
+
+@test "merge: a rebased upstream branch that already has the pushed local commit is merged, and the rebuild is that branch" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  cd "$monorepo"
+  # Undo the rebase: patches is the patch again, and gets a local commit
+  # pushed on top of it.
+  git -C "$upstream" update-ref refs/heads/patches "$(splice_config vendor/a commit)"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  commit_local "$monorepo" vendor/a "local change" local.txt
+  splice push vendor/a >/dev/null
+  # The fork rebases patches onto main, which took the patch reworded: only
+  # the local commit is left on top.
+  local fork="$BATS_TEST_TMPDIR/fork" rebased
+  git clone -q "$upstream" "$fork"
+  git -C "$fork" checkout -q main
+  git -C "$fork" checkout origin/patches -- local.txt
+  git -C "$fork" -c user.name=Test -c user.email=test@example.com commit -q -m "local change"
+  git -C "$fork" push -q --force origin main:patches
+  rebased="$(git -C "$upstream" rev-parse patches)"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$rebased" ]
+  [ "$(rebuild_splice vendor/a)" = "$rebased" ]
 }
 
 @test "merge: right after a push, nothing is recorded: the rebuild is the upstream branch" {

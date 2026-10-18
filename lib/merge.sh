@@ -23,6 +23,13 @@ On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 sides share no history at all, merge doesn't guess: it prints the commands
 to keep either side.
 
+When the upstream rewrote its branch, and no branch of it has the synced
+commit any more, e.g. a fork rebased its patch branch onto a new release,
+merge takes the rewritten branch as it is. If the folder has changes that
+branch lacks, it refuses: the next push would publish the rewritten-away
+commits again, under them. Set the changes aside, merge, and redo them on
+top.
+
 --bump also moves the synced commit up to the upstream branch when there's
 nothing to merge, e.g. right after a push, in a commit that only changes
 the splice's .splice, like a submodule bump. Later rebuilds then start
@@ -73,14 +80,32 @@ merge_one() {
   esac
 
   # The merge base is the newest upstream commit both sides contain: the
-  # synced commit, or a later one this branch pushed since.
+  # synced commit, or a later one this branch pushed since. After a
+  # rewrite upstream, e.g. a patch branch rebased onto a new release, no
+  # upstream branch has the synced commit any more: then it's the synced
+  # commit itself, the files the monorepo last took. An older common
+  # ancestor would make the patches look like changes on both sides. A
+  # synced commit another upstream still has, e.g. a fork's patch, isn't
+  # rewritten: the merge base finds where the two upstreams meet.
   local target merge_base base_folder base_blob new_blob
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
   if upstream_has_state_file "$target"; then
     log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
     return 1
   fi
-  merge_base="$(git merge-base "$SPLICE_REBUILT" "$target")"
+  if [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target" &&
+    on_no_upstream_branch "$path" "$SPLICE_SYNCED"; then
+    merge_base="$SPLICE_SYNCED"
+    # Only a folder that ends up with exactly the rewritten branch's files
+    # lets the rebuild start there again. Anything else is rebuilt on top
+    # of the synced commit, and joined in as a merge.
+    if ! merge_gives "$merge_base" "$target"; then
+      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since the synced commit ${SPLICE_SYNCED:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- set them aside, $verb, and redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
+      return 1
+    fi
+  else
+    merge_base="$(git merge-base "$SPLICE_REBUILT" "$target")"
+  fi
   local inner
   inner="$(changed_submodule "$merge_base" "$target")"
   if [[ -n "$inner" ]]; then
@@ -97,6 +122,27 @@ merge_one() {
     return 1
   fi
   log_ok "$path: $(past_tense "$verb") ${target:0:7}"
+}
+
+# Succeeds if merging upstream commit <target> into the rebuild
+# (SPLICE_REBUILT) from <base> gives exactly <target>'s files, without a
+# conflict.
+merge_gives() {
+  local base="$1" target="$2" tree
+  tree="$(git merge-tree --write-tree --merge-base="$base" "$SPLICE_REBUILT" "$target" 2>/dev/null)" || return 1
+  [[ "${tree%%$'\n'*}" == "$(git rev-parse "$target^{tree}")" ]]
+}
+
+# Succeeds if no fetched branch of any upstream of splice <path> has
+# <commit>.
+on_no_upstream_branch() {
+  local path="$1" commit="$2" names=() name
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
+  for name in "${names[@]}"; do
+    upstream_key "${UPSTREAM_URLS["$path:$name"]}"
+    [[ -n "$UPSTREAM_KEY" ]] || continue
+    [[ -z "$(git for-each-ref --count=1 --contains "$commit" "refs/splices/$UPSTREAM_KEY/")" ]] || return 1
+  done
 }
 
 # For splice <path> in state up-to-date: records the upstream branch T as
