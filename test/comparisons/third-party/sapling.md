@@ -24,6 +24,14 @@ $ source "$TESTDIR/../scrut-setup.sh"
 ```
 -->
 
+<!-- The flake packages Sapling for Linux only; elsewhere scrut skips
+this page. -->
+<!--
+```scrut
+$ [[ "$(uname -s)" == Linux ]] || exit 80
+```
+-->
+
 <!-- Sapling's settings, its cache of external repositories, and fixed
 dates, so commit hashes are the same on every run. -->
 <!--
@@ -348,7 +356,7 @@ Sapling's case.
   ([`sl log`](#sl-log-reaches-the-librarys-commits)).
 - **Nothing to conflict on.** Two branches that each merge the library
   record it in their own commits. `.splice` is a file, so two branches
-  that both pull conflict in it.
+  that pull different library commits conflict in it.
 - **Cherry-picks across the boundary.** `sl subtree graft` brings
   single commits from another folder, and, marked experimental, from the
   external repository.
@@ -378,7 +386,7 @@ Sapling's case.
 | --- | --- | --- |
 | Library history in the monorepo | none, one commit per import or merge | none, one commit per sync |
 | Where the merge base is recorded | the commit's metadata, an extra header to Git | `.splice`, a file in the folder |
-| After a squash merge or `git rebase` | gone, an older record is used | kept |
+| After a squash merge or `git rebase` | gone, an older record is used, or the merge aborts if there's none | kept |
 | Changes back to the library | by hand, a patch per commit | `git splice push` |
 | `log` and `blame` into the library | `sl log`, `sl blame`, from the import | a second `git log` on the library's history |
 | Two folders of one repository | `sl subtree copy` and `merge` | not supported |
