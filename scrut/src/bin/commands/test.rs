@@ -529,7 +529,7 @@ impl Args {
                     if output.exit_code == ExitStatus::Detached {
                         run.count_detached += 1;
                         if let Some(ref detached_process) = output.detached_process {
-                            kill_detached_process(pw, detached_process)?;
+                            kill_detached_process(&mut run.messages, detached_process)?;
                         }
                         continue;
                     }

@@ -8,22 +8,20 @@
 use anyhow::Result;
 use scrut::output::DetachedProcess;
 
-use crate::utils::ProgressWriter;
-
 #[cfg(unix)]
 pub(crate) fn kill_detached_process(
-    pw: &ProgressWriter,
+    messages: &mut Vec<String>,
     detached_process: &DetachedProcess,
 ) -> Result<()> {
     if detached_process.signal.is_off() {
-        pw.println(format!(
+        messages.push(format!(
             "ℹ️ Cleanup of detached process disabled, ignoring PID {}",
             detached_process.pid
         ));
         return Ok(());
     }
     let signal = detached_process.signal.clone().to_nix()?;
-    pw.println(format!(
+    messages.push(format!(
         "🗑️ Sending {signal} to detached process with PID {}",
         detached_process.pid
     ));
@@ -32,7 +30,7 @@ pub(crate) fn kill_detached_process(
         signal,
     );
     if let Err(err) = result {
-        pw.println(format!(
+        messages.push(format!(
             "❌ Failed to kill detached process with PID {}: {}",
             detached_process.pid, err
         ));
@@ -42,10 +40,10 @@ pub(crate) fn kill_detached_process(
 
 #[cfg(windows)]
 pub(crate) fn kill_detached_process(
-    pw: &ProgressWriter,
+    messages: &mut Vec<String>,
     detached_process: &DetachedProcess,
 ) -> Result<()> {
-    pw.println(format!(
+    messages.push(format!(
         "⚠️ Windows support for reaping detached processes not implemented. Ignoring process with PID {}",
         detached_process.pid,
     ));
