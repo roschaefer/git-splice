@@ -57,8 +57,6 @@ The monorepo doesn't need those 30 commits: it uses the library, it
 doesn't develop it. What it does need, the changes that fit the library
 into the app, are its own commits anyway.
 
-### In return, `split` walks only the new commits
-
 Two fixes to the library, between app commits:
 
 ```scrut
@@ -87,14 +85,9 @@ ok   git-subtree-whole-history.drawio.svg: 8 commits, 8 arrows, 1 boxes
 ```
 -->
 
-`split` rebuilds library commits from the monorepo's commits. It starts
-from the newest commit it already knows, and here those are the library
-commits that `add` imported. So it walks only the few commits since:
-
-```scrut
-$ subtree_split_walks vendor/lib
-7
-```
+In return, `split`, which rebuilds library commits from the monorepo's,
+can start at *l*, a library commit it knows, and walks only the few
+commits since.
 
 ## Problem 2: with `--squash`, `split` walks everything
 
