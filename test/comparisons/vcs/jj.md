@@ -57,7 +57,7 @@ $ echo "fix" >>vendor/lib/src/parse.txt && echo "call parse()" >>app/main.txt
 
 jj sees the app's change only. The submodule stays at its commit, and the
 change in it doesn't show, not even as a dirty submodule the way
-[`git status`](../git-submodule.md#the-monorepo-doesnt-see-the-librarys-files)
+[`git status`](../git-submodule.md#problem-1-the-monorepo-doesnt-see-the-librarys-files)
 shows it:
 
 ```scrut

@@ -3,8 +3,12 @@
 A submodule keeps the library in its own repository, nested in the
 monorepo's worktree. The monorepo commits only the library's URL, in
 `.gitmodules`, and one of its commits, as a "gitlink". This page shows
-what that boundary means when you fix the library together with your app,
-and in a second worktree. It ends with what submodules do better.
+four problems that boundary makes when you fix the library together
+with your app: the monorepo doesn't see the library's files, the fix
+takes two pushes in the right order, worktrees barely support
+submodules, and moving the library's folder leaves colleagues with its
+old checkout. Each ends with the same in `git-splice`, and the
+page with where submodules are better.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
 and a monorepo with an app. [How these pages run](README.md).
@@ -20,7 +24,7 @@ $ git submodule add -q https://git.example.com/lib.git vendor/lib &&
 >   git commit -q -m "add lib as a submodule"
 ```
 
-## The monorepo doesn't see the library's files
+## Problem 1: the monorepo doesn't see the library's files
 
 You fix the library and use the fix in the app, in one go:
 
@@ -35,42 +39,6 @@ in it:
 $ git status --short
  M app/main.txt
  m vendor/lib
-```
-
-`diff` shows the app's change and, for the library, only that the
-submodule's checkout is dirty:
-
-```scrut
-$ git diff --stat
- app/main.txt | 1 +
- vendor/lib   | 0
- 2 files changed, 1 insertion(+)
-```
-
-```scrut
-$ git diff -- vendor/lib
-diff --git a/vendor/lib b/vendor/lib
---- a/vendor/lib
-+++ b/vendor/lib
-@@ -1 +1 @@
--Subproject commit bafd496b1f4512a95b69464604f3da428aa9e33b
-+Subproject commit bafd496b1f4512a95b69464604f3da428aa9e33b-dirty
-```
-
-To be fair, Git can look inside when asked:
-
-```scrut
-$ git diff --submodule=diff -- vendor/lib
-Submodule vendor/lib contains modified content
-diff --git a/vendor/lib/src/parse.txt b/vendor/lib/src/parse.txt
-index ac9837c..66931ff 100644
---- a/vendor/lib/src/parse.txt
-+++ b/vendor/lib/src/parse.txt
-@@ -28,3 +28,4 @@ line 27
- line 28
- line 29
- line 30
-+fix
 ```
 
 Committing takes two commits, in two repositories. The monorepo's commit
@@ -90,48 +58,29 @@ app: call parse()
  2 files changed, 2 insertions(+), 1 deletion(-)
 ```
 
-So the monorepo's history of a library file is empty, and its search
-doesn't find the fix unless asked to recurse:
+The monorepo's *a* (`add lib as a submodule`) records the library's *l*
+(`lib commit 30`), and its *b* (`app: call parse()`) records *f* (`fix
+parse()`), a commit in the library's own repository:
+
+<div align="center">
+
+![The monorepo's a and b in a line; below it, the library's l and f, each under the monorepo commit that records it](git-submodule-fix.drawio.svg)
+
+</div>
+
+So the monorepo's history of a library file is empty:
 
 ```scrut
 $ git log --oneline -- vendor/lib/src/parse.txt
 ```
 
-Only the patches of commits that moved the gitlink can show what changed
-inside, with `--submodule=diff` again:
+Git can look inside with `--submodule=diff` for `diff` and `log`, and
+with `--recurse-submodules` for `grep`, but `status` has no such option.
 
-```scrut
-$ git log -1 -p --submodule=diff --format=%s -- vendor/lib
-app: call parse()
+### With `git-splice`: one commit, and every command sees the file
 
-Submodule vendor/lib bafd496..a6152f5:
-diff --git a/vendor/lib/src/parse.txt b/vendor/lib/src/parse.txt
-index ac9837c..66931ff 100644
---- a/vendor/lib/src/parse.txt
-+++ b/vendor/lib/src/parse.txt
-@@ -28,3 +28,4 @@ line 27
- line 28
- line 29
- line 30
-+fix
-```
-
-`status` has no such option. It never names a file inside a submodule,
-as above, and rejects `--recurse-submodules`:
-
-```scrut
-$ git status --recurse-submodules | head -1
-error: unknown option `recurse-submodules'
-```
-
-```scrut
-$ git grep -c fix -- vendor/lib
-> git grep -c --recurse-submodules fix -- vendor/lib
-vendor/lib/src/parse.txt:1
-```
-
-The same fix in a splice is one ordinary commit, and every command sees
-the file. Here in a copy of the monorepo from before the submodule:
+The same fix in a splice is one ordinary commit. Here in a copy of the
+monorepo from before the submodule:
 
 ```scrut
 $ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
@@ -156,6 +105,25 @@ fix parse() and call it
  2 files changed, 2 insertions(+)
 ```
 
+One commit *c* (`fix parse() and call it`) after the `clone` commit *s*.
+The library has no new commit: its `main` stays at *l* until a push.
+That's the difference to the submodule's drawing above, where the fix
+needed *f*:
+
+<div align="center">
+
+![The monorepo's s and c in a line; below it, the library's l, with main at l](git-submodule-splice-fix.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-submodule-splice-fix.drawio.svg" --alias HEAD=H \
+>   s=HEAD~1 c=HEAD l=refs/splices/lib/main
+ok   git-submodule-splice-fix.drawio.svg: 3 commits, 3 arrows, 2 boxes
+```
+-->
+
 ```scrut
 $ git log --oneline -- vendor/lib/src/parse.txt
 22698ef fix parse() and call it
@@ -166,7 +134,7 @@ $ git log --oneline -- vendor/lib/src/parse.txt
 $ cd ../monorepo
 ```
 
-## Two repositories, two pushes, in the right order
+## Problem 2: two pushes, in the right order
 
 The monorepo's commit points at a library commit that only exists in this
 clone. Push the monorepo first, and colleagues get a commit they can't
@@ -202,11 +170,13 @@ $ git -C ../colleague/vendor/lib status --short --branch
 ## HEAD (no branch)
 ```
 
+### With `git-splice`: one push, when the fix is ready
+
 A splice's files are part of the monorepo commit, so a colleague's clone
 is complete whether or not the fix reached the library yet. Pushing it
 there is a separate step, `git splice push`, for when the fix is ready.
 
-## A second worktree
+## Problem 3: worktrees barely support submodules
 
 `git worktree add` checks out another branch next to this one. The
 submodule stays empty there:
@@ -268,6 +238,8 @@ experimental, and the support for submodules is incomplete. It is NOT
 recommended to make multiple checkouts of a superproject."
 ([`git worktree`, BUGS](https://git-scm.com/docs/git-worktree#_bugs))
 
+### With `git-splice`: the files are in every worktree
+
 A splice lives in the worktree. A new worktree has it, with nothing to
 initialize. The fix from `main` isn't upstream yet, so a push from
 `feature` would bring it along:
@@ -309,6 +281,75 @@ removed
 One limit: two fetches at the same time, in two worktrees, may both try to
 move the same ref. Then one fails with `cannot lock ref`, and running it
 again fixes it, as with two `git fetch` at once.
+
+## Problem 4: moving the library's folder
+
+`git mv` moves a submodule, once the folder it moves into exists. It
+updates `path` in `.gitmodules`, but the submodule keeps its name,
+`vendor/lib`, and its repository stays under `.git/modules/vendor/lib/`:
+
+```scrut
+$ cd ../monorepo &&
+>   mkdir libs &&
+>   git mv vendor/lib libs/lib &&
+>   cat .gitmodules
+[submodule "vendor/lib"]
+	path = libs/lib
+	url = https://git.example.com/lib.git
+```
+
+```scrut
+$ cat libs/lib/.git
+gitdir: ../../.git/modules/vendor/lib
+```
+
+The colleague from [problem 2](#problem-2-two-pushes-in-the-right-order)
+pulls the move. The new folder is empty, and the old one stays, a full
+checkout that Git now lists as untracked:
+
+```scrut
+$ git commit -q -m "move lib to libs/" &&
+>   git push -q ../origin.git main &&
+>   cd ../colleague &&
+>   git pull -q &&
+>   git status --short
+warning: unable to rmdir 'vendor/lib': Directory not empty
+?? vendor/
+```
+
+```scrut
+$ git submodule status
+-a6152f5cee8b2bfd6b5dfc7bbb2bf5d8a7562325 libs/lib
+```
+
+`git submodule update --init` fills the new folder. The old one has to be
+deleted by hand:
+
+```scrut
+$ git submodule update -q --init &&
+>   ls libs/lib &&
+>   git status --short
+src
+?? vendor/
+```
+
+### With `git-splice`: a move like any other
+
+A splice is ordinary files and its `.splice`, which records no path.
+`git mv` moves it, and a colleague's pull moves its files like any other
+rename. `status` finds it in its new folder, still ahead by the fix *c*
+from problem 1:
+
+```scrut
+$ cd ../splice-monorepo &&
+>   mkdir libs &&
+>   git mv vendor/lib libs/lib &&
+>   git commit -q -m "move lib to libs/" &&
+>   git splice status
+On branch main
+
+  ahead 1  libs/lib
+```
 
 ## Where submodules are better
 
