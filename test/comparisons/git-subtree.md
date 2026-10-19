@@ -250,7 +250,8 @@ library's history in the monorepo, nor the monorepo's history before that
 commit. These are the commits it walks, following first parents:
 
 ```scrut
-$ git log --first-parent --format=%s "$(git log -1 --format=%H -- vendor/lib/.splice)"..HEAD
+$ boundary="$(git log -1 --format=%H -- vendor/lib/.splice)" &&
+>   git log --first-parent --format=%s "$boundary"..HEAD
 lib fix 2
 app commit 42
 lib fix 1
@@ -275,7 +276,8 @@ lib commit 29
 
 The monorepo's history stays a line, with the `clone` commit *s* in
 place of the merge. The library's `main` gets *c'* and *e'*, rebuilt
-from *c* and *e*, on top of *l*:
+from *c* and *e*, on top of the library's last commits *k* and *l*
+(`lib commit 29` and `lib commit 30`):
 
 <div align="center">
 
