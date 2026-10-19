@@ -267,10 +267,11 @@ rebuild_with_start() {
         rebuild_start="$before_start"
       else
         # The synced commit before L isn't in U(L)'s history, and no
-        # fetched upstream branch has it: the upstream rewrote its branch
-        # in between, e.g. rebased a patch branch, and L mixed changes of
-        # its own into the pull, e.g. a squash merge. One that another
-        # upstream still has, e.g. a fork's patch, isn't rewritten.
+        # fetched branch of the splice's upstreams has it: the upstream
+        # rewrote its branch in between, e.g. rebased a patch branch, and
+        # L mixed changes of its own into the pull, e.g. a squash merge.
+        # One that another upstream still has, e.g. a fork's patch, isn't
+        # rewritten; one that isn't fetched may still have it.
         # Joining both sides would publish the rewritten-away commits
         # again; which commits should carry L's changes, only the user
         # can say. merge and pull set REBUILD_JOINS_REWRITTEN: they only
@@ -280,7 +281,8 @@ rebuild_with_start() {
         if [[ -z "${REBUILD_JOINS_REWRITTEN:-}" && -n "$previous" ]] &&
           git cat-file -e "$previous^{commit}" 2>/dev/null &&
           ! git merge-base --is-ancestor "$previous" "$synced" &&
-          [[ -z "$(git for-each-ref --count=1 --contains "$previous" refs/splices/)" ]]; then
+          { [[ -n "${SPLICE_UPSTREAM_LISTS[$path]+set}" ]] || load_splice_upstream "$path"; } &&
+          { on_no_upstream_branch "$path" "$previous" || [[ -n "${UNFETCHED_UPSTREAM:-}" ]]; }; then
           die "$path: ${last_sync:0:7} records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again"
         fi
         # A pull merged a divergence: join both sides, as git pull would.

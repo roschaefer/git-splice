@@ -475,6 +475,19 @@ squash_merge_rebased_pull() {
   [ "$output" = "!!   vendor/a: $(git rev-parse --short=7 HEAD) records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again" ]
 }
 
+@test "rebuild: another splice's upstream that still has the synced commit before doesn't make the squash merge a join" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  local previous other="$BATS_TEST_TMPDIR/other.git"
+  previous="$(git -C "$monorepo" config --file vendor/a/.splice splice.commit)"
+  git clone -q --bare "$upstream" "$other"
+  git -C "$other" update-ref refs/heads/keep "$previous"
+  add_splice "$monorepo" "$other" vendor/other keep
+  squash_merge_rebased_pull "local change"
+  run rebuild_splice vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == "!!   vendor/a: "*" which the upstream rewrote from ${previous:0:7}, "* ]]
+}
+
 @test "rebuild: a squash merge of only the pull of a rewritten upstream branch starts at that branch" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   squash_merge_rebased_pull
