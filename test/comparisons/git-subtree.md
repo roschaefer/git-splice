@@ -132,8 +132,8 @@ ok   git-subtree-squashed.drawio.svg: 7 commits, 7 arrows, 1 boxes
 -->
 
 Now `split` knows no library commit in the monorepo's history to start
-from, so it walks all of it, every time, though only two commits touched
-the library:
+from, so it walks all of it, every time, though only *c* (`lib fix 1`)
+and *e* (`lib fix 2`) touched the library:
 
 ```scrut
 $ subtree_split_walks vendor/lib
