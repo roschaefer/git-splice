@@ -2,7 +2,7 @@
 
 usage_merge() {
   cat <<'EOF'
-usage: git splice merge [--upstream <name>] [--bump] [--no-fork-point] (<path>... | --all)
+usage: git splice merge [--upstream <name>] [--branch <name>] [--bump] [--no-fork-point] (<path>... | --all)
 
 Splices already-fetched upstream changes into each splice, as one ordinary
 commit per splice. Never touches the network: run 'git splice fetch'
@@ -10,6 +10,9 @@ first, or 'git splice pull' to do both.
 
 The upstream branch is the one named like the current branch; on the
 monorepo's default branch, the upstream's default-branch if it has one.
+--branch names another one for this merge, e.g. the one the default
+branch follows, on a pull request's branch the upstream has none for.
+It doesn't change .splice, and the splices below keep theirs.
 
 --upstream names one of the upstreams a splice's .splice names; without
 it, the splice's default upstream. A splice without the named upstream
@@ -355,7 +358,7 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "--upstream --bump --no-fork-point" "$@"
+  parse_args usage_merge "--upstream --branch --bump --no-fork-point" "$@"
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
   MERGE_NO_FORK_POINT=""

@@ -210,6 +210,30 @@ setup() {
   [ "$(cat vendor/a/release.txt)" = "release" ]
 }
 
+@test "merge: --branch merges the named upstream branch on a branch the upstream has none for, without changing .splice's default-branch" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c take-the-release
+  local target
+  target="$(git rev-parse "$(upstream_refs "$upstream")patches")"
+  run cmd_merge vendor/a
+  [ "$output" = "ok   vendor/a: upstream has no 'take-the-release' branch -- nothing to merge" ]
+  run cmd_merge --branch patches vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: merged ${target:0:7}" ]
+  [ "$(splice_config vendor/a commit)" = "$target" ]
+  [ "$(git config --file vendor/a/.splice upstream.origin.default-branch)" = patches ]
+  [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from patches at ${target:0:7}" ]
+}
+
+@test "merge: --branch needs a branch's name" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_merge vendor/a --branch
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --branch needs an upstream branch's name" ]
+}
+
 @test "merge: a rebased upstream branch that already has the pushed local commit is merged, and the rebuild is that branch" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"

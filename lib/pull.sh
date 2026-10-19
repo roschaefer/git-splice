@@ -2,7 +2,7 @@
 
 usage_pull() {
   cat <<'EOF'
-usage: git splice pull [--upstream <name>] [--bump] [--no-fork-point] (<path>... | --all)
+usage: git splice pull [--upstream <name>] [--branch <name>] [--bump] [--no-fork-point] (<path>... | --all)
 
 'git splice fetch' followed by 'git splice merge': fetches the splices'
 upstreams in parallel, then splices their changes in, as one ordinary
@@ -18,6 +18,9 @@ it, the splice's default upstream. A splice without the named upstream
 stops the command before it starts. The splices below, selected or not,
 are fetched from every upstream they name: names are only unique within one .splice, and
 any of them may have the synced commit the pull moves to.
+
+--branch names the upstream branch to pull, for this pull only; see
+'git splice merge --help'.
 
 --bump also moves the synced commit up to the upstream branch when there's
 nothing to pull, e.g. right after a push; see 'git splice merge --help'.
@@ -39,7 +42,7 @@ below_selected() {
 }
 
 cmd_pull() {
-  parse_args usage_pull "--upstream --bump --no-fork-point" "$@"
+  parse_args usage_pull "--upstream --branch --bump --no-fork-point" "$@"
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
   MERGE_NO_FORK_POINT=""
