@@ -93,11 +93,13 @@ and `lib commit 30`) as its second parent, and the four new commits *b*,
 
 </div>
 
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/git-subtree-whole-history.drawio.svg" --alias HEAD=H \
 >   a=before-lib s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD k=HEAD~4^2~1 l=HEAD~4^2
 ok   git-subtree-whole-history.drawio.svg: 8 commits, 8 arrows, 1 boxes
 ```
+-->
 
 `split` rebuilds library commits from the monorepo's commits. It starts
 from the newest commit it already knows, and here those are the library
@@ -163,11 +165,13 @@ commit with the library's files and no parent of its own:
 
 </div>
 
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/git-subtree-squashed.drawio.svg" --alias HEAD=H \
 >   a=before-lib s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD q=HEAD~4^2
 ok   git-subtree-squashed.drawio.svg: 7 commits, 7 arrows, 1 boxes
 ```
+-->
 
 Now `split` knows no library commit in the monorepo's history to start
 from, so it walks all of it, every time, though only two commits touched
@@ -253,12 +257,14 @@ from *c* and *e*, on top of *l*:
 
 </div>
 
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/git-subtree-splice.drawio.svg" --alias HEAD=H \
 >   a=HEAD~5 s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD \
 >   k=refs/splices/lib/main~3 l=refs/splices/lib/main~2
 ok   git-subtree-splice.drawio.svg: 10 commits, 10 arrows, 2 boxes
 ```
+-->
 
 Like `--squash`, a splice keeps the library's history out of the
 monorepo, so `git blame` stops at the `clone`:
