@@ -1,15 +1,24 @@
 # Copybara compared
 
-[Copybara requires one repository to be authoritative](https://github.com/google/copybara#readme).
-In the common workflow where that source of truth is an internal monorepo,
-a public pull request is imported and submitted there. For example, XLA's
-[Copybara notes](https://github.com/openxla/xla/blob/main/docs/copybara.md#pr-merge-status-and-diff-inconsistencies)
-explain that the original pull request is closed rather than marked as
-merged, while a separate commit is applied publicly.
+Copybara and Meta's ShipIt work the same way: one repository is the
+source of truth, usually an internal monorepo. A public pull request is
+imported and submitted there, and the change comes back to the public
+repository as a different commit. The pull request is closed rather than
+marked as merged.
 
-Meta works the same way, with its own tools. This repository splices
+## Copybara
+
+[Copybara requires one repository to be authoritative](https://github.com/google/copybara#readme).
+For example, XLA's
+[Copybara notes](https://github.com/openxla/xla/blob/main/docs/copybara.md#pr-merge-status-and-diff-inconsistencies)
+explain that the original pull request is closed, while a separate commit
+is applied publicly.
+
+## Meta's ShipIt
+
+This repository splices
 [scrut](https://github.com/facebookincubator/scrut) into `scrut/`, so we
-see it from outside:
+see Meta's tools from outside:
 
 - **The source of truth is internal.** scrut's commit messages name a
   `scrut/BUCK` file and dependencies in `fbsource//third-party`, which
@@ -38,14 +47,15 @@ public commits are exported the same way. `fbshipit-source-id` is a sync
 point as text in the commit message, like `cherry-pick -x`
 ([weak parents](../../../docs/going-forward/weak-parents.md)).
 
-For a contribution, that means it comes back as a different commit, and
-a change that adds a Rust dependency also needs one in Meta's
-`third-party` folder.
+A contribution to scrut that adds a Rust dependency also needs one in
+Meta's `third-party` folder.
 
-With `git-splice`, the monorepo can pull the contributor's branch for its
-own tests without publishing anything. The maintainers then merge the pull
-request in the public repository, and the monorepo pulls the resulting
-`main`. This page shows that workflow; it doesn't run Copybara.
+## With git-splice
+
+The monorepo can pull the contributor's branch for its own tests without
+publishing anything. The maintainers then merge the pull request in the
+public repository, and the monorepo pulls the resulting `main`. This page
+shows that workflow; it doesn't run Copybara or ShipIt.
 
 The setup: `https://git.example.com/lib.git`, a public library with 30
 commits, and a monorepo with an app. [How these pages run](../README.md).
