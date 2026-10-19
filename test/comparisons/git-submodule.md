@@ -5,6 +5,8 @@ monorepo's worktree. The monorepo commits only the library's URL, in
 `.gitmodules`, and one of its commits, as a "gitlink". This page shows
 what that boundary means when you fix the library together with your app,
 and in a second worktree. It ends with what submodules do better.
+Why projects leave submodules: [complaints collected on
+GitHub](git-submodule-complaints.md).
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
 and a monorepo with an app. [How these pages run](README.md).
