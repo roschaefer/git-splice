@@ -1,11 +1,16 @@
-# `git subtree` compared
+# Why not `git subtree`
 
 [`git subtree`](https://github.com/git/git/blob/master/contrib/subtree/git-subtree.adoc)
 puts the library's files into a folder of the monorepo, like a splice.
 `add` and `pull` merge the library's history into the monorepo's, either
 whole or squashed into one commit. `split` and `push` turn the monorepo's
-commits that touched the folder back into library commits. This page shows
-what each costs, and where `git subtree` is the better tool.
+commits that touched the folder back into library commits.
+
+`git-splice` started as a wrapper around `git subtree`, and stopped
+because of two problems this page shows: without `--squash`, the
+library's whole history comes into the monorepo; with it, `split` walks
+the monorepo's whole history on every push. After them, the same with
+`git-splice`, and where `git subtree` is the better tool.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits by
 three developers, and a monorepo with an app and 40 commits.
@@ -22,7 +27,7 @@ $ git branch before-lib && git rev-list --count HEAD
 40
 ```
 
-## The whole history
+## Problem 1: the library's whole history comes in
 
 Without `--squash`, `add` merges all of the library's commits into the
 monorepo:
@@ -67,11 +72,7 @@ $ git log --oneline -- vendor/lib
 83c95bf Add 'vendor/lib/' from commit 'bafd496b1f4512a95b69464604f3da428aa9e33b'
 ```
 
-This is where `git subtree` is the right tool: moving a repository into
-the monorepo for good, and retiring its old home. The history, and `git
-blame` with it, comes along.
-
-### What `split` walks
+### In return, `split` walks only the new commits
 
 Two fixes to the library, between app commits:
 
@@ -110,7 +111,7 @@ $ subtree_split_walks vendor/lib
 7
 ```
 
-## Squashed
+## Problem 2: with `--squash`, `split` walks everything
 
 `--squash` keeps the library's history out: `add` merges a single commit
 with the library's files:
@@ -189,7 +190,7 @@ monorepo, as a sync point for the next `split`. That's one more merge
 commit for every push, and a pull request that's squash-merged drops it,
 with the sync point.
 
-## The same with `git-splice`
+## How `git-splice` avoids both
 
 In a copy of the monorepo from before the library, `clone` adds one
 ordinary commit, and the history stays linear:
@@ -278,3 +279,9 @@ $ git blame -s -L 1,3 vendor/lib/src/parse.txt
 
 The library's history is still at hand, fetched under
 `refs/splices/lib/`, but not part of the monorepo's.
+
+## Where `git subtree` is the better tool
+
+Moving a repository into the monorepo for good, and retiring its old
+home. Without `--squash`, its history comes along, and `git blame` with
+it, as in [problem 1](#problem-1-the-librarys-whole-history-comes-in).
