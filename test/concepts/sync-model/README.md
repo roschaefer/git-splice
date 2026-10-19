@@ -207,7 +207,10 @@ $ git log -1 --oneline "$(git config --file vendor/pkg-a/.splice splice.commit)"
 Its folder is U(H), so it's B, and U(B) = U(H), where R starts:
 
 ```scrut
-$ git diff --quiet "$(git config --file vendor/pkg-a/.splice splice.commit)" "$(git log --first-parent -1 --format=%H -- vendor/pkg-a/.splice):vendor/pkg-a" -- ':!.splice' && echo "B's folder is U(B)"
+$ B="$(git log --first-parent -1 --format=%H -- vendor/pkg-a/.splice)" &&
+>   U_B="$(git config --file vendor/pkg-a/.splice splice.commit)" &&
+>   git diff --quiet "$U_B" "$B:vendor/pkg-a" -- ':!.splice' &&
+>   echo "B's folder is U(B)"
 B's folder is U(B)
 ```
 
@@ -233,7 +236,9 @@ o 9bb866a (R) pkg-a: seed  (Walkthrough <walkthrough@example.com>)
 A change in the monorepo, to a file the upstream didn't change:
 
 ```scrut
-$ echo "local" >vendor/pkg-a/local.txt && git add vendor/pkg-a/local.txt && git commit -q -m "pkg-a: a local file"
+$ echo "local" >vendor/pkg-a/local.txt &&
+>   git add vendor/pkg-a/local.txt &&
+>   git commit -q -m "pkg-a: a local file"
 ```
 
 Now R has a commit T lacks, and the other way around:

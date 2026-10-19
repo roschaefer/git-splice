@@ -39,7 +39,8 @@ commit named by its place in the history
 ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/feature-branch-from-main.drawio.svg" a=HEAD~1 b=HEAD k=refs/splices/upstream/main
+$ check_drawing "$TESTDIR/feature-branch-from-main.drawio.svg" \
+>   a=HEAD~1 b=HEAD k=refs/splices/upstream/main
 ok   feature-branch-from-main.drawio.svg: 4 commits, 6 arrows, 4 boxes, 1 lanes
 ```
 

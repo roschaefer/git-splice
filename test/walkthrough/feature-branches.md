@@ -15,7 +15,8 @@ First, splice in `pkg-b` and bring both splices up to date, as in the
 [main walkthrough](README.md#pull):
 
 ```scrut
-$ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null && git splice pull --all >/dev/null
+$ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null &&
+>   git splice pull --all >/dev/null
 ```
 
 ## A new branch
@@ -108,7 +109,8 @@ The feature gets merged on both sides: on `pkg-b`'s upstream, which then
 deletes the branch, and in the monorepo.
 
 ```scrut
-$ git -C "$WALKTHROUGH/upstream/pkg-b.git" push -q . feature:main && git -C "$WALKTHROUGH/upstream/pkg-b.git" branch -q -D feature
+$ git -C "$WALKTHROUGH/upstream/pkg-b.git" push -q . feature:main &&
+>   git -C "$WALKTHROUGH/upstream/pkg-b.git" branch -q -D feature
 ```
 
 ```scrut

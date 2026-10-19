@@ -80,7 +80,11 @@ A contributor opens a pull request in the public library, from a
 `contribution` branch:
 
 ```scrut
-$ git clone -q https://git.example.com/lib.git ../contributor && git -C ../contributor switch -q -c contribution && echo "external contribution" >>../contributor/src/parse.txt && git -C ../contributor commit -q -a -m "external contribution" && git -C ../contributor push -q origin contribution
+$ git clone -q https://git.example.com/lib.git ../contributor &&
+>   git -C ../contributor switch -q -c contribution &&
+>   echo "external contribution" >>../contributor/src/parse.txt &&
+>   git -C ../contributor commit -q -a -m "external contribution" &&
+>   git -C ../contributor push -q origin contribution
 ```
 
 ## Test it in the monorepo
@@ -118,7 +122,9 @@ The maintainers merge the pull request in the public library, where the
 contributor sees it as merged:
 
 ```scrut
-$ git -C ../contributor switch -q main && git -C ../contributor merge -q --no-ff contribution -m "Merge external contribution" && git -C ../contributor push -q origin main
+$ git -C ../contributor switch -q main &&
+>   git -C ../contributor merge -q --no-ff contribution -m "Merge external contribution" &&
+>   git -C ../contributor push -q origin main
 ```
 
 ```scrut

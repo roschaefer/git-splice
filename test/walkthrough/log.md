@@ -16,7 +16,9 @@ In the [sandbox](../../docs/sandbox.md), the monorepo changes `vendor/pkg-a/`, a
 does its upstream:
 
 ```scrut
-$ echo "a local fix" >>vendor/pkg-a/local.txt && git add vendor/pkg-a && git commit -qm "pkg-a: a local fix"
+$ echo "a local fix" >>vendor/pkg-a/local.txt &&
+>   git add vendor/pkg-a &&
+>   git commit -qm "pkg-a: a local fix"
 ```
 
 ```scrut

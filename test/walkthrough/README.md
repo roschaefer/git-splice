@@ -81,7 +81,10 @@ Someone pushes to `pkg-b`'s upstream. `fetch` fetches every splice's
 upstream in parallel and calls out which branch moved ([fetch in detail](fetch.md)):
 
 ```scrut
-$ git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b && echo "pkg-b: add a feature" >>../pkg-b/file.txt && git -C ../pkg-b commit -qam "pkg-b: add a feature" && git -C ../pkg-b push -q
+$ git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b &&
+>   echo "pkg-b: add a feature" >>../pkg-b/file.txt &&
+>   git -C ../pkg-b commit -qam "pkg-b: add a feature" &&
+>   git -C ../pkg-b push -q
 ```
 
 ```scrut

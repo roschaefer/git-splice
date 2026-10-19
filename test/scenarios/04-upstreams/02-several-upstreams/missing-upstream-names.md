@@ -30,7 +30,8 @@ $ build_scenario scenario_several_upstreams https://git.example.com/lib.git
 The fork is added, but no `default-upstream`:
 
 ```scrut
-$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/lib.git && git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
+$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/lib.git &&
+>   git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
 ```
 
 Commands that need one upstream refuse, and say how to choose:
@@ -60,7 +61,8 @@ ok   vendor/a fetched from fork
 ```
 
 ```scrut
-$ git config --file vendor/a/.splice splice.default-upstream fork && git commit -q -m "vendor/a: work with the company fork" -- vendor/a/.splice
+$ git config --file vendor/a/.splice splice.default-upstream fork &&
+>   git commit -q -m "vendor/a: work with the company fork" -- vendor/a/.splice
 ```
 
 ```scrut

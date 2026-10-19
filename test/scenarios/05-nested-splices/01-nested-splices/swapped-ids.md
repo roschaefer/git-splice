@@ -58,7 +58,10 @@ vendor/a/b/.splice: url = https://git.example.com/b.git
 ## The swap
 
 ```scrut
-$ git mv vendor/a/.splice tmp.splice && git mv vendor/a/b/.splice vendor/a/.splice && git mv tmp.splice vendor/a/b/.splice && git commit -q -m "swap the .splice files"
+$ git mv vendor/a/.splice tmp.splice &&
+>   git mv vendor/a/b/.splice vendor/a/.splice &&
+>   git mv tmp.splice vendor/a/b/.splice &&
+>   git commit -q -m "swap the .splice files"
 ```
 
 ```scrut
@@ -105,7 +108,8 @@ After, it has the outer upstream's files, and a nested splice of the
 outer upstream:
 
 ```scrut
-$ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main && git -C "$UPSTREAM-b.git" show main:file.txt
+$ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main &&
+>   git -C "$UPSTREAM-b.git" show main:file.txt
 b/.splice
 b/file.txt
 file.txt
@@ -123,7 +127,8 @@ b seed
 The outer upstream moves on, still with the inner one nested in it:
 
 ```scrut
-$ seed_bare_repo "$UPSTREAM" "a moves on" >/dev/null 2>&1 && git -C "$UPSTREAM" ls-tree -r --name-only main
+$ seed_bare_repo "$UPSTREAM" "a moves on" >/dev/null 2>&1 &&
+>   git -C "$UPSTREAM" ls-tree -r --name-only main
 b/.splice
 b/file.txt
 file.txt

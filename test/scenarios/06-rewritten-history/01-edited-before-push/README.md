@@ -94,7 +94,8 @@ commit named by its place in the history
 ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/edited-before-push.drawio.svg" a=HEAD~1 b=HEAD k=refs/splices/upstream/main
+$ check_drawing "$TESTDIR/edited-before-push.drawio.svg" \
+>   a=HEAD~1 b=HEAD k=refs/splices/upstream/main
 ok   edited-before-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 1 lanes
 ```
 
@@ -113,7 +114,8 @@ file.txt
 ```
 
 ```scrut
-$ git -C ../edited commit -q --amend -m "fix the parser" && git splice push --rebuilt-commit edited vendor/a
+$ git -C ../edited commit -q --amend -m "fix the parser" &&
+>   git splice push --rebuilt-commit edited vendor/a
 ok   vendor/a: pushed ce80186 to main
 ??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ce80186 as the synced commit
 ```

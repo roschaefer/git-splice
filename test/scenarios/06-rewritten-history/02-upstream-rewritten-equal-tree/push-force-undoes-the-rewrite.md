@@ -24,7 +24,9 @@ $ build_scenario scenario_upstream_rewritten_equal_tree
 ```
 
 ```scrut
-$ echo "local change" >>vendor/a/file.txt && git commit -q -a -m "local change" && git splice push --force vendor/a
+$ echo "local change" >>vendor/a/file.txt &&
+>   git commit -q -a -m "local change" &&
+>   git splice push --force vendor/a
 ok   vendor/a: pushed dea0473 to main
 ```
 

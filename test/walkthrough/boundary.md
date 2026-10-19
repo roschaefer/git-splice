@@ -20,7 +20,9 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice pull vendor/pkg-a >/dev/null && echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
+$ git splice pull vendor/pkg-a >/dev/null &&
+>   echo "a local fix" >>vendor/pkg-a/file.txt &&
+>   git commit -qam "pkg-a: a local fix"
 ```
 
 ```scrut

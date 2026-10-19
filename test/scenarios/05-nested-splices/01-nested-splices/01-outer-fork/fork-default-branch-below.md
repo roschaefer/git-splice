@@ -30,7 +30,9 @@ $ git -C "$UPSTREAM-fork.git" branch -m main trunk
 upstream:
 
 ```scrut
-$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git && git config --file vendor/a/.splice upstream.fork.default-branch trunk && git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
+$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git &&
+>   git config --file vendor/a/.splice upstream.fork.default-branch trunk &&
+>   git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
 ```
 
 Commands on `vendor/a/b/` refuse before they start, as those on
@@ -52,7 +54,8 @@ With the outer upstream as the default, `vendor/a/b/` follows its
 `main`:
 
 ```scrut
-$ git config --file vendor/a/.splice splice.default-upstream origin && git commit -q -m "vendor/a: a's upstream by default" -- vendor/a/.splice
+$ git config --file vendor/a/.splice splice.default-upstream origin &&
+>   git commit -q -m "vendor/a: a's upstream by default" -- vendor/a/.splice
 ```
 
 ```scrut

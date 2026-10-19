@@ -49,7 +49,9 @@ commit named by its place in the history
 ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/nested-splices.drawio.svg" a=HEAD k=refs/splices/upstream/main~1 l=refs/splices/upstream/main m=refs/splices/b/main
+$ check_drawing "$TESTDIR/nested-splices.drawio.svg" \
+>   a=HEAD k=refs/splices/upstream/main~1 l=refs/splices/upstream/main \
+>   m=refs/splices/b/main
 ok   nested-splices.drawio.svg: 4 commits, 5 arrows, 4 boxes, 2 lanes
 ```
 
@@ -112,7 +114,9 @@ $ seed_bare_repo "$UPSTREAM-b.git" "b upstream change" main other.txt
 ```
 
 ```scrut
-$ git clone -q "$UPSTREAM" ../a-work && git -C ../a-work -c user.name=Test -c user.email=test@example.com splice pull b && git -C ../a-work push -q origin main
+$ git clone -q "$UPSTREAM" ../a-work &&
+>   git -C ../a-work -c user.name=Test -c user.email=test@example.com splice pull b &&
+>   git -C ../a-work push -q origin main
 ok   b fetched
 ok   b: pulled 527b1a2
 ```

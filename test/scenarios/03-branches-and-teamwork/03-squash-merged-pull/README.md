@@ -42,7 +42,9 @@ commit named by its place in the history
 ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/squash-merged-pull.drawio.svg" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/upstream/main f=refs/splices/upstream/feature
+$ check_drawing "$TESTDIR/squash-merged-pull.drawio.svg" \
+>   a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/upstream/main \
+>   f=refs/splices/upstream/feature
 ok   squash-merged-pull.drawio.svg: 6 commits, 9 arrows, 5 boxes, 1 lanes
 ```
 

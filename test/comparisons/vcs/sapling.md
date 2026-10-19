@@ -52,7 +52,9 @@ commit. It fetches the library into a cache of its own, outside the
 monorepo:
 
 ```scrut
-$ sl subtree import --url https://git.example.com/lib.git --rev main --to-path vendor/lib -m "import vendor/lib"
+$ sl subtree import \
+>   --url https://git.example.com/lib.git --rev main --to-path vendor/lib \
+>   -m "import vendor/lib"
 creating git repo at $COMPARISON/home/.sl_cache/gitrepos/316067af85b8bd24e96f811d9f55a8f2d20eed8dcae7796fe42d9eb9ea621a17
 From $COMPARISON/upstream/lib
  * [new ref]         bafd496b1f4512a95b69464604f3da428aa9e33b -> remote/main
@@ -99,7 +101,10 @@ $ cat vendor/lib/.splice
 You fix the library and use the fix in the app, in one commit:
 
 ```scrut
-$ cd ../monorepo && echo "fix" >>vendor/lib/src/parse.txt && echo "call parse()" >>app/main.txt && git commit -q -a -m "fix parse() and call it"
+$ cd ../monorepo &&
+>   echo "fix" >>vendor/lib/src/parse.txt &&
+>   echo "call parse()" >>app/main.txt &&
+>   git commit -q -a -m "fix parse() and call it"
 ```
 
 `sl subtree` has no command that sends it to the library: `import`,
@@ -107,7 +112,9 @@ $ cd ../monorepo && echo "fix" >>vendor/lib/src/parse.txt && echo "call parse()"
 library's half of one commit over to a clone of the library, as a patch:
 
 ```scrut
-$ git clone -q https://git.example.com/lib.git ../lib-patch && git format-patch --relative=vendor/lib -1 --stdout | git -C ../lib-patch am -q && git -C ../lib-patch log --oneline -2
+$ git clone -q https://git.example.com/lib.git ../lib-patch &&
+>   git format-patch --relative=vendor/lib -1 --stdout | git -C ../lib-patch am -q &&
+>   git -C ../lib-patch log --oneline -2
 5069701 fix parse() and call it
 bafd496 lib commit 30
 ```
@@ -115,7 +122,11 @@ bafd496 lib commit 30
 `git-splice` finds the commits since the last sync and pushes them:
 
 ```scrut
-$ cd ../splice-monorepo && echo "fix" >>vendor/lib/src/parse.txt && echo "call parse()" >>app/main.txt && git commit -q -a -m "fix parse() and call it" && git splice push vendor/lib
+$ cd ../splice-monorepo &&
+>   echo "fix" >>vendor/lib/src/parse.txt &&
+>   echo "call parse()" >>app/main.txt &&
+>   git commit -q -a -m "fix parse() and call it" &&
+>   git splice push vendor/lib
 ok   vendor/lib: pushed 5069701 to main
 ```
 
@@ -128,17 +139,26 @@ monorepo, see [what a push sends](../third-party/josh.md#whose-history-is-it).
 The library gets a release:
 
 ```scrut
-$ git clone -q https://git.example.com/lib.git ../lib-dev && echo "1.3" >../lib-dev/VERSION && git -C ../lib-dev add VERSION && git -C ../lib-dev commit -q -m "release 1.3" && git -C ../lib-dev push -q
+$ git clone -q https://git.example.com/lib.git ../lib-dev &&
+>   echo "1.3" >../lib-dev/VERSION &&
+>   git -C ../lib-dev add VERSION &&
+>   git -C ../lib-dev commit -q -m "release 1.3" &&
+>   git -C ../lib-dev push -q
 ```
 
 Meanwhile, each monorepo adds notes to the library:
 
 ```scrut
-$ echo "notes" >vendor/lib/NOTES && git add vendor/lib && git commit -q -m "add notes to lib"
+$ echo "notes" >vendor/lib/NOTES &&
+>   git add vendor/lib &&
+>   git commit -q -m "add notes to lib"
 ```
 
 ```scrut
-$ cd ../monorepo && echo "notes" >vendor/lib/NOTES && git add vendor/lib && git commit -q -m "add notes to lib"
+$ cd ../monorepo &&
+>   echo "notes" >vendor/lib/NOTES &&
+>   git add vendor/lib &&
+>   git commit -q -m "add notes to lib"
 ```
 
 ### Sapling: `sl subtree merge`
@@ -150,7 +170,10 @@ It walks back through the folder's history to the newest record, and
 merges from the commit that record names:
 
 ```scrut
-$ sl subtree merge --url https://git.example.com/lib.git -r "$(git ls-remote https://git.example.com/lib.git main | cut -f1)" --to-path vendor/lib
+$ sl subtree merge \
+>   --url https://git.example.com/lib.git \
+>   -r "$(git ls-remote https://git.example.com/lib.git main | cut -f1)" \
+>   --to-path vendor/lib
 using cached git repo at $COMPARISON/home/.sl_cache/gitrepos/316067af85b8bd24e96f811d9f55a8f2d20eed8dcae7796fe42d9eb9ea621a17
 pulling '9a471d297ba8ec16f7c58d0b7c379b4c706a8664' from 'https://git.example.com/lib.git'
 searching for merge base ...
@@ -219,7 +242,11 @@ The library prepares its next release on a branch, `release-1.4`, and it
 adds a file:
 
 ```scrut
-$ git -C ../lib-dev switch -q -c release-1.4 && echo "compat" >../lib-dev/src/compat.txt && git -C ../lib-dev add src && git -C ../lib-dev commit -q -m "release 1.4: add compat" && git -C ../lib-dev push -q origin release-1.4
+$ git -C ../lib-dev switch -q -c release-1.4 &&
+>   echo "compat" >../lib-dev/src/compat.txt &&
+>   git -C ../lib-dev add src &&
+>   git -C ../lib-dev commit -q -m "release 1.4: add compat" &&
+>   git -C ../lib-dev push -q origin release-1.4
 ```
 
 Each monorepo tries it on a branch of the same name, and squash-merges
@@ -228,11 +255,18 @@ that branch into `main`, as a pull request on GitHub can.
 ### Sapling: the header is gone
 
 ```scrut
-$ git switch -q -c release-1.4 && sl subtree merge --url https://git.example.com/lib.git -r "$(git ls-remote https://git.example.com/lib.git release-1.4 | cut -f1)" --to-path vendor/lib >/dev/null && sl commit -m "merge lib release 1.4" >/dev/null
+$ git switch -q -c release-1.4 &&
+>   sl subtree merge \
+>     --url https://git.example.com/lib.git \
+>     -r "$(git ls-remote https://git.example.com/lib.git release-1.4 | cut -f1)" \
+>     --to-path vendor/lib >/dev/null &&
+>   sl commit -m "merge lib release 1.4" >/dev/null
 ```
 
 ```scrut
-$ git switch -q main && git merge -q --squash release-1.4 && git commit -q -m "merge lib release 1.4 (#12)"
+$ git switch -q main &&
+>   git merge -q --squash release-1.4 &&
+>   git commit -q -m "merge lib release 1.4 (#12)"
 Squash commit -- not updating HEAD
 ```
 
@@ -254,7 +288,9 @@ ok   vendor/lib: pulled 5bb7733
 ```
 
 ```scrut
-$ git switch -q main && git merge -q --squash release-1.4 && git commit -q -m "merge lib release 1.4 (#12)"
+$ git switch -q main &&
+>   git merge -q --squash release-1.4 &&
+>   git commit -q -m "merge lib release 1.4 (#12)"
 Squash commit -- not updating HEAD
 ```
 
@@ -271,7 +307,11 @@ $ git config --file vendor/lib/.splice splice.commit
 The library merges `release-1.4` and then drops the file in 1.5:
 
 ```scrut
-$ git -C ../lib-dev switch -q main && git -C ../lib-dev merge -q --ff-only release-1.4 && git -C ../lib-dev rm -q src/compat.txt && git -C ../lib-dev commit -q -m "release 1.5: drop compat" && git -C ../lib-dev push -q
+$ git -C ../lib-dev switch -q main &&
+>   git -C ../lib-dev merge -q --ff-only release-1.4 &&
+>   git -C ../lib-dev rm -q src/compat.txt &&
+>   git -C ../lib-dev commit -q -m "release 1.5: drop compat" &&
+>   git -C ../lib-dev push -q
 ```
 
 Sapling finds the newest record it can, the merge of 1.3, and merges from
@@ -279,7 +319,11 @@ there. From that base, the monorepo added `compat.txt` and the library
 left it alone, so the merge keeps it:
 
 ```scrut
-$ cd ../monorepo && sl subtree merge --url https://git.example.com/lib.git -r "$(git ls-remote https://git.example.com/lib.git main | cut -f1)" --to-path vendor/lib
+$ cd ../monorepo &&
+>   sl subtree merge \
+>     --url https://git.example.com/lib.git \
+>     -r "$(git ls-remote https://git.example.com/lib.git main | cut -f1)" \
+>     --to-path vendor/lib
 using cached git repo at $COMPARISON/home/.sl_cache/gitrepos/316067af85b8bd24e96f811d9f55a8f2d20eed8dcae7796fe42d9eb9ea621a17
 pulling 'd9ba6ce5226d361edcb97b2be461681c61e9006b' from 'https://git.example.com/lib.git'
 searching for merge base ...
@@ -317,7 +361,9 @@ branch from a public commit, one that's pushed. This monorepo has no
 remote, so it allows any commit:
 
 ```scrut
-$ cd ../monorepo && sl goto -q --clean . && sl config --local subtree.allow-any-source-commit true
+$ cd ../monorepo &&
+>   sl goto -q --clean . &&
+>   sl config --local subtree.allow-any-source-commit true
 updated config in $COMPARISON/monorepo/.git/sl/config
 ```
 
@@ -325,7 +371,9 @@ updated config in $COMPARISON/monorepo/.git/sl/config
 original's changes over:
 
 ```scrut
-$ sl subtree copy --from-path app --to-path app-stable -m "branch app-stable" >/dev/null && echo "new feature" >>app/main.txt && git commit -q -a -m "app: new feature"
+$ sl subtree copy --from-path app --to-path app-stable -m "branch app-stable" >/dev/null &&
+>   echo "new feature" >>app/main.txt &&
+>   git commit -q -a -m "app: new feature"
 ```
 
 ```scrut
@@ -352,7 +400,10 @@ Sapling's case.
 one. A commit with `sl` keeps Git on its branch:
 
 ```scrut
-$ cd ../splice-monorepo && echo "fix" >>vendor/lib/src/parse.txt && sl commit -q -m "fix parse() again" && git status | head -n 1
+$ cd ../splice-monorepo &&
+>   echo "fix" >>vendor/lib/src/parse.txt &&
+>   sl commit -q -m "fix parse() again" &&
+>   git status | head -n 1
 On branch main
 ```
 

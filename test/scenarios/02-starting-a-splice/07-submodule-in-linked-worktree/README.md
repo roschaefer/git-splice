@@ -86,7 +86,10 @@ submodule's settings are gone already. Then the merge converts the
 submodule in `feature` too:
 
 ```scrut
-$ git -C ../feature submodule deinit -q -f vendor/a && git -C ../feature merge -q main && git -C ../feature status --short && ls -A ../feature/vendor/a
+$ git -C ../feature submodule deinit -q -f vendor/a &&
+>   git -C ../feature merge -q main &&
+>   git -C ../feature status --short &&
+>   ls -A ../feature/vendor/a
 .splice
 file.txt
 ```

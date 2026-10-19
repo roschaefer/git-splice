@@ -35,7 +35,8 @@ $ git splice pull vendor/pkg-a >/dev/null
 ```
 
 ```scrut
-$ echo "a faster parser" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a faster parser"
+$ echo "a faster parser" >>vendor/pkg-a/file.txt &&
+>   git commit -qam "pkg-a: a faster parser"
 ```
 
 ```scrut
@@ -87,7 +88,11 @@ $ git switch -q -c feature
 ```
 
 ```scrut
-$ echo "an option" >>vendor/pkg-a/file.txt && mkdir -p app && echo "uses the option" >app/main.txt && git add app && git commit -qam "pkg-a: an option, and the app uses it"
+$ echo "an option" >>vendor/pkg-a/file.txt &&
+>   mkdir -p app &&
+>   echo "uses the option" >app/main.txt &&
+>   git add app &&
+>   git commit -qam "pkg-a: an option, and the app uses it"
 ```
 
 The push creates `pkg-a`'s `feature` branch, the library's pull request.
@@ -110,11 +115,16 @@ change as a new commit. Here in a clone of `pkg-a`, as its maintainer
 would:
 
 ```scrut
-$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" "$WALKTHROUGH/pkg-a" && cd "$WALKTHROUGH/pkg-a" && git config user.name "Maintainer" && git config user.email "maintainer@example.com"
+$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" "$WALKTHROUGH/pkg-a" &&
+>   cd "$WALKTHROUGH/pkg-a" &&
+>   git config user.name "Maintainer" &&
+>   git config user.email "maintainer@example.com"
 ```
 
 ```scrut
-$ git merge -q --squash origin/feature && git commit -q -m "an option (#1)" && git push -q origin main
+$ git merge -q --squash origin/feature &&
+>   git commit -q -m "an option (#1)" &&
+>   git push -q origin main
 Squash commit -- not updating HEAD
 ```
 
@@ -159,7 +169,10 @@ already has the change, so the rebase drops it, and `feature` becomes the
 library's `main`:
 
 ```scrut
-$ cd "$WALKTHROUGH/pkg-a" && git switch -q feature && git -c advice.skippedCherryPicks=false rebase -q main && git push -q -f origin feature
+$ cd "$WALKTHROUGH/pkg-a" &&
+>   git switch -q feature &&
+>   git -c advice.skippedCherryPicks=false rebase -q main &&
+>   git push -q -f origin feature
 ```
 
 ```scrut
@@ -211,7 +224,9 @@ Another feature, with a bump on its branch. This time, `main` merges it
 before the library merges its pull request:
 
 ```scrut
-$ git switch -q -c feature-2 && echo "a second option" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a second option"
+$ git switch -q -c feature-2 &&
+>   echo "a second option" >>vendor/pkg-a/file.txt &&
+>   git commit -qam "pkg-a: a second option"
 ```
 
 ```scrut
@@ -235,21 +250,30 @@ The library squash-merges the pull request and deletes its branch, as
 many hosts do:
 
 ```scrut
-$ cd "$WALKTHROUGH/pkg-a" && git fetch -q && git switch -q main && git merge -q --squash origin/feature-2 && git commit -q -m "a second option (#2)" && git push -q origin main :feature-2
+$ cd "$WALKTHROUGH/pkg-a" &&
+>   git fetch -q &&
+>   git switch -q main &&
+>   git merge -q --squash origin/feature-2 &&
+>   git commit -q -m "a second option (#2)" &&
+>   git push -q origin main :feature-2
 Squash commit -- not updating HEAD
 ```
 
 Then it goes on with a change of its own:
 
 ```scrut
-$ echo "a third option" >>file.txt && git commit -qam "a third option" && git push -q origin main
+$ echo "a third option" >>file.txt &&
+>   git commit -qam "a third option" &&
+>   git push -q origin main
 ```
 
 Nothing refers to the pull request's commit any more, and the library's
 `gc` removes it:
 
 ```scrut
-$ git -C "$WALKTHROUGH/upstream/pkg-a.git" gc -q --prune=now && git -C "$WALKTHROUGH/upstream/pkg-a.git" cat-file -t "$(git -C "$WALKTHROUGH/monorepo" config --file vendor/pkg-a/.splice splice.commit)"
+$ git -C "$WALKTHROUGH/upstream/pkg-a.git" gc -q --prune=now &&
+>   synced="$(git -C "$WALKTHROUGH/monorepo" config --file vendor/pkg-a/.splice splice.commit)" &&
+>   git -C "$WALKTHROUGH/upstream/pkg-a.git" cat-file -t "$synced"
 fatal: git cat-file: could not get object info
 [128]
 ```
@@ -258,7 +282,11 @@ The monorepo that bumped still has the commit, but a fresh clone of it
 can't fetch it:
 
 ```scrut
-$ cd "$WALKTHROUGH" && git clone -q --config "url.$WALKTHROUGH/upstream/.insteadOf=https://git.example.com/" "file://$WALKTHROUGH/monorepo" colleague && cd colleague
+$ cd "$WALKTHROUGH" &&
+>   git clone -q \
+>     --config "url.$WALKTHROUGH/upstream/.insteadOf=https://git.example.com/" \
+>     "file://$WALKTHROUGH/monorepo" colleague &&
+>   cd colleague
 ```
 
 ```scrut

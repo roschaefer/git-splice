@@ -51,7 +51,8 @@ $ git splice log
 Someone else reorganizes the folders:
 
 ```scrut
-$ git mv vendor/a libs/a && git -c user.name=Mover -c user.email=mover@example.com commit -q -m "reorganize folders"
+$ git mv vendor/a libs/a &&
+>   git -c user.name=Mover -c user.email=mover@example.com commit -q -m "reorganize folders"
 ```
 
 The splice's fetched refs stay under the old path
@@ -67,7 +68,8 @@ The drawing shows what Git and `git-splice` say about it now
 ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/moved-with-unpushed-commits.drawio.svg" a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/main
+$ check_drawing "$TESTDIR/moved-with-unpushed-commits.drawio.svg" \
+>   a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/main
 ok   moved-with-unpushed-commits.drawio.svg: 5 commits, 6 arrows, 3 boxes, 1 lanes
 ```
 

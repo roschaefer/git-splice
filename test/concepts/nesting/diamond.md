@@ -46,7 +46,9 @@ $ build_scenario scenario_diamond
 ### The monorepo brings them together
 
 ```scrut
-$ git splice clone https://git.example.com/a.git a && git splice clone https://git.example.com/b.git b && git splice clone https://git.example.com/c.git c
+$ git splice clone https://git.example.com/a.git a &&
+>   git splice clone https://git.example.com/b.git b &&
+>   git splice clone https://git.example.com/c.git c
 ===  a: fetching https://git.example.com/a.git
 ok   a: cloned 6962bd0 from main
 ===  b: fetching https://git.example.com/b.git
@@ -202,7 +204,9 @@ library's new version, as plain files, with the `.splice` that lets
 `git-splice` sync it from there:
 
 ```scrut
-$ git clone -q "$UPSTREAM-a" ../a-standalone && ls -A ../a-standalone/c && cat ../a-standalone/c/file.txt
+$ git clone -q "$UPSTREAM-a" ../a-standalone &&
+>   ls -A ../a-standalone/c &&
+>   cat ../a-standalone/c/file.txt
 .splice
 file.txt
 c seed
@@ -224,7 +228,9 @@ So different synced commits don't mean different versions. Different
 files do, and the three copies have the same:
 
 ```scrut
-$ git diff --quiet HEAD:c HEAD:a/c -- ':!.splice' && git diff --quiet HEAD:c HEAD:b/c -- ':!.splice' && echo "the same files"
+$ git diff --quiet HEAD:c HEAD:a/c -- ':!.splice' &&
+>   git diff --quiet HEAD:c HEAD:b/c -- ':!.splice' &&
+>   echo "the same files"
 the same files
 ```
 

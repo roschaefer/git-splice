@@ -57,7 +57,9 @@ $ cat vendor/lib/.gitrepo
 You fix the library and use the fix in the app, in one commit, and push:
 
 ```scrut
-$ echo "fix" >>vendor/lib/src/parse.txt && echo "call parse()" >>app/main.txt && git commit -q -a -m "fix parse() and call it"
+$ echo "fix" >>vendor/lib/src/parse.txt &&
+>   echo "call parse()" >>app/main.txt &&
+>   git commit -q -a -m "fix parse() and call it"
 ```
 
 ```scrut
@@ -116,7 +118,9 @@ fix parse() and call it
 On a feature branch, a second fix:
 
 ```scrut
-$ git switch -q -c feature && echo "fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 2"
+$ git switch -q -c feature &&
+>   echo "fix 2" >>vendor/lib/src/parse.txt &&
+>   git commit -q -a -m "fix 2"
 ```
 
 `push` sends it to the upstream branch in `.gitrepo`, `main`, with no pull
@@ -132,7 +136,10 @@ into `.gitrepo`. After a push, it needs a `fetch` first, or it fails with
 "Local repository does not contain" the commit it pushed:
 
 ```scrut
-$ echo "fix 3" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 3" && git subrepo fetch vendor/lib && git subrepo push --branch feature --update vendor/lib
+$ echo "fix 3" >>vendor/lib/src/parse.txt &&
+>   git commit -q -a -m "fix 3" &&
+>   git subrepo fetch vendor/lib &&
+>   git subrepo push --branch feature --update vendor/lib
 Fetched 'vendor/lib' from 'https://git.example.com/lib.git' (main).
 Subrepo 'vendor/lib' pushed to 'https://git.example.com/lib.git' (feature).
 ```
@@ -152,7 +159,9 @@ The feature branch is done and squash-merged into `main`, as a pull
 request would be:
 
 ```scrut
-$ git switch -q main && git merge -q --squash feature && git commit -q -m "feature (squashed)"
+$ git switch -q main &&
+>   git merge -q --squash feature &&
+>   git commit -q -m "feature (squashed)"
 Squash commit -- not updating HEAD
 ```
 
@@ -160,8 +169,13 @@ Squash commit -- not updating HEAD
 is a commit of the feature branch, which `main` doesn't contain:
 
 ```scrut
-$ git config --file vendor/lib/.gitrepo subrepo.branch; git merge-base --is-ancestor "$(git config --file vendor/lib/.gitrepo subrepo.parent)" HEAD || echo "not in main"
+$ git config --file vendor/lib/.gitrepo subrepo.branch
 feature
+```
+
+```scrut
+$ parent="$(git config --file vendor/lib/.gitrepo subrepo.parent)" &&
+>   git merge-base --is-ancestor "$parent" HEAD || echo "not in main"
 not in main
 ```
 
@@ -169,7 +183,9 @@ The next push from `main` stops, and asks for `.gitrepo` to be fixed by
 hand:
 
 ```scrut
-$ echo "fix 4" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 4" && git subrepo push vendor/lib
+$ echo "fix 4" >>vendor/lib/src/parse.txt &&
+>   git commit -q -a -m "fix 4" &&
+>   git subrepo push vendor/lib
 git-subrepo: The last sync point (where upstream and the subrepo were equal) is not an ancestor. 
              This is usually caused by a rebase affecting that commit. 
              To recover set the subrepo parent in 'vendor/lib/.gitrepo'
@@ -186,7 +202,8 @@ hash, and `parent` names the old one.
 The library goes back to its 30 commits, without the pushes above:
 
 ```scrut
-$ git -C "$COMPARISON/upstream/lib.git" branch -q -f main bafd496 && git -C "$COMPARISON/upstream/lib.git" branch -q -D feature
+$ git -C "$COMPARISON/upstream/lib.git" branch -q -f main bafd496 &&
+>   git -C "$COMPARISON/upstream/lib.git" branch -q -D feature
 ```
 
 In a copy of the monorepo from before the library, the same steps.
@@ -209,7 +226,9 @@ $ cat vendor/lib/.splice
 ```
 
 ```scrut
-$ echo "fix" >>vendor/lib/src/parse.txt && echo "call parse()" >>app/main.txt && git commit -q -a -m "fix parse() and call it"
+$ echo "fix" >>vendor/lib/src/parse.txt &&
+>   echo "call parse()" >>app/main.txt &&
+>   git commit -q -a -m "fix parse() and call it"
 ```
 
 ```scrut
@@ -230,13 +249,18 @@ On a feature branch, `push` syncs with the upstream branch of the same
 name, ready for a pull request:
 
 ```scrut
-$ git switch -q -c feature && echo "fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 2" && git splice push vendor/lib
+$ git switch -q -c feature &&
+>   echo "fix 2" >>vendor/lib/src/parse.txt &&
+>   git commit -q -a -m "fix 2" &&
+>   git splice push vendor/lib
 ??   vendor/lib: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/lib: pushed 6b3df25 to feature
 ```
 
 ```scrut
-$ echo "fix 3" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 3" && git splice push vendor/lib
+$ echo "fix 3" >>vendor/lib/src/parse.txt &&
+>   git commit -q -a -m "fix 3" &&
+>   git splice push vendor/lib
 ok   vendor/lib: pushed 79da5cd to feature
 ```
 
@@ -248,12 +272,16 @@ squash merge can't drop it, and the sync point, the upstream commit in
 squashed commit and the new one:
 
 ```scrut
-$ git switch -q main && git merge -q --squash feature && git commit -q -m "feature (squashed)"
+$ git switch -q main &&
+>   git merge -q --squash feature &&
+>   git commit -q -m "feature (squashed)"
 Squash commit -- not updating HEAD
 ```
 
 ```scrut
-$ echo "fix 4" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 4" && git splice push vendor/lib
+$ echo "fix 4" >>vendor/lib/src/parse.txt &&
+>   git commit -q -a -m "fix 4" &&
+>   git splice push vendor/lib
 ok   vendor/lib: pushed 940e7a2 to main
 ```
 
@@ -279,7 +307,12 @@ when another branch uses the same folder for another upstream, here a
 second library:
 
 ```scrut
-$ git init -q -b main ../other && echo "other" >../other/README && git -C ../other add README && git -C ../other commit -q -m "other library" && git init -q --bare "$COMPARISON/upstream/other.git" && git -C ../other push -q https://git.example.com/other.git main
+$ git init -q -b main ../other &&
+>   echo "other" >../other/README &&
+>   git -C ../other add README &&
+>   git -C ../other commit -q -m "other library" &&
+>   git init -q --bare "$COMPARISON/upstream/other.git" &&
+>   git -C ../other push -q https://git.example.com/other.git main
 ```
 
 Back in git-subrepo's monorepo, `vendor/lib/` on `main` was last fetched
@@ -294,7 +327,9 @@ A branch from before the library clones the other one into the same
 folder:
 
 ```scrut
-$ git switch -q -c other ':/^app commit 40' && git subrepo clone https://git.example.com/other.git vendor/lib && git switch -q main
+$ git switch -q -c other ':/^app commit 40' &&
+>   git subrepo clone https://git.example.com/other.git vendor/lib &&
+>   git switch -q main
 Subrepo 'https://git.example.com/other.git' (main) cloned into 'vendor/lib'.
 ```
 
@@ -302,7 +337,8 @@ Back on `main`, `vendor/lib/` still names `lib.git`, but its refs now hold
 the other library, and `status` shows its commit as the upstream's:
 
 ```scrut
-$ git subrepo status vendor/lib | grep -E 'Remote URL|Upstream Ref'; git log -1 --format=%s refs/subrepo/vendor/lib/fetch
+$ git subrepo status vendor/lib | grep -E 'Remote URL|Upstream Ref'
+> git log -1 --format=%s refs/subrepo/vendor/lib/fetch
   Remote URL:      https://git.example.com/lib.git
   Upstream Ref:    3ea1a83
 other library
@@ -314,7 +350,10 @@ reach the right library. `status` doesn't.
 The same with `git-splice`:
 
 ```scrut
-$ cd ../splice-monorepo && git switch -q -c other ':/^app commit 40' && git splice clone https://git.example.com/other.git vendor/lib && git switch -q main
+$ cd ../splice-monorepo &&
+>   git switch -q -c other ':/^app commit 40' &&
+>   git splice clone https://git.example.com/other.git vendor/lib &&
+>   git switch -q main
 ===  vendor/lib: fetching https://git.example.com/other.git
 ===  vendor/lib: upstream has no 'other' branch -- using 'main'; your first push creates 'other'
 ok   vendor/lib: cloned 3ea1a83 from main
@@ -344,7 +383,11 @@ for the upstream branch `feature` that the squash merge left in
 `.gitrepo`. The old refs stay behind:
 
 ```scrut
-$ cd ../monorepo && mkdir libs && git mv vendor/lib libs/lib && git commit -q -m "move the library" && git subrepo fetch libs/lib
+$ cd ../monorepo &&
+>   mkdir libs &&
+>   git mv vendor/lib libs/lib &&
+>   git commit -q -m "move the library" &&
+>   git subrepo fetch libs/lib
 Fetched 'libs/lib' from 'https://git.example.com/lib.git' (feature).
 ```
 
@@ -360,7 +403,11 @@ refs/subrepo/vendor/lib/push
 In `git-splice`'s, the move leaves the upstream's refs where they are:
 
 ```scrut
-$ cd ../splice-monorepo && mkdir libs && git mv vendor/lib libs/lib && git commit -q -m "move the library" && git splice fetch libs/lib
+$ cd ../splice-monorepo &&
+>   mkdir libs &&
+>   git mv vendor/lib libs/lib &&
+>   git commit -q -m "move the library" &&
+>   git splice fetch libs/lib
 ok   libs/lib fetched
 ```
 

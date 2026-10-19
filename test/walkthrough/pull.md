@@ -13,7 +13,11 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null && git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b && echo "pkg-b: add a feature" >>../pkg-b/file.txt && git -C ../pkg-b commit -qam "pkg-b: add a feature" && git -C ../pkg-b push -q
+$ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null &&
+>   git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b &&
+>   echo "pkg-b: add a feature" >>../pkg-b/file.txt &&
+>   git -C ../pkg-b commit -qam "pkg-b: add a feature" &&
+>   git -C ../pkg-b push -q
 ```
 
 Both splices in the [sandbox](../../docs/sandbox.md) are behind now. Commands that

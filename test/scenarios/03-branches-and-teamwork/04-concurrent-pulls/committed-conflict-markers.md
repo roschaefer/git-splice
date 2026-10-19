@@ -24,7 +24,10 @@ $ build_scenario scenario_concurrent_pulls
 The folder's files are resolved, `.splice` isn't:
 
 ```scrut
-$ git merge origin/main >/dev/null; git checkout --ours -- vendor/a/file.txt && git add vendor/a && git commit -q --no-edit
+$ git merge origin/main >/dev/null
+> git checkout --ours -- vendor/a/file.txt &&
+>   git add vendor/a &&
+>   git commit -q --no-edit
 ```
 
 `git config` can't read it:
@@ -53,7 +56,9 @@ The fix is a readable `.splice` with the newer sync point. Here, the merge's
 first parent has it:
 
 ```scrut
-$ git checkout HEAD~1^1 -- vendor/a/.splice && git commit -q -m "fix vendor/a/.splice" && git splice status
+$ git checkout HEAD~1^1 -- vendor/a/.splice &&
+>   git commit -q -m "fix vendor/a/.splice" &&
+>   git splice status
 On branch main
 
   up to date  vendor/a

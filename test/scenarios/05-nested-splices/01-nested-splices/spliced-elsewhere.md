@@ -35,7 +35,9 @@ $ build_scenario scenario_nested_splices https://git.example.com/b.git
 The monorepo changes `vendor/a/b/` and pushes both, bottom-up:
 
 ```scrut
-$ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local" && git splice push vendor/a/b vendor/a
+$ echo "b local" >>vendor/a/b/file.txt &&
+>   git commit -q -a -m "b local" &&
+>   git splice push vendor/a/b vendor/a
 ok   vendor/a/b: pushed f47c373 to main
 ok   vendor/a: pushed 924e6e3 to main
 ```
@@ -46,14 +48,18 @@ publishes this `.splice`, along with a commit `b local` in the outer
 upstream:
 
 ```scrut
-$ git -C "$UPSTREAM" show main:b/.splice | git config --file - splice.commit | xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
+$ git -C "$UPSTREAM" show main:b/.splice |
+>   git config --file - splice.commit |
+>   xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
 b seed
 ```
 
 ## Another monorepo splices the outer upstream in
 
 ```scrut
-$ git init -q -b main ../other && cd ../other && git commit -q --allow-empty -m "other monorepo"
+$ git init -q -b main ../other &&
+>   cd ../other &&
+>   git commit -q --allow-empty -m "other monorepo"
 ```
 
 ```scrut
@@ -75,9 +81,13 @@ other monorepo
 ```
 
 ```scrut
-$ cat vendor/a/b/file.txt; git log -1 --format=%s "$(git config --file vendor/a/b/.splice splice.commit)"
+$ cat vendor/a/b/file.txt
 b seed
 b local
+```
+
+```scrut
+$ git log -1 --format=%s "$(git config --file vendor/a/b/.splice splice.commit)"
 b seed
 ```
 

@@ -33,7 +33,10 @@ The fork is added with its default branch, and the original stays the
 default upstream:
 
 ```scrut
-$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/lib.git && git config --file vendor/a/.splice upstream.fork.default-branch trunk && git config --file vendor/a/.splice splice.default-upstream origin && git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
+$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/lib.git &&
+>   git config --file vendor/a/.splice upstream.fork.default-branch trunk &&
+>   git config --file vendor/a/.splice splice.default-upstream origin &&
+>   git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
 ```
 
 ```scrut
@@ -64,7 +67,9 @@ A `default-branch` in `[splice]` named one branch for every upstream.
 It's refused, rather than read for the default upstream only:
 
 ```scrut
-$ git config --file vendor/a/.splice splice.default-branch master && git commit -q -m "the earlier format" -- vendor/a/.splice && git splice status
+$ git config --file vendor/a/.splice splice.default-branch master &&
+>   git commit -q -m "the earlier format" -- vendor/a/.splice &&
+>   git splice status
 !!   vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch
 [1]
 ```

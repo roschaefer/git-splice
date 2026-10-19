@@ -21,7 +21,9 @@ $ build_scenario scenario_upstream_rewritten_equal_tree
 ```
 
 ```scrut
-$ echo "local change" >>vendor/a/file.txt && git commit -q -a -m "local change" && git splice status
+$ echo "local change" >>vendor/a/file.txt &&
+>   git commit -q -a -m "local change" &&
+>   git splice status
 On branch main
 
   !! unrelated history  vendor/a  see 'git splice merge vendor/a' for options
@@ -36,7 +38,9 @@ $ git diff --relative=vendor/a HEAD~1 -- vendor/a >../local-change.patch
 Remove the folder, and splice the rewritten upstream in again:
 
 ```scrut
-$ git rm -r -q -- vendor/a && git commit -q -m "remove vendor/a" && git splice clone -- "$UPSTREAM" vendor/a
+$ git rm -r -q -- vendor/a &&
+>   git commit -q -m "remove vendor/a" &&
+>   git splice clone -- "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
 ok   vendor/a: cloned bc05937 from main
 ```
@@ -44,7 +48,9 @@ ok   vendor/a: cloned bc05937 from main
 Redo the local change, and push it:
 
 ```scrut
-$ git apply --directory=vendor/a ../local-change.patch && git commit -q -a -m "local change" && git splice push vendor/a
+$ git apply --directory=vendor/a ../local-change.patch &&
+>   git commit -q -a -m "local change" &&
+>   git splice push vendor/a
 ok   vendor/a: pushed 5c7d4e1 to main
 ```
 

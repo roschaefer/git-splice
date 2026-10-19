@@ -41,7 +41,9 @@ $ git splice log
 The id stays when the URL changes:
 
 ```scrut
-$ id="$(git config --file vendor/a/.splice splice.id)" && git config --file vendor/a/.splice upstream.origin.url "$UPSTREAM-moved" && git commit -q -am "the upstream moved"
+$ id="$(git config --file vendor/a/.splice splice.id)" &&
+>   git config --file vendor/a/.splice upstream.origin.url "$UPSTREAM-moved" &&
+>   git commit -q -am "the upstream moved"
 ```
 
 ```scrut
