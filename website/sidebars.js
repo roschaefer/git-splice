@@ -42,7 +42,12 @@ module.exports = {
       label: 'Comparisons',
       link: {type: 'doc', id: 'test/comparisons/README'},
       items: [
-        'test/comparisons/git-submodule',
+        {
+          type: 'category',
+          label: 'git submodule compared',
+          link: {type: 'doc', id: 'test/comparisons/git-submodule'},
+          items: [{type: 'doc', id: 'test/comparisons/git-submodule-complaints', label: 'Complaints'}],
+        },
         'test/comparisons/git-subtree',
         {
           type: 'category',
