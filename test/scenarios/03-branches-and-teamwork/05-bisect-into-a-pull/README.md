@@ -65,7 +65,8 @@ The commit that added `check.sh` is the known good one. Before it,
 `./check.sh` doesn't exist, and `git bisect run` would count that as bad:
 
 ```scrut
-$ git bisect start HEAD "$(git log -1 --format=%H --diff-filter=A -- check.sh)" >/dev/null &&
+$ good="$(git log -1 --format=%H --diff-filter=A -- check.sh)" &&
+>   git bisect start HEAD "$good" >/dev/null &&
 >   git bisect run ./check.sh >/dev/null &&
 >   git show --stat --format='first bad commit: %s' refs/bisect/bad
 first bad commit: splice: pull vendor/a from main at 803779d
@@ -123,15 +124,23 @@ Bisect runs in `../lib`. For each candidate, it copies the candidate's
 files into `../before/vendor/a` and runs the monorepo's test there:
 
 ```scrut
+$ cat >../copy-and-check.sh <<'EOF'
+> set -e
+> git --work-tree=../before/vendor/a checkout -f HEAD -- .
+> cd ../before
+> ./check.sh
+> EOF
+```
+
+```scrut
 $ git bisect start "$U2" "$U1" &&
->   git bisect run sh -c \
->     'git --work-tree=../before/vendor/a checkout -f HEAD -- . && cd ../before && ./check.sh'
+>   git bisect run sh ../copy-and-check.sh
 Bisecting: 0 revisions left to test after this (roughly 1 step)
 [83019adee0a2cf37e98fc79274ba471a0ba8f99a] log at debug level
-running 'sh' '-c' 'git --work-tree=../before/vendor/a checkout -f HEAD -- . && cd ../before && ./check.sh'
+running 'sh' '../copy-and-check.sh'
 Bisecting: 0 revisions left to test after this (roughly 0 steps)
 [419255245bf628a762cb138a18347abd227d07e7] add config.txt
-running 'sh' '-c' 'git --work-tree=../before/vendor/a checkout -f HEAD -- . && cd ../before && ./check.sh'
+running 'sh' '../copy-and-check.sh'
 83019adee0a2cf37e98fc79274ba471a0ba8f99a is the first bad commit
 commit 83019adee0a2cf37e98fc79274ba471a0ba8f99a
 Author: Upstream <upstream@example.com>

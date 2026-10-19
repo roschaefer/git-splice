@@ -44,7 +44,7 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
 - A chain ends each step with `&&` and indents the next one by two
   spaces. Commands that don't depend on each other go on `> ` lines
   without the indent, instead of after a `;`. Within a step, what a
-  `|` pipes into is indented by two more.
+  `|` pipes into is indented by two more than the step.
 - A command with many arguments breaks with `\`, and keeps an option
   next to its value.
 - A `$(…)` inside another command gets a name first, one from the page
