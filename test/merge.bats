@@ -213,17 +213,19 @@ setup() {
 @test "merge: a rebased upstream branch that already has the pushed local commit is merged, and the rebuild is that branch" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"
-  # Undo the rebase: patches is the patch again, and gets a local commit
+  # Undo the rebase: patches is the two patches again, and gets a local commit
   # pushed on top of it.
   git -C "$upstream" update-ref refs/heads/patches "$(splice_config vendor/a commit)"
   fetch_splice "$monorepo" "$upstream" vendor/a
   commit_local "$monorepo" vendor/a "local change" local.txt
   splice push vendor/a >/dev/null
-  # The fork rebases patches onto main, which took the patch reworded: only
-  # the local commit is left on top.
+  # The fork rebases patches onto main, which took the first patch reworded:
+  # the other patch and the local commit are left on top.
   local fork="$BATS_TEST_TMPDIR/fork" rebased
   git clone -q "$upstream" "$fork"
   git -C "$fork" checkout -q main
+  git -C "$fork" checkout origin/patches -- other.txt
+  git -C "$fork" -c user.name=Test -c user.email=test@example.com commit -q -m "other patch"
   git -C "$fork" checkout origin/patches -- local.txt
   git -C "$fork" -c user.name=Test -c user.email=test@example.com commit -q -m "local change"
   git -C "$fork" push -q --force origin main:patches

@@ -4,7 +4,7 @@ The way out of the [same state](README.md), where `pull` refuses: set
 the unpushed change aside, pull the rebased branch, and redo the change
 on top of it. The folder then has exactly the rebased branch's files at
 the pull, so the rebuild starts there, and the change goes upstream as
-one commit on top of *m*. The old patch, *p*, stays dropped.
+one commit on top of *n*. The old patches, *p* and *q*, stay dropped.
 
 `git splice pull --rebase` would do these steps
 ([#55](https://github.com/roschaefer/git-splice/issues/55)).
@@ -44,7 +44,7 @@ Now the pull goes through:
 ```scrut
 $ git splice pull vendor/a
 ok   vendor/a fetched
-ok   vendor/a: pulled 97171d6
+ok   vendor/a: pulled 63b44f3
 ```
 
 Redo the change, with the original commit's message and author, and
@@ -56,14 +56,16 @@ $ git apply --directory=vendor/a ../local-change.patch && git add vendor/a && gi
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: pushed d1530f3 to patches
+ok   vendor/a: pushed 83e98ce to patches
 ```
 
-The rebased branch gets the change on top, and *p* stays dropped:
+The rebased branch gets the change on top, and *p* and *q* stay
+dropped:
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s patches
 local change
+other patch
 patch, reworded upstream
 seed
 ```
