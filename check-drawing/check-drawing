@@ -246,6 +246,11 @@ check_drawing() {
   }
   for id in "${commits[@]}"; do
     [[ -n "${commit_of[$id]:-}" ]] || continue
+    if [[ ${#splices[@]} -eq 0 ]]; then
+      in_monorepo "${commit_of[$id]}" ||
+        errors+=("${value[$id]} isn't a commit of the monorepo, which has no splices")
+      continue
+    fi
     if [[ ${#lanes[@]} -gt 0 && -z "${lane_of[$id]}" ]]; then
       in_monorepo "${commit_of[$id]}" ||
         errors+=("${value[$id]} isn't a monorepo commit, but it's outside every lane: draw it in its splice's lane")

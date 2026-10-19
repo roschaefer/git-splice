@@ -238,6 +238,7 @@ plain_history() {
   git switch -q main
   git merge -q --allow-unrelated-histories -m s lib
   for c in b c d e; do git commit -q --allow-empty -m "$c"; done
+  drawing="$BATS_TEST_TMPDIR/plain.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/comparisons/git-subtree-squashed.drawio.svg" >"$drawing" 2>/dev/null
 }
@@ -246,7 +247,7 @@ plain_history() {
   plain_history
   run check_drawing "$drawing" --alias HEAD=H q=lib
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   after-pull.drawio: 7 commits, 7 arrows, 1 boxes" ]
+  [ "$output" = "ok   plain.drawio: 7 commits, 7 arrows, 1 boxes" ]
 }
 
 @test "drawing: without splices, a merge's second parent still needs its arrow" {
@@ -263,4 +264,12 @@ plain_history() {
   run check_drawing "$drawing" --alias HEAD=H q=lib
   [ "$status" -eq 1 ]
   [ "$output" = "!!   the lane vendor/lib/ isn't a splice of the monorepo" ]
+}
+
+@test "drawing: without splices, a commit outside the monorepo's history is named" {
+  plain_history
+  git commit-tree -m outside "$(git hash-object -t tree /dev/null)" >"$BATS_TEST_TMPDIR/outside"
+  run check_drawing "$drawing" --alias HEAD=H q="$(cat "$BATS_TEST_TMPDIR/outside")"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   q isn't a commit of the monorepo, which has no splices" ]
 }

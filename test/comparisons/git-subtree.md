@@ -114,8 +114,9 @@ $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
 >   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
-The monorepo's history now, with the four new commits *b*, *c*, *d* and
-*e* after *s*:
+The monorepo's history now, with the four new commits after *s*: *b*
+(`app commit 41`), *c* (`lib fix 1`), *d* (`app commit 42`) and *e*
+(`lib fix 2`):
 
 <div align="center">
 
@@ -132,8 +133,8 @@ ok   git-subtree-squashed.drawio.svg: 7 commits, 7 arrows, 1 boxes
 -->
 
 Now `split` knows no library commit in the monorepo's history to start
-from, so it walks all of it, every time, though only *c* (`lib fix 1`)
-and *e* (`lib fix 2`) touched the library:
+from, so it walks all of it, every time, though only *c* and *e* touched
+the library:
 
 ```scrut
 $ subtree_split_walks vendor/lib
@@ -156,7 +157,8 @@ Merge made by the 'ort' strategy.
 
 `48108da` is the library commit with the two fixes, the same one
 `git splice push` makes [below](#how-git-splice-avoids-both). The merge
-*j* (`Split 'vendor/lib/' into commit '48108da…'`) has *r* (`Squashed
+*j* (`Split 'vendor/lib/' into commit
+'48108daa0f798109c3e672ed47a7de6204cf4e02'`) has *r* (`Squashed
 'vendor/lib/' changes from bafd496..48108da`) as its second parent, on
 top of *q*:
 
@@ -183,9 +185,9 @@ $ subtree_split_walks vendor/lib
 ```
 
 That's one more merge commit for every push. And where a pull request is
-squash-merged, *j* never reaches `main`. Squash-merged on top of *s*,
-`main` gets one commit *p* (`lib fixes (#1)`) with the fixes, and
-neither *j* nor *r*:
+squash-merged, *j* never reaches the branch it's merged into.
+Squash-merged on top of *s*, that branch gets one commit *p* (`lib fixes
+(#1)`) with the fixes, and neither *j* nor *r*:
 
 ```scrut
 $ git switch -q -c squash-merged "HEAD^~4" &&
@@ -207,7 +209,7 @@ ok   git-subtree-squash-merged.drawio.svg: 4 commits, 4 arrows, 1 boxes
 ```
 -->
 
-So the next `split` from `main` walks all of the monorepo's history
+So the next `split` from there walks all of the monorepo's history
 again:
 
 ```scrut
