@@ -1,6 +1,6 @@
-# Copybara compared
+# Export tools compared
 
-Copybara and Meta's ShipIt work the same way: one repository is the
+Copybara and Meta's ShipIt are export tools: one repository is the
 source of truth, usually an internal monorepo. A public pull request is
 imported and submitted there, and the change comes back to the public
 repository as a different commit. The pull request is closed rather than
