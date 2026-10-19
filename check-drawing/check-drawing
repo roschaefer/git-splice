@@ -123,7 +123,7 @@ check_drawing() {
   done
   if [[ ${#splices[@]} -eq 1 ]]; then
     default="${splices[0]}"
-  elif [[ ${#lanes[@]} -eq 0 ]]; then
+  elif [[ ${#splices[@]} -gt 1 && ${#lanes[@]} -eq 0 ]]; then
     printf '!!   the monorepo has %d splices: draw a lane for each one the drawing shows, labelled with its folder, e.g. %s/\n' \
       "${#splices[@]}" "${splices[0]:-vendor/a}"
     return 1

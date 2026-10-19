@@ -85,7 +85,9 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 - **Lane**: a shape labelled with a splice's folder, e.g. `vendor/a/`,
   holds that splice's upstream commits and boxes.
   - A monorepo with several splices needs one per splice it draws. With
-    one splice, lanes are optional.
+    one splice, lanes are optional. Without splices, e.g. in a drawing
+    of what `git subtree` makes, there are none: commits and their
+    arrows are checked in the monorepo alone.
   - A shape belongs to the innermost lane it lies wholly inside. A nested
     splice's lane is drawn inside the lane of the splice above it.
   - What a lane shows stays in it: arrows between commits don't cross

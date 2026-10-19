@@ -82,6 +82,23 @@ $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
 >   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
+The monorepo's history now: *a* (`app commit 40`), the merge *s* that
+`add` made, with the library's last commits *k* and *l* (`lib commit 29`
+and `lib commit 30`) as its second parent, and the four new commits *b*,
+*c*, *d* and *e*:
+
+<div align="center">
+
+![The monorepo's a, s, b, c, d and e in a line, and the library's k and l, with l as the second parent of s](git-subtree-whole-history.drawio.svg)
+
+</div>
+
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-whole-history.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD k=HEAD~4^2~1 l=HEAD~4^2
+ok   git-subtree-whole-history.drawio.svg: 8 commits, 8 arrows, 1 boxes
+```
+
 `split` rebuilds library commits from the monorepo's commits. It starts
 from the newest commit it already knows, and here those are the library
 commits that `add` imported. So it walks only the few commits since:
@@ -134,6 +151,22 @@ $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
 >   echo "lib fix 1" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 1" &&
 >   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
 >   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
+```
+
+In place of the library's history, the merge *s* has *q* (`Squashed
+'vendor/lib/' content from commit bafd496`) as its second parent, a
+commit with the library's files and no parent of its own:
+
+<div align="center">
+
+![The monorepo's a, s, b, c, d and e in a line, and q, a commit without parents, as the second parent of s](git-subtree-squashed.drawio.svg)
+
+</div>
+
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-squashed.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD q=HEAD~4^2
+ok   git-subtree-squashed.drawio.svg: 7 commits, 7 arrows, 1 boxes
 ```
 
 Now `split` knows no library commit in the monorepo's history to start
@@ -208,6 +241,23 @@ lib fix 2
 lib fix 1
 lib commit 30
 lib commit 29
+```
+
+The monorepo's history stays a line, with the `clone` commit *s* in
+place of the merge. The library's `main` gets *c'* and *e'*, rebuilt
+from *c* and *e*, on top of *l*:
+
+<div align="center">
+
+![The monorepo's a, s, b, c, d and e in a line; in the lane vendor/lib/, the library's k and l, then c prime and e prime, rebuilt from c and e, with main at e prime](git-subtree-splice.drawio.svg)
+
+</div>
+
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-splice.drawio.svg" --alias HEAD=H \
+>   a=HEAD~5 s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD \
+>   k=refs/splices/lib/main~3 l=refs/splices/lib/main~2
+ok   git-subtree-splice.drawio.svg: 10 commits, 10 arrows, 2 boxes, 1 lanes
 ```
 
 Like `--squash`, a splice keeps the library's history out of the

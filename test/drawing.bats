@@ -224,3 +224,44 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/main f=refs/splices/squash-upstream/feature
   [ "$status" -eq 0 ]
 }
+
+# A plain Git history, without splices, shaped like git subtree's: the
+# library's history merged into the monorepo's.
+plain_history() {
+  git init -q -b main "$BATS_TEST_TMPDIR/plain"
+  cd "$BATS_TEST_TMPDIR/plain"
+  git config user.name Test
+  git config user.email test@example.com
+  git commit -q --allow-empty -m a
+  git switch -q --orphan lib
+  git commit -q --allow-empty -m k
+  git commit -q --allow-empty -m l
+  git switch -q main
+  git merge -q --allow-unrelated-histories -m s lib
+  for c in b c d e; do git commit -q --allow-empty -m "$c"; done
+  xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
+    "$BATS_TEST_DIRNAME/comparisons/git-subtree-whole-history.drawio.svg" >"$drawing" 2>/dev/null
+}
+
+@test "drawing: a monorepo without splices needs no lanes" {
+  plain_history
+  run check_drawing "$drawing" --alias HEAD=H k=lib~1 l=lib
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   after-pull.drawio: 8 commits, 8 arrows, 1 boxes" ]
+}
+
+@test "drawing: without splices, a merge's second parent still needs its arrow" {
+  plain_history
+  edit_drawing -d '//mxCell[@source="l" and @target="s"]'
+  run check_drawing "$drawing" --alias HEAD=H k=lib~1 l=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   no arrow l -> s, though l is a parent of s" ]
+}
+
+@test "drawing: without splices, a lane names no splice" {
+  plain_history
+  sed -i 's#</root>#<mxCell id="lane" parent="1" vertex="1" value="vendor/lib/"><mxGeometry width="900" height="900" as="geometry" /></mxCell></root>#' "$drawing"
+  run check_drawing "$drawing" --alias HEAD=H k=lib~1 l=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   the lane vendor/lib/ isn't a splice of the monorepo" ]
+}
