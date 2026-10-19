@@ -3,7 +3,7 @@
 A submodule keeps the library in its own repository, nested in the
 monorepo's worktree. The monorepo commits only the library's URL, in
 `.gitmodules`, and one of its commits, as a "gitlink". This page shows
-three problems that boundary makes when you fix the library together
+four problems that boundary makes when you fix the library together
 with your app: the monorepo doesn't see the library's files, the fix
 takes two pushes in the right order, worktrees barely support
 submodules, and moving the library's folder leaves colleagues with its
