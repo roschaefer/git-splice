@@ -298,6 +298,18 @@ add vendor/a" ]
   [ "$output" = "!!   a cherry-pick, merge or rebase is in progress -- conclude it first" ]
 }
 
+@test "merge --rebase: with uncommitted changes, says the rebase didn't start, not that it conflicts" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "uncommitted" >>vendor/a/file.txt
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: git rebase didn't start, see above -- nothing changed"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "merge: --bump and --rebase don't go together" {
   scenario_unpushed_local_commit "$monorepo" "$upstream"
   cd "$monorepo"

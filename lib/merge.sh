@@ -191,7 +191,11 @@ rebase_onto_pull() {
   pull="$(git commit-tree "$tree" -p "$base" -m "$message")" || return 1
   count="$(git rev-list --count "$base..HEAD")"
   if ! git -c advice.mergeConflict=false rebase -q --onto "$pull" "$base"; then
-    log_err "$path: conflict while rebasing onto the $verb -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)"
+    if [[ -d "$(git rev-parse --git-path rebase-merge)" || -d "$(git rev-parse --git-path rebase-apply)" ]]; then
+      log_err "$path: conflict while rebasing onto the $verb -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)"
+    else
+      log_err "$path: git rebase didn't start, see above -- nothing changed"
+    fi
     return 1
   fi
   log_ok "$path: $(past_tense "$verb") ${target:0:7}, and rebased $count commit$([[ "$count" -eq 1 ]] || echo s) onto it"
