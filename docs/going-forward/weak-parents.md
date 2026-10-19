@@ -12,7 +12,7 @@ been a merge instead, with two parents: the monorepo's previous commit,
 and U(H). Its tree would be the same as the pull's: U(H)'s files in `lib/`, merged
 with the folder's changes since the last sync, if there are any. That's
 the commit `git subtree add` and `git subtree pull` create without
-`--squash` ([Why not `git subtree`](../../test/comparisons/git-subtree.md)).
+`--squash` ([`git subtree` compared](../../test/comparisons/git-subtree.md)).
 With `--squash`, the second parent is a new commit with U(H)'s files, and
 U(H) isn't in the history at all.
 

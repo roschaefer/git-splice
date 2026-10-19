@@ -1,4 +1,4 @@
-# Why not `git subtree`
+# `git subtree` compared
 
 [`git subtree`](https://github.com/git/git/blob/master/contrib/subtree/git-subtree.adoc)
 puts the library's files into a folder of the monorepo, like a splice.
