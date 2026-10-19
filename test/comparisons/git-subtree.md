@@ -218,9 +218,9 @@ $ subtree_split_walks vendor/lib
 ## How `git-splice` avoids both
 
 In a copy of the monorepo from before the library, `clone` adds one
-ordinary commit, and the history stays linear. What it costs is one
-file, `vendor/lib/.splice`, with the library's URL and the commit it
-last synced with:
+ordinary commit, and the history stays linear. Next to the library's
+files, it adds `vendor/lib/.splice`, which only the monorepo needs, to
+connect to the library:
 
 ```scrut
 $ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
