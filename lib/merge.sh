@@ -93,8 +93,10 @@ merge_one() {
     log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
     return 1
   fi
-  if [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target" &&
-    on_no_upstream_branch "$path" "$SPLICE_SYNCED"; then
+  local rewritten=0
+  synced_rewritten_away "$path" "$target" "$verb" || rewritten=$?
+  [[ "$rewritten" -ne 2 ]] || return 1
+  if [[ "$rewritten" -eq 0 ]]; then
     merge_base="$SPLICE_SYNCED"
     # Only a folder that ends up with exactly the rewritten branch's files
     # lets the rebuild start there again. Anything else is rebuilt on top
@@ -133,16 +135,38 @@ merge_gives() {
   [[ "${tree%%$'\n'*}" == "$(git rev-parse "$target^{tree}")" ]]
 }
 
+# Succeeds if the upstream rewrote splice <path>'s synced commit away:
+# upstream commit <target> doesn't contain it, and no fetched branch has
+# it (on_no_upstream_branch). Returns 2, after saying why, if an upstream
+# that isn't fetched may still have it. `verb` as for merge_one.
+synced_rewritten_away() {
+  local path="$1" target="$2" verb="$3"
+  [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target" || return 1
+  on_no_upstream_branch "$path" "$SPLICE_SYNCED" && return 0
+  [[ -n "$UNFETCHED_UPSTREAM" ]] || return 1
+  log_err "$path: no fetched upstream branch has the synced commit ${SPLICE_SYNCED:0:7}, but '$UNFETCHED_UPSTREAM' isn't fetched -- run 'git splice fetch --upstream $UNFETCHED_UPSTREAM $path' first: if it still has the commit, the upstream didn't rewrite it away"
+  return 2
+}
+
 # Succeeds if no fetched branch of any upstream of splice <path> has
-# <commit>.
+# <commit>. Fails if one has it, and also if one of them isn't fetched,
+# with UNFETCHED_UPSTREAM set to its name: it may have it.
 on_no_upstream_branch() {
   local path="$1" commit="$2" names=() name
+  UNFETCHED_UPSTREAM=""
   read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
   for name in "${names[@]}"; do
     upstream_key "${UPSTREAM_URLS["$path:$name"]}"
-    [[ -n "$UPSTREAM_KEY" ]] || continue
-    [[ -z "$(git for-each-ref --count=1 --contains "$commit" "refs/splices/$UPSTREAM_KEY/")" ]] || return 1
+    if [[ -z "$UPSTREAM_KEY" || -z "$(git for-each-ref --count=1 "refs/splices/$UPSTREAM_KEY/")" ]]; then
+      UNFETCHED_UPSTREAM="$name"
+      continue
+    fi
+    if [[ -n "$(git for-each-ref --count=1 --contains "$commit" "refs/splices/$UPSTREAM_KEY/")" ]]; then
+      UNFETCHED_UPSTREAM=""
+      return 1
+    fi
   done
+  [[ -z "$UNFETCHED_UPSTREAM" ]]
 }
 
 # For splice <path> in state up-to-date: records the upstream branch T as

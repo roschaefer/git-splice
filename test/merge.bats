@@ -173,6 +173,22 @@ setup() {
   git diff --quiet HEAD
 }
 
+@test "merge: a rebased upstream branch is refused while another upstream the splice names isn't fetched, which may still have the synced commit" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  cd "$monorepo"
+  local backup="$BATS_TEST_TMPDIR/backup.git" synced before
+  git clone -q --bare "$upstream" "$backup"
+  git config --file vendor/a/.splice upstream.backup.url "$backup"
+  git config --file vendor/a/.splice splice.default-upstream origin
+  git commit -q -am "name a backup upstream"
+  synced="$(splice_config vendor/a commit)"
+  before="$(git rev-parse HEAD)"
+  run cmd_merge vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: no fetched upstream branch has the synced commit ${synced:0:7}, but 'backup' isn't fetched -- run 'git splice fetch --upstream backup vendor/a' first: if it still has the commit, the upstream didn't rewrite it away" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "merge: a rebased upstream branch that already has the pushed local commit is merged, and the rebuild is that branch" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"
