@@ -57,37 +57,8 @@ The monorepo doesn't need those 30 commits: it uses the library, it
 doesn't develop it. What it does need, the changes that fit the library
 into the app, are its own commits anyway.
 
-Two fixes to the library, between app commits:
-
-```scrut
-$ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
->   echo "lib fix 1" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 1" &&
->   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
->   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
-```
-
-The monorepo's history now: *a* (`app commit 40`), the merge *s* that
-`add` made, with the library's last commits *k* and *l* (`lib commit 29`
-and `lib commit 30`) as its second parent, and the four new commits *b*,
-*c*, *d* and *e*:
-
-<div align="center">
-
-![The monorepo's a, s, b, c, d and e in a line, and the library's k and l, with l as the second parent of s](git-subtree-whole-history.drawio.svg)
-
-</div>
-
-<!--
-```scrut
-$ check_drawing "$TESTDIR/git-subtree-whole-history.drawio.svg" --alias HEAD=H \
->   a=before-lib s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD k=HEAD~4^2~1 l=HEAD~4^2
-ok   git-subtree-whole-history.drawio.svg: 8 commits, 8 arrows, 1 boxes
-```
--->
-
-In return, `split`, which rebuilds library commits from the monorepo's,
-can start at *l*, a library commit it knows, and walks only the few
-commits since.
+That's the price for `split` to scale: it can start at the newest
+library commit the monorepo has, and walks only the commits since.
 
 ## Problem 2: with `--squash`, `split` walks everything
 
@@ -117,7 +88,7 @@ $ git log --graph --format=%s -3
 * app commit 40
 ```
 
-The same two fixes:
+Two fixes to the library, between app commits:
 
 ```scrut
 $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
@@ -126,9 +97,11 @@ $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
 >   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
-In place of the library's history, the merge *s* has *q* (`Squashed
-'vendor/lib/' content from commit bafd496`) as its second parent, a
-commit with the library's files and no parent of its own:
+The monorepo's history now: *a* (`app commit 40`), the merge *s* that
+`add` made, and the four new commits *b*, *c*, *d* and *e*. In place of
+the library's history, *s* has *q* (`Squashed 'vendor/lib/' content
+from commit bafd496`) as its second parent, a commit with the library's
+files and no parent of its own:
 
 <div align="center">
 
