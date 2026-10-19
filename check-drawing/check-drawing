@@ -412,10 +412,22 @@ check_drawing() {
     fi
   done
 
-  # What box term $1 of splice $2 names, or nothing; an upstream branch
-  # of the upstream with key $3, if given.
+  # Succeeds if box term $1 is a branch name, not H, B, T, R, U(x) or
+  # merge-base(R,T).
+  is_branch_term() {
+    [[ "$1" != H && "$1" != [BTR] && "$1" != "merge-base(R,T)" && "$1" != U\(*\) ]]
+  }
+  # What box term $1 of splice $2 names, or nothing. A branch name in a box
+  # pointing at monorepo commit $4 names a monorepo branch, e.g. main or
+  # origin/main; otherwise, an upstream branch, as fetched, of the upstream
+  # with key $3, if given.
   resolve_term() {
     local term="$1" sp="$2" k c rel
+    if is_branch_term "$term" && [[ -n "${4:-}" ]] && in_monorepo "$4"; then
+      git rev-parse --verify --quiet "refs/heads/$term^{commit}" ||
+        git rev-parse --verify --quiet "refs/remotes/$term^{commit}"
+      return 0
+    fi
     if [[ "$term" == H ]]; then
       printf '%s\n' "${truth[H]}"
     elif [[ "$term" == [BTR] ]]; then
@@ -494,8 +506,8 @@ check_drawing() {
         if [[ -n "${rev_of[$shown]:-}" ]]; then
           named="$(git rev-parse --verify --quiet "${rev_of[$shown]}^{commit}")"
         else
-          named="$(resolve_term "$term" "$sp" "${side_key[$s]:-}")"
-          [[ "$term" == H || "$term" == [BTR] || "$term" == "merge-base(R,T)" || "$term" == U\(*\) || -z "$named" ]] ||
+          named="$(resolve_term "$term" "$sp" "${side_key[$s]:-}" "${commit_of[$t]:-}")"
+          ! is_branch_term "$term" || [[ -z "$named" ]] || in_monorepo "$named" ||
             branch_tips["$sp|${side_of[$s]:-}"]+=" $named"
         fi
         if [[ -z "$named" ]]; then
