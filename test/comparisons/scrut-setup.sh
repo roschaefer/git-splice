@@ -11,7 +11,8 @@
 
 COMPARISON="$PWD"
 export COMPARISON
-PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd):$PATH"
+COMPARISON_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+PATH="$COMPARISON_REPO:$PATH"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
 # Stand-ins for a global git config. Submodules run git in their own
@@ -67,4 +68,10 @@ git() {
 subtree_split_walks() {
   command git subtree split --prefix="$1" 2>&1 >/dev/null |
     tr '\r' '\n' | sed -n 's#^[0-9]*/\([0-9]*\) .*#\1#p' | tail -1
+}
+
+# Checks a drawing against the repositories it shows, as in the scenarios.
+# A command of its own, so its git calls don't go through git() above.
+check_drawing() {
+  "$COMPARISON_REPO/check-drawing/check-drawing" "$@"
 }

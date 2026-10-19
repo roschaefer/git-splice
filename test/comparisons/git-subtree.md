@@ -4,8 +4,13 @@
 puts the library's files into a folder of the monorepo, like a splice.
 `add` and `pull` merge the library's history into the monorepo's, either
 whole or squashed into one commit. `split` and `push` turn the monorepo's
-commits that touched the folder back into library commits. This page shows
-what each costs, and where `git subtree` is the better tool.
+commits that touched the folder back into library commits.
+
+`git-splice` started as a wrapper around `git subtree`, and stopped
+because of two problems this page shows: without `--squash`, the
+library's whole history comes into the monorepo; with it, `split` walks
+the monorepo's whole history on every push. After them, the same with
+`git-splice`, and where `git subtree` is the better tool.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits by
 three developers, and a monorepo with an app and 40 commits.
@@ -22,7 +27,7 @@ $ git branch before-lib && git rev-list --count HEAD
 40
 ```
 
-## The whole history
+## Problem 1: the library's whole history comes in
 
 Without `--squash`, `add` merges all of the library's commits into the
 monorepo:
@@ -48,50 +53,14 @@ $ git log --graph --format=%s -4
 | * lib commit 28
 ```
 
-The library's commits keep their authors, and `git blame` follows each
-line into them, to the path the file had in the library:
+The monorepo doesn't need those 30 commits: it uses the library, it
+doesn't develop it. What it does need, the changes that fit the library
+into the app, are its own commits anyway.
 
-```scrut
-$ git blame -L 1,3 vendor/lib/src/parse.txt
-^136dd00 src/parse.txt (Lib Dev 2 2026-01-01 00:00:00 +0000 1) line 1
-b7c06ff8 src/parse.txt (Lib Dev 3 2026-01-01 00:00:00 +0000 2) line 2
-0089dc84 src/parse.txt (Lib Dev 1 2026-01-01 00:00:00 +0000 3) line 3
-```
+That's the price for `split` to scale: it can start at the newest
+library commit the monorepo has, and walks only the commits since.
 
-`git log` limited to the folder doesn't cross into them, though. The
-library's commits had no `vendor/lib/`, so the folder's log starts at the
-merge:
-
-```scrut
-$ git log --oneline -- vendor/lib
-83c95bf Add 'vendor/lib/' from commit 'bafd496b1f4512a95b69464604f3da428aa9e33b'
-```
-
-This is where `git subtree` is the right tool: moving a repository into
-the monorepo for good, and retiring its old home. The history, and `git
-blame` with it, comes along.
-
-### What `split` walks
-
-Two fixes to the library, between app commits:
-
-```scrut
-$ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
->   echo "lib fix 1" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 1" &&
->   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
->   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
-```
-
-`split` rebuilds library commits from the monorepo's commits. It starts
-from the newest commit it already knows, and here those are the library
-commits that `add` imported. So it walks only the few commits since:
-
-```scrut
-$ subtree_split_walks vendor/lib
-7
-```
-
-## Squashed
+## Problem 2: with `--squash`, `split` walks everything
 
 `--squash` keeps the library's history out: `add` merges a single commit
 with the library's files:
@@ -109,25 +78,34 @@ $ git rev-list --count HEAD
 42
 ```
 
-It's still a merge, so the history isn't linear, and `git blame` stops at
-the squashed commit:
+It's still a merge, so the history isn't linear. `add` makes two
+commits: *q* (`Squashed 'vendor/lib/' content from commit bafd496`),
+the library's files without parents, and the merge *s*, with *a* (`app
+commit 40`) and *q* as its parents:
+
+<div align="center">
+
+![The monorepo's a and s in a line, and q, a commit without parents, as the second parent of s](git-subtree-squash-add.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-squash-add.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD q=HEAD^2
+ok   git-subtree-squash-add.drawio.svg: 3 commits, 3 arrows, 1 boxes
+```
+-->
+
+*q* has the library's files at its root, as the library has them. The
+merge *s* is what puts them into `vendor/lib/`:
 
 ```scrut
-$ git log --graph --format=%s -3
-*   Merge commit '8e0bc3b1b1c045b4dc98c2fc7d471a64fae6a2b7' as 'vendor/lib'
-|\  
-| * Squashed 'vendor/lib/' content from commit bafd496
-* app commit 40
+$ git ls-tree --name-only HEAD^2
+src
 ```
 
-```scrut
-$ git blame -s -L 1,3 vendor/lib/src/parse.txt
-^8e0bc3b src/parse.txt 1) line 1
-^8e0bc3b src/parse.txt 2) line 2
-^8e0bc3b src/parse.txt 3) line 3
-```
-
-The same two fixes:
+Two fixes to the library, between app commits:
 
 ```scrut
 $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
@@ -136,8 +114,26 @@ $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
 >   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
+The monorepo's history now, with the four new commits after *s*: *b*
+(`app commit 41`), *c* (`lib fix 1`), *d* (`app commit 42`) and *e*
+(`lib fix 2`):
+
+<div align="center">
+
+![The monorepo's a, s, b, c, d and e in a line, and q, a commit without parents, as the second parent of s](git-subtree-squashed.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-squashed.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD q=HEAD~4^2
+ok   git-subtree-squashed.drawio.svg: 7 commits, 7 arrows, 1 boxes
+```
+-->
+
 Now `split` knows no library commit in the monorepo's history to start
-from, so it walks all of it, every time, though only two commits touched
+from, so it walks all of it, every time, though only *c* and *e* touched
 the library:
 
 ```scrut
@@ -147,15 +143,86 @@ $ subtree_split_walks vendor/lib
 46
 ```
 
-`split --rejoin` avoids that: it merges the split result back into the
-monorepo, as a sync point for the next `split`. That's one more merge
-commit for every push, and a pull request that's squash-merged drops it,
-with the sync point.
+### With `--rejoin`, a merge for every push, which a squash merge drops
 
-## The same with `git-splice`
+`split --rejoin` merges the split result back into the monorepo, as a
+starting point for the next `split`. With `--squash`, the result comes
+in as a single commit too:
+
+```scrut
+$ git subtree split --rejoin --squash --prefix=vendor/lib
+Merge made by the 'ort' strategy.
+48108daa0f798109c3e672ed47a7de6204cf4e02
+```
+
+`48108da` is the library commit with the two fixes, the same one
+`git splice push` makes [below](#how-git-splice-avoids-both). The merge
+*j* (`Split 'vendor/lib/' into commit
+'48108daa0f798109c3e672ed47a7de6204cf4e02'`) has *r* (`Squashed
+'vendor/lib/' changes from bafd496..48108da`) as its second parent, on
+top of *q*:
+
+<div align="center">
+
+![The monorepo's a, s, b, c, d, e and j in a line; below it, q as the second parent of s, and r, on top of q, as the second parent of j](git-subtree-rejoin.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-rejoin.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD^~4 b=HEAD^~3 c=HEAD^~2 d=HEAD^~1 e=HEAD^ j=HEAD \
+>   q=HEAD^~4^2 r=HEAD^2
+ok   git-subtree-rejoin.drawio.svg: 9 commits, 10 arrows, 1 boxes
+```
+-->
+
+The next `split` starts at *r*, and walks only the few commits since:
+
+```scrut
+$ subtree_split_walks vendor/lib
+3
+```
+
+That's one more merge commit for every push. And where a pull request is
+squash-merged, *j* never reaches the branch it's merged into.
+Squash-merged on top of *s*, that branch gets one commit *p* (`lib fixes
+(#1)`) with the fixes, and neither *j* nor *r*:
+
+```scrut
+$ git switch -q -c squash-merged "HEAD^~4" &&
+>   git merge -q --squash squashed >/dev/null &&
+>   git commit -q -m "lib fixes (#1)"
+```
+
+<div align="center">
+
+![The monorepo's a, s and p in a line; below it, q as the second parent of s](git-subtree-squash-merged.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-squash-merged.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD~1 p=HEAD q=HEAD~1^2
+ok   git-subtree-squash-merged.drawio.svg: 4 commits, 4 arrows, 1 boxes
+```
+-->
+
+So the next `split` from there walks all of the monorepo's history
+again:
+
+```scrut
+$ subtree_split_walks vendor/lib
+43
+```
+
+## How `git-splice` avoids both
 
 In a copy of the monorepo from before the library, `clone` adds one
-ordinary commit, and the history stays linear:
+ordinary commit, and the history stays linear. It also adds
+`vendor/lib/.splice`, which stays in the monorepo: `push` never sends it
+to the library.
 
 ```scrut
 $ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
@@ -187,7 +254,8 @@ library's history in the monorepo, nor the monorepo's history before that
 commit. These are the commits it walks, following first parents:
 
 ```scrut
-$ git log --first-parent --format=%s "$(git log -1 --format=%H -- vendor/lib/.splice)"..HEAD
+$ boundary="$(git log -1 --format=%H -- vendor/lib/.splice)" &&
+>   git log --first-parent --format=%s "$boundary"..HEAD
 lib fix 2
 app commit 42
 lib fix 1
@@ -202,23 +270,40 @@ $ git splice push vendor/lib
 ok   vendor/lib: pushed 48108da to main
 ```
 
+The monorepo's history stays a line, with the `clone` commit *s* in
+place of the merge. The library's `main` gets *c'* and *e'*, rebuilt
+from *c* and *e*, on top of the library's last commits *k* and *l*
+(`lib commit 29` and `lib commit 30`):
+
+<div align="center">
+
+![The monorepo's a, s, b, c, d and e in a line; below it, the library's k and l, then c prime under c and e prime under e, with main at e prime](git-subtree-splice.drawio.svg)
+
+</div>
+
+<!--
 ```scrut
-$ git -C "$COMPARISON/upstream/lib.git" log --format=%s -4 main
-lib fix 2
-lib fix 1
-lib commit 30
-lib commit 29
+$ check_drawing "$TESTDIR/git-subtree-splice.drawio.svg" --alias HEAD=H \
+>   a=HEAD~5 s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD \
+>   k=refs/splices/lib/main~3 l=refs/splices/lib/main~2
+ok   git-subtree-splice.drawio.svg: 10 commits, 10 arrows, 2 boxes
 ```
+-->
 
 Like `--squash`, a splice keeps the library's history out of the
-monorepo, so `git blame` stops at the `clone`:
+monorepo's. It's still at hand, fetched under `refs/splices/lib/`:
 
 ```scrut
-$ git blame -s -L 1,3 vendor/lib/src/parse.txt
-3ab92de9 1) line 1
-3ab92de9 2) line 2
-3ab92de9 3) line 3
+$ git log --oneline -4 refs/splices/lib/main
+48108da lib fix 2
+0579a80 lib fix 1
+bafd496 lib commit 30
+eacfd66 lib commit 29
 ```
 
-The library's history is still at hand, fetched under
-`refs/splices/lib/`, but not part of the monorepo's.
+## Where `git subtree` is the better tool
+
+Moving a repository into the monorepo for good, and retiring its old
+home. Without `--squash`, its history comes along, as in
+[problem 1](#problem-1-the-librarys-whole-history-comes-in), and `git
+blame` follows each line into the commits that made it.
