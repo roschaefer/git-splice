@@ -20,7 +20,8 @@ $ build_scenario scenario_concurrent_pulls
 ```
 
 ```scrut
-$ git merge origin/main >/dev/null; git merge --abort
+$ git merge origin/main >/dev/null
+> git merge --abort
 ```
 
 `--keep` drops the pull commit, and refuses if that would lose uncommitted

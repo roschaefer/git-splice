@@ -42,14 +42,21 @@ $ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local"
 The replacement is another repository, `$UPSTREAM-b2.git`:
 
 ```scrut
-$ make_bare_repo "$UPSTREAM-b2.git" && seed_bare_repo "$UPSTREAM-b2.git" "b2 seed" >/dev/null 2>&1
+$ make_bare_repo "$UPSTREAM-b2.git" &&
+>   seed_bare_repo "$UPSTREAM-b2.git" "b2 seed" >/dev/null 2>&1
 ```
 
 In a clone of the outer upstream, `b/` is removed and the replacement
 spliced in there:
 
 ```scrut
-$ git clone -q "$UPSTREAM" ../a-work && cd ../a-work && git rm -q -r b && git commit -q -m "remove b" && git splice clone https://git.example.com/b2.git b && git push -q origin HEAD:main && cd ../monorepo
+$ git clone -q "$UPSTREAM" ../a-work &&
+>   cd ../a-work &&
+>   git rm -q -r b &&
+>   git commit -q -m "remove b" &&
+>   git splice clone https://git.example.com/b2.git b &&
+>   git push -q origin HEAD:main &&
+>   cd ../monorepo
 ===  b: fetching https://git.example.com/b2.git
 ok   b: cloned 4d884bd from main
 ```
@@ -57,7 +64,8 @@ ok   b: cloned 4d884bd from main
 The replacement's `.splice` has another id than the inner splice's:
 
 ```scrut
-$ git -C ../a-work config --file b/.splice splice.id; git config --file vendor/a/b/.splice splice.id
+$ git -C ../a-work config --file b/.splice splice.id
+> git config --file vendor/a/b/.splice splice.id
 88a02361b312d5a4
 548ac82ad47ea22d
 ```

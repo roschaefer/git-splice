@@ -13,7 +13,9 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice pull vendor/pkg-a >/dev/null && echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
+$ git splice pull vendor/pkg-a >/dev/null &&
+>   echo "a local fix" >>vendor/pkg-a/file.txt &&
+>   git commit -qam "pkg-a: a local fix"
 ```
 
 ```scrut
@@ -43,7 +45,8 @@ The rebuild is an ordinary commit, so plain Git can push it too, e.g. to
 an upstream branch no monorepo branch is named like:
 
 ```scrut
-$ git push -q https://git.example.com/pkg-a.git "$(git splice rebuild vendor/pkg-a)":refs/heads/release
+$ rebuilt="$(git splice rebuild vendor/pkg-a)" &&
+>   git push -q https://git.example.com/pkg-a.git "$rebuilt":refs/heads/release
 ```
 
 ```scrut

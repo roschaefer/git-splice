@@ -38,7 +38,8 @@ jj 0.46.0-7d382314f9420b4b8d932245b49c99492c812b9f
 ## A submodule: jj doesn't look inside
 
 ```scrut
-$ git submodule add -q https://git.example.com/lib.git vendor/lib && git commit -q -m "add lib as a submodule"
+$ git submodule add -q https://git.example.com/lib.git vendor/lib &&
+>   git commit -q -m "add lib as a submodule"
 ```
 
 ```scrut
@@ -88,7 +89,9 @@ Initialized repo in "."
 ```
 
 ```scrut
-$ echo "fix" >>vendor/lib/src/parse.txt && echo "call parse()" >>app/main.txt && jj diff --stat
+$ echo "fix" >>vendor/lib/src/parse.txt &&
+>   echo "call parse()" >>app/main.txt &&
+>   jj diff --stat
 app/main.txt             | 1 +
 vendor/lib/src/parse.txt | 1 +
 2 files changed, 2 insertions(+), 0 deletions(-)
@@ -140,7 +143,11 @@ That's the same commit a push from plain Git sends
 The library gets a release:
 
 ```scrut
-$ git clone -q https://git.example.com/lib.git ../lib-dev && echo "1.3" >../lib-dev/VERSION && git -C ../lib-dev add VERSION && git -C ../lib-dev commit -q -m "release 1.3" && git -C ../lib-dev push -q
+$ git clone -q https://git.example.com/lib.git ../lib-dev &&
+>   echo "1.3" >../lib-dev/VERSION &&
+>   git -C ../lib-dev add VERSION &&
+>   git -C ../lib-dev commit -q -m "release 1.3" &&
+>   git -C ../lib-dev push -q
 ```
 
 ```scrut

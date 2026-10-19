@@ -39,7 +39,9 @@ $ build_scenario scenario_outer_fork https://git.example.com/b.git
 the outer upstream as its default:
 
 ```scrut
-$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git && git config --file vendor/a/.splice splice.default-upstream origin && git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
+$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git &&
+>   git config --file vendor/a/.splice splice.default-upstream origin &&
+>   git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
 ```
 
 ```scrut

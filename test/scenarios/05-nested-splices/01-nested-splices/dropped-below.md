@@ -41,7 +41,11 @@ In a clone of the outer upstream, `b/` pulls it, and the outer upstream
 gets it as *n*, on top of *k* (`a seed`) and *l* (`add b`):
 
 ```scrut
-$ git clone -q "$UPSTREAM" ../a-work && cd ../a-work && git splice pull b && git push -q origin HEAD:main && cd ../monorepo
+$ git clone -q "$UPSTREAM" ../a-work &&
+>   cd ../a-work &&
+>   git splice pull b &&
+>   git push -q origin HEAD:main &&
+>   cd ../monorepo
 ok   b fetched
 ok   b: pulled 95165ad
 ```
@@ -79,7 +83,11 @@ drawing shows what Git and `git-splice` say about it
 ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/dropped-below.drawio.svg" a=HEAD^ p=HEAD k=refs/splices/upstream/main~2 l=refs/splices/upstream/main~1 n=refs/splices/upstream/main m=refs/splices/b/main c="$(git config --file vendor/a/b/.splice splice.commit)"
+$ check_drawing "$TESTDIR/dropped-below.drawio.svg" \
+>   a=HEAD^ p=HEAD k=refs/splices/upstream/main~2 \
+>   l=refs/splices/upstream/main~1 n=refs/splices/upstream/main \
+>   m=refs/splices/b/main \
+>   c="$(git config --file vendor/a/b/.splice splice.commit)"
 ok   dropped-below.drawio.svg: 7 commits, 8 arrows, 4 boxes, 2 lanes
 ```
 

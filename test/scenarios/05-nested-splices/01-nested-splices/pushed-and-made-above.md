@@ -34,7 +34,9 @@ $ build_scenario scenario_nested_splices https://git.example.com/b.git
 The monorepo changes `vendor/a/b/` and pushes only `vendor/a/b/`:
 
 ```scrut
-$ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local" && git splice push vendor/a/b
+$ echo "b local" >>vendor/a/b/file.txt &&
+>   git commit -q -a -m "b local" &&
+>   git splice push vendor/a/b
 ok   vendor/a/b: pushed 701ab17 to main
 ```
 
@@ -44,7 +46,15 @@ In a clone of the outer upstream, a maintainer makes the same change to
 `b/`, and another one to the outer upstream's own files:
 
 ```scrut
-$ git clone -q "$UPSTREAM" ../a-work && cd ../a-work && echo "b local" >>b/file.txt && git -c user.name=Maintainer -c user.email=maintainer@example.com commit -q -am "the same change, made in a's upstream" && echo "a change" >>file.txt && git commit -q -am "a change" && git push -q origin HEAD:main && cd ../monorepo
+$ git clone -q "$UPSTREAM" ../a-work &&
+>   cd ../a-work &&
+>   echo "b local" >>b/file.txt &&
+>   git -c user.name=Maintainer -c user.email=maintainer@example.com \
+>     commit -q -am "the same change, made in a's upstream" &&
+>   echo "a change" >>file.txt &&
+>   git commit -q -am "a change" &&
+>   git push -q origin HEAD:main &&
+>   cd ../monorepo
 ```
 
 ## The monorepo pulls `vendor/a/`

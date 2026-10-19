@@ -43,7 +43,10 @@ commit named by its place in the history
 ([`check_drawing`](../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/bisect-into-a-pull.drawio.svg" a=HEAD~3 b=HEAD~2 X=HEAD~1 d=HEAD k=refs/splices/upstream/main~3 l=refs/splices/upstream/main~2 m=refs/splices/upstream/main~1 n=refs/splices/upstream/main
+$ check_drawing "$TESTDIR/bisect-into-a-pull.drawio.svg" \
+>   a=HEAD~3 b=HEAD~2 X=HEAD~1 d=HEAD k=refs/splices/upstream/main~3 \
+>   l=refs/splices/upstream/main~2 m=refs/splices/upstream/main~1 \
+>   n=refs/splices/upstream/main
 ok   bisect-into-a-pull.drawio.svg: 8 commits, 10 arrows, 4 boxes, 1 lanes
 ```
 
@@ -62,7 +65,10 @@ The commit that added `check.sh` is the known good one. Before it,
 `./check.sh` doesn't exist, and `git bisect run` would count that as bad:
 
 ```scrut
-$ git bisect start HEAD "$(git log -1 --format=%H --diff-filter=A -- check.sh)" >/dev/null && git bisect run ./check.sh >/dev/null && git show --stat --format='first bad commit: %s' refs/bisect/bad
+$ good="$(git log -1 --format=%H --diff-filter=A -- check.sh)" &&
+>   git bisect start HEAD "$good" >/dev/null &&
+>   git bisect run ./check.sh >/dev/null &&
+>   git show --stat --format='first bad commit: %s' refs/bisect/bad
 first bad commit: splice: pull vendor/a from main at 803779d
 
  vendor/a/.splice    | 2 +-
@@ -86,7 +92,9 @@ commits between them came in with *X*.
 The fetched upstream refs have them:
 
 ```scrut
-$ U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" && U2="$(git config --blob "$X:vendor/a/.splice" splice.commit)" && git log --oneline "$U1..$U2"
+$ U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" &&
+>   U2="$(git config --blob "$X:vendor/a/.splice" splice.commit)" &&
+>   git log --oneline "$U1..$U2"
 803779d fix a typo
 83019ad log at debug level
 4192552 add config.txt
@@ -107,20 +115,32 @@ Two worktrees: `../before`, the monorepo right before the pull, and
 they need a worktree of their own.
 
 ```scrut
-$ git worktree add -q --detach ../before "$X^" && git worktree add -q --detach ../lib "$U2" && cd ../lib
+$ git worktree add -q --detach ../before "$X^" &&
+>   git worktree add -q --detach ../lib "$U2" &&
+>   cd ../lib
 ```
 
 Bisect runs in `../lib`. For each candidate, it copies the candidate's
 files into `../before/vendor/a` and runs the monorepo's test there:
 
 ```scrut
-$ git bisect start "$U2" "$U1" && git bisect run sh -c 'git --work-tree=../before/vendor/a checkout -f HEAD -- . && cd ../before && ./check.sh'
+$ cat >../copy-and-check.sh <<'EOF'
+> set -e
+> git --work-tree=../before/vendor/a checkout -f HEAD -- .
+> cd ../before
+> ./check.sh
+> EOF
+```
+
+```scrut
+$ git bisect start "$U2" "$U1" &&
+>   git bisect run sh ../copy-and-check.sh
 Bisecting: 0 revisions left to test after this (roughly 1 step)
 [83019adee0a2cf37e98fc79274ba471a0ba8f99a] log at debug level
-running 'sh' '-c' 'git --work-tree=../before/vendor/a checkout -f HEAD -- . && cd ../before && ./check.sh'
+running 'sh' '../copy-and-check.sh'
 Bisecting: 0 revisions left to test after this (roughly 0 steps)
 [419255245bf628a762cb138a18347abd227d07e7] add config.txt
-running 'sh' '-c' 'git --work-tree=../before/vendor/a checkout -f HEAD -- . && cd ../before && ./check.sh'
+running 'sh' '../copy-and-check.sh'
 83019adee0a2cf37e98fc79274ba471a0ba8f99a is the first bad commit
 commit 83019adee0a2cf37e98fc79274ba471a0ba8f99a
 Author: Upstream <upstream@example.com>

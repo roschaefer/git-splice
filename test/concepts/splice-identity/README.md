@@ -119,7 +119,9 @@ A plain copy, e.g. to give a second app its own copy of the library,
 copies `.splice` too:
 
 ```scrut
-$ cp -r vendor/a vendor/a-copy && git add vendor/a-copy && git commit -q -m "copy vendor/a"
+$ cp -r vendor/a vendor/a-copy &&
+>   git add vendor/a-copy &&
+>   git commit -q -m "copy vendor/a"
 ```
 
 ```scrut
@@ -167,7 +169,8 @@ ok   vendor/a: pulled 6045a98
 ```
 
 ```scrut
-$ git grep -e 'id = ' -e 'commit = ' -- vendor/a/.splice vendor/a-copy/.splice | tr '\t' ' '
+$ git grep -e 'id = ' -e 'commit = ' -- vendor/a/.splice vendor/a-copy/.splice |
+>   tr '\t' ' '
 vendor/a-copy/.splice: id = 224f2c2563d3b6f7
 vendor/a-copy/.splice: commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 vendor/a/.splice: id = 224f2c2563d3b6f7
@@ -228,7 +231,9 @@ it has now.
 A commit in each mirror, not pushed yet:
 
 ```scrut
-$ echo "not for upstream" >vendor/a/secret.txt && git add vendor/a && git commit -q -m "a secret"
+$ echo "not for upstream" >vendor/a/secret.txt &&
+>   git add vendor/a &&
+>   git commit -q -m "a secret"
 ```
 
 ```scrut
@@ -238,7 +243,10 @@ $ echo "copy change" >>vendor/a-copy/file.txt && git commit -q -am "copy change"
 Then they swap paths:
 
 ```scrut
-$ git mv vendor/a tmp && git mv vendor/a-copy vendor/a && git mv tmp vendor/a-copy && git commit -q -m "swap the mirrors"
+$ git mv vendor/a tmp &&
+>   git mv vendor/a-copy vendor/a &&
+>   git mv tmp vendor/a-copy &&
+>   git commit -q -m "swap the mirrors"
 ```
 
 `vendor/a/` has the copy's files now, without the secret. But its history

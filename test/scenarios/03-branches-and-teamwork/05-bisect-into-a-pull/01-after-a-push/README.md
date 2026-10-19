@@ -37,7 +37,9 @@ commit named by its place in the history
 ([`check_drawing`](../../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/after-a-push.drawio.svg" c=HEAD~3 d=HEAD~2 e=HEAD~1 X=HEAD n=refs/splices/upstream/main~2 o=refs/splices/upstream/main
+$ check_drawing "$TESTDIR/after-a-push.drawio.svg" \
+>   c=HEAD~3 d=HEAD~2 e=HEAD~1 X=HEAD n=refs/splices/upstream/main~2 \
+>   o=refs/splices/upstream/main
 ok   after-a-push.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
 ```
 
@@ -55,7 +57,10 @@ initial commit
 *X* is the newest pull. The recipe's range has the pushed commit too:
 
 ```scrut
-$ X=HEAD && U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" && U2="$(git config --blob "$X:vendor/a/.splice" splice.commit)" && git log --format=%s "$U1..$U2"
+$ X=HEAD &&
+>   U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" &&
+>   U2="$(git config --blob "$X:vendor/a/.splice" splice.commit)" &&
+>   git log --format=%s "$U1..$U2"
 add upstream.txt
 a local change in vendor/a
 ```

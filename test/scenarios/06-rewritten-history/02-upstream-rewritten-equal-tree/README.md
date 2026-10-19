@@ -57,7 +57,8 @@ $ r="$(git config --file vendor/a/.splice splice.commit)"
 ```
 
 ```scrut
-$ check_drawing "$TESTDIR/upstream-rewritten-equal-tree.drawio.svg" a=HEAD k="$r~1" r="$r" w=refs/splices/upstream/main
+$ check_drawing "$TESTDIR/upstream-rewritten-equal-tree.drawio.svg" \
+>   a=HEAD k="$r~1" r="$r" w=refs/splices/upstream/main
 ok   upstream-rewritten-equal-tree.drawio.svg: 4 commits, 4 arrows, 3 boxes, 1 lanes
 ```
 
@@ -80,11 +81,15 @@ longer contains. The upstream's `main`, as fetched, is the ref ending in
 `/main`:
 
 ```scrut
-$ main="$(git for-each-ref --format='%(refname:lstrip=3) %(objectname)' refs/splices/ | sed -n 's#^main ##p')"
+$ main="$(
+>   git for-each-ref --format='%(refname:lstrip=3) %(objectname)' refs/splices/ |
+>     sed -n 's#^main ##p'
+> )"
 ```
 
 ```scrut
-$ git merge-base --is-ancestor "$(git config --file vendor/a/.splice splice.commit)" "$main" || echo "not in the upstream's history"
+$ synced="$(git config --file vendor/a/.splice splice.commit)" &&
+>   git merge-base --is-ancestor "$synced" "$main" || echo "not in the upstream's history"
 not in the upstream's history
 ```
 

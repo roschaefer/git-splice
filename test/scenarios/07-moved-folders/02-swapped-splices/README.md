@@ -56,7 +56,10 @@ $ git splice log
 The swap: three `git mv`, with a temporary name, in one commit.
 
 ```scrut
-$ git mv vendor/a tmp && git mv vendor/b vendor/a && git mv tmp vendor/b && git commit -q -m "swap a and b"
+$ git mv vendor/a tmp &&
+>   git mv vendor/b vendor/a &&
+>   git mv tmp vendor/b &&
+>   git commit -q -m "swap a and b"
 ```
 
 `vendor/a/` is now the splice of `$UPSTREAM-b`, with its file and its
@@ -98,7 +101,8 @@ ok   vendor/a: pushed 02eb4fc to main
 ```
 
 ```scrut
-$ git -C "$UPSTREAM-b" log --format=%s main && git -C "$UPSTREAM-b" ls-tree --name-only main
+$ git -C "$UPSTREAM-b" log --format=%s main &&
+>   git -C "$UPSTREAM-b" ls-tree --name-only main
 swap a and b
 b.txt
 ```

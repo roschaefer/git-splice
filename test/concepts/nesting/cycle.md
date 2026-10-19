@@ -102,7 +102,9 @@ sends a copy of the monorepo, from when the upstream of `vendor/a/` last
 pulled it, to the monorepo's `main`. A change in the copy:
 
 ```scrut
-$ echo "note" >vendor/a/i/note.txt && git add vendor/a/i/note.txt && git commit -q -m "note in i"
+$ echo "note" >vendor/a/i/note.txt &&
+>   git add vendor/a/i/note.txt &&
+>   git commit -q -m "note in i"
 ```
 
 ```scrut

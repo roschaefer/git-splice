@@ -16,7 +16,8 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git submodule add -q https://git.example.com/lib.git vendor/lib && git commit -q -m "add lib as a submodule"
+$ git submodule add -q https://git.example.com/lib.git vendor/lib &&
+>   git commit -q -m "add lib as a submodule"
 ```
 
 ## The monorepo doesn't see the library's files
@@ -76,7 +77,8 @@ Committing takes two commits, in two repositories. The monorepo's commit
 records only that the gitlink moved:
 
 ```scrut
-$ git -C vendor/lib commit -q -a -m "fix parse()" && git commit -q -a -m "app: call parse()"
+$ git -C vendor/lib commit -q -a -m "fix parse()" &&
+>   git commit -q -a -m "app: call parse()"
 ```
 
 ```scrut
@@ -123,7 +125,8 @@ error: unknown option `recurse-submodules'
 ```
 
 ```scrut
-$ git grep -c fix -- vendor/lib; git grep -c --recurse-submodules fix -- vendor/lib
+$ git grep -c fix -- vendor/lib
+> git grep -c --recurse-submodules fix -- vendor/lib
 vendor/lib/src/parse.txt:1
 ```
 
@@ -137,7 +140,9 @@ ok   vendor/lib: cloned bafd496 from main
 ```
 
 ```scrut
-$ echo "fix" >>vendor/lib/src/parse.txt && echo "call parse()" >>app/main.txt && git status --short
+$ echo "fix" >>vendor/lib/src/parse.txt &&
+>   echo "call parse()" >>app/main.txt &&
+>   git status --short
  M app/main.txt
  M vendor/lib/src/parse.txt
 ```
@@ -170,7 +175,9 @@ on the same terminal and in a random order with the rest, as the
 "server" is a local folder.)
 
 ```scrut
-$ git clone -q --bare --no-local . ../origin.git && git clone -q --recurse-submodules ../origin.git ../colleague 2>&1 | grep -v '^fatal: git upload-pack'
+$ git clone -q --bare --no-local . ../origin.git &&
+>   git clone -q --recurse-submodules ../origin.git ../colleague 2>&1 |
+>     grep -v '^fatal: git upload-pack'
 fatal: remote error: upload-pack: not our ref a6152f5cee8b2bfd6b5dfc7bbb2bf5d8a7562325
 fatal: Fetched in submodule path 'vendor/lib', but it did not contain a6152f5cee8b2bfd6b5dfc7bbb2bf5d8a7562325. Direct fetching of that commit failed.
 ```
@@ -178,7 +185,10 @@ fatal: Fetched in submodule path 'vendor/lib', but it did not contain a6152f5cee
 The library's commit has to be pushed first:
 
 ```scrut
-$ git -C vendor/lib push -q && rm -rf ../colleague && git clone -q --recurse-submodules ../origin.git ../colleague && echo cloned
+$ git -C vendor/lib push -q &&
+>   rm -rf ../colleague &&
+>   git clone -q --recurse-submodules ../origin.git ../colleague &&
+>   echo cloned
 cloned
 ```
 
@@ -224,7 +234,8 @@ in each worktree. But the monorepo's settings for the submodule,
 which all worktrees share. A change in one worktree changes the others:
 
 ```scrut
-$ git -C ../feature config submodule.vendor/lib.url https://git.example.com/lib-fork.git && git config submodule.vendor/lib.url
+$ git -C ../feature config submodule.vendor/lib.url https://git.example.com/lib-fork.git &&
+>   git config submodule.vendor/lib.url
 https://git.example.com/lib-fork.git
 ```
 
@@ -262,7 +273,10 @@ initialize. The fix from `main` isn't upstream yet, so a push from
 `feature` would bring it along:
 
 ```scrut
-$ cd ../splice-monorepo && git worktree add -q ../splice-feature -b feature && cd ../splice-feature && git splice status
+$ cd ../splice-monorepo &&
+>   git worktree add -q ../splice-feature -b feature &&
+>   cd ../splice-feature &&
+>   git splice status
 On branch feature
 
   new, ahead 1  vendor/lib  push creates the branch
@@ -274,7 +288,9 @@ branches under `refs/splices/`, is shared by all worktrees, like
 worktree. A push from one worktree is seen by the others:
 
 ```scrut
-$ echo "fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "fix 2" && git splice push vendor/lib
+$ echo "fix 2" >>vendor/lib/src/parse.txt &&
+>   git commit -q -a -m "fix 2" &&
+>   git splice push vendor/lib
 ??   vendor/lib: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/lib: pushed 6b3df25 to feature
 ```

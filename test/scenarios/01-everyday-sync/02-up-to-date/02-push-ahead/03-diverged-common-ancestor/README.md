@@ -63,7 +63,9 @@ UU vendor/a/file.txt
 ```
 
 ```scrut
-$ printf 'seed\nlocal change\nupstream change\n' >vendor/a/file.txt && git add vendor/a/file.txt && git commit -q --no-edit
+$ printf 'seed\nlocal change\nupstream change\n' >vendor/a/file.txt &&
+>   git add vendor/a/file.txt &&
+>   git commit -q --no-edit
 ```
 
 Upstream gets the local commit, joined with its own by a merge:

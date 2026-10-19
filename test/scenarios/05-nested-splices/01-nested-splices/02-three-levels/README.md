@@ -41,7 +41,9 @@ $ build_scenario scenario_three_levels https://git.example.com/b.git https://git
 The monorepo changes `vendor/a/b/c/` and pushes all three, bottom-up:
 
 ```scrut
-$ echo "c local" >>vendor/a/b/c/file.txt && git commit -q -a -m "c local" && git splice push vendor/a/b/c vendor/a/b vendor/a
+$ echo "c local" >>vendor/a/b/c/file.txt &&
+>   git commit -q -a -m "c local" &&
+>   git splice push vendor/a/b/c vendor/a/b vendor/a
 ok   vendor/a/b/c: pushed 8dd94ad to main
 ok   vendor/a/b: pushed 50ab272 to main
 ok   vendor/a: pushed daa485c to main
@@ -51,14 +53,18 @@ ok   vendor/a: pushed daa485c to main
 upstream's commit from before the change:
 
 ```scrut
-$ git -C "$UPSTREAM" show main:b/.splice | git config --file - splice.commit | xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
+$ git -C "$UPSTREAM" show main:b/.splice |
+>   git config --file - splice.commit |
+>   xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
 add c
 ```
 
 ## Another monorepo splices the outer upstream in
 
 ```scrut
-$ git init -q -b main ../other && cd ../other && git commit -q --allow-empty -m "other monorepo"
+$ git init -q -b main ../other &&
+>   cd ../other &&
+>   git commit -q --allow-empty -m "other monorepo"
 ```
 
 ```scrut

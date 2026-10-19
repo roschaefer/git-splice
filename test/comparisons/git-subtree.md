@@ -76,7 +76,10 @@ blame` with it, comes along.
 Two fixes to the library, between app commits:
 
 ```scrut
-$ for change in "app commit 41" "lib fix 1" "app commit 42" "lib fix 2"; do case $change in app*) echo "$change" >>app/main.txt ;; lib*) echo "$change" >>vendor/lib/src/parse.txt ;; esac; git commit -q -a -m "$change"; done
+$ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
+>   echo "lib fix 1" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 1" &&
+>   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
+>   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
 `split` rebuilds library commits from the monorepo's commits. It starts
@@ -94,7 +97,8 @@ $ subtree_split_walks vendor/lib
 with the library's files:
 
 ```scrut
-$ git switch -q -c squashed before-lib && git subtree add -q --squash --prefix=vendor/lib https://git.example.com/lib.git main
+$ git switch -q -c squashed before-lib &&
+>   git subtree add -q --squash --prefix=vendor/lib https://git.example.com/lib.git main
 git fetch https://git.example.com/lib.git main
 From $COMPARISON/upstream/lib
  * branch            main       -> FETCH_HEAD
@@ -126,7 +130,10 @@ $ git blame -s -L 1,3 vendor/lib/src/parse.txt
 The same two fixes:
 
 ```scrut
-$ for change in "app commit 41" "lib fix 1" "app commit 42" "lib fix 2"; do case $change in app*) echo "$change" >>app/main.txt ;; lib*) echo "$change" >>vendor/lib/src/parse.txt ;; esac; git commit -q -a -m "$change"; done
+$ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
+>   echo "lib fix 1" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 1" &&
+>   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
+>   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
 Now `split` knows no library commit in the monorepo's history to start
@@ -134,7 +141,8 @@ from, so it walks all of it, every time, though only two commits touched
 the library:
 
 ```scrut
-$ subtree_split_walks vendor/lib; git rev-list --count HEAD
+$ subtree_split_walks vendor/lib
+> git rev-list --count HEAD
 46
 46
 ```
@@ -156,7 +164,8 @@ ok   vendor/lib: cloned bafd496 from main
 ```
 
 ```scrut
-$ git rev-list --count HEAD; git log --graph --format=%s -3
+$ git rev-list --count HEAD
+> git log --graph --format=%s -3
 41
 * splice: clone vendor/lib from main at bafd496
 * app commit 40
@@ -166,7 +175,10 @@ $ git rev-list --count HEAD; git log --graph --format=%s -3
 The same two fixes:
 
 ```scrut
-$ for change in "app commit 41" "lib fix 1" "app commit 42" "lib fix 2"; do case $change in app*) echo "$change" >>app/main.txt ;; lib*) echo "$change" >>vendor/lib/src/parse.txt ;; esac; git commit -q -a -m "$change"; done
+$ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
+>   echo "lib fix 1" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 1" &&
+>   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
+>   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
 `push` only looks at the commits since the boundary, usually the newest

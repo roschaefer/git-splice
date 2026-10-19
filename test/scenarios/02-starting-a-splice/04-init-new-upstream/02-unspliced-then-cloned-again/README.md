@@ -37,7 +37,9 @@ A password is committed and not pushed. Then `lib/a/` stops being a
 splice, and the password is removed again:
 
 ```scrut
-$ echo "password = hunter2" >lib/a/config.txt && git add lib/a/config.txt && git commit -q -m "add the password"
+$ echo "password = hunter2" >lib/a/config.txt &&
+>   git add lib/a/config.txt &&
+>   git commit -q -m "add the password"
 ```
 
 ```scrut

@@ -99,7 +99,9 @@ add lib
 *a*'s folder is the commit it recorded, *k*. It's `HEAD~4`:
 
 ```scrut
-$ git diff --quiet "$(git config --blob 'HEAD~4:lib/.splice' splice.commit)" HEAD~4:lib -- ':!.splice' && echo "a's folder is k"
+$ k="$(git config --blob 'HEAD~4:lib/.splice' splice.commit)" &&
+>   git diff --quiet "$k" HEAD~4:lib -- ':!.splice' &&
+>   echo "a's folder is k"
 a's folder is k
 ```
 

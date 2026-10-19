@@ -260,7 +260,9 @@ Git's transport, as a clone from a server does. A clone from a local path
 would copy every object.)
 
 ```scrut
-$ git switch -q main && git clone -q --no-local . ../clone && git -C ../clone for-each-ref --format='%(refname)'
+$ git switch -q main &&
+>   git clone -q --no-local . ../clone &&
+>   git -C ../clone for-each-ref --format='%(refname)'
 refs/heads/main
 refs/remotes/origin/HEAD
 refs/remotes/origin/fix-parser
@@ -269,7 +271,8 @@ refs/remotes/origin/rename-helper
 ```
 
 ```scrut
-$ cd ../clone && git splice status; cd - >/dev/null
+$ cd ../clone && git splice status
+> cd - >/dev/null
 On branch main
 
   ?? never fetched  vendor/a  run 'git splice fetch vendor/a'

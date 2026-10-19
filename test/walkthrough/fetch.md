@@ -15,7 +15,10 @@ $ source "$TESTDIR/scrut-setup.sh"
 Someone pushes to `pkg-a`'s upstream:
 
 ```scrut
-$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a && echo "pkg-a: add a feature" >>../pkg-a/file.txt && git -C ../pkg-a commit -qam "pkg-a: add a feature" && git -C ../pkg-a push -q
+$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
+>   echo "pkg-a: add a feature" >>../pkg-a/file.txt &&
+>   git -C ../pkg-a commit -qam "pkg-a: add a feature" &&
+>   git -C ../pkg-a push -q
 ```
 
 ```scrut
@@ -51,7 +54,8 @@ worktree, and remove it when you're done. Commits made there don't reach
 upstream; changes belong in the monorepo, and `push` publishes them.
 
 ```scrut
-$ git worktree add -q --detach ../pkg-a-upstream splices/pkg-a/main && ls ../pkg-a-upstream
+$ git worktree add -q --detach ../pkg-a-upstream splices/pkg-a/main &&
+>   ls ../pkg-a-upstream
 file.txt
 ```
 

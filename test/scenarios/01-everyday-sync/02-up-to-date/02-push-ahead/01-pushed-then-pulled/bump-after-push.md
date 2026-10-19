@@ -41,7 +41,8 @@ Every rebuild walks the folder's commits since the boundary, and so
 rebuilds the pushed commit again:
 
 ```scrut
-$ git log --first-parent --format=%s "$(git log --first-parent -1 --format=%H -- vendor/a/.splice)"..HEAD -- vendor/a
+$ boundary="$(git log --first-parent -1 --format=%H -- vendor/a/.splice)" &&
+>   git log --first-parent --format=%s "$boundary"..HEAD -- vendor/a
 local change
 ```
 
@@ -82,7 +83,8 @@ The folder has the pushed commit's files, so the rebuild now starts at the
 pushed commit itself, with nothing to walk:
 
 ```scrut
-$ git log --first-parent --format=%s "$(git log --first-parent -1 --format=%H -- vendor/a/.splice)"..HEAD -- vendor/a
+$ boundary="$(git log --first-parent -1 --format=%H -- vendor/a/.splice)" &&
+>   git log --first-parent --format=%s "$boundary"..HEAD -- vendor/a
 ```
 
 ```scrut

@@ -62,7 +62,8 @@ in a worktree of its own, since it has the upstream's layout, and reword
 it there:
 
 ```scrut
-$ git worktree add -q --detach ../edited "$(git splice rebuild vendor/pkg-a)" && git -C ../edited commit -q --amend -m "pkg-a: fix the parser"
+$ git worktree add -q --detach ../edited "$(git splice rebuild vendor/pkg-a)" &&
+>   git -C ../edited commit -q --amend -m "pkg-a: fix the parser"
 ```
 
 `--rebuilt-commit` pushes the edited commit instead of the rebuild. It

@@ -50,7 +50,9 @@ A  vendor/a/upstream.txt
 ```
 
 ```scrut
-$ echo "both versions" >vendor/a/file.txt && git add vendor/a/file.txt && git commit -q --no-edit
+$ echo "both versions" >vendor/a/file.txt &&
+>   git add vendor/a/file.txt &&
+>   git commit -q --no-edit
 ```
 
 The push sends one commit, the merge, on top of upstream's. The folder's

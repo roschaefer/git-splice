@@ -41,7 +41,9 @@ commit named by its place in the history
 ([`check_drawing`](../../../../../check-drawing/)):
 
 ```scrut
-$ check_drawing "$TESTDIR/local-edit-in-the-squash.drawio.svg" a=HEAD~1 s=HEAD k=refs/splices/upstream/main f=refs/splices/upstream/feature
+$ check_drawing "$TESTDIR/local-edit-in-the-squash.drawio.svg" \
+>   a=HEAD~1 s=HEAD k=refs/splices/upstream/main \
+>   f=refs/splices/upstream/feature
 ok   local-edit-in-the-squash.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
 
@@ -66,7 +68,8 @@ upstream feature work
 But its folder isn't *f*: it has the local edit too.
 
 ```scrut
-$ git diff --name-only "$(git config --file vendor/a/.splice splice.commit)" HEAD:vendor/a -- ':!.splice'
+$ synced="$(git config --file vendor/a/.splice splice.commit)" &&
+>   git diff --name-only "$synced" HEAD:vendor/a -- ':!.splice'
 local.txt
 ```
 

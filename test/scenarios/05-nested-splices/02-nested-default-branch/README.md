@@ -44,7 +44,9 @@ As a separate folder with a clone of the outer upstream would have it,
 `b/` syncs with `master`:
 
 ```scrut
-$ git clone -q "$UPSTREAM" ../a-clone && git -C ../a-clone splice fetch && git -C ../a-clone splice status
+$ git clone -q "$UPSTREAM" ../a-clone &&
+>   git -C ../a-clone splice fetch &&
+>   git -C ../a-clone splice status
 ok   b fetched
 On branch master
 
@@ -90,7 +92,9 @@ A change to `vendor/a/b/`, pushed from `main`, goes to `master` in the
 inner upstream, which has no other branch:
 
 ```scrut
-$ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local" && git splice push vendor/a/b
+$ echo "b local" >>vendor/a/b/file.txt &&
+>   git commit -q -a -m "b local" &&
+>   git splice push vendor/a/b
 ok   vendor/a/b: pushed 701ab17 to master
 ```
 

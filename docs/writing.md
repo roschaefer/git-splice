@@ -29,3 +29,25 @@ A few details:
   another, they're the outer and the inner upstream; an app and the
   library it splices in are the app's upstream and the library's.
 - Page titles, image alt text and code blocks get no markup.
+
+## Commands in scrut blocks
+
+Each step a reader would type gets its own line. A scrut command goes on
+from its `$ ` line to the `> ` lines below it:
+
+```text
+$ git clone -q https://git.example.com/lib.git ../lib-dev &&
+>   echo "fix" >>../lib-dev/src/parse.txt &&
+>   git -C ../lib-dev commit -q -a -m "fix parse()"
+```
+
+- A chain ends each step with `&&` and indents the next one by two
+  spaces. Commands that don't depend on each other go on `> ` lines
+  without the indent, instead of after a `;`. Within a step, what a
+  `|` pipes into is indented by two more than the step.
+- A command with many arguments breaks with `\`, and keeps an option
+  next to its value.
+- A `$(…)` inside another command gets a name first, one from the page
+  where there is one: `k="$(…)" && git diff --quiet "$k" …`.
+- A script, for `sh -c` or a file, is a heredoc, one command per line.
+- A loop over a few fixed steps is written out step by step.

@@ -23,11 +23,13 @@ $ build_scenario scenario_outer_fork https://git.example.com/b.git
 Each `.splice` gets its own fork, and keeps its upstream as the default:
 
 ```scrut
-$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git && git config --file vendor/a/.splice splice.default-upstream origin
+$ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git &&
+>   git config --file vendor/a/.splice splice.default-upstream origin
 ```
 
 ```scrut
-$ git config --file vendor/a/b/.splice upstream.fork.url https://git.example.com/company/b.git && git config --file vendor/a/b/.splice splice.default-upstream origin
+$ git config --file vendor/a/b/.splice upstream.fork.url https://git.example.com/company/b.git &&
+>   git config --file vendor/a/b/.splice splice.default-upstream origin
 ```
 
 ```scrut

@@ -27,7 +27,10 @@ $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local 
 ```
 
 ```scrut
-$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a && echo "pkg-a: an upstream fix" >>../pkg-a/file.txt && git -C ../pkg-a commit -qam "pkg-a: an upstream fix" && git -C ../pkg-a push -q
+$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
+>   echo "pkg-a: an upstream fix" >>../pkg-a/file.txt &&
+>   git -C ../pkg-a commit -qam "pkg-a: an upstream fix" &&
+>   git -C ../pkg-a push -q
 ```
 
 Once fetched, `status` reports the splice as `diverged`, and `log` shows
@@ -123,7 +126,12 @@ pkg-a: an upstream fix
 Resolve it as for any merge: keep both lines, then commit.
 
 ```scrut
-$ printf '%s\n' "pkg-a: seed" "pkg-a: a second commit, after the clone" "a local fix" "pkg-a: an upstream fix" >vendor/pkg-a/file.txt
+$ cat >vendor/pkg-a/file.txt <<'EOF'
+> pkg-a: seed
+> pkg-a: a second commit, after the clone
+> a local fix
+> pkg-a: an upstream fix
+> EOF
 ```
 
 ```scrut

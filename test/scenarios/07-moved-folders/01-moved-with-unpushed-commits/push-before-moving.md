@@ -26,7 +26,8 @@ ok   vendor/a: pushed e859a6b to main
 ```
 
 ```scrut
-$ git mv vendor/a libs/a && git -c user.name=Mover -c user.email=mover@example.com commit -q -m "reorganize folders"
+$ git mv vendor/a libs/a &&
+>   git -c user.name=Mover -c user.email=mover@example.com commit -q -m "reorganize folders"
 ```
 
 A move changes no file inside the folder, so after a fetch under the new

@@ -110,7 +110,9 @@ index 16b61ae..5635a7f 100644
 A push sends the folder's files, without `.splice`:
 
 ```scrut
-$ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix" && git splice push vendor/pkg-a >/dev/null
+$ echo "a local fix" >>vendor/pkg-a/file.txt &&
+>   git commit -qam "pkg-a: a local fix" &&
+>   git splice push vendor/pkg-a >/dev/null
 ```
 
 ```scrut

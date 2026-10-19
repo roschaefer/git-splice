@@ -42,7 +42,8 @@ $ git log --graph --format=%s
 `git subtree split` preserves the graph:
 
 ```scrut
-$ git subtree split --quiet --prefix=vendor/a --branch subtree-result >/dev/null && echo "created subtree-result"
+$ git subtree split --quiet --prefix=vendor/a --branch subtree-result >/dev/null &&
+>   echo "created subtree-result"
 created subtree-result
 ```
 
