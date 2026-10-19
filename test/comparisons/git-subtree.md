@@ -78,14 +78,31 @@ $ git rev-list --count HEAD
 42
 ```
 
-It's still a merge, so the history isn't linear:
+It's still a merge, so the history isn't linear. `add` makes two
+commits: *q* (`Squashed 'vendor/lib/' content from commit bafd496`),
+the library's files without parents, and the merge *s*, with *a* (`app
+commit 40`) and *q* as its parents:
+
+<div align="center">
+
+![The monorepo's a and s in a line, and q, a commit without parents, as the second parent of s](git-subtree-squash-add.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-squash-add.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD q=HEAD^2
+ok   git-subtree-squash-add.drawio.svg: 3 commits, 3 arrows, 1 boxes
+```
+-->
+
+*q* has the library's files at its root, as the library has them. The
+merge *s* is what puts them into `vendor/lib/`:
 
 ```scrut
-$ git log --graph --format=%s -3
-*   Merge commit '8e0bc3b1b1c045b4dc98c2fc7d471a64fae6a2b7' as 'vendor/lib'
-|\  
-| * Squashed 'vendor/lib/' content from commit bafd496
-* app commit 40
+$ git ls-tree --name-only HEAD^2
+src
 ```
 
 Two fixes to the library, between app commits:
@@ -97,11 +114,8 @@ $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
 >   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
-The monorepo's history now: *a* (`app commit 40`), the merge *s* that
-`add` made, and the four new commits *b*, *c*, *d* and *e*. In place of
-the library's history, *s* has *q* (`Squashed 'vendor/lib/' content
-from commit bafd496`) as its second parent, a commit with the library's
-files and no parent of its own:
+The monorepo's history now, with the four new commits *b*, *c*, *d* and
+*e* after *s*:
 
 <div align="center">
 
