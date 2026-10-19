@@ -53,24 +53,9 @@ $ git log --graph --format=%s -4
 | * lib commit 28
 ```
 
-The library's commits keep their authors, and `git blame` follows each
-line into them, to the path the file had in the library:
-
-```scrut
-$ git blame -L 1,3 vendor/lib/src/parse.txt
-^136dd00 src/parse.txt (Lib Dev 2 2026-01-01 00:00:00 +0000 1) line 1
-b7c06ff8 src/parse.txt (Lib Dev 3 2026-01-01 00:00:00 +0000 2) line 2
-0089dc84 src/parse.txt (Lib Dev 1 2026-01-01 00:00:00 +0000 3) line 3
-```
-
-`git log` limited to the folder doesn't cross into them, though. The
-library's commits had no `vendor/lib/`, so the folder's log starts at the
-merge:
-
-```scrut
-$ git log --oneline -- vendor/lib
-83c95bf Add 'vendor/lib/' from commit 'bafd496b1f4512a95b69464604f3da428aa9e33b'
-```
+The monorepo doesn't need those 30 commits: it uses the library, it
+doesn't develop it. What it does need, the changes that fit the library
+into the app, are its own commits anyway.
 
 ### In return, `split` walks only the new commits
 
@@ -129,8 +114,7 @@ $ git rev-list --count HEAD
 42
 ```
 
-It's still a merge, so the history isn't linear, and `git blame` stops at
-the squashed commit:
+It's still a merge, so the history isn't linear:
 
 ```scrut
 $ git log --graph --format=%s -3
@@ -138,13 +122,6 @@ $ git log --graph --format=%s -3
 |\  
 | * Squashed 'vendor/lib/' content from commit bafd496
 * app commit 40
-```
-
-```scrut
-$ git blame -s -L 1,3 vendor/lib/src/parse.txt
-^8e0bc3b src/parse.txt 1) line 1
-^8e0bc3b src/parse.txt 2) line 2
-^8e0bc3b src/parse.txt 3) line 3
 ```
 
 The same two fixes:
@@ -336,20 +313,19 @@ ok   git-subtree-splice.drawio.svg: 10 commits, 10 arrows, 2 boxes
 -->
 
 Like `--squash`, a splice keeps the library's history out of the
-monorepo, so `git blame` stops at the `clone`:
+monorepo's. It's still at hand, fetched under `refs/splices/lib/`:
 
 ```scrut
-$ git blame -s -L 1,3 vendor/lib/src/parse.txt
-3ab92de9 1) line 1
-3ab92de9 2) line 2
-3ab92de9 3) line 3
+$ git log --oneline -4 refs/splices/lib/main
+48108da lib fix 2
+0579a80 lib fix 1
+bafd496 lib commit 30
+eacfd66 lib commit 29
 ```
-
-The library's history is still at hand, fetched under
-`refs/splices/lib/`, but not part of the monorepo's.
 
 ## Where `git subtree` is the better tool
 
 Moving a repository into the monorepo for good, and retiring its old
-home. Without `--squash`, its history comes along, and `git blame` with
-it, as in [problem 1](#problem-1-the-librarys-whole-history-comes-in).
+home. Without `--squash`, its history comes along, as in
+[problem 1](#problem-1-the-librarys-whole-history-comes-in), and `git
+blame` follows each line into the commits that made it.
