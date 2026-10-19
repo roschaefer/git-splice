@@ -10,25 +10,25 @@ This page goes there step by step, with a drawing after each.
   and *q* (`other patch`) to *n* (`other patch`), on top of `main`'s *m*
   (`patch, reworded upstream`).
 
-## 1. Pull on a local `main`
+## 1. Pull on a pull request's branch
 
-A pull request's branch can't pull `patches`: it syncs with the upstream
-branch named like it, and the upstream has none. So the pull happens on
-a local `main`. It makes *c* (`splice: pull vendor/a from patches at
-n`), which records *n*. The folder has exactly *n*'s files, so R is *n*,
-and *p* and *q* stay dropped:
+A pull request's branch syncs with the upstream branch named like it,
+and the upstream has none for `take-the-release`. `--branch patches`
+names the branch `main` follows, for this pull only. The pull makes *c*
+(`splice: pull vendor/a from patches at n`), which records *n*. The
+folder has exactly *n*'s files, so R is *n*, and *p* and *q* stay
+dropped:
 
 <div align="center">
 
-![Monorepo a and c; c records n; R is n; p and q, the old patches, are dashed](pulled-on-main.drawio.svg)
+![Monorepo a on main and c on the pull request's branch; c records n; R is n; p and q, the old patches, are dashed](pulled-on-pull-request.drawio.svg)
 
 </div>
 
-## 2. Move it to a pull request
+## 2. Add a local change
 
-`main` is protected, so *c* moves to a pull request's branch,
-`take-the-release`, and a local change goes on top, *b* (`local
-change`). On this branch, R is *b'* on top of *n*: linear, just right.
+A local change goes on top, *b* (`local change`). On this branch, R is
+*b'* on top of *n*: linear, just right.
 
 <div align="center">
 
@@ -40,44 +40,31 @@ change`). On this branch, R is *b'* on top of *n*: linear, just right.
 
 The squash merge puts *c* and *b* into one commit on `main`, *s*
 (`vendor/a: take the release, and a local change (#1)`). It records
-*n*, but its folder is *n*'s plus `local.txt`.
+*n*, but its folder is *n*'s plus `local.txt`. The synced commit before
+it, *a*'s *q*, isn't in *n*'s history: the upstream rewrote `patches`
+in between. A rebuild would have to join *s* with the history before
+it, still built on *p* and *q*, and the next push would publish them
+again. Nothing can rewrite *s* on a protected `main`, so `status` and
+`push` refuse, and say the way out.
+
+A pull request that only pulls goes through: its squash merge has
+exactly *n*'s files, and the rebuild starts at *n*. So take the release
+in a pull request of its own, and the local changes in the next one.
+
+## 4. The way out, by hand
+
+Commit the folder's changes on top of `patches` in a clone of the
+upstream, push them, and pull: the pull records the new commit, *x*
+(`local change`), in *f* (`splice: pull vendor/a from patches at x`),
+and the folder already has its files. The rebuild starts at *x*, and
+*p* and *q* stay dropped. On a protected `main`, *f* goes through a
+pull request of its own too: it only changes `.splice`.
 
 <div align="center">
 
-![The monorepo's a and s; R is s prime, a merge of q, the old patches, and n, the rebased ones](squash-merged.drawio.svg)
+![Monorepo a, s and f on main; f records x, the local change on top of n; R is x](fixed-by-hand.drawio.svg)
 
 </div>
-
-R is now *s'*, a merge of *q* and *n*: the next push publishes *p* and
-*q* again, the commits the rebase replaced. On `main`, *c* is gone, so
-B, where the rebuild starts, is still *a*, and the rebuild starts at
-U(B), *q*. At *s*, it joins in U(H), *n*, as a merge: *s*'s folder
-isn't *n*'s, so it can't start over at *n* alone.
-
-## To decide
-
-1. **Which upstream branch a pull request's branch pulls.** Today, the
-   one named like it, or nothing (step 1). Proposed: `git splice pull
-   --branch patches` names it for that one pull, without writing it to
-   `.splice`. The pull could then happen on the pull request's branch,
-   where `pull --rebase` could rewrite it.
-2. **What the rebuild makes of *s*.** *s* records *n*, which doesn't
-   contain *q*, the synced commit before it: the upstream rewrote its
-   branch between the two. A rule that the monorepo's history alone
-   decides: at such a commit, the rebuild starts at its synced commit
-   and copies the commit on top of it, without what came before. R would
-   be *s'* on top of *n*, as in step 2, and *p* and *q* would stay
-   dropped:
-
-   <div align="center">
-
-   ![Proposed: R is s prime on top of n alone; p and q stay dropped](squash-merged-proposed.drawio.svg)
-
-   </div>
-
-   This drawing shows the proposal, not what the code does, so nothing
-   checks it. Unpushed changes before *s* would stay in *s'*'s files, but
-   not as commits of their own.
 
 ## Output
 
@@ -97,34 +84,28 @@ $ build_scenario scenario_squash_merged
 $ q="$(git config --file vendor/a/.splice splice.commit)"
 ```
 
-### 1. Pull on a local `main`
+### 1. Pull on a pull request's branch
 
-On a pull request's branch, there's nothing to pull:
+Without `--branch`, there's nothing to pull:
 
 ```scrut
-$ git switch -q -c another-pull-request && git splice pull vendor/a; git switch -q main
+$ git switch -q -c take-the-release && git splice pull vendor/a
 ok   vendor/a fetched
-ok   vendor/a: upstream has no 'another-pull-request' branch -- nothing to pull
+ok   vendor/a: upstream has no 'take-the-release' branch -- nothing to pull
 ```
 
-On `main`, there is:
-
 ```scrut
-$ git splice pull vendor/a
+$ git splice pull --branch patches vendor/a
 ok   vendor/a fetched
 ok   vendor/a: pulled 63b44f3
 ```
 
 ```scrut
-$ check_drawing "$TESTDIR/pulled-on-main.drawio.svg" a=HEAD~1 c=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
-ok   pulled-on-main.drawio.svg: 7 commits, 9 arrows, 4 boxes, 1 lanes
+$ check_drawing "$TESTDIR/pulled-on-pull-request.drawio.svg" a=HEAD~1 c=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
+ok   pulled-on-pull-request.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
 ```
 
-### 2. Move it to a pull request
-
-```scrut
-$ git switch -q -c take-the-release && git switch -q main && git reset -q --hard HEAD~1 && git switch -q take-the-release
-```
+### 2. Add a local change
 
 ```scrut
 $ echo "local change" >vendor/a/local.txt && git add vendor/a/local.txt && git commit -q -m "local change"
@@ -157,27 +138,57 @@ initial commit
 ```
 
 ```scrut
-$ check_drawing "$TESTDIR/squash-merged.drawio.svg" a=HEAD~1 s=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
-ok   squash-merged.drawio.svg: 8 commits, 13 arrows, 6 boxes, 1 lanes
+$ git splice status
+!!   vendor/a: [0-9a-f]{7} records 63b44f3, which the upstream rewrote from 05c1bab, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again (regex)
+[1]
+```
+
+```scrut
+$ git splice push vendor/a
+!!   vendor/a: [0-9a-f]{7} records 63b44f3, which the upstream rewrote from 05c1bab, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again (regex)
+!!   Failed: vendor/a
+[1]
+```
+
+### 4. The way out, by hand
+
+```scrut
+$ git clone -q -b patches "$UPSTREAM" ../fork && git -C ../fork config user.name "$(git config user.name)" && git -C ../fork config user.email "$(git config user.email)"
+```
+
+The folder's changes since the synced commit, without `.splice`, on top
+of `patches`:
+
+```scrut
+$ git diff --binary "$(git config --file vendor/a/.splice splice.commit)" HEAD:vendor/a -- . ':!.splice' | git -C ../fork apply
+```
+
+```scrut
+$ git -C ../fork add -A && git -C ../fork commit -q -m "local change" && git -C ../fork push -q origin HEAD:patches
+```
+
+```scrut
+$ git splice pull vendor/a
+ok   vendor/a fetched (patches moved 63b44f3..83e98ce)
+ok   vendor/a: recorded 83e98ce as the synced commit -- the folder already has its files
+```
+
+```scrut
+$ check_drawing "$TESTDIR/fixed-by-hand.drawio.svg" a=HEAD~2 s=HEAD~1 f=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches~1 x=refs/splices/upstream/patches
+ok   fixed-by-hand.drawio.svg: 9 commits, 12 arrows, 5 boxes, 1 lanes
 ```
 
 ```scrut
 $ git splice status
 On branch main
 
-  ahead 3  vendor/a -> patches
+  up to date  vendor/a -> patches
 ```
 
-R joins *p* and *q* in again:
-
 ```scrut
-$ git log --graph --format=%s "$(git splice rebuild vendor/a)"
-*   vendor/a: take the release, and a local change (#1)
-|\  
-| * other patch
-| * patch, reworded upstream
-* | other patch
-* | patch
-|/  
-* seed
+$ git log --format=%s "$(git splice rebuild vendor/a)"
+local change
+other patch
+patch, reworded upstream
+seed
 ```
