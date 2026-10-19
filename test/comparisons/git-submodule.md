@@ -3,8 +3,11 @@
 A submodule keeps the library in its own repository, nested in the
 monorepo's worktree. The monorepo commits only the library's URL, in
 `.gitmodules`, and one of its commits, as a "gitlink". This page shows
-what that boundary means when you fix the library together with your app,
-and in a second worktree. It ends with what submodules do better.
+three problems that boundary makes when you fix the library together
+with your app: the monorepo doesn't see the library's files, the fix
+takes two pushes in the right order, and worktrees barely support
+submodules. Each ends with the same in `git-splice`, and the
+page with where submodules are better.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
 and a monorepo with an app. [How these pages run](README.md).
@@ -20,7 +23,7 @@ $ git submodule add -q https://git.example.com/lib.git vendor/lib &&
 >   git commit -q -m "add lib as a submodule"
 ```
 
-## The monorepo doesn't see the library's files
+## Problem 1: the monorepo doesn't see the library's files
 
 You fix the library and use the fix in the app, in one go:
 
@@ -130,8 +133,10 @@ $ git grep -c fix -- vendor/lib
 vendor/lib/src/parse.txt:1
 ```
 
-The same fix in a splice is one ordinary commit, and every command sees
-the file. Here in a copy of the monorepo from before the submodule:
+### With `git-splice`: one commit, and every command sees the file
+
+The same fix in a splice is one ordinary commit. Here in a copy of the
+monorepo from before the submodule:
 
 ```scrut
 $ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
@@ -166,7 +171,7 @@ $ git log --oneline -- vendor/lib/src/parse.txt
 $ cd ../monorepo
 ```
 
-## Two repositories, two pushes, in the right order
+## Problem 2: two pushes, in the right order
 
 The monorepo's commit points at a library commit that only exists in this
 clone. Push the monorepo first, and colleagues get a commit they can't
@@ -202,11 +207,13 @@ $ git -C ../colleague/vendor/lib status --short --branch
 ## HEAD (no branch)
 ```
 
+### With `git-splice`: one push, when the fix is ready
+
 A splice's files are part of the monorepo commit, so a colleague's clone
 is complete whether or not the fix reached the library yet. Pushing it
 there is a separate step, `git splice push`, for when the fix is ready.
 
-## A second worktree
+## Problem 3: worktrees barely support submodules
 
 `git worktree add` checks out another branch next to this one. The
 submodule stays empty there:
@@ -267,6 +274,8 @@ Git's documentation says so too: "Multiple checkout in general is still
 experimental, and the support for submodules is incomplete. It is NOT
 recommended to make multiple checkouts of a superproject."
 ([`git worktree`, BUGS](https://git-scm.com/docs/git-worktree#_bugs))
+
+### With `git-splice`: the files are in every worktree
 
 A splice lives in the worktree. A new worktree has it, with nothing to
 initialize. The fix from `main` isn't upstream yet, so a push from
