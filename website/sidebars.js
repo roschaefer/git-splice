@@ -48,7 +48,7 @@ module.exports = {
           type: 'category',
           label: 'Third-party tools',
           link: {type: 'doc', id: 'test/comparisons/third-party/README'},
-          items: ['git-subrepo', 'josh', 'copybara'].map((tool) => `test/comparisons/third-party/${tool}`),
+          items: ['git-subrepo', 'josh', 'export-tools'].map((tool) => `test/comparisons/third-party/${tool}`),
         },
         {
           type: 'category',
