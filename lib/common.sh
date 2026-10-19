@@ -396,7 +396,7 @@ require_usable_splice_path() {
 # Dies while a cherry-pick or merge waits to be concluded: the commands
 # that commit can't start another.
 require_no_splice_in_progress() {
-  ! splice_in_progress || die "a cherry-pick or merge is in progress -- conclude it first"
+  ! splice_in_progress || die "a cherry-pick, merge or rebase is in progress -- conclude it first"
 }
 
 # Runs <fn> <path> <branch> for each splice <path>..., and reports the

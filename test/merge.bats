@@ -168,7 +168,7 @@ setup() {
   synced="$(splice_config vendor/a commit)"
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: upstream rewrote 'patches' since ${synced:0:7}, and the folder has changes 'patches' lacks -- set them aside, merge, and redo them on top: a merge now would publish the rewritten-away commits again with the next push" ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream rewrote 'patches' since ${synced:0:7}, and the folder has changes 'patches' lacks -- run 'git splice merge --rebase vendor/a' to redo them on top: a merge now would publish the rewritten-away commits again with the next push" ]
   [ "$(git rev-parse HEAD)" = "$before" ]
   git diff --quiet HEAD
 }
@@ -232,6 +232,78 @@ setup() {
   run cmd_merge vendor/a --branch
   [ "$status" -eq 1 ]
   [ "$output" = "!!   --branch needs an upstream branch's name" ]
+}
+
+@test "merge --rebase: takes a rebased upstream branch in under the unpushed local commit, so the rebuild is that commit on top of the branch" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  local target
+  target="$(git rev-parse "$(upstream_refs "$upstream")patches")"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: merged ${target:0:7}, and rebased 1 commit onto it" ]
+  [ "$(git log --format=%s -3)" = "local change
+splice: merge vendor/a from patches at ${target:0:7}
+add vendor/a" ]
+  [ "$(git rev-parse HEAD~1:vendor/a/file.txt)" = "$(git rev-parse "$target:file.txt")" ]
+  [ "$(splice_config vendor/a commit)" = "$target" ]
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  [ "$(git rev-parse "$rebuilt^")" = "$target" ]
+  [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
+}
+
+@test "merge --rebase: a diverged upstream branch goes under the local commit, so the rebuild is linear" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change" main upstream.txt
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  local target
+  target="$(git rev-parse "$(upstream_refs "$upstream")main")"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse "$(rebuild_splice vendor/a)^")" = "$target" ]
+}
+
+@test "merge --rebase: without local commits since the synced commit, merges as without it" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  cd "$monorepo"
+  local target
+  target="$(git rev-parse "$(upstream_refs "$upstream")patches")"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: merged ${target:0:7}" ]
+}
+
+@test "merge --rebase: refuses when a remote-tracking branch has the commits it would rewrite" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  git update-ref refs/remotes/origin/main HEAD
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: 'origin/main' has commits since $(git rev-parse --short=7 HEAD~1), which --rebase would rewrite -- merge on a branch nobody else has, e.g. a pull request's" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge --rebase: on a conflict, stops in the rebase, and the next merge waits for it" {
+  scenario_diverged_common_ancestor "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: conflict while rebasing onto the merge -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)"* ]]
+  [ -d "$(git rev-parse --git-path rebase-merge)" ]
+  run cmd_merge vendor/a
+  [ "$output" = "!!   a cherry-pick, merge or rebase is in progress -- conclude it first" ]
+}
+
+@test "merge: --bump and --rebase don't go together" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_merge --bump --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --bump and --rebase don't go together" ]
 }
 
 @test "merge: a rebased upstream branch that already has the pushed local commit is merged, and the rebuild is that branch" {

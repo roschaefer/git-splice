@@ -2,7 +2,7 @@
 
 usage_merge() {
   cat <<'EOF'
-usage: git splice merge [--upstream <name>] [--branch <name>] [--bump] [--no-fork-point] (<path>... | --all)
+usage: git splice merge [--upstream <name>] [--branch <name>] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
 
 Splices already-fetched upstream changes into each splice, as one ordinary
 commit per splice. Never touches the network: run 'git splice fetch'
@@ -39,6 +39,15 @@ again, under them. Set the changes aside, merge, and redo them on top.
 nothing to merge, e.g. right after a push, in a commit that only changes
 the splice's .splice, like a submodule bump. Later rebuilds then start
 there, instead of rebuilding every pushed commit again.
+
+--rebase rebases instead, like 'git pull --rebase': it takes the
+upstream branch in on top of the newest commit whose folder has exactly
+the synced commit's files, and rebases the monorepo branch's commits
+since then onto that, with 'git rebase'. The next push then sends the
+folder's changes as commits on top of the upstream branch, also after
+the upstream rewrote it. It rewrites the branch, so it refuses when a
+remote-tracking branch has any of those commits. On a conflict, resolve
+it and run 'git rebase --continue' (or 'git rebase --abort' to give up).
 EOF
 }
 
@@ -83,6 +92,10 @@ merge_one() {
       ;;
     pull | diverged) ;;
   esac
+  if [[ -n "${MERGE_REBASE:-}" ]]; then
+    rebase_onto_pull "$path" "$branch" "$verb"
+    return
+  fi
 
   # The merge base is the newest upstream commit both sides contain: the
   # synced commit, or a later one this branch pushed since. After a
@@ -103,7 +116,7 @@ merge_one() {
     # lets the rebuild start there again. Anything else is rebuilt on top
     # of the fork point, and joined in as a merge.
     if ! merge_gives "$merge_base" "$target"; then
-      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since ${fork:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- set them aside, $verb, and redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
+      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since ${fork:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- run 'git splice $verb --rebase $path' to redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
       return 1
     fi
   else
@@ -125,6 +138,76 @@ merge_one() {
     return 1
   fi
   log_ok "$path: $(past_tense "$verb") ${target:0:7}"
+}
+
+# For --rebase: takes splice <path>'s upstream branch in on top of X, the
+# newest first-parent commit since the synced commit was recorded whose
+# folder has exactly its files, and rebases the commits after X onto that.
+# From X's folder, the synced commit, the upstream branch merges without a
+# conflict, as it does in merge_one: the pull commit gets exactly its
+# files, so the rebuild starts there, and the rebased commits follow it.
+# `branch` and `verb` as for merge_one.
+rebase_onto_pull() {
+  local path="$1" branch="$2" verb="$3" target synced_tree base="" commit count published
+  target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
+  if upstream_has_state_file "$target"; then
+    log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
+    return 1
+  fi
+  synced_tree="$(git rev-parse "$SPLICE_SYNCED^{tree}")"
+  while IFS= read -r commit; do
+    [[ "$(splice_config "$path" commit "$commit")" == "$SPLICE_SYNCED" ]] || break
+    content_tree "$commit" "$path"
+    if [[ "$CONTENT_TREE" == "$synced_tree" ]]; then
+      base="$commit"
+      break
+    fi
+  done < <(git rev-list --first-parent HEAD)
+  if [[ -z "$base" ]]; then
+    log_err "$path: no commit since the synced commit ${SPLICE_SYNCED:0:7} has exactly its files, e.g. after a $verb that merged local changes -- nothing to rebase onto; $verb without --rebase"
+    return 1
+  fi
+  if [[ "$base" == "$(git rev-parse HEAD)" ]]; then
+    MERGE_REBASE="" merge_one "$path" "$branch" "$verb"
+    return
+  fi
+  local inner
+  inner="$(changed_submodule "$SPLICE_SYNCED" "$target")"
+  if [[ -n "$inner" ]]; then
+    log_err "$path: upstream has a submodule, $inner, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
+    return 1
+  fi
+  published="$(git rev-list --reverse "$base..HEAD" | while IFS= read -r commit; do
+    git for-each-ref --count=1 --contains "$commit" --format='%(refname:short)' refs/remotes/
+  done | head -n 1)"
+  if [[ -n "$published" ]]; then
+    log_err "$path: '$published' has commits since ${base:0:7}, which --rebase would rewrite -- $verb on a branch nobody else has, e.g. a pull request's"
+    return 1
+  fi
+  local blob tree message pull
+  blob="$(rebase_state_blob "$path" "$base" "$target")" || return 1
+  tree="$(reroot_tree "$path" "$target^{tree}" "$blob" "$base")" || return 1
+  message="splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"
+  pull="$(git commit-tree "$tree" -p "$base" -m "$message")" || return 1
+  count="$(git rev-list --count "$base..HEAD")"
+  if ! git -c advice.mergeConflict=false rebase -q --onto "$pull" "$base"; then
+    log_err "$path: conflict while rebasing onto the $verb -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)"
+    return 1
+  fi
+  log_ok "$path: $(past_tense "$verb") ${target:0:7}, and rebased $count commit$([[ "$count" -eq 1 ]] || echo s) onto it"
+}
+
+# Prints the blob of splice <path>'s state file in commit <rev>, with
+# upstream commit <target> as the synced commit.
+rebase_state_blob() {
+  local path="$1" rev="$2" target="$3" tmp
+  tmp="$(mktemp)"
+  git cat-file blob "$rev:$path/$STATE_FILE" >"$tmp" &&
+    git config --file "$tmp" splice.commit "$target" &&
+    git hash-object -w "$tmp"
+  local rc=$?
+  rm -f "$tmp"
+  return "$rc"
 }
 
 # Succeeds if merging upstream commit <target> into the rebuild
@@ -358,14 +441,18 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "--upstream --branch --bump --no-fork-point" "$@"
+  parse_args usage_merge "--upstream --branch --bump --rebase --no-fork-point" "$@"
   REBUILD_JOINS_REWRITTEN=1
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
   MERGE_NO_FORK_POINT=""
   has_flag --no-fork-point && MERGE_NO_FORK_POINT=1
+  MERGE_REBASE=""
+  has_flag --rebase && MERGE_REBASE=1
+  [[ -z "$MERGE_BUMP" || -z "$MERGE_REBASE" ]] || die "--bump and --rebase don't go together"
   open_repository
-  select_splices explicit merge
+  # Before select_splices: a rebase in progress has detached HEAD.
   require_no_splice_in_progress
+  select_splices explicit merge
   merge_paths "$MONOREPO_BRANCH" merge "${SELECTED_PATHS[@]}"
 }

@@ -1,13 +1,15 @@
 # Redo the local change on top
 
-The way out of the [same state](README.md), where `pull` refuses: set
-the unpushed change aside, pull the rebased branch, and redo the change
-on top of it. The folder then has exactly the rebased branch's files at
+The way out of the [same state](README.md), where `pull` refuses:
+`git splice pull --rebase`, like `git pull --rebase`. It takes the
+rebased branch in on top of *a*, the newest commit whose folder has
+exactly the synced commit's files, and rebases *b* onto that pull with
+`git rebase`. The folder then has exactly the rebased branch's files at
 the pull, so the rebuild starts there, and the change goes upstream as
 one commit on top of *n*. The old patches, *p* and *q*, stay dropped.
 
-`git splice pull --rebase` would do these steps
-([#55](https://github.com/roschaefer/git-splice/issues/55)).
+It rewrites the monorepo's branch, so it's for a branch nobody else has
+yet: it refuses when a remote-tracking branch has *b*.
 
 ## Output
 
@@ -23,35 +25,20 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 $ build_scenario scenario_unpushed_local_commit
 ```
 
-The unpushed changes are the ones since B, which `git splice boundary`
-prints. Save them as a patch, with paths inside the folder:
-
 ```scrut
-$ git diff --relative=vendor/a "$(git splice boundary vendor/a)" HEAD -- vendor/a >../local-change.patch
-```
-
-Set them aside: give the folder B's files again, except `.splice`, in a
-commit of its own. `git restore` touches only the folder, unlike a
-`git revert` of the commits, which would also undo their changes
-elsewhere in the monorepo.
-
-```scrut
-$ git restore --source="$(git splice boundary vendor/a)" -- vendor/a ':!vendor/a/.splice' && git add -A vendor/a && git commit -q -m "vendor/a: set aside the unpushed changes"
-```
-
-Now the pull goes through:
-
-```scrut
-$ git splice pull vendor/a
+$ git splice pull --rebase vendor/a
 ok   vendor/a fetched
-ok   vendor/a: pulled 63b44f3
+ok   vendor/a: pulled 63b44f3, and rebased 1 commit onto it
 ```
 
-Redo the change, with the original commit's message and author, and
-push it:
+The pull comes before the local change now:
 
 ```scrut
-$ git apply --directory=vendor/a ../local-change.patch && git add vendor/a && git commit -q -C HEAD~2
+$ git log --format=%s
+local change
+splice: pull vendor/a from patches at 63b44f3
+add vendor/a
+initial commit
 ```
 
 ```scrut

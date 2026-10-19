@@ -22,9 +22,9 @@ the folder has exactly T's files. Here it would join *b'* in, and the
 next push would publish *p* and *q* again, merged into the rebased
 `patches`. So `pull` refuses.
 
-The way out: [redo the local change on top](redo-on-top.md) of the
-rebased branch. Or avoid it: push the local commits before the fork
-rebases its branch. The rebased branch then has them, and the pull
+The way out: `git splice pull --rebase` [redoes the local change on
+top](redo-on-top.md) of the rebased branch. Or avoid it: push the local
+commits before the fork rebases its branch. The rebased branch then has them, and the pull
 [goes through](../README.md).
 
 ## Output
@@ -60,7 +60,7 @@ On branch main
 ```scrut
 $ git splice pull vendor/a
 ok   vendor/a fetched
-!!   vendor/a: upstream rewrote 'patches' since 05c1bab, and the folder has changes 'patches' lacks -- set them aside, pull, and redo them on top: a pull now would publish the rewritten-away commits again with the next push
+!!   vendor/a: upstream rewrote 'patches' since 05c1bab, and the folder has changes 'patches' lacks -- run 'git splice pull --rebase vendor/a' to redo them on top: a pull now would publish the rewritten-away commits again with the next push
 !!   Failed: vendor/a
 [1]
 ```

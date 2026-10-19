@@ -97,7 +97,7 @@ files:
 
 ```scrut
 $ git splice pull vendor/a
-!!   a cherry-pick or merge is in progress -- conclude it first
+!!   a cherry-pick, merge or rebase is in progress -- conclude it first
 [1]
 ```
 
