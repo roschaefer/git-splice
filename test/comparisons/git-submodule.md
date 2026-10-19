@@ -5,8 +5,9 @@ monorepo's worktree. The monorepo commits only the library's URL, in
 `.gitmodules`, and one of its commits, as a "gitlink". This page shows
 three problems that boundary makes when you fix the library together
 with your app: the monorepo doesn't see the library's files, the fix
-takes two pushes in the right order, and worktrees barely support
-submodules. Each ends with the same in `git-splice`, and the
+takes two pushes in the right order, worktrees barely support
+submodules, and moving the library's folder leaves colleagues with its
+old checkout. Each ends with the same in `git-splice`, and the
 page with where submodules are better.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
@@ -105,7 +106,9 @@ fix parse() and call it
 ```
 
 One commit *c* (`fix parse() and call it`) after the `clone` commit *s*.
-The library's `main` stays at *l* until a push:
+The library has no new commit: its `main` stays at *l* until a push.
+That's the difference to the submodule's drawing above, where the fix
+needed *f*:
 
 <div align="center">
 
@@ -278,6 +281,75 @@ removed
 One limit: two fetches at the same time, in two worktrees, may both try to
 move the same ref. Then one fails with `cannot lock ref`, and running it
 again fixes it, as with two `git fetch` at once.
+
+## Problem 4: moving the library's folder
+
+`git mv` moves a submodule, once the folder it moves into exists. It
+updates `path` in `.gitmodules`, but the submodule keeps its name,
+`vendor/lib`, and its repository stays under `.git/modules/vendor/lib/`:
+
+```scrut
+$ cd ../monorepo &&
+>   mkdir libs &&
+>   git mv vendor/lib libs/lib &&
+>   cat .gitmodules
+[submodule "vendor/lib"]
+	path = libs/lib
+	url = https://git.example.com/lib.git
+```
+
+```scrut
+$ cat libs/lib/.git
+gitdir: ../../.git/modules/vendor/lib
+```
+
+The colleague from [problem 2](#problem-2-two-pushes-in-the-right-order)
+pulls the move. The new folder is empty, and the old one stays, a full
+checkout that Git now lists as untracked:
+
+```scrut
+$ git commit -q -m "move lib to libs/" &&
+>   git push -q ../origin.git main &&
+>   cd ../colleague &&
+>   git pull -q &&
+>   git status --short
+warning: unable to rmdir 'vendor/lib': Directory not empty
+?? vendor/
+```
+
+```scrut
+$ git submodule status
+-a6152f5cee8b2bfd6b5dfc7bbb2bf5d8a7562325 libs/lib
+```
+
+`git submodule update --init` fills the new folder. The old one has to be
+deleted by hand:
+
+```scrut
+$ git submodule update -q --init &&
+>   ls libs/lib &&
+>   git status --short
+src
+?? vendor/
+```
+
+### With `git-splice`: a move like any other
+
+A splice is ordinary files and its `.splice`, which records no path.
+`git mv` moves it, and a colleague's pull moves its files like any other
+rename. `status` finds it in its new folder, still ahead by the fix *c*
+from problem 1:
+
+```scrut
+$ cd ../splice-monorepo &&
+>   mkdir libs &&
+>   git mv vendor/lib libs/lib &&
+>   git commit -q -m "move lib to libs/" &&
+>   git splice status
+On branch main
+
+  ahead 1  libs/lib
+```
 
 ## Where submodules are better
 
