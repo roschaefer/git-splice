@@ -185,10 +185,78 @@ $ subtree_split_walks vendor/lib
 46
 ```
 
-`split --rejoin` avoids that: it merges the split result back into the
-monorepo, as a sync point for the next `split`. That's one more merge
-commit for every push, and a pull request that's squash-merged drops it,
-with the sync point.
+### With `--rejoin`, a merge for every push, which a squash merge drops
+
+`split --rejoin` merges the split result back into the monorepo, as a
+starting point for the next `split`. With `--squash`, the result comes
+in as a single commit too:
+
+```scrut
+$ git subtree split --rejoin --squash --prefix=vendor/lib
+Merge made by the 'ort' strategy.
+48108daa0f798109c3e672ed47a7de6204cf4e02
+```
+
+`48108da` is the library commit with the two fixes, the same one
+`git splice push` makes [below](#how-git-splice-avoids-both). The merge
+*j* (`Split 'vendor/lib/' into commit '48108da…'`) has *r* (`Squashed
+'vendor/lib/' changes from bafd496..48108da`) as its second parent, on
+top of *q*:
+
+<div align="center">
+
+![The monorepo's a, s, b, c, d, e and j in a line; below it, q as the second parent of s, and r, on top of q, as the second parent of j](git-subtree-rejoin.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-rejoin.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD^~4 b=HEAD^~3 c=HEAD^~2 d=HEAD^~1 e=HEAD^ j=HEAD \
+>   q=HEAD^~4^2 r=HEAD^2
+ok   git-subtree-rejoin.drawio.svg: 9 commits, 10 arrows, 1 boxes
+```
+-->
+
+The next `split` starts at *r*, and walks only the few commits since:
+
+```scrut
+$ subtree_split_walks vendor/lib
+3
+```
+
+That's one more merge commit for every push. And where a pull request is
+squash-merged, *j* never reaches `main`. Squash-merged on top of *s*,
+`main` gets one commit *p* (`lib fixes (#1)`) with the fixes, and
+neither *j* nor *r*:
+
+```scrut
+$ git switch -q -c squash-merged "HEAD^~4" &&
+>   git merge -q --squash squashed >/dev/null &&
+>   git commit -q -m "lib fixes (#1)"
+```
+
+<div align="center">
+
+![The monorepo's a, s and p in a line; below it, q as the second parent of s](git-subtree-squash-merged.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-squash-merged.drawio.svg" --alias HEAD=H \
+>   a=before-lib s=HEAD~1 p=HEAD q=HEAD~1^2
+ok   git-subtree-squash-merged.drawio.svg: 4 commits, 4 arrows, 1 boxes
+```
+-->
+
+So the next `split` from `main` walks all of the monorepo's history
+again:
+
+```scrut
+$ subtree_split_walks vendor/lib
+43
+```
 
 ## How `git-splice` avoids both
 
