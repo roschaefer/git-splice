@@ -359,6 +359,7 @@ merge_paths() {
 
 cmd_merge() {
   parse_args usage_merge "--upstream --branch --bump --no-fork-point" "$@"
+  REBUILD_JOINS_REWRITTEN=1
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
   MERGE_NO_FORK_POINT=""

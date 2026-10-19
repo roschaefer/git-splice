@@ -12,6 +12,7 @@ setup() {
   load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
   load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   load 'scenarios/04-upstreams/03-shared-remote-url/setup'
+  load 'scenarios/06-rewritten-history/04-patch-branch-rebased/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -447,4 +448,49 @@ two_splices_ahead() {
   stdout_only() { cmd_rebuild vendor/a 2>/dev/null; }
   run stdout_only
   [ -z "$output" ]
+}
+
+# From scenario_patch_branch_rebased: a pull request's branch pulls the
+# rebased patch branch, adds local change $1 (nothing: none), and is
+# squash-merged into main.
+squash_merge_rebased_pull() {
+  cd "$monorepo"
+  git switch -q -c take-the-release
+  (cmd_merge --branch patches vendor/a) >/dev/null
+  [[ -z "${1:-}" ]] || commit_local "$monorepo" vendor/a "$1" local.txt
+  git switch -q main
+  git merge -q --squash take-the-release >/dev/null
+  git commit -q -m "take the release (#1)"
+}
+
+@test "rebuild: refuses a squash merge that mixes a local change into a pull of a rewritten upstream branch" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  local previous
+  previous="$(git -C "$monorepo" config --file vendor/a/.splice splice.commit)"
+  squash_merge_rebased_pull "local change"
+  local synced
+  synced="$(splice_config vendor/a commit)"
+  run rebuild_splice vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: $(git rev-parse --short=7 HEAD) records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again" ]
+}
+
+@test "rebuild: a squash merge of only the pull of a rewritten upstream branch starts at that branch" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  squash_merge_rebased_pull
+  [ "$(rebuild_splice vendor/a)" = "$(git rev-parse "$(upstream_refs "$upstream")patches")" ]
+}
+
+@test "rebuild: after the refused squash merge, pushing its change upstream by hand and pulling makes the rebuild that branch" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  squash_merge_rebased_pull "local change"
+  local fork="$BATS_TEST_TMPDIR/fork"
+  git clone -q -b patches "$upstream" "$fork"
+  cp vendor/a/local.txt "$fork/"
+  git -C "$fork" add local.txt
+  git -C "$fork" -c user.name=Test -c user.email=test@example.com commit -q -m "local change"
+  git -C "$fork" push -q origin HEAD:patches
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  (cmd_merge vendor/a) >/dev/null
+  [ "$(rebuild_splice vendor/a)" = "$(git rev-parse "$(upstream_refs "$upstream")patches")" ]
 }

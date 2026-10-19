@@ -43,6 +43,7 @@ below_selected() {
 
 cmd_pull() {
   parse_args usage_pull "--upstream --branch --bump --no-fork-point" "$@"
+  REBUILD_JOINS_REWRITTEN=1
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
   MERGE_NO_FORK_POINT=""

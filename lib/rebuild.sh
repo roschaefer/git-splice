@@ -266,6 +266,20 @@ rebuild_with_start() {
         parents=("$before")
         rebuild_start="$before_start"
       else
+        # The synced commit before L isn't in U(L)'s history: the upstream
+        # rewrote its branch in between, e.g. rebased a patch branch, and
+        # L mixed changes of its own into the pull, e.g. a squash merge.
+        # Joining both sides would publish the rewritten-away commits
+        # again; which commits should carry L's changes, only the user
+        # can say. merge and pull set REBUILD_JOINS_REWRITTEN: they only
+        # compare with the rebuild, and their pull is the way out.
+        local previous
+        previous="$(splice_config "$path" commit "$last_sync^1")"
+        if [[ -z "${REBUILD_JOINS_REWRITTEN:-}" && -n "$previous" ]] &&
+          git cat-file -e "$previous^{commit}" 2>/dev/null &&
+          ! git merge-base --is-ancestor "$previous" "$synced"; then
+          die "$path: ${last_sync:0:7} records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again"
+        fi
         # A pull merged a divergence: join both sides, as git pull would.
         parents=("$before" "$synced")
         rebuild_start="$before_start"
