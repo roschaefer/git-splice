@@ -116,3 +116,25 @@ patch, *p*, doesn't come back.
 $ [ "$(git splice rebuild vendor/a)" = "$(git rev-parse refs/splices/upstream/patches)" ] && echo "R is T"
 R is T
 ```
+
+Why one `pull` is enough: since it took *p*, the monorepo changed
+nothing in `vendor/a/`. Merging from *p*, only the upstream changed
+something, from *p* to *m*, so the merge takes all of it, without a
+conflict. From *k*, Git's merge base, the patch would be a change on
+both sides. The pull, *x*, then records *m* in `.splice`: H and B are
+*x*, U(H) = U(B) = *m*. The rebuild starts at *m* and adds nothing, so
+R is T, and `status` has nothing ahead. *p* is in neither history any
+more:
+
+<div align="center">
+
+![The monorepo's a and the pull x, H and B; upstream, m on top of k is T, R, U(H) and U(B); p, dashed, on top of k, is left behind](pulled.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/pulled.drawio.svg" a=HEAD~1 x=HEAD k="$p~1" p="$p" m=refs/splices/upstream/patches
+ok   pulled.drawio.svg: 5 commits, 5 arrows, 2 boxes, 1 lanes
+```
+-->
