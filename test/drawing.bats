@@ -273,3 +273,39 @@ plain_history() {
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   q isn't a commit of the monorepo, which has no splices" ]
 }
+
+# Two circles, x and x', with a box that points at x'.
+pushed_copy_drawing() {
+  local box="$1"
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="x" parent="1" vertex="1" style="ellipse;" value="x"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="x_" parent="1" vertex="1" style="ellipse;" value="x'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="box" parent="1" vertex="1" style="rounded=1;" value="$box"><mxGeometry x="120" y="175" width="120" height="40" as="geometry" /></mxCell>
+<mxCell id="e0" parent="1" edge="1" source="box" target="x_"><mxGeometry relative="1" as="geometry" /></mxCell>
+</root></mxGraphModel></diagram></mxfile>
+XML
+}
+
+@test "drawing: a rebuilt commit is also found on the upstream branch a push put it on" {
+  git switch -q -c feature
+  commit_local "$monorepo" lib "x"
+  splice push lib >/dev/null 2>&1
+  git switch -q main
+  pushed_copy_drawing feature
+  run check_drawing "$drawing" x=feature
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   after-pull.drawio: 2 commits, 1 arrows, 1 boxes" ]
+}
+
+@test "drawing: a box named as <label>=<rev> points at that revision" {
+  git switch -q -c feature
+  commit_local "$monorepo" lib "x"
+  splice push lib >/dev/null 2>&1
+  pushed_copy_drawing pushed
+  run check_drawing "$drawing" x=feature pushed=refs/splices/upstream/feature
+  [ "$status" -eq 0 ]
+  run check_drawing "$drawing" x=feature pushed=feature
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   pushed points at x', the code says x" ]
+}

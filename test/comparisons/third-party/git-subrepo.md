@@ -29,7 +29,7 @@ $ git subrepo --version
 0.4.9
 ```
 
-## The same: one commit, linear history
+## Like `git-splice`: one commit per pull, linear history
 
 `clone` adds the library as one commit:
 
@@ -77,6 +77,8 @@ fix parse() and call it
  1 file changed, 1 insertion(+)
 ```
 
+## Problem 1: every push is a commit in the monorepo
+
 The monorepo's history is linear, but `push` added a commit of its own:
 
 ```scrut
@@ -113,9 +115,10 @@ $ git log -1 --format=%s "$(git config --file vendor/lib/.gitrepo subrepo.parent
 fix parse() and call it
 ```
 
-## One upstream branch per folder
+## Problem 2: a feature branch pushes to `main`
 
-On a feature branch, a second fix:
+`.gitrepo` names one upstream branch for every monorepo branch. On a
+feature branch, a second fix:
 
 ```scrut
 $ git switch -q -c feature &&
@@ -156,7 +159,7 @@ $ git config --file vendor/lib/.gitrepo subrepo.branch
 feature
 ```
 
-## The last sync is a stored monorepo commit
+## Problem 3: after a squash merge, the last sync is lost
 
 The feature branch is done and squash-merged into `main`, as a pull
 request would be:
@@ -182,8 +185,28 @@ $ parent="$(git config --file vendor/lib/.gitrepo subrepo.parent)" &&
 not in main
 ```
 
-The next push from `main` stops, and asks for `.gitrepo` to be fixed by
-hand:
+On `main`, *c* is the `clone` and *f* the first fix; on the feature
+branch, *g* and *h* are `fix 2` and `fix 3`, and *s* is the squash merge.
+*p*, *q* and *r* are the commits `push` added. `parent` names *h*, the
+commit the last push came from. *s* has *h*'s changes, but not *h*:
+
+<div align="center">
+
+![The monorepo's c, f, p and s on main; g, q, h and r on the feature branch, which starts at p; parent points at h, and HEAD at s](git-subrepo-squash-merged.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subrepo-squash-merged.drawio.svg" --alias HEAD=H \
+>   c=HEAD~3 f=HEAD~2 p=HEAD~1 s=HEAD g=feature~3 q=feature~2 h=feature~1 r=feature \
+>   parent="$parent" feature=feature
+ok   git-subrepo-squash-merged.drawio.svg: 8 commits, 10 arrows, 3 boxes
+```
+-->
+
+The next push from `main` stops, and asks for `parent` to be set to *p*
+by hand:
 
 ```scrut
 $ echo "fix 4" >>vendor/lib/src/parse.txt &&
@@ -200,7 +223,7 @@ git-subrepo: The last sync point (where upstream and the subrepo were equal) is 
 As the message says, a rebase does the same: the pushed commit gets a new
 hash, and `parent` names the old one.
 
-## The same with `git-splice`
+## How `git-splice` avoids them
 
 The library goes back to its 30 commits, without the pushes above:
 
@@ -267,12 +290,7 @@ $ echo "fix 3" >>vendor/lib/src/parse.txt &&
 ok   vendor/lib: pushed 79da5cd to feature
 ```
 
-After the squash merge, `main` syncs with the upstream branch `main` again.
-A push starts from the boundary, the newest commit that changed `.splice`,
-here the `clone`. It's derived from the history rather than stored, so a
-squash merge can't drop it, and the sync point, the upstream commit in
-`.splice`, still names a commit upstream has. So the next push sends the
-squashed commit and the new one:
+The same squash merge:
 
 ```scrut
 $ git switch -q main &&
@@ -280,6 +298,31 @@ $ git switch -q main &&
 >   git commit -q -m "feature (squashed)"
 Squash commit -- not updating HEAD
 ```
+
+The same letters, without push commits. In the library, after *k*
+(`lib commit 30`), *f'*, *g'* and *h'* are the pushed copies of *f*, *g*
+and *h*, with only the folder's changes:
+
+<div align="center">
+
+![The monorepo's c, f and s on main, and g and h on the feature branch, which starts at f; BOUNDARY points at c, HEAD at s; below, the library's k, f prime, g prime and h prime, with main at f prime and feature at h prime](git-subrepo-splice.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subrepo-splice.drawio.svg" --alias HEAD=H --alias BOUNDARY=B \
+>   c=HEAD~2 f=HEAD~1 s=HEAD g=feature~1 h=feature k=refs/splices/lib/main~1
+ok   git-subrepo-splice.drawio.svg: 9 commits, 11 arrows, 4 boxes
+```
+-->
+
+`main` syncs with the upstream branch `main` again. A push starts from
+the boundary, the newest commit that changed `.splice`, here *c*. It's
+derived from the history rather than stored, so a squash merge can't
+drop it, and the sync point, the upstream commit in `.splice`, still
+names a commit upstream has. So the next push sends the squashed commit
+and the new one:
 
 ```scrut
 $ echo "fix 4" >>vendor/lib/src/parse.txt &&
@@ -301,7 +344,7 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
 `git splice push --force` replaces the upstream branch, like
 `git push --force`.
 
-## Fetched refs: keyed by folder or by upstream
+## Problem 4: fetched refs are keyed by folder
 
 Both tools keep what they fetched under refs of their own. git-subrepo
 keys them by the folder's path, `refs/subrepo/<path>/`; `git-splice` by the

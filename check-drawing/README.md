@@ -38,7 +38,9 @@ Otherwise it prints each difference, with what to change, and fails:
 
 A circle's label is the commit's subject. A commit whose subject makes
 a poor label, like `add vendor/a`, gets a short one, given as
-`<label>=<rev>`, a revision of the monorepo: `a=HEAD~3`.
+`<label>=<rev>`, a revision of the monorepo: `a=HEAD~3`. A box's name
+given that way points at that revision, e.g. a commit another tool
+records, as `parent=<rev>`.
 
 Drawings for readers who don't know the sync model yet can use other
 names, given as `--alias <name>=<term>`, before the labels. With Git's
@@ -73,7 +75,8 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 - **Commit**: a circle (ellipse). Its label is the commit's subject,
   looked up on the monorepo's first-parent history, then upstream. A
   label with a trailing `'` (*b'* for *b*) is the rebuild's copy of the
-  commit without it: the same message, author and dates, in R's history.
+  commit without it: the same message, author and dates, in R's history
+  or on a fetched upstream branch, where a push put it.
 - **Parent arrow**: an arrow between two commits points from a parent to
   its child.
 - **Box**: points at the commit its label names: H, B, T or R, U(x),
