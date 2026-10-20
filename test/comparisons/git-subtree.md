@@ -138,8 +138,11 @@ the library:
 
 ```scrut
 $ subtree_split_walks vendor/lib
-> git rev-list --count HEAD
 46
+```
+
+```scrut
+$ git rev-list --count HEAD
 46
 ```
 
@@ -232,8 +235,11 @@ ok   vendor/lib: cloned bafd496 from main
 
 ```scrut
 $ git rev-list --count HEAD
-> git log --graph --format=%s -3
 41
+```
+
+```scrut
+$ git log --graph --format=%s -3
 * splice: clone vendor/lib from main at bafd496
 * app commit 40
 * app commit 39

@@ -318,7 +318,11 @@ On branch main
 ```
 
 ```scrut
-$ git config --file vendor/pkg-a/.splice splice.commit && git rev-parse splices/pkg-a/main
+$ git config --file vendor/pkg-a/.splice splice.commit
 703b9360f7ac335a1134e9b5771a90a7c09ba39a
+```
+
+```scrut
+$ git rev-parse splices/pkg-a/main
 6dc0e40cd5eda556b7b18759d2e2bb1ae2ae214a
 ```

@@ -65,8 +65,11 @@ The replacement's `.splice` has another id than the inner splice's:
 
 ```scrut
 $ git -C ../a-work config --file b/.splice splice.id
-> git config --file vendor/a/b/.splice splice.id
 88a02361b312d5a4
+```
+
+```scrut
+$ git config --file vendor/a/b/.splice splice.id
 548ac82ad47ea22d
 ```
 

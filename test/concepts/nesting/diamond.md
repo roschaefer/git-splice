@@ -46,13 +46,19 @@ $ build_scenario scenario_diamond
 ### The monorepo brings them together
 
 ```scrut
-$ git splice clone https://git.example.com/a.git a &&
->   git splice clone https://git.example.com/b.git b &&
->   git splice clone https://git.example.com/c.git c
+$ git splice clone https://git.example.com/a.git a
 ===  a: fetching https://git.example.com/a.git
 ok   a: cloned 6962bd0 from main
+```
+
+```scrut
+$ git splice clone https://git.example.com/b.git b
 ===  b: fetching https://git.example.com/b.git
 ok   b: cloned 8333d5f from main
+```
+
+```scrut
+$ git splice clone https://git.example.com/c.git c
 ===  c: fetching https://git.example.com/c.git
 ok   c: cloned 0bfc154 from main
 ```
@@ -94,9 +100,17 @@ use an older version than the other. Keeping them at the same version is
 up to the monorepo, where that's wanted.
 
 ```scrut
-$ git splice key a/c && git splice key b/c && git splice key c
+$ git splice key a/c
 c
+```
+
+```scrut
+$ git splice key b/c
 c
+```
+
+```scrut
+$ git splice key c
 c
 ```
 
@@ -204,11 +218,13 @@ library's new version, as plain files, with the `.splice` that lets
 `git-splice` sync it from there:
 
 ```scrut
-$ git clone -q "$UPSTREAM-a" ../a-standalone &&
->   ls -A ../a-standalone/c &&
->   cat ../a-standalone/c/file.txt
+$ git clone -q "$UPSTREAM-a" ../a-standalone && ls -A ../a-standalone/c
 .splice
 file.txt
+```
+
+```scrut
+$ cat ../a-standalone/c/file.txt
 c seed
 c fix
 ```

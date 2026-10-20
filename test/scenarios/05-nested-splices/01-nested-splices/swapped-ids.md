@@ -108,11 +108,14 @@ After, it has the outer upstream's files, and a nested splice of the
 outer upstream:
 
 ```scrut
-$ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main &&
->   git -C "$UPSTREAM-b.git" show main:file.txt
+$ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main
 b/.splice
 b/file.txt
 file.txt
+```
+
+```scrut
+$ git -C "$UPSTREAM-b.git" show main:file.txt
 a seed
 ```
 

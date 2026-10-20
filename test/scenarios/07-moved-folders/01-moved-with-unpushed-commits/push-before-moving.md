@@ -35,8 +35,12 @@ path ([#21](https://github.com/roschaefer/git-splice/issues/21)), there is
 nothing left to push:
 
 ```scrut
-$ git splice fetch libs/a && git splice status
+$ git splice fetch libs/a
 ok   libs/a fetched
+```
+
+```scrut
+$ git splice status
 On branch main
 
   up to date  libs/a

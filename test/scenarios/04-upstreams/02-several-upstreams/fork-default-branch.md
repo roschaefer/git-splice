@@ -52,10 +52,14 @@ upstream.fork.default-branch=trunk
 On `main`, the original syncs with its `main`, the fork with `trunk`:
 
 ```scrut
-$ git splice fetch >/dev/null && git splice status && git splice status --upstream fork
+$ git splice fetch >/dev/null && git splice status
 On branch main
 
   up to date  vendor/a -> origin/main
+```
+
+```scrut
+$ git splice status --upstream fork
 On branch main
 
   behind 1  vendor/a -> fork/trunk

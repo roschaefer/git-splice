@@ -44,8 +44,12 @@ first version
 ```
 
 ```scrut
-$ git splice init lib/a "$UPSTREAM" && git splice push lib/a
+$ git splice init lib/a "$UPSTREAM"
 ok   lib/a: initialized -- 'git splice push lib/a' publishes it
+```
+
+```scrut
+$ git splice push lib/a
 ??   lib/a: upstream has no 'main' branch yet -- this push creates it
 ok   lib/a: pushed 905f2b9 to main
 ```

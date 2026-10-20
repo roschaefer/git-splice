@@ -146,7 +146,11 @@ ok   vendor/lib: pulled c174d0d
 ```
 
 ```scrut
-$ git log -1 --format=%s && tail -n 1 vendor/lib/src/parse.txt
+$ git log -1 --format=%s
 splice: pull vendor/lib from main at c174d0d
+```
+
+```scrut
+$ tail -n 1 vendor/lib/src/parse.txt
 external contribution
 ```

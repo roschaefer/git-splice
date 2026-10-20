@@ -18,8 +18,12 @@ pkg-a
 ```
 
 ```scrut
-$ git splice key vendor/pkg-a a && git log --oneline -1 splices/a/main
+$ git splice key vendor/pkg-a a
 ok   vendor/pkg-a: renamed key 'pkg-a' to 'a'
+```
+
+```scrut
+$ git log --oneline -1 splices/a/main
 703b936 pkg-a: a second commit, after the clone
 ```
 

@@ -45,6 +45,10 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   spaces. Commands that don't depend on each other go on `> ` lines
   without the indent, instead of after a `;`. Within a step, what a
   `|` pipes into is indented by two more than the step.
+- A block shows the output of one step: its last. A reader can't tell
+  where one step's output ends and the next one's begins, so a step
+  that prints something ends its block, and the next step starts a new
+  one.
 - A command with many arguments breaks with `\`, and keeps an option
   next to its value.
 - A `$(…)` inside another command gets a name first, one from the page

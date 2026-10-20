@@ -326,10 +326,12 @@ $ git submodule status
 deleted by hand:
 
 ```scrut
-$ git submodule update -q --init &&
->   ls libs/lib &&
->   git status --short
+$ git submodule update -q --init && ls libs/lib
 src
+```
+
+```scrut
+$ git status --short
 ?? vendor/
 ```
 
