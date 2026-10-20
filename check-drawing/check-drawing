@@ -210,7 +210,9 @@ check_drawing() {
         continue
       fi
       subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
-      hash="$(git log --format='%H' "${truth["$sp|R"]}" | while read -r copy; do
+      upstream_tips=(--glob="refs/splices/${truth["$sp|key"]}/*")
+      [[ -z "${truth["$sp|R"]}" ]] || upstream_tips+=("${truth["$sp|R"]}")
+      hash="$(git log --format='%H' "${upstream_tips[@]}" | while read -r copy; do
         [[ "$copy" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$copy")" == "$subject" ]] && {
           echo "$copy"
           break
@@ -353,9 +355,13 @@ check_drawing() {
             continue
           fi
         fi
-        named="$(resolve_term "$term" "$sp")"
-        [[ "$term" == H || "$term" == [BTR] || "$term" == "merge-base(R,T)" || "$term" == U\(*\) || -z "$named" ]] ||
-          branch_tips[$sp]+=" $named"
+        if [[ -n "${rev_of[$shown]:-}" ]]; then
+          named="$(git rev-parse --verify --quiet "${rev_of[$shown]}^{commit}")"
+        else
+          named="$(resolve_term "$term" "$sp")"
+          [[ "$term" == H || "$term" == [BTR] || "$term" == "merge-base(R,T)" || "$term" == U\(*\) || -z "$named" ]] ||
+            branch_tips[$sp]+=" $named"
+        fi
         if [[ -z "$named" ]]; then
           errors+=("$shown points at ${value[$t]}, but there's no $shown")
         elif [[ "${commit_of[$t]:-}" != "$named" ]]; then
