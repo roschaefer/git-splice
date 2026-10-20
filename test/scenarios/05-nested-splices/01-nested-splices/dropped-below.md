@@ -78,10 +78,9 @@ The pull of `vendor/a/` is *p*, on top of the monorepo's *a*
 
 *n*'s `b/.splice` records *c*: U(n) = *c*, and so does *p*'s
 `vendor/a/b/.splice`, U(H). *c* is dashed: no branch of the inner
-upstream has it any more, but the pull fetched it by its hash. The
-drawing shows what Git and `git-splice` say about it
-([`check_drawing`](../../../../check-drawing/)):
+upstream has it any more, but the pull fetched it by its hash.
 
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/dropped-below.drawio.svg" \
 >   a=HEAD^ p=HEAD k=refs/splices/upstream/main~2 \
@@ -90,6 +89,7 @@ $ check_drawing "$TESTDIR/dropped-below.drawio.svg" \
 >   c="$(git config --file vendor/a/b/.splice splice.commit)"
 ok   dropped-below.drawio.svg: 7 commits, 8 arrows, 4 boxes, 2 lanes
 ```
+-->
 
 *c* is in the rebuild of `vendor/a/b/`, R, and the inner upstream lacks
 it, so the next push of `vendor/a/b/` brings it back:

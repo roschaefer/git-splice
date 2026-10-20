@@ -55,3 +55,7 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   where there is one: `k="$(…)" && git diff --quiet "$k" …`.
 - A script, for `sh -c` or a file, is a heredoc, one command per line.
 - A loop over a few fixed steps is written out step by step.
+- A drawing's [`check_drawing`](../check-drawing/) goes in a hidden
+  block (`<!--` … `-->`): it keeps the drawing true, but a reader
+  learns nothing from it. Only a page that explains the check itself,
+  like its `--alias`, shows it.

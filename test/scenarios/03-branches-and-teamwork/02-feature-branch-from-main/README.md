@@ -34,15 +34,13 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_feature_branch_from_main
 ```
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/feature-branch-from-main.drawio.svg" \
 >   a=HEAD~1 b=HEAD k=refs/splices/upstream/main
 ok   feature-branch-from-main.drawio.svg: 4 commits, 6 arrows, 4 boxes, 1 lanes
 ```
+-->
 
 ```scrut
 $ git splice status

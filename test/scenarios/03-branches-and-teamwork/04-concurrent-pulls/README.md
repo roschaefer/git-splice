@@ -40,16 +40,14 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_concurrent_pulls
 ```
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/concurrent-pulls.drawio.svg" \
 >   a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/main~2 \
 >   l=refs/splices/a/main~1 n=refs/splices/a/main
 ok   concurrent-pulls.drawio.svg: 6 commits, 7 arrows, 3 boxes, 1 lanes
 ```
+-->
 
 ```scrut
 $ git log --graph --format=%s HEAD origin/main

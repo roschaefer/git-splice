@@ -38,10 +38,7 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_bisect_into_a_pull
 ```
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/bisect-into-a-pull.drawio.svg" \
 >   a=HEAD~3 b=HEAD~2 X=HEAD~1 d=HEAD k=refs/splices/upstream/main~3 \
@@ -49,6 +46,7 @@ $ check_drawing "$TESTDIR/bisect-into-a-pull.drawio.svg" \
 >   n=refs/splices/upstream/main
 ok   bisect-into-a-pull.drawio.svg: 8 commits, 10 arrows, 4 boxes, 1 lanes
 ```
+-->
 
 ### Bisect the monorepo
 

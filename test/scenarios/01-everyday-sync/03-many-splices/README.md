@@ -42,10 +42,7 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_many_splices
 ```
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/many-splices.drawio.svg" \
 >   a=HEAD~6 b=HEAD~5 c=HEAD~4 d=HEAD~3 e=HEAD~2 f=HEAD~1 g=HEAD \
@@ -53,6 +50,7 @@ $ check_drawing "$TESTDIR/many-splices.drawio.svg" \
 >   o=refs/splices/upstream-store/main
 ok   many-splices.drawio.svg: 17 commits, 20 arrows, 9 boxes, 5 lanes
 ```
+-->
 
 ```scrut
 $ git splice status

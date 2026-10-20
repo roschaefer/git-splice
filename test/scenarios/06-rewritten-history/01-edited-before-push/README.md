@@ -89,15 +89,13 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_edited_before_push
 ```
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/edited-before-push.drawio.svg" \
 >   a=HEAD~1 b=HEAD k=refs/splices/upstream/main
 ok   edited-before-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 1 lanes
 ```
+-->
 
 ### Edit and push
 
