@@ -40,6 +40,36 @@ add_upstream() {
   [ "$(cat vendor/a/release.txt)" = "original release" ]
 }
 
+@test "upstreams: pulling after the upstream with the patch is dropped from .splice keeps the patch, since that upstream may still have it" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  add_upstream vendor/a fork "$fork" fork
+  splice pull vendor/a >/dev/null
+  seed_bare_repo "$upstream" "original release" main release.txt
+  git config --file vendor/a/.splice --remove-section upstream.fork
+  git config --file vendor/a/.splice --unset splice.default-upstream
+  git commit -q -m "vendor/a: drop fork" -- vendor/a/.splice
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\nfork patch')" ]
+  [ "$(cat vendor/a/release.txt)" = "original release" ]
+}
+
+@test "upstreams: pulling after the upstream with the patch got another URL keeps the patch, since the old URL may still have it" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  add_upstream vendor/a fork "$fork" fork
+  splice pull vendor/a >/dev/null
+  seed_bare_repo "$upstream" "original release" main release.txt
+  git config --file vendor/a/.splice --remove-section upstream.origin
+  git config --file vendor/a/.splice upstream.fork.url "$upstream"
+  git commit -q -m "vendor/a: fork is the original now" -- vendor/a/.splice
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\nfork patch')" ]
+  [ "$(cat vendor/a/release.txt)" = "original release" ]
+}
+
 @test "upstreams: a splice with one upstream needs no default-upstream, and messages don't name it" {
   scenario_several_upstreams "$monorepo" "$upstream"
   cd "$monorepo"

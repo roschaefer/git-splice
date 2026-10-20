@@ -136,16 +136,36 @@ merge_gives() {
 }
 
 # Succeeds if the upstream rewrote splice <path>'s synced commit away:
-# upstream commit <target> doesn't contain it, and no fetched branch has
-# it (on_no_upstream_branch). Returns 2, after saying why, if an upstream
+# upstream commit <target> doesn't contain it, the state file still names
+# every upstream it named since it recorded the commit
+# (upstreams_kept_since_sync), and no fetched branch has it
+# (on_no_upstream_branch). Returns 2, after saying why, if an upstream
 # without fetched branches may still have it. `verb` as for merge_one.
 synced_rewritten_away() {
   local path="$1" target="$2" verb="$3"
   [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target" || return 1
+  upstreams_kept_since_sync "$path" || return 1
   on_no_upstream_branch "$path" "$SPLICE_SYNCED" && return 0
   [[ -n "$UNFETCHED_UPSTREAM" ]] || return 1
   log_err "$path: no fetched upstream branch has the synced commit ${SPLICE_SYNCED:0:7}, but '$UNFETCHED_UPSTREAM' has no fetched branches -- run 'git splice fetch --upstream $UNFETCHED_UPSTREAM $path' first, and push a branch to it if it has none: if it still has the commit, the upstream didn't rewrite it away"
   return 2
+}
+
+# Succeeds if HEAD's state file of splice <path> names, by URL, every
+# upstream its earlier versions named while they recorded the synced
+# commit. An upstream dropped since, or given another URL, may be the one
+# that has it: nothing tells a rewrite from that.
+upstreams_kept_since_sync() {
+  local path="$1" rev key url urls_now=" "
+  while read -r key url; do
+    urls_now+="$url "
+  done < <(git config --blob "HEAD:$path/$STATE_FILE" --get-regexp '^upstream\..*\.url$')
+  while read -r rev; do
+    [[ "$(splice_config "$path" commit "$rev")" == "$SPLICE_SYNCED" ]] || return 0
+    while read -r key url; do
+      [[ "$urls_now" == *" $url "* ]] || return 1
+    done < <(git config --blob "$rev:$path/$STATE_FILE" --get-regexp '^upstream\..*\.url$')
+  done < <(git log --first-parent --no-show-signature --format=%H HEAD -- ":(top,literal)$path/$STATE_FILE")
 }
 
 # Succeeds if no fetched branch of any upstream of splice <path> has
