@@ -45,8 +45,12 @@ $ git splice status
 `--upstream` chooses for one command:
 
 ```scrut
-$ git splice fetch --upstream fork && git splice status --upstream fork
+$ git splice fetch --upstream fork
 ok   vendor/a fetched from fork
+```
+
+```scrut
+$ git splice status --upstream fork
 On branch main
 
   behind 1  vendor/a -> fork/main

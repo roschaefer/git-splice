@@ -82,8 +82,12 @@ splice.s.url https://git.example.com/s.git
 ```
 
 ```scrut
-$ git splice key app-a/s && git splice key app-b/s
+$ git splice key app-a/s
 s
+```
+
+```scrut
+$ git splice key app-b/s
 s
 ```
 

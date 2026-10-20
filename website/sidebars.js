@@ -1,6 +1,8 @@
+const indexFirst = require('./src/index-first');
+
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 module.exports = {
-  docs: [
+  docs: indexFirst([
     {type: 'doc', id: 'README', label: 'Overview'},
     {
       type: 'category',
@@ -73,5 +75,5 @@ module.exports = {
     'docs/development',
     'docs/writing',
     'CONTRIBUTING',
-  ],
+  ]),
 };

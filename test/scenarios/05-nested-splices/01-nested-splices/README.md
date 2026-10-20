@@ -151,8 +151,12 @@ On branch main
 ```
 
 ```scrut
-$ git splice push vendor/a/b && git -C "$UPSTREAM-b.git" log --graph --format=%s main
+$ git splice push vendor/a/b
 ok   vendor/a/b: pushed c5dc450 to main
+```
+
+```scrut
+$ git -C "$UPSTREAM-b.git" log --graph --format=%s main
 *   splice: pull vendor/a from main at 1ca3147
 |\  
 | * b upstream change

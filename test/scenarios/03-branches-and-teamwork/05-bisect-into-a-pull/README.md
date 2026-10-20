@@ -133,10 +133,13 @@ $ cat >../copy-and-check.sh <<'EOF'
 ```
 
 ```scrut
-$ git bisect start "$U2" "$U1" &&
->   git bisect run sh ../copy-and-check.sh
+$ git bisect start "$U2" "$U1"
 Bisecting: 0 revisions left to test after this (roughly 1 step)
 [83019adee0a2cf37e98fc79274ba471a0ba8f99a] log at debug level
+```
+
+```scrut
+$ git bisect run sh ../copy-and-check.sh
 running 'sh' '../copy-and-check.sh'
 Bisecting: 0 revisions left to test after this (roughly 0 steps)
 [419255245bf628a762cb138a18347abd227d07e7] add config.txt

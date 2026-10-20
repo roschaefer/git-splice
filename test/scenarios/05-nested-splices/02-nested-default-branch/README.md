@@ -45,9 +45,12 @@ As a separate folder with a clone of the outer upstream would have it,
 
 ```scrut
 $ git clone -q "$UPSTREAM" ../a-clone &&
->   git -C ../a-clone splice fetch &&
->   git -C ../a-clone splice status
+>   git -C ../a-clone splice fetch
 ok   b fetched
+```
+
+```scrut
+$ git -C ../a-clone splice status
 On branch master
 
   up to date  b
@@ -59,9 +62,13 @@ On branch master
 from the monorepo's:
 
 ```scrut
-$ git splice clone "$UPSTREAM" vendor/a && git splice fetch
+$ git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
 ok   vendor/a: cloned ddf42f3 from master
+```
+
+```scrut
+$ git splice fetch
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```

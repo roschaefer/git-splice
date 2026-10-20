@@ -138,9 +138,12 @@ into `.gitrepo`. After a push, it needs a `fetch` first, or it fails with
 ```scrut
 $ echo "fix 3" >>vendor/lib/src/parse.txt &&
 >   git commit -q -a -m "fix 3" &&
->   git subrepo fetch vendor/lib &&
->   git subrepo push --branch feature --update vendor/lib
+>   git subrepo fetch vendor/lib
 Fetched 'vendor/lib' from 'https://git.example.com/lib.git' (main).
+```
+
+```scrut
+$ git subrepo push --branch feature --update vendor/lib
 Subrepo 'vendor/lib' pushed to 'https://git.example.com/lib.git' (feature).
 ```
 
@@ -338,9 +341,12 @@ the other library, and `status` shows its commit as the upstream's:
 
 ```scrut
 $ git subrepo status vendor/lib | grep -E 'Remote URL|Upstream Ref'
-> git log -1 --format=%s refs/subrepo/vendor/lib/fetch
   Remote URL:      https://git.example.com/lib.git
   Upstream Ref:    3ea1a83
+```
+
+```scrut
+$ git log -1 --format=%s refs/subrepo/vendor/lib/fetch
 other library
 ```
 

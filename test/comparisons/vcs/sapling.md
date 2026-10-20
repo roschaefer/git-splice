@@ -343,9 +343,13 @@ parse.txt
 file goes:
 
 ```scrut
-$ cd ../splice-monorepo && git splice pull vendor/lib && ls vendor/lib/src
+$ cd ../splice-monorepo && git splice pull vendor/lib
 ok   vendor/lib fetched (main moved 9a471d2..d9ba6ce)
 ok   vendor/lib: pulled d9ba6ce
+```
+
+```scrut
+$ ls vendor/lib/src
 parse.txt
 ```
 

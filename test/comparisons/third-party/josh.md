@@ -53,10 +53,12 @@ Filtering `vendor/lib/` out of the monorepo gives back the library's own
 commits:
 
 ```scrut
-$ josh-filter ':/vendor/lib' &&
->   git rev-parse FILTERED_HEAD &&
->   git -C "$COMPARISON/upstream/lib.git" rev-parse main
+$ josh-filter ':/vendor/lib' && git rev-parse FILTERED_HEAD
 bafd496b1f4512a95b69464604f3da428aa9e33b
+```
+
+```scrut
+$ git -C "$COMPARISON/upstream/lib.git" rev-parse main
 bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
@@ -323,8 +325,12 @@ The release stays in the library's history, in `refs/splices/lib/main`.
 The monorepo's history counts its own commits only:
 
 ```scrut
-$ git rev-list --count HEAD && git -C ../monorepo rev-list --count HEAD
+$ git rev-list --count HEAD
 45
+```
+
+```scrut
+$ git -C ../monorepo rev-list --count HEAD
 79
 ```
 

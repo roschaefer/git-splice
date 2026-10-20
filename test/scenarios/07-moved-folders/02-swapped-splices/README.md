@@ -66,8 +66,12 @@ $ git mv vendor/a tmp &&
 upstream:
 
 ```scrut
-$ ls vendor/a && git config --file vendor/a/.splice upstream.origin.url
+$ ls vendor/a
 b.txt
+```
+
+```scrut
+$ git config --file vendor/a/.splice upstream.origin.url
 $UPSTREAM-b
 ```
 
@@ -101,9 +105,12 @@ ok   vendor/a: pushed 02eb4fc to main
 ```
 
 ```scrut
-$ git -C "$UPSTREAM-b" log --format=%s main &&
->   git -C "$UPSTREAM-b" ls-tree --name-only main
+$ git -C "$UPSTREAM-b" log --format=%s main
 swap a and b
+```
+
+```scrut
+$ git -C "$UPSTREAM-b" ls-tree --name-only main
 b.txt
 ```
 
