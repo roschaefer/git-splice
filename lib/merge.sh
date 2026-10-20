@@ -138,19 +138,21 @@ merge_gives() {
 # Succeeds if the upstream rewrote splice <path>'s synced commit away:
 # upstream commit <target> doesn't contain it, and no fetched branch has
 # it (on_no_upstream_branch). Returns 2, after saying why, if an upstream
-# that isn't fetched may still have it. `verb` as for merge_one.
+# without fetched branches may still have it. `verb` as for merge_one.
 synced_rewritten_away() {
   local path="$1" target="$2" verb="$3"
   [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target" || return 1
   on_no_upstream_branch "$path" "$SPLICE_SYNCED" && return 0
   [[ -n "$UNFETCHED_UPSTREAM" ]] || return 1
-  log_err "$path: no fetched upstream branch has the synced commit ${SPLICE_SYNCED:0:7}, but '$UNFETCHED_UPSTREAM' isn't fetched -- run 'git splice fetch --upstream $UNFETCHED_UPSTREAM $path' first: if it still has the commit, the upstream didn't rewrite it away"
+  log_err "$path: no fetched upstream branch has the synced commit ${SPLICE_SYNCED:0:7}, but '$UNFETCHED_UPSTREAM' has no fetched branches -- run 'git splice fetch --upstream $UNFETCHED_UPSTREAM $path' first, and push a branch to it if it has none: if it still has the commit, the upstream didn't rewrite it away"
   return 2
 }
 
 # Succeeds if no fetched branch of any upstream of splice <path> has
-# <commit>. Fails if one has it, and also if one of them isn't fetched,
-# with UNFETCHED_UPSTREAM set to its name: it may have it.
+# <commit>. Fails if one has it, and also if one of them has no fetched
+# branches, with UNFETCHED_UPSTREAM set to its name: it may have it. That
+# includes an upstream without branches, which looks just like one never
+# fetched.
 on_no_upstream_branch() {
   local path="$1" commit="$2" names=() name
   UNFETCHED_UPSTREAM=""

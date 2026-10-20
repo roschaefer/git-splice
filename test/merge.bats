@@ -185,8 +185,28 @@ setup() {
   before="$(git rev-parse HEAD)"
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: no fetched upstream branch has the synced commit ${synced:0:7}, but 'backup' isn't fetched -- run 'git splice fetch --upstream backup vendor/a' first: if it still has the commit, the upstream didn't rewrite it away" ]
+  [ "${lines[0]}" = "!!   vendor/a: no fetched upstream branch has the synced commit ${synced:0:7}, but 'backup' has no fetched branches -- run 'git splice fetch --upstream backup vendor/a' first, and push a branch to it if it has none: if it still has the commit, the upstream didn't rewrite it away" ]
   [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge: a rebased upstream branch is refused while another upstream the splice names has no branches, even fetched, and says to push one to it" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  cd "$monorepo"
+  local backup="$BATS_TEST_TMPDIR/backup.git" before
+  git init -q --bare "$backup"
+  git config --file vendor/a/.splice upstream.backup.url "$backup"
+  git config --file vendor/a/.splice splice.default-upstream origin
+  git commit -q -am "name an empty backup upstream"
+  cmd_fetch --upstream backup vendor/a >/dev/null
+  before="$(git rev-parse HEAD)"
+  run cmd_merge vendor/a
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"but 'backup' has no fetched branches"*"push a branch to it if it has none"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  git -C "$upstream" push -q "$backup" patches
+  cmd_fetch --upstream backup vendor/a >/dev/null
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
 }
 
 @test "merge: a rebased upstream branch that already has the pushed local commit is merged, and the rebuild is that branch" {
