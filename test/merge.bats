@@ -147,7 +147,7 @@ setup() {
   [ "$(git rev-parse "$SPLICE_REBUILT^")" = "$target" ]
 }
 
-@test "merge: a rebased upstream branch merges from the synced commit, so its dropped patch doesn't conflict" {
+@test "merge: a rebased upstream branch merges from its fork point, where the branch was before the rebase, so its dropped patch doesn't conflict" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"
   local target
