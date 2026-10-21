@@ -104,6 +104,8 @@ before, each with the subject `other patch`:
 
 ```scrut
 $ git log -g --format='%h %s' refs/splices/upstream/patches
+63b44f3 other patch
+05c1bab other patch
 ```
 
 ```scrut
@@ -142,24 +144,25 @@ $ [ "$(git splice rebuild vendor/a)" = "$(git rev-parse refs/splices/upstream/pa
 R is T
 ```
 
-Why one `pull` is enough: since it took *p*, the monorepo changed
-nothing in `vendor/a/`. Merging from *p*, only the upstream changed
-something, from *p* to *m*, so the merge takes all of it, without a
-conflict. From *k*, Git's merge base, the patch would be a change on
-both sides. The pull, *x*, then records *m* in `.splice`: H and B are
-*x*, U(H) = U(B) = *m*. The rebuild starts at *m* and adds nothing, so
-R is T, and `status` has nothing ahead. *p* is in neither history any
-more:
+Why one `pull` is enough: since it took *q*, the monorepo changed
+nothing in `vendor/a/`. Merging from *q*, only the upstream changed
+something, from *q* to *n*, so the merge takes all of it, without a
+conflict. From *k*, Git's merge base, the first patch would be a change
+on both sides. The pull, *x*, then records *n* in `.splice`: H and B are
+*x*, U(H) = U(B) = *n*. The rebuild starts at *n* and adds nothing, so
+R is T, and `status` has nothing ahead. *p* and *q* are in neither
+history any more:
 
 <div align="center">
 
-![The monorepo's a and the pull x, H and B; upstream, m on top of k is T, R, U(H) and U(B); p, dashed, on top of k, is left behind](pulled.drawio.svg)
+![The monorepo's a and the pull x, H, B and main; upstream, n on top of m on top of k is T, R, U(H) and U(B), m is main; p and q, dashed, on top of k, are left behind](pulled.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pulled.drawio.svg" a=HEAD~1 x=HEAD k="$p~1" p="$p" m=refs/splices/upstream/patches
-ok   pulled.drawio.svg: 5 commits, 5 arrows, 2 boxes, 1 lanes
+$ check_drawing "$TESTDIR/pulled.drawio.svg" a=HEAD~1 x=HEAD k="$q~2" p="$q~1" q="$q" \
+>   m=refs/splices/upstream/main n=refs/splices/upstream/patches
+ok   pulled.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
 ```
 -->

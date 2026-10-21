@@ -57,24 +57,22 @@ patch, reworded upstream
 seed
 ```
 
-The monorepo now has *s* (`vendor/a: set aside the unpushed changes`),
-the pull *x*, and *c*, the change redone (`local change` again). The
-push put *c'*, the rebuild's copy of *c*, on top of *m*. Nothing leads
-to *p* any more. The push records nothing, so U(H) is still *m*, the
-commit the pull took, until the next pull:
+The monorepo now has the pull *x* on top of *a*, and *c*, the local
+change rebased onto it. The push put *c'*, the rebuild's copy of *c*, on
+top of *n*. Nothing leads to *p* or *q* any more. The push records
+nothing, so U(H) is still *n*, the commit the pull took, until the next
+pull:
 
 <div align="center">
 
-![The monorepo's a, b, s, x and c in a line; upstream, c prime on top of m on top of k, with T and R at c prime](redone-on-top.drawio.svg)
+![The monorepo's a, x and c in a line, H and main at c, B at x; upstream, c prime on top of n on top of m on top of k: T, R and patches at c prime, U(H) and U(B) at n, main at m](redone-on-top.drawio.svg)
 
 </div>
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../../check-drawing/)):
-
+<!--
 ```scrut
-$ check_drawing "$TESTDIR/redone-on-top.drawio.svg" a=HEAD~4 b=HEAD~3 s=HEAD~2 x=HEAD~1 c=HEAD \
->   k=refs/splices/upstream/patches~2 m=refs/splices/upstream/patches~1
-ok   redone-on-top.drawio.svg: 8 commits, 10 arrows, 4 boxes, 1 lanes
+$ check_drawing "$TESTDIR/redone-on-top.drawio.svg" a=HEAD~2 x=HEAD~1 c=HEAD \
+>   k=refs/splices/upstream/patches~3 m=refs/splices/upstream/patches~2 n=refs/splices/upstream/patches~1
+ok   redone-on-top.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
 ```
+-->
