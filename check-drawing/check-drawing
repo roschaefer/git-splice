@@ -288,11 +288,13 @@ check_drawing() {
     if [[ -n "${rev_of[$base]:-}" ]]; then
       hash="$(git rev-parse --verify --quiet "${rev_of[$base]}^{commit}")"
     else
-      hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
-      # On a side, its upstream's commit first: another upstream may have
-      # one with the same subject.
-      [[ -n "$hash" || -z "${side_key[$id]:-}" || "$label" == *\' ]] ||
+      # On a side, its upstream's commit first: the monorepo or another
+      # upstream may have one with the same subject.
+      hash=""
+      [[ -z "${side_key[$id]:-}" || "$label" == *\' ]] ||
         hash="$(git log --format='%H%x09%s' --glob="refs/splices/${side_key[$id]}/*" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+      [[ -n "$hash" ]] ||
+        hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
       upstream_tips=()
       if [[ -n "$sp" ]]; then
         for k in T R U S; do
@@ -331,7 +333,11 @@ check_drawing() {
         continue
       fi
       drawn_on_side["$label|${lane_id[$id]}|${side_of[$id]}"]=1
-      [[ -z "${id_of_label[$label]:-}" || "${commit_of[${id_of_label[$label]}]:-}" != "$hash" ]] || continue
+      if [[ -n "${id_of_label[$label]:-}" && -n "${side_of[${id_of_label[$label]}]:-}" ]]; then
+        [[ "${commit_of[${id_of_label[$label]}]:-}" == "$hash" ]] ||
+          errors+=("$label names one commit on the ${side_of[${id_of_label[$label]}]} side and another on the ${side_of[$id]} side: label them apart")
+        continue
+      fi
     fi
     label_of[$hash]="$label"
     id_of_label[$label]="$id"

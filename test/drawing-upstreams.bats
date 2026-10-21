@@ -127,3 +127,12 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [ "$output" = "$(printf '%s\n' "!!   H points at a, the code says c" "!!   B points at a, the code says c")" ]
 }
+
+@test "drawing upstreams: one label on two sides names one commit, even where both upstreams have a commit with that subject" {
+  seed_bare_repo "$upstream" "fork patch"
+  splice fetch >/dev/null
+  edit_drawing -u '//mxCell[@id="ko"]/@value' -v 'fork patch' -u '//mxCell[@id="f"]/@value' -v 'fork patch'
+  run check_drawing "$drawing" a=HEAD~1 c=HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   fork patch names one commit on the origin side and another on the fork side: label them apart"* ]]
+}
