@@ -143,6 +143,10 @@ What no drawing has needed yet, it doesn't handle:
   branch called H, B, T, R or `U(…)`.
 - **Several upstreams without a separator**: a lane that isn't split is
   checked against the splice's default upstream only.
+- **Split lanes beyond the drawings here**: a split lane may leave out
+  an upstream, or a shared commit's copy on one side; a label in two
+  split lanes is read as one commit; and the splice needs a default
+  upstream.
 - **B with several splices**: outside every lane, B can't say which
   splice's boundary it is, so drawings with several splices leave it out.
 - **Rewrites of shared history**: an upstream that shares commits with
