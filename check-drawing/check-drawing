@@ -20,7 +20,7 @@ check_drawing() {
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=() lane_label=()
   local -a errors=() commits=() edges=() boxes=() lanes=() splices=() separators=() sides=()
-  local -A lane_id=() side_of=() side_key=() region_name=() region_key=()
+  local -A lane_id=() side_of=() side_key=() region_name=() region_key=() drawn_on_side=()
   local -A id_of_label=() label_count=() alias=()
   local id k cells term shown named sp p
   local name='([HBTR]|U\([^()]+\)|[^ ]+)'
@@ -67,12 +67,14 @@ check_drawing() {
     elif [[ "$c_style" == line* || "$c_style" == *";line;"* ]]; then
       kind[$c_id]=separator
       separators+=("$c_id")
-    elif [[ "$c_style" == text* || "$c_style" == *";text;"* ]]; then
-      kind[$c_id]=side
-      sides+=("$c_id")
     elif [[ "$c_value" =~ ^[^\ ]+/$ ]]; then
       kind[$c_id]=lane
       lanes+=("$c_id")
+    elif [[ "$c_style" == text* || "$c_style" == *";text;"* ]]; then
+      # An upstream's name, if it's in a split lane; a box by its label
+      # otherwise.
+      kind[$c_id]=side
+      sides+=("$c_id")
     elif [[ "$c_value" =~ $box_label ]]; then
       kind[$c_id]=box
       boxes+=("$c_id")
@@ -182,22 +184,42 @@ check_drawing() {
     git config --blob "HEAD:$1/.splice" --name-only --get-regexp '^upstream\..*\.url$' 2>/dev/null |
       sed 's/^upstream\.//; s/\.url$//' || true
   }
-  local -A split_lane=()
-  local r names
+  local -A split_lane=() region_named=() lane_upstream=()
+  local r n names
   for id in "${separators[@]}"; do
     if [[ -z "${lane_id[$id]}" ]]; then
       errors+=("a separator is in no lane: draw it inside the lane of the splice whose upstreams it separates")
       continue
     fi
-    split_lane[${lane_id[$id]}]=1
+    if [[ ";${style[$id]};" != *";dashed=1;"* ]]; then
+      errors+=("a line in ${lane_label[$id]} is solid: dash it, a separator is dashed")
+      continue
+    fi
+    if [[ ";${style[$id]};" != *";direction=south;"* && ";${style[$id]};" != *";direction=north;"* ]]; then
+      errors+=("a line in ${lane_label[$id]} isn't vertical: a separator runs from top to bottom, direction=south")
+      continue
+    fi
+    split_lane[${lane_id[$id]}]=$((${split_lane[${lane_id[$id]}]:-0} + 1))
   done
   for id in "${sides[@]}"; do
-    [[ -n "${lane_id[$id]}" && -n "${split_lane[${lane_id[$id]}]:-}" ]] || continue
+    if [[ -z "${lane_id[$id]}" || -z "${split_lane[${lane_id[$id]}]:-}" ]]; then
+      if [[ "${value[$id]}" =~ $box_label ]]; then
+        kind[$id]=box
+        boxes+=("$id")
+      fi
+      continue
+    fi
     r="$(region "$id")"
+    region_named[$r]=1
     if [[ -n "${region_name[$r]:-}" ]]; then
       errors+=("${region_name[$r]} and ${value[$id]} name one side of ${lane_label[$id]}: name each side once")
       continue
     fi
+    if [[ -n "${lane_upstream["${lane_id[$id]}|${value[$id]}"]:-}" ]]; then
+      errors+=("${value[$id]} names two sides of ${lane_label[$id]}: name each side after another upstream")
+      continue
+    fi
+    lane_upstream["${lane_id[$id]}|${value[$id]}"]=1
     names=" $(upstream_names "${lane_of[$id]}" | tr '\n' ' ')"
     if [[ "$names" != *" ${value[$id]} "* ]]; then
       errors+=("${lane_label[$id]} has no upstream named ${value[$id]}: name a side after one of its upstreams,${names% }")
@@ -210,13 +232,17 @@ check_drawing() {
     fi
     region_name[$r]="${value[$id]}"
   done
+  # Every side is named, even one with nothing on it.
+  for l in "${!split_lane[@]}"; do
+    for ((n = 0; n <= split_lane[$l]; n++)); do
+      [[ -n "${region_named["$l|$n"]:-}" ]] ||
+        errors+=("side $((n + 1)) of ${value[$l]}, from the left, names no upstream: label each side with its upstream's name")
+    done
+  done
   for id in "${commits[@]}" "${boxes[@]}"; do
     [[ -n "${lane_id[$id]}" && -n "${split_lane[${lane_id[$id]}]:-}" ]] || continue
     r="$(region "$id")"
-    if [[ -z "${region_name[$r]:-}" ]]; then
-      errors+=("${value[$id]} is on a side of ${lane_label[$id]} that names no upstream: label each side with its upstream's name")
-      continue
-    fi
+    [[ -n "${region_name[$r]:-}" ]] || continue
     side_of[$id]="${region_name[$r]}" side_key[$id]="${region_key[$r]}"
   done
 
@@ -263,6 +289,10 @@ check_drawing() {
       hash="$(git rev-parse --verify --quiet "${rev_of[$base]}^{commit}")"
     else
       hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+      # On a side, its upstream's commit first: another upstream may have
+      # one with the same subject.
+      [[ -n "$hash" || -z "${side_key[$id]:-}" || "$label" == *\' ]] ||
+        hash="$(git log --format='%H%x09%s' --glob="refs/splices/${side_key[$id]}/*" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
       upstream_tips=()
       if [[ -n "$sp" ]]; then
         for k in T R U S; do
@@ -293,10 +323,15 @@ check_drawing() {
       continue
     fi
     commit_of[$id]="$hash"
-    # A commit on each side of a separator is one commit, drawn twice.
-    if [[ -n "${side_of[$id]:-}" && -n "${id_of_label[$label]:-}" && "${commit_of[${id_of_label[$label]}]:-}" == "$hash" &&
-      "${side_of[${id_of_label[$label]}]:-}" != "${side_of[$id]}" ]]; then
-      continue
+    # A commit on each side of a separator is one commit, drawn once per
+    # side.
+    if [[ -n "${side_of[$id]:-}" ]]; then
+      if [[ -n "${drawn_on_side["$label|${lane_id[$id]}|${side_of[$id]}"]:-}" ]]; then
+        errors+=("$label is drawn twice on the ${side_of[$id]} side of ${lane_label[$id]}: draw it once per side")
+        continue
+      fi
+      drawn_on_side["$label|${lane_id[$id]}|${side_of[$id]}"]=1
+      [[ -z "${id_of_label[$label]:-}" || "${commit_of[${id_of_label[$label]}]:-}" != "$hash" ]] || continue
     fi
     label_of[$hash]="$label"
     id_of_label[$label]="$id"

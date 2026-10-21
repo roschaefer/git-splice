@@ -101,15 +101,17 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   - U(x) reads *x*'s `.splice` of the splice whose lane the box is in: in
     a nested drawing, U(l) in the lane of `vendor/a/b/` reads the
     `b/.splice` of l, a commit of `vendor/a/`'s upstream.
-- **Separator**: a dashed line (draw.io's line shape) splits a lane
-  for a splice with several upstreams, side by side. A text on each
-  side names the upstream whose commits that side holds, e.g. `origin`
-  and `fork`.
+- **Separator**: a dashed vertical line (draw.io's line shape,
+  `direction=south`) splits a lane for a splice with several upstreams,
+  side by side. A text on each side names the upstream whose commits
+  that side holds, e.g. `origin` and `fork`: every side one upstream,
+  each upstream one side. Outside a split lane, a text is read by its
+  label, like any other shape.
   - A solid commit on a side is on a fetched branch of that side's
     upstream, and a box for a branch, e.g. `main`, names that upstream's
     branch.
   - A commit both upstreams have is drawn on each side, with one
-    label: the two circles are one commit.
+    label: the two circles are one commit. Each side draws it once.
   - Arrows and boxes stay on their commit's side, as they stay in its
     lane.
 - **Dashed**: commits and arrows into them that aren't in the upstream's

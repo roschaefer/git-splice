@@ -80,3 +80,50 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   main points at f, but there's no main"* ]]
 }
+
+@test "drawing upstreams: a separator is dashed" {
+  edit_drawing -u '//mxCell[@id="sep"]/@style' -v 'line;direction=south;strokeWidth=1;'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   a line in vendor/a/ is solid: dash it, a separator is dashed" ]
+}
+
+@test "drawing upstreams: a separator runs from top to bottom" {
+  edit_drawing -u '//mxCell[@id="sep"]/@style' -v 'line;dashed=1;strokeWidth=1;'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   a line in vendor/a/ isn't vertical: a separator runs from top to bottom, direction=south" ]
+}
+
+@test "drawing upstreams: one upstream names one side" {
+  edit_drawing -u '//mxCell[@id="side_f"]/@value' -v origin
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   origin names two sides of vendor/a/: name each side after another upstream" ]
+}
+
+@test "drawing upstreams: every side is named, even one with nothing on it" {
+  local cell='//mxCell[@id="sep2"]'
+  edit_drawing -s '/mxfile/diagram/mxGraphModel/root' -t elem -n mxCell -i '$prev' -t attr -n id -v sep2 \
+    -s "$cell" -t attr -n parent -v 1 -s "$cell" -t attr -n vertex -v 1 \
+    -s "$cell" -t attr -n style -v 'line;direction=south;dashed=1;' -s "$cell" -t elem -n mxGeometry \
+    -s "$cell/mxGeometry" -t attr -n x -v 1370 -s "$cell/mxGeometry" -t attr -n y -v 60 \
+    -s "$cell/mxGeometry" -t attr -n width -v 20 -s "$cell/mxGeometry" -t attr -n height -v 300
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   side 3 of vendor/a/, from the left, names no upstream: label each side with its upstream's name" ]
+}
+
+@test "drawing upstreams: a commit is drawn once per side" {
+  edit_drawing -u '//mxCell[@id="f"]/@value' -v k
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   k is drawn twice on the fork side of vendor/a/: draw it once per side"* ]]
+}
+
+@test "drawing upstreams: a text outside every split lane is still read as a box" {
+  edit_drawing -u '//mxCell[@id="h"]/@style' -v 'text;fontSize=22;' -u '//mxCell[@source="h"]/@target' -v a
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "$output" = "$(printf '%s\n' "!!   H points at a, the code says c" "!!   B points at a, the code says c")" ]
+}
