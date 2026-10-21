@@ -129,7 +129,7 @@ edit_drawing() {
 }
 
 @test "drawing upstreams: one label on two sides names one commit, even where both upstreams have a commit with that subject" {
-  seed_bare_repo "$upstream" "fork patch"
+  seed_bare_repo "$upstream" "fork patch" main other.txt
   splice fetch >/dev/null
   edit_drawing -u '//mxCell[@id="ko"]/@value' -v 'fork patch' -u '//mxCell[@id="f"]/@value' -v 'fork patch'
   run check_drawing "$drawing" a=HEAD~1 c=HEAD
