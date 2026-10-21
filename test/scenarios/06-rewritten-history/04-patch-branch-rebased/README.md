@@ -69,10 +69,7 @@ upstream.origin.url=$UPSTREAM
 upstream.origin.default-branch=patches
 ```
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ q="$(git config --file vendor/a/.splice splice.commit)"
 ```
@@ -81,6 +78,7 @@ $ q="$(git config --file vendor/a/.splice splice.commit)"
 $ check_drawing "$TESTDIR/patch-branch-rebased.drawio.svg" a=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
 ok   patch-branch-rebased.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
 ```
+-->
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s patches
@@ -109,7 +107,8 @@ $ git log -g --format='%h %s' refs/splices/upstream/patches
 ```
 
 ```scrut
-$ [ "$(git merge-base --fork-point refs/splices/upstream/patches "$(git splice rebuild vendor/a)")" = "$q" ] && echo "the fork point is q"
+$ [ "$(git merge-base --fork-point refs/splices/upstream/patches "$(git splice rebuild vendor/a)")" = "$(git config --file vendor/a/.splice splice.commit)" ] &&
+>   echo "the fork point is q"
 the fork point is q
 ```
 

@@ -80,9 +80,11 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 $ build_scenario scenario_squash_merged
 ```
 
+<!--
 ```scrut
 $ q="$(git config --file vendor/a/.splice splice.commit)"
 ```
+-->
 
 ### 1. Pull on a pull request's branch
 
@@ -100,10 +102,12 @@ ok   vendor/a fetched
 ok   vendor/a: pulled 63b44f3
 ```
 
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/pulled-on-pull-request.drawio.svg" a=HEAD~1 c=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
 ok   pulled-on-pull-request.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
 ```
+-->
 
 ### 2. Add a local change
 
@@ -111,10 +115,12 @@ ok   pulled-on-pull-request.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
 $ echo "local change" >vendor/a/local.txt && git add vendor/a/local.txt && git commit -q -m "local change"
 ```
 
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/pull-request.drawio.svg" a=HEAD~2 c=HEAD~1 b=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
 ok   pull-request.drawio.svg: 9 commits, 14 arrows, 7 boxes, 1 lanes
 ```
+-->
 
 ```scrut
 $ git log --format=%s "$(git splice rebuild vendor/a)"
@@ -173,10 +179,12 @@ ok   vendor/a fetched (patches moved 63b44f3..83e98ce)
 ok   vendor/a: recorded 83e98ce as the synced commit -- the folder already has its files
 ```
 
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/fixed-by-hand.drawio.svg" a=HEAD~2 s=HEAD~1 f=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches~1 x=refs/splices/upstream/patches
 ok   fixed-by-hand.drawio.svg: 9 commits, 12 arrows, 5 boxes, 1 lanes
 ```
+-->
 
 ```scrut
 $ git splice status

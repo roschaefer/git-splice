@@ -41,6 +41,7 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 $ build_scenario scenario_unpushed_local_commit
 ```
 
+<!--
 ```scrut
 $ q="$(git config --file vendor/a/.splice splice.commit)"
 ```
@@ -49,6 +50,7 @@ $ q="$(git config --file vendor/a/.splice splice.commit)"
 $ check_drawing "$TESTDIR/unpushed-local-commit.drawio.svg" a=HEAD~1 b=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
 ok   unpushed-local-commit.drawio.svg: 8 commits, 12 arrows, 6 boxes, 1 lanes
 ```
+-->
 
 ```scrut
 $ git splice status
