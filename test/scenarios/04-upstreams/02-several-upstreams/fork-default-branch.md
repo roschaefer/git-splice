@@ -65,6 +65,24 @@ On branch main
   behind 1  vendor/a -> fork/trunk
 ```
 
+*c* (`vendor/a: add the company fork`) named the fork on `trunk`. The
+original's `main` is still *k* (`seed`), where the monorepo cloned it in
+*a* (`add vendor/a`); the fork's `trunk` has *f* (`fork patch`) on top:
+
+<div align="center">
+
+![The monorepo's a and c, which is H and B; the lane vendor/a/ split in two: origin with k, which is T, R, U(H), U(B) and its main; fork with f on top of k, its trunk](fork-default-branch.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/fork-default-branch.drawio.svg" \
+>   a=HEAD~1 c=HEAD k=refs/splices/lib/main f=refs/splices/company-lib/trunk
+ok   fork-default-branch.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes, 2 upstreams
+```
+-->
+
 ### The earlier format
 
 A `default-branch` in `[splice]` named one branch for every upstream.

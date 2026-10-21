@@ -52,6 +52,28 @@ On branch main
   behind 1           vendor/a/b -> fork/main
 ```
 
+Both lanes are split, and each has a `fork` side, of a different fork.
+The outer fork has *q* (`a fork patch to b`) on top of *k* (`a seed`)
+and *l* (`add b`); the inner fork has *n* (`b fork patch`) on top of *m*
+(`b seed`). *c* (`add the company forks`) changed `vendor/a/b/.splice`,
+a file of `vendor/a/` too, so R of `vendor/a/` is *c'*, its copy on top
+of *l*, which no upstream has yet:
+
+<div align="center">
+
+![The monorepo's a and c, H; the lane vendor/a/ split in two: origin with c prime, dashed, which is R, on top of l on top of k, l being T, U(H) and U(B); fork with q on top of l on top of k, its main; inside it, the lane vendor/a/b/, also split: origin with m, which is T, R, U(H) and U(B); fork with n on top of m, its main](same-name-below.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/same-name-below.drawio.svg" \
+>   a=HEAD~1 c=HEAD k=refs/splices/upstream/main~1 l=refs/splices/upstream/main \
+>   q=refs/splices/a/main m=refs/splices/b/main n=refs/splices/company-b/main
+ok   same-name-below.drawio.svg: 11 commits, 12 arrows, 6 boxes, 2 lanes, 4 upstreams
+```
+-->
+
 ### Pulling each from its fork
 
 Top-down, as every pull: the outer fork's patch to `b/` first, then the

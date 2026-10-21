@@ -19,7 +19,8 @@ check_drawing() {
   shift
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=() lane_label=()
-  local -a errors=() commits=() edges=() boxes=() lanes=() splices=()
+  local -a errors=() commits=() edges=() boxes=() lanes=() splices=() separators=() sides=()
+  local -A lane_id=() side_of=() side_key=() region_name=() region_key=() drawn_on_side=()
   local -A id_of_label=() label_count=() alias=()
   local id k cells term shown named sp p
   local name='([HBTR]|U\([^()]+\)|[^ ]+)'
@@ -63,9 +64,17 @@ check_drawing() {
     elif [[ "$c_style" == ellipse* || "$c_style" == *";ellipse"* ]]; then
       kind[$c_id]=commit
       commits+=("$c_id")
+    elif [[ "$c_style" == line* || "$c_style" == *";line;"* ]]; then
+      kind[$c_id]=separator
+      separators+=("$c_id")
     elif [[ "$c_value" =~ ^[^\ ]+/$ ]]; then
       kind[$c_id]=lane
       lanes+=("$c_id")
+    elif [[ "$c_style" == text* || "$c_style" == *";text;"* ]]; then
+      # An upstream's name, if it's in a split lane; a box by its label
+      # otherwise.
+      kind[$c_id]=side
+      sides+=("$c_id")
     elif [[ "$c_value" =~ $box_label ]]; then
       kind[$c_id]=box
       boxes+=("$c_id")
@@ -139,17 +148,102 @@ check_drawing() {
         errors+=("the lane ${value[$l]} is a folder inside ${value[$o]}: draw it inside that lane")
     done
   done
-  for id in "${commits[@]}" "${boxes[@]}"; do
-    lane_of[$id]="" lane_label[$id]="" smallest=""
+  for id in "${commits[@]}" "${boxes[@]}" "${separators[@]}" "${sides[@]}"; do
+    lane_of[$id]="" lane_label[$id]="" lane_id[$id]="" smallest=""
     for l in "${lanes[@]}"; do
       if [[ -z "${lane_splice[$l]:-}" ]] || ! contains "$id" "$l"; then
         continue
       fi
       area=$(awk -v w="${gw[$l]}" -v h="${gh[$l]}" 'BEGIN { print w * h }')
       if [[ -z "$smallest" ]] || awk -v a="$area" -v b="$smallest" 'BEGIN { exit !(a < b) }'; then
-        lane_of[$id]="${lane_splice[$l]}" lane_label[$id]="${value[$l]}" smallest="$area"
+        lane_of[$id]="${lane_splice[$l]}" lane_label[$id]="${value[$l]}" lane_id[$id]="$l" smallest="$area"
       fi
     done
+  done
+
+  # Upstreams side by side: a dashed line, a separator, splits a lane, and
+  # a text on each side names the upstream whose commits that side holds.
+  # A shape's side is the number of the lane's separators left of its
+  # center.
+  center_x() {
+    local x y
+    read -r x y < <(absolute "$1")
+    awk -v x="$x" -v w="${gw[$1]}" 'BEGIN { print x + w / 2 }'
+  }
+  region() {
+    local sep n=0 x
+    x="$(center_x "$1")"
+    for sep in "${separators[@]}"; do
+      [[ "${lane_id[$sep]}" == "${lane_id[$1]}" ]] || continue
+      awk -v a="$(center_x "$sep")" -v b="$x" 'BEGIN { exit !(a < b) }' && n=$((n + 1))
+    done
+    printf '%s|%s\n' "${lane_id[$1]}" "$n"
+  }
+  # The names of the upstreams splice $1's .splice names.
+  upstream_names() {
+    git config --blob "HEAD:$1/.splice" --name-only --get-regexp '^upstream\..*\.url$' 2>/dev/null |
+      sed 's/^upstream\.//; s/\.url$//' || true
+  }
+  local -A split_lane=() region_named=() lane_upstream=()
+  local r n names
+  for id in "${separators[@]}"; do
+    if [[ -z "${lane_id[$id]}" ]]; then
+      errors+=("a separator is in no lane: draw it inside the lane of the splice whose upstreams it separates")
+      continue
+    fi
+    if [[ ";${style[$id]};" != *";dashed=1;"* ]]; then
+      errors+=("a line in ${lane_label[$id]} is solid: dash it, a separator is dashed")
+      continue
+    fi
+    if [[ ";${style[$id]};" != *";direction=south;"* && ";${style[$id]};" != *";direction=north;"* ]]; then
+      errors+=("a line in ${lane_label[$id]} isn't vertical: a separator runs from top to bottom, direction=south")
+      continue
+    fi
+    split_lane[${lane_id[$id]}]=$((${split_lane[${lane_id[$id]}]:-0} + 1))
+  done
+  for id in "${sides[@]}"; do
+    if [[ -z "${lane_id[$id]}" || -z "${split_lane[${lane_id[$id]}]:-}" ]]; then
+      if [[ "${value[$id]}" =~ $box_label ]]; then
+        kind[$id]=box
+        boxes+=("$id")
+      fi
+      continue
+    fi
+    r="$(region "$id")"
+    region_named[$r]=1
+    if [[ -n "${region_name[$r]:-}" ]]; then
+      errors+=("${region_name[$r]} and ${value[$id]} name one side of ${lane_label[$id]}: name each side once")
+      continue
+    fi
+    if [[ -n "${lane_upstream["${lane_id[$id]}|${value[$id]}"]:-}" ]]; then
+      errors+=("${value[$id]} names two sides of ${lane_label[$id]}: name each side after another upstream")
+      continue
+    fi
+    lane_upstream["${lane_id[$id]}|${value[$id]}"]=1
+    names=" $(upstream_names "${lane_of[$id]}" | tr '\n' ' ')"
+    if [[ "$names" != *" ${value[$id]} "* ]]; then
+      errors+=("${lane_label[$id]} has no upstream named ${value[$id]}: name a side after one of its upstreams,${names% }")
+      continue
+    fi
+    region_key[$r]="$(git splice key --upstream "${value[$id]}" "${lane_of[$id]}" 2>/dev/null)" || region_key[$r]=""
+    if [[ -z "${region_key[$r]}" ]]; then
+      errors+=("${value[$id]} of ${lane_label[$id]} was never fetched: fetch it before drawing its side")
+      continue
+    fi
+    region_name[$r]="${value[$id]}"
+  done
+  # Every side is named, even one with nothing on it.
+  for l in "${!split_lane[@]}"; do
+    for ((n = 0; n <= split_lane[$l]; n++)); do
+      [[ -n "${region_named["$l|$n"]:-}" ]] ||
+        errors+=("side $((n + 1)) of ${value[$l]}, from the left, names no upstream: label each side with its upstream's name")
+    done
+  done
+  for id in "${commits[@]}" "${boxes[@]}"; do
+    [[ -n "${lane_id[$id]}" && -n "${split_lane[${lane_id[$id]}]:-}" ]] || continue
+    r="$(region "$id")"
+    [[ -n "${region_name[$r]:-}" ]] || continue
+    side_of[$id]="${region_name[$r]}" side_key[$id]="${region_key[$r]}"
   done
 
   # What H names, and B, T, R, U(H) and U(B) of each splice the drawing
@@ -194,13 +288,20 @@ check_drawing() {
     if [[ -n "${rev_of[$base]:-}" ]]; then
       hash="$(git rev-parse --verify --quiet "${rev_of[$base]}^{commit}")"
     else
-      hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+      # On a side, its upstream's commit first: the monorepo or another
+      # upstream may have one with the same subject.
+      hash=""
+      [[ -z "${side_key[$id]:-}" || "$label" == *\' ]] ||
+        hash="$(git log --format='%H%x09%s' --glob="refs/splices/${side_key[$id]}/*" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+      [[ -n "$hash" ]] ||
+        hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
       upstream_tips=()
       if [[ -n "$sp" ]]; then
         for k in T R U S; do
           [[ -n "${truth["$sp|$k"]}" ]] && upstream_tips+=("${truth["$sp|$k"]}")
         done
       fi
+      [[ -z "${side_key[$id]:-}" ]] || upstream_tips+=(--glob="refs/splices/${side_key[$id]}/*")
       [[ -n "$hash" || "$label" == *\' || ${#upstream_tips[@]} -eq 0 ]] ||
         hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
     fi
@@ -210,7 +311,7 @@ check_drawing() {
         continue
       fi
       subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
-      upstream_tips=(--glob="refs/splices/${truth["$sp|key"]}/*")
+      upstream_tips=(--glob="refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/*")
       [[ -z "${truth["$sp|R"]}" ]] || upstream_tips+=("${truth["$sp|R"]}")
       hash="$(git log --format='%H' "${upstream_tips[@]}" | while read -r copy; do
         [[ "$copy" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$copy")" == "$subject" ]] && {
@@ -224,6 +325,20 @@ check_drawing() {
       continue
     fi
     commit_of[$id]="$hash"
+    # A commit on each side of a separator is one commit, drawn once per
+    # side.
+    if [[ -n "${side_of[$id]:-}" ]]; then
+      if [[ -n "${drawn_on_side["$label|${lane_id[$id]}|${side_of[$id]}"]:-}" ]]; then
+        errors+=("$label is drawn twice on the ${side_of[$id]} side of ${lane_label[$id]}: draw it once per side")
+        continue
+      fi
+      drawn_on_side["$label|${lane_id[$id]}|${side_of[$id]}"]=1
+      if [[ -n "${id_of_label[$label]:-}" && -n "${side_of[${id_of_label[$label]}]:-}" ]]; then
+        [[ "${commit_of[${id_of_label[$label]}]:-}" == "$hash" ]] ||
+          errors+=("$label names one commit on the ${side_of[${id_of_label[$label]}]} side and another on the ${side_of[$id]} side: label them apart")
+        continue
+      fi
+    fi
     label_of[$hash]="$label"
     id_of_label[$label]="$id"
     label_count[$label]=$((${label_count[$label]:-0} + 1))
@@ -239,6 +354,14 @@ check_drawing() {
       git merge-base --is-ancestor "$1" "$s" 2>/dev/null && return 0
     done
     return 1
+  }
+  # Whether no fetched branch of any upstream splice $2 names has commit $1.
+  not_upstream_of() {
+    local name key
+    while IFS= read -r name; do
+      key="$(git splice key --upstream "$name" "$2" 2>/dev/null)" || continue
+      [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/$key/")" ]] || return 1
+    done < <(upstream_names "$2")
   }
   # A monorepo commit: on HEAD, or on another branch of the monorepo, like
   # a colleague's work on origin/main.
@@ -259,29 +382,38 @@ check_drawing() {
       continue
     fi
     [[ -n "${lane_of[$id]}" ]] || continue
+    if [[ -n "${side_of[$id]:-}" ]]; then
+      [[ -n "$(git for-each-ref --count=1 --contains "${commit_of[$id]}" "refs/splices/${side_key[$id]}/")" ]] && continue
+      if ! not_upstream_of "${commit_of[$id]}" "${lane_of[$id]}"; then
+        errors+=("${value[$id]} is on the ${side_of[$id]} side, but no fetched branch of ${side_of[$id]} has it: draw it on the side of an upstream that has it")
+        continue
+      fi
+    fi
     of_splice "${commit_of[$id]}" "${lane_of[$id]}" ||
       errors+=("${value[$id]} is in the lane ${lane_of[$id]}/, but isn't in that splice's upstream history or R")
   done
 
   # A commit of splice $2 is dashed if it isn't in the upstream's history
-  # yet: no fetched upstream branch has it.
+  # yet: no fetched upstream branch has it. On a side of a separator, the
+  # upstream is that side's, key $3.
   not_upstream() {
     [[ -n "$2" ]] || return 1
     ! in_monorepo "$1" || return 1
-    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/")" ]]
+    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${3:-${truth["$2|key"]}}/")" ]]
   }
   dashed() { [[ ";${style[$1]};" == *";dashed=1;"* ]]; }
 
   for id in "${commits[@]}"; do
     [[ -n "${commit_of[$id]:-}" ]] || continue
-    if not_upstream "${commit_of[$id]}" "${splice_of[$id]}"; then
+    if not_upstream "${commit_of[$id]}" "${splice_of[$id]}" "${side_key[$id]:-}"; then
       dashed "$id" || errors+=("${value[$id]} is solid, but no upstream branch has it: dash it")
     else
       dashed "$id" && errors+=("${value[$id]} is dashed, but an upstream branch has it: draw it solid")
     fi
   done
 
-  # What box term $1 of splice $2 names, or nothing.
+  # What box term $1 of splice $2 names, or nothing; an upstream branch
+  # of the upstream with key $3, if given.
   resolve_term() {
     local term="$1" sp="$2" k c rel
     if [[ "$term" == H ]]; then
@@ -291,7 +423,7 @@ check_drawing() {
     elif [[ "$term" == "merge-base(R,T)" ]]; then
       printf '%s\n' "${truth["$sp|base"]}"
     elif [[ "$term" != U\(*\) ]]; then
-      git rev-parse --verify --quiet "refs/splices/${truth["$sp|key"]}/$term^{commit}"
+      git rev-parse --verify --quiet "refs/splices/${3:-${truth["$sp|key"]}}/$term^{commit}"
     else
       k="${term#U(}" k="${k%)}"
       case "$k" in
@@ -332,6 +464,10 @@ check_drawing() {
         fi
         continue
       fi
+      if [[ "${side_of[$s]:-}" != "${side_of[$t]:-}" ]]; then
+        errors+=("${value[$s]} points at ${value[$t]}, on the ${side_of[$t]:-other} side: draw the box on that side")
+        continue
+      fi
       sp="${splice_of[$s]}"
       while IFS= read -r shown; do
         term="${alias[$shown]:-$shown}"
@@ -358,9 +494,9 @@ check_drawing() {
         if [[ -n "${rev_of[$shown]:-}" ]]; then
           named="$(git rev-parse --verify --quiet "${rev_of[$shown]}^{commit}")"
         else
-          named="$(resolve_term "$term" "$sp")"
+          named="$(resolve_term "$term" "$sp" "${side_key[$s]:-}")"
           [[ "$term" == H || "$term" == [BTR] || "$term" == "merge-base(R,T)" || "$term" == U\(*\) || -z "$named" ]] ||
-            branch_tips[$sp]+=" $named"
+            branch_tips["$sp|${side_of[$s]:-}"]+=" $named"
         fi
         if [[ -z "$named" ]]; then
           errors+=("$shown points at ${value[$t]}, but there's no $shown")
@@ -381,11 +517,15 @@ check_drawing() {
       errors+=("${value[$s]} -> ${value[$t]} crosses lanes: draw a parent and its child in one lane")
       continue
     fi
+    if [[ "${side_of[$s]:-}" != "${side_of[$t]:-}" ]]; then
+      errors+=("${value[$s]} -> ${value[$t]} crosses the separator: draw the parent on ${value[$t]}'s side too")
+      continue
+    fi
     [[ -n "${commit_of[$s]:-}" && -n "${commit_of[$t]:-}" ]] || continue
     drawn_edges+="$s>$t "
     if ! git rev-parse "${commit_of[$t]}^@" | grep -qx "${commit_of[$s]}"; then
       errors+=("${value[$s]} -> ${value[$t]}: ${value[$s]} isn't a parent of ${value[$t]}")
-    elif not_upstream "${commit_of[$t]}" "${splice_of[$t]}"; then
+    elif not_upstream "${commit_of[$t]}" "${splice_of[$t]}" "${side_key[$t]:-}"; then
       dashed "$id" || errors+=("${value[$s]} -> ${value[$t]} is solid, but no upstream branch has ${value[$t]}: dash it")
     else
       dashed "$id" && errors+=("${value[$s]} -> ${value[$t]} is dashed, but an upstream branch has ${value[$t]}: draw it solid")
@@ -398,14 +538,14 @@ check_drawing() {
     sp="${splice_of[$id]}"
     [[ -n "${commit_of[$id]:-}" && -n "$sp" ]] || continue
     ! in_monorepo "${commit_of[$id]}" || continue
-    not_upstream "${commit_of[$id]}" "$sp" && continue
+    not_upstream "${commit_of[$id]}" "$sp" "${side_key[$id]:-}" && continue
     [[ -n "${truth["$sp|T"]}" ]] && git merge-base --is-ancestor "${commit_of[$id]}" "${truth["$sp|T"]}" && continue
     found=""
-    for b in ${branch_tips[$sp]:-}; do
+    for b in ${branch_tips["$sp|${side_of[$id]:-}"]:-}; do
       git merge-base --is-ancestor "${commit_of[$id]}" "$b" && found=1
     done
     [[ -n "$found" ]] || errors+=("${value[$id]} is on an upstream branch, but not T's: draw a box for the branch, e.g. $(
-      git for-each-ref --count=1 --format='%(refname:lstrip=3)' --contains "${commit_of[$id]}" "refs/splices/${truth["$sp|key"]}/"
+      git for-each-ref --count=1 --format='%(refname:lstrip=3)' --contains "${commit_of[$id]}" "refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/"
     )")
   done
   # Every box points at one commit.
@@ -418,7 +558,7 @@ check_drawing() {
     [[ -n "${commit_of[$t]:-}" ]] || continue
     for p in $(git rev-parse "${commit_of[$t]}^@"); do
       for s in "${commits[@]}"; do
-        [[ "${commit_of[$s]:-}" == "$p" && "${lane_of[$s]}" == "${lane_of[$t]}" && "$drawn_edges" != *" $s>$t "* ]] &&
+        [[ "${commit_of[$s]:-}" == "$p" && "${lane_of[$s]}" == "${lane_of[$t]}" && "${side_of[$s]:-}" == "${side_of[$t]:-}" && "$drawn_edges" != *" $s>$t "* ]] &&
           errors+=("no arrow ${value[$s]} -> ${value[$t]}, though ${value[$s]} is a parent of ${value[$t]}")
       done
     done
@@ -428,9 +568,10 @@ check_drawing() {
     printf '!!   %s\n' "${errors[@]}"
     return 1
   fi
-  printf 'ok   %s: %d commits, %d arrows, %d boxes%s\n' \
+  printf 'ok   %s: %d commits, %d arrows, %d boxes%s%s\n' \
     "${drawing##*/}" "${#commits[@]}" "${#edges[@]}" "${#boxes[@]}" \
-    "$([[ ${#lanes[@]} -eq 0 ]] || printf ', %d lanes' "${#lanes[@]}")"
+    "$([[ ${#lanes[@]} -eq 0 ]] || printf ', %d lanes' "${#lanes[@]}")" \
+    "$([[ ${#region_name[@]} -eq 0 ]] || printf ', %d upstreams' "${#region_name[@]}")"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

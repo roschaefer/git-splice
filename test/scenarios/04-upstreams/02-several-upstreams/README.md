@@ -77,6 +77,26 @@ splice.lib.url https://git.example.com/lib.git
 splice.company-lib.url https://git.example.com/company/lib.git
 ```
 
+*a* (`add vendor/a`) cloned *k* (`seed`) from the original, and *c*
+(`vendor/a: work with the company fork`) added the fork, which has *f*
+(`fork patch`) on top of *k*. Both upstreams have *k*, so the drawing
+shows it on each side of the dashed line. The fork is the default
+upstream, so T is its `main`, *f*:
+
+<div align="center">
+
+![The monorepo's a and c, H and B; the lane vendor/a/ split in two: origin with k, which is U(H), U(B) and R; fork with f on top of k, which is T](both-fetched.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/both-fetched.drawio.svg" \
+>   a=HEAD~1 c=HEAD k=refs/splices/lib/main f=refs/splices/company-lib/main
+ok   both-fetched.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes, 2 upstreams
+```
+-->
+
 A splice with several upstreams names its upstream branch as
 `<name>/<branch>`, like `origin/main` in Git. The default one is the
 fork, which has the patch:
@@ -171,3 +191,27 @@ On branch main
 
   up to date  vendor/a -> fork/main
 ```
+
+### Both upstreams afterwards
+
+The monorepo has *x*, which pulled the fork's patch *f*, and *y*, which
+joined the original's release *r* with it. The push sent *j*, the
+rebuild of *y*, to the fork. Both upstreams have *k* and *r*, so the
+drawing shows them on each side of the dashed line. Only the fork has
+*f* and *j*:
+
+<div align="center">
+
+![The monorepo's a, c, x and y, H at y and B at x; the lane vendor/a/ split in two: origin with r on top of k, its main and U(H); fork with r and f on top of k, and j joining them, which is T and R; U(B) is f](several-upstreams.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/several-upstreams.drawio.svg" \
+>   a=HEAD~3 c=HEAD~2 x=HEAD~1 y=HEAD k=refs/splices/lib/main~1 \
+>   r=refs/splices/lib/main f=refs/splices/company-lib/main^1 \
+>   j=refs/splices/company-lib/main
+ok   several-upstreams.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes, 2 upstreams
+```
+-->

@@ -94,3 +94,27 @@ $ git splice log vendor/a/b
 ===  vendor/a/b (main)
 < c163a9d a fork patch to b  (Test <test@example.com>)
 ```
+
+### Both upstreams of `vendor/a/` afterwards
+
+*c* (`vendor/a: add the company fork`) named the fork, and *p* pulled
+*q* (`a fork patch to b`) from it. The outer upstream and its fork share
+*k* and *l*, so the drawing shows them on each side of the dashed line.
+Only the fork has *q*. In `vendor/a/b/`, the patch is *q'*, dashed: the
+inner upstream lacks it, and the next push of `vendor/a/b/` sends it.
+
+<div align="center">
+
+![The monorepo's a, c and p, H at p; the lane vendor/a/ split in two: origin with l on top of k, which is T; fork with q on top of l on top of k, which is U(H), U(B), R and its main; inside it, the lane vendor/a/b/ with q prime, dashed, which is R, on top of m, which is T and U(H)](outer-fork.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/outer-fork.drawio.svg" \
+>   a=HEAD~2 c=HEAD~1 p=HEAD k=refs/splices/upstream/main~1 \
+>   l=refs/splices/upstream/main q=refs/splices/a/main \
+>   m=refs/splices/b/main
+ok   outer-fork.drawio.svg: 10 commits, 11 arrows, 5 boxes, 2 lanes, 2 upstreams
+```
+-->

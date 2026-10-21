@@ -101,6 +101,19 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   - U(x) reads *x*'s `.splice` of the splice whose lane the box is in: in
     a nested drawing, U(l) in the lane of `vendor/a/b/` reads the
     `b/.splice` of l, a commit of `vendor/a/`'s upstream.
+- **Separator**: a dashed vertical line (draw.io's line shape,
+  `direction=south`) splits a lane for a splice with several upstreams,
+  side by side. A text on each side names the upstream whose commits
+  that side holds, e.g. `origin` and `fork`: every side one upstream,
+  each upstream one side. Outside a split lane, a text is read by its
+  label, like any other shape.
+  - A solid commit on a side is on a fetched branch of that side's
+    upstream, and a box for a branch, e.g. `main`, names that upstream's
+    branch.
+  - A commit both upstreams have is drawn on each side, with one
+    label: the two circles are one commit. Each side draws it once.
+  - Arrows and boxes stay on their commit's side, as they stay in its
+    lane.
 - **Dashed**: commits and arrows into them that aren't in the upstream's
   history yet: no upstream branch has them, like R's copies of monorepo
   commits, or commits a rewrite of the upstream removed. A solid commit
@@ -128,7 +141,12 @@ What no drawing has needed yet, it doesn't handle:
 - **Notes**: free text is read by its label, as a box or a lane.
 - **Branch names that read as names of the vocabulary**: an upstream
   branch called H, B, T, R or `U(…)`.
-- **Several upstreams**: only a splice's default upstream is checked.
+- **Several upstreams without a separator**: a lane that isn't split is
+  checked against the splice's default upstream only.
+- **Split lanes beyond the drawings here**: a split lane may leave out
+  an upstream, or a shared commit's copy on one side; a label in two
+  split lanes is read as one commit; and the splice needs a default
+  upstream.
 - **B with several splices**: outside every lane, B can't say which
   splice's boundary it is, so drawings with several splices leave it out.
 - **Rewrites of shared history**: an upstream that shares commits with
@@ -141,6 +159,7 @@ What no drawing has needed yet, it doesn't handle:
 ## Tests
 
 In `git-splice`, [`test/drawing.bats`](../test/drawing.bats) and
-[`test/drawing-lanes.bats`](../test/drawing-lanes.bats) run it against
+[`test/drawing-lanes.bats`](../test/drawing-lanes.bats) and
+[`test/drawing-upstreams.bats`](../test/drawing-upstreams.bats) run it against
 `git-splice`'s test scenarios, and each [scenario](../test/scenarios/)
 with a drawing checks it in its README.
