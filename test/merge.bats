@@ -168,45 +168,26 @@ setup() {
   synced="$(splice_config vendor/a commit)"
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: upstream rewrote 'patches' since the synced commit ${synced:0:7}, and the folder has changes 'patches' lacks -- set them aside, merge, and redo them on top: a merge now would publish the rewritten-away commits again with the next push" ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream rewrote 'patches' since ${synced:0:7}, and the folder has changes 'patches' lacks -- set them aside, merge, and redo them on top: a merge now would publish the rewritten-away commits again with the next push" ]
   [ "$(git rev-parse HEAD)" = "$before" ]
   git diff --quiet HEAD
 }
 
-@test "merge: a rebased upstream branch is refused while another upstream the splice names isn't fetched, which may still have the synced commit" {
+@test "merge: --no-fork-point merges a rebased upstream branch from Git's merge base, so its dropped patch conflicts" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"
-  local backup="$BATS_TEST_TMPDIR/backup.git" synced before
-  git clone -q --bare "$upstream" "$backup"
-  git config --file vendor/a/.splice upstream.backup.url "$backup"
-  git config --file vendor/a/.splice splice.default-upstream origin
-  git commit -q -am "name a backup upstream"
-  synced="$(splice_config vendor/a commit)"
-  before="$(git rev-parse HEAD)"
-  run cmd_merge vendor/a
+  run cmd_merge --no-fork-point vendor/a
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: no fetched upstream branch has the synced commit ${synced:0:7}, but 'backup' has no fetched branches -- run 'git splice fetch --upstream backup vendor/a' first, and push a branch to it if it has none: if it still has the commit, the upstream didn't rewrite it away" ]
-  [ "$(git rev-parse HEAD)" = "$before" ]
+  [[ "$output" == *"!!   vendor/a: conflict -- resolve it"* ]]
 }
 
-@test "merge: a rebased upstream branch is refused while another upstream the splice names has no branches, even fetched, and says to push one to it" {
+@test "merge: without the fetched branch's reflog, e.g. in a clone that fetched only after the rebase, a rebased branch's dropped patch conflicts, as in Git" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"
-  local backup="$BATS_TEST_TMPDIR/backup.git" before
-  git init -q --bare "$backup"
-  git config --file vendor/a/.splice upstream.backup.url "$backup"
-  git config --file vendor/a/.splice splice.default-upstream origin
-  git commit -q -am "name an empty backup upstream"
-  cmd_fetch --upstream backup vendor/a >/dev/null
-  before="$(git rev-parse HEAD)"
+  git reflog expire --expire=all --all
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
-  [[ "${lines[0]}" == *"but 'backup' has no fetched branches"*"push a branch to it if it has none"* ]]
-  [ "$(git rev-parse HEAD)" = "$before" ]
-  git -C "$upstream" push -q "$backup" patches
-  cmd_fetch --upstream backup vendor/a >/dev/null
-  run cmd_merge vendor/a
-  [ "$status" -eq 0 ]
+  [[ "$output" == *"!!   vendor/a: conflict -- resolve it"* ]]
 }
 
 @test "merge: after .splice switches to another upstream branch, a patch only the old, deleted branch had is kept: that's no rewrite" {

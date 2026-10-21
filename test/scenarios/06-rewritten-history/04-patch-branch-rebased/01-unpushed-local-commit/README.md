@@ -59,7 +59,7 @@ On branch main
 ```scrut
 $ git splice pull vendor/a
 ok   vendor/a fetched
-!!   vendor/a: upstream rewrote 'patches' since the synced commit 2aff4fd, and the folder has changes 'patches' lacks -- set them aside, pull, and redo them on top: a pull now would publish the rewritten-away commits again with the next push
+!!   vendor/a: upstream rewrote 'patches' since 2aff4fd, and the folder has changes 'patches' lacks -- set them aside, pull, and redo them on top: a pull now would publish the rewritten-away commits again with the next push
 !!   Failed: vendor/a
 [1]
 ```

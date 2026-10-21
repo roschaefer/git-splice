@@ -2,7 +2,7 @@
 
 usage_merge() {
   cat <<'EOF'
-usage: git splice merge [--upstream <name>] [--bump] (<path>... | --all)
+usage: git splice merge [--upstream <name>] [--bump] [--no-fork-point] (<path>... | --all)
 
 Splices already-fetched upstream changes into each splice, as one ordinary
 commit per splice. Never touches the network: run 'git splice fetch'
@@ -23,12 +23,14 @@ On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 sides share no history at all, merge doesn't guess: it prints the commands
 to keep either side.
 
-When the upstream rewrote its branch, and no branch of it has the synced
-commit any more, e.g. a fork rebased its patch branch onto a new release,
-merge takes the rewritten branch as it is. If the folder has changes that
-branch lacks, it refuses: the next push would publish the rewritten-away
-commits again, under them. Set the changes aside, merge, and redo them on
-top.
+When the upstream rewrote its branch, e.g. a fork rebased its patch
+branch onto a new release, merge starts at the branch's fork point, like
+'git pull --rebase': the newest commit the fetched branch pointed at, by
+its reflog, that the folder's history has. Merge then takes the
+rewritten branch as it is. If the folder has changes that branch lacks,
+it refuses: the next push would publish the rewritten-away commits
+again, under them. Set the changes aside, merge, and redo them on top.
+--no-fork-point merges from Git's merge base instead.
 
 --bump also moves the synced commit up to the upstream branch when there's
 nothing to merge, e.g. right after a push, in a commit that only changes
@@ -81,28 +83,24 @@ merge_one() {
 
   # The merge base is the newest upstream commit both sides contain: the
   # synced commit, or a later one this branch pushed since. After a
-  # rewrite upstream, e.g. a patch branch rebased onto a new release, no
-  # upstream branch has the synced commit any more: then it's the synced
-  # commit itself, the files the monorepo last took. An older common
-  # ancestor would make the patches look like changes on both sides. A
-  # synced commit another upstream still has, e.g. a fork's patch, isn't
-  # rewritten: the merge base finds where the two upstreams meet.
-  local target merge_base base_folder base_blob new_blob
+  # rewrite upstream, e.g. a patch branch rebased onto a new release, Git's
+  # merge base is older, and the patches would look like changes on both
+  # sides. Like git pull --rebase, the merge then starts at the fork point
+  # (fork_point): where the fetched branch was before the rewrite.
+  local target merge_base base_folder base_blob new_blob fork
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
   if upstream_has_state_file "$target"; then
     log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
     return 1
   fi
-  local rewritten=0
-  synced_rewritten_away "$path" "$target" "$verb" || rewritten=$?
-  [[ "$rewritten" -ne 2 ]] || return 1
-  if [[ "$rewritten" -eq 0 ]]; then
-    merge_base="$SPLICE_SYNCED"
+  fork="$(fork_point)"
+  if [[ -n "$fork" ]]; then
+    merge_base="$fork"
     # Only a folder that ends up with exactly the rewritten branch's files
     # lets the rebuild start there again. Anything else is rebuilt on top
-    # of the synced commit, and joined in as a merge.
+    # of the fork point, and joined in as a merge.
     if ! merge_gives "$merge_base" "$target"; then
-      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since the synced commit ${SPLICE_SYNCED:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- set them aside, $verb, and redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
+      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since ${fork:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- set them aside, $verb, and redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
       return 1
     fi
   else
@@ -135,63 +133,17 @@ merge_gives() {
   [[ "${tree%%$'\n'*}" == "$(git rev-parse "$target^{tree}")" ]]
 }
 
-# Succeeds if the upstream rewrote splice <path>'s synced commit away:
-# upstream commit <target> doesn't contain it, the state file still says
-# what it said about its upstreams when it recorded the commit
-# (upstreams_kept_since_sync), and no fetched branch has it
-# (on_no_upstream_branch). Returns 2, after saying why, if an upstream
-# without fetched branches may still have it. `verb` as for merge_one.
-synced_rewritten_away() {
-  local path="$1" target="$2" verb="$3"
-  [[ -n "$SPLICE_SYNCED" ]] && ! git merge-base --is-ancestor "$SPLICE_SYNCED" "$target" || return 1
-  upstreams_kept_since_sync "$path" || return 1
-  on_no_upstream_branch "$path" "$SPLICE_SYNCED" && return 0
-  [[ -n "$UNFETCHED_UPSTREAM" ]] || return 1
-  log_err "$path: no fetched upstream branch has the synced commit ${SPLICE_SYNCED:0:7}, but '$UNFETCHED_UPSTREAM' has no fetched branches -- run 'git splice fetch --upstream $UNFETCHED_UPSTREAM $path' first, and push a branch to it if it has none: if it still has the commit, the upstream didn't rewrite it away"
-  return 2
-}
-
-# Succeeds if HEAD's state file of splice <path> still has every setting
-# about upstreams, with the same value, that its earlier versions had
-# while they recorded the synced commit: each upstream's URL and
-# default-branch, and default-upstream. Upstreams added since are fine.
-# An upstream dropped since, or a URL or branch changed, may be the one
-# that has the synced commit: nothing tells a rewrite from that.
-upstreams_kept_since_sync() {
-  local path="$1" rev key value pattern='^(upstream\..*|splice\.default-upstream)$'
-  local -A now=()
-  while read -r key value; do
-    now[$key]="$value"
-  done < <(git config --blob "HEAD:$path/$STATE_FILE" --get-regexp "$pattern")
-  while read -r rev; do
-    [[ "$(splice_config "$path" commit "$rev")" == "$SPLICE_SYNCED" ]] || return 0
-    while read -r key value; do
-      [[ -n "${now[$key]+set}" && "${now[$key]}" == "$value" ]] || return 1
-    done < <(git config --blob "$rev:$path/$STATE_FILE" --get-regexp "$pattern")
-  done < <(git log --first-parent --no-show-signature --format=%H HEAD -- ":(top,literal)$path/$STATE_FILE")
-}
-
-# Succeeds if no fetched branch of any upstream of splice <path> has
-# <commit>. Fails if one has it, and also if one of them has no fetched
-# branches, with UNFETCHED_UPSTREAM set to its name: it may have it. That
-# includes an upstream without branches, which looks just like one never
-# fetched.
-on_no_upstream_branch() {
-  local path="$1" commit="$2" names=() name
-  UNFETCHED_UPSTREAM=""
-  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
-  for name in "${names[@]}"; do
-    upstream_key "${UPSTREAM_URLS["$path:$name"]}"
-    if [[ -z "$UPSTREAM_KEY" || -z "$(git for-each-ref --count=1 "refs/splices/$UPSTREAM_KEY/")" ]]; then
-      UNFETCHED_UPSTREAM="$name"
-      continue
-    fi
-    if [[ -n "$(git for-each-ref --count=1 --contains "$commit" "refs/splices/$UPSTREAM_KEY/")" ]]; then
-      UNFETCHED_UPSTREAM=""
-      return 1
-    fi
-  done
-  [[ -z "$UNFETCHED_UPSTREAM" ]]
+# Prints where the fetched upstream branch (SPLICE_TARGET_REF) was before
+# a rewrite took the rebuild's commits out of it: its fork point, git
+# merge-base --fork-point, the newest commit the branch's reflog has that
+# the rebuild has too, if the branch doesn't have it any more. Prints
+# nothing without a rewrite, without a reflog, e.g. in a clone that
+# fetched only after the rewrite, or with --no-fork-point.
+fork_point() {
+  local fork
+  [[ -z "${MERGE_NO_FORK_POINT:-}" ]] || return 0
+  fork="$(git merge-base --fork-point "$SPLICE_TARGET_REF" "$SPLICE_REBUILT" 2>/dev/null)" || return 0
+  git merge-base --is-ancestor "$fork" "$SPLICE_TARGET_REF" || printf '%s\n' "$fork"
 }
 
 # For splice <path> in state up-to-date: records the upstream branch T as
@@ -403,9 +355,11 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "--upstream --bump" "$@"
+  parse_args usage_merge "--upstream --bump --no-fork-point" "$@"
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
+  MERGE_NO_FORK_POINT=""
+  has_flag --no-fork-point && MERGE_NO_FORK_POINT=1
   open_repository
   select_splices explicit merge
   require_no_splice_in_progress

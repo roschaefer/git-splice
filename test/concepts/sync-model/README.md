@@ -147,7 +147,10 @@ upstream's feature branch, and after the merge, `main`'s would too.
 
 It isn't needed either. `status` compares the folder's files with T, and
 after the push they're the same, so the splice is up to date. And a pull
-merges from where R and T meet, not from U(H). The rebuild is
+merges from where R and T meet, not from U(H), unless the upstream
+rewrote its branch: then from where the branch was before, its fork point
+([example](../../scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)).
+The rebuild is
 deterministic, so R contains the pushed commit, with the same hash, and
 they meet there ([example](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/README.md)).
 Except after `git splice push --rebuilt-commit`: R doesn't contain an

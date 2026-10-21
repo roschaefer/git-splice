@@ -24,9 +24,15 @@ synced last is on no upstream branch any more
 U(H) is *p*, but T is *m*, and no upstream branch has *p* any more, so
 it's dashed. Git's merge base of the two is *k*, from before the patch:
 merging from there, the patch and its rewording would be changes on
-both sides, and conflict. A `pull` merges from U(H) instead, the files
+both sides, and conflict. Like `git pull --rebase`, a `pull` merges
+from the branch's fork point instead: where the fetched `patches` was
+before the rebase, *p*, as the ref's reflog has it. Those are the files
 the monorepo took last, so the upstream's new version simply replaces
 them.
+
+The reflog is local, as in Git: a clone of the monorepo that first
+fetched after the rebase has no *p* in it, and its pull conflicts as
+`git merge` would. So does `git splice pull --no-fork-point`.
 
 That's only safe as long as everything the monorepo changed in the
 folder is pushed, so the rebased branch has it. An [unpushed local
@@ -86,6 +92,20 @@ On branch main
 
 `ahead 1` is *p*: the rebased branch lacks it, though the monorepo has
 nothing to push. That count is misleading after a rewrite upstream.
+
+The fetched branch's reflog has both *m* and *p*, where `patches` was
+before:
+
+```scrut
+$ git log -g --format=%s refs/splices/upstream/patches
+patch, reworded upstream
+patch
+```
+
+```scrut
+$ [ "$(git merge-base --fork-point refs/splices/upstream/patches "$(git splice rebuild vendor/a)")" = "$p" ] && echo "the fork point is p"
+the fork point is p
+```
 
 ```scrut
 $ git splice pull vendor/a

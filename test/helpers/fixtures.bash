@@ -83,7 +83,7 @@ upstream_refs() {
 fetch_splice() {
   local monorepo="$1" url="$2" prefix
   prefix="$(cd "$monorepo" && upstream_refs "$url")"
-  git -C "$monorepo" fetch -q --no-tags --prune -- "$url" "+refs/heads/*:$prefix*"
+  git -C "$monorepo" -c core.logAllRefUpdates=always fetch -q --no-tags --prune -- "$url" "+refs/heads/*:$prefix*"
 }
 
 # Splices branch $4 (default: main) of upstream $2 into $3 inside monorepo
