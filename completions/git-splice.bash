@@ -104,7 +104,7 @@ _git_splice() {
       __git_splice_paths_or_options "$cur" --upstream --graph -h --help
       ;;
     merge | pull)
-      __git_splice_paths_or_options "$cur" --upstream --all --bump -h --help
+      __git_splice_paths_or_options "$cur" --upstream --all --bump --no-fork-point -h --help
       ;;
     push | status | diff)
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then

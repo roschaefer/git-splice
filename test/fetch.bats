@@ -66,7 +66,7 @@ setup() {
   cd "$monorepo"
   local fetches="$BATS_TEST_TMPDIR/fetches"
   git() {
-    [[ "$1" == fetch && "$*" == *"refs/heads/*:"* ]] && echo x >>"$fetches"
+    [[ " $* " == *" fetch "* && "$*" == *"refs/heads/*:"* ]] && echo x >>"$fetches"
     command git "$@"
   }
   run cmd_fetch
@@ -82,7 +82,7 @@ setup() {
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
   git() {
-    [[ "$1" == fetch ]] && echo fetch >>"$BATS_TEST_TMPDIR/fetches"
+    [[ " $* " == *" fetch "* ]] && echo fetch >>"$BATS_TEST_TMPDIR/fetches"
     command git "$@"
   }
   run cmd_fetch lib/a
@@ -94,7 +94,7 @@ setup() {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
   git() {
-    [[ "$1" == fetch ]] && echo "warning: from the transport" >&2
+    [[ " $* " == *" fetch "* ]] && echo "warning: from the transport" >&2
     command git "$@"
   }
   run cmd_fetch

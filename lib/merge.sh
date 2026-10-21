@@ -2,7 +2,7 @@
 
 usage_merge() {
   cat <<'EOF'
-usage: git splice merge [--upstream <name>] [--bump] (<path>... | --all)
+usage: git splice merge [--upstream <name>] [--bump] [--no-fork-point] (<path>... | --all)
 
 Splices already-fetched upstream changes into each splice, as one ordinary
 commit per splice. Never touches the network: run 'git splice fetch'
@@ -22,6 +22,15 @@ On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
 --abort' to give up), then re-run merge for any splices left. When the two
 sides share no history at all, merge doesn't guess: it prints the commands
 to keep either side.
+
+When the upstream rewrote its branch, e.g. a fork rebased its patch
+branch onto a new release, merge starts at the branch's fork point, like
+'git pull --rebase': the newest commit the fetched branch pointed at, by
+its reflog, that the folder's history has. Merge then takes the
+rewritten branch as it is. If the folder has changes that branch lacks,
+it refuses: the next push would publish the rewritten-away commits
+again, under them. Set the changes aside, merge, and redo them on top.
+--no-fork-point merges from Git's merge base instead.
 
 --bump also moves the synced commit up to the upstream branch when there's
 nothing to merge, e.g. right after a push, in a commit that only changes
@@ -73,14 +82,30 @@ merge_one() {
   esac
 
   # The merge base is the newest upstream commit both sides contain: the
-  # synced commit, or a later one this branch pushed since.
-  local target merge_base base_folder base_blob new_blob
+  # synced commit, or a later one this branch pushed since. After a
+  # rewrite upstream, e.g. a patch branch rebased onto a new release, Git's
+  # merge base is older, and the patches would look like changes on both
+  # sides. Like git pull --rebase, the merge then starts at the fork point
+  # (fork_point): where the fetched branch was before the rewrite.
+  local target merge_base base_folder base_blob new_blob fork
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
   if upstream_has_state_file "$target"; then
     log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
     return 1
   fi
-  merge_base="$(git merge-base "$SPLICE_REBUILT" "$target")"
+  fork="$(fork_point)"
+  if [[ -n "$fork" ]]; then
+    merge_base="$fork"
+    # Only a folder that ends up with exactly the rewritten branch's files
+    # lets the rebuild start there again. Anything else is rebuilt on top
+    # of the fork point, and joined in as a merge.
+    if ! merge_gives "$merge_base" "$target"; then
+      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since ${fork:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- set them aside, $verb, and redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
+      return 1
+    fi
+  else
+    merge_base="$(git merge-base "$SPLICE_REBUILT" "$target")"
+  fi
   local inner
   inner="$(changed_submodule "$merge_base" "$target")"
   if [[ -n "$inner" ]]; then
@@ -97,6 +122,28 @@ merge_one() {
     return 1
   fi
   log_ok "$path: $(past_tense "$verb") ${target:0:7}"
+}
+
+# Succeeds if merging upstream commit <target> into the rebuild
+# (SPLICE_REBUILT) from <base> gives exactly <target>'s files, without a
+# conflict.
+merge_gives() {
+  local base="$1" target="$2" tree
+  tree="$(git merge-tree --write-tree --merge-base="$base" "$SPLICE_REBUILT" "$target" 2>/dev/null)" || return 1
+  [[ "${tree%%$'\n'*}" == "$(git rev-parse "$target^{tree}")" ]]
+}
+
+# Prints where the fetched upstream branch (SPLICE_TARGET_REF) was before
+# a rewrite took the rebuild's commits out of it: its fork point, git
+# merge-base --fork-point, the newest commit the branch's reflog has that
+# the rebuild has too, if the branch doesn't have it any more. Prints
+# nothing without a rewrite, without a reflog, e.g. in a clone that
+# fetched only after the rewrite, or with --no-fork-point.
+fork_point() {
+  local fork
+  [[ -z "${MERGE_NO_FORK_POINT:-}" ]] || return 0
+  fork="$(git merge-base --fork-point "$SPLICE_TARGET_REF" "$SPLICE_REBUILT" 2>/dev/null)" || return 0
+  git merge-base --is-ancestor "$fork" "$SPLICE_TARGET_REF" || printf '%s\n' "$fork"
 }
 
 # For splice <path> in state up-to-date: records the upstream branch T as
@@ -308,9 +355,11 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "--upstream --bump" "$@"
+  parse_args usage_merge "--upstream --bump --no-fork-point" "$@"
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
+  MERGE_NO_FORK_POINT=""
+  has_flag --no-fork-point && MERGE_NO_FORK_POINT=1
   open_repository
   select_splices explicit merge
   require_no_splice_in_progress

@@ -18,13 +18,14 @@ EOF
 }
 
 # Fetches every branch of upstream <url> into <prefix>*, pruning those that
-# are gone. The rebuild starts at a splice's synced commit; any <commit>
-# given that no branch upstream has any more (e.g. after a force push) is
-# fetched by id.
+# are gone, with a reflog for each, as Git keeps for refs/remotes/: merge
+# finds a rewritten branch's fork point in it. The rebuild starts at a
+# splice's synced commit; any <commit> given that no branch upstream has
+# any more (e.g. after a force push) is fetched by id.
 fetch_upstream() {
   local url="$1" prefix="$2" commit
   shift 2
-  git fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
+  git -c core.logAllRefUpdates=always fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
   for commit in "$@"; do
     # A splice made by init has no synced commit until its first pull.
     [[ -n "$commit" ]] || continue
