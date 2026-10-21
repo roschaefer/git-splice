@@ -475,6 +475,17 @@ squash_merge_rebased_pull() {
   [ "$output" = "!!   vendor/a: $(git rev-parse --short=7 HEAD) records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again" ]
 }
 
+@test "rebuild: without the fetched branch's reflog, e.g. in a clone that fetched only after the rewrite, the squash merge is joined and keeps the rewritten-away commits, as git merge would" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  local previous
+  previous="$(git -C "$monorepo" config --file vendor/a/.splice splice.commit)"
+  squash_merge_rebased_pull "local change"
+  git reflog expire --expire=all --all
+  run rebuild_splice vendor/a
+  [ "$status" -eq 0 ]
+  git merge-base --is-ancestor "$previous" "$output"
+}
+
 @test "rebuild: another splice's upstream that still has the synced commit before doesn't make the squash merge a join" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   local previous other="$BATS_TEST_TMPDIR/other.git"
