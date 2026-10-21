@@ -77,6 +77,26 @@ splice.lib.url https://git.example.com/lib.git
 splice.company-lib.url https://git.example.com/company/lib.git
 ```
 
+*a* (`add vendor/a`) cloned *k* (`seed`) from the original, and *c*
+(`vendor/a: work with the company fork`) added the fork, which has *f*
+(`fork patch`) on top of *k*. Both upstreams have *k*, so the drawing
+shows it on each side of the dashed line. The fork is the default
+upstream, so T is its `main`, *f*:
+
+<div align="center">
+
+![The monorepo's a and c, H and B; the lane vendor/a/ split in two: origin with k, which is U(H), U(B) and R; fork with f on top of k, which is T](both-fetched.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/both-fetched.drawio.svg" \
+>   a=HEAD~1 c=HEAD k=refs/splices/lib/main f=refs/splices/company-lib/main
+ok   both-fetched.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes, 2 upstreams
+```
+-->
+
 A splice with several upstreams names its upstream branch as
 `<name>/<branch>`, like `origin/main` in Git. The default one is the
 fork, which has the patch:
