@@ -160,6 +160,9 @@ ok   vendor/a: pulled 3fd09f0
 ```
 
 The pull joins the release with the fork's patch, as `git pull` would.
+The original's `main` lacks the fork's patch, but that's no rewrite: the
+original never had it
+([original-without-the-patch](01-original-without-the-patch/README.md)).
 The fork lacks the release and the join, so a plain push sends them to
 the fork:
 

@@ -30,6 +30,10 @@ before the rebase, *p*, as the ref's reflog has it. Those are the files
 the monorepo took last, so the upstream's new version simply replaces
 them.
 
+Another upstream's commit, like a fork's patch the original never had,
+isn't rewritten away: the original's fetched branch never pointed at it
+([original-without-the-patch](../../04-upstreams/02-several-upstreams/01-original-without-the-patch/README.md)).
+
 The reflog is local, as in Git: a clone of the monorepo that first
 fetched after the rebase has no *p* in it, and its pull conflicts as
 `git merge` would. So does `git splice pull --no-fork-point`.
