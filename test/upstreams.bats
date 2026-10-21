@@ -70,6 +70,21 @@ add_upstream() {
   [ "$(cat vendor/a/release.txt)" = "original release" ]
 }
 
+@test "upstreams: pulling after the upstream with the patch got a URL that only starts with the old one keeps the patch" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  add_upstream vendor/a fork "$fork" fork
+  splice pull vendor/a >/dev/null
+  seed_bare_repo "$upstream" "original release" main release.txt
+  git config --file vendor/a/.splice upstream.fork.url "$fork backup"
+  git config --file vendor/a/.splice splice.default-upstream origin
+  git commit -q -m "vendor/a: fork moved" -- vendor/a/.splice
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\nfork patch')" ]
+  [ "$(cat vendor/a/release.txt)" = "original release" ]
+}
+
 @test "upstreams: a splice with one upstream needs no default-upstream, and messages don't name it" {
   scenario_several_upstreams "$monorepo" "$upstream"
   cd "$monorepo"

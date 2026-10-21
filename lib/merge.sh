@@ -136,8 +136,8 @@ merge_gives() {
 }
 
 # Succeeds if the upstream rewrote splice <path>'s synced commit away:
-# upstream commit <target> doesn't contain it, the state file still names
-# every upstream it named since it recorded the commit
+# upstream commit <target> doesn't contain it, the state file still says
+# what it said about its upstreams when it recorded the commit
 # (upstreams_kept_since_sync), and no fetched branch has it
 # (on_no_upstream_branch). Returns 2, after saying why, if an upstream
 # without fetched branches may still have it. `verb` as for merge_one.
@@ -151,20 +151,23 @@ synced_rewritten_away() {
   return 2
 }
 
-# Succeeds if HEAD's state file of splice <path> names, by URL, every
-# upstream its earlier versions named while they recorded the synced
-# commit. An upstream dropped since, or given another URL, may be the one
-# that has it: nothing tells a rewrite from that.
+# Succeeds if HEAD's state file of splice <path> still has every setting
+# about upstreams, with the same value, that its earlier versions had
+# while they recorded the synced commit: each upstream's URL and
+# default-branch, and default-upstream. Upstreams added since are fine.
+# An upstream dropped since, or a URL or branch changed, may be the one
+# that has the synced commit: nothing tells a rewrite from that.
 upstreams_kept_since_sync() {
-  local path="$1" rev key url urls_now=" "
-  while read -r key url; do
-    urls_now+="$url "
-  done < <(git config --blob "HEAD:$path/$STATE_FILE" --get-regexp '^upstream\..*\.url$')
+  local path="$1" rev key value pattern='^(upstream\..*|splice\.default-upstream)$'
+  local -A now=()
+  while read -r key value; do
+    now[$key]="$value"
+  done < <(git config --blob "HEAD:$path/$STATE_FILE" --get-regexp "$pattern")
   while read -r rev; do
     [[ "$(splice_config "$path" commit "$rev")" == "$SPLICE_SYNCED" ]] || return 0
-    while read -r key url; do
-      [[ "$urls_now" == *" $url "* ]] || return 1
-    done < <(git config --blob "$rev:$path/$STATE_FILE" --get-regexp '^upstream\..*\.url$')
+    while read -r key value; do
+      [[ -n "${now[$key]+set}" && "${now[$key]}" == "$value" ]] || return 1
+    done < <(git config --blob "$rev:$path/$STATE_FILE" --get-regexp "$pattern")
   done < <(git log --first-parent --no-show-signature --format=%H HEAD -- ":(top,literal)$path/$STATE_FILE")
 }
 

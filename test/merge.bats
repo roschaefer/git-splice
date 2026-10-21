@@ -209,6 +209,26 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "merge: after .splice switches to another upstream branch, a patch only the old, deleted branch had is kept: that's no rewrite" {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  seed_bare_repo "$upstream" "patch" patches
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream" vendor/a patches
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.origin.default-branch patches
+  git commit -q -a --amend --no-edit
+  seed_bare_repo "$upstream" "release" main release.txt
+  git config --file vendor/a/.splice upstream.origin.default-branch main
+  git commit -q -m "vendor/a: follow main" -- vendor/a/.splice
+  git -C "$upstream" branch -q -D patches
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  run cmd_merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\npatch')" ]
+  [ "$(cat vendor/a/release.txt)" = "release" ]
+}
+
 @test "merge: a rebased upstream branch that already has the pushed local commit is merged, and the rebuild is that branch" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"
