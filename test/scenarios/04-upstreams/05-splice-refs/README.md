@@ -231,14 +231,15 @@ at it anymore. `git gc` deletes such commits, by default once they're two
 weeks old, counted from when the object was written, not from when the
 ref was deleted; `--prune=now` doesn't wait.
 
-Git keeps no reflog for refs outside `refs/heads/` and `refs/remotes/`,
-so `git splice fetch` and `push` ask for one, as Git does for a
+By default, Git keeps no reflog for refs like those in `refs/splices/`,
+so `git splice fetch` and `push` ask for one, as Git keeps for a
 remote-tracking branch: a pull finds where a rewritten branch was before
 in it, its fork point
 ([patch-branch-rebased](../../06-rewritten-history/04-patch-branch-rebased/README.md)).
-The reflog keeps a commit the ref moved away from for another 30 days
-(`gc.reflogExpireUnreachable`), after a force push upstream. A deleted
-ref's reflog is deleted with it, so here it makes no difference:
+After a force push upstream, the fetch that moves the ref starts the
+clock: its reflog keeps the commit it moved away from for 30 days
+(`gc.reflogExpireUnreachable`). A deleted ref's reflog is deleted with
+it, so here it makes no difference:
 
 ```scrut
 $ git cat-file -t "$fix_parser"
