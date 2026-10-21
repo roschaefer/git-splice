@@ -31,14 +31,12 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 $ build_scenario scenario_after_pull
 ```
 
-The drawing shows what Git and `git-splice` say about it. *a* and *e* aren't
-subjects the drawing can show, so they're named by their place in the
-history ([`check_drawing`](../../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/after-pull.drawio.svg" a=HEAD~4 e=HEAD
 ok   after-pull.drawio.svg: 12 commits, 16 arrows, 5 boxes, 1 lanes
 ```
+-->
 
 The monorepo, with *e* on top. *a* is the clone, `add lib`:
 

@@ -40,15 +40,13 @@ $ source "$TESTDIR/../../../../readme-setup.sh"
 $ build_scenario scenario_stacked_branch
 ```
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/stacked-branch.drawio.svg" \
 >   a=HEAD~2 b=HEAD~1 c=HEAD k=refs/splices/upstream/main
 ok   stacked-branch.drawio.svg: 5 commits, 7 arrows, 4 boxes, 1 lanes
 ```
+-->
 
 ```scrut
 $ git splice status

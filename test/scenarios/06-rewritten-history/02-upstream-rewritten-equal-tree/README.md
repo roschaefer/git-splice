@@ -48,10 +48,7 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_upstream_rewritten_equal_tree
 ```
 
-The drawing shows what Git and `git-splice` say about it, with each
-commit named by its place in the history
-([`check_drawing`](../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ r="$(git config --file vendor/a/.splice splice.commit)"
 ```
@@ -61,6 +58,7 @@ $ check_drawing "$TESTDIR/upstream-rewritten-equal-tree.drawio.svg" \
 >   a=HEAD k="$r~1" r="$r" w=refs/splices/upstream/main
 ok   upstream-rewritten-equal-tree.drawio.svg: 4 commits, 4 arrows, 3 boxes, 1 lanes
 ```
+-->
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main

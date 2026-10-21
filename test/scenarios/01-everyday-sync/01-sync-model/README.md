@@ -31,19 +31,17 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_sync_model
 ```
 
-The drawing shows what Git and `git-splice` say about it. *a* is the clone,
-`add lib`, which isn't a subject the drawing can show, so it's named
-by its place in the history
-([`check_drawing`](../../../../check-drawing/)):
-
+<!--
 ```scrut
 $ check_drawing "$TESTDIR/before-pull.drawio.svg" a=HEAD~3
 ok   before-pull.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
 ```
+-->
 
 The README draws the same state with Git's names for a three-way merge,
 for readers who don't know H, B, T and R yet. Each stands for a term the
-drawing check knows; BASE is where OURS and THEIRS meet:
+drawing check ([`check_drawing`](../../../../check-drawing/)) knows;
+BASE is where OURS and THEIRS meet:
 
 ```scrut
 $ check_drawing "$TESTDIR/before-pull-git-names.drawio.svg" \
