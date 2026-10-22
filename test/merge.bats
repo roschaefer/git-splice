@@ -359,6 +359,41 @@ add vendor/a" ]
   [ "${lines[0]}" = "!!   lib/a: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; merge without --rebase" ]
 }
 
+@test "merge --rebase: refuses a merge commit among the commits to rebase, whose own changes the rebase would drop" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c side HEAD~1
+  commit_local "$monorepo" vendor/a "side change" side.txt
+  git switch -q main
+  git merge -q --no-ff -m "merge side" side
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: there's a merge commit since $(git rev-parse --short=7 HEAD~1~1), whose own changes --rebase would drop -- merge without --rebase" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge --rebase: refuses with its message when a remote-tracking branch has several of the commits it would rewrite" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_local "$monorepo" vendor/a "another change" another.txt
+  commit_local "$monorepo" vendor/a "a third change" third.txt
+  git update-ref refs/remotes/origin/main HEAD
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: 'origin/main' has commits since $(git rev-parse --short=7 HEAD~3), which --rebase would rewrite -- merge on a branch nobody else has, e.g. a pull request's" ]
+}
+
+@test "merge: the suggested --rebase keeps the --branch the refused merge had" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c take-the-release
+  run cmd_merge --branch patches vendor/a
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"-- run 'git splice merge --rebase --branch patches vendor/a' to redo them on top"* ]]
+}
+
 @test "merge: --bump and --rebase don't go together" {
   scenario_unpushed_local_commit "$monorepo" "$upstream"
   cd "$monorepo"

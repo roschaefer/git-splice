@@ -614,6 +614,16 @@ upstream_branch_label() {
   fi
 }
 
+# Prints the options that select splice <path>'s upstream and branch in
+# this command, "--upstream <name> --branch <name> ", for the commands
+# that messages suggest: without them, they would sync with another one.
+selection_options() {
+  upstream_option "$1"
+  if [[ -n "${BRANCH_ARG:-}" && " ${SELECTED_PATHS[*]-} " == *" $1 "* ]]; then
+    printf -- '--branch %s ' "$(shell_quote "$BRANCH_ARG")"
+  fi
+}
+
 # Prints "--upstream <name> " if splice <path> uses another upstream than
 # its default, for the commands that messages suggest: without it, they
 # would use the default one.

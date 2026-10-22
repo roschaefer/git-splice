@@ -32,7 +32,7 @@ branch onto a new release, merge starts at the branch's fork point, like
 its reflog, that the folder's history has. Merge then takes the
 rewritten branch as it is. If the folder has changes that branch lacks,
 it refuses: the next push would publish the rewritten-away commits
-again, under them. Set the changes aside, merge, and redo them on top.
+again, under them. --rebase redoes them on top instead.
 --no-fork-point merges from Git's merge base instead.
 
 --bump also moves the synced commit up to the upstream branch when there's
@@ -46,8 +46,11 @@ the synced commit's files, and rebases the monorepo branch's commits
 since then onto that, with 'git rebase'. The next push then sends the
 folder's changes as commits on top of the upstream branch, also after
 the upstream rewrote it. It rewrites the branch, so it refuses when a
-remote-tracking branch has any of those commits. On a conflict, resolve
-it and run 'git rebase --continue' (or 'git rebase --abort' to give up).
+remote-tracking branch has any of those commits, and when one of them is
+a merge, whose own changes a rebase would drop. rebase.autoStash and
+rebase.updateRefs don't apply: it neither stashes nor moves other
+branches. On a conflict, resolve it and run 'git rebase --continue' (or
+'git rebase --abort' to give up).
 EOF
 }
 
@@ -116,7 +119,7 @@ merge_one() {
     # lets the rebuild start there again. Anything else is rebuilt on top
     # of the fork point, and joined in as a merge.
     if ! merge_gives "$merge_base" "$target"; then
-      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since ${fork:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- run 'git splice $verb --rebase $(shell_quote "$path")' to redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
+      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since ${fork:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- run 'git splice $verb --rebase $(selection_options "$path")$(shell_quote "$path")' to redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
       return 1
     fi
   else
@@ -181,9 +184,14 @@ rebase_onto_pull() {
     log_err "$path: upstream has a submodule, $inner, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
     return 1
   fi
-  published="$(git rev-list --reverse "$base..HEAD" | while IFS= read -r commit; do
-    git for-each-ref --count=1 --contains "$commit" --format='%(refname:short)' refs/remotes/
-  done | head -n 1)"
+  if [[ "$(git rev-list --min-parents=2 --count "$base..HEAD")" -gt 0 ]]; then
+    log_err "$path: there's a merge commit since ${base:0:7}, whose own changes --rebase would drop -- $verb without --rebase"
+    return 1
+  fi
+  # Without merges, a remote-tracking branch that has any of the commits
+  # has the oldest one.
+  commit="$(git rev-list "$base..HEAD" | tail -n 1)"
+  published="$(git for-each-ref --count=1 --contains "$commit" --format='%(refname:short)' refs/remotes/)"
   if [[ -n "$published" ]]; then
     log_err "$path: '$published' has commits since ${base:0:7}, which --rebase would rewrite -- $verb on a branch nobody else has, e.g. a pull request's"
     return 1

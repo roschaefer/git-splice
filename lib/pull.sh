@@ -11,7 +11,8 @@ can move their synced commits. Top-down: a splice is pulled before the
 ones below it, and a failed fetch stops the splices above and below it.
 
 On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
---abort' to give up), then re-run pull for any splices left.
+--abort' to give up), then re-run pull for any splices left. With
+--rebase, it's 'git rebase --continue' (or 'git rebase --abort').
 
 --upstream names one of the upstreams a splice's .splice names; without
 it, the splice's default upstream. A splice without the named upstream
