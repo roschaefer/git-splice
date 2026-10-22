@@ -22,6 +22,9 @@ folders`) leaves `.splice` as it was, so it's no last sync: B is still
 *a*, and R is *b'*, a copy of *b*. *m* changes no file inside the folder,
 so it has no copy.
 
+Pushed before the move instead, and changed after it:
+[pushed before the move](pushed-before-moving.md).
+
 ## Output
 
 <!--
