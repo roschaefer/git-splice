@@ -94,8 +94,9 @@ _git_splice() {
   fi
 
   cmd="${COMP_WORDS[start]}"
-  # The word after --upstream is an upstream's name: nothing to offer.
-  [[ "${COMP_WORDS[COMP_CWORD - 1]}" != --upstream ]] || return 0
+  # The word after --upstream or --branch names an upstream or its branch:
+  # nothing to offer.
+  [[ "${COMP_WORDS[COMP_CWORD - 1]}" != --upstream && "${COMP_WORDS[COMP_CWORD - 1]}" != --branch ]] || return 0
   case "$cmd" in
     fetch)
       __git_splice_paths_or_options "$cur" --upstream -h --help
@@ -104,7 +105,7 @@ _git_splice() {
       __git_splice_paths_or_options "$cur" --upstream --graph -h --help
       ;;
     merge | pull)
-      __git_splice_paths_or_options "$cur" --upstream --all --bump --no-fork-point -h --help
+      __git_splice_paths_or_options "$cur" --upstream --branch --all --bump --rebase --no-fork-point -h --help
       ;;
     push | status | diff)
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then

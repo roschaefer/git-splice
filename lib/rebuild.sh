@@ -163,6 +163,26 @@ splice_start() {
 ' "$result"
 }
 
+# Succeeds if a fetched branch of one of splice <path>'s upstreams that
+# has <synced> was rewritten past <commit>: the branch's reflog has it, as
+# its fork point (see fork_point), but its history doesn't any more.
+rewritten_away() {
+  local path="$1" commit="$2" synced="$3" name ref names=()
+  require_splice_upstream_list "$path"
+  read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
+  for name in "${names[@]}"; do
+    upstream_key "${UPSTREAM_URLS["$path:$name"]}"
+    [[ -n "$UPSTREAM_KEY" ]] || continue
+    while read -r ref; do
+      if [[ "$(git merge-base --fork-point "$ref" "$commit" 2>/dev/null)" == "$commit" ]] &&
+        ! git merge-base --is-ancestor "$commit" "$ref"; then
+        return 0
+      fi
+    done < <(git for-each-ref --contains "$synced" --format='%(refname)' "refs/splices/$UPSTREAM_KEY/")
+  done
+  return 1
+}
+
 # Prints "<rebuild> <start>": rebuild_splice's commit and splice_start's,
 # each "-" if there's none.
 #
@@ -266,6 +286,22 @@ rebuild_with_start() {
         parents=("$before")
         rebuild_start="$before_start"
       else
+        # The synced commit before L isn't in U(L)'s history, and a
+        # fetched branch of the splice's upstreams dropped it: the upstream
+        # rewrote its branch in between, e.g. rebased a patch branch, and
+        # L mixed changes of its own into the pull, e.g. a squash merge.
+        # Joining both sides would publish the rewritten-away commits
+        # again; which commits should carry L's changes, only the user
+        # can say. merge and pull set REBUILD_JOINS_REWRITTEN: they only
+        # compare with the rebuild, and their pull is the way out.
+        local previous
+        previous="$(splice_config "$path" commit "$last_sync^1")"
+        if [[ -z "${REBUILD_JOINS_REWRITTEN:-}" && -n "$previous" ]] &&
+          git cat-file -e "$previous^{commit}" 2>/dev/null &&
+          ! git merge-base --is-ancestor "$previous" "$synced" &&
+          rewritten_away "$path" "$previous" "$synced"; then
+          die "$path: ${last_sync:0:7} records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again"
+        fi
         # A pull merged a divergence: join both sides, as git pull would.
         parents=("$before" "$synced")
         rebuild_start="$before_start"

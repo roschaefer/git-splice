@@ -213,6 +213,19 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   [[ "$output" != *"isn't a splice of the monorepo"* ]]
 }
 
+@test "drawing: a box next to a monorepo commit names a monorepo branch, though the upstream has one named like it" {
+  edit_drawing -u '//mxCell[@id="refH"]/@value' -v 'H = main' -u '//mxCell[@id="refT"]/@value' -v 'T = U(H) = main'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: a monorepo branch box pointing at the wrong commit names the right one" {
+  edit_drawing -u '//mxCell[@id="refB"]/@value' -v 'B = main'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   main points at a, the code says e" ]
+}
+
 @test "drawing: a box names an upstream branch with any characters Git allows" {
   load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
   scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"

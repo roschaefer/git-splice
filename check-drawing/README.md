@@ -81,7 +81,8 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   its child.
 - **Box**: points at the commit its label names: H, B, T or R, U(x),
   the commit *x*'s `.splice` records, where *x* is H, B or a drawn commit, or
-  an upstream branch by its name, e.g. `main`, as fetched, or
+  a branch by its name: in a box on a monorepo commit, the monorepo's,
+  e.g. `main` or `origin/main`, otherwise the upstream's, as fetched, or
   `merge-base(R,T)`, the newest commit R and T have in common. Several
   names
   are joined by ` = `, e.g. `U(H) = U(B)`: each must name that commit.

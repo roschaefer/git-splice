@@ -111,7 +111,8 @@ normalize_path() {
 }
 
 # Parses the arguments of a command that takes `[--all] [<flag>...]
-# [path...]`. Sets ALL_ARG, PATH_ARGS, and
+# [path...]`. Sets ALL_ARG, UPSTREAM_ARG, REBUILT_COMMIT_ARG, BRANCH_ARG,
+# PATH_ARGS, and
 # EXTRA_FLAGS for every flag named in $2 (space-separated, e.g. "--merge").
 # $1 names the command's usage function, which is run (then exit 0) for
 # -h/--help. Everything after `--` is a path.
@@ -121,6 +122,7 @@ parse_args() {
   ALL_ARG=""
   UPSTREAM_ARG=""
   REBUILT_COMMIT_ARG=""
+  BRANCH_ARG=""
   PATH_ARGS=()
   EXTRA_FLAGS=()
   while [[ $# -gt 0 ]]; do
@@ -132,7 +134,7 @@ parse_args() {
       --all)
         ALL_ARG=1
         ;;
-      --upstream | --upstream=* | --rebuilt-commit | --rebuilt-commit=*)
+      --upstream | --upstream=* | --rebuilt-commit | --rebuilt-commit=* | --branch | --branch=*)
         option="${1%%=*}"
         [[ "$allowed" == *" $option "* ]] || {
           "$usage_fn" >&2
@@ -152,6 +154,10 @@ parse_args() {
           --rebuilt-commit)
             [[ -n "$value" ]] || die "--rebuilt-commit needs a commit"
             REBUILT_COMMIT_ARG="$value"
+            ;;
+          --branch)
+            [[ -n "$value" ]] || die "--branch needs an upstream branch's name"
+            BRANCH_ARG="$value"
             ;;
         esac
         ;;
@@ -390,7 +396,7 @@ require_usable_splice_path() {
 # Dies while a cherry-pick or merge waits to be concluded: the commands
 # that commit can't start another.
 require_no_splice_in_progress() {
-  ! splice_in_progress || die "a cherry-pick or merge is in progress -- conclude it first"
+  ! splice_in_progress || die "a cherry-pick, merge or rebase is in progress -- conclude it first"
 }
 
 # Runs <fn> <path> <branch> for each splice <path>..., and reports the
@@ -605,6 +611,22 @@ upstream_branch_label() {
     printf '%s/%s\n' "${SPLICE_UPSTREAM_NAMES[$1]}" "$2"
   else
     printf '%s\n' "$2"
+  fi
+}
+
+# Succeeds if --branch (BRANCH_ARG) names splice <path>'s upstream branch:
+# the command selected it, not only a splice above it.
+branch_arg_applies() {
+  [[ -n "${BRANCH_ARG:-}" && " ${SELECTED_PATHS[*]-} " == *" $1 "* ]]
+}
+
+# Prints the options that select splice <path>'s upstream and branch in
+# this command, "--upstream <name> --branch <name> ", for the commands
+# that messages suggest: without them, they would sync with another one.
+selection_options() {
+  upstream_option "$1"
+  if branch_arg_applies "$1"; then
+    printf -- '--branch %s ' "$(shell_quote "$BRANCH_ARG")"
   fi
 }
 
@@ -974,10 +996,13 @@ container_default_branch() {
 # Prints the upstream branch splice $1 syncs with, from its upstream $3 or
 # the one it uses, while the monorepo is on branch $2: the same name,
 # except that the monorepo's default branch maps to that upstream's
-# default branch (splice_default_branch).
+# default branch (splice_default_branch). --branch (BRANCH_ARG) names it
+# for the splices the command selected, not for the ones below them.
 upstream_branch_for() {
   local path="$1" branch="$2"
-  if [[ "$branch" == "$(monorepo_default_branch)" ]]; then
+  if branch_arg_applies "$path"; then
+    printf '%s\n' "$BRANCH_ARG"
+  elif [[ "$branch" == "$(monorepo_default_branch)" ]]; then
     splice_default_branch "$path" "${@:3}"
   else
     printf '%s\n' "$branch"

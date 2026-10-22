@@ -117,15 +117,16 @@ compare_with_default_branch() {
   fi
 }
 
-# Prints a tree: HEAD's, with folder <path> replaced by <folder-tree>
-# (nothing: no folder) plus state file blob <blob> (nothing: none). Uses a
-# temporary index, so neither the worktree nor the real index changes.
+# Prints a tree: commit <rev>'s (default HEAD), with folder <path>
+# replaced by <folder-tree> (nothing: no folder) plus state file blob
+# <blob> (nothing: none). Uses a temporary index, so neither the worktree
+# nor the real index changes.
 reroot_tree() {
-  local path="$1" folder="$2" blob="$3" index rc=0
+  local path="$1" folder="$2" blob="$3" rev="${4:-HEAD}" index rc=0
   index="$(mktemp)"
   {
-    GIT_INDEX_FILE="$index" git read-tree HEAD &&
-      GIT_INDEX_FILE="$index" git rm -r -q --cached --ignore-unmatch -- ":(top,literal)$path" &&
+    GIT_INDEX_FILE="$index" git read-tree "$rev" &&
+      GIT_INDEX_FILE="$index" git rm -r -q -f --cached --ignore-unmatch -- ":(top,literal)$path" &&
       if [[ -n "$folder" ]]; then
         GIT_INDEX_FILE="$index" git read-tree --prefix="$path/" "$folder"
       fi &&
@@ -138,11 +139,12 @@ reroot_tree() {
   return "$rc"
 }
 
-# True while a cherry-pick or merge waits to be concluded. Another one
+# True while a cherry-pick, merge or rebase waits to be concluded. Another one
 # can't start then, so the multi-path loops must stop.
 splice_in_progress() {
   git rev-parse --quiet --verify CHERRY_PICK_HEAD >/dev/null 2>&1 ||
-    git rev-parse --quiet --verify MERGE_HEAD >/dev/null 2>&1
+    git rev-parse --quiet --verify MERGE_HEAD >/dev/null 2>&1 ||
+    [[ -d "$(git rev-parse --git-path rebase-merge)" || -d "$(git rev-parse --git-path rebase-apply)" ]]
 }
 
 # Splices upstream content into <path> as one ordinary commit: a three-way

@@ -3,8 +3,9 @@ scenario_patch_branch_rebased() {
   local monorepo="$1" upstream="$2"
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
-  # A fork's patch branch: the upstream's main plus a patch of its own.
+  # A fork's patch branch: the upstream's main plus two patches of its own.
   seed_bare_repo "$upstream" "patch" patches
+  seed_bare_repo "$upstream" "other patch" patches other.txt
   init_monorepo "$monorepo"
   add_splice "$monorepo" "$upstream" "vendor/a" patches
   (
@@ -13,9 +14,11 @@ scenario_patch_branch_rebased() {
     git commit -q -a --amend --no-edit
   )
 
-  # The upstream's main takes the patch, reworded, and the patch branch is
-  # rebased onto it: the patch drops out, the branch is main again.
+  # The upstream's main takes the first patch, reworded, and the patch
+  # branch is rebased onto it: that patch drops out, the other one gets a
+  # new commit on top of main.
   seed_bare_repo "$upstream" "patch, reworded upstream"
   git -C "$upstream" update-ref refs/heads/patches refs/heads/main
+  seed_bare_repo "$upstream" "other patch" patches other.txt
   fetch_splice "$monorepo" "$upstream" "vendor/a"
 }
