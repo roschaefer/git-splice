@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/roschaefer/git-splice/compare/v0.10.0...v0.11.0) (2026-10-22)
+
+
+### Features
+
+* **pull:** rebase local splice changes onto the upstream with --rebase ([#208](https://github.com/roschaefer/git-splice/issues/208)) ([889c19e](https://github.com/roschaefer/git-splice/commit/889c19e0ae57258d7b9553bc50dcdd85f384e783))
+
 ## [0.10.0](https://github.com/roschaefer/git-splice/compare/v0.9.0...v0.10.0) (2026-10-22)
 
 
