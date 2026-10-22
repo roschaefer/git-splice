@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0](https://github.com/roschaefer/git-splice/compare/v0.9.0...v0.10.0) (2026-10-22)
+
+
+### Features
+
+* **check-drawing:** draw a splice's upstreams side by side ([#219](https://github.com/roschaefer/git-splice/issues/219)) ([14a647a](https://github.com/roschaefer/git-splice/commit/14a647adac852120b4b882d24b40d7cdf7432a87))
+* **merge:** pull an upstream branch rebased since the synced commit, from its fork point ([#207](https://github.com/roschaefer/git-splice/issues/207)) ([cadf751](https://github.com/roschaefer/git-splice/commit/cadf751380e0f4e4254e00807895f459cb358b0b))
+
 ## [0.9.0](https://github.com/roschaefer/git-splice/compare/v0.8.4...v0.9.0) (2026-10-18)
 
 
