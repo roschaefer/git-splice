@@ -116,7 +116,7 @@ merge_one() {
     # lets the rebuild start there again. Anything else is rebuilt on top
     # of the fork point, and joined in as a merge.
     if ! merge_gives "$merge_base" "$target"; then
-      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since ${fork:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- run 'git splice $verb --rebase $path' to redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
+      log_err "$path: upstream rewrote '$SPLICE_UPSTREAM_LABEL' since ${fork:0:7}, and the folder has changes '$SPLICE_UPSTREAM_LABEL' lacks -- run 'git splice $verb --rebase $(shell_quote "$path")' to redo them on top: a $verb now would publish the rewritten-away commits again with the next push"
       return 1
     fi
   else
@@ -152,6 +152,10 @@ rebase_onto_pull() {
   target="$(git rev-parse "$SPLICE_TARGET_REF^{commit}")"
   if upstream_has_state_file "$target"; then
     log_err "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE"
+    return 1
+  fi
+  if [[ -z "$SPLICE_SYNCED" ]]; then
+    log_err "$path: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; $verb without --rebase"
     return 1
   fi
   synced_tree="$(git rev-parse "$SPLICE_SYNCED^{tree}")"
@@ -190,7 +194,7 @@ rebase_onto_pull() {
   message="splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"
   pull="$(git commit-tree "$tree" -p "$base" -m "$message")" || return 1
   count="$(git rev-list --count "$base..HEAD")"
-  if ! git -c advice.mergeConflict=false rebase -q --onto "$pull" "$base"; then
+  if ! git -c advice.mergeConflict=false rebase -q --no-update-refs --no-autostash --onto "$pull" "$base"; then
     if [[ -d "$(git rev-parse --git-path rebase-merge)" || -d "$(git rev-parse --git-path rebase-apply)" ]]; then
       log_err "$path: conflict while rebasing onto the $verb -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)"
     else
@@ -436,7 +440,11 @@ merge_paths() {
   fi
 
   if [[ ${#skipped[@]} -gt 0 ]]; then
-    log_err "Not $(past_tense "$verb") yet: ${skipped[*]} -- resolve the conflict, run 'git commit', then re-run $verb"
+    if [[ -d "$(git rev-parse --git-path rebase-merge)" || -d "$(git rev-parse --git-path rebase-apply)" ]]; then
+      log_err "Not $(past_tense "$verb") yet: ${skipped[*]} -- resolve the conflict, run 'git rebase --continue', then re-run $verb"
+    else
+      log_err "Not $(past_tense "$verb") yet: ${skipped[*]} -- resolve the conflict, run 'git commit', then re-run $verb"
+    fi
   fi
   if [[ ${#failures[@]} -gt 0 ]]; then
     log_err "Failed: ${failures[*]}"

@@ -310,6 +310,55 @@ add vendor/a" ]
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
+@test "merge --rebase: with rebase.autoStash set, uncommitted changes still keep the rebase from starting" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config rebase.autoStash true
+  echo "uncommitted" >>vendor/a/file.txt
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: git rebase didn't start, see above -- nothing changed"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -z "$(git stash list)" ]
+}
+
+@test "merge --rebase: with rebase.updateRefs set, leaves other local branches on the commits it rewrites alone" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config rebase.updateRefs true
+  git branch -q other HEAD
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse other)" = "$before" ]
+  [ "$(git rev-parse HEAD)" != "$before" ]
+}
+
+@test "merge --rebase: on a conflict, the splices after it wait for 'git rebase --continue'" {
+  scenario_diverged_common_ancestor "$monorepo" "$upstream"
+  add_splice "$monorepo" "$upstream" vendor/b
+  cd "$monorepo"
+  run cmd_merge --rebase --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   Not merged yet: vendor/b -- resolve the conflict, run 'git rebase --continue', then re-run merge"* ]]
+}
+
+@test "merge --rebase: refuses a splice that init made and push published, which has no synced commit to rebase onto" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null 2>&1
+  splice push lib/a >/dev/null 2>&1
+  [ -z "$(splice_config lib/a commit)" ]
+  seed_bare_repo "$upstream" "upstream change" main upstream.txt
+  splice fetch lib/a >/dev/null
+  run cmd_merge --rebase lib/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   lib/a: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; merge without --rebase" ]
+}
+
 @test "merge: --bump and --rebase don't go together" {
   scenario_unpushed_local_commit "$monorepo" "$upstream"
   cd "$monorepo"
