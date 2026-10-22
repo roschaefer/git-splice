@@ -163,11 +163,11 @@ splice_start() {
 ' "$result"
 }
 
-# Succeeds if a fetched branch of one of splice <path>'s upstreams was
-# rewritten past <commit>: the branch's reflog has it, as its fork point
-# (see fork_point), but its history doesn't any more.
+# Succeeds if a fetched branch of one of splice <path>'s upstreams that
+# has <synced> was rewritten past <commit>: the branch's reflog has it, as
+# its fork point (see fork_point), but its history doesn't any more.
 rewritten_away() {
-  local path="$1" commit="$2" name ref names=()
+  local path="$1" commit="$2" synced="$3" name ref names=()
   require_splice_upstream_list "$path"
   read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$path]}"
   for name in "${names[@]}"; do
@@ -178,7 +178,7 @@ rewritten_away() {
         ! git merge-base --is-ancestor "$commit" "$ref"; then
         return 0
       fi
-    done < <(git for-each-ref --format='%(refname)' "refs/splices/$UPSTREAM_KEY/")
+    done < <(git for-each-ref --contains "$synced" --format='%(refname)' "refs/splices/$UPSTREAM_KEY/")
   done
   return 1
 }
@@ -299,7 +299,7 @@ rebuild_with_start() {
         if [[ -z "${REBUILD_JOINS_REWRITTEN:-}" && -n "$previous" ]] &&
           git cat-file -e "$previous^{commit}" 2>/dev/null &&
           ! git merge-base --is-ancestor "$previous" "$synced" &&
-          rewritten_away "$path" "$previous"; then
+          rewritten_away "$path" "$previous" "$synced"; then
           die "$path: ${last_sync:0:7} records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again"
         fi
         # A pull merged a divergence: join both sides, as git pull would.

@@ -499,6 +499,24 @@ squash_merge_rebased_pull() {
   [[ "$output" == "!!   vendor/a: "*" which the upstream rewrote from ${previous:0:7}, "* ]]
 }
 
+@test "rebuild: a squash merge that moves to another upstream branch is joined, though the branch it left was rewritten: that branch didn't give the new synced commit" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  local previous
+  previous="$(git -C "$monorepo" config --file vendor/a/.splice splice.commit)"
+  git -C "$upstream" branch release main~1
+  seed_bare_repo "$upstream" "release" release release.txt
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  git switch -q -c take-the-release
+  (cmd_merge --branch release vendor/a) >/dev/null
+  commit_local "$monorepo" vendor/a "local change" local.txt
+  git switch -q main
+  git merge -q --squash take-the-release >/dev/null
+  git commit -q -m "take the release (#1)"
+  run rebuild_splice vendor/a
+  [ "$status" -eq 0 ]
+}
+
 @test "rebuild: a squash merge of only the pull of a rewritten upstream branch starts at that branch" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   squash_merge_rebased_pull
