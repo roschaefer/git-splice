@@ -74,6 +74,10 @@ merge_one() {
       return 1
       ;;
     missing-branch)
+      if branch_arg_applies "$path"; then
+        log_err "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch, which --branch names"
+        return 1
+      fi
       log_ok "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch -- nothing to $verb"
       return 0
       ;;

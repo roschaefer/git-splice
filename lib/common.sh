@@ -614,12 +614,18 @@ upstream_branch_label() {
   fi
 }
 
+# Succeeds if --branch (BRANCH_ARG) names splice <path>'s upstream branch:
+# the command selected it, not only a splice above it.
+branch_arg_applies() {
+  [[ -n "${BRANCH_ARG:-}" && " ${SELECTED_PATHS[*]-} " == *" $1 "* ]]
+}
+
 # Prints the options that select splice <path>'s upstream and branch in
 # this command, "--upstream <name> --branch <name> ", for the commands
 # that messages suggest: without them, they would sync with another one.
 selection_options() {
   upstream_option "$1"
-  if [[ -n "${BRANCH_ARG:-}" && " ${SELECTED_PATHS[*]-} " == *" $1 "* ]]; then
+  if branch_arg_applies "$1"; then
     printf -- '--branch %s ' "$(shell_quote "$BRANCH_ARG")"
   fi
 }
@@ -994,7 +1000,7 @@ container_default_branch() {
 # for the splices the command selected, not for the ones below them.
 upstream_branch_for() {
   local path="$1" branch="$2"
-  if [[ -n "${BRANCH_ARG:-}" && " ${SELECTED_PATHS[*]-} " == *" $path "* ]]; then
+  if branch_arg_applies "$path"; then
     printf '%s\n' "$BRANCH_ARG"
   elif [[ "$branch" == "$(monorepo_default_branch)" ]]; then
     splice_default_branch "$path" "${@:3}"

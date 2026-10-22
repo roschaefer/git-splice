@@ -226,6 +226,19 @@ setup() {
   [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from patches at ${target:0:7}" ]
 }
 
+@test "merge: --branch naming a branch the upstream lacks, e.g. a typo, fails, unlike the monorepo branch's own missing name" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge --branch patchs vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream has no 'patchs' branch, which --branch names" ]
+  run cmd_merge --branch bad..name vendor/a
+  [ "$status" -eq 1 ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "merge: --branch needs a branch's name" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"
