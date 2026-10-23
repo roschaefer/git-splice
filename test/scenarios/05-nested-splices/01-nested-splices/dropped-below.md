@@ -83,9 +83,9 @@ upstream has it any more, but the pull fetched it by its hash.
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/dropped-below.drawio.svg" \
->   a=HEAD^ p=HEAD k=refs/splices/upstream/main~2 \
->   l=refs/splices/upstream/main~1 n=refs/splices/upstream/main \
->   m=refs/splices/b/main \
+>   a=HEAD^ p=HEAD k=refs/splices/upstream/heads/main~2 \
+>   l=refs/splices/upstream/heads/main~1 n=refs/splices/upstream/heads/main \
+>   m=refs/splices/b/heads/main \
 >   c="$(git config --file vendor/a/b/.splice splice.commit)"
 ok   dropped-below.drawio.svg: 7 commits, 8 arrows, 4 boxes, 2 lanes
 ```

@@ -47,8 +47,8 @@ $ build_scenario scenario_nested_splices https://git.example.com/b.git
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/nested-splices.drawio.svg" \
->   a=HEAD k=refs/splices/upstream/main~1 l=refs/splices/upstream/main \
->   m=refs/splices/b/main
+>   a=HEAD k=refs/splices/upstream/heads/main~1 l=refs/splices/upstream/heads/main \
+>   m=refs/splices/b/heads/main
 ok   nested-splices.drawio.svg: 4 commits, 5 arrows, 4 boxes, 2 lanes
 ```
 -->

@@ -5,9 +5,9 @@ usage_key() {
 usage: git splice key [--upstream <name>] <path> [<new-key>]
 
 Prints the key splice <path>'s upstream has in this repository: its
-fetched branches are refs/splices/<key>/<branch>, e.g. for
-'git log splices/<key>/main'. With <new-key>, renames the key and moves
-its refs along.
+fetched branches are refs/splices/<key>/heads/<branch>, e.g. for
+'git log splices/<key>/heads/main'. With <new-key>, renames the key and
+moves its refs along.
 
 --upstream names the upstream, as <path>/.splice does in
 [upstream "<name>"]. Without it, the splice's default upstream.

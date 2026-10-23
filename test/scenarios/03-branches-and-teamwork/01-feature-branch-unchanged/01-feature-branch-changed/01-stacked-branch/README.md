@@ -43,7 +43,7 @@ $ build_scenario scenario_stacked_branch
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/stacked-branch.drawio.svg" \
->   a=HEAD~2 b=HEAD~1 c=HEAD k=refs/splices/upstream/main
+>   a=HEAD~2 b=HEAD~1 c=HEAD k=refs/splices/upstream/heads/main
 ok   stacked-branch.drawio.svg: 5 commits, 7 arrows, 4 boxes, 1 lanes
 ```
 -->

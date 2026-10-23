@@ -228,9 +228,9 @@ pulled *d*:
 $ source "$TESTDIR/../../check-drawing/check-drawing" &&
 >   check_drawing "$TESTDIR/fork.drawio.svg" \
 >     x=HEAD~2 y=HEAD~1 p=HEAD \
->     k=refs/splices/pkg-a/main~2 m=refs/splices/pkg-a/main~1 n=refs/splices/pkg-a/main \
->     q=refs/splices/pkg-a-fork/fix/parser e=refs/splices/pkg-a-fork/docs/parser \
->     d=refs/splices/pkg-a-fork/patches
+>     k=refs/splices/pkg-a/heads/main~2 m=refs/splices/pkg-a/heads/main~1 n=refs/splices/pkg-a/heads/main \
+>     q=refs/splices/pkg-a-fork/heads/fix/parser e=refs/splices/pkg-a-fork/heads/docs/parser \
+>     d=refs/splices/pkg-a-fork/heads/patches
 ok   fork.drawio.svg: 12 commits, 15 arrows, 6 boxes, 1 lanes, 2 upstreams
 ```
 -->
@@ -321,8 +321,8 @@ The original's `main` has the fix as a new commit, *f*
 ```scrut
 $ check_drawing "$TESTDIR/fork-merged.drawio.svg" \
 >     p=HEAD~1 r=HEAD \
->     k=refs/splices/pkg-a/main~3 m=refs/splices/pkg-a/main~2 n=refs/splices/pkg-a/main~1 \
->     f=refs/splices/pkg-a/main g=refs/splices/pkg-a-fork/patches
+>     k=refs/splices/pkg-a/heads/main~3 m=refs/splices/pkg-a/heads/main~2 n=refs/splices/pkg-a/heads/main~1 \
+>     f=refs/splices/pkg-a/heads/main g=refs/splices/pkg-a-fork/heads/patches
 ok   fork-merged.drawio.svg: 11 commits, 12 arrows, 4 boxes, 1 lanes, 2 upstreams
 ```
 -->

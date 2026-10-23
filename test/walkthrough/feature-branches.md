@@ -130,7 +130,7 @@ ok   vendor/pkg-b: nothing to pull
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices/pkg-b/
-refs/splices/pkg-b/main
+refs/splices/pkg-b/heads/main
 ```
 
 ```scrut

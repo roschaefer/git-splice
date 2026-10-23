@@ -187,7 +187,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/03-squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
   edit_drawing -u '//mxCell[@value="U(H) = U(B) = feature"]/@value' -v 'U(H) = U(B)'
-  run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/main f=refs/splices/squash-upstream/feature
+  run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/heads/main f=refs/splices/squash-upstream/heads/feature
   [ "$status" -eq 1 ]
   [ "$output" = "!!   f is on an upstream branch, but not T's: draw a box for the branch, e.g. feature" ]
 }
@@ -197,7 +197,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   scenario_concurrent_pulls "$BATS_TEST_TMPDIR/bob" "$BATS_TEST_TMPDIR/concurrent-upstream.git"
   cd "$BATS_TEST_TMPDIR/bob"
   run check_drawing "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/04-concurrent-pulls/concurrent-pulls.drawio.svg" \
-    a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/main~2 l=refs/splices/a/main~1 n=refs/splices/a/main
+    a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/heads/main~2 l=refs/splices/a/heads/main~1 n=refs/splices/a/heads/main
   [ "$status" -eq 0 ]
 }
 
@@ -230,11 +230,11 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
   scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"
   cd "$BATS_TEST_TMPDIR/squash"
-  git update-ref refs/splices/squash-upstream/user@feature+1=next refs/splices/squash-upstream/feature
+  git update-ref refs/splices/squash-upstream/heads/user@feature+1=next refs/splices/squash-upstream/heads/feature
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/03-squash-merged-pull/squash-merged-pull.drawio.svg" >"$drawing" 2>/dev/null
   edit_drawing -u '//mxCell[@value="U(H) = U(B) = feature"]/@value' -v 'U(H) = U(B) = user@feature+1=next'
-  run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/main f=refs/splices/squash-upstream/feature
+  run check_drawing "$drawing" a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/squash-upstream/heads/main f=refs/splices/squash-upstream/heads/feature
   [ "$status" -eq 0 ]
 }
 
@@ -316,7 +316,7 @@ XML
   commit_local "$monorepo" lib "x"
   splice push lib >/dev/null 2>&1
   pushed_copy_drawing pushed
-  run check_drawing "$drawing" x=feature pushed=refs/splices/upstream/feature
+  run check_drawing "$drawing" x=feature pushed=refs/splices/upstream/heads/feature
   [ "$status" -eq 0 ]
   run check_drawing "$drawing" x=feature pushed=feature
   [ "$status" -eq 1 ]

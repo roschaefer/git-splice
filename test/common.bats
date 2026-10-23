@@ -293,7 +293,7 @@ assert_candidates() {
 @test "create_upstream_key: skips a key whose refs are left over" {
   init_monorepo "$monorepo"
   cd "$monorepo"
-  git update-ref refs/splices/lib/main HEAD
+  git update-ref refs/splices/lib/heads/main HEAD
   create_upstream_key https://github.com/x/lib.git
   [ "$UPSTREAM_KEY" = x-lib ]
 }
@@ -309,7 +309,7 @@ assert_candidates() {
 @test "create_upstream_key: refs of a longer key don't take a shorter one" {
   init_monorepo "$monorepo"
   cd "$monorepo"
-  git update-ref refs/splices/libfoo/main HEAD
+  git update-ref refs/splices/libfoo/heads/main HEAD
   create_upstream_key https://github.com/x/lib.git
   [ "$UPSTREAM_KEY" = lib ]
 }

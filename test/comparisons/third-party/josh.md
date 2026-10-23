@@ -321,7 +321,7 @@ $ git log --oneline --graph -3
 * f85ff05 splice: pull vendor/lib from main at 612d462
 ```
 
-The release stays in the library's history, in `refs/splices/lib/main`.
+The release stays in the library's history, in `refs/splices/lib/heads/main`.
 The monorepo's history counts its own commits only:
 
 ```scrut

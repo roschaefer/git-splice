@@ -96,7 +96,7 @@ git-subrepo, splitsh-lite, Josh and Copybara.
 | **boundary** (B) | Where the rebuild starts: the newest last sync, or one before it, whose folder is the synced commit it recorded. Usually the last sync. At the mount, where the splice starts, it's the mount, which the rebuild copies too where its folder isn't the synced commit, e.g. after `init`; for a nested splice, it can be the last sync of the splice above. Derived, never stored. |
 | **start** (U(B)) | The synced commit the boundary records, and the boundary's folder. R starts on it. Usually U(H). |
 | **rebuild** (R) | The splice's changes in the monorepo, rebuilt as upstream commits. What `push` sends, and *ours* when compared with T, in the upstream's history; in the monorepo's history, *ours* is `HEAD`. |
-| **upstream branch** (T, for *theirs*) | `refs/splices/<key>/<branch>`: the upstream branch as the monorepo last saw it, under the upstream's key. |
+| **upstream branch** (T, for *theirs*) | `refs/splices/<key>/heads/<branch>`: the upstream branch as the monorepo last saw it, under the upstream's key. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
 | **splice in** | Bring upstream content into the monorepo: `clone`, `merge`, `pull`. |
 | **splice out** | Publish the monorepo's changes upstream: `push`. |
@@ -111,24 +111,24 @@ uses.
 ## Architecture
 
 ```
-          monorepo                                upstream (by URL)
- ┌──────────────────────────────┐
- │ HEAD                         │  fetch   ┌───────────────────────────┐
- │  └ vendor/a/                 │ <─────── │ refs/heads/*              │
- │      ├ .splice  (url, U(H))  │          └───────────────────────────┘
- │      └ …                     │                  ^
- │                              │                  │ push R
- │ refs/splices/<key>/*     (T) │                  │
- └──────────────────────────────┘                  │
-        │ merge: cherry-pick of re-rooted trees    │
-        │ push: rebuild of B..HEAD on top of U(B) ─┘
+          monorepo                                  upstream (by URL)
+ ┌────────────────────────────────┐
+ │ HEAD                           │  fetch   ┌───────────────────────────┐
+ │  └ vendor/a/                   │ <─────── │ refs/heads/*              │
+ │      ├ .splice  (url, U(H))    │          └───────────────────────────┘
+ │      └ …                       │                  ^
+ │                                │                  │ push R
+ │ refs/splices/<key>/heads/* (T) │                  │
+ └────────────────────────────────┘                  │
+        │ merge: cherry-pick of re-rooted trees      │
+        │ push: rebuild of B..HEAD on top of U(B) ───┘
 ```
 
 The state lives in two places, and both are plain Git data:
 
 - **Committed:** `<path>/.splice`, with the upstream's URL and the synced
   commit U(H).
-- **Local, rebuilt by `fetch`:** `refs/splices/<key>/<branch>`, a copy of
+- **Local, rebuilt by `fetch`:** `refs/splices/<key>/heads/<branch>`, a copy of
   every upstream branch, under a key the repository's config maps the
   upstream's URL to.
 
@@ -244,17 +244,17 @@ folder:
   [Why that matters](accidental-monorepo-push.md).
 - `url.<base>.insteadOf` and `pushInsteadOf` still apply, since they work
   on URLs.
-- `push` goes to the URL, and then updates `refs/splices/<key>/<branch>`
+- `push` goes to the URL, and then updates `refs/splices/<key>/heads/<branch>`
   itself. If it can't, the push counts as failed.
 - `--prune` drops branches deleted upstream, so no `prune` command is
   needed.
-- Every Git command can read an upstream as `splices/<key>/<branch>`,
+- Every Git command can read an upstream as `splices/<key>/heads/<branch>`,
   as of the last fetch. No separate clone is needed:
 
   ```
-  git log --oneline splices/a/main
-  git show splices/a/main:README.md
-  git worktree add --detach ../a-upstream splices/a/main
+  git log --oneline splices/a/heads/main
+  git show splices/a/heads/main:README.md
+  git worktree add --detach ../a-upstream splices/a/heads/main
   ```
 
   `git log --all` and `gitk --all` show those histories too; add
@@ -495,7 +495,7 @@ fetched.
 - **`log`** shows commits in both directions:
 
   ```
-  git log --left-right --cherry-mark R...refs/splices/<key>/<branch>
+  git log --left-right --cherry-mark R...refs/splices/<key>/heads/<branch>
   ```
 
   `<` is on the left (local) side only, so a push sends it; `>` is on the

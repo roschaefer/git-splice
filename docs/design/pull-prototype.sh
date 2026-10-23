@@ -51,7 +51,7 @@ fetch() { git fetch -q "$URL" "+refs/heads/*:refs/splices/$P/*"; }
 
 echo "=== add: one commit, upstream history stays in refs/splices/"
 fetch
-U="$(git rev-parse "refs/splices/$P/main")"
+U="$(git rev-parse "refs/splices/$P/heads/main")"
 git read-tree --prefix="$P/" -u "$U"
 state "$U" >"$P/$STATE"
 git add "$P"
@@ -63,7 +63,7 @@ sed -i 's/^b$/b-local/' "$P/f" && git commit -qam "mono: edit f"
 
 echo "=== pull: cherry-pick a re-rooted upstream change"
 fetch
-U2="$(git rev-parse "refs/splices/$P/main")"
+U2="$(git rev-parse "refs/splices/$P/heads/main")"
 base="$(git commit-tree "$(reroot "$U")" -p HEAD -m base)"
 theirs="$(git commit-tree "$(reroot "$U2")" -p "$base" -m "splice: pull $P to ${U2:0:7}")"
 git cherry-pick "$theirs" >/dev/null 2>&1 || true

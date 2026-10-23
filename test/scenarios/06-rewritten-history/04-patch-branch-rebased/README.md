@@ -75,7 +75,7 @@ $ q="$(git config --file vendor/a/.splice splice.commit)"
 ```
 
 ```scrut
-$ check_drawing "$TESTDIR/patch-branch-rebased.drawio.svg" a=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
+$ check_drawing "$TESTDIR/patch-branch-rebased.drawio.svg" a=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/heads/main n=refs/splices/upstream/heads/patches
 ok   patch-branch-rebased.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
 ```
 -->
@@ -101,13 +101,13 @@ The fetched branch's reflog has both *n* and *q*, where `patches` was
 before, each with the subject `other patch`:
 
 ```scrut
-$ git log -g --format='%h %s' refs/splices/upstream/patches
+$ git log -g --format='%h %s' refs/splices/upstream/heads/patches
 63b44f3 other patch
 05c1bab other patch
 ```
 
 ```scrut
-$ [ "$(git merge-base --fork-point refs/splices/upstream/patches "$(git splice rebuild vendor/a)")" = "$(git config --file vendor/a/.splice splice.commit)" ] &&
+$ [ "$(git merge-base --fork-point refs/splices/upstream/heads/patches "$(git splice rebuild vendor/a)")" = "$(git config --file vendor/a/.splice splice.commit)" ] &&
 >   echo "the fork point is q"
 the fork point is q
 ```
@@ -139,7 +139,7 @@ R, what a push would send, is the upstream's branch itself: the old
 patches, *p* and *q*, don't come back.
 
 ```scrut
-$ [ "$(git splice rebuild vendor/a)" = "$(git rev-parse refs/splices/upstream/patches)" ] && echo "R is T"
+$ [ "$(git splice rebuild vendor/a)" = "$(git rev-parse refs/splices/upstream/heads/patches)" ] && echo "R is T"
 R is T
 ```
 
@@ -161,7 +161,7 @@ history any more:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/pulled.drawio.svg" a=HEAD~1 x=HEAD k="$q~2" p="$q~1" q="$q" \
->   m=refs/splices/upstream/main n=refs/splices/upstream/patches
+>   m=refs/splices/upstream/heads/main n=refs/splices/upstream/heads/patches
 ok   pulled.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
 ```
 -->

@@ -112,9 +112,9 @@ inner upstream lacks it, and the next push of `vendor/a/b/` sends it.
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/outer-fork.drawio.svg" \
->   a=HEAD~2 c=HEAD~1 p=HEAD k=refs/splices/upstream/main~1 \
->   l=refs/splices/upstream/main q=refs/splices/a/main \
->   m=refs/splices/b/main
+>   a=HEAD~2 c=HEAD~1 p=HEAD k=refs/splices/upstream/heads/main~1 \
+>   l=refs/splices/upstream/heads/main q=refs/splices/a/heads/main \
+>   m=refs/splices/b/heads/main
 ok   outer-fork.drawio.svg: 10 commits, 11 arrows, 5 boxes, 2 lanes, 2 upstreams
 ```
 -->

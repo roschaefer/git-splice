@@ -7,7 +7,7 @@
 #   SPLICE_STATE            see below
 #   SPLICE_UPSTREAM_BRANCH  the upstream branch this branch syncs with
 #   SPLICE_UPSTREAM_LABEL   how messages name it (upstream_branch_label)
-#   SPLICE_TARGET_REF       refs/splices/<key>/<upstream branch>
+#   SPLICE_TARGET_REF       refs/splices/<key>/heads/<upstream branch>
 #   SPLICE_SYNCED           the synced commit U(H) from the state file
 #   SPLICE_REBUILT          the rebuild R of HEAD (see splice_rebuild), when
 #                           the state needed it

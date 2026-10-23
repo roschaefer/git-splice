@@ -55,7 +55,7 @@ $ r="$(git config --file vendor/a/.splice splice.commit)"
 
 ```scrut
 $ check_drawing "$TESTDIR/upstream-rewritten-equal-tree.drawio.svg" \
->   a=HEAD k="$r~1" r="$r" w=refs/splices/upstream/main
+>   a=HEAD k="$r~1" r="$r" w=refs/splices/upstream/heads/main
 ok   upstream-rewritten-equal-tree.drawio.svg: 4 commits, 4 arrows, 3 boxes, 1 lanes
 ```
 -->
@@ -80,7 +80,7 @@ longer contains. The upstream's `main`, as fetched, is the ref ending in
 
 ```scrut
 $ main="$(
->   git for-each-ref --format='%(refname:lstrip=3) %(objectname)' refs/splices/ |
+>   git for-each-ref --format='%(refname:lstrip=4) %(objectname)' refs/splices/ |
 >     sed -n 's#^main ##p'
 > )"
 ```

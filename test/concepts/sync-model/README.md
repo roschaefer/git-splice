@@ -220,7 +220,7 @@ B's folder is U(B)
 T is the fetched branch. Its history leads to U(H):
 
 ```scrut
-$ git log --oneline splices/pkg-a/main
+$ git log --oneline splices/pkg-a/heads/main
 703b936 pkg-a: a second commit, after the clone
 9bb866a pkg-a: seed
 ```
@@ -300,7 +300,7 @@ ok   vendor/pkg-a: pushed 6dc0e40 to main
 ```
 
 ```scrut
-$ git log --graph --format='%h %s' splices/pkg-a/main
+$ git log --graph --format='%h %s' splices/pkg-a/heads/main
 *   6dc0e40 splice: pull vendor/pkg-a from main at 703b936
 |\  
 | * 703b936 pkg-a: a second commit, after the clone
@@ -326,6 +326,6 @@ $ git config --file vendor/pkg-a/.splice splice.commit
 ```
 
 ```scrut
-$ git rev-parse splices/pkg-a/main
+$ git rev-parse splices/pkg-a/heads/main
 6dc0e40cd5eda556b7b18759d2e2bb1ae2ae214a
 ```

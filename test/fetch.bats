@@ -9,7 +9,7 @@ setup() {
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
-@test "fetch: brings every upstream branch into refs/splices/<key>/" {
+@test "fetch: brings every upstream branch into refs/splices/<key>/heads/" {
   scenario_never_fetched "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "on a branch" feature
   cd "$monorepo"
@@ -19,6 +19,19 @@ setup() {
   git rev-parse --verify --quiet "$(upstream_refs "$upstream")main"
   git rev-parse --verify --quiet "$(upstream_refs "$upstream")feature"
   [ -z "$(git remote)" ]
+}
+
+@test "fetch: refuses branches left in the layout from before refs/splices/<key>/heads/" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  prefix="$(upstream_refs "$upstream")"
+  git update-ref "${prefix%heads/}main" "${prefix}main"
+  run cmd_fetch
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   ${prefix%heads/}main is from before branches moved to $prefix -- remove the old refs, then fetch again: git for-each-ref --format='delete %(refname)' ${prefix%heads/} | git update-ref --stdin"* ]]
+  git for-each-ref --format='delete %(refname)' "${prefix%heads/}" | git update-ref --stdin
+  run cmd_fetch
+  [ "$status" -eq 0 ]
 }
 
 @test "fetch: says when the branch this one syncs with moved" {

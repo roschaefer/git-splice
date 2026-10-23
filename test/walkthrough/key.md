@@ -3,7 +3,7 @@
 `git splice key [--upstream <name>] <path> [<new-key>]`
 
 Prints the key of a splice's upstream in this repository: its fetched
-branches are `refs/splices/<key>/<branch>`. With `<new-key>`, renames
+branches are `refs/splices/<key>/heads/<branch>`. With `<new-key>`, renames
 the key and moves its refs along.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
@@ -23,7 +23,7 @@ ok   vendor/pkg-a: renamed key 'pkg-a' to 'a'
 ```
 
 ```scrut
-$ git log --oneline -1 splices/a/main
+$ git log --oneline -1 splices/a/heads/main
 703b936 pkg-a: a second commit, after the clone
 ```
 

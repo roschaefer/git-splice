@@ -175,7 +175,7 @@ add_upstream() {
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "ok   vendor/a fetched from origin" ]
   [ "${lines[1]}" = "ok   vendor/a fetched from fork" ]
-  [ "$(git rev-parse refs/splices/upstream-fork/main)" = "$(git -C "$fork" rev-parse main)" ]
+  [ "$(git rev-parse refs/splices/upstream-fork/heads/main)" = "$(git -C "$fork" rev-parse main)" ]
 }
 
 @test "fetch: says which branch moved in each upstream, by that upstream's default branch" {
@@ -235,7 +235,7 @@ add_upstream() {
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: pushed $(git -C "$upstream" rev-parse --short main) to origin/main" ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "fork patch" ]
-  [ "$(git rev-parse refs/splices/upstream/main)" = "$(git -C "$upstream" rev-parse main)" ]
+  [ "$(git rev-parse refs/splices/upstream/heads/main)" = "$(git -C "$upstream" rev-parse main)" ]
 }
 
 @test "--upstream: hints name it when the upstream in use isn't the default" {

@@ -312,7 +312,7 @@ and *h*, with only the folder's changes:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/git-subrepo-splice.drawio.svg" --alias HEAD=H --alias BOUNDARY=B \
->   c=HEAD~2 f=HEAD~1 s=HEAD g=feature~1 h=feature k=refs/splices/lib/main~1
+>   c=HEAD~2 f=HEAD~1 s=HEAD g=feature~1 h=feature k=refs/splices/lib/heads/main~1
 ok   git-subrepo-splice.drawio.svg: 9 commits, 11 arrows, 4 boxes
 ```
 -->
@@ -348,7 +348,7 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
 
 Both tools keep what they fetched under refs of their own. git-subrepo
 keys them by the folder's path, `refs/subrepo/<path>/`; `git-splice` by the
-upstream, `refs/splices/<key>/<branch>`, with one key per URL. They differ
+upstream, `refs/splices/<key>/heads/<branch>`, with one key per URL. They differ
 when another branch uses the same folder for another upstream, here a
 second library:
 
@@ -412,9 +412,9 @@ Each upstream has its own refs, so `main`'s are untouched:
 
 ```scrut
 $ git for-each-ref --format='%(refname) %(subject)' refs/splices
-refs/splices/lib/feature fix 3
-refs/splices/lib/main fix 4
-refs/splices/other/main other library
+refs/splices/lib/heads/feature fix 3
+refs/splices/lib/heads/main fix 4
+refs/splices/other/heads/main other library
 ```
 
 ```scrut
@@ -462,9 +462,9 @@ ok   libs/lib fetched
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
-refs/splices/lib/feature
-refs/splices/lib/main
-refs/splices/other/main
+refs/splices/lib/heads/feature
+refs/splices/lib/heads/main
+refs/splices/other/heads/main
 ```
 
 ## Where git-subrepo is different

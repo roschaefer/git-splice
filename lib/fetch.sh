@@ -5,7 +5,7 @@ usage_fetch() {
 usage: git splice fetch [--upstream <name>] [path...]
 
 Fetches every branch of each splice's upstreams into
-refs/splices/<key>/*, where <key> is the upstream's key in this
+refs/splices/<key>/heads/*, where <key> is the upstream's key in this
 repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
 no Git remote; 'git splice key' prints and renames keys. Branches deleted
 upstream are pruned. Defaults to every splice when no paths are given.
@@ -23,8 +23,19 @@ EOF
 # splice's synced commit; any <commit> given that no branch upstream has
 # any more (e.g. after a force push) is fetched by id.
 fetch_upstream() {
-  local url="$1" prefix="$2" commit
+  local url="$1" prefix="$2" commit ref key_prefix="${2%heads/}"
   shift 2
+  # Branches used to lie directly under refs/splices/<key>/. Left there,
+  # they'd keep their commits, and the old layout, around for good.
+  while IFS= read -r ref; do
+    case "$ref" in
+      "$key_prefix"heads/* | "$key_prefix"tags/*) ;;
+      *)
+        log_err "$ref is from before branches moved to ${key_prefix}heads/ -- remove the old refs, then fetch again: git for-each-ref --format='delete %(refname)' $key_prefix | git update-ref --stdin"
+        return 1
+        ;;
+    esac
+  done < <(git for-each-ref --format='%(refname)' "$key_prefix")
   git -c core.logAllRefUpdates=always fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
   for commit in "$@"; do
     # A splice made by init has no synced commit until its first pull.
@@ -54,13 +65,13 @@ fetch_shared_upstream() {
     # Empty if the upstreams of the splice above disagree on it, and none
     # is its default: the commands that need it refuse then.
     upstream_branches[i]="$(upstream_branch_for "$path" "$branch" "${entry#*:}" 2>/dev/null)" || true
-    target_refs[i]="refs/splices/$key/${upstream_branches[i]}"
+    target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
     old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
     synced+=("$(splice_config "$path" commit)")
     i=$((i + 1))
   done
   local error
-  if ! error="$(fetch_upstream "$url" "refs/splices/$key/" "${synced[@]}" 2>&1)"; then
+  if ! error="$(fetch_upstream "$url" "refs/splices/$key/heads/" "${synced[@]}" 2>&1)"; then
     for i in "${!indexes[@]}"; do
       {
         [[ -z "$error" ]] || printf '%s\n' "$error"

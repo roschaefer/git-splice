@@ -92,7 +92,7 @@ upstream, so T is its `main`, *f*:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/both-fetched.drawio.svg" \
->   a=HEAD~1 c=HEAD k=refs/splices/lib/main f=refs/splices/company-lib/main
+>   a=HEAD~1 c=HEAD k=refs/splices/lib/heads/main f=refs/splices/company-lib/heads/main
 ok   both-fetched.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes, 2 upstreams
 ```
 -->
@@ -212,9 +212,9 @@ drawing shows them on each side of the dashed line. Only the fork has
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/several-upstreams.drawio.svg" \
->   a=HEAD~3 c=HEAD~2 x=HEAD~1 y=HEAD k=refs/splices/lib/main~1 \
->   r=refs/splices/lib/main f=refs/splices/company-lib/main^1 \
->   j=refs/splices/company-lib/main
+>   a=HEAD~3 c=HEAD~2 x=HEAD~1 y=HEAD k=refs/splices/lib/heads/main~1 \
+>   r=refs/splices/lib/heads/main f=refs/splices/company-lib/heads/main^1 \
+>   j=refs/splices/company-lib/heads/main
 ok   several-upstreams.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes, 2 upstreams
 ```
 -->

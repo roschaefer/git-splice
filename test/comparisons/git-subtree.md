@@ -291,16 +291,16 @@ from *c* and *e*, on top of the library's last commits *k* and *l*
 ```scrut
 $ check_drawing "$TESTDIR/git-subtree-splice.drawio.svg" --alias HEAD=H \
 >   a=HEAD~5 s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD \
->   k=refs/splices/lib/main~3 l=refs/splices/lib/main~2
+>   k=refs/splices/lib/heads/main~3 l=refs/splices/lib/heads/main~2
 ok   git-subtree-splice.drawio.svg: 10 commits, 10 arrows, 2 boxes
 ```
 -->
 
 Like `--squash`, a splice keeps the library's history out of the
-monorepo's. It's still at hand, fetched under `refs/splices/lib/`:
+monorepo's. It's still at hand, fetched under `refs/splices/lib/heads/`:
 
 ```scrut
-$ git log --oneline -4 refs/splices/lib/main
+$ git log --oneline -4 refs/splices/lib/heads/main
 48108da lib fix 2
 0579a80 lib fix 1
 bafd496 lib commit 30

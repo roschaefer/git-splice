@@ -105,7 +105,7 @@ setup() {
 
 @test "boundary: of a nested splice, in a worktree of the upstream above, is where that upstream's rebuild of it starts" {
   scenario_nested_splices "$monorepo" "$upstream"
-  git -C "$monorepo" worktree add -q --detach "$BATS_TEST_TMPDIR/a" refs/splices/upstream/main
+  git -C "$monorepo" worktree add -q --detach "$BATS_TEST_TMPDIR/a" refs/splices/upstream/heads/main
   cd "$BATS_TEST_TMPDIR/a"
   run cmd_boundary b
   [ "$status" -eq 0 ]

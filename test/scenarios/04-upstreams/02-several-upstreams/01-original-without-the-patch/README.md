@@ -42,8 +42,8 @@ $ build_scenario scenario_original_without_the_patch https://git.example.com/lib
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/original-without-the-patch.drawio.svg" \
->   a=HEAD~2 c=HEAD~1 x=HEAD k=refs/splices/lib/main~1 \
->   r=refs/splices/lib/main f=refs/splices/company-lib/main
+>   a=HEAD~2 c=HEAD~1 x=HEAD k=refs/splices/lib/heads/main~1 \
+>   r=refs/splices/lib/heads/main f=refs/splices/company-lib/heads/main
 ok   original-without-the-patch.drawio.svg: 7 commits, 7 arrows, 3 boxes, 1 lanes, 2 upstreams
 ```
 -->
@@ -51,7 +51,7 @@ ok   original-without-the-patch.drawio.svg: 7 commits, 7 arrows, 3 boxes, 1 lane
 The original's fetched `main` was *k*, then *r*:
 
 ```scrut
-$ git log -g --format=%s refs/splices/lib/main
+$ git log -g --format=%s refs/splices/lib/heads/main
 original release
 seed
 ```

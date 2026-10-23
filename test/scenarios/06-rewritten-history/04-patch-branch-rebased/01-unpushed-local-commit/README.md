@@ -62,7 +62,7 @@ $ q="$(git config --file vendor/a/.splice splice.commit)"
 ```
 
 ```scrut
-$ check_drawing "$TESTDIR/unpushed-local-commit.drawio.svg" a=HEAD~1 b=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
+$ check_drawing "$TESTDIR/unpushed-local-commit.drawio.svg" a=HEAD~1 b=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/heads/main n=refs/splices/upstream/heads/patches
 ok   unpushed-local-commit.drawio.svg: 8 commits, 12 arrows, 6 boxes, 1 lanes
 ```
 -->
@@ -104,7 +104,7 @@ ok   vendor/a: pulled 63b44f3, and rebased 1 commit onto it
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/rebased-onto-pull.drawio.svg" a=HEAD~2 x=HEAD~1 c=HEAD \
->   k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/main n=refs/splices/upstream/patches
+>   k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/heads/main n=refs/splices/upstream/heads/patches
 ok   rebased-onto-pull.drawio.svg: 9 commits, 13 arrows, 6 boxes, 1 lanes
 ```
 -->
@@ -155,7 +155,7 @@ the next pull:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/redone-on-top.drawio.svg" a=HEAD~2 x=HEAD~1 c=HEAD \
->   k=refs/splices/upstream/patches~3 m=refs/splices/upstream/patches~2 n=refs/splices/upstream/patches~1
+>   k=refs/splices/upstream/heads/patches~3 m=refs/splices/upstream/heads/patches~2 n=refs/splices/upstream/heads/patches~1
 ok   redone-on-top.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
 ```
 -->
