@@ -31,7 +31,7 @@ module.exports = {
     {
       type: 'category',
       label: 'Workflows',
-      items: ['feature-branches', 'diverged', 'bump'].map((workflow) => `test/walkthrough/${workflow}`),
+      items: ['feature-branches', 'diverged', 'bump', 'fork'].map((workflow) => `test/walkthrough/${workflow}`),
     },
     {
       type: 'category',

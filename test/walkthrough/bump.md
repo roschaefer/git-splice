@@ -310,6 +310,5 @@ library's `main`, which it keeps, and a pull would bring in
 The rebase needs a library branch you can force-push. For a library you
 don't maintain, that's a branch in your company's fork of it: push the
 feature there, open the pull request from the fork, and rebase the fork's
-branch once the original squash-merged it. A splice that follows both the
-fork and the original needs several upstreams in one `.splice`
-([#108](https://github.com/roschaefer/git-splice/pull/108)).
+branch once the original squash-merged it
+([contributing through a fork](fork.md)).
