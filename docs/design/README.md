@@ -198,7 +198,7 @@ what it holds and which commands write it. Why it looks like that:
 Upstream branches are fetched by URL into private refs:
 
 ```
-git fetch --prune <url> '+refs/heads/*:refs/splices/<key>/heads/*'
+git fetch --prune --no-tags <url> '+refs/heads/*:refs/splices/<key>/heads/*'
 ```
 
 The key is the upstream's short name in this repository. The first
@@ -218,8 +218,8 @@ keys' refs share files on a case-insensitive file system, and short, so
 they fit any file system's name limit. Commands record keys one at a
 time, under a lock, and refuse a config edited by hand into keys that
 aren't valid, or into two URLs for a key or two keys for a URL, naming
-the `git config` command that fixes it. A key has no `/`, so branch names, which may, start right
-after it. `git splice key <path>` prints a splice's key, and
+the `git config` command that fixes it. A key has no `/`, so it ends
+right before `heads/`, and branch names, which may have one, follow that. `git splice key <path>` prints a splice's key, and
 `git splice key <path> <new-key>` renames it, refs included. Commands
 that only read, like `status`, never record a key: an upstream without
 one hasn't been fetched.
