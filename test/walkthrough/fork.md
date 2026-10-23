@@ -19,9 +19,12 @@ When the original moves on, the fork's `main` catches up, and the
 branches are rebased onto it. A change the original took drops out of
 `patches` in that rebase.
 
-This repository works with
-[scrut](https://github.com/facebookincubator/scrut), its test runner,
-the same way: `scrut/` is a splice that follows a fork of it.
+This repository dogfoods the workflow with
+[scrut](https://github.com/facebookincubator/scrut), its test runner:
+`scrut/` is a splice that follows a fork of it,
+[roschaefer/scrut](https://github.com/roschaefer/scrut). The fork's
+[pull requests](https://github.com/roschaefer/scrut/pulls?q=is%3Apr)
+show each change on its way back to Meta.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -66,13 +69,19 @@ upstream.fork.url=https://git.example.com/pkg-a-fork.git
 upstream.fork.default-branch=patches
 ```
 
-## A change in the monorepo
+## Changes in the monorepo
 
-The monorepo fixes the library where it uses it:
+The monorepo fixes the library where it uses it, and documents the fix:
 
 ```scrut
 $ echo "a parser fix" >>vendor/pkg-a/file.txt &&
 >   git commit -qam "pkg-a: fix the parser"
+```
+
+```scrut
+$ echo "how the parser works" >vendor/pkg-a/parser.md &&
+>   git add vendor/pkg-a/parser.md &&
+>   git commit -q -m "pkg-a: document the parser"
 ```
 
 The fork has no `patches` yet, so the first push creates it:
@@ -80,15 +89,15 @@ The fork has no `patches` yet, so the first push creates it:
 ```scrut
 $ git splice push vendor/pkg-a
 ??   vendor/pkg-a: upstream has no 'fork/patches' branch yet -- this push creates it
-ok   vendor/pkg-a: pushed 7edd872 to fork/patches
+ok   vendor/pkg-a: pushed 0091412 to fork/patches
 ```
 
 ## One branch per change
 
-More changes will follow, and `patches` will hold them all, so the pull
-request to the original gets a branch of its own, with only this change
-on the fork's `main`. In a clone of the fork, with the original as a
-second remote:
+The two changes are independent, and the original should review them one
+by one, so each pull request to the original gets a branch of its own,
+with only its change on the fork's `main`. In a clone of the fork, with
+the original as a second remote:
 
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-a-fork.git" "$WALKTHROUGH/pkg-a-fork" &&
@@ -98,22 +107,31 @@ $ git clone -q "$WALKTHROUGH/upstream/pkg-a-fork.git" "$WALKTHROUGH/pkg-a-fork" 
 
 ```scrut
 $ git switch -q -c fix/parser origin/main &&
->   git cherry-pick origin/patches
+>   git cherry-pick origin/patches~1
 [fix/parser 7edd872] pkg-a: fix the parser
  Date: Thu Jan 1 00:00:00 2026 +0000
  1 file changed, 1 insertion(+)
 ```
 
 ```scrut
-$ git push -q origin fix/parser
+$ git switch -q -c docs/parser origin/main &&
+>   git cherry-pick origin/patches
+[docs/parser 16d516f] pkg-a: document the parser
+ Date: Thu Jan 1 00:00:00 2026 +0000
+ 1 file changed, 1 insertion(+)
+ create mode 100644 parser.md
 ```
 
 ```scrut
-$ git log --format=%s origin/main..fix/parser
-pkg-a: fix the parser
+$ git push -q origin fix/parser docs/parser
 ```
 
-From `fix/parser`, open a pull request against the fork's `main` to run
+```scrut
+$ git log --format=%s origin/main..docs/parser
+pkg-a: document the parser
+```
+
+From each branch, open a pull request against the fork's `main` to run
 the library's CI, and one against the original. A change that needs
 another one carries that one's commit too, and its pull request waits
 for the other's.
@@ -151,13 +169,15 @@ lease on where it was:
 ```scrut
 $ git fetch -q origin &&
 >   git rebase -q origin/main fix/parser &&
+>   git rebase -q origin/main docs/parser &&
 >   git switch -q -c patches origin/patches &&
 >   git rebase -q origin/main &&
->   git push -q --force-with-lease origin fix/parser patches
+>   git push -q --force-with-lease origin fix/parser docs/parser patches
 ```
 
 ```scrut
 $ git log --format=%s origin/patches
+pkg-a: document the parser
 pkg-a: fix the parser
 add a feature
 pkg-a: a second commit, after the clone
@@ -169,8 +189,8 @@ still in its history, so this is an ordinary pull:
 
 ```scrut
 $ cd "$WALKTHROUGH/monorepo" && git splice pull vendor/pkg-a
-ok   vendor/pkg-a fetched from fork (patches moved 7edd872..e645616)
-ok   vendor/pkg-a: pulled e645616
+ok   vendor/pkg-a fetched from fork (patches moved 0091412..9cf4aab)
+ok   vendor/pkg-a: pulled 9cf4aab
 ```
 
 ```scrut
@@ -191,12 +211,15 @@ ok   vendor/pkg-a fetched from fork
 The splice's two upstreams side by side. The original, `origin`, has
 *k* (`pkg-a: seed`), *m* (`pkg-a: a second commit, after the clone`)
 and *n* (`add a feature`) on `main`. The fork has the same `main`, and
-*q* (`pkg-a: fix the parser`) on top of it, on both `fix/parser` and
-`patches`. The monorepo committed the fix as *x*, and *p* pulled *q*:
+on top of it a branch for each pull request: *q* (`pkg-a: fix the
+parser`) on `fix/parser`, and *e* (`pkg-a: document the parser`) on
+`docs/parser`. `patches` stacks both, with *d*, the same change as *e*,
+on top of *q*. The monorepo made the changes as *x* and *y*, and *p*
+pulled *d*:
 
 <div align="center">
 
-![The monorepo's x and p, which is H and B; the lane vendor/pkg-a/ split in two: origin with k, m and n, its main; fork with the same k, m and n, its main, and q on top, which is T, R, U(H), U(B), patches and fix/parser](fork.drawio.svg)
+![The monorepo's x, y and p, which is H and B; the lane vendor/pkg-a/ split in two: origin with k, m and n, its main; fork with the same k, m and n, its main, q on top of n on fix/parser, e on top of n on docs/parser, and d on top of q, which is T, R, U(H), U(B) and patches](fork.drawio.svg)
 
 </div>
 
@@ -204,15 +227,21 @@ and *n* (`add a feature`) on `main`. The fork has the same `main`, and
 ```scrut
 $ source "$TESTDIR/../../check-drawing/check-drawing" &&
 >   check_drawing "$TESTDIR/fork.drawio.svg" \
->     x=HEAD~1 p=HEAD k=refs/splices/pkg-a/main~2 m=refs/splices/pkg-a/main~1 \
->     n=refs/splices/pkg-a/main q=refs/splices/pkg-a-fork/patches
-ok   fork.drawio.svg: 9 commits, 10 arrows, 4 boxes, 1 lanes, 2 upstreams
+>     x=HEAD~2 y=HEAD~1 p=HEAD \
+>     k=refs/splices/pkg-a/main~2 m=refs/splices/pkg-a/main~1 n=refs/splices/pkg-a/main \
+>     q=refs/splices/pkg-a-fork/fix/parser e=refs/splices/pkg-a-fork/docs/parser \
+>     d=refs/splices/pkg-a-fork/patches
+ok   fork.drawio.svg: 12 commits, 15 arrows, 6 boxes, 1 lanes, 2 upstreams
 ```
 -->
 
-## The original takes the change
+## The original merges a pull request
 
-The maintainer takes the pull request as a new commit on `main`: same
+The original takes `fix/parser`, but not `docs/parser` yet.
+
+### In the original
+
+The maintainer merges the pull request as a new commit on `main`: same
 change, new message, new parent, as a squash merge would.
 
 ```scrut
@@ -223,34 +252,42 @@ $ cd "$WALKTHROUGH/pkg-a" &&
 >   git push -q origin main
 ```
 
-The fork catches up again. This time, the rebase finds the change already
-on `main` and drops it from `patches`, which becomes the fork's `main`:
+### In the fork
+
+The fork's `main` catches up again, and `docs/parser` and `patches`
+are rebased onto it. This time, the rebase finds the fix already on
+`main` and drops it from `patches`, which keeps only the documentation
+on top. `fix/parser` has done its job, and goes:
 
 ```scrut
 $ cd "$WALKTHROUGH/pkg-a-fork" &&
 >   git fetch -q original &&
 >   git push -q origin original/main:main &&
 >   git fetch -q origin &&
+>   git rebase -q origin/main docs/parser &&
 >   git -c advice.skippedCherryPicks=false rebase -q origin/main patches &&
->   git push -q --force-with-lease origin patches :fix/parser
+>   git push -q --force-with-lease origin docs/parser patches :fix/parser
 ```
 
 ```scrut
 $ git log --format=%s origin/patches
+pkg-a: document the parser
 Fix the parser (#1)
 add a feature
 pkg-a: a second commit, after the clone
 pkg-a: seed
 ```
 
-The rebase rewrote the monorepo's last synced commit, the fix on top of
-`add a feature`, away. But the folder already has the files of the new
-`patches`, so the pull only records it:
+### In the monorepo
+
+The rebase rewrote the monorepo's last synced commit, *d*, away. But
+the folder already has the files of the new `patches`, so the pull only
+records it:
 
 ```scrut
 $ cd "$WALKTHROUGH/monorepo" && git splice pull vendor/pkg-a
-ok   vendor/pkg-a fetched from fork (patches moved e645616..35d9f8f)
-ok   vendor/pkg-a: recorded 35d9f8f as the synced commit -- the folder already has its files
+ok   vendor/pkg-a fetched from fork (patches moved 9cf4aab..267e5d5)
+ok   vendor/pkg-a: recorded 267e5d5 as the synced commit -- the folder already has its files
 ```
 
 ```scrut
@@ -260,11 +297,44 @@ On branch main
   up to date  vendor/pkg-a -> fork/patches
 ```
 
+To see the original too, fetch both upstreams again:
+
 ```scrut
-$ cat vendor/pkg-a/file.txt
+$ git splice fetch vendor/pkg-a
+ok   vendor/pkg-a fetched from origin (main moved a4c229c..35d9f8f)
+ok   vendor/pkg-a fetched from fork
+```
+
+The original's `main` has the fix as a new commit, *f*
+(`Fix the parser (#1)`), on top of *n*, and so has the fork's.
+`patches` and `docs/parser` are now one commit, *g*
+(`pkg-a: document the parser`) on top of *f*: rebased onto the same
+`main`, the documentation came out the same in both. *r* recorded *g*:
+
+<div align="center">
+
+![The monorepo's p and r, which is H and B; the lane vendor/pkg-a/ split in two: origin with k, m, n and f, its main; fork with the same k, m, n and f, its main, and g on top of f, which is T, R, U(H), U(B), patches and docs/parser](fork-merged.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/fork-merged.drawio.svg" \
+>     p=HEAD~1 r=HEAD \
+>     k=refs/splices/pkg-a/main~3 m=refs/splices/pkg-a/main~2 n=refs/splices/pkg-a/main~1 \
+>     f=refs/splices/pkg-a/main g=refs/splices/pkg-a-fork/patches
+ok   fork-merged.drawio.svg: 11 commits, 12 arrows, 4 boxes, 1 lanes, 2 upstreams
+```
+-->
+
+The folder has both changes, the fix now as the original's:
+
+```scrut
+$ cat vendor/pkg-a/file.txt vendor/pkg-a/parser.md
 pkg-a: seed
 pkg-a: a second commit, after the clone
 a parser fix
+how the parser works
 ```
 
 If the maintainer edited the change on the way, the rebase conflicts in
