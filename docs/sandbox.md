@@ -40,8 +40,7 @@ Each page of these docs that runs commands, a walkthrough chapter, a
 concept, a scenario or a comparison, has a sandbox of its own, in the
 state the page starts from. In a clone of `git-splice`:
 
-    nix develop
-    just sandbox comparisons/git-submodule
+    nix develop -c just sandbox comparisons/git-submodule
 
 The page is its path under `test/`, with or without `.md`: e.g.
 `scenarios/02-starting-a-splice/01-clone-copied-content` for that
