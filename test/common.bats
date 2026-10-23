@@ -143,19 +143,19 @@ setup() {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   local blob
-  blob="$(state_blob vendor/a commit=abc upstream.origin.default-branch=master)"
+  blob="$(state_blob vendor/a commit=abc upstream.origin.default-revision=master)"
   [ "$(git config --blob "$blob" splice.commit)" = abc ]
-  [ "$(git config --blob "$blob" upstream.origin.default-branch)" = master ]
+  [ "$(git config --blob "$blob" upstream.origin.default-revision)" = master ]
   [ "$(git config --blob "$blob" upstream.origin.url)" = "$upstream" ]
   blob="$(state_blob vendor/a commit=)"
   ! git config --blob "$blob" splice.commit
 }
 
-@test "upstream_branch_for maps only the monorepo's default branch to default-branch" {
+@test "upstream_branch_for maps only the monorepo's default branch to default-revision" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   [ "$(upstream_branch_for vendor/a main)" = main ]
-  git config --file vendor/a/.splice upstream.origin.default-branch master
+  git config --file vendor/a/.splice upstream.origin.default-revision master
   git commit -q -am "upstream calls it master"
   discover_splices
   [ "$(upstream_branch_for vendor/a main)" = master ]

@@ -12,7 +12,7 @@ repository's name), as one ordinary commit with a new <path>/.splice.
 The upstream branch is the one named like the current branch, else the
 upstream's default branch; your first push then creates the missing
 branch. If the upstream's default branch is named differently from the
-monorepo's, .splice records it as the upstream's default-branch. Inside another splice,
+monorepo's, .splice records it as the upstream's default-revision. Inside another splice,
 it's compared with that splice's default branch instead, and on the
 monorepo's default branch, that's the upstream branch: the monorepo's
 branch name isn't tried.
@@ -61,7 +61,7 @@ default_clone_path() {
 
 # Fetches <url>, a new upstream of a splice to be created at <path>, and
 # registers it as that splice's default upstream. Sets NEW_DEFAULT_BRANCH
-# to the default-branch .splice has to record: the upstream's default
+# to the default-revision .splice has to record: the upstream's default
 # branch where it's named differently from the default branch of what
 # the splice lives in, else nothing. Also sets UPSTREAM_DEFAULT,
 # MONOREPO_DEFAULT and CONTAINER_DEFAULT, the default branches it compared.
@@ -160,7 +160,7 @@ cmd_clone() {
   fi
 
   local blob
-  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")"
+  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-revision=$default_branch")"
   # The merge base is an empty folder: the two sides share nothing.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
     "splice: clone $path from $upstream_branch at ${target:0:7}"; then
@@ -327,7 +327,7 @@ clone_from_submodule() {
   done < <(git config --blob "HEAD:$gitmodules" --name-only --get-regexp '^submodule\.')
 
   local blob edited
-  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$commit")" "commit=$commit" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$NEW_DEFAULT_BRANCH")"
+  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$commit")" "commit=$commit" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-revision=$NEW_DEFAULT_BRANCH")"
   edited="$(mktemp)"
   git cat-file blob "HEAD:$gitmodules" >"$edited"
   git config --file "$edited" --remove-section "submodule.$name"

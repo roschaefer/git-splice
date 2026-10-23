@@ -22,7 +22,7 @@ to, some rules follow:
   cloned or pulled. So the history of the splice below, up to that
   point, is taken from the upstream above, which has it
   ([spliced-elsewhere](../../scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
-- **Default branch.** A nested `.splice` without `default-branch` follows
+- **Default branch.** A nested `.splice` without `default-revision` follows
   the branch of the splice above, so it means the same in the monorepo
   and in the upstream above
   ([nested-default-branch](../../scenarios/05-nested-splices/02-nested-default-branch/README.md)).

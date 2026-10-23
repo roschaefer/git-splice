@@ -9,7 +9,7 @@ commit per splice. Never touches the network: run 'git splice fetch'
 first, or 'git splice pull' to do both.
 
 The upstream branch is the one named like the current branch; on the
-monorepo's default branch, the upstream's default-branch if it has one.
+monorepo's default branch, the upstream's default-revision if it has one.
 --branch names another one for this merge, e.g. the one the default
 branch follows, on a pull request's branch the upstream has none for.
 It doesn't change .splice, and the splices below keep theirs.

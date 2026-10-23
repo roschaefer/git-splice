@@ -174,13 +174,13 @@ what it holds and which commands write it. Why it looks like that:
   from the same commit still get different ids. The rebuild uses it to
   tell this splice from another one that had the same path before (see
   the push section).
-- **Without `default-branch`**, an upstream's default branch is named
+- **Without `default-revision`**, an upstream's default branch is named
   like that of what the splice lives in: the splice above, or the
   monorepo. So a nested `.splice` means the same in the monorepo as in
   the upstream above, where that repository stands in for the splice
   above. Where the splice above leaves it open, commands refuse rather
   than fall back to the monorepo's.
-- **`default-branch` is recorded once**, by `clone` and `init`, and only
+- **`default-revision` is recorded once**, by `clone` and `init`, and only
   when it differs. That keeps it stable if the upstream later renames its
   default branch, and visible to anyone wondering why `main` syncs with
   `master`. It belongs to the upstream, like its URL: a company fork may
@@ -510,7 +510,7 @@ fetched.
   current branch, for every command. Switching branches switches every
   splice.
 - The monorepo's default branch maps to upstream's default branch
-  (the upstream's `default-branch` in `.splice` if the names differ). Every other branch
+  (the upstream's `default-revision` in `.splice` if the names differ). Every other branch
   keeps its name on both sides.
 - The monorepo's default branch is `origin/HEAD`, else
   `init.defaultBranch`.

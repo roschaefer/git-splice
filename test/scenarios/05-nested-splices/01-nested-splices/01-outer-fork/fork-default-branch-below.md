@@ -31,7 +31,7 @@ upstream:
 
 ```scrut
 $ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git &&
->   git config --file vendor/a/.splice upstream.fork.default-branch trunk &&
+>   git config --file vendor/a/.splice upstream.fork.default-revision trunk &&
 >   git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
 ```
 

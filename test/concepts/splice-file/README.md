@@ -12,7 +12,7 @@ clone of the monorepo has every splice, with nothing to set up.
 	commit = 3f1c…              # the synced commit U(H)
 [upstream "origin"]
 	url = git@github.com:x/a.git
-	default-branch = master     # only if it's named differently, see below
+	default-revision = master     # only if it's named differently, see below
 ```
 
 - **It's in Git's config format**, so `git config --file` reads and
@@ -38,7 +38,7 @@ clone of the monorepo has every splice, with nothing to set up.
   several, e.g. a company fork and the original
   ([upstreams](../upstreams/README.md)). `clone` and `init` name theirs
   `origin`.
-- **Without `default-branch`**, an upstream's default branch is named
+- **Without `default-revision`**, an upstream's default branch is named
   like the monorepo's, or, for a nested splice, like the splice above's
   ([nested-default-branch](../../scenarios/05-nested-splices/02-nested-default-branch/README.md)).
   `clone` and `init` record it only where it differs, e.g. when `main`

@@ -123,7 +123,7 @@ add_upstream() {
   git -C "$fork" branch -m main trunk
   cd "$monorepo"
   git config --file vendor/a/.splice upstream.fork.url "$fork"
-  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  git config --file vendor/a/.splice upstream.fork.default-revision trunk
   git config --file vendor/a/.splice splice.default-upstream origin
   git commit -q -m "vendor/a: add fork, on trunk" -- vendor/a/.splice
   run splice pull --upstream fork vendor/a
@@ -141,7 +141,21 @@ add_upstream() {
   git commit -q -m "the earlier format" -- vendor/a/.splice
   run splice status
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"* ]]
+  [[ "$output" == *"vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-revision"* ]]
+}
+
+@test "upstreams: an upstream's default-branch, from an earlier version, is refused with the commands that rename it" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  git commit -q -m "the earlier format" -- vendor/a/.splice
+  run splice status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice has upstream.fork.default-branch, from an earlier version -- it's default-revision now: git config --file vendor/a/.splice upstream.fork.default-revision trunk && git config --file vendor/a/.splice --unset upstream.fork.default-branch"* ]]
+  git config --file vendor/a/.splice upstream.fork.default-revision trunk && git config --file vendor/a/.splice --unset upstream.fork.default-branch
+  git commit -q -m "default-revision" -- vendor/a/.splice
+  run splice status
+  [ "$status" -eq 0 ]
 }
 
 @test "merge --bump: the bump names the upstream branch it records, like a pull" {
@@ -183,7 +197,7 @@ add_upstream() {
   git -C "$fork" branch -m main trunk
   cd "$monorepo"
   git config --file vendor/a/.splice upstream.fork.url "$fork"
-  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  git config --file vendor/a/.splice upstream.fork.default-revision trunk
   add_upstream vendor/a fork "$fork" origin
   splice fetch
   seed_bare_repo "$fork" "moved" trunk
@@ -264,7 +278,7 @@ add_upstream() {
 @test "upstreams: a splice below refuses to guess when the upstreams above have different default branches and none is the default" {
   scenario_outer_fork "$monorepo" "$upstream"
   cd "$monorepo"
-  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  git config --file vendor/a/.splice upstream.fork.default-revision trunk
   add_upstream vendor/a fork "${upstream%.git}-fork.git"
   for command in "status vendor/a/b" "pull vendor/a/b" "merge vendor/a/b" "push vendor/a/b" "diff vendor/a/b" "log vendor/a/b"; do
     # shellcheck disable=SC2086 # the command and its arguments

@@ -493,7 +493,7 @@ folder_tree() {
 #   	default-upstream = fork
 #   [upstream "origin"]
 #   	url = https://github.com/x/lib.git
-#   	default-branch = master
+#   	default-revision = master
 #   [upstream "fork"]
 #   	url = https://git.example.com/company/lib.git
 #
@@ -539,7 +539,12 @@ load_splice_upstream() {
       splice.id) id="${record#*$'\n'}" ;;
       splice.default-upstream) default="${record#*$'\n'}" ;;
       splice.default-branch)
-        die "$path/$STATE_FILE has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"
+        die "$path/$STATE_FILE has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-revision"
+        ;;
+      upstream.*.default-branch)
+        name="${record%%$'\n'*}"
+        name="${name%.default-branch}"
+        die "$path/$STATE_FILE has $name.default-branch, from an earlier version -- it's default-revision now: git config --file $(shell_quote "$path/$STATE_FILE") $name.default-revision $(shell_quote "${record#*$'\n'}") && git config --file $(shell_quote "$path/$STATE_FILE") --unset $name.default-branch"
         ;;
     esac
   done
@@ -950,7 +955,7 @@ splice_above_in() {
 }
 
 # Prints the default branch of upstream $2 of splice $1, or of the one it
-# uses if $2 isn't given: that upstream's recorded default-branch, else the
+# uses if $2 isn't given: that upstream's recorded default-revision, else the
 # one of what it lives in (container_default_branch).
 # A .splice records it only where it differs from that, so the file means
 # the same in every repository it reaches: a nested one, in the
@@ -958,7 +963,7 @@ splice_above_in() {
 # in the upstream above.
 splice_default_branch() {
   local path="$1" upstream="${2-${SPLICE_UPSTREAM_NAMES[$1]:-}}" name
-  name="$(upstream_config "$path" "$upstream" default-branch)"
+  name="$(upstream_config "$path" "$upstream" default-revision)"
   if [[ -n "$name" ]]; then
     printf '%s\n' "$name"
   else

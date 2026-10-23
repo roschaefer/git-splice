@@ -6,4 +6,4 @@
 	url = https://github.com/facebookincubator/scrut
 [upstream "fork"]
 	url = https://github.com/roschaefer/scrut
-	default-branch = feat/scrut-parallel-jobs
+	default-revision = feat/scrut-parallel-jobs

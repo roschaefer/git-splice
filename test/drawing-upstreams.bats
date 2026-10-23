@@ -16,7 +16,7 @@ setup() {
   git -C "$fork" branch -m main trunk
   cd "$monorepo"
   git config --file vendor/a/.splice upstream.fork.url "$fork"
-  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  git config --file vendor/a/.splice upstream.fork.default-revision trunk
   git config --file vendor/a/.splice splice.default-upstream origin
   git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
   splice fetch >/dev/null

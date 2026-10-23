@@ -49,13 +49,13 @@ $ git clone -q --bare "$WALKTHROUGH/upstream/pkg-a.git" "$WALKTHROUGH/upstream/p
 ```
 
 The splice gets the fork as a second upstream, and uses it by default.
-Its `default-branch` makes the monorepo's `main` follow `patches`
+Its `default-revision` makes the monorepo's `main` follow `patches`
 instead of the fork's `main`
 ([upstreams](../concepts/upstreams/README.md)):
 
 ```scrut
 $ git config --file vendor/pkg-a/.splice upstream.fork.url https://git.example.com/pkg-a-fork.git &&
->   git config --file vendor/pkg-a/.splice upstream.fork.default-branch patches &&
+>   git config --file vendor/pkg-a/.splice upstream.fork.default-revision patches &&
 >   git config --file vendor/pkg-a/.splice splice.default-upstream fork &&
 >   git commit -q -m "pkg-a: follow the fork's patches" -- vendor/pkg-a/.splice
 ```
@@ -66,7 +66,7 @@ splice.commit=703b9360f7ac335a1134e9b5771a90a7c09ba39a
 splice.default-upstream=fork
 upstream.origin.url=https://git.example.com/pkg-a.git
 upstream.fork.url=https://git.example.com/pkg-a-fork.git
-upstream.fork.default-branch=patches
+upstream.fork.default-revision=patches
 ```
 
 ## Changes in the monorepo

@@ -44,7 +44,7 @@ e.g. a company fork and the original it follows
 fetches all of them. A splice that lacks the named upstream stops the
 command before it starts
 ([missing upstream names](../scenarios/04-upstreams/02-several-upstreams/missing-upstream-names.md)).
-Each upstream records its own `default-branch`, e.g. for a fork whose
+Each upstream records its own `default-revision`, e.g. for a fork whose
 default branch is named differently
 ([fork-default-branch](../scenarios/04-upstreams/02-several-upstreams/fork-default-branch.md)).
 

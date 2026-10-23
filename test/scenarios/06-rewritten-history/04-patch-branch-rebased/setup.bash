@@ -10,7 +10,7 @@ scenario_patch_branch_rebased() {
   add_splice "$monorepo" "$upstream" "vendor/a" patches
   (
     cd "$monorepo"
-    git config --file vendor/a/.splice upstream.origin.default-branch patches
+    git config --file vendor/a/.splice upstream.origin.default-revision patches
     git commit -q -a --amend --no-edit
   )
 

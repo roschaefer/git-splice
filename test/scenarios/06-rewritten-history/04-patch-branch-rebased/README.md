@@ -58,7 +58,7 @@ $ build_scenario scenario_patch_branch_rebased
 ```
 
 On the monorepo's default branch, a splice syncs with its upstream's
-`default-branch`. Setting it to the fork's patch branch makes `main`
+`default-revision`. Setting it to the fork's patch branch makes `main`
 follow that branch, for `pull`, `push` and `status` alike:
 
 ```scrut
@@ -66,7 +66,7 @@ $ git config --file vendor/a/.splice --list
 splice.commit=05c1bab18820a907428ae83bd6ee0a2c8d817ed0
 splice.id=[0-9a-f]{16} (regex)
 upstream.origin.url=$UPSTREAM
-upstream.origin.default-branch=patches
+upstream.origin.default-revision=patches
 ```
 
 <!--

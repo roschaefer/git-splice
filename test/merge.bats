@@ -197,10 +197,10 @@ setup() {
   init_monorepo "$monorepo"
   add_splice "$monorepo" "$upstream" vendor/a patches
   cd "$monorepo"
-  git config --file vendor/a/.splice upstream.origin.default-branch patches
+  git config --file vendor/a/.splice upstream.origin.default-revision patches
   git commit -q -a --amend --no-edit
   seed_bare_repo "$upstream" "release" main release.txt
-  git config --file vendor/a/.splice upstream.origin.default-branch main
+  git config --file vendor/a/.splice upstream.origin.default-revision main
   git commit -q -m "vendor/a: follow main" -- vendor/a/.splice
   git -C "$upstream" branch -q -D patches
   fetch_splice "$monorepo" "$upstream" vendor/a
@@ -210,7 +210,7 @@ setup() {
   [ "$(cat vendor/a/release.txt)" = "release" ]
 }
 
-@test "merge: --branch merges the named upstream branch on a branch the upstream has none for, without changing .splice's default-branch" {
+@test "merge: --branch merges the named upstream branch on a branch the upstream has none for, without changing .splice's default-revision" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   cd "$monorepo"
   git switch -q -c take-the-release
@@ -222,7 +222,7 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: merged ${target:0:7}" ]
   [ "$(splice_config vendor/a commit)" = "$target" ]
-  [ "$(git config --file vendor/a/.splice upstream.origin.default-branch)" = patches ]
+  [ "$(git config --file vendor/a/.splice upstream.origin.default-revision)" = patches ]
   [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from patches at ${target:0:7}" ]
 }
 

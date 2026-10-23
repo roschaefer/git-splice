@@ -1,6 +1,6 @@
 # Scenario: nested-default-branch
 
-A nested splice's `.splice` without `default-branch` means the same
+A nested splice's `.splice` without `default-revision` means the same
 branch in the monorepo as in the upstream it came from.
 
 - **Monorepo**: empty, default branch `main`.
@@ -9,18 +9,18 @@ branch in the monorepo as in the upstream it came from.
 - **Inner upstream (`$UPSTREAM-b.git`)**: default branch `master` too,
   so `b/.splice` doesn't name a default branch.
 
-A `.splice` without `default-branch` means: the upstream's default
+A `.splice` without `default-revision` means: the upstream's default
 branch has the same name as the default branch of what the splice lives
 in. In the outer upstream, that's the repository, with `master`. In the
 monorepo, it's `vendor/a/`, which stands in for the outer upstream
 there, and whose default branch is `master` too. So `b/` syncs with
 `master` in both places, as it would in a separate clone of the outer
-upstream. Before, a `.splice` without `default-branch` followed the
+upstream. Before, a `.splice` without `default-revision` followed the
 monorepo's default branch, `main`, which the inner upstream doesn't have
 ([#71](https://github.com/roschaefer/git-splice/issues/71)).
 
 `clone` and `init` inside a splice follow the same rule: they record
-`default-branch` only if the new upstream's default branch differs from
+`default-revision` only if the new upstream's default branch differs from
 the one of the splice above. So the file means the same in both
 directions.
 
@@ -74,14 +74,14 @@ ok   vendor/a/b fetched
 ```
 
 ```scrut
-$ git config --file vendor/a/.splice upstream.origin.default-branch
+$ git config --file vendor/a/.splice upstream.origin.default-revision
 master
 ```
 
 `vendor/a/b/.splice` came along unchanged, without one:
 
 ```scrut
-$ git config --file vendor/a/b/.splice upstream.origin.default-branch
+$ git config --file vendor/a/b/.splice upstream.origin.default-revision
 [1]
 ```
 

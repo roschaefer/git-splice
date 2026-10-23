@@ -69,7 +69,7 @@ cmd_init() {
   if [[ -n "$UPSTREAM_KEY" ]]; then
     git for-each-ref --format='delete %(refname)' "refs/splices/$UPSTREAM_KEY/" | git update-ref --stdin
   fi
-  git cat-file blob "$(state_blob "$path" "id=$(new_splice_id "$path" "$url")" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")" >"$path/$STATE_FILE"
+  git cat-file blob "$(state_blob "$path" "id=$(new_splice_id "$path" "$url")" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-revision=$default_branch")" >"$path/$STATE_FILE"
   # -f: an ignore rule matching .splice mustn't stop it, it's committed
   # by definition.
   git add -f -- "$path/$STATE_FILE"

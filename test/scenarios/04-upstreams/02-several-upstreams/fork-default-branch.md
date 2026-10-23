@@ -2,7 +2,7 @@
 
 The company fork names its default branch `trunk`, the original `main`
 ([#122](https://github.com/roschaefer/git-splice/issues/122)). Each
-upstream in `.splice` can record its own `default-branch`, so on the
+upstream in `.splice` can record its own `default-revision`, so on the
 monorepo's `main`, each syncs with its own default branch.
 
 [`setup.bash`](setup.bash) builds the state of
@@ -34,7 +34,7 @@ default upstream:
 
 ```scrut
 $ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/lib.git &&
->   git config --file vendor/a/.splice upstream.fork.default-branch trunk &&
+>   git config --file vendor/a/.splice upstream.fork.default-revision trunk &&
 >   git config --file vendor/a/.splice splice.default-upstream origin &&
 >   git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
 ```
@@ -46,7 +46,7 @@ splice.id=[0-9a-f]{16} (regex)
 splice.default-upstream=origin
 upstream.origin.url=https://git.example.com/lib.git
 upstream.fork.url=https://git.example.com/company/lib.git
-upstream.fork.default-branch=trunk
+upstream.fork.default-revision=trunk
 ```
 
 On `main`, the original syncs with its `main`, the fork with `trunk`:
@@ -83,7 +83,7 @@ ok   fork-default-branch.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes, 2 up
 ```
 -->
 
-### The earlier format
+### The earlier formats
 
 A `default-branch` in `[splice]` named one branch for every upstream.
 It's refused, rather than read for the default upstream only:
@@ -92,6 +92,19 @@ It's refused, rather than read for the default upstream only:
 $ git config --file vendor/a/.splice splice.default-branch master &&
 >   git commit -q -m "the earlier format" -- vendor/a/.splice &&
 >   git splice status
-!!   vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch
+!!   vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-revision
+[1]
+```
+
+An upstream's `default-branch` is `default-revision` now. The refusal
+prints the commands that rename it:
+
+```scrut
+$ git reset -q --hard HEAD~1 &&
+>   git config --file vendor/a/.splice upstream.fork.default-branch trunk &&
+>   git config --file vendor/a/.splice --unset upstream.fork.default-revision &&
+>   git commit -q -m "the earlier format" -- vendor/a/.splice &&
+>   git splice status
+!!   vendor/a/.splice has upstream.fork.default-branch, from an earlier version -- it's default-revision now: git config --file vendor/a/.splice upstream.fork.default-revision trunk && git config --file vendor/a/.splice --unset upstream.fork.default-branch
 [1]
 ```

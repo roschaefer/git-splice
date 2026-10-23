@@ -5,7 +5,7 @@ Upstream's default branch is `master`, the monorepo's is `main`.
 - **Monorepo (`vendor/a/`)**: cloned on `main`, then a local commit.
 - **Upstream**: `seed` on `master`.
 
-`clone` recorded `default-branch = master` for the upstream in
+`clone` recorded `default-revision = master` for the upstream in
 `.splice`, so on the
 monorepo's default branch the splice syncs with `master`. Every other
 branch keeps its name.
@@ -29,7 +29,7 @@ $ git config --file vendor/a/.splice --list
 splice.id=[0-9a-f]{16} (regex)
 splice.commit=bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 upstream.origin.url=$UPSTREAM
-upstream.origin.default-branch=master
+upstream.origin.default-revision=master
 ```
 
 ```scrut

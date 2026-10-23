@@ -193,7 +193,7 @@ swap_splice_files() {
   [ -z "$(git ls-files vendor/a/b/b)" ]
 }
 
-@test "nested: a .splice below without default-branch follows the default branch of the splice above" {
+@test "nested: a .splice below without default-revision follows the default branch of the splice above" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
   splice clone "$upstream" vendor/a
@@ -203,7 +203,7 @@ swap_splice_files() {
   [ "${lines[2]}" = "  up to date  vendor/a/b -> master" ]
 }
 
-@test "nested: clone inside a splice records default-branch only where it differs from the splice above's" {
+@test "nested: clone inside a splice records default-revision only where it differs from the splice above's" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   local upstream_main="$BATS_TEST_TMPDIR/main.git"
   make_bare_repo "$upstream_main" main
@@ -212,8 +212,8 @@ swap_splice_files() {
   splice clone "$upstream" vendor/a
   cmd_clone "$upstream_b" vendor/a/c
   cmd_clone "$upstream_main" vendor/a/d
-  [ -z "$(upstream_config vendor/a/c origin default-branch)" ]
-  [ "$(upstream_config vendor/a/d origin default-branch)" = main ]
+  [ -z "$(upstream_config vendor/a/c origin default-revision)" ]
+  [ "$(upstream_config vendor/a/d origin default-revision)" = main ]
   [ "$(upstream_branch_for vendor/a/c main)" = master ]
   [ "$(upstream_branch_for vendor/a/d main)" = main ]
 }
@@ -258,7 +258,7 @@ swap_splice_files() {
   [ ! -e vendor/a/e/.splice ]
 }
 
-@test "nested: init inside a splice records default-branch only where it differs from the splice above's" {
+@test "nested: init inside a splice records default-revision only where it differs from the splice above's" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   local empty_master="$BATS_TEST_TMPDIR/empty-master.git"
   make_bare_repo "$empty_master" master
@@ -266,7 +266,7 @@ swap_splice_files() {
   splice clone "$upstream" vendor/a
   commit_local "$monorepo" vendor/a/e "e's first version"
   cmd_init vendor/a/e "$empty_master"
-  [ -z "$(upstream_config vendor/a/e origin default-branch)" ]
+  [ -z "$(upstream_config vendor/a/e origin default-revision)" ]
   [ "$(upstream_branch_for vendor/a/e main)" = master ]
 }
 

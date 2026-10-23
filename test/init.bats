@@ -107,7 +107,7 @@ setup() {
   make_bare_repo "$upstream" master
   cd "$monorepo"
   cmd_init lib/a "$upstream"
-  [ "$(upstream_config lib/a origin default-branch)" = master ]
+  [ "$(upstream_config lib/a origin default-revision)" = master ]
   run cmd_push lib/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" log -1 --format=%s master)" = "splice: init lib/a" ]

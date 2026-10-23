@@ -388,7 +388,7 @@ add_nested_submodule() {
   git -c protocol.file.allow=always submodule add -q "$other" vendor/a
   git commit -q -m "add vendor/a as a submodule"
   cmd_clone --from-submodule vendor/a
-  [ "$(upstream_config vendor/a origin default-branch)" = master ]
+  [ "$(upstream_config vendor/a origin default-revision)" = master ]
 }
 
 @test "resolve_submodule_url: relative URLs, as git submodule reads them" {

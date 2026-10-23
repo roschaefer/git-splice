@@ -32,7 +32,7 @@ new_upstream() {
   [ "$(cat vendor/a/file.txt)" = seed ]
   [ "$(git config --file vendor/a/.splice upstream.origin.url)" = "$upstream" ]
   [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
-  [ -z "$(upstream_config vendor/a origin default-branch)" ]
+  [ -z "$(upstream_config vendor/a origin default-revision)" ]
   [ -z "$(git remote)" ]
   [ -z "$(git status --porcelain)" ]
   classify_splice vendor/a main
@@ -69,7 +69,7 @@ new_upstream() {
   new_upstream master
   run cmd_clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
-  [ "$(upstream_config vendor/a origin default-branch)" = master ]
+  [ "$(upstream_config vendor/a origin default-revision)" = master ]
   [[ "$output" == *"cloned"*"from master"* ]]
 }
 
