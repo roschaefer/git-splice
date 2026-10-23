@@ -46,8 +46,8 @@ $ build_scenario scenario_many_splices
 ```scrut
 $ check_drawing "$TESTDIR/many-splices.drawio.svg" \
 >   a=HEAD~6 b=HEAD~5 c=HEAD~4 d=HEAD~3 e=HEAD~2 f=HEAD~1 g=HEAD \
->   m=refs/splices/upstream-http/main~1 n=refs/splices/upstream-http/main \
->   o=refs/splices/upstream-store/main
+>   m=refs/splices/upstream-http/heads/main~1 n=refs/splices/upstream-http/heads/main \
+>   o=refs/splices/upstream-store/heads/main
 ok   many-splices.drawio.svg: 17 commits, 20 arrows, 9 boxes, 5 lanes
 ```
 -->

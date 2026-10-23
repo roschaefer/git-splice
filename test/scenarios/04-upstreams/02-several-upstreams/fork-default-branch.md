@@ -78,7 +78,7 @@ original's `main` is still *k* (`seed`), where the monorepo cloned it in
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/fork-default-branch.drawio.svg" \
->   a=HEAD~1 c=HEAD k=refs/splices/lib/main f=refs/splices/company-lib/trunk
+>   a=HEAD~1 c=HEAD k=refs/splices/lib/heads/main f=refs/splices/company-lib/heads/trunk
 ok   fork-default-branch.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes, 2 upstreams
 ```
 -->

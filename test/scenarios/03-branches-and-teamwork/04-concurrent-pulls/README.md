@@ -43,8 +43,8 @@ $ build_scenario scenario_concurrent_pulls
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/concurrent-pulls.drawio.svg" \
->   a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/main~2 \
->   l=refs/splices/a/main~1 n=refs/splices/a/main
+>   a=HEAD~1 p=HEAD q=origin/main k=refs/splices/a/heads/main~2 \
+>   l=refs/splices/a/heads/main~1 n=refs/splices/a/heads/main
 ok   concurrent-pulls.drawio.svg: 6 commits, 7 arrows, 3 boxes, 1 lanes
 ```
 -->
@@ -115,7 +115,7 @@ The fetched upstream branch shows both, newest first: Bob's `upstream 2`
 contains Alice's `upstream 1`:
 
 ```scrut
-$ git log --format='%h %s' splices/a/main
+$ git log --format='%h %s' splices/a/heads/main
 4c1905d upstream 2
 72efaac upstream 1
 bde4164 seed

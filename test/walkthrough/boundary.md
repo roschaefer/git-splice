@@ -46,7 +46,7 @@ above. Where the upstream above's starts is a commit of that upstream:
 check out a fetched commit of it in a worktree, and run `boundary` there
 with the path in that upstream, e.g. `b/` for `vendor/a/b/`:
 
-    git worktree add --detach ../a refs/splices/a/main
+    git worktree add --detach ../a refs/splices/a/heads/main
     git -C ../a splice boundary b
 
 See [nesting](../concepts/nesting/README.md).

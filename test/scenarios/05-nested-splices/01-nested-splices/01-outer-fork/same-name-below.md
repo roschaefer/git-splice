@@ -68,8 +68,8 @@ of *l*, which no upstream has yet:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/same-name-below.drawio.svg" \
->   a=HEAD~1 c=HEAD k=refs/splices/upstream/main~1 l=refs/splices/upstream/main \
->   q=refs/splices/a/main m=refs/splices/b/main n=refs/splices/company-b/main
+>   a=HEAD~1 c=HEAD k=refs/splices/upstream/heads/main~1 l=refs/splices/upstream/heads/main \
+>   q=refs/splices/a/heads/main m=refs/splices/b/heads/main n=refs/splices/company-b/heads/main
 ok   same-name-below.drawio.svg: 11 commits, 12 arrows, 6 boxes, 2 lanes, 4 upstreams
 ```
 -->

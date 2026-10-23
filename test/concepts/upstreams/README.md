@@ -21,7 +21,7 @@ whichever upstream it came from.
 
 The monorepo knows an upstream by its URL. The first command that
 fetches it gives it a *key*, a short name recorded in the repository's
-config, and fetches its branches to `refs/splices/<key>/`. So:
+config, and fetches its branches to `refs/splices/<key>/heads/`. So:
 
 | | is one per |
 |---|---|
@@ -93,7 +93,7 @@ s
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
-bde4164 refs/splices/s/main
+bde4164 refs/splices/s/heads/main
 ```
 
 `fetch` fetches each upstream once, and reports for every splice of it:

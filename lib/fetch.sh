@@ -5,7 +5,7 @@ usage_fetch() {
 usage: git splice fetch [--upstream <name>] [path...]
 
 Fetches every branch of each splice's upstreams into
-refs/splices/<key>/*, where <key> is the upstream's key in this
+refs/splices/<key>/heads/*, where <key> is the upstream's key in this
 repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
 no Git remote; 'git splice key' prints and renames keys. Branches deleted
 upstream are pruned. Defaults to every splice when no paths are given.
@@ -54,13 +54,13 @@ fetch_shared_upstream() {
     # Empty if the upstreams of the splice above disagree on it, and none
     # is its default: the commands that need it refuse then.
     upstream_branches[i]="$(upstream_branch_for "$path" "$branch" "${entry#*:}" 2>/dev/null)" || true
-    target_refs[i]="refs/splices/$key/${upstream_branches[i]}"
+    target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
     old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
     synced+=("$(splice_config "$path" commit)")
     i=$((i + 1))
   done
   local error
-  if ! error="$(fetch_upstream "$url" "refs/splices/$key/" "${synced[@]}" 2>&1)"; then
+  if ! error="$(fetch_upstream "$url" "refs/splices/$key/heads/" "${synced[@]}" 2>&1)"; then
     for i in "${!indexes[@]}"; do
       {
         [[ -z "$error" ]] || printf '%s\n' "$error"

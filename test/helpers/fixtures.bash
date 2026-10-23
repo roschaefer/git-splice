@@ -66,14 +66,14 @@ init_monorepo() {
 
 # Prints the prefix of the refs git splice fetches upstream <url>'s
 # branches into in the repository at the current directory, e.g.
-# refs/splices/upstream/, recording the upstream's key first if it has none,
-# as the commands do.
+# refs/splices/upstream/heads/, recording the upstream's key first if it
+# has none, as the commands do.
 upstream_refs() {
   (
     # shellcheck source=../../lib/common.sh
     source "$FIXTURES_DIR/../../lib/common.sh"
     create_upstream_key "$1"
-    printf 'refs/splices/%s/\n' "$UPSTREAM_KEY"
+    printf 'refs/splices/%s/heads/\n' "$UPSTREAM_KEY"
   )
 }
 

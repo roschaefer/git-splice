@@ -10,7 +10,7 @@ has a page of its own with the details. To try them yourself, run
 | --- | --- |
 | [`status`](status.md) | Shows each splice's sync state, with how many commits `push` would publish and `pull` would bring in. |
 | [`clone`](clone.md) | Splices an existing repository into a new folder, as one commit. |
-| [`fetch`](fetch.md) | Fetches every branch of each upstream into `refs/splices/<key>/`. |
+| [`fetch`](fetch.md) | Fetches every branch of each upstream into `refs/splices/<key>/heads/`. |
 | [`log`](log.md) | Shows the commits `push` would publish and `pull` would bring in. |
 | [`merge`](merge.md) | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
 | [`pull`](pull.md) | `fetch` + `merge`. |

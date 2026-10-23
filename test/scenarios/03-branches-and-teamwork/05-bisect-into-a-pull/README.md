@@ -41,9 +41,9 @@ $ build_scenario scenario_bisect_into_a_pull
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/bisect-into-a-pull.drawio.svg" \
->   a=HEAD~3 b=HEAD~2 X=HEAD~1 d=HEAD k=refs/splices/upstream/main~3 \
->   l=refs/splices/upstream/main~2 m=refs/splices/upstream/main~1 \
->   n=refs/splices/upstream/main
+>   a=HEAD~3 b=HEAD~2 X=HEAD~1 d=HEAD k=refs/splices/upstream/heads/main~3 \
+>   l=refs/splices/upstream/heads/main~2 m=refs/splices/upstream/heads/main~1 \
+>   n=refs/splices/upstream/heads/main
 ok   bisect-into-a-pull.drawio.svg: 8 commits, 10 arrows, 4 boxes, 1 lanes
 ```
 -->

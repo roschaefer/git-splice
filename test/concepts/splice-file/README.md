@@ -122,6 +122,6 @@ file.txt
 ```
 
 ```scrut
-$ git ls-tree --name-only splices/pkg-a/main
+$ git ls-tree --name-only splices/pkg-a/heads/main
 file.txt
 ```

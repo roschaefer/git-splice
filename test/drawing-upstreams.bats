@@ -23,8 +23,8 @@ setup() {
   drawing="$BATS_TEST_TMPDIR/fork-default-branch.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/scenarios/04-upstreams/02-several-upstreams/fork-default-branch.drawio.svg" >"$drawing" 2>/dev/null
-  revs=(a=HEAD~1 c=HEAD k="refs/splices/$(git splice key --upstream origin vendor/a)/main"
-    f="refs/splices/$(git splice key --upstream fork vendor/a)/trunk")
+  revs=(a=HEAD~1 c=HEAD k="refs/splices/$(git splice key --upstream origin vendor/a)/heads/main"
+    f="refs/splices/$(git splice key --upstream fork vendor/a)/heads/trunk")
 }
 
 edit_drawing() {

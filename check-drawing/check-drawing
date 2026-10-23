@@ -292,7 +292,7 @@ check_drawing() {
       # upstream may have one with the same subject.
       hash=""
       [[ -z "${side_key[$id]:-}" || "$label" == *\' ]] ||
-        hash="$(git log --format='%H%x09%s' --glob="refs/splices/${side_key[$id]}/*" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+        hash="$(git log --format='%H%x09%s' --glob="refs/splices/${side_key[$id]}/heads/*" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
       [[ -n "$hash" ]] ||
         hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
       upstream_tips=()
@@ -301,7 +301,7 @@ check_drawing() {
           [[ -n "${truth["$sp|$k"]}" ]] && upstream_tips+=("${truth["$sp|$k"]}")
         done
       fi
-      [[ -z "${side_key[$id]:-}" ]] || upstream_tips+=(--glob="refs/splices/${side_key[$id]}/*")
+      [[ -z "${side_key[$id]:-}" ]] || upstream_tips+=(--glob="refs/splices/${side_key[$id]}/heads/*")
       [[ -n "$hash" || "$label" == *\' || ${#upstream_tips[@]} -eq 0 ]] ||
         hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
     fi
@@ -311,7 +311,7 @@ check_drawing() {
         continue
       fi
       subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
-      upstream_tips=(--glob="refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/*")
+      upstream_tips=(--glob="refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/heads/*")
       [[ -z "${truth["$sp|R"]}" ]] || upstream_tips+=("${truth["$sp|R"]}")
       hash="$(git log --format='%H' "${upstream_tips[@]}" | while read -r copy; do
         [[ "$copy" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$copy")" == "$subject" ]] && {
@@ -349,7 +349,7 @@ check_drawing() {
   of_splice() {
     local s
     git merge-base --is-ancestor "$1" "${truth["$2|R"]}" && return 0
-    [[ -n "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/")" ]] && return 0
+    [[ -n "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/heads/")" ]] && return 0
     for s in ${truth["$2|synced"]}; do
       git merge-base --is-ancestor "$1" "$s" 2>/dev/null && return 0
     done
@@ -360,7 +360,7 @@ check_drawing() {
     local name key
     while IFS= read -r name; do
       key="$(git splice key --upstream "$name" "$2" 2>/dev/null)" || continue
-      [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/$key/")" ]] || return 1
+      [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/$key/heads/")" ]] || return 1
     done < <(upstream_names "$2")
   }
   # A monorepo commit: on HEAD, or on another branch of the monorepo, like
@@ -383,7 +383,7 @@ check_drawing() {
     fi
     [[ -n "${lane_of[$id]}" ]] || continue
     if [[ -n "${side_of[$id]:-}" ]]; then
-      [[ -n "$(git for-each-ref --count=1 --contains "${commit_of[$id]}" "refs/splices/${side_key[$id]}/")" ]] && continue
+      [[ -n "$(git for-each-ref --count=1 --contains "${commit_of[$id]}" "refs/splices/${side_key[$id]}/heads/")" ]] && continue
       if ! not_upstream_of "${commit_of[$id]}" "${lane_of[$id]}"; then
         errors+=("${value[$id]} is on the ${side_of[$id]} side, but no fetched branch of ${side_of[$id]} has it: draw it on the side of an upstream that has it")
         continue
@@ -399,7 +399,7 @@ check_drawing() {
   not_upstream() {
     [[ -n "$2" ]] || return 1
     ! in_monorepo "$1" || return 1
-    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${3:-${truth["$2|key"]}}/")" ]]
+    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${3:-${truth["$2|key"]}}/heads/")" ]]
   }
   dashed() { [[ ";${style[$1]};" == *";dashed=1;"* ]]; }
 
@@ -435,7 +435,7 @@ check_drawing() {
     elif [[ "$term" == "merge-base(R,T)" ]]; then
       printf '%s\n' "${truth["$sp|base"]}"
     elif [[ "$term" != U\(*\) ]]; then
-      git rev-parse --verify --quiet "refs/splices/${3:-${truth["$sp|key"]}}/$term^{commit}"
+      git rev-parse --verify --quiet "refs/splices/${3:-${truth["$sp|key"]}}/heads/$term^{commit}"
     else
       k="${term#U(}" k="${k%)}"
       case "$k" in
@@ -557,7 +557,7 @@ check_drawing() {
       git merge-base --is-ancestor "${commit_of[$id]}" "$b" && found=1
     done
     [[ -n "$found" ]] || errors+=("${value[$id]} is on an upstream branch, but not T's: draw a box for the branch, e.g. $(
-      git for-each-ref --count=1 --format='%(refname:lstrip=3)' --contains "${commit_of[$id]}" "refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/"
+      git for-each-ref --count=1 --format='%(refname:lstrip=4)' --contains "${commit_of[$id]}" "refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/heads/"
     )")
   done
   # Every box points at one commit.

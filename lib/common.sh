@@ -734,7 +734,7 @@ reload_upstream_keys() {
 }
 
 # Sets UPSTREAM_KEY to the key the fetched refs of upstream <url> live
-# under, refs/splices/<key>/<branch>, or to nothing if the upstream has
+# under, refs/splices/<key>/heads/<branch>, or to nothing if the upstream has
 # never been fetched. Keyed by URL rather than by the splice's path, refs
 # follow a splice through git mv, and splices at one path with different
 # upstreams, e.g. on two branches, don't share them. The URL is taken
@@ -757,7 +757,7 @@ upstream_key() {
 valid_upstream_key() {
   local key="$1"
   [[ "$key" =~ ^[a-z0-9]([a-z0-9._-]{0,62}[a-z0-9])?$ ]] &&
-    git check-ref-format "refs/splices/$key/main"
+    git check-ref-format "refs/splices/$key/heads/main"
 }
 
 # Succeeds if <key> names an upstream already, or refs are left under it,
@@ -886,11 +886,12 @@ ensure_splice_key() {
   done
 }
 
-# Prints the ref prefix splice <path>'s fetched upstream branches share. An
-# upstream without a key has no refs: its prefix, "refs/splices/./", isn't
-# a valid ref name, so it matches none.
+# Prints the ref prefix splice <path>'s fetched upstream branches share,
+# refs/splices/<key>/heads/, laid out like a repository's own refs. An
+# upstream without a key has no refs: its prefix,
+# "refs/splices/./heads/", isn't a valid ref name, so it matches none.
 splice_refs_prefix() {
-  printf 'refs/splices/%s/\n' "${SPLICE_KEYS[$1]:-.}"
+  printf 'refs/splices/%s/heads/\n' "${SPLICE_KEYS[$1]:-.}"
 }
 
 # Prints the ref of upstream branch <branch> of splice <path>, as fetched.

@@ -18,7 +18,7 @@ For a nested splice, run it in a worktree of a fetched commit of the
 upstream above, with the path there, to get where that upstream's
 rebuild of it starts:
 
-  git worktree add --detach ../a refs/splices/a/main
+  git worktree add --detach ../a refs/splices/a/heads/main
   git -C ../a splice boundary b
 
 Purely local, but the synced commit must have been fetched. Writes no

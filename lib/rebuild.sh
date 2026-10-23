@@ -178,7 +178,7 @@ rewritten_away() {
         ! git merge-base --is-ancestor "$commit" "$ref"; then
         return 0
       fi
-    done < <(git for-each-ref --contains "$synced" --format='%(refname)' "refs/splices/$UPSTREAM_KEY/")
+    done < <(git for-each-ref --contains "$synced" --format='%(refname)' "refs/splices/$UPSTREAM_KEY/heads/")
   done
   return 1
 }

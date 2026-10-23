@@ -35,8 +35,8 @@ $ build_scenario scenario_after_a_push
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/after-a-push.drawio.svg" \
->   c=HEAD~3 d=HEAD~2 e=HEAD~1 X=HEAD n=refs/splices/upstream/main~2 \
->   o=refs/splices/upstream/main
+>   c=HEAD~3 d=HEAD~2 e=HEAD~1 X=HEAD n=refs/splices/upstream/heads/main~2 \
+>   o=refs/splices/upstream/heads/main
 ok   after-a-push.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
 ```
 -->

@@ -40,8 +40,8 @@ $ build_scenario scenario_squash_merged_pull
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/squash-merged-pull.drawio.svg" \
->   a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/upstream/main \
->   f=refs/splices/upstream/feature
+>   a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/upstream/heads/main \
+>   f=refs/splices/upstream/heads/feature
 ok   squash-merged-pull.drawio.svg: 6 commits, 9 arrows, 5 boxes, 1 lanes
 ```
 -->

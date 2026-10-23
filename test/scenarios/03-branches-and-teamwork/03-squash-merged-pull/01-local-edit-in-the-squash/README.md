@@ -39,8 +39,8 @@ $ build_scenario scenario_local_edit_in_the_squash
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/local-edit-in-the-squash.drawio.svg" \
->   a=HEAD~1 s=HEAD k=refs/splices/upstream/main \
->   f=refs/splices/upstream/feature
+>   a=HEAD~1 s=HEAD k=refs/splices/upstream/heads/main \
+>   f=refs/splices/upstream/heads/feature
 ok   local-edit-in-the-squash.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
 -->

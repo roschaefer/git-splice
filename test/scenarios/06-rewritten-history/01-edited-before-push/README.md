@@ -92,7 +92,7 @@ $ build_scenario scenario_edited_before_push
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/edited-before-push.drawio.svg" \
->   a=HEAD~1 b=HEAD k=refs/splices/upstream/main
+>   a=HEAD~1 b=HEAD k=refs/splices/upstream/heads/main
 ok   edited-before-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 1 lanes
 ```
 -->

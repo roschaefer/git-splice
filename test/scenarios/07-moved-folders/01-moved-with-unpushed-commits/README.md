@@ -67,7 +67,7 @@ ok   libs/a fetched
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/moved-with-unpushed-commits.drawio.svg" \
->   a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/main
+>   a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/heads/main
 ok   moved-with-unpushed-commits.drawio.svg: 5 commits, 6 arrows, 3 boxes, 1 lanes
 ```
 -->

@@ -119,7 +119,7 @@ needed *f*:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/git-submodule-splice-fix.drawio.svg" --alias HEAD=H \
->   s=HEAD~1 c=HEAD l=refs/splices/lib/main
+>   s=HEAD~1 c=HEAD l=refs/splices/lib/heads/main
 ok   git-submodule-splice-fix.drawio.svg: 3 commits, 3 arrows, 2 boxes
 ```
 -->
@@ -269,8 +269,8 @@ ok   vendor/lib: pushed 6b3df25 to feature
 
 ```scrut
 $ cd ../splice-monorepo && git for-each-ref --format='%(refname)' refs/splices
-refs/splices/lib/feature
-refs/splices/lib/main
+refs/splices/lib/heads/feature
+refs/splices/lib/heads/main
 ```
 
 ```scrut

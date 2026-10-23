@@ -14,7 +14,7 @@ setup() {
   drawing="$BATS_TEST_TMPDIR/nested-splices.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/scenarios/05-nested-splices/01-nested-splices/nested-splices.drawio.svg" >"$drawing" 2>/dev/null
-  revs=(a=HEAD k=refs/splices/upstream/main~1 l=refs/splices/upstream/main m=refs/splices/upstream-b/main)
+  revs=(a=HEAD k=refs/splices/upstream/heads/main~1 l=refs/splices/upstream/heads/main m=refs/splices/upstream-b/heads/main)
   cd "$monorepo"
 }
 
@@ -66,7 +66,7 @@ edit_drawing() {
 
 @test "drawing lanes: U(H) is no label, however many commits are labelled H" {
   edit_drawing -u '//mxCell[@id="k"]/@value' -v H -u '//mxCell[@id="m"]/@value' -v H
-  run check_drawing "$drawing" "${revs[@]}" H=refs/splices/upstream/main~1
+  run check_drawing "$drawing" "${revs[@]}" H=refs/splices/upstream/heads/main~1
   [[ "$output" != *"commits are labelled H"* ]]
 }
 
