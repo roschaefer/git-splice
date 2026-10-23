@@ -34,6 +34,26 @@ the monorepo, commit there and push, as in the walkthrough's
 [fetch](../test/walkthrough/README.md#fetch). The sandbox's shell names
 you "Walkthrough" for such commits, and otherwise uses your git config.
 
+## A comparison's sandbox
+
+Each [comparison](../test/comparisons/README.md) page has a sandbox of
+its own: the library and the monorepo it compares on, in the state the
+page starts from. In a clone of `git-splice`:
+
+    nix develop
+    just comparison git-submodule
+
+Without Nix, run `test/comparisons/sandbox.sh git-submodule`; it needs
+Bash and Git, and the tool a page compares with, e.g. `git-subrepo`.
+Without a page, it lists them all.
+
+It drops you into a shell in the page's monorepo, `$COMPARISON/monorepo`.
+The shell has the page's environment: its commit dates, its author, App
+Dev, and its URLs, which lead from `https://git.example.com/` to the
+library next door. Your own git config stays out, as it does for the
+page. So the page's commands, pasted as they are, print what the page
+shows, commit hashes included.
+
 ## The output is real
 
 No output in these docs is pasted in.
