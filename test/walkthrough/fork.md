@@ -17,22 +17,9 @@ When the original moves on, the fork's `main` catches up, and the
 branches are rebased onto it. A change the original took drops out of
 `patches` in that rebase.
 
-This repository splices [scrut](https://github.com/facebookincubator/scrut),
-its test runner, this way:
-
-| | in this walkthrough | for `scrut/` |
-| --- | --- | --- |
-| The original | `pkg-a` | [facebookincubator/scrut](https://github.com/facebookincubator/scrut) |
-| The fork | `pkg-a-fork` | [roschaefer/scrut](https://github.com/roschaefer/scrut) |
-| One branch per change | `fix/parser` | `docs/working-directory-grammar`, `fix/subprocess-full-timeouts`, `feat/test-jobs` |
-| All changes | `patches` | `feat/scrut-parallel-jobs` ([roschaefer/scrut#1](https://github.com/roschaefer/scrut/pull/1)) |
-
-[`scrut/.splice`](../../scrut/.splice) configures the fork as below
-([#225](https://github.com/roschaefer/git-splice/pull/225)).
-Meta doesn't merge scrut's pull requests on GitHub. It imports them,
-and they come back as new commits
-([export tools](../comparisons/third-party/export-tools.md#metas-shipit)).
-This walkthrough's maintainer does the same.
+This repository works with
+[scrut](https://github.com/facebookincubator/scrut), its test runner,
+the same way: `scrut/` is a splice that follows a fork of it.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -125,9 +112,8 @@ pkg-a: fix the parser
 
 From `fix/parser`, open a pull request against the fork's `main` to run
 the library's CI, and one against the original. A change that needs
-another one, like `--jobs` needs the `subprocess` upgrade in scrut,
-carries that one's commit too, and its pull request waits for the
-other's.
+another one carries that one's commit too, and its pull request waits
+for the other's.
 
 ## The original moves on
 
@@ -191,10 +177,40 @@ On branch main
   up to date  vendor/pkg-a -> fork/patches
 ```
 
+`pull` fetched the fork only. `fetch` fetches both upstreams:
+
+```scrut
+$ git splice fetch vendor/pkg-a
+ok   vendor/pkg-a fetched from origin (main moved 703b936..a4c229c)
+ok   vendor/pkg-a fetched from fork
+```
+
+The splice's two upstreams side by side. The original, `origin`, has
+*k* (`pkg-a: seed`), *m* (`pkg-a: a second commit, after the clone`)
+and *n* (`add a feature`) on `main`. The fork has the same `main`, and
+*q* (`pkg-a: fix the parser`) on top of it, on both `fix/parser` and
+`patches`. The monorepo committed the fix as *x*, and *p* pulled *q*:
+
+<div align="center">
+
+![The monorepo's x and p, which is H and B; the lane vendor/pkg-a/ split in two: origin with k, m and n, its main; fork with the same k, m and n, its main, and q on top, which is T, R, U(H), U(B), patches and fix/parser](fork.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ source "$TESTDIR/../../check-drawing/check-drawing" &&
+>   check_drawing "$TESTDIR/fork.drawio.svg" \
+>     x=HEAD~1 p=HEAD k=refs/splices/pkg-a/main~2 m=refs/splices/pkg-a/main~1 \
+>     n=refs/splices/pkg-a/main q=refs/splices/pkg-a-fork/patches
+ok   fork.drawio.svg: 9 commits, 10 arrows, 4 boxes, 1 lanes, 2 upstreams
+```
+-->
+
 ## The original takes the change
 
-The maintainer takes the pull request as a new commit on `main`, the way
-Meta's import does: same change, new message, new parent.
+The maintainer takes the pull request as a new commit on `main`: same
+change, new message, new parent, as a squash merge would.
 
 ```scrut
 $ cd "$WALKTHROUGH/pkg-a" &&
@@ -248,9 +264,9 @@ pkg-a: a second commit, after the clone
 a parser fix
 ```
 
-If the maintainer edited the change on the way, as Meta's reviewers
-sometimes do, the rebase conflicts in the fork instead. Resolve it with
-the original's version, and the monorepo pulls that.
+If the maintainer edited the change on the way, the rebase conflicts in
+the fork instead. Resolve it with the original's version, and the
+monorepo pulls that.
 
 ## Push before the fork rebases
 
