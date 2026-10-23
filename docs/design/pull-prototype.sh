@@ -47,7 +47,7 @@ reroot() {
   rm -f "$idx"
 }
 
-fetch() { git fetch -q "$URL" "+refs/heads/*:refs/splices/$P/*"; }
+fetch() { git fetch -q "$URL" "+refs/heads/*:refs/splices/$P/heads/*"; }
 
 echo "=== add: one commit, upstream history stays in refs/splices/"
 fetch

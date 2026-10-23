@@ -198,7 +198,7 @@ what it holds and which commands write it. Why it looks like that:
 Upstream branches are fetched by URL into private refs:
 
 ```
-git fetch --prune <url> '+refs/heads/*:refs/splices/<key>/*'
+git fetch --prune <url> '+refs/heads/*:refs/splices/<key>/heads/*'
 ```
 
 The key is the upstream's short name in this repository. The first
