@@ -203,6 +203,37 @@ swap_splice_files() {
   [ "${lines[2]}" = "  up to date  vendor/a/b -> master" ]
 }
 
+@test "nested: a .splice below without default-branch can't follow a splice above that pins a tag" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  git -C "$upstream" tag v1 master
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  git config --file vendor/a/.splice --unset upstream.origin.default-branch
+  git config --file vendor/a/.splice upstream.origin.default-pin v1
+  git commit -q -m "vendor/a: pin v1" -- vendor/a/.splice
+  splice fetch vendor/a
+  run splice status vendor/a/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b follows the default branch of vendor/a, which pins the tag 'v1' -- record one for vendor/a/b: git config --file vendor/a/b/.splice upstream.<name>.default-branch <branch>"* ]]
+}
+
+@test "nested: a .splice below with its own default-pin syncs with it inside a splice above that pins a tag" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  git -C "$upstream" tag v1 master
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  git config --file vendor/a/.splice --unset upstream.origin.default-branch
+  git config --file vendor/a/.splice upstream.origin.default-pin v1
+  local b_commit
+  b_commit="$(git config --file vendor/a/b/.splice splice.commit)"
+  git config --file vendor/a/b/.splice upstream.origin.default-pin "$b_commit"
+  git commit -q -m "pin vendor/a and vendor/a/b" -- vendor/a/.splice vendor/a/b/.splice
+  splice fetch
+  run splice status vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = "  up to date  vendor/a/b -> ${b_commit:0:7}" ]
+}
+
 @test "nested: clone inside a splice records default-branch only where it differs from the splice above's" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   local upstream_main="$BATS_TEST_TMPDIR/main.git"

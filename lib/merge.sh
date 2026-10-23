@@ -9,7 +9,8 @@ commit per splice. Never touches the network: run 'git splice fetch'
 first, or 'git splice pull' to do both.
 
 The upstream branch is the one named like the current branch; on the
-monorepo's default branch, the upstream's default-branch if it has one.
+monorepo's default branch, the upstream's default-branch if it has one,
+or the tag or commit its default-pin names.
 --branch names another one for this merge, e.g. the one the default
 branch follows, on a pull request's branch the upstream has none for.
 It doesn't change .splice, and the splices below keep theirs.
@@ -71,6 +72,10 @@ merge_one() {
   case "$SPLICE_STATE" in
     never-fetched)
       log_warn "$path: not fetched yet -- run 'git splice fetch $(upstream_option "$path")$path' first"
+      return 1
+      ;;
+    missing-pin)
+      log_err "$path: $(target_description) isn't here -- run 'git splice fetch $(upstream_option "$path")$path', or check that upstream has it"
       return 1
       ;;
     missing-branch)

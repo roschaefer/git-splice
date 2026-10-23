@@ -5,9 +5,14 @@
 # Classifies splice <path>'s sync state while the monorepo is on <branch>.
 # Sets, as globals, since status, merge, push, diff and log all need them:
 #   SPLICE_STATE            see below
-#   SPLICE_UPSTREAM_BRANCH  the upstream branch this branch syncs with
+#   SPLICE_TARGET_KIND      what this branch syncs with: an upstream branch,
+#                           or the tag or commit default-pin names
+#                           (resolve_upstream_target)
+#   SPLICE_UPSTREAM_BRANCH  its name: the branch's, the tag's, or the
+#                           commit id
 #   SPLICE_UPSTREAM_LABEL   how messages name it (upstream_branch_label)
-#   SPLICE_TARGET_REF       refs/splices/<key>/heads/<upstream branch>
+#   SPLICE_TARGET_REF       refs/splices/<key>/heads/<branch>,
+#                           refs/splices/<key>/tags/<tag>, or the commit id
 #   SPLICE_SYNCED           the synced commit U(H) from the state file
 #   SPLICE_REBUILT          the rebuild R of HEAD (see splice_rebuild), when
 #                           the state needed it
@@ -15,6 +20,8 @@
 # SPLICE_STATE is one of:
 #   never-fetched      no upstream branch fetched yet
 #   missing-branch     upstream has no branch like this one (or is empty)
+#   missing-pin        the tag or commit default-pin names isn't here:
+#                      upstream lacks it, or it wasn't fetched yet
 #   up-to-date         the splice's content equals the upstream branch
 #   push               pushing fast-forwards the upstream branch
 #   pull               the upstream branch has commits this branch lacks
@@ -30,8 +37,10 @@ classify_splice() {
   SPLICE_REBUILT=""
   # Also for a splice a merge above just brought in.
   require_upstream_branches "$branch" "$path"
-  SPLICE_UPSTREAM_BRANCH="$(upstream_branch_for "$path" "$branch")"
-  SPLICE_UPSTREAM_LABEL="$(upstream_branch_label "$path" "$SPLICE_UPSTREAM_BRANCH")"
+  resolve_upstream_target "$path" "$branch"
+  SPLICE_TARGET_KIND="$TARGET_KIND"
+  SPLICE_UPSTREAM_BRANCH="$TARGET_NAME"
+  SPLICE_UPSTREAM_LABEL="$(upstream_branch_label "$path" "$(target_label)")"
   SPLICE_SYNCED="$(splice_config "$path" commit)"
 
   if ! splice_fetched "$path"; then
@@ -47,8 +56,13 @@ classify_splice() {
     return
   fi
 
-  SPLICE_TARGET_REF="$(splice_ref "$path" "$SPLICE_UPSTREAM_BRANCH")"
-  if ! git show-ref --verify --quiet "$SPLICE_TARGET_REF"; then
+  SPLICE_TARGET_REF="$TARGET_REF"
+  if [[ "$SPLICE_TARGET_KIND" != branch ]]; then
+    if ! git rev-parse --verify --quiet "$SPLICE_TARGET_REF^{commit}" >/dev/null; then
+      SPLICE_STATE="missing-pin"
+      return
+    fi
+  elif ! git show-ref --verify --quiet "$SPLICE_TARGET_REF"; then
     SPLICE_STATE="missing-branch"
     return
   fi
@@ -92,9 +106,11 @@ classify_splice() {
 # rebuild with upstream's default branch instead, as a PR from the branch
 # would. Sets:
 #   SPLICE_REBUILT          the rebuild R (empty: no content)
-#   SPLICE_DEFAULT_BRANCH   upstream's default branch, for messages
-#   SPLICE_DEFAULT_REF      its fetched ref; empty if upstream doesn't have
-#                           it, e.g. an empty upstream after init
+#   SPLICE_DEFAULT_BRANCH   upstream's default branch, or the tag or commit
+#                           default-pin names, for messages
+#   SPLICE_DEFAULT_REF      its fetched ref, or the commit; empty if
+#                           upstream doesn't have it, e.g. an empty upstream
+#                           after init
 #   SPLICE_NEW_COMMITS      commits of R the default branch lacks: the
 #                           push that creates the branch publishes them
 #   SPLICE_BEHIND_COMMITS   commits of the default branch R lacks
@@ -104,12 +120,13 @@ classify_splice() {
 compare_with_default_branch() {
   local path="$1" counts
   SPLICE_NEW_COMMITS=0 SPLICE_BEHIND_COMMITS=0 SPLICE_DEFAULT_REF=""
-  SPLICE_DEFAULT_BRANCH="$(splice_default_branch "$path")"
-  [[ -n "$SPLICE_DEFAULT_BRANCH" ]] || return 1
+  resolve_default_target "$path"
+  [[ -n "$TARGET_NAME" ]] || return 1
+  SPLICE_DEFAULT_BRANCH="$(target_label)"
   SPLICE_REBUILT="$(splice_rebuild "$path")" || return 1
   [[ -n "$SPLICE_REBUILT" ]] || return 0
-  if git show-ref --verify --quiet "$(splice_ref "$path" "$SPLICE_DEFAULT_BRANCH")"; then
-    SPLICE_DEFAULT_REF="$(splice_ref "$path" "$SPLICE_DEFAULT_BRANCH")"
+  if git rev-parse --verify --quiet "$TARGET_REF^{commit}" >/dev/null; then
+    SPLICE_DEFAULT_REF="$TARGET_REF"
     counts="$(git rev-list --left-right --count "$SPLICE_REBUILT...$SPLICE_DEFAULT_REF")" || return 1
     read -r SPLICE_NEW_COMMITS SPLICE_BEHIND_COMMITS <<<"$counts"
   else

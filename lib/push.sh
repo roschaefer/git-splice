@@ -19,6 +19,9 @@ on a feature branch doesn't spawn empty branches upstream. Commits the
 feature branch got from the branch it was cut from count too: when
 upstream takes changes only through PRs, that's how they get there.
 
+On the monorepo's default branch, a default-pin names a tag or a commit,
+which isn't pushed to: push refuses there.
+
 --force overwrites the upstream branch with the monorepo's side: when the
 two share no history, or to discard commits only upstream has.
 
@@ -57,6 +60,10 @@ push_one() {
   classify_splice "$path" "$branch" || return 1
   local upstream_branch="$SPLICE_UPSTREAM_BRANCH" label="$SPLICE_UPSTREAM_LABEL" option
   option="$(upstream_option "$path")"
+  if [[ "$SPLICE_TARGET_KIND" != branch ]]; then
+    log_err "$path: pinned at $(target_description) -- a $SPLICE_TARGET_KIND isn't pushed to: push from a feature branch, or follow a branch again: git config --file $(shell_quote "$path/$STATE_FILE") --unset upstream.${SPLICE_UPSTREAM_NAMES[$path]}.default-pin"
+    return 1
+  fi
   case "$SPLICE_STATE" in
     never-fetched)
       log_warn "$path: not fetched -- run 'git splice fetch $option$path' first"
