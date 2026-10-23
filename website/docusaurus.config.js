@@ -69,6 +69,21 @@ module.exports = {
     ],
   ],
 
+  // Full-text search, indexed at build time: no external service.
+  themes: [
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        docsDir: '..',
+        docsRouteBasePath: '/',
+        indexBlog: false,
+        hashed: true,
+        language: ['en'],
+        highlightSearchTermsOnTargetPage: true,
+      },
+    ],
+  ],
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
