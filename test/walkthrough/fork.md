@@ -349,5 +349,8 @@ fork's version of what the monorepo already has, even where the rebase
 rewrote the synced commit away: like `git pull --rebase`, `pull` merges
 from where `patches` was before, its fork point in the fetched branch's
 reflog ([patch-branch-rebased](../scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)).
+That reflog is local, as in Git: it needs a fetch of `patches` from
+before the rebase. A clone of the monorepo that first fetches after the
+rebase has no fork point, and its pull conflicts as `git merge` would.
 A change that wasn't pushed in time needs
 [`pull --rebase`](../scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/README.md).
