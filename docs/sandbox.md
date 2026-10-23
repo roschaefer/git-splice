@@ -48,13 +48,20 @@ scenario's README. Without Nix, run `test/sandbox.sh` with the page; it
 needs Bash and Git, and the tool a page compares with, e.g. `git-subrepo`.
 Without a page, it lists them.
 
-The sandbox runs the page's commands up to the first one that prints
-something, so it has the page's setup, and drops you into a shell in its
-monorepo. The shell has the page's environment: its commit dates, its
-author and its URLs, which lead from `https://git.example.com/` to the
-repositories next door. Your own git config stays out, as it does for the
-page. So the page's commands, pasted as they are, print what the page
-shows, commit hashes included.
+The sandbox builds the state the page starts from: it runs the page's
+setup, up to the first command the page shows you, i.e. what the page
+hides before it, and what it shows that only calls a helper of the
+setup, like a scenario's `build_scenario`. Then it drops you into bash
+in the page's monorepo, so you run every command the page shows
+yourself, from the first one.
+
+That bash has your `~/.bashrc`, then the page's environment: its commit
+dates, its author, its URLs, which lead from `https://git.example.com/`
+to the repositories next door, and the C locale and GMT, as scrut runs
+it. It has the setup's helpers too, e.g. `seed_bare_repo` for a commit
+someone else pushes. Your own git config stays out, as it does for the
+page. So the commands, pasted as they are, print what the page shows,
+commit hashes included.
 
 ## The output is real
 
