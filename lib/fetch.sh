@@ -23,19 +23,8 @@ EOF
 # splice's synced commit; any <commit> given that no branch upstream has
 # any more (e.g. after a force push) is fetched by id.
 fetch_upstream() {
-  local url="$1" prefix="$2" commit ref key_prefix="${2%heads/}"
+  local url="$1" prefix="$2" commit
   shift 2
-  # Branches used to lie directly under refs/splices/<key>/. Left there,
-  # they'd keep their commits, and the old layout, around for good.
-  while IFS= read -r ref; do
-    case "$ref" in
-      "$key_prefix"heads/* | "$key_prefix"tags/*) ;;
-      *)
-        log_err "$ref is from before branches moved to ${key_prefix}heads/ -- remove the old refs, then fetch again: git for-each-ref --format='delete %(refname)' $key_prefix | git update-ref --stdin"
-        return 1
-        ;;
-    esac
-  done < <(git for-each-ref --format='%(refname)' "$key_prefix")
   git -c core.logAllRefUpdates=always fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
   for commit in "$@"; do
     # A splice made by init has no synced commit until its first pull.

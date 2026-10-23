@@ -21,19 +21,6 @@ setup() {
   [ -z "$(git remote)" ]
 }
 
-@test "fetch: refuses branches left in the layout from before refs/splices/<key>/heads/" {
-  scenario_up_to_date "$monorepo" "$upstream"
-  cd "$monorepo"
-  prefix="$(upstream_refs "$upstream")"
-  git update-ref "${prefix%heads/}main" "${prefix}main"
-  run cmd_fetch
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   ${prefix%heads/}main is from before branches moved to $prefix -- remove the old refs, then fetch again: git for-each-ref --format='delete %(refname)' ${prefix%heads/} | git update-ref --stdin"* ]]
-  git for-each-ref --format='delete %(refname)' "${prefix%heads/}" | git update-ref --stdin
-  run cmd_fetch
-  [ "$status" -eq 0 ]
-}
-
 @test "fetch: says when the branch this one syncs with moved" {
   scenario_up_to_date "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "upstream change"
