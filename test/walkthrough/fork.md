@@ -5,13 +5,15 @@ may take its time with them. Meanwhile, the monorepo needs the changes
 now. A fork of the library holds them in the meantime:
 
 - **The fork's `main`** mirrors the original's `main`, and nothing else.
-- **One branch per change**, on top of the fork's `main`. Each becomes a
-  pull request to the original, on its own, so it can be reviewed and
-  taken on its own. A pull request against the fork's own `main` shows
-  what's still to send, and runs the library's CI.
-- **`patches`** stacks all of them on the fork's `main`. The monorepo's
-  `main` follows it: the splice gets every change, including those the
-  original hasn't taken yet.
+- **`patches`** holds the monorepo's changes on top of the fork's
+  `main`. The monorepo's `main` follows it: the splice gets every
+  change, including those the original hasn't taken yet.
+- **One branch per change**, on top of the fork's `main`, once there
+  are several changes the original should review one by one. Each
+  becomes a pull request to the original, on its own, so it can be
+  reviewed and taken on its own. A pull request against the fork's own
+  `main` shows what's still to send, and runs the library's CI. With a
+  single change, `patches` itself can be the pull request's branch.
 
 When the original moves on, the fork's `main` catches up, and the
 branches are rebased onto it. A change the original took drops out of
@@ -83,9 +85,10 @@ ok   vendor/pkg-a: pushed 7edd872 to fork/patches
 
 ## One branch per change
 
-The pull request to the original gets a branch of its own, with only
-this change on the fork's `main`. In a clone of the fork, with the
-original as a second remote:
+More changes will follow, and `patches` will hold them all, so the pull
+request to the original gets a branch of its own, with only this change
+on the fork's `main`. In a clone of the fork, with the original as a
+second remote:
 
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-a-fork.git" "$WALKTHROUGH/pkg-a-fork" &&
