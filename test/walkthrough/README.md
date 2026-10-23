@@ -211,6 +211,7 @@ pkg-a
 The [sync model](../concepts/sync-model/README.md) explains what these
 commands compute. The workflows combine them for everyday work:
 [feature branches](feature-branches.md),
-[diverged history](diverged.md) and
-[bumping the sync point](bump.md). The [scenarios](../scenarios/README.md)
+[diverged history](diverged.md),
+[bumping the sync point](bump.md) and
+[contributing through a fork](fork.md). The [scenarios](../scenarios/README.md)
 show them in many more situations.
