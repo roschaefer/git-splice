@@ -82,29 +82,3 @@ $ check_drawing "$TESTDIR/fork-default-branch.drawio.svg" \
 ok   fork-default-branch.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes, 2 upstreams
 ```
 -->
-
-### The earlier formats
-
-A `default-branch` in `[splice]` named one branch for every upstream.
-It's refused, rather than read for the default upstream only:
-
-```scrut
-$ git config --file vendor/a/.splice splice.default-branch master &&
->   git commit -q -m "the earlier format" -- vendor/a/.splice &&
->   git splice status
-!!   vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-revision
-[1]
-```
-
-An upstream's `default-branch` is `default-revision` now. The refusal
-prints the commands that rename it:
-
-```scrut
-$ git reset -q --hard HEAD~1 &&
->   git config --file vendor/a/.splice upstream.fork.default-branch trunk &&
->   git config --file vendor/a/.splice --unset upstream.fork.default-revision &&
->   git commit -q -m "the earlier format" -- vendor/a/.splice &&
->   git splice status
-!!   vendor/a/.splice has upstream.fork.default-branch, from an earlier version -- it's default-revision now: git config --file vendor/a/.splice upstream.fork.default-revision trunk && git config --file vendor/a/.splice --unset upstream.fork.default-branch
-[1]
-```
