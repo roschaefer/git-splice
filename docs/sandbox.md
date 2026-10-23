@@ -34,23 +34,26 @@ the monorepo, commit there and push, as in the walkthrough's
 [fetch](../test/walkthrough/README.md#fetch). The sandbox's shell names
 you "Walkthrough" for such commits, and otherwise uses your git config.
 
-## A comparison's sandbox
+## Any page, in a sandbox
 
-Each [comparison](../test/comparisons/README.md) page has a sandbox of
-its own: the library and the monorepo it compares on, in the state the
-page starts from. In a clone of `git-splice`:
+Each page of these docs that runs commands, a walkthrough chapter, a
+concept, a scenario or a comparison, has a sandbox of its own, in the
+state the page starts from. In a clone of `git-splice`:
 
     nix develop
-    just comparison git-submodule
+    just sandbox comparisons/git-submodule
 
-Without Nix, run `test/comparisons/sandbox.sh git-submodule`; it needs
-Bash and Git, and the tool a page compares with, e.g. `git-subrepo`.
-Without a page, it lists them all.
+The page is its path under `test/`, with or without `.md`: e.g.
+`scenarios/02-starting-a-splice/01-clone-copied-content` for that
+scenario's README. Without Nix, run `test/sandbox.sh` with the page; it
+needs Bash and Git, and the tool a page compares with, e.g. `git-subrepo`.
+Without a page, it lists them.
 
-It drops you into a shell in the page's monorepo, `$COMPARISON/monorepo`.
-The shell has the page's environment: its commit dates, its author, App
-Dev, and its URLs, which lead from `https://git.example.com/` to the
-library next door. Your own git config stays out, as it does for the
+The sandbox runs the page's commands up to the first one that prints
+something, so it has the page's setup, and drops you into a shell in its
+monorepo. The shell has the page's environment: its commit dates, its
+author and its URLs, which lead from `https://git.example.com/` to the
+repositories next door. Your own git config stays out, as it does for the
 page. So the page's commands, pasted as they are, print what the page
 shows, commit hashes included.
 

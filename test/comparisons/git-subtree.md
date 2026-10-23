@@ -23,7 +23,11 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git branch before-lib && git rev-list --count HEAD
+$ git branch before-lib
+```
+
+```scrut
+$ git rev-list --count HEAD
 40
 ```
 
