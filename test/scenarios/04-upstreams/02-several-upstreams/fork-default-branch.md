@@ -40,13 +40,16 @@ $ git config --file vendor/a/.splice upstream.fork.url https://git.example.com/c
 ```
 
 ```scrut
-$ git config --file vendor/a/.splice --list
-splice.commit=[0-9a-f]{40} (regex)
-splice.id=[0-9a-f]{16} (regex)
-splice.default-upstream=origin
-upstream.origin.url=https://git.example.com/lib.git
-upstream.fork.url=https://git.example.com/company/lib.git
-upstream.fork.default-branch=trunk
+$ cat vendor/a/.splice
+[splice]
+	commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
+	id = c7ecd5a4c78d8a27
+	default-upstream = origin
+[upstream "origin"]
+	url = https://git.example.com/lib.git
+[upstream "fork"]
+	url = https://git.example.com/company/lib.git
+	default-branch = trunk
 ```
 
 On `main`, the original syncs with its `main`, the fork with `trunk`:

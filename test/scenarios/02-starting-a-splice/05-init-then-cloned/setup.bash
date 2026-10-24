@@ -1,13 +1,14 @@
-# See README.md in this directory.
+# See README.md in this directory. The splice reaches the upstream as $3
+# if given, e.g. a URL that url.<path>.insteadOf maps to it.
 scenario_init_then_cloned() {
-  local monorepo="$1" upstream="$2" original="$1-original"
+  local monorepo="$1" upstream="$2" url="${3:-$2}" original="$1-original"
   make_bare_repo "$upstream"
   # Someone else's monorepo, where lib/a was made a splice and published.
   init_monorepo "$original"
   commit_local "$original" "lib/a" "first version"
   (
     cd "$original"
-    splice init lib/a "$upstream" >/dev/null 2>&1
+    splice init lib/a "$url" >/dev/null 2>&1
     splice push lib/a >/dev/null 2>&1
   )
   commit_local "$original" "lib/a" "second version"

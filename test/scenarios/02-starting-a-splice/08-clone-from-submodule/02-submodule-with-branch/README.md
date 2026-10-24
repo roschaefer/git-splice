@@ -7,41 +7,47 @@ The submodule names `branch = stable` in `.gitmodules`: the branch
 
 - **Monorepo, on `main`**: `vendor/a/` is a submodule of the upstream,
   checked out at `seed`, with `branch = stable`.
-- **Upstream**: `seed`, then `newer` on `main`, and `stable fix` on
+- **Upstream** (`$UPSTREAM`, reached as `https://git.example.com/a.git`):
+  `seed`, then `newer` on `main`, and `stable fix` on
   `stable`.
 
 ## Output
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../../readme-setup.sh"
+$ source "$TESTDIR/../../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.$UPSTREAM.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/a.git
 ```
 -->
 
 [`setup.bash`](setup.bash) builds this state:
 
 ```scrut
-$ build_scenario scenario_submodule_with_branch
+$ build_scenario scenario_submodule_with_branch https://git.example.com/a.git
 ```
 
 ```scrut
-$ git config --file .gitmodules --list
-submodule.vendor/a.path=vendor/a
-submodule.vendor/a.url=$UPSTREAM
-submodule.vendor/a.branch=stable
+$ cat .gitmodules
+[submodule "vendor/a"]
+	path = vendor/a
+	url = https://git.example.com/a.git
+	branch = stable
 ```
 
 ```scrut
 $ git splice clone --from-submodule vendor/a
-===  vendor/a: fetching $UPSTREAM
+===  vendor/a: fetching https://git.example.com/a.git
 ok   vendor/a: cloned bde4164 from the submodule
 ===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
 ```
 
 ```scrut
-$ git config --file vendor/a/.splice --get-regexp '^upstream\.'
-upstream.origin.url $UPSTREAM
-upstream.origin.default-branch stable
+$ cat vendor/a/.splice
+[splice]
+	id = 9ec04ba433cffaa4
+	commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
+[upstream "origin"]
+	url = https://git.example.com/a.git
+	default-branch = stable
 ```
 
 `main` syncs with `stable`, so `stable fix` is there to pull, and

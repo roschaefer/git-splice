@@ -46,15 +46,15 @@ $ git commit -q -m "vendor/a: work with the company fork" -- vendor/a/.splice
 ```
 
 ```scrut
-$ cat vendor/a/.splice | tr '\t' ' '
+$ cat vendor/a/.splice
 [splice]
- commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
- id = c7ecd5a4c78d8a27
- default-upstream = fork
+	commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
+	id = c7ecd5a4c78d8a27
+	default-upstream = fork
 [upstream "origin"]
- url = https://git.example.com/lib.git
+	url = https://git.example.com/lib.git
 [upstream "fork"]
- url = https://git.example.com/company/lib.git
+	url = https://git.example.com/company/lib.git
 ```
 
 The synced commit stays one per splice: a sync point is a commit,

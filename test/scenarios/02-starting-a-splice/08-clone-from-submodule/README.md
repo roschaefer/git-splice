@@ -4,7 +4,8 @@ A submodule, turned into a splice with `git splice clone --from-submodule`.
 
 - **Monorepo, on `main`**: `vendor/a/` is a submodule of the upstream,
   checked out at `seed`.
-- **Upstream**: `seed`, then `newer` on `main`: it moved on since the
+- **Upstream** (`$UPSTREAM`, reached as `https://git.example.com/a.git`):
+  `seed`, then `newer` on `main`: it moved on since the
   submodule's commit.
 
 The splice keeps the submodule's URL and the commit it points to. What
@@ -21,25 +22,26 @@ it follows from then on depends on the submodule's `branch` in
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh"
+$ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.$UPSTREAM.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/a.git
 ```
 -->
 
 [`setup.bash`](setup.bash) builds this state:
 
 ```scrut
-$ build_scenario scenario_clone_from_submodule
+$ build_scenario scenario_clone_from_submodule https://git.example.com/a.git
 ```
 
 ```scrut
-$ git config --file .gitmodules --list
-submodule.vendor/a.path=vendor/a
-submodule.vendor/a.url=$UPSTREAM
+$ cat .gitmodules
+[submodule "vendor/a"]
+	path = vendor/a
+	url = https://git.example.com/a.git
 ```
 
 ```scrut
 $ git splice clone --from-submodule vendor/a
-===  vendor/a: fetching $UPSTREAM
+===  vendor/a: fetching https://git.example.com/a.git
 ok   vendor/a: cloned bde4164 from the submodule
 ===  vendor/a: pinned at bde4164, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin
 ===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)

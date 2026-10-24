@@ -10,7 +10,8 @@ synced last is on no upstream branch any more
 
 - **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *q* from
   `patches`, and follows `patches` on `main`.
-- **Upstream**: *k* (`seed`) on `main`, and two patches on top of it on
+- **Upstream** (`$UPSTREAM`, reached as `https://git.example.com/a.git`):
+  *k* (`seed`) on `main`, and two patches on top of it on
   `patches`: *p* (`patch`) and *q* (`other patch`). Then `main` takes
   the first patch reworded, *m* (`patch, reworded upstream`), and
   `patches` is rebased onto it: *p* drops out, and the other patch gets
@@ -47,14 +48,14 @@ commit](01-unpushed-local-commit/README.md) is a different story.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh"
+$ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.$UPSTREAM.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/a.git
 ```
 -->
 
 [`setup.bash`](setup.bash) builds this state:
 
 ```scrut
-$ build_scenario scenario_patch_branch_rebased
+$ build_scenario scenario_patch_branch_rebased https://git.example.com/a.git
 ```
 
 On the monorepo's default branch, a splice syncs with its upstream's
@@ -62,11 +63,13 @@ On the monorepo's default branch, a splice syncs with its upstream's
 follow that branch, for `pull`, `push` and `status` alike:
 
 ```scrut
-$ git config --file vendor/a/.splice --list
-splice.commit=05c1bab18820a907428ae83bd6ee0a2c8d817ed0
-splice.id=[0-9a-f]{16} (regex)
-upstream.origin.url=$UPSTREAM
-upstream.origin.default-branch=patches
+$ cat vendor/a/.splice
+[splice]
+	commit = 05c1bab18820a907428ae83bd6ee0a2c8d817ed0
+	id = 5e134102fdb37eed
+[upstream "origin"]
+	url = https://git.example.com/a.git
+	default-branch = patches
 ```
 
 <!--
@@ -75,7 +78,7 @@ $ q="$(git config --file vendor/a/.splice splice.commit)"
 ```
 
 ```scrut
-$ check_drawing "$TESTDIR/patch-branch-rebased.drawio.svg" a=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/upstream/heads/main n=refs/splices/upstream/heads/patches
+$ check_drawing "$TESTDIR/patch-branch-rebased.drawio.svg" a=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/a/heads/main n=refs/splices/a/heads/patches
 ok   patch-branch-rebased.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
 ```
 -->
@@ -101,13 +104,13 @@ The fetched branch's reflog has both *n* and *q*, where `patches` was
 before, each with the subject `other patch`:
 
 ```scrut
-$ git log -g --format='%h %s' refs/splices/upstream/heads/patches
+$ git log -g --format='%h %s' refs/splices/a/heads/patches
 63b44f3 other patch
 05c1bab other patch
 ```
 
 ```scrut
-$ [ "$(git merge-base --fork-point refs/splices/upstream/heads/patches "$(git splice rebuild vendor/a)")" = "$(git config --file vendor/a/.splice splice.commit)" ] &&
+$ [ "$(git merge-base --fork-point refs/splices/a/heads/patches "$(git splice rebuild vendor/a)")" = "$(git config --file vendor/a/.splice splice.commit)" ] &&
 >   echo "the fork point is q"
 the fork point is q
 ```
@@ -139,7 +142,7 @@ R, what a push would send, is the upstream's branch itself: the old
 patches, *p* and *q*, don't come back.
 
 ```scrut
-$ [ "$(git splice rebuild vendor/a)" = "$(git rev-parse refs/splices/upstream/heads/patches)" ] && echo "R is T"
+$ [ "$(git splice rebuild vendor/a)" = "$(git rev-parse refs/splices/a/heads/patches)" ] && echo "R is T"
 R is T
 ```
 
@@ -161,7 +164,7 @@ history any more:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/pulled.drawio.svg" a=HEAD~1 x=HEAD k="$q~2" p="$q~1" q="$q" \
->   m=refs/splices/upstream/heads/main n=refs/splices/upstream/heads/patches
+>   m=refs/splices/a/heads/main n=refs/splices/a/heads/patches
 ok   pulled.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
 ```
 -->

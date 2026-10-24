@@ -119,13 +119,13 @@ ok   vendor/a: pushed e824c9c to origin/main
 ```
 
 ```scrut
-$ git -C "$UPSTREAM" show main:b/.splice | tr '\t' ' '
+$ git -C "$UPSTREAM" show main:b/.splice
 [splice]
- commit = d5d5b62373ad5b94d1393019ab51f2ad34bb43c2
- id = 548ac82ad47ea22d
- default-upstream = origin
+	commit = d5d5b62373ad5b94d1393019ab51f2ad34bb43c2
+	id = 548ac82ad47ea22d
+	default-upstream = origin
 [upstream "origin"]
- url = https://git.example.com/b.git
+	url = https://git.example.com/b.git
 [upstream "fork"]
- url = https://git.example.com/company/b.git
+	url = https://git.example.com/company/b.git
 ```
