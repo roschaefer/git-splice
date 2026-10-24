@@ -84,19 +84,19 @@ splice: clone vendor/pkg-b from submodule at 9b3cb02
  4 files changed, 7 insertions(+), 4 deletions(-)
 ```
 
-The splice keeps what the submodule followed. This submodule names no
-`branch` in `.gitmodules`, so it stayed at its commit, and the splice
-stays too: `default-pin` pins `9b3cb02`
-([default-pin](../scenarios/04-upstreams/06-default-pin/README.md)).
-A submodule with `branch = <name>`, the branch
-`git submodule update --remote` follows, gets that branch as its
-`default-branch` instead, and `branch = .` gets neither: a splice follows
-the branch named like the monorepo's by default.
+The splice keeps what the submodule followed, its `branch` in
+`.gitmodules`
+([clone-from-submodule](../scenarios/02-starting-a-splice/08-clone-from-submodule/README.md)):
 
-```scrut
-$ git config --file vendor/pkg-b/.splice upstream.origin.default-pin
-9b3cb02af44029fd61f1a57699c3dbf033958071
-```
+- **No `branch`**, as here: it stays at its commit, pinned with
+  `default-pin`
+  ([submodule-without-branch](../scenarios/02-starting-a-splice/08-clone-from-submodule/01-submodule-without-branch/README.md)).
+- **`branch = <name>`**: it follows that branch, recorded as
+  `default-branch`
+  ([submodule-with-branch](../scenarios/02-starting-a-splice/08-clone-from-submodule/02-submodule-with-branch/README.md)).
+- **`branch = .`**: it follows the branch named like the monorepo's, as
+  every splice does without either setting
+  ([submodule-with-branch-dot](../scenarios/02-starting-a-splice/08-clone-from-submodule/03-submodule-with-branch-dot/README.md)).
 
 The upstream has to serve the commit, on a branch, a tag or by id, so
 it's there for everyone after the switch. A checkout of the submodule
