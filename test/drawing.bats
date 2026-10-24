@@ -53,7 +53,7 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   c is after B, so the rebuild walks it: fill it grey, #E0E0E0" ]
+  [ "$output" = "!!   c is a commit the rebuild walks: fill it grey, #E0E0E0" ]
 }
 
 @test "drawing: a commit the rebuild doesn't walk stays white" {
@@ -67,7 +67,7 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@id="b"]/@style' -v 'ellipse;aspect=fixed;fillColor=#E0E0E0;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   b is after B, and R copies it: outline it orange, #E07000" ]
+  [ "$output" = "!!   b is a commit R copies: outline it orange, #E07000" ]
 }
 
 @test "drawing: R's copy of a commit is outlined orange too" {
@@ -89,6 +89,53 @@ edit_drawing() {
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   c is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
+}
+
+@test "drawing: black and white set explicitly are colors too" {
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=#000000;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#FFFFFF;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
+}
+
+# Writes a drawing of two monorepo commits, x and its child y, styled $1
+# and $2.
+two_commits_drawing() {
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="x" parent="1" vertex="1" style="$1" value="x"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="y" parent="1" vertex="1" style="$2" value="y"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="e0" parent="1" edge="1" source="x" target="y"><mxGeometry relative="1" as="geometry" /></mxCell>
+</root></mxGraphModel></diagram></mxfile>
+XML
+}
+
+@test "drawing: a copy shares the whole message, not only the subject" {
+  export GIT_AUTHOR_DATE=2026-01-02T00:00:00Z GIT_COMMITTER_DATE=2026-01-02T00:00:00Z
+  echo fix >>lib/file.txt && git add lib/file.txt && git commit -q -m "fix" -m "in lib"
+  echo call >>app.txt && git add app.txt && git commit -q -m "fix" -m "in the app"
+  two_commits_drawing 'ellipse;fillColor=#E0E0E0;strokeColor=#E07000;' 'ellipse;fillColor=#E0E0E0;'
+  run check_drawing "$drawing" x=HEAD~1 y=HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: right after init, the rebuild walks the mount commit and copies it" {
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  scenario_init_new_upstream "$BATS_TEST_TMPDIR/init" "$BATS_TEST_TMPDIR/init.git"
+  cd "$BATS_TEST_TMPDIR/init"
+  splice init lib/a "$BATS_TEST_TMPDIR/init.git" >/dev/null
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="m" parent="1" vertex="1" style="ellipse;fillColor=#E0E0E0;strokeColor=#E07000;" value="m"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="m_" parent="1" vertex="1" style="ellipse;dashed=1;strokeColor=#E07000;" value="m'"><mxGeometry x="160" y="0" width="70" height="70" as="geometry" /></mxCell>
+</root></mxGraphModel></diagram></mxfile>
+XML
+  run check_drawing "$drawing" m=HEAD
+  [ "$status" -eq 0 ]
 }
 
 @test "drawing: a box sits with the commit it points at" {
