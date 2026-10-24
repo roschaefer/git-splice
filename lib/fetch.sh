@@ -71,20 +71,21 @@ fetch_shared_upstream() {
     # is its default: the commands that need it refuse then.
     upstream_branches[i]="$(upstream_branch_for "$path" "$branch" "${entry#*:}" 2>/dev/null)" || true
     tag_of[i]=""
-    # Only a default-pin fetches a tag or a commit.
-    pin=""
-    if ! branch_arg_applies "$path" && [[ "$branch" == "$(monorepo_default_branch)" ]]; then
-      pin="$(upstream_config "$path" "${entry#*:}" default-pin)"
-    fi
+    # Only a default-pin fetches a tag or a commit. Every branch fetches
+    # it: a feature branch compares with it when upstream has no branch
+    # like it (compare_with_default_branch).
+    pin="$(upstream_config "$path" "${entry#*:}" default-pin)"
     if is_commit_id "$pin"; then
       synced+=("$pin")
     else
       tag_of[i]="$pin"
     fi
     [[ -z "${tag_of[i]}" || " ${tags[*]} " == *" ${tag_of[i]} "* ]] || tags+=("${tag_of[i]}")
-    # A pinned splice has no branch that could move.
+    # A splice pinned on this branch has no branch that could move.
     target_refs[i]=""
-    [[ -n "$pin" ]] || target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
+    if [[ -z "$pin" ]] || branch_arg_applies "$path" || [[ "$branch" != "$(monorepo_default_branch)" ]]; then
+      target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
+    fi
     old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
     synced+=("$(splice_config "$path" commit)")
     i=$((i + 1))

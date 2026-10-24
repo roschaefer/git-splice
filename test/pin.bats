@@ -157,3 +157,15 @@ pinned_to_v1() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   vendor/a: the tag 'v9' isn't here -- run 'git splice fetch vendor/a', or check that upstream has it"* ]]
 }
+
+@test "pin: a feature branch fetches the tag too, so an unchanged splice in a fresh clone doesn't push as a new branch" {
+  pinned_to_v1
+  git for-each-ref --format='%(refname)' refs/splices/ | xargs -n1 git update-ref -d
+  git switch -q -c feature
+  splice fetch >/dev/null
+  run splice status
+  [ "$output" = "$(printf 'On branch feature\n\n  unchanged, no upstream branch  vendor/a')" ]
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  ! git -C "$upstream" show-ref --verify --quiet refs/heads/feature
+}
