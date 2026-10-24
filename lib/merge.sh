@@ -360,13 +360,28 @@ synced_commit_here() {
   [[ -z "$synced" ]] || git cat-file -e "$synced^{commit}" 2>/dev/null
 }
 
+# Succeeds if the tag or commit the default-pin of splice <path>'s
+# upstream in use names is here, or it has none.
+pin_here() {
+  local pin
+  pin="$(upstream_config "$1" "${SPLICE_UPSTREAM_NAMES[$1]:-}" default-pin)"
+  if [[ -z "$pin" ]]; then
+    return 0
+  elif is_commit_id "$pin"; then
+    git cat-file -e "$pin^{commit}" 2>/dev/null
+  else
+    git show-ref --verify --quiet "refs/splices/${SPLICE_KEYS[$1]:-.}/tags/$pin"
+  fi
+}
+
 # Reads splice <path>'s upstreams again after a merge above changed its
 # .splice, and uses the one the command chose (use_upstreams). A pull
 # (<verb>) fetches the upstreams it names now, but didn't before: the
 # synced commit the merge above moved it to may be in any of them. It
 # also fetches the one it uses if that synced commit isn't here: it may
 # be on no branch of an upstream it had, e.g. after a force-push, and
-# fetch_upstream fetches it by its hash. Fails, saying why, if one can't
+# fetch_upstream fetches it by its hash; or if the merge pinned it at a
+# tag or commit that isn't here. Fails, saying why, if one can't
 # be fetched, if the synced commit is on none of them, or if a merge would
 # use one that wasn't.
 reload_splice_upstream() {
@@ -385,7 +400,7 @@ reload_splice_upstream() {
     entries+=("$path:$name")
     [[ "$name" != "${SPLICE_UPSTREAM_NAMES[$path]}" ]] || used_is_new=1
   done
-  if [[ ${#entries[@]} -eq 0 ]] && ! synced_commit_here "$path"; then
+  if [[ ${#entries[@]} -eq 0 ]] && { ! synced_commit_here "$path" || ! pin_here "$path"; }; then
     entries=("$path:${SPLICE_UPSTREAM_NAMES[$path]}")
     used_is_new=1
   fi

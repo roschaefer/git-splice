@@ -466,6 +466,20 @@ b_moved_to_a_commit_no_branch_has() {
   [[ "$output" != *"no common"* && "$output" != *"unrelated"* ]]
 }
 
+@test "nested: pull --all fetches the tag the pull of a pins b at" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  git -C "$upstream_b" tag v1 main
+  work_in_upstream_a
+  git config --file b/.splice upstream.origin.default-pin v1
+  git commit -q -m "pin b at v1" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  run splice status vendor/a/b
+  [ "${lines[1]}" = "  up to date  vendor/a/b -> tags/v1" ]
+}
+
 # As above, and b's upstream lost the dropped commit for good, e.g. to gc.
 b_moved_to_a_commit_upstream_lost() {
   b_moved_to_a_commit_no_branch_has
