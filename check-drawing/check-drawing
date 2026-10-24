@@ -412,6 +412,102 @@ check_drawing() {
     fi
   done
 
+  # What the next rebuild does with a commit: a monorepo commit on the
+  # first-parent history since B, which the rebuild walks, is filled grey;
+  # a change it carries across is outlined orange, on both ends: a walked
+  # commit R copies, and its copy in R. A fill only ever marks monorepo
+  # commits, which are never dashed, so it can't blur a dashed outline.
+  # Without splices, e.g. in a drawing of git subtree, neither is checked.
+  local walked_fill="#E0E0E0" carried_outline="#E07000" want have c
+  local -A walked=() copied=() walked_label=()
+  # What a copy shares with the commit it copies: author, dates and the
+  # whole message.
+  copy_key() {
+    git show -s --format='%an%x1f%ae%x1f%ad%x1f%B' --date=raw "$1" | git hash-object --stdin
+  }
+  for p in "${splices[@]}"; do
+    [[ -n "${truth["$p|loaded"]:-}" && -n "${truth["$p|B"]}" ]] || continue
+    if [[ -n "${truth["$p|R"]}" ]]; then
+      for c in $(git rev-list "${truth["$p|R"]}" ${truth["$p|S"]:+"^${truth["$p|S"]}"}); do
+        copied["$(copy_key "$c")"]=1
+      done
+    fi
+    for c in $(git rev-list --first-parent "${truth["$p|B"]}..HEAD"); do walked[$c]=1; done
+    # Where the splice starts, the rebuild walks B too, and copies it,
+    # e.g. right after init.
+    [[ -z "${copied["$(copy_key "${truth["$p|B"]}")"]:-}" ]] || walked[${truth["$p|B"]}]=1
+  done
+  # The color of style key $2 of shape $1: $3 where it sets none, white
+  # and black by those names.
+  color_of() {
+    local c
+    c="$(sed -n "s/.*;$2=\([^;]*\);.*/\1/p" <<<";${style[$1]};")"
+    c="${c^^}"
+    case "$c" in
+      "" | NONE | DEFAULT) c="$3" ;;
+      "#FFFFFF" | WHITE) c=white ;;
+      "#000000" | BLACK) c=black ;;
+    esac
+    printf '%s\n' "$c"
+  }
+  # Each walked monorepo commit's label, by what its copy in R shares
+  # with it: author, dates and message.
+  for id in "${commits[@]}"; do
+    hash="${commit_of[$id]:-}"
+    [[ -n "$hash" && -n "${walked[$hash]:-}" && "${value[$id]}" != *\' ]] || continue
+    walked_label["$(copy_key "$hash")"]="${value[$id]}"
+  done
+  local is_walked is_carried k
+  for id in "${commits[@]}"; do
+    hash="${commit_of[$id]:-}"
+    [[ -n "$hash" && ${#splices[@]} -gt 0 ]] || continue
+    is_walked="" is_carried=""
+    sp="${splice_of[$id]}"
+    # R's copy of a drawn commit is labelled after it, with a '.
+    if [[ "${value[$id]}" != *\' && -n "$sp" && -n "${truth["$sp|R"]:-}" ]] && ! in_monorepo "$hash" &&
+      git merge-base --is-ancestor "$hash" "${truth["$sp|R"]}" 2>/dev/null; then
+      k="$(copy_key "$hash")"
+      if [[ -n "${walked_label[$k]:-}" ]]; then
+        errors+=("${value[$id]} is R's copy of ${walked_label[$k]}: label it ${walked_label[$k]}'")
+        continue
+      fi
+    fi
+    if [[ "${value[$id]}" == *\' ]]; then
+      if [[ -n "$sp" && -n "${truth["$sp|R"]:-}" ]] &&
+        git merge-base --is-ancestor "$hash" "${truth["$sp|R"]}" 2>/dev/null &&
+        ! { [[ -n "${truth["$sp|S"]}" ]] && git merge-base --is-ancestor "$hash" "${truth["$sp|S"]}"; }; then
+        is_carried=1
+      fi
+    elif in_monorepo "$hash" && [[ ${#lanes[@]} -eq 0 || -z "${lane_of[$id]}" ]] && [[ -n "${walked[$hash]:-}" ]]; then
+      is_walked=1
+      [[ -z "${copied["$(copy_key "$hash")"]:-}" ]] || is_carried=1
+    fi
+
+    have="$(color_of "$id" fillColor white)"
+    want=white
+    [[ -z "$is_walked" ]] || want="$walked_fill"
+    if [[ "$have" != "$want" ]]; then
+      if [[ -n "$is_walked" ]]; then
+        errors+=("${value[$id]} is a commit the rebuild walks: fill it grey, $walked_fill")
+      else
+        errors+=("${value[$id]} is filled, but the rebuild doesn't walk it: leave it white")
+      fi
+    fi
+
+    have="$(color_of "$id" strokeColor black)"
+    want=black
+    [[ -z "$is_carried" ]] || want="$carried_outline"
+    if [[ "$have" != "$want" ]]; then
+      if [[ -n "$is_carried" && "${value[$id]}" == *\' ]]; then
+        errors+=("${value[$id]} is R's copy of a commit since B: outline it orange, $carried_outline")
+      elif [[ -n "$is_carried" ]]; then
+        errors+=("${value[$id]} is a commit R copies: outline it orange, $carried_outline")
+      else
+        errors+=("${value[$id]} is outlined in color, but the rebuild doesn't carry it across: outline it black")
+      fi
+    fi
+  done
+
   # Succeeds if box term $1 is a branch name, not H, B, T, R, U(x) or
   # merge-base(R,T).
   is_branch_term() {

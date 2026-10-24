@@ -75,7 +75,7 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 - **Commit**: a circle (ellipse). Its label is the commit's subject,
   looked up on the monorepo's first-parent history, then upstream. A
   label with a trailing `'` (*b'* for *b*) is the rebuild's copy of the
-  commit without it: the same message, author and dates, in R's history
+  commit without it, and a copy of a drawn commit is labelled so: the same message, author and dates, in R's history
   or on a fetched upstream branch, where a push put it.
 - **Parent arrow**: an arrow between two commits points from a parent to
   its child.
@@ -119,6 +119,17 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   history yet: no upstream branch has them, like R's copies of monorepo
   commits, or commits a rewrite of the upstream removed. A solid commit
   that T lacks needs a box for an upstream branch that has it.
+
+- **Filled and outlined**: what the next rebuild does with a commit.
+  - Filled grey, `#E0E0E0`: a monorepo commit on the first-parent
+    history since B, which the rebuild walks. Every other commit is
+    white.
+  - Outlined orange, `#E07000`: a change the rebuild carries across, on
+    both ends: a walked commit R copies, and its copy, a commit with a
+    trailing `'` in R's history since U(B). Every other commit is
+    outlined black.
+  - In a drawing without splices, e.g. of what `git subtree` makes,
+    neither is checked.
 
 What a drawing shows is checked, not where: positions only matter for
 which lane a shape is in.
