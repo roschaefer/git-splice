@@ -120,6 +120,13 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   commits, or commits a rewrite of the upstream removed. A solid commit
   that T lacks needs a box for an upstream branch that has it.
 
+- **Filled**: a monorepo commit's fill says what the next rebuild does
+  with it: grey, `#E0E0E0`, if it's on the first-parent history since
+  B, which the rebuild walks; orange, `#FFB570`, if R has a copy of it
+  too. Every other commit, upstream commits and R's copies included, is
+  white. In a drawing without splices, e.g. of what `git subtree` makes,
+  fills aren't checked.
+
 What a drawing shows is checked, not where: positions only matter for
 which lane a shape is in.
 

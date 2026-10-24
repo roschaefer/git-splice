@@ -412,6 +412,46 @@ check_drawing() {
     fi
   done
 
+  # A monorepo commit is filled after what the next rebuild does with it:
+  # grey if it's on the first-parent history since B, which the rebuild
+  # walks, orange if R has a copy of it too, white otherwise. Without
+  # splices, e.g. in a drawing of git subtree, the fills aren't checked.
+  local walked_fill="#E0E0E0" rebuilt_fill="#FFB570" want have c
+  local -A walked=() copied=()
+  for p in "${splices[@]}"; do
+    [[ -n "${truth["$p|loaded"]:-}" && -n "${truth["$p|B"]}" ]] || continue
+    for c in $(git rev-list --first-parent "${truth["$p|B"]}..HEAD"); do walked[$c]=1; done
+    [[ -n "${truth["$p|R"]}" ]] || continue
+    while IFS= read -r c; do copied[$c]=1; done < <(
+      git log --format='%an%x1f%ae%x1f%ad%x1f%s' --date=raw "${truth["$p|R"]}" ${truth["$p|S"]:+"^${truth["$p|S"]}"}
+    )
+  done
+  fill() {
+    local f
+    f="$(sed -n 's/.*;fillColor=\([^;]*\);.*/\1/p' <<<";${style[$1]};")"
+    f="${f^^}"
+    [[ -n "$f" && "$f" != NONE && "$f" != "#FFFFFF" ]] || f=white
+    printf '%s\n' "$f"
+  }
+  for id in "${commits[@]}"; do
+    hash="${commit_of[$id]:-}"
+    [[ -n "$hash" && ${#splices[@]} -gt 0 ]] || continue
+    have="$(fill "$id")"
+    want=white
+    if [[ "${value[$id]}" != *\' ]] && in_monorepo "$hash" &&
+      [[ ${#lanes[@]} -eq 0 || -z "${lane_of[$id]}" ]] && [[ -n "${walked[$hash]:-}" ]]; then
+      want="$walked_fill"
+      [[ -z "${copied["$(git log -1 --format='%an%x1f%ae%x1f%ad%x1f%s' --date=raw "$hash")"]:-}" ]] ||
+        want="$rebuilt_fill"
+    fi
+    [[ "$have" != "$want" ]] || continue
+    case "$want" in
+      "$rebuilt_fill") errors+=("${value[$id]} is after B, and R copies it: fill it orange, $rebuilt_fill") ;;
+      "$walked_fill") errors+=("${value[$id]} is after B, but R doesn't copy it: fill it grey, $walked_fill") ;;
+      *) errors+=("${value[$id]} is filled, but the rebuild doesn't walk it: leave it white") ;;
+    esac
+  done
+
   # Succeeds if box term $1 is a branch name, not H, B, T, R, U(x) or
   # merge-base(R,T).
   is_branch_term() {
