@@ -75,7 +75,7 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 - **Commit**: a circle (ellipse). Its label is the commit's subject,
   looked up on the monorepo's first-parent history, then upstream. A
   label with a trailing `'` (*b'* for *b*) is the rebuild's copy of the
-  commit without it: the same message, author and dates, in R's history
+  commit without it, and a copy of a drawn commit is labelled so: the same message, author and dates, in R's history
   or on a fetched upstream branch, where a push put it.
 - **Parent arrow**: an arrow between two commits points from a parent to
   its child.

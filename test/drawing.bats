@@ -77,6 +77,13 @@ edit_drawing() {
   [ "$output" = "!!   d' is R's copy of a commit since B: outline it orange, #E07000" ]
 }
 
+@test "drawing: R's copy of a commit is labelled after it, with a '" {
+  edit_drawing -u '//mxCell[@id="d_"]/@value' -v z
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD z="$(splice rebuild lib)^1"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   z is R's copy of d: label it d'" ]
+}
+
 @test "drawing: a commit R doesn't copy is outlined black" {
   edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;fillColor=#E0E0E0;strokeColor=#E07000;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD

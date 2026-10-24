@@ -419,7 +419,7 @@ check_drawing() {
   # commits, which are never dashed, so it can't blur a dashed outline.
   # Without splices, e.g. in a drawing of git subtree, neither is checked.
   local walked_fill="#E0E0E0" carried_outline="#E07000" want have c
-  local -A walked=() copied=()
+  local -A walked=() copied=() walked_label=()
   for p in "${splices[@]}"; do
     [[ -n "${truth["$p|loaded"]:-}" && -n "${truth["$p|B"]}" ]] || continue
     for c in $(git rev-list --first-parent "${truth["$p|B"]}..HEAD"); do walked[$c]=1; done
@@ -436,12 +436,28 @@ check_drawing() {
     [[ -n "$c" && "$c" != NONE && "$c" != DEFAULT && "$c" != "#FFFFFF" && "$c" != "#000000" ]] || c="$3"
     printf '%s\n' "$c"
   }
-  local is_walked is_carried
+  # Each walked monorepo commit's label, by what its copy in R shares
+  # with it: author, dates and message.
+  for id in "${commits[@]}"; do
+    hash="${commit_of[$id]:-}"
+    [[ -n "$hash" && -n "${walked[$hash]:-}" && "${value[$id]}" != *\' ]] || continue
+    walked_label["$(git log -1 --format='%an%x1f%ae%x1f%ad%x1f%s' --date=raw "$hash")"]="${value[$id]}"
+  done
+  local is_walked is_carried k
   for id in "${commits[@]}"; do
     hash="${commit_of[$id]:-}"
     [[ -n "$hash" && ${#splices[@]} -gt 0 ]] || continue
     is_walked="" is_carried=""
     sp="${splice_of[$id]}"
+    # R's copy of a drawn commit is labelled after it, with a '.
+    if [[ "${value[$id]}" != *\' && -n "$sp" && -n "${truth["$sp|R"]:-}" ]] && ! in_monorepo "$hash" &&
+      git merge-base --is-ancestor "$hash" "${truth["$sp|R"]}" 2>/dev/null; then
+      k="$(git log -1 --format='%an%x1f%ae%x1f%ad%x1f%s' --date=raw "$hash")"
+      if [[ -n "${walked_label[$k]:-}" ]]; then
+        errors+=("${value[$id]} is R's copy of ${walked_label[$k]}: label it ${walked_label[$k]}'")
+        continue
+      fi
+    fi
     if [[ "${value[$id]}" == *\' ]]; then
       if [[ -n "$sp" && -n "${truth["$sp|R"]:-}" ]] &&
         git merge-base --is-ancestor "$hash" "${truth["$sp|R"]}" 2>/dev/null &&
