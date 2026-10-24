@@ -43,38 +43,38 @@ edit_drawing() {
 }
 
 @test "drawing: a solid rebuilt commit is to be dashed" {
-  edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;fillColor=#FFB570;'
+  edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#E07000;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   b' is solid, but no upstream branch has it: dash it" ]
 }
 
-@test "drawing: a commit R copies is filled orange" {
+@test "drawing: a commit R copies is outlined orange" {
   edit_drawing -u '//mxCell[@id="b"]/@style' -v 'ellipse;aspect=fixed;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   b is after B, and R copies it: fill it orange, #FFB570" ]
+  [ "$output" = "!!   b is after B, and R copies it: outline it orange, #E07000" ]
 }
 
-@test "drawing: R's copy of a commit is filled orange too" {
+@test "drawing: R's copy of a commit is outlined orange too" {
   edit_drawing -u '//mxCell[@id="d_"]/@style' -v 'ellipse;aspect=fixed;dashed=1;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   d' is R's copy of a commit since B: fill it orange, #FFB570" ]
+  [ "$output" = "!!   d' is R's copy of a commit since B: outline it orange, #E07000" ]
 }
 
-@test "drawing: a commit after B that R doesn't copy is filled grey" {
-  edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;fillColor=#FFB570;'
+@test "drawing: a commit after B that R doesn't copy is outlined grey" {
+  edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#E07000;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   c is after B, but R doesn't copy it: fill it grey, #E0E0E0" ]
+  [ "$output" = "!!   c is after B, but R doesn't copy it: outline it grey, #999999" ]
 }
 
-@test "drawing: a commit the rebuild doesn't walk stays white" {
-  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=#E0E0E0;'
+@test "drawing: a commit the rebuild doesn't walk stays black" {
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#999999;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
+  [ "$output" = "!!   a is outlined in color, but the rebuild doesn't walk it: outline it black" ]
 }
 
 @test "drawing: a box sits with the commit it points at" {
@@ -344,7 +344,7 @@ XML
   commit_local "$monorepo" lib "x"
   splice push lib >/dev/null 2>&1
   # On feature, R copies x, as x'.
-  pushed_copy_drawing pushed 'ellipse;fillColor=#FFB570;'
+  pushed_copy_drawing pushed 'ellipse;strokeColor=#E07000;'
   run check_drawing "$drawing" x=feature pushed=refs/splices/upstream/heads/feature
   [ "$status" -eq 0 ]
   run check_drawing "$drawing" x=feature pushed=feature
