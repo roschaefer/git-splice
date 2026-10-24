@@ -52,7 +52,8 @@ clone of the monorepo has every splice, with nothing to set up.
   then stays with it: `pull` brings in a newer one only once `.splice`
   names it, and `push` refuses there ([default-pin](../../scenarios/04-upstreams/06-default-pin/README.md)).
   `clone --from-submodule` records what the submodule followed: its
-  `branch` in `.gitmodules` as `default-branch`, or else its commit as
+  `branch` in `.gitmodules` as `default-branch`, unless the splice
+  follows that branch anyway, or else its commit as
   `default-pin`
   ([clone-from-submodule](../../scenarios/02-starting-a-splice/08-clone-from-submodule/README.md)).
 - **Two branches that both pulled conflict in it** when they're merged.
