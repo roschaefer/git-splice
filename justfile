@@ -7,15 +7,15 @@ lint:
     shellcheck completions/git-splice.bash
     shellcheck bench/setup.sh bench/run.sh
     shellcheck -x check-drawing/check-drawing
-    shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh
+    shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh
 
 # Format with shfmt
 fmt:
-    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh check-drawing/check-drawing
+    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing
 
 # Check formatting with shfmt
 fmt-check:
-    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh check-drawing/check-drawing
+    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing
 
 # Run the bats tests, one job per CPU
 test:
@@ -26,10 +26,10 @@ test:
 bench *args:
     @bench/run.sh "$@"
 
-# Open a shell in a throwaway monorepo to try commands by hand; see `just walkthrough --help`
+# Open a shell in the state a docs page starts from, the walkthrough by default, e.g. `just sandbox comparisons/git-submodule`; see `just sandbox --help`
 [positional-arguments]
-walkthrough *args:
-    @test/walkthrough/setup.sh "$@"
+sandbox *args:
+    @test/sandbox.sh "$@"
 
 # Check the README, walkthroughs, concepts, scenario READMEs and comparisons against real output; --write updates them
 docs-check flag="":

@@ -20,7 +20,7 @@ $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null &&
 >   git -C ../pkg-b push -q
 ```
 
-Both splices in the [sandbox](../../docs/sandbox.md) are behind now. Commands that
+Both splices of the [walkthrough's repositories](README.md) are behind now. Commands that
 change the monorepo or an upstream name their splices, or take `--all`:
 
 ```scrut

@@ -3,47 +3,37 @@
 To try `git-splice` without touching your own repositories, run this in a
 clone of `git-splice`:
 
-    nix develop       # a shell with the dev tools and this checkout on PATH
-    just walkthrough
+    nix develop -c just sandbox
 
-Without Nix, [install](installation.md) `git-splice` first, then run
-`test/walkthrough/setup.sh` in the clone.
+It opens a shell in a throwaway monorepo, the one the
+[walkthrough](../test/walkthrough/README.md) starts from: run the
+walkthrough's commands there, and they print what it shows. Without
+Nix, run `test/sandbox.sh`; it needs Bash and Git.
 
-It builds a throwaway monorepo in a temporary directory and opens a shell
-in it. The [walkthrough](../test/walkthrough/README.md) shows what to
-type there, and each of its pages starts from a fresh sandbox.
+## Any page, in a sandbox
 
-What you get:
+The sandbox builds any page of these docs that runs commands, a
+walkthrough chapter, a concept, a scenario or a comparison, by its path
+under `test/`:
 
-- `$WALKTHROUGH/monorepo`: the monorepo, on `main`. You start here.
-- `$WALKTHROUGH/upstream/pkg-a.git`, `pkg-b.git` and `lib-c.git`: bare
-  repositories on the same machine that stand in for the splices'
-  upstreams. The monorepo reaches them as
-  `https://git.example.com/<name>.git`: its `url.<base>.insteadOf` maps
-  that prefix to `$WALKTHROUGH/upstream/`. The sandbox's shell exports
-  `$WALKTHROUGH`, so you can paste the walkthrough's commands as they
-  are.
-- `vendor/pkg-a/`: a splice whose upstream has one commit the monorepo
-  doesn't have yet. It's already fetched.
-- `pkg-b.git`: a repository that isn't spliced in yet.
-- `libs/c/`: a folder of the monorepo, to be published to the empty
-  `lib-c.git`.
+    nix develop -c just sandbox comparisons/git-submodule
 
-To push a commit to an upstream as if someone else had, clone it next to
-the monorepo, commit there and push, as in the walkthrough's
-[fetch](../test/walkthrough/README.md#fetch). The sandbox's shell names
-you "Walkthrough" for such commits, and otherwise uses your git config.
+It runs the page's setup, up to the first command the page shows, and
+opens bash in the page's monorepo, with the settings scrut runs the page
+with. So you get the page's output, down to the commit hashes.
 
 ## The output is real
 
 No output in these docs is pasted in.
 [scrut](https://facebookincubator.github.io/scrut/) runs every command
-on the walkthrough, concept, scenario and comparison pages and compares
-what it prints, so the output is what the current version prints.
-`just docs-check` runs them all, in CI too, and
-`just docs-check --write` updates the pages after an intended change.
+on these pages and compares what it prints. To get the same output on
+every run, it runs them in the C locale and GMT, and each page starts
+with a setup block, which GitHub doesn't render, that fixes the commit
+dates and author and keeps your git config out.
 
-Each page starts with a block that GitHub doesn't render. It sources a
-setup script, here [`scrut-setup.sh`](../test/walkthrough/scrut-setup.sh),
-which builds the repositories, fixes the commit dates and ignores your
-git config, so commit hashes are the same on every run.
+Every page is tested in CI, so the docs are the specification of
+`git-splice`, written as examples: what each command prints in each
+scenario. This is [specification by
+example](https://martinfowler.com/bliki/SpecificationByExample.html).
+`just docs-check` runs them all, and `just docs-check --write` updates
+the pages after an intended change.
