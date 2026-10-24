@@ -12,43 +12,28 @@ Nix, run `test/sandbox.sh`; it needs Bash and Git.
 
 ## Any page, in a sandbox
 
-Each page of these docs that runs commands, a walkthrough chapter, a
-concept, a scenario or a comparison, opens the same way, in the state
-the page starts from:
+The sandbox builds any page of these docs that runs commands, a
+walkthrough chapter, a concept, a scenario or a comparison, by its path
+under `test/`:
 
     nix develop -c just sandbox comparisons/git-submodule
 
-The page is its path under `test/`, with or without `.md`: e.g.
-`walkthrough/push`, or `scenarios/02-starting-a-splice/01-clone-copied-content`
-for that scenario's README. A comparison needs the tool it compares
-with, e.g. `git-subrepo`, which `nix develop` has. An unknown page lists
-them all. Each page says what its repositories are.
-
-The sandbox builds the state the page starts from: it runs the page's
-setup, up to the first command the page shows you, i.e. what the page
-hides before it, and what it shows that only calls a helper of the
-setup, like a scenario's `build_scenario`. Then it drops you into bash
-in the page's monorepo, so you run every command the page shows
-yourself, from the first one.
-
-That bash has your `~/.bashrc`, then the page's environment: its commit
-dates, its author, its URLs, which lead from `https://git.example.com/`
-to the repositories next door, and the C locale and GMT, as scrut runs
-it. It has the setup's helpers too, e.g. `seed_bare_repo` for a commit
-someone else pushes. Your own git config stays out, as it does for the
-page. So the commands, pasted as they are, print what the page shows,
-commit hashes included.
+It runs the page's setup, up to the first command the page shows, and
+opens bash in the page's monorepo, with the settings scrut runs the page
+with. So you get the page's output, down to the commit hashes.
 
 ## The output is real
 
 No output in these docs is pasted in.
 [scrut](https://facebookincubator.github.io/scrut/) runs every command
-on the walkthrough, concept, scenario and comparison pages and compares
-what it prints, so the output is what the current version prints.
-`just docs-check` runs them all, in CI too, and
-`just docs-check --write` updates the pages after an intended change.
+on these pages and compares what it prints. To get the same output on
+every run, it runs them in the C locale and GMT, and each page starts
+with a setup block, which GitHub doesn't render, that fixes the commit
+dates and author and keeps your git config out.
 
-Each page starts with a block that GitHub doesn't render. It sources a
-setup script, here [`scrut-setup.sh`](../test/walkthrough/scrut-setup.sh),
-which builds the repositories, fixes the commit dates and ignores your
-git config, so commit hashes are the same on every run.
+Every page is tested in CI, so the docs are the specification of
+`git-splice`, written as examples: what each command prints in each
+scenario. This is [specification by
+example](https://martinfowler.com/bliki/SpecificationByExample.html).
+`just docs-check` runs them all, and `just docs-check --write` updates
+the pages after an intended change.
