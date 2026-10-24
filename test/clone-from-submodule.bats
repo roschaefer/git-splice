@@ -255,6 +255,28 @@ add_nested_submodule() {
   add_submodule
 }
 
+# As add_nested_submodule, with branch = $1 for libs/inner in upstream's
+# .gitmodules, and a branch stable in inner.git.
+add_nested_submodule_with_branch() {
+  inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  git -C "$inner" branch stable main
+  local tmp
+  tmp="$(mktemp -d)"
+  git clone -q "$upstream" "$tmp"
+  (
+    cd "$tmp"
+    git -c protocol.file.allow=always submodule add -q "$inner" libs/inner
+    git config --file .gitmodules submodule.libs/inner.branch "$1"
+    git add .gitmodules
+    git commit -q -m "add libs/inner as a submodule"
+    git push -q origin HEAD:main
+  )
+  rm -rf "$tmp"
+  add_submodule
+}
+
 @test "clone --from-submodule: refuses a submodule with submodules of its own, naming --recursive" {
   add_nested_submodule
   run cmd_clone --from-submodule vendor/a
@@ -637,4 +659,48 @@ add_nested_submodule() {
   [[ "$output" != *"vendor/a/libs/inner: not converted"* ]]
   [ "$(path_mode HEAD vendor/a/libs/inner)" = 040000 ]
   [ "$(path_mode HEAD vendor/a/libs/inner/deep)" = 160000 ]
+}
+
+@test "clone --from-submodule: an upstream with many tags doesn't stop the conversion while it looks for the pinned commit's tag" {
+  add_submodule
+  local work pinned
+  pinned="$(git rev-parse HEAD:vendor/a)"
+  work="$(mktemp -d)"
+  git clone -q "$upstream" "$work"
+  for i in $(seq 1 3000); do
+    printf 'create refs/tags/t%04d %s\n' "$i" "$pinned"
+  done | git -C "$work" update-ref --stdin
+  git -C "$work" push -q --tags origin
+  run splice clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"===  vendor/a: pinned at ${pinned:0:7}, the tag 't0001', as the submodule was"* ]]
+}
+
+@test "clone --from-submodule --recursive: branch = . inside a pinned submodule stays at its commit, as the one above does" {
+  add_nested_submodule_with_branch .
+  local inner_pin
+  inner_pin="$(git -C "$upstream" rev-parse main:libs/inner)"
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"===  vendor/a/libs/inner: pinned at ${inner_pin:0:7}, as vendor/a is -- "* ]]
+  [ "$(git config --file vendor/a/libs/inner/.splice upstream.origin.default-pin)" = "$inner_pin" ]
+  run splice status
+  [ "$status" -eq 0 ]
+}
+
+@test "clone --from-submodule --recursive: a branch inside a pinned submodule becomes its default-branch" {
+  add_nested_submodule_with_branch stable
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"!!"* ]]
+  [ "$(git config --file vendor/a/libs/inner/.splice upstream.origin.default-branch)" = stable ]
+}
+
+@test "clone --from-submodule: refuses to pin when the monorepo's default branch can't be determined" {
+  git config --unset init.defaultBranch
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: the submodule stays at "*", and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
 }

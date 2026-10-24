@@ -38,7 +38,8 @@ stay, and its repository stays in .git/modules/.
 The splice keeps what the submodule followed. submodule.<name>.branch,
 the branch 'git submodule update --remote' follows, becomes the
 upstream's default-branch ("." needs none: a splice follows the branch
-named like the current one by default). Without it, the submodule stayed
+named like the current one by default; inside a splice that pins a tag
+or a commit, it stays at its commit). Without it, the submodule stayed
 at its commit, and the upstream's default-pin pins that commit: on the
 monorepo's default branch, pull brings in nothing and push refuses until
 default-pin is removed. Other settings in .gitmodules are dropped.
@@ -284,25 +285,43 @@ refuse_lossy_submodule_conversion() {
 # unless the splice would follow it anyway (container_default_branch);
 # "." follows the branch named like the current one, which a splice does
 # without a default-branch. Without a branch, the submodule stayed at
-# its commit, and so does the splice.
+# its commit, and so does the splice. Inside a splice that pins a tag or
+# a commit, there's no such branch: "." stays at its commit too, which
+# SUBMODULE_PINNED_AS then says. Dies if a pin can't apply because the
+# monorepo's default branch can't be determined.
 submodule_defaults() {
-  local path="$1" gitmodules="$2" name="$3" commit="$4" branch
+  local path="$1" gitmodules="$2" name="$3" commit="$4" branch above pinned_above=""
   branch="$(git config --blob "HEAD:$gitmodules" "submodule.$name.branch" 2>/dev/null || true)"
-  SUBMODULE_BRANCH="" SUBMODULE_PIN=""
+  SUBMODULE_BRANCH="" SUBMODULE_PIN="" SUBMODULE_PINNED_AS="the submodule was"
+  if above="$(splice_above_in HEAD "$path")"; then
+    resolve_default_target "$above"
+    [[ "$TARGET_KIND" == branch ]] || pinned_above=1
+  fi
   case "$branch" in
     "") SUBMODULE_PIN="$commit" ;;
-    .) ;;
+    .)
+      if [[ -n "$pinned_above" ]]; then
+        SUBMODULE_PIN="$commit"
+        SUBMODULE_PINNED_AS="$above is"
+      fi
+      ;;
     *)
-      [[ "$branch" == "$(container_default_branch "$path")" ]] || SUBMODULE_BRANCH="$branch"
+      if [[ -n "$pinned_above" || "$branch" != "$(container_default_branch "$path")" ]]; then
+        SUBMODULE_BRANCH="$branch"
+      fi
       ;;
   esac
+  if [[ -n "$SUBMODULE_PIN" && -z "$(monorepo_default_branch)" ]]; then
+    die "$path: the submodule stays at ${commit:0:7}, and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+  fi
 }
 
 # Prints the name of a tag of upstream <url> that names <commit>, or
-# nothing.
+# nothing. Reads the whole listing: git ls-remote would get a SIGPIPE if
+# awk stopped at the first match.
 tag_naming() {
   git ls-remote --tags -- "$1" 2>/dev/null |
-    awk -v c="$2" '$1 == c { sub("^refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2; exit }'
+    awk -v c="$2" '!found && $1 == c { sub("^refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2; found = 1 }'
 }
 
 # Turns the submodule at <path> into a splice, as clone --from-submodule
@@ -405,8 +424,8 @@ clone_from_submodule() {
   log_ok "$path: cloned ${commit:0:7} from the submodule"
   if [[ -n "$SUBMODULE_PIN" ]]; then
     local tag
-    tag="$(tag_naming "$url" "$commit")"
-    log_step "$path: pinned at ${commit:0:7}${tag:+, the tag '$tag'}, as the submodule was -- pull brings in nothing and push refuses on $(monorepo_default_branch) until it follows a branch: git config --file $(shell_quote "$path/$STATE_FILE") --unset upstream.$DEFAULT_UPSTREAM.default-pin"
+    tag="$(tag_naming "$url" "$commit")" || tag=""
+    log_step "$path: pinned at ${commit:0:7}${tag:+, the tag '$tag'}, as $SUBMODULE_PINNED_AS -- pull brings in nothing and push refuses on $(monorepo_default_branch) until it follows a branch: git config --file $(shell_quote "$path/$STATE_FILE") --unset upstream.$DEFAULT_UPSTREAM.default-pin"
   fi
   [[ -z "$gitdir" ]] || log_step "$path: the submodule's repository stays in $gitdir -- remove it once you don't need it"
   [[ -z "$above" ]] ||
