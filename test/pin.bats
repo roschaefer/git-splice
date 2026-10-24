@@ -195,3 +195,15 @@ pinned_to_v1() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"??   vendor/a: the tag 'v1' moved upstream, from ${old:0:7} to ${new:0:7} -- kept ${old:0:7}; to take the new one: git update-ref $(upstream_tag_ref "$upstream" v1) $new"* ]]
 }
+
+@test "pin: a tag that an upstream without branches lacks is reported, not taken for a missing branch" {
+  pinned_to_v1
+  splice fetch >/dev/null
+  git -C "$upstream" update-ref -d refs/heads/main
+  git config --file vendor/a/.splice upstream.origin.default-pin v9
+  git commit -q -m "vendor/a: a tag nobody made" -- vendor/a/.splice
+  splice fetch >/dev/null
+  run splice pull vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: the tag 'v9' isn't here -- run 'git splice fetch vendor/a', or check that upstream has it"* ]]
+}

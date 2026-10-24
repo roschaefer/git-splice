@@ -50,8 +50,13 @@ classify_splice() {
     # was empty, so a fetch that brings nothing is the expected state. With
     # one that's here, a fetch happened, and the upstream has no branches
     # left. Only a fresh clone of the monorepo has neither refs nor commit.
+    # A pin that isn't here then is missing, not a branch.
     if [[ -z "$SPLICE_SYNCED" ]] || git cat-file -e "$SPLICE_SYNCED^{commit}" 2>/dev/null; then
-      SPLICE_STATE="missing-branch"
+      if [[ "$SPLICE_TARGET_KIND" != branch ]]; then
+        SPLICE_STATE="missing-pin"
+      else
+        SPLICE_STATE="missing-branch"
+      fi
     else
       SPLICE_STATE="never-fetched"
     fi
