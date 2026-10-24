@@ -40,6 +40,10 @@ diff_one() {
       log_warn "$path: upstream and the splice share no history -- no push diff available"
       return 1
       ;;
+    missing-pin)
+      log_err "$path: $(target_description) isn't here -- run 'git splice fetch $(upstream_option "$path")$path', or check that upstream has it"
+      return 1
+      ;;
     missing-branch)
       if ! compare_with_default_branch "$path"; then
         log_err "$path: could not compare with upstream's default branch${SPLICE_DEFAULT_BRANCH:+ '$SPLICE_DEFAULT_BRANCH'}"

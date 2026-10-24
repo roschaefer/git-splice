@@ -35,6 +35,21 @@ fetch_upstream() {
   done
 }
 
+# Fetches tag <tag> of upstream <url> into <key-prefix>tags/<tag>, if
+# upstream has it. Git doesn't move a fetched tag that moved upstream, and
+# neither does this: it keeps the commit the tag named, and prints
+# "<old> <new>" then.
+fetch_tag() {
+  local url="$1" ref="$2tags/$3" old new
+  old="$(git rev-parse --verify --quiet "$ref" || true)"
+  git -c core.logAllRefUpdates=always fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head -- "$url" "+refs/tags/$3:$ref" 2>/dev/null || return 0
+  new="$(git rev-parse --verify --quiet "$ref")"
+  if [[ -n "$old" && "$new" != "$old" ]]; then
+    git update-ref "$ref" "$old"
+    printf '%s %s\n' "$old" "$new"
+  fi
+}
+
 # Fetches upstream <url>, with key <key>, that the splices of <entry>...
 # share, each "<path>:<name>" of the upstream, and reports for each
 # whether the branch it syncs with moved, while the monorepo is on branch
@@ -42,11 +57,12 @@ fetch_upstream() {
 # $2/<i>.out and $2/<i>.err, and creates $2/<i>.failed if it failed; $3
 # holds those numbers, space-separated.
 fetch_shared_upstream() {
-  local branch="$1" out_dir="$2" indexes=() key="$4" url="$5" i=0 entry path from synced=() labels=() failed_labels=() upstream_branches=() target_refs=() old_shas=() new_sha
+  local branch="$1" out_dir="$2" indexes=() key="$4" url="$5" i=0 entry path from synced=() labels=() failed_labels=() upstream_branches=() target_refs=() old_shas=() new_sha tags=() tag_of=() paths=() pin moved
   read -r -a indexes <<<"$3"
   shift 5
   for entry in "$@"; do
     path="${entry%%:*}"
+    paths[i]="$path"
     from=""
     has_several_upstreams "$path" && from=" from ${entry#*:}"
     labels[i]="$path fetched$from"
@@ -54,7 +70,22 @@ fetch_shared_upstream() {
     # Empty if the upstreams of the splice above disagree on it, and none
     # is its default: the commands that need it refuse then.
     upstream_branches[i]="$(upstream_branch_for "$path" "$branch" "${entry#*:}" 2>/dev/null)" || true
-    target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
+    tag_of[i]=""
+    # Only a default-pin fetches a tag or a commit. Every branch fetches
+    # it: a feature branch compares with it when upstream has no branch
+    # like it (compare_with_default_branch).
+    pin="$(upstream_config "$path" "${entry#*:}" default-pin)"
+    if is_commit_id "$pin"; then
+      synced+=("$pin")
+    else
+      tag_of[i]="$pin"
+    fi
+    [[ -z "${tag_of[i]}" || " ${tags[*]} " == *" ${tag_of[i]} "* ]] || tags+=("${tag_of[i]}")
+    # A splice pinned on this branch has no branch that could move.
+    target_refs[i]=""
+    if [[ -z "$pin" ]] || branch_arg_applies "$path" || [[ "$branch" != "$(monorepo_default_branch)" ]]; then
+      target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
+    fi
     old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
     synced+=("$(splice_config "$path" commit)")
     i=$((i + 1))
@@ -71,6 +102,11 @@ fetch_shared_upstream() {
     done
     return 1
   fi
+  local tag
+  local -A moved_tags=()
+  for tag in "${tags[@]}"; do
+    moved_tags[$tag]="$(fetch_tag "$url" "refs/splices/$key/" "$tag")"
+  done
   for i in "${!indexes[@]}"; do
     new_sha="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
     if [[ -n "${old_shas[i]}" && -n "$new_sha" && "${old_shas[i]}" != "$new_sha" ]]; then
@@ -78,10 +114,17 @@ fetch_shared_upstream() {
     else
       log_ok "${labels[i]}"
     fi >"$out_dir/${indexes[i]}.out"
-    # What git printed on success, e.g. an SSH warning, shown once.
-    if ((i == 0)) && [[ -n "$error" ]]; then
-      printf '%s\n' "$error"
-    fi >"$out_dir/${indexes[i]}.err"
+    {
+      # What git printed on success, e.g. an SSH warning, shown once.
+      if ((i == 0)) && [[ -n "$error" ]]; then
+        printf '%s\n' "$error"
+      fi
+      moved="${tag_of[i]:+${moved_tags[${tag_of[i]}]}}"
+      if [[ -n "$moved" ]]; then
+        new_sha="${moved#* }"
+        log_warn "${paths[i]}: the tag '${tag_of[i]}' moved upstream, from ${moved:0:7} to ${new_sha:0:7} -- kept ${moved:0:7}; to take the new one: git update-ref refs/splices/$key/tags/${tag_of[i]} $new_sha"
+      fi
+    } >"$out_dir/${indexes[i]}.err" 2>&1
   done
 }
 

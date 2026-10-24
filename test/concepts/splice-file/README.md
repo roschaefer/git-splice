@@ -47,6 +47,10 @@ clone of the monorepo has every splice, with nothing to set up.
   splice above has several upstreams with different default branches and
   no `default-upstream`, commands refuse
   ([example](../../scenarios/05-nested-splices/01-nested-splices/01-outer-fork/fork-default-branch-below.md)).
+- **`default-pin` pins a tag or a commit** instead of following a
+  branch, in place of `default-branch`. The monorepo's default branch
+  then stays with it: `pull` brings in a newer one only once `.splice`
+  names it, and `push` refuses there ([default-pin](../../scenarios/04-upstreams/06-default-pin/README.md)).
 - **Two branches that both pulled conflict in it** when they're merged.
   Resolve it by keeping the newer synced commit
   ([concurrent-pulls](../../scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).

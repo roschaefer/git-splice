@@ -203,6 +203,37 @@ swap_splice_files() {
   [ "${lines[2]}" = "  up to date  vendor/a/b -> master" ]
 }
 
+@test "nested: a .splice below without default-branch can't follow a splice above that pins a tag" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  git -C "$upstream" tag v1 master
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  git config --file vendor/a/.splice --unset upstream.origin.default-branch
+  git config --file vendor/a/.splice upstream.origin.default-pin v1
+  git commit -q -m "vendor/a: pin v1" -- vendor/a/.splice
+  splice fetch vendor/a
+  run splice status vendor/a/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b follows the default branch of vendor/a, which pins the tag 'v1' -- record one for vendor/a/b: git config --file vendor/a/b/.splice upstream.<name>.default-branch <branch>"* ]]
+}
+
+@test "nested: a .splice below with its own default-pin syncs with it inside a splice above that pins a tag" {
+  scenario_nested_default_branch "$monorepo" "$upstream"
+  git -C "$upstream" tag v1 master
+  cd "$monorepo"
+  splice clone "$upstream" vendor/a
+  git config --file vendor/a/.splice --unset upstream.origin.default-branch
+  git config --file vendor/a/.splice upstream.origin.default-pin v1
+  local b_commit
+  b_commit="$(git config --file vendor/a/b/.splice splice.commit)"
+  git config --file vendor/a/b/.splice upstream.origin.default-pin "$b_commit"
+  git commit -q -m "pin vendor/a and vendor/a/b" -- vendor/a/.splice vendor/a/b/.splice
+  splice fetch
+  run splice status vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = "  up to date  vendor/a/b -> ${b_commit:0:7}" ]
+}
+
 @test "nested: clone inside a splice records default-branch only where it differs from the splice above's" {
   scenario_nested_default_branch "$monorepo" "$upstream"
   local upstream_main="$BATS_TEST_TMPDIR/main.git"
@@ -433,6 +464,20 @@ b_moved_to_a_commit_no_branch_has() {
   git cat-file -e "$synced^{commit}"
   run splice status vendor/a/b
   [[ "$output" != *"no common"* && "$output" != *"unrelated"* ]]
+}
+
+@test "nested: pull --all fetches the tag the pull of a pins b at" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  git -C "$upstream_b" tag v1 main
+  work_in_upstream_a
+  git config --file b/.splice upstream.origin.default-pin v1
+  git commit -q -m "pin b at v1" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  run splice status vendor/a/b
+  [ "${lines[1]}" = "  up to date  vendor/a/b -> tags/v1" ]
 }
 
 # As above, and b's upstream lost the dropped commit for good, e.g. to gc.

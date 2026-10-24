@@ -501,7 +501,7 @@ folder_tree() {
 # several, a command without --upstream needs it (require_default_upstream),
 # so that no order or name in the file decides by accident.
 load_splice_upstream() {
-  local path="$1" records=() record urls=() names=() name id="" default="" error q_file i
+  local path="$1" records=() record urls=() names=() defaults=() name id="" default="" error q_file i
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
@@ -541,9 +541,16 @@ load_splice_upstream() {
       splice.default-branch)
         die "$path/$STATE_FILE has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"
         ;;
+      upstream.*.default-branch | upstream.*.default-pin)
+        name="${record%%$'\n'*}"
+        defaults+=("${name%.*}")
+        ;;
     esac
   done
   q_file="$(shell_quote "$path/$STATE_FILE")"
+  name="$(printf '%s\n' "${defaults[@]}" | sort | uniq -d | head -n 1)"
+  [[ -z "$name" ]] ||
+    die "$path/$STATE_FILE has both default-branch and default-pin for $name -- follow the branch or pin, not both: git config --file $q_file --unset $name.default-pin"
   [[ ${#urls[@]} -gt 0 ]] ||
     die "$path/$STATE_FILE names no upstream -- add one: git config --file $q_file upstream.$DEFAULT_UPSTREAM.url <url>"
   if [[ -n "$default" && " ${names[*]} " != *" $default "* ]]; then
@@ -966,6 +973,19 @@ splice_default_branch() {
   fi
 }
 
+# Prints the default branch of splice <above>, the one of its upstream $3
+# or of the one it uses (splice_default_branch), for splice <path> inside
+# it to follow. Dies if <above> pins a tag or a commit there: the
+# upstream of <path> has no branch named after that.
+followed_default_branch() {
+  local path="$1" above="$2"
+  resolve_default_target "$above" "${@:3}"
+  if [[ "$TARGET_KIND" != branch ]]; then
+    die "$path follows the default branch of $above, which pins $(target_description) -- record one for $path: git config --file $(shell_quote "$path/$STATE_FILE") upstream.<name>.default-branch <branch>"
+  fi
+  printf '%s\n' "$TARGET_NAME"
+}
+
 # Prints the default branch of what folder $1 lives in: the default branch
 # of the upstream the splice above it uses, or the monorepo's. Dies if that
 # splice names several upstreams with different default branches, but none
@@ -979,12 +999,12 @@ container_default_branch() {
   fi
   require_splice_upstream_list "$above"
   if [[ -n "${SPLICE_UPSTREAM_NAMES[$above]}" ]]; then
-    splice_default_branch "$above"
+    followed_default_branch "$path" "$above"
     return
   fi
   read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$above]}"
   for name in "${names[@]}"; do
-    branch="$(splice_default_branch "$above" "$name")"
+    branch="$(followed_default_branch "$path" "$above" "$name")"
     branches+="${branches:+, }$name: $branch"
     [[ " ${seen[*]} " == *" $branch "* ]] || seen+=("$branch")
   done
@@ -1010,14 +1030,101 @@ upstream_branch_for() {
   fi
 }
 
-# Dies unless each splice <path>... has an upstream branch while the
-# monorepo is on branch <branch> (upstream_branch_for): before any splice is
-# touched, and outside $(...), where a refusal wouldn't end the command.
+# Succeeds if <name> is a full commit id, the way default-pin pins a
+# commit. Shorter ids aren't taken: they'd read as tag names.
+is_commit_id() {
+  [[ "$1" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]
+}
+
+# Sets TARGET_KIND (branch, tag or commit), TARGET_NAME (the branch's or
+# tag's name, or the commit id) and TARGET_REF (its fetched ref, or the
+# commit id) for branch <name> of the upstream splice <path> uses.
+resolve_branch() {
+  TARGET_KIND=branch
+  TARGET_NAME="$2"
+  TARGET_REF="refs/splices/${SPLICE_KEYS[$1]:-.}/heads/$2"
+}
+
+# Sets TARGET_* (see resolve_branch) for <pin>, the default-pin of
+# upstream <name> of splice <path>: a full commit id is a commit, anything
+# else a tag. Dies if upstream has no such tag but a branch: that's
+# followed with default-branch.
+resolve_pin() {
+  local path="$1" name="$2" pin="$3" prefix q_file
+  prefix="refs/splices/${SPLICE_KEYS[$path]:-.}/"
+  TARGET_NAME="$pin"
+  if is_commit_id "$pin"; then
+    TARGET_KIND=commit
+    TARGET_REF="$pin"
+    return
+  fi
+  TARGET_KIND=tag
+  TARGET_REF="${prefix}tags/$pin"
+  if ! git show-ref --verify --quiet "$TARGET_REF" &&
+    git show-ref --verify --quiet "${prefix}heads/$pin"; then
+    q_file="$(shell_quote "$path/$STATE_FILE")"
+    die "$path: default-pin names '$pin', a branch upstream, not a tag -- to follow it: git config --file $q_file upstream.$name.default-branch $(shell_quote "$pin") && git config --file $q_file --unset upstream.$name.default-pin"
+  fi
+}
+
+# Sets TARGET_* (see resolve_branch) for what the monorepo's default
+# branch syncs splice <path> with, from its upstream $2 or the one it
+# uses: the tag or commit that upstream's default-pin names, else its
+# default branch (splice_default_branch).
+resolve_default_target() {
+  local path="$1" name="${2-${SPLICE_UPSTREAM_NAMES[$1]:-}}" pin branch
+  pin="$(upstream_config "$path" "$name" default-pin)"
+  if [[ -n "$pin" ]]; then
+    resolve_pin "$path" "$name" "$pin"
+  else
+    branch="$(splice_default_branch "$path" "$name")" || exit 1
+    resolve_branch "$path" "$branch"
+  fi
+}
+
+# Sets TARGET_* (see resolve_branch) for what splice <path> syncs with
+# while the monorepo is on <branch>: on the monorepo's default branch,
+# resolve_default_target, which may pin a tag or a commit; --branch and
+# every other branch name a branch (upstream_branch_for).
+resolve_upstream_target() {
+  local path="$1" branch="$2"
+  if ! branch_arg_applies "$path" && [[ "$branch" == "$(monorepo_default_branch)" ]]; then
+    resolve_default_target "$path"
+  else
+    resolve_branch "$path" "$(upstream_branch_for "$path" "$branch")"
+  fi
+}
+
+# Prints how a status line or a commit message names TARGET_* (see
+# resolve_branch): the branch, tags/<tag>, or the short commit id.
+target_label() {
+  case "$TARGET_KIND" in
+    branch) printf '%s\n' "$TARGET_NAME" ;;
+    tag) printf 'tags/%s\n' "$TARGET_NAME" ;;
+    commit) printf '%s\n' "${TARGET_NAME:0:7}" ;;
+  esac
+}
+
+# Prints how a sentence names TARGET_* (see resolve_branch): the tag
+# '<tag>', or the commit <id>. Branches don't need it: messages say
+# "the '<branch>' branch" already.
+target_description() {
+  case "$TARGET_KIND" in
+    tag) printf "the tag '%s'\n" "$TARGET_NAME" ;;
+    commit) printf 'the commit %s\n' "${TARGET_NAME:0:7}" ;;
+    *) printf "the '%s' branch\n" "$TARGET_NAME" ;;
+  esac
+}
+
+# Dies unless each splice <path>... has something to sync with while the
+# monorepo is on branch <branch> (resolve_upstream_target): before any
+# splice is touched, and outside $(...), where a refusal wouldn't end the
+# command.
 require_upstream_branches() {
   local branch="$1" path
   shift
   for path in "$@"; do
-    upstream_branch_for "$path" "$branch" >/dev/null
+    resolve_upstream_target "$path" "$branch"
   done
 }
 

@@ -92,6 +92,9 @@ add_status_row() {
     missing-branch)
       classify_missing_branch "$path"
       ;;
+    missing-pin)
+      STATUS_KIND=problem STATUS_LABEL="!! $(target_description) isn't here" STATUS_HINT="run 'git splice fetch $option$path', or check that upstream has it"
+      ;;
     up-to-date)
       STATUS_KIND=up-to-date STATUS_LABEL="up to date"
       ;;

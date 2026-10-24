@@ -96,6 +96,10 @@ log_one() {
         --left-right --cherry-mark "$SPLICE_REBUILT...$SPLICE_DEFAULT_REF"
       return
       ;;
+    missing-pin)
+      log_err "$path: $(target_description) isn't here -- run 'git splice fetch $(upstream_option "$path")$path', or check that upstream has it"
+      return 1
+      ;;
     up-to-date)
       [[ -n "$SPLICE_REBUILT" ]] || return 0
       ;;
