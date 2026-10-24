@@ -66,12 +66,12 @@ ok   app-b/s: cloned bde4164 from main
 ```
 
 ```scrut
-$ cat app-a/s/.splice | tr '\t' ' '
+$ cat app-a/s/.splice
 [splice]
- id = 45beeb39c3270eb1
- commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
+	id = 45beeb39c3270eb1
+	commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 [upstream "origin"]
- url = https://git.example.com/s.git
+	url = https://git.example.com/s.git
 ```
 
 The upstream has one key, and one set of refs:

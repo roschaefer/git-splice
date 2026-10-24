@@ -9,7 +9,8 @@ treat the upstream as empty, though it has commits. This is a known bug,
 
 - **Monorepo (`lib/a/`)**: a fresh clone of a monorepo in which `lib/a/` was
   made a splice with `init` and pushed twice.
-- **Upstream**: the two pushed commits, `splice: init lib/a` and
+- **Upstream** (`$UPSTREAM`, reached as `https://git.example.com/a.git`):
+  the two pushed commits, `splice: init lib/a` and
   `second version`.
 
 A splice made by `init` records no synced commit, and `push` doesn't write
@@ -28,22 +29,24 @@ message is wrong too.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh"
+$ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.$UPSTREAM.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/a.git
 ```
 -->
 
 [`setup.bash`](setup.bash) builds this state:
 
 ```scrut
-$ build_scenario scenario_init_then_cloned
+$ build_scenario scenario_init_then_cloned https://git.example.com/a.git
 ```
 
 `.splice` has no synced commit:
 
 ```scrut
-$ git config --file lib/a/.splice --list
-splice.id=[0-9a-f]{16} (regex)
-upstream.origin.url=$UPSTREAM
+$ cat lib/a/.splice
+[splice]
+	id = a11f5cf4ef8965e5
+[upstream "origin"]
+	url = https://git.example.com/a.git
 ```
 
 `status` takes the splice for new, as if the upstream had no such branch,

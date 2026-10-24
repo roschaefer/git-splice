@@ -61,12 +61,16 @@ $ git config --file vendor/pkg-a/.splice upstream.fork.url https://git.example.c
 ```
 
 ```scrut
-$ git config --file vendor/pkg-a/.splice --list | grep -v '^splice\.id='
-splice.commit=703b9360f7ac335a1134e9b5771a90a7c09ba39a
-splice.default-upstream=fork
-upstream.origin.url=https://git.example.com/pkg-a.git
-upstream.fork.url=https://git.example.com/pkg-a-fork.git
-upstream.fork.default-branch=patches
+$ cat vendor/pkg-a/.splice
+[splice]
+	id = 679c78b9916de804
+	commit = 703b9360f7ac335a1134e9b5771a90a7c09ba39a
+	default-upstream = fork
+[upstream "origin"]
+	url = https://git.example.com/pkg-a.git
+[upstream "fork"]
+	url = https://git.example.com/pkg-a-fork.git
+	default-branch = patches
 ```
 
 ## Changes in the monorepo

@@ -34,10 +34,12 @@ splice: clone vendor/pkg-b from main at 9b3cb02
 ```
 
 ```scrut
-$ git config --file vendor/pkg-b/.splice --list
-splice.id=6c92e1a0e36b0b6d
-splice.commit=9b3cb02af44029fd61f1a57699c3dbf033958071
-upstream.origin.url=https://git.example.com/pkg-b.git
+$ cat vendor/pkg-b/.splice
+[splice]
+	id = 6c92e1a0e36b0b6d
+	commit = 9b3cb02af44029fd61f1a57699c3dbf033958071
+[upstream "origin"]
+	url = https://git.example.com/pkg-b.git
 ```
 
 ## From a submodule

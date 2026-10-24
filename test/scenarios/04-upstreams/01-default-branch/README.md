@@ -3,7 +3,8 @@
 Upstream's default branch is `master`, the monorepo's is `main`.
 
 - **Monorepo (`vendor/a/`)**: cloned on `main`, then a local commit.
-- **Upstream**: `seed` on `master`.
+- **Upstream** (`$UPSTREAM`, reached as `https://git.example.com/a.git`):
+  `seed` on `master`.
 
 `clone` recorded `default-branch = master` for the upstream in
 `.splice`, so on the
@@ -14,22 +15,24 @@ branch keeps its name.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh"
+$ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.$UPSTREAM.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/a.git
 ```
 -->
 
 [`setup.bash`](setup.bash) builds this state:
 
 ```scrut
-$ build_scenario scenario_default_branch
+$ build_scenario scenario_default_branch https://git.example.com/a.git
 ```
 
 ```scrut
-$ git config --file vendor/a/.splice --list
-splice.id=[0-9a-f]{16} (regex)
-splice.commit=bde416459fbcc09c9b585f3b65a94cab3f68bfcd
-upstream.origin.url=$UPSTREAM
-upstream.origin.default-branch=master
+$ cat vendor/a/.splice
+[splice]
+	id = 224f2c2563d3b6f7
+	commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
+[upstream "origin"]
+	url = https://git.example.com/a.git
+	default-branch = master
 ```
 
 ```scrut

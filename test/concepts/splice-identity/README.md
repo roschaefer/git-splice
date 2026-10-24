@@ -63,12 +63,12 @@ ok   vendor/a: cloned bde4164 from main
 ```
 
 ```scrut
-$ cat vendor/a/.splice | tr '\t' ' '
+$ cat vendor/a/.splice
 [splice]
- id = 224f2c2563d3b6f7
- commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
+	id = 224f2c2563d3b6f7
+	commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 [upstream "origin"]
- url = https://git.example.com/a.git
+	url = https://git.example.com/a.git
 ```
 
 A second clone of the same upstream, at the same commit, is another

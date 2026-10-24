@@ -55,6 +55,12 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   where there is one: `k="$(…)" && git diff --quiet "$k" …`.
 - A script, for `sh -c` or a file, is a heredoc, one command per line.
 - A loop over a few fixed steps is written out step by step.
+- A config file, `.splice` or `.gitmodules`, is shown whole with `cat`,
+  as a reader would see it, not picked apart with `git config --list`.
+  Its upstream is reached as an `https://git.example.com/…` URL that
+  `url.<path>.insteadOf` maps to `$UPSTREAM`, so the URL and the splice
+  id stay the same on every run. `scrut update` writes the file's tabs
+  as `\t… (escaped)`: turn them back into tabs.
 - A drawing's [`check_drawing`](../check-drawing/) goes in a hidden
   block (`<!--` … `-->`): it keeps the drawing true, but a reader
   learns nothing from it. Only a page that explains the check itself,

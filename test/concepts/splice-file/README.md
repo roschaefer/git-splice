@@ -77,10 +77,10 @@ $ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
 ```scrut
 $ cat vendor/pkg-a/.splice
 [splice]
-\tid = 679c78b9916de804 (escaped)
-\tcommit = 9bb866a3ba726f2229597a45e8ea3368f7e669a8 (escaped)
+	id = 679c78b9916de804
+	commit = 9bb866a3ba726f2229597a45e8ea3368f7e669a8
 [upstream "origin"]
-\turl = https://git.example.com/pkg-a.git (escaped)
+	url = https://git.example.com/pkg-a.git
 ```
 
 `git config` reads it like any config file:
@@ -109,11 +109,11 @@ index 16b61ae..5635a7f 100644
 +++ b/vendor/pkg-a/.splice
 @@ -1,5 +1,5 @@
  [splice]
- \tid = 679c78b9916de804 (escaped)
--\tcommit = 9bb866a3ba726f2229597a45e8ea3368f7e669a8 (escaped)
-+\tcommit = 703b9360f7ac335a1134e9b5771a90a7c09ba39a (escaped)
+ 	id = 679c78b9916de804
+-	commit = 9bb866a3ba726f2229597a45e8ea3368f7e669a8
++	commit = 703b9360f7ac335a1134e9b5771a90a7c09ba39a
  [upstream "origin"]
- \turl = https://git.example.com/pkg-a.git (escaped)
+ 	url = https://git.example.com/pkg-a.git
 ```
 
 A push sends the folder's files, without `.splice`:
