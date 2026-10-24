@@ -169,3 +169,15 @@ pinned_to_v1() {
   [ "$status" -eq 0 ]
   ! git -C "$upstream" show-ref --verify --quiet refs/heads/feature
 }
+
+@test "pin: a tag pulls from an upstream that has no branches left" {
+  pinned_to_v1
+  splice fetch >/dev/null
+  git -C "$upstream" update-ref -d refs/heads/main
+  git config --file vendor/a/.splice upstream.origin.default-pin v2
+  git commit -q -m "vendor/a: pin v2" -- vendor/a/.splice
+  splice fetch >/dev/null
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = $'v1\nv2' ]
+}

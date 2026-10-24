@@ -43,7 +43,9 @@ classify_splice() {
   SPLICE_UPSTREAM_LABEL="$(upstream_branch_label "$path" "$(target_label)")"
   SPLICE_SYNCED="$(splice_config "$path" commit)"
 
-  if ! splice_fetched "$path"; then
+  # A pin that's here counts as fetched, though upstream has no branches.
+  if ! splice_fetched "$path" &&
+    ! { [[ "$SPLICE_TARGET_KIND" != branch ]] && git rev-parse --verify --quiet "$TARGET_REF^{commit}" >/dev/null; }; then
     # Without a synced commit, the splice came from init: its upstream
     # was empty, so a fetch that brings nothing is the expected state. With
     # one that's here, a fetch happened, and the upstream has no branches
