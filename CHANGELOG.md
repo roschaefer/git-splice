@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.12.0](https://github.com/roschaefer/git-splice/compare/v0.11.0...v0.12.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **clone:** --from-submodule keeps what the submodule followed ([#233](https://github.com/roschaefer/git-splice/issues/233))
+* **fetch:** keep fetched branches under refs/splices/<key>/heads/ ([#230](https://github.com/roschaefer/git-splice/issues/230))
+
+### Features
+
+* **clone:** --from-submodule keeps what the submodule followed ([#233](https://github.com/roschaefer/git-splice/issues/233)) ([6679ce0](https://github.com/roschaefer/git-splice/commit/6679ce04954e5fd9f25bc8bacffedca64fc2d2af))
+* pin a splice to a tag or a commit with default-pin ([#232](https://github.com/roschaefer/git-splice/issues/232)) ([7ad7478](https://github.com/roschaefer/git-splice/commit/7ad7478b312c33723b9931a9b9967b41f37fa50b))
+* **sandbox:** open any docs page in a sandbox, the walkthrough by default ([#234](https://github.com/roschaefer/git-splice/issues/234)) ([6a16d0e](https://github.com/roschaefer/git-splice/commit/6a16d0ef1fb239e395938af6cea4e1d74e04d3e0))
+* **website:** search the docs with a local full-text index ([#226](https://github.com/roschaefer/git-splice/issues/226)) ([0cc2560](https://github.com/roschaefer/git-splice/commit/0cc25604510b48e8a0e9771a47d6d314a3ace272))
+
+
+### Code Refactoring
+
+* **fetch:** keep fetched branches under refs/splices/&lt;key&gt;/heads/ ([#230](https://github.com/roschaefer/git-splice/issues/230)) ([1f4890a](https://github.com/roschaefer/git-splice/commit/1f4890aaa2d551c3d8e95b60e1bfa8c2ea2d5b92))
+
 ## [0.11.0](https://github.com/roschaefer/git-splice/compare/v0.10.0...v0.11.0) (2026-10-22)
 
 
