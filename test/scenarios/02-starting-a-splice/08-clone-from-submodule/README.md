@@ -1,0 +1,60 @@
+# Scenario: clone-from-submodule
+
+A submodule, turned into a splice with `git splice clone --from-submodule`.
+
+- **Monorepo, on `main`**: `vendor/a/` is a submodule of the upstream,
+  checked out at `seed`.
+- **Upstream**: `seed`, then `newer` on `main`: it moved on since the
+  submodule's commit.
+
+The splice keeps the submodule's URL and the commit it points to. What
+it follows from then on depends on the submodule's `branch` in
+`.gitmodules`, the branch `git submodule update --remote` follows:
+
+| `branch` in `.gitmodules` | The submodule | `.splice` records | The splice on `main` |
+| --- | --- | --- | --- |
+| none, as here | stays at its commit | `default-pin <commit>` | stays at it ([submodule-without-branch](01-submodule-without-branch/README.md)) |
+| `stable` | follows `stable` | `default-branch stable` | follows `stable` ([submodule-with-branch](02-submodule-with-branch/README.md)) |
+| `.` | follows the branch named like the monorepo's | neither | follows `main` ([submodule-with-branch-dot](03-submodule-with-branch-dot/README.md)) |
+
+## Output
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../../readme-setup.sh"
+```
+-->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_clone_from_submodule
+```
+
+```scrut
+$ git config --file .gitmodules --list
+submodule.vendor/a.path=vendor/a
+submodule.vendor/a.url=$UPSTREAM
+```
+
+```scrut
+$ git splice clone --from-submodule vendor/a
+===  vendor/a: fetching $UPSTREAM
+ok   vendor/a: cloned bde4164 from the submodule
+===  vendor/a: pinned at bde4164, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin
+===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
+```
+
+One commit replaces the submodule with its files and a `.splice`, and
+removes it from `.gitmodules`, here the whole file:
+
+```scrut
+$ git show --stat --format=%s
+splice: clone vendor/a from submodule at bde4164
+
+ .gitmodules       | 3 ---
+ vendor/a          | 1 -
+ vendor/a/.splice  | 6 ++++++
+ vendor/a/file.txt | 1 +
+ 4 files changed, 7 insertions(+), 4 deletions(-)
+```

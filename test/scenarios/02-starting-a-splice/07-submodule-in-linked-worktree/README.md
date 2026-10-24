@@ -40,6 +40,7 @@ $ git -C ../feature submodule status
 $ git splice clone --from-submodule vendor/a
 ===  vendor/a: fetching $UPSTREAM
 ok   vendor/a: cloned bde4164 from the submodule
+===  vendor/a: pinned at bde4164, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin
 ===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
 ```
 

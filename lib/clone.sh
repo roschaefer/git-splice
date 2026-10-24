@@ -27,15 +27,22 @@ turns it into a splice of the same upstream, at the same commit: the
 upstream is the submodule's URL in .gitmodules, and the folder gets the
 files of the commit the submodule points to. One commit replaces the
 submodule with the folder, and removes it from .gitmodules (the file too,
-once empty). The commit must be on a branch upstream, and a checkout of
-the submodule must be at that commit without changes; clone refuses
-otherwise. It asks git status for those changes, so it can't see the ones
-hidden by 'git update-index --assume-unchanged' or '--skip-worktree': an
-edited file keeps its edit, but a deleted one comes back. Clear these
-flags first. Files Git ignores in the checkout stay, and its repository
-stays in .git/modules/. Settings in .gitmodules other than path and url
-are dropped: a splice syncs with the upstream branch named like the
-current branch, not with submodule.<name>.branch.
+once empty). Upstream must serve the commit, on a branch, a tag or by
+id, and a checkout of the submodule must be at that commit without
+changes; clone refuses otherwise. It asks git status for those changes,
+so it can't see the ones hidden by 'git update-index --assume-unchanged'
+or '--skip-worktree': an edited file keeps its edit, but a deleted one
+comes back. Clear these flags first. Files Git ignores in the checkout
+stay, and its repository stays in .git/modules/.
+
+The splice keeps what the submodule followed. submodule.<name>.branch,
+the branch 'git submodule update --remote' follows, becomes the
+upstream's default-branch ("." needs none: a splice follows the branch
+named like the current one by default; inside a splice that pins a tag
+or a commit, it stays at its commit). Without it, the submodule stayed
+at its commit, and the upstream's default-pin pins that commit: on the
+monorepo's default branch, pull brings in nothing and push refuses until
+default-pin is removed. Other settings in .gitmodules are dropped.
 
 A submodule whose commit has submodules of its own is refused, unless
 --recursive is given: then clone converts those too, one commit each,
@@ -65,14 +72,16 @@ default_clone_path() {
 # branch where it's named differently from the default branch of what
 # the splice lives in, else nothing. Also sets UPSTREAM_DEFAULT,
 # MONOREPO_DEFAULT and CONTAINER_DEFAULT, the default branches it compared.
+# With <only-fetch> set, it only fetches and registers: a submodule's
+# conversion records what the submodule followed instead.
 NEW_DEFAULT_BRANCH=""
 UPSTREAM_DEFAULT=""
 MONOREPO_DEFAULT=""
 CONTAINER_DEFAULT=""
 fetch_new_upstream() {
-  local path="$1" url="$2"
+  local path="$1" url="$2" only_fetch="${3:-}"
   # Before the fetch: refuses if the splice above leaves it open.
-  container_default_branch "$path" >/dev/null
+  [[ -n "$only_fetch" ]] || container_default_branch "$path" >/dev/null
   create_upstream_key "$url"
   SPLICE_UPSTREAM_LISTS[$path]="$DEFAULT_UPSTREAM"
   UPSTREAM_URLS["$path:$DEFAULT_UPSTREAM"]="$url"
@@ -80,6 +89,8 @@ fetch_new_upstream() {
   use_upstream "$path" "$DEFAULT_UPSTREAM"
   log_step "$path: fetching $url"
   fetch_upstream "$url" "$(splice_refs_prefix "$path")" || die "$path: fetch failed"
+  # A submodule's commit may be on no branch, only on a tag.
+  [[ -z "$only_fetch" ]] || return 0
   splice_fetched "$path" || die "$url has no branches yet -- to publish $path there, use 'git splice init $(shell_quote "$path") $(shell_quote "$url")'"
 
   # Map the monorepo's default branch to the upstream's, if it differs from
@@ -267,6 +278,57 @@ refuse_lossy_submodule_conversion() {
   fi
 }
 
+# Sets SUBMODULE_BRANCH and SUBMODULE_PIN to the default-branch and
+# default-pin the splice at <path> of submodule <name>, committed at
+# <commit> and listed in <gitmodules>, records to mean what the submodule
+# meant; empty ones aren't recorded. Its branch setting, for
+# 'git submodule update --remote', names the branch it follows: that one,
+# unless the splice would follow it anyway (container_default_branch);
+# "." follows the branch named like the current one, which a splice does
+# without a default-branch. Without a branch, the submodule stayed at
+# its commit, and so does the splice. Inside a splice that pins a tag or
+# a commit, there's no such branch: "." stays at its commit too, which
+# SUBMODULE_PINNED_AS then says. Dies if a pin or a default-branch can't
+# apply because the monorepo's default branch can't be determined.
+submodule_defaults() {
+  local path="$1" gitmodules="$2" name="$3" commit="$4" branch above pinned_above=""
+  branch="$(git config --blob "HEAD:$gitmodules" "submodule.$name.branch" 2>/dev/null || true)"
+  SUBMODULE_BRANCH="" SUBMODULE_PIN="" SUBMODULE_PINNED_AS="the submodule was"
+  if above="$(splice_above_in HEAD "$path")"; then
+    resolve_default_target "$above"
+    [[ "$TARGET_KIND" == branch ]] || pinned_above=1
+  fi
+  case "$branch" in
+    "") SUBMODULE_PIN="$commit" ;;
+    .)
+      if [[ -n "$pinned_above" ]]; then
+        SUBMODULE_PIN="$commit"
+        SUBMODULE_PINNED_AS="$above is"
+      fi
+      ;;
+    *)
+      if [[ -n "$pinned_above" || "$branch" != "$(container_default_branch "$path")" ]]; then
+        SUBMODULE_BRANCH="$branch"
+      fi
+      ;;
+  esac
+  if [[ -z "$(monorepo_default_branch)" ]]; then
+    if [[ -n "$SUBMODULE_PIN" ]]; then
+      die "$path: the submodule stays at ${commit:0:7}, and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+    elif [[ -n "$SUBMODULE_BRANCH" ]]; then
+      die "$path: the submodule follows '$SUBMODULE_BRANCH', and a default-branch applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+    fi
+  fi
+}
+
+# Prints the name of a tag of upstream <url> that names <commit>, or
+# nothing. Reads the whole listing: git ls-remote would get a SIGPIPE if
+# awk stopped at the first match.
+tag_naming() {
+  git ls-remote --tags -- "$1" 2>/dev/null |
+    awk -v c="$2" '!found && $1 == c { sub("^refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2; found = 1 }'
+}
+
 # Turns the submodule at <path> into a splice, as clone --from-submodule
 # does; with <recursive> non-empty, its own submodules too, each in a
 # commit of its own after the one above. A submodule inside a splice --
@@ -305,11 +367,14 @@ clone_from_submodule() {
   [[ -z "$above" || ! -d "$path/.git" ]] ||
     die "$path/.git is a repository of its own, not one in .git/modules/ -- move it away first"
 
-  fetch_new_upstream "$path" "$url"
-  if ! git cat-file -e "$commit^{commit}" 2>/dev/null ||
-    [[ -z "$(git for-each-ref --count=1 --contains "$commit" --format="%(refname)" "$(splice_refs_prefix "$path")")" ]]; then
-    die "$path: no upstream branch has the submodule's commit ${commit:0:7} -- push it there first"
+  fetch_new_upstream "$path" "$url" only-fetch
+  # A commit no branch has, e.g. one only a tag has, is still there for
+  # everyone if upstream serves it by id, as fetch then fetches it.
+  if [[ -z "$(git for-each-ref --count=1 --contains "$commit" --format="%(refname)" "$(splice_refs_prefix "$path")" 2>/dev/null)" ]]; then
+    git fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head -- "$url" "$commit" 2>/dev/null ||
+      die "$path: upstream doesn't serve the submodule's commit ${commit:0:7} -- push it to a branch or a tag there first"
   fi
+  submodule_defaults "$path" "$gitmodules" "$name" "$commit"
   upstream_has_state_file "$commit" &&
     die "$path: upstream has a $STATE_FILE at its root, which would replace $path/$STATE_FILE -- splice a folder of it instead"
   local inner
@@ -322,12 +387,12 @@ clone_from_submodule() {
   while IFS= read -r key; do
     [[ "$key" == "submodule.$name."* ]] || continue
     setting="${key#"submodule.$name."}"
-    [[ "$setting" != *.* && "$setting" != path && "$setting" != url ]] || continue
+    [[ "$setting" != *.* && "$setting" != path && "$setting" != url && "$setting" != branch ]] || continue
     log_warn "$path: dropping $key from .gitmodules -- a splice has no such setting"
   done < <(git config --blob "HEAD:$gitmodules" --name-only --get-regexp '^submodule\.')
 
   local blob edited
-  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$commit")" "commit=$commit" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$NEW_DEFAULT_BRANCH")"
+  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$commit")" "commit=$commit" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$SUBMODULE_BRANCH" "upstream.$DEFAULT_UPSTREAM.default-pin=$SUBMODULE_PIN")"
   edited="$(mktemp)"
   git cat-file blob "HEAD:$gitmodules" >"$edited"
   git config --file "$edited" --remove-section "submodule.$name"
@@ -362,6 +427,11 @@ clone_from_submodule() {
   rm -f -- "$edited"
   git commit --quiet -m "splice: clone $path from submodule at ${commit:0:7}"
   log_ok "$path: cloned ${commit:0:7} from the submodule"
+  if [[ -n "$SUBMODULE_PIN" ]]; then
+    local tag
+    tag="$(tag_naming "$url" "$commit")" || tag=""
+    log_step "$path: pinned at ${commit:0:7}${tag:+, the tag '$tag'}, as $SUBMODULE_PINNED_AS -- pull brings in nothing and push refuses on $(monorepo_default_branch) until it follows a branch: git config --file $(shell_quote "$path/$STATE_FILE") --unset upstream.$DEFAULT_UPSTREAM.default-pin"
+  fi
   [[ -z "$gitdir" ]] || log_step "$path: the submodule's repository stays in $gitdir -- remove it once you don't need it"
   [[ -z "$above" ]] ||
     log_step "$above: upstream still has ${path#"$above/"} as a submodule -- 'git splice push $(shell_quote "$above")' turns it into a splice there too"

@@ -66,6 +66,7 @@ $ cat .gitmodules
 $ git splice clone --from-submodule vendor/pkg-b
 ===  vendor/pkg-b: fetching https://git.example.com/pkg-b.git
 ok   vendor/pkg-b: cloned 9b3cb02 from the submodule
+===  vendor/pkg-b: pinned at 9b3cb02, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/pkg-b/.splice --unset upstream.origin.default-pin
 ===  vendor/pkg-b: the submodule's repository stays in $WALKTHROUGH/monorepo/.git/modules/vendor/pkg-b -- remove it once you don't need it
 ```
 
@@ -78,20 +79,33 @@ splice: clone vendor/pkg-b from submodule at 9b3cb02
 
  .gitmodules           | 3 ---
  vendor/pkg-b          | 1 -
- vendor/pkg-b/.splice  | 5 +++++
+ vendor/pkg-b/.splice  | 6 ++++++
  vendor/pkg-b/file.txt | 1 +
- 4 files changed, 6 insertions(+), 4 deletions(-)
+ 4 files changed, 7 insertions(+), 4 deletions(-)
 ```
 
-The commit has to be on a branch upstream, so it's there for everyone
-after the switch. A checkout of the submodule must be at it, without
-changes, or `clone` refuses. It finds those changes with `git status`,
-which doesn't see the ones hidden by `git update-index --assume-unchanged`
-or `--skip-worktree`: an edited file keeps its edit, but a deleted one
-comes back. Clear these flags before converting. Settings in `.gitmodules` other than `path`
-and `url` have no equivalent and are dropped, with a warning: a splice
-syncs with the upstream branch named like the monorepo's current branch,
-not with `submodule.<name>.branch`. Other branches still have the
+The splice keeps what the submodule followed, its `branch` in
+`.gitmodules`
+([clone-from-submodule](../scenarios/02-starting-a-splice/08-clone-from-submodule/README.md)):
+
+- **No `branch`**, as here: it stays at its commit, pinned with
+  `default-pin`
+  ([submodule-without-branch](../scenarios/02-starting-a-splice/08-clone-from-submodule/01-submodule-without-branch/README.md)).
+- **`branch = <name>`**: it follows that branch, recorded as
+  `default-branch`
+  ([submodule-with-branch](../scenarios/02-starting-a-splice/08-clone-from-submodule/02-submodule-with-branch/README.md)).
+- **`branch = .`**: it follows the branch named like the monorepo's, as
+  every splice does without either setting
+  ([submodule-with-branch-dot](../scenarios/02-starting-a-splice/08-clone-from-submodule/03-submodule-with-branch-dot/README.md)).
+
+The upstream has to serve the commit, on a branch, a tag or by id, so
+it's there for everyone after the switch. A checkout of the submodule
+must be at it, without changes, or `clone` refuses. It finds those
+changes with `git status`, which doesn't see the ones hidden by
+`git update-index --assume-unchanged` or `--skip-worktree`: an edited
+file keeps its edit, but a deleted one comes back. Clear these flags
+before converting. Other settings in `.gitmodules` have no equivalent
+and are dropped, with a warning. Other branches still have the
 submodule; merging the converted main branch into them converts it there
 too.
 
