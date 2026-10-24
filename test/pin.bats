@@ -181,3 +181,17 @@ pinned_to_v1() {
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/file.txt)" = $'v1\nv2' ]
 }
+
+@test "pin: a tag that moved upstream in a SHA-256 repository is reported with its new commit" {
+  export GIT_DEFAULT_HASH=sha256
+  pinned_to_v1
+  splice fetch >/dev/null
+  local old new
+  old="$(git -C "$upstream" rev-parse v1)"
+  git -C "$upstream" tag -f v1 main >/dev/null
+  new="$(git -C "$upstream" rev-parse v1)"
+  [ "${#new}" -eq 64 ]
+  run splice fetch
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"??   vendor/a: the tag 'v1' moved upstream, from ${old:0:7} to ${new:0:7} -- kept ${old:0:7}; to take the new one: git update-ref $(upstream_tag_ref "$upstream" v1) $new"* ]]
+}

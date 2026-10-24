@@ -121,7 +121,8 @@ fetch_shared_upstream() {
       fi
       moved="${tag_of[i]:+${moved_tags[${tag_of[i]}]}}"
       if [[ -n "$moved" ]]; then
-        log_warn "${paths[i]}: the tag '${tag_of[i]}' moved upstream, from ${moved:0:7} to ${moved:41:7} -- kept ${moved:0:7}; to take the new one: git update-ref refs/splices/$key/tags/${tag_of[i]} ${moved#* }"
+        new_sha="${moved#* }"
+        log_warn "${paths[i]}: the tag '${tag_of[i]}' moved upstream, from ${moved:0:7} to ${new_sha:0:7} -- kept ${moved:0:7}; to take the new one: git update-ref refs/splices/$key/tags/${tag_of[i]} $new_sha"
       fi
     } >"$out_dir/${indexes[i]}.err" 2>&1
   done
