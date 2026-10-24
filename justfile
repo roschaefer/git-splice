@@ -26,12 +26,7 @@ test:
 bench *args:
     @bench/run.sh "$@"
 
-# Open a shell in a throwaway monorepo to try commands by hand; see `just walkthrough --help`
-[positional-arguments]
-walkthrough *args:
-    @test/walkthrough/setup.sh "$@"
-
-# Open a shell in the state a docs page starts from, e.g. `just sandbox comparisons/git-submodule`; see `just sandbox --help`
+# Open a shell in the state a docs page starts from, the walkthrough by default, e.g. `just sandbox comparisons/git-submodule`; see `just sandbox --help`
 [positional-arguments]
 sandbox *args:
     @test/sandbox.sh "$@"

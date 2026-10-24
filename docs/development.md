@@ -4,8 +4,8 @@ With [Nix](https://nixos.org/download/) and
 [flakes](https://wiki.nixos.org/wiki/Flakes), run in the clone:
 
     nix develop      # shell with the dev tools and this checkout on PATH
-    just --list      # lint, fmt, test, ci, bench, walkthrough, ...
-    just walkthrough # try commands by hand in a throwaway monorepo
+    just --list      # lint, fmt, test, ci, bench, sandbox, ...
+    just sandbox     # try commands by hand in a throwaway monorepo
     just site-serve  # this documentation site, reloading on changes
 
 [The design](design/README.md#testing) explains how the tests are

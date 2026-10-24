@@ -14,7 +14,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
-In the [sandbox](../../docs/sandbox.md), `vendor/pkg-a/`'s upstream has a commit the
+In the [walkthrough's repositories](README.md), `vendor/pkg-a/`'s upstream has a commit the
 monorepo doesn't have yet, and it's already fetched:
 
 ```scrut

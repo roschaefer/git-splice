@@ -3,50 +3,26 @@
 To try `git-splice` without touching your own repositories, run this in a
 clone of `git-splice`:
 
-    nix develop       # a shell with the dev tools and this checkout on PATH
-    just walkthrough
+    nix develop -c just sandbox
 
-Without Nix, [install](installation.md) `git-splice` first, then run
-`test/walkthrough/setup.sh` in the clone.
-
-It builds a throwaway monorepo in a temporary directory and opens a shell
-in it. The [walkthrough](../test/walkthrough/README.md) shows what to
-type there, and each of its pages starts from a fresh sandbox.
-
-What you get:
-
-- `$WALKTHROUGH/monorepo`: the monorepo, on `main`. You start here.
-- `$WALKTHROUGH/upstream/pkg-a.git`, `pkg-b.git` and `lib-c.git`: bare
-  repositories on the same machine that stand in for the splices'
-  upstreams. The monorepo reaches them as
-  `https://git.example.com/<name>.git`: its `url.<base>.insteadOf` maps
-  that prefix to `$WALKTHROUGH/upstream/`. The sandbox's shell exports
-  `$WALKTHROUGH`, so you can paste the walkthrough's commands as they
-  are.
-- `vendor/pkg-a/`: a splice whose upstream has one commit the monorepo
-  doesn't have yet. It's already fetched.
-- `pkg-b.git`: a repository that isn't spliced in yet.
-- `libs/c/`: a folder of the monorepo, to be published to the empty
-  `lib-c.git`.
-
-To push a commit to an upstream as if someone else had, clone it next to
-the monorepo, commit there and push, as in the walkthrough's
-[fetch](../test/walkthrough/README.md#fetch). The sandbox's shell names
-you "Walkthrough" for such commits, and otherwise uses your git config.
+It opens a shell in a throwaway monorepo, the one the
+[walkthrough](../test/walkthrough/README.md) starts from: run the
+walkthrough's commands there, and they print what it shows. Without
+Nix, run `test/sandbox.sh`; it needs Bash and Git.
 
 ## Any page, in a sandbox
 
 Each page of these docs that runs commands, a walkthrough chapter, a
-concept, a scenario or a comparison, has a sandbox of its own, in the
-state the page starts from. In a clone of `git-splice`:
+concept, a scenario or a comparison, opens the same way, in the state
+the page starts from:
 
     nix develop -c just sandbox comparisons/git-submodule
 
 The page is its path under `test/`, with or without `.md`: e.g.
-`scenarios/02-starting-a-splice/01-clone-copied-content` for that
-scenario's README. Without Nix, run `test/sandbox.sh` with the page; it
-needs Bash and Git, and the tool a page compares with, e.g. `git-subrepo`.
-Without a page, it lists them.
+`walkthrough/push`, or `scenarios/02-starting-a-splice/01-clone-copied-content`
+for that scenario's README. A comparison needs the tool it compares
+with, e.g. `git-subrepo`, which `nix develop` has. An unknown page lists
+them all. Each page says what its repositories are.
 
 The sandbox builds the state the page starts from: it runs the page's
 setup, up to the first command the page shows you, i.e. what the page

@@ -10,11 +10,12 @@ no_shell=0
 
 usage() {
   cat <<'EOF'
-usage: test/sandbox.sh <page> [--dir <path>] [--no-shell]
+usage: test/sandbox.sh [<page>] [--dir <path>] [--no-shell]
 
 Builds the state the docs page <page> starts from, and drops you into a
 shell there. <page> is its path under test/, with or without .md, e.g.
-comparisons/git-submodule or scenarios/02-starting-a-splice/01-clone-copied-content.
+walkthrough/push or scenarios/02-starting-a-splice/01-clone-copied-content.
+Without one, it's the walkthrough, which tries every command once.
 
 The state is the page's setup: its hidden commands, and the shown ones
 that only call a helper of the setup, like a scenario's build_scenario.
@@ -56,15 +57,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 markdown=""
-if [[ -n "$page" ]]; then
-  page="${page#test/}"
-  for candidate in "$tests/$page" "$tests/$page.md" "$tests/$page/README.md"; do
-    if [[ -f "$candidate" && "$candidate" == *.md ]]; then
-      markdown="$candidate"
-      break
-    fi
-  done
-fi
+page="${page:-walkthrough}"
+page="${page#test/}"
+for candidate in "$tests/$page" "$tests/$page.md" "$tests/$page/README.md"; do
+  if [[ -f "$candidate" && "$candidate" == *.md ]]; then
+    markdown="$candidate"
+    break
+  fi
+done
 if [[ -z "$markdown" ]]; then
   echo "no docs page '$page' under test/; e.g.:" >&2
   (cd "$tests" && grep -rlF --include='*.md' '```scrut' . | sed 's#^\./##; s#/README\.md$##; s#\.md$##' | sort | sed 's/^/  /') >&2
