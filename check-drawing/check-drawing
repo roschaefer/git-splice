@@ -412,9 +412,10 @@ check_drawing() {
     fi
   done
 
-  # A monorepo commit is filled after what the next rebuild does with it:
-  # grey if it's on the first-parent history since B, which the rebuild
-  # walks, orange if R has a copy of it too, white otherwise. Without
+  # A commit is filled after what the next rebuild does with it: grey for
+  # a monorepo commit on the first-parent history since B, which the
+  # rebuild walks; orange for a change it carries across, on both ends: a
+  # walked commit R copies, and its copy in R. White otherwise. Without
   # splices, e.g. in a drawing of git subtree, the fills aren't checked.
   local walked_fill="#E0E0E0" rebuilt_fill="#FFB570" want have c
   local -A walked=() copied=()
@@ -438,7 +439,14 @@ check_drawing() {
     [[ -n "$hash" && ${#splices[@]} -gt 0 ]] || continue
     have="$(fill "$id")"
     want=white
-    if [[ "${value[$id]}" != *\' ]] && in_monorepo "$hash" &&
+    sp="${splice_of[$id]}"
+    if [[ "${value[$id]}" == *\' ]]; then
+      if [[ -n "$sp" && -n "${truth["$sp|R"]:-}" ]] &&
+        git merge-base --is-ancestor "$hash" "${truth["$sp|R"]}" 2>/dev/null &&
+        ! { [[ -n "${truth["$sp|S"]}" ]] && git merge-base --is-ancestor "$hash" "${truth["$sp|S"]}"; }; then
+        want="$rebuilt_fill"
+      fi
+    elif in_monorepo "$hash" &&
       [[ ${#lanes[@]} -eq 0 || -z "${lane_of[$id]}" ]] && [[ -n "${walked[$hash]:-}" ]]; then
       want="$walked_fill"
       [[ -z "${copied["$(git log -1 --format='%an%x1f%ae%x1f%ad%x1f%s' --date=raw "$hash")"]:-}" ]] ||
@@ -446,7 +454,13 @@ check_drawing() {
     fi
     [[ "$have" != "$want" ]] || continue
     case "$want" in
-      "$rebuilt_fill") errors+=("${value[$id]} is after B, and R copies it: fill it orange, $rebuilt_fill") ;;
+      "$rebuilt_fill")
+        if [[ "${value[$id]}" == *\' ]]; then
+          errors+=("${value[$id]} is R's copy of a commit since B: fill it orange, $rebuilt_fill")
+        else
+          errors+=("${value[$id]} is after B, and R copies it: fill it orange, $rebuilt_fill")
+        fi
+        ;;
       "$walked_fill") errors+=("${value[$id]} is after B, but R doesn't copy it: fill it grey, $walked_fill") ;;
       *) errors+=("${value[$id]} is filled, but the rebuild doesn't walk it: leave it white") ;;
     esac

@@ -43,7 +43,7 @@ edit_drawing() {
 }
 
 @test "drawing: a solid rebuilt commit is to be dashed" {
-  edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;'
+  edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;fillColor=#FFB570;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   b' is solid, but no upstream branch has it: dash it" ]
@@ -54,6 +54,13 @@ edit_drawing() {
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   b is after B, and R copies it: fill it orange, #FFB570" ]
+}
+
+@test "drawing: R's copy of a commit is filled orange too" {
+  edit_drawing -u '//mxCell[@id="d_"]/@style' -v 'ellipse;aspect=fixed;dashed=1;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   d' is R's copy of a commit since B: fill it orange, #FFB570" ]
 }
 
 @test "drawing: a commit after B that R doesn't copy is filled grey" {
@@ -310,11 +317,11 @@ plain_history() {
 
 # Two circles, x and x', with a box that points at x'.
 pushed_copy_drawing() {
-  local box="$1" x_style="${2:-ellipse;}"
+  local box="$1" style="${2:-ellipse;}"
   cat >"$drawing" <<XML
 <mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
-<mxCell id="x" parent="1" vertex="1" style="$x_style" value="x"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
-<mxCell id="x_" parent="1" vertex="1" style="ellipse;" value="x'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="x" parent="1" vertex="1" style="$style" value="x"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="x_" parent="1" vertex="1" style="$style" value="x'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="box" parent="1" vertex="1" style="rounded=1;" value="$box"><mxGeometry x="120" y="175" width="120" height="40" as="geometry" /></mxCell>
 <mxCell id="e0" parent="1" edge="1" source="box" target="x_"><mxGeometry relative="1" as="geometry" /></mxCell>
 </root></mxGraphModel></diagram></mxfile>
@@ -336,7 +343,7 @@ XML
   git switch -q -c feature
   commit_local "$monorepo" lib "x"
   splice push lib >/dev/null 2>&1
-  # x is unpushed on feature, so R copies it.
+  # On feature, R copies x, as x'.
   pushed_copy_drawing pushed 'ellipse;fillColor=#FFB570;'
   run check_drawing "$drawing" x=feature pushed=refs/splices/upstream/heads/feature
   [ "$status" -eq 0 ]

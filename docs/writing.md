@@ -59,9 +59,10 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   block (`<!--` … `-->`): it keeps the drawing true, but a reader
   learns nothing from it. Only a page that explains the check itself,
   like its `--alias`, shows it.
-- A drawing's fills say what the next rebuild does with a monorepo
-  commit: grey (`#E0E0E0`) for one it walks, on the first-parent history
-  since B, orange (`#FFB570`) for one R copies too, white for the rest.
+- A drawing's fills say what the next rebuild does with a commit: grey
+  (`#E0E0E0`) for a monorepo commit it walks, on the first-parent
+  history since B, orange (`#FFB570`) for a change it carries across, on
+  both ends: a walked commit R copies, and its copy. White for the rest.
   `check_drawing` checks them, as it checks the dashes. A drawing of
   another tool uses them the same way, for the commits that tool walks
   and the ones it carries over, e.g. `git subtree split`; there the
