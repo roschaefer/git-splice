@@ -704,3 +704,27 @@ add_nested_submodule_with_branch() {
   [[ "$output" == *"!!   vendor/a: the submodule stays at "*", and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
 }
+
+@test "clone --from-submodule: refuses to record a branch when the monorepo's default branch can't be determined" {
+  git config --unset init.defaultBranch
+  git -C "$upstream" branch release main
+  add_submodule
+  git config --file .gitmodules submodule.vendor/a.branch release
+  git commit -q -m "vendor/a follows release" .gitmodules
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: the submodule follows 'release', and a default-branch applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+}
+
+@test "clone --from-submodule: an upstream with tags but no branches converts a submodule at a tag" {
+  local pinned
+  pinned="$(git -C "$upstream" rev-parse main)"
+  git -C "$upstream" tag v1 main
+  add_submodule
+  git -C "$upstream" update-ref -d refs/heads/main
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"===  vendor/a: pinned at ${pinned:0:7}, the tag 'v1', as the submodule was"* ]]
+  [ "$(git config --file vendor/a/.splice upstream.origin.default-pin)" = "$pinned" ]
+}

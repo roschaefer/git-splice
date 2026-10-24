@@ -89,8 +89,9 @@ fetch_new_upstream() {
   use_upstream "$path" "$DEFAULT_UPSTREAM"
   log_step "$path: fetching $url"
   fetch_upstream "$url" "$(splice_refs_prefix "$path")" || die "$path: fetch failed"
-  splice_fetched "$path" || die "$url has no branches yet -- to publish $path there, use 'git splice init $(shell_quote "$path") $(shell_quote "$url")'"
+  # A submodule's commit may be on no branch, only on a tag.
   [[ -z "$only_fetch" ]] || return 0
+  splice_fetched "$path" || die "$url has no branches yet -- to publish $path there, use 'git splice init $(shell_quote "$path") $(shell_quote "$url")'"
 
   # Map the monorepo's default branch to the upstream's, if it differs from
   # the default branch of what the splice lives in: the splice above it,
@@ -287,8 +288,8 @@ refuse_lossy_submodule_conversion() {
 # without a default-branch. Without a branch, the submodule stayed at
 # its commit, and so does the splice. Inside a splice that pins a tag or
 # a commit, there's no such branch: "." stays at its commit too, which
-# SUBMODULE_PINNED_AS then says. Dies if a pin can't apply because the
-# monorepo's default branch can't be determined.
+# SUBMODULE_PINNED_AS then says. Dies if a pin or a default-branch can't
+# apply because the monorepo's default branch can't be determined.
 submodule_defaults() {
   local path="$1" gitmodules="$2" name="$3" commit="$4" branch above pinned_above=""
   branch="$(git config --blob "HEAD:$gitmodules" "submodule.$name.branch" 2>/dev/null || true)"
@@ -311,8 +312,12 @@ submodule_defaults() {
       fi
       ;;
   esac
-  if [[ -n "$SUBMODULE_PIN" && -z "$(monorepo_default_branch)" ]]; then
-    die "$path: the submodule stays at ${commit:0:7}, and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+  if [[ -z "$(monorepo_default_branch)" ]]; then
+    if [[ -n "$SUBMODULE_PIN" ]]; then
+      die "$path: the submodule stays at ${commit:0:7}, and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+    elif [[ -n "$SUBMODULE_BRANCH" ]]; then
+      die "$path: the submodule follows '$SUBMODULE_BRANCH', and a default-branch applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+    fi
   fi
 }
 
