@@ -62,7 +62,23 @@ doesn't develop it. What it does need, the changes that fit the library
 into the app, are its own commits anyway.
 
 That's the price for `split` to scale: it can start at the newest
-library commit the monorepo has, and walks only the commits since.
+library commit the monorepo has, and walks only the commits since. It
+finds where in the commit messages: every commit `add`, `pull` and
+`split --rejoin` make names the folder in a `git-subtree-dir:` line,
+and `split` looks for those. The merge's message also names a monorepo
+commit, its first parent *a* (`app commit 40`), as
+`git-subtree-mainline:`, and the library commit that commit's history
+maps to, as `git-subtree-split:`:
+
+```scrut
+$ git log -1 --format=%B | grep '^git-subtree-'
+git-subtree-dir: vendor/lib
+git-subtree-mainline: 7de219808bfd601897cdad67aa5c90b5a2e9bce8
+git-subtree-split: bafd496b1f4512a95b69464604f3da428aa9e33b
+```
+
+From there on, `split` knows the monorepo's history already, and walks
+only what came after.
 
 ## Problem 2: with `--squash`, `split` walks everything
 
@@ -138,7 +154,17 @@ ok   git-subtree-squashed.drawio.svg: 7 commits, 7 arrows, 1 boxes
 -->
 
 Now `split` knows no library commit in the monorepo's history to start
-from, so it walks all of it, every time, though only *c* and *e* touched
+from. *q*'s message names the library commit it squashes, but no
+`git-subtree-mainline:`, no monorepo commit up to which the history is
+known:
+
+```scrut
+$ git log -1 --format=%B HEAD~4^2 | grep '^git-subtree-'
+git-subtree-dir: vendor/lib
+git-subtree-split: bafd496b1f4512a95b69464604f3da428aa9e33b
+```
+
+So `split` walks all of it, every time, though only *c* and *e* touched
 the library:
 
 ```scrut
@@ -202,7 +228,17 @@ ok   git-subtree-rejoin.drawio.svg: 9 commits, 10 arrows, 1 boxes
 ```
 -->
 
-The next `split` starts at *r*, and walks only the few commits since:
+*j*'s message has what *q*'s lacks, a `git-subtree-mainline:`, here
+*e*:
+
+```scrut
+$ git log -1 --format=%B | grep '^git-subtree-'
+git-subtree-dir: vendor/lib
+git-subtree-mainline: 9d3cc6061455cb38432ce9846218e1227e4771be
+git-subtree-split: 48108daa0f798109c3e672ed47a7de6204cf4e02
+```
+
+The next `split` starts there, and walks only the few commits since:
 
 ```scrut
 $ subtree_split_walks vendor/lib
@@ -269,6 +305,15 @@ $ check_drawing "$TESTDIR/git-subtree-squash-merged.drawio.svg" --alias HEAD=H \
 ok   git-subtree-squash-merged.drawio.svg: 4 commits, 4 arrows, 1 boxes
 ```
 -->
+
+*p*'s message is the pull request's, so it has none of the lines
+`split` looks for:
+
+```scrut
+$ git log -1 --format=%B | grep -c '^git-subtree-'
+0
+[1]
+```
 
 So the next `split` from there walks all of the monorepo's history
 again, to find *p*:
