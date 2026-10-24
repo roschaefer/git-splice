@@ -49,8 +49,22 @@ edit_drawing() {
   [ "$output" = "!!   b' is solid, but no upstream branch has it: dash it" ]
 }
 
+@test "drawing: a commit the rebuild walks is filled grey" {
+  edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   c is after B, so the rebuild walks it: fill it grey, #E0E0E0" ]
+}
+
+@test "drawing: a commit the rebuild doesn't walk stays white" {
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=#E0E0E0;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
+}
+
 @test "drawing: a commit R copies is outlined orange" {
-  edit_drawing -u '//mxCell[@id="b"]/@style' -v 'ellipse;aspect=fixed;'
+  edit_drawing -u '//mxCell[@id="b"]/@style' -v 'ellipse;aspect=fixed;fillColor=#E0E0E0;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   b is after B, and R copies it: outline it orange, #E07000" ]
@@ -63,18 +77,11 @@ edit_drawing() {
   [ "$output" = "!!   d' is R's copy of a commit since B: outline it orange, #E07000" ]
 }
 
-@test "drawing: a commit after B that R doesn't copy is outlined grey" {
-  edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#E07000;'
+@test "drawing: a commit R doesn't copy is outlined black" {
+  edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;fillColor=#E0E0E0;strokeColor=#E07000;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   c is after B, but R doesn't copy it: outline it grey, #999999" ]
-}
-
-@test "drawing: a commit the rebuild doesn't walk stays black" {
-  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#999999;'
-  run check_drawing "$drawing" a=HEAD~4 e=HEAD
-  [ "$status" -eq 1 ]
-  [ "$output" = "!!   a is outlined in color, but the rebuild doesn't walk it: outline it black" ]
+  [ "$output" = "!!   c is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
 }
 
 @test "drawing: a box sits with the commit it points at" {
@@ -317,11 +324,11 @@ plain_history() {
 
 # Two circles, x and x', with a box that points at x'.
 pushed_copy_drawing() {
-  local box="$1" style="${2:-ellipse;}"
+  local box="$1" x_style="${2:-ellipse;}" copy_style="${3:-ellipse;}"
   cat >"$drawing" <<XML
 <mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
-<mxCell id="x" parent="1" vertex="1" style="$style" value="x"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
-<mxCell id="x_" parent="1" vertex="1" style="$style" value="x'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="x" parent="1" vertex="1" style="$x_style" value="x"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="x_" parent="1" vertex="1" style="$copy_style" value="x'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="box" parent="1" vertex="1" style="rounded=1;" value="$box"><mxGeometry x="120" y="175" width="120" height="40" as="geometry" /></mxCell>
 <mxCell id="e0" parent="1" edge="1" source="box" target="x_"><mxGeometry relative="1" as="geometry" /></mxCell>
 </root></mxGraphModel></diagram></mxfile>
@@ -344,7 +351,7 @@ XML
   commit_local "$monorepo" lib "x"
   splice push lib >/dev/null 2>&1
   # On feature, R copies x, as x'.
-  pushed_copy_drawing pushed 'ellipse;strokeColor=#E07000;'
+  pushed_copy_drawing pushed 'ellipse;fillColor=#E0E0E0;strokeColor=#E07000;' 'ellipse;strokeColor=#E07000;'
   run check_drawing "$drawing" x=feature pushed=refs/splices/upstream/heads/feature
   [ "$status" -eq 0 ]
   run check_drawing "$drawing" x=feature pushed=feature

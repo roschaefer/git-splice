@@ -177,12 +177,12 @@ $ git rev-list --count HEAD
 46
 ```
 
-Grey are the commits `split` walks, orange the ones it finds, which
-changed `vendor/lib/`. The stack *a* is all 40 app commits:
+Grey are the commits `split` walks, outlined orange the ones it finds,
+which changed `vendor/lib/`. The stack *a* is all 40 app commits:
 
 <div align="center">
 
-![The monorepo's a, s, b, c, d and e in a line, and q as the second parent of s; all of them are grey, as split walks them, and c and e are orange, as it finds them](git-subtree-split-walks.drawio.svg)
+![The monorepo's a, s, b, c, d and e in a line, and q as the second parent of s; all of them are grey, as split walks them, and c and e are outlined orange, as it finds them](git-subtree-split-walks.drawio.svg)
 
 </div>
 
@@ -262,7 +262,7 @@ lib fix 3
 
 <div align="center">
 
-![The monorepo's a, s, b, c, d, e, j, g and h in a line; below it, q as the second parent of s, and r, on top of q, as the second parent of j; e, r, j and g are grey, as split walks them, and h is orange, as it finds it](git-subtree-rejoin-walks.drawio.svg)
+![The monorepo's a, s, b, c, d, e, j, g and h in a line; below it, q as the second parent of s, and r, on top of q, as the second parent of j; e, r, j, g and h are grey, as split walks them, and h is outlined orange, as it finds it](git-subtree-rejoin-walks.drawio.svg)
 
 </div>
 
@@ -294,7 +294,7 @@ $ git switch -q -c squash-merged "HEAD^~4" &&
 
 <div align="center">
 
-![The monorepo's a, s and p in a line; below it, q as the second parent of s; all of them are grey, as the next split walks them, and p is orange, as it finds it](git-subtree-squash-merged.drawio.svg)
+![The monorepo's a, s and p in a line; below it, q as the second parent of s; all of them are grey, as the next split walks them, and p is outlined orange, as it finds it](git-subtree-squash-merged.drawio.svg)
 
 </div>
 

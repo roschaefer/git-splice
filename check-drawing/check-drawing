@@ -412,13 +412,13 @@ check_drawing() {
     fi
   done
 
-  # A commit's outline says what the next rebuild does with it: grey for
-  # a monorepo commit on the first-parent history since B, which the
-  # rebuild walks; orange for a change it carries across, on both ends: a
-  # walked commit R copies, and its copy in R. Black otherwise. Without
-  # splices, e.g. in a drawing of git subtree, the outlines aren't checked.
-  # A colored outline, unlike a fill, leaves a dashed one's gaps white.
-  local walked_outline="#999999" rebuilt_outline="#E07000" want have c
+  # What the next rebuild does with a commit: a monorepo commit on the
+  # first-parent history since B, which the rebuild walks, is filled grey;
+  # a change it carries across is outlined orange, on both ends: a walked
+  # commit R copies, and its copy in R. A fill only ever marks monorepo
+  # commits, which are never dashed, so it can't blur a dashed outline.
+  # Without splices, e.g. in a drawing of git subtree, neither is checked.
+  local walked_fill="#E0E0E0" carried_outline="#E07000" want have c
   local -A walked=() copied=()
   for p in "${splices[@]}"; do
     [[ -n "${truth["$p|loaded"]:-}" && -n "${truth["$p|B"]}" ]] || continue
@@ -428,43 +428,54 @@ check_drawing() {
       git log --format='%an%x1f%ae%x1f%ad%x1f%s' --date=raw "${truth["$p|R"]}" ${truth["$p|S"]:+"^${truth["$p|S"]}"}
     )
   done
-  outline() {
-    local f
-    f="$(sed -n 's/.*;strokeColor=\([^;]*\);.*/\1/p' <<<";${style[$1]};")"
-    f="${f^^}"
-    [[ -n "$f" && "$f" != DEFAULT && "$f" != "#000000" ]] || f=black
-    printf '%s\n' "$f"
+  # The color of style key $2 of shape $1, or $3 where it has none.
+  color_of() {
+    local c
+    c="$(sed -n "s/.*;$2=\([^;]*\);.*/\1/p" <<<";${style[$1]};")"
+    c="${c^^}"
+    [[ -n "$c" && "$c" != NONE && "$c" != DEFAULT && "$c" != "#FFFFFF" && "$c" != "#000000" ]] || c="$3"
+    printf '%s\n' "$c"
   }
+  local is_walked is_carried
   for id in "${commits[@]}"; do
     hash="${commit_of[$id]:-}"
     [[ -n "$hash" && ${#splices[@]} -gt 0 ]] || continue
-    have="$(outline "$id")"
-    want=black
+    is_walked="" is_carried=""
     sp="${splice_of[$id]}"
     if [[ "${value[$id]}" == *\' ]]; then
       if [[ -n "$sp" && -n "${truth["$sp|R"]:-}" ]] &&
         git merge-base --is-ancestor "$hash" "${truth["$sp|R"]}" 2>/dev/null &&
         ! { [[ -n "${truth["$sp|S"]}" ]] && git merge-base --is-ancestor "$hash" "${truth["$sp|S"]}"; }; then
-        want="$rebuilt_outline"
+        is_carried=1
       fi
-    elif in_monorepo "$hash" &&
-      [[ ${#lanes[@]} -eq 0 || -z "${lane_of[$id]}" ]] && [[ -n "${walked[$hash]:-}" ]]; then
-      want="$walked_outline"
-      [[ -z "${copied["$(git log -1 --format='%an%x1f%ae%x1f%ad%x1f%s' --date=raw "$hash")"]:-}" ]] ||
-        want="$rebuilt_outline"
+    elif in_monorepo "$hash" && [[ ${#lanes[@]} -eq 0 || -z "${lane_of[$id]}" ]] && [[ -n "${walked[$hash]:-}" ]]; then
+      is_walked=1
+      [[ -z "${copied["$(git log -1 --format='%an%x1f%ae%x1f%ad%x1f%s' --date=raw "$hash")"]:-}" ]] || is_carried=1
     fi
-    [[ "$have" != "$want" ]] || continue
-    case "$want" in
-      "$rebuilt_outline")
-        if [[ "${value[$id]}" == *\' ]]; then
-          errors+=("${value[$id]} is R's copy of a commit since B: outline it orange, $rebuilt_outline")
-        else
-          errors+=("${value[$id]} is after B, and R copies it: outline it orange, $rebuilt_outline")
-        fi
-        ;;
-      "$walked_outline") errors+=("${value[$id]} is after B, but R doesn't copy it: outline it grey, $walked_outline") ;;
-      *) errors+=("${value[$id]} is outlined in color, but the rebuild doesn't walk it: outline it black") ;;
-    esac
+
+    have="$(color_of "$id" fillColor white)"
+    want=white
+    [[ -z "$is_walked" ]] || want="$walked_fill"
+    if [[ "$have" != "$want" ]]; then
+      if [[ -n "$is_walked" ]]; then
+        errors+=("${value[$id]} is after B, so the rebuild walks it: fill it grey, $walked_fill")
+      else
+        errors+=("${value[$id]} is filled, but the rebuild doesn't walk it: leave it white")
+      fi
+    fi
+
+    have="$(color_of "$id" strokeColor black)"
+    want=black
+    [[ -z "$is_carried" ]] || want="$carried_outline"
+    if [[ "$have" != "$want" ]]; then
+      if [[ -n "$is_carried" && "${value[$id]}" == *\' ]]; then
+        errors+=("${value[$id]} is R's copy of a commit since B: outline it orange, $carried_outline")
+      elif [[ -n "$is_carried" ]]; then
+        errors+=("${value[$id]} is after B, and R copies it: outline it orange, $carried_outline")
+      else
+        errors+=("${value[$id]} is outlined in color, but the rebuild doesn't carry it across: outline it black")
+      fi
+    fi
   done
 
   # Succeeds if box term $1 is a branch name, not H, B, T, R, U(x) or

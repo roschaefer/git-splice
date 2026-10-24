@@ -49,10 +49,10 @@ without `.splice`, the same author, dates and message, on top of U(B).
 
 Circles are commits, newest on top, and boxes point at them. The lane
 `lib/` holds the splice's upstream commits. The rebuild walks the
-commits since B, *b* to *d*, so they're outlined in color. *b* and *d* change
+commits since B, *b* to *d*, so they're grey. *b* and *d* change
 `lib/`, so the rebuild copies them as *b'* and *d'*, on top of U(B):
-both ends of each copy are orange. *c* doesn't, so it's left out, and
-grey. No upstream
+both ends of each copy are outlined orange. *c* doesn't, so it's left
+out. No upstream
 branch has the copies yet, so they're dashed
 ([scenario](../../scenarios/01-everyday-sync/01-sync-model/README.md)).
 
