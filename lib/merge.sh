@@ -50,8 +50,8 @@ folder's changes as commits on top of the upstream branch, also after
 the upstream rewrote it. It rewrites the branch, so it refuses when a
 remote-tracking branch has any of those commits, and when one of them is
 a merge, whose own changes a rebase would drop. It also refuses when the
-upstream branch lacks the synced commit, which another of its branches
-has, e.g. after 'git rebase main' on a feature branch: the folder would
+upstream branch lacks the synced commit and, by its reflog, never had
+it, e.g. after 'git rebase main' on a feature branch: the folder would
 lose that commit's changes. rebase.autoStash and
 rebase.updateRefs don't apply: it neither stashes nor moves other
 branches. On a conflict, resolve it and run 'git rebase --continue' (or
@@ -170,7 +170,7 @@ merge_one() {
 # files, so the rebuild starts there, and the rebased commits follow it.
 # That drops the synced commit's changes if the upstream branch lacks
 # them, which is wanted only after the upstream rewrote the branch: it
-# refuses when they came from another branch (other_branch_with_synced).
+# refuses when it never had them (lacks_synced_it_never_had).
 # `branch` and `verb` as for merge_one.
 rebase_onto_pull() {
   local path="$1" branch="$2" verb="$3" target synced_tree base="" commit count published
@@ -183,9 +183,8 @@ rebase_onto_pull() {
     log_err "$path: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; $verb without --rebase"
     return 1
   fi
-  local other
-  if other="$(other_branch_with_synced "$path")"; then
-    print_rebased_onto_other_branch_guidance "$path" "$other" "$verb"
+  if lacks_synced_it_never_had; then
+    print_never_had_synced_guidance "$path" "$verb"
     return 1
   fi
   synced_tree="$(git rev-parse "$SPLICE_SYNCED^{tree}")"
@@ -240,43 +239,33 @@ rebase_onto_pull() {
   log_ok "$path: $(past_tense "$verb") ${target:0:7}, and rebased $count commit$([[ "$count" -eq 1 ]] || echo s) onto it"
 }
 
-# For --rebase: prints how the guidance names the other fetched branches
-# of splice <path>'s upstream that have the synced commit, if the
-# upstream branch (SPLICE_TARGET_REF) doesn't: the upstream's default
-# branch, e.g. 'main', if it's one of them, since pulls on the monorepo's
-# default branch record its commits, else all of them. Then the synced
-# commit came from another branch, e.g. after 'git rebase main' on a
-# feature branch whose upstream branch wasn't rebased, and taking the
-# upstream branch's files would drop its changes. A branch the upstream
-# rewrote, which lost the synced commit with the rewrite, has none.
-other_branch_with_synced() {
-  local path="$1" prefix ref names=()
+# For --rebase: succeeds if the upstream branch (SPLICE_TARGET_REF) lacks
+# the synced commit, and, by its reflog, never had it: the synced commit
+# came from elsewhere, e.g. after 'git rebase main' on a feature branch
+# whose upstream branch wasn't rebased, and taking the upstream branch's
+# files would drop its changes. A branch the upstream rewrote had it
+# before the rewrite. Only the upstream branch counts, not the
+# upstream's other branches; a tag or a commit that's pinned has no
+# branch history to tell, and passes.
+lacks_synced_it_never_had() {
+  local entry
+  [[ "$SPLICE_TARGET_KIND" == branch ]] || return 1
   git merge-base --is-ancestor "$SPLICE_SYNCED" "$SPLICE_TARGET_REF" && return 1
-  prefix="$(splice_refs_prefix "$path")"
-  # Not --exclude: Git 2.40 lacks it.
-  while IFS= read -r ref; do
-    [[ "$ref" == "$SPLICE_TARGET_REF" ]] || names+=("${ref#"$prefix"}")
-  done < <(git for-each-ref --contains "$SPLICE_SYNCED" --format='%(refname)' "$prefix")
-  [[ ${#names[@]} -gt 0 ]] || return 1
-  resolve_default_target "$path"
-  if [[ "$TARGET_KIND" == branch && " ${names[*]} " == *" $TARGET_NAME "* ]]; then
-    printf "'%s'\n" "$TARGET_NAME"
-  elif [[ ${#names[@]} -eq 1 ]]; then
-    printf "'%s'\n" "${names[0]}"
-  else
-    printf 'one of %s\n' "$(join_names "${names[@]}")"
-  fi
+  while IFS= read -r entry; do
+    git merge-base --is-ancestor "$SPLICE_SYNCED" "$entry" && return 1
+  done < <(git rev-list --walk-reflogs "$SPLICE_TARGET_REF" 2>/dev/null)
+  return 0
 }
 
-# Explains why --rebase refuses splice <path>, whose synced commit came
-# from <other>, the upstream's branch as other_branch_with_synced names
-# it, and the two ways to rebase the upstream branch onto it. A push only
-# reaches the branch named like the monorepo's, so with --branch naming
-# another one, only the way upstream is left. `verb` as for merge_one.
-print_rebased_onto_other_branch_guidance() {
-  local path="$1" other="$2" verb="$3" label="$SPLICE_UPSTREAM_LABEL" q_path or=""
+# Explains why --rebase refuses splice <path>, whose upstream branch never
+# had the synced commit, and the two ways to rebase the upstream branch
+# onto where it came from. A push only reaches the branch named like the
+# monorepo's, so with --branch naming another one, only the way upstream
+# is left. `verb` as for merge_one.
+print_never_had_synced_guidance() {
+  local path="$1" verb="$2" label="$SPLICE_UPSTREAM_LABEL" q_path or=""
   q_path="$(shell_quote "$path")"
-  log_err "$path: '$label' lacks the synced commit ${SPLICE_SYNCED:0:7}, which this branch got from $other -- --rebase would drop it. To rebase '$label' onto $other, do it on one side only:"
+  log_err "$path: '$label' never had the synced commit ${SPLICE_SYNCED:0:7}, which this branch got elsewhere, e.g. with 'git rebase main' -- --rebase would drop it. To rebase '$label', do it on one side only:"
   echo >&2
   if ! branch_arg_applies "$path"; then
     cat >&2 <<EOF
@@ -287,7 +276,7 @@ EOF
     or="OR: "
   fi
   cat >&2 <<EOF
-  # ${or}rebase or merge '$label' onto $other upstream, e.g. with "Update branch" on GitHub, then:
+  # ${or}rebase or merge '$label' upstream, e.g. with "Update branch" on GitHub, then:
   git splice $verb $(selection_options "$path")-- $q_path
 
 EOF

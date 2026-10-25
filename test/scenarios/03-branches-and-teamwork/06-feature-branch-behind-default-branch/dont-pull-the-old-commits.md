@@ -48,12 +48,12 @@ two strategies:
 ```scrut
 $ git splice pull --rebase vendor/a
 ok   vendor/a fetched
-!!   vendor/a: 'feature' lacks the synced commit 5cc5467, which this branch got from 'main' -- --rebase would drop it. To rebase 'feature' onto 'main', do it on one side only:
+!!   vendor/a: 'feature' never had the synced commit 5cc5467, which this branch got elsewhere, e.g. with 'git rebase main' -- --rebase would drop it. To rebase 'feature', do it on one side only:
 
   # keep this branch's rebase, overwriting upstream's 'feature':
   git splice push --force -- vendor/a
 
-  # OR: rebase or merge 'feature' onto 'main' upstream, e.g. with "Update branch" on GitHub, then:
+  # OR: rebase or merge 'feature' upstream, e.g. with "Update branch" on GitHub, then:
   git splice pull -- vendor/a
 
 !!   Failed: vendor/a

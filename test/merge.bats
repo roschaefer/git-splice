@@ -399,7 +399,7 @@ a: add vendor/a" ]
   [ "${lines[0]}" = "!!   vendor/a: 'origin/main' has commits since $(git rev-parse --short=7 HEAD~3), which --rebase would rewrite -- merge on a branch nobody else has, e.g. a pull request's" ]
 }
 
-@test "merge --rebase: refuses when the upstream branch lacks the synced commit that another branch of it has, e.g. after 'git rebase main', whose changes it would drop" {
+@test "merge --rebase: refuses when the upstream branch never had the synced commit, e.g. after 'git rebase main', whose changes it would drop" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
   git -C "$monorepo" rebase -q main
   cd "$monorepo"
@@ -408,13 +408,33 @@ a: add vendor/a" ]
   synced="$(splice_config vendor/a commit)"
   run cmd_merge --rebase vendor/a
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: 'feature' lacks the synced commit ${synced:0:7}, which this branch got from 'main' -- --rebase would drop it. To rebase 'feature' onto 'main', do it on one side only:" ]
+  [ "${lines[0]}" = "!!   vendor/a: 'feature' never had the synced commit ${synced:0:7}, which this branch got elsewhere, e.g. with 'git rebase main' -- --rebase would drop it. To rebase 'feature', do it on one side only:" ]
   [[ "$output" == *"  git splice push --force -- vendor/a"* ]]
   [[ "$output" == *"  git splice merge -- vendor/a"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
-@test "merge --rebase: takes the upstream branch in once it was rebased onto the branch the synced commit came from" {
+@test "merge --rebase: refuses by the upstream branch alone, also when no other upstream branch has the synced commit" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
+  git -C "$upstream" update-ref refs/heads/main main~1
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"'feature' never had the synced commit"* ]]
+}
+
+@test "merge --rebase: without the fetched branch's reflog, e.g. in a clone that fetched only after the rebase, can't tell a rebased upstream branch from one that never had the synced commit, and refuses" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  git reflog expire --expire=all --all
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"'patches' never had the synced commit"* ]]
+}
+
+@test "merge --rebase: takes the upstream branch in once it was rebased upstream too, and has the synced commit" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
   git -C "$monorepo" rebase -q main
   local clone="$BATS_TEST_TMPDIR/clone"
@@ -428,30 +448,6 @@ a: add vendor/a" ]
   [ "$(cat vendor/a/lock.txt)" = "bump dep" ]
 }
 
-@test "merge --rebase: names the upstream's default branch as the one the synced commit came from, though another branch that has it sorts first" {
-  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
-  git -C "$monorepo" rebase -q main
-  git -C "$upstream" branch add-docs main
-  cd "$monorepo"
-  splice fetch vendor/a >/dev/null
-  run cmd_merge --rebase vendor/a
-  [ "$status" -eq 1 ]
-  [[ "${lines[0]}" == *"which this branch got from 'main' -- --rebase would drop it. To rebase 'feature' onto 'main', do it on one side only:" ]]
-}
-
-@test "merge --rebase: names every branch that has the synced commit when the default branch doesn't" {
-  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
-  git -C "$monorepo" rebase -q main
-  git -C "$upstream" branch release main
-  git -C "$upstream" branch hotfix main
-  git -C "$upstream" update-ref refs/heads/main main~1
-  cd "$monorepo"
-  splice fetch vendor/a >/dev/null
-  run cmd_merge --rebase vendor/a
-  [ "$status" -eq 1 ]
-  [[ "${lines[0]}" == *"which this branch got from one of 'hotfix' and 'release' -- --rebase would drop it. To rebase 'feature' onto one of 'hotfix' and 'release', do it on one side only:" ]]
-}
-
 @test "merge --rebase: with --branch naming another upstream branch, doesn't suggest a push, which would go to the branch named like this one" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
@@ -460,7 +456,7 @@ a: add vendor/a" ]
   run cmd_merge --rebase --branch feature vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" != *"push"* ]]
-  [[ "$output" == *"  # rebase or merge 'feature' onto 'main' upstream, e.g. with \"Update branch\" on GitHub, then:"* ]]
+  [[ "$output" == *"  # rebase or merge 'feature' upstream, e.g. with \"Update branch\" on GitHub, then:"* ]]
   [[ "$output" == *"  git splice merge --branch feature -- vendor/a"* ]]
 }
 
