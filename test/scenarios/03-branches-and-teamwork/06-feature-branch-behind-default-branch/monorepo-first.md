@@ -1,0 +1,109 @@
+# Strategy 1: rebase in the monorepo first
+
+In the [same state](README.md), `feature` is rebased onto `main` in the
+monorepo, and the result replaces the PR. `main` already pulled *m*,
+the first step. Then:
+
+1. On `feature`: `git rebase main`.
+2. `git splice push --force`.
+
+The PR ends up as "Update branch" with a rebase on GitHub would leave
+it. `--force` overwrites whatever upstream's `feature` has, so it's for
+a PR nobody else pushes to.
+
+## Output
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../../readme-setup.sh"
+```
+-->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_feature_branch_behind_default_branch
+```
+
+The rebase copies *b* onto *p* as *c*:
+
+```scrut
+$ git rebase -q main
+```
+
+```scrut
+$ git log --graph --format=%s
+* feature change
+* splice: pull vendor/a from main at 5cc5467
+* splice: clone vendor/a from main at bde4164
+* initial commit
+```
+
+<div align="center">
+
+![The monorepo, a, p on main and c on feature, with H at c; upstream, k with two children, m on main, which is U(H), and f on feature, which is T; R is c prime, dashed, on top of m](rebased-in-the-monorepo.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/rebased-in-the-monorepo.drawio.svg" \
+>   a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 \
+>   m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
+ok   rebased-in-the-monorepo.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
+```
+-->
+
+Ahead 2 are *m* and *c'*, behind 1 is *f*, the copy of *b* the PR still
+has:
+
+```scrut
+$ git splice status
+On branch feature
+
+  ahead 2, behind 1  vendor/a
+```
+
+Every commit only upstream has is a copy of one `feature` has, so
+`push` suggests `--force`:
+
+```scrut
+$ git splice push vendor/a
+!!   vendor/a: upstream's 'feature' has only copies of commits this branch has, e.g. from before a 'git rebase' here -- run 'git splice push --force vendor/a' to replace them: a pull would keep both
+!!   Failed: vendor/a
+[1]
+```
+
+```scrut
+$ git splice push --force vendor/a
+ok   vendor/a: pushed 8613e5d to feature
+```
+
+```scrut
+$ git -C "$UPSTREAM" log --graph --format=%s feature
+* feature change
+* bump dep
+* seed
+```
+
+<div align="center">
+
+![The monorepo, a, p on main and c on feature, with H at c; upstream, k, m on main, which is U(H), and c prime on top of m, which is T, R and feature](pushed-with-force.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/pushed-with-force.drawio.svg" \
+>   a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 \
+>   m=refs/splices/a/heads/main
+ok   pushed-with-force.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
+```
+-->
+
+```scrut
+$ git splice status
+On branch feature
+
+  up to date  vendor/a
+```

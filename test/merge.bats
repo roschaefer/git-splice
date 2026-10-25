@@ -401,6 +401,7 @@ a: add vendor/a" ]
 
 @test "merge --rebase: refuses when the upstream branch lacks the synced commit that another branch of it has, e.g. after 'git rebase main', whose changes it would drop" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
   cd "$monorepo"
   local before synced
   before="$(git rev-parse HEAD)"
@@ -415,6 +416,7 @@ a: add vendor/a" ]
 
 @test "merge --rebase: takes the upstream branch in once it was rebased onto the branch the synced commit came from" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
   local clone="$BATS_TEST_TMPDIR/clone"
   git clone -q -b feature "$upstream" "$clone"
   git -C "$clone" -c user.name=Test -c user.email=test@example.com rebase -q origin/main

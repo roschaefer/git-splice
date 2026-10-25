@@ -88,6 +88,7 @@ setup() {
 
 @test "push: after 'git rebase main', when upstream has only copies of this branch's commits, suggests --force instead of a pull, which would keep both" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
   cd "$monorepo"
   run cmd_push vendor/a
   [ "$status" -eq 1 ]
@@ -96,6 +97,7 @@ setup() {
 
 @test "push: after 'git rebase main', an upstream commit that isn't a copy of this branch's still asks for a pull" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
   seed_bare_repo "$upstream" "review fix" feature review.txt
   cd "$monorepo"
   splice fetch vendor/a >/dev/null
@@ -106,6 +108,7 @@ setup() {
 
 @test "push: --force replaces an upstream branch that has the folder's files in another history, e.g. old commits a pull merged in before a reset" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
   cd "$monorepo"
   splice pull vendor/a >/dev/null
   splice push vendor/a >/dev/null
@@ -120,6 +123,7 @@ setup() {
 
 @test "push: --force has nothing to push when the upstream branch is the rebuild" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
   cd "$monorepo"
   splice push --force vendor/a >/dev/null
   run cmd_push --force vendor/a

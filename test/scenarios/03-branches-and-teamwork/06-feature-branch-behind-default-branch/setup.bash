@@ -15,12 +15,10 @@ scenario_feature_branch_behind_default_branch() {
   commit_local "$monorepo" vendor/a "feature change" feature.txt
   (cd "$monorepo" && splice push vendor/a)
 
-  # Upstream's main moves on, and the monorepo's main pulls it in.
+  # Upstream's main moves on, and the monorepo's main pulls it in. The
+  # feature branch isn't rebased onto it yet, on either side.
   seed_bare_repo "$upstream" "bump dep" main lock.txt
   git -C "$monorepo" checkout -q main
   (cd "$monorepo" && splice pull vendor/a)
-
-  # The feature branch is rebased onto it, with plain Git.
   git -C "$monorepo" checkout -q feature
-  git -C "$monorepo" rebase -q main
 }
