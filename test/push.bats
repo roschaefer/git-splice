@@ -104,6 +104,29 @@ setup() {
   [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull vendor/a' first" ]
 }
 
+@test "push: --force replaces an upstream branch that has the folder's files in another history, e.g. old commits a pull merged in before a reset" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice pull vendor/a >/dev/null
+  splice push vendor/a >/dev/null
+  git reset -q --keep HEAD~1
+  local rebuilt
+  rebuilt="$(rebuild_splice vendor/a)"
+  run cmd_push --force vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: pushed ${rebuilt:0:7} to feature" ]
+  [ "$(git -C "$upstream" rev-parse feature)" = "$rebuilt" ]
+}
+
+@test "push: --force has nothing to push when the upstream branch is the rebuild" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice push --force vendor/a >/dev/null
+  run cmd_push --force vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: nothing to push" ]
+}
+
 @test "push: nothing to push when upstream is ahead" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"

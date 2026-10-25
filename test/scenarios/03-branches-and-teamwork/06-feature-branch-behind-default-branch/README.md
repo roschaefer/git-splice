@@ -33,16 +33,16 @@ this order:
 </div>
 
 - **The monorepo first**, as here: pull on `main`, `git rebase main` on
-  `feature`, then [`push --force`](push-force.md).
-- **The upstream first**: [rebase](rebased-upstream.md) or
-  [merge](merged-upstream.md) `feature` onto `main` upstream, then
-  `pull` on `feature`.
+  `feature`, then [`push --force`](#what-you-want-replace-the-prs-commits).
+- **The upstream first**: rebase or merge `feature` onto `main`
+  upstream, e.g. with "Update branch" on GitHub, then `pull` on
+  `feature`. The pull brings *m* and the rebased feature change in, or,
+  after a `git rebase main` here too, only records the rebased branch as
+  the synced commit: the folder already has its files.
 
-Mixing the two, a rebase in the monorepo and a pull of the PR that was
-never rebased, joins two bases for the same branch: `feature` upstream
-still lacks *m*, which the monorepo's `feature` has now. A
-[`pull`](pull.md) keeps both copies of the feature change, and
-[`pull --rebase`](pull-rebase.md) refuses, since it would drop *m*.
+Mixing the two is [what you don't want](#what-you-dont-want-the-old-commits-back-on-the-pr):
+a rebase in the monorepo, then a pull of the PR that was never rebased,
+sends the old commits back to the PR.
 
 ## Output
 
@@ -64,6 +64,12 @@ $ check_drawing "$TESTDIR/feature-branch-behind-default-branch.drawio.svg" \
 >   a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 \
 >   m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
 ok   feature-branch-behind-default-branch.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
+```
+-->
+
+<!--
+```scrut
+$ f="$(git rev-parse splices/a/heads/feature)"
 ```
 -->
 
@@ -101,4 +107,126 @@ $ git splice push vendor/a
 !!   vendor/a: upstream's 'feature' has only copies of commits this branch has, e.g. from before a 'git rebase' here -- run 'git splice push --force vendor/a' to replace them: a pull would keep both
 !!   Failed: vendor/a
 [1]
+```
+
+`pull --rebase` would take *f* in as it is and drop *m*: *f* lacks it,
+since `main` brought it in, not `feature`. It refuses, and prints the
+two routes:
+
+```scrut
+$ git splice pull --rebase vendor/a
+ok   vendor/a fetched
+!!   vendor/a: 'feature' lacks the synced commit 5cc5467, which this branch got from 'main' -- --rebase would drop it. To rebase 'feature' onto 'main', do it on one side only:
+
+  # keep this branch's rebase, overwriting upstream's 'feature':
+  git splice push --force -- vendor/a
+
+  # OR: rebase or merge 'feature' onto 'main' upstream, e.g. with "Update branch" on GitHub, then:
+  git splice pull -- vendor/a
+
+!!   Failed: vendor/a
+[1]
+```
+
+### What you don't want: the old commits back on the PR
+
+Out of habit, you run the `pull` a refused push usually asks for. It
+merges *f*, the copy of the feature change from before the rebase, into
+`feature` as the pull *x*. No change is lost, and `lock.txt` stays:
+
+```scrut
+$ git splice pull vendor/a
+ok   vendor/a fetched
+ok   vendor/a: pulled a35a3ef
+```
+
+```scrut
+$ cat vendor/a/lock.txt
+bump dep
+```
+
+The push then sends both copies of the feature change, the rebased *c'*
+and the old *f*, joined by *x'*, the copy of the pull:
+
+```scrut
+$ git splice push vendor/a
+ok   vendor/a: pushed c08925d to feature
+```
+
+```scrut
+$ git -C "$UPSTREAM" log --graph --format=%s feature
+*   splice: pull vendor/a from feature at a35a3ef
+|\  
+| * feature change
+* | feature change
+* | bump dep
+|/  
+* seed
+```
+
+<div align="center">
+
+![The monorepo, a, p on main, c and the pull x on feature, with H at x; upstream, k with two children, m on main and f, which is U(H); c prime on top of m; x prime merges c prime and f, and is T, R and feature](pulled-and-pushed.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/pulled-and-pushed.drawio.svg" \
+>   a=HEAD~3 p=main c=HEAD~1 x=HEAD k=refs/splices/a/heads/main~1 \
+>   m=refs/splices/a/heads/main f="$f"
+ok   pulled-and-pushed.drawio.svg: 9 commits, 13 arrows, 5 boxes, 1 lanes
+```
+-->
+
+The PR lists `feature change` twice, and the merge between them. A
+squash merge of the PR hides that; a rebase merge puts both copies on
+`main`.
+
+### What you want: replace the PR's commits
+
+Before anyone else builds on the PR, drop the pull, and push the
+rebased branch instead, with `--force`. `--keep` refuses if that would
+lose uncommitted changes:
+
+```scrut
+$ git reset -q --keep HEAD~1
+```
+
+```scrut
+$ git splice push --force vendor/a
+ok   vendor/a: pushed 8613e5d to feature
+```
+
+```scrut
+$ git -C "$UPSTREAM" log --graph --format=%s feature
+* feature change
+* bump dep
+* seed
+```
+
+That's what "Update branch" with a rebase on GitHub makes: *m*, then
+the feature change on top. The old copy *f* and the merge *x'* are on
+no branch any more:
+
+<div align="center">
+
+![The monorepo, a, p on main and c on feature, with H at c; upstream, k, m on main, which is U(H), and c prime on top of m, which is T, R and feature](pushed-with-force.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/pushed-with-force.drawio.svg" \
+>   a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 \
+>   m=refs/splices/a/heads/main
+ok   pushed-with-force.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
+```
+-->
+
+```scrut
+$ git splice status
+On branch feature
+
+  up to date  vendor/a
 ```
