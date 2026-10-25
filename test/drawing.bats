@@ -201,6 +201,17 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   [ "$status" -eq 0 ]
 }
 
+@test "drawing: c' is R's copy of c, though an upstream branch has an older copy, pushed before a 'git rebase'" {
+  load 'scenarios/03-branches-and-teamwork/06-feature-branch-behind-default-branch/setup'
+  # Equal dates, as in the docs, leave git log's order to the refs given.
+  export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
+  scenario_feature_branch_behind_default_branch "$BATS_TEST_TMPDIR/rebased" "$BATS_TEST_TMPDIR/rebased-upstream.git"
+  cd "$BATS_TEST_TMPDIR/rebased"
+  run check_drawing "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/06-feature-branch-behind-default-branch/feature-branch-behind-default-branch.drawio.svg" \
+    a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
+  [ "$status" -eq 0 ]
+}
+
 @test "drawing: a lane names a splice whose folder Git quotes" {
   load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
   scenario_squash_merged_pull "$BATS_TEST_TMPDIR/squash" "$BATS_TEST_TMPDIR/squash-upstream.git"

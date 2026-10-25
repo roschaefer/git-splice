@@ -12,28 +12,31 @@ PR up to date.
   brought in *m*. On `feature`, *b* (`feature change`) was pushed as *f*,
   and then rebased onto *p* as *c*.
 
-Four branches take part, two in each repository. `git-splice` syncs the
-folder with the upstream branch of the same name, across. Rebasing
-`feature` onto `main` is plain Git, up and down, and it's one operation
-that can be done on either side:
+<div align="center">
 
-```text
-                git splice pull/push
-  monorepo main  <------------------>  upstream main
-       ^                                    ^
-       | git rebase main                    | "Update branch" on GitHub,
-       |                                    | or a rebase in a clone
-       |                                    |
-  monorepo feature <---------------->  upstream feature (the PR)
-                git splice pull/push
-```
+![The monorepo, a, p on main and c on feature, with H at c; upstream, k with two children, m on main, which is U(H), and f on feature, which is T; R is c prime, dashed, on top of m](feature-branch-behind-default-branch.drawio.svg)
 
-Do it on one side only, then carry the result across with `git-splice`:
+</div>
 
-- **The monorepo first**, as here: `git rebase main`, then
-  [`push --force`](push-force.md).
+Four branches take part, two in each repository: `main` and `feature`
+in the monorepo, *p* and *c*, and `main` and `feature` upstream, *m*
+and *f*. `git-splice` syncs the monorepo's folder with the upstream
+branch of the same name. Rebasing `feature` onto `main` is plain Git,
+and it's one operation that can be done in either repository. Do it in
+one of them only, then carry the result across with `git-splice`, in
+this order:
+
+<div align="center">
+
+![Two routes, each with the monorepo main and feature on the left and the upstream main and feature on the right. The monorepo first: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature. The upstream first: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../../../../docs/images/rebase-feature-branch.drawio.svg)
+
+</div>
+
+- **The monorepo first**, as here: pull on `main`, `git rebase main` on
+  `feature`, then [`push --force`](push-force.md).
 - **The upstream first**: [rebase](rebased-upstream.md) or
-  [merge](merged-upstream.md) `feature` upstream, then `pull`.
+  [merge](merged-upstream.md) `feature` onto `main` upstream, then
+  `pull` on `feature`.
 
 Mixing the two, a rebase in the monorepo and a pull of the PR that was
 never rebased, joins two bases for the same branch: `feature` upstream
@@ -54,6 +57,15 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_feature_branch_behind_default_branch
 ```
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/feature-branch-behind-default-branch.drawio.svg" \
+>   a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 \
+>   m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
+ok   feature-branch-behind-default-branch.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git log --graph --format=%s main feature

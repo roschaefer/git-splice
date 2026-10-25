@@ -279,7 +279,7 @@ check_drawing() {
   done
 
   # Commits, by label.
-  local label base subject hash upstream_tips
+  local label base subject hash upstream_tips tip
   for id in "${commits[@]}"; do
     label="${value[$id]}"
     base="${label%\'}"
@@ -311,9 +311,13 @@ check_drawing() {
         continue
       fi
       subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
+      # R's history first: a monorepo commit pushed before a 'git rebase'
+      # has an older copy on an upstream branch too.
       upstream_tips=(--glob="refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/heads/*")
-      [[ -z "${truth["$sp|R"]}" ]] || upstream_tips+=("${truth["$sp|R"]}")
-      hash="$(git log --format='%H' "${upstream_tips[@]}" | while read -r copy; do
+      [[ -z "${truth["$sp|R"]}" ]] || upstream_tips=("${truth["$sp|R"]}" "${upstream_tips[@]}")
+      hash="$(for tip in "${upstream_tips[@]}"; do
+        git log --format='%H' "$tip"
+      done | while read -r copy; do
         [[ "$copy" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$copy")" == "$subject" ]] && {
           echo "$copy"
           break
