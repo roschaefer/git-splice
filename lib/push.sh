@@ -149,9 +149,12 @@ push_one() {
 # Succeeds if each commit of the upstream branch (SPLICE_TARGET_REF) that
 # the rebuild (SPLICE_REBUILT) lacks makes the same change as one of the
 # rebuild's, by git cherry: the copies that were pushed before a 'git
-# rebase' in the monorepo rewrote them.
+# rebase' in the monorepo rewrote them. git cherry skips merges, whose
+# conflict resolutions may be changes of their own, so it fails if one
+# of those commits is a merge.
 only_copies_upstream() {
   local cherry
+  [[ "$(git rev-list --merges --count "$SPLICE_REBUILT..$SPLICE_TARGET_REF")" -eq 0 ]] || return 1
   cherry="$(git cherry "$SPLICE_REBUILT" "$SPLICE_TARGET_REF")" || return 1
   [[ -n "$cherry" && "$cherry" != *"+ "* ]]
 }

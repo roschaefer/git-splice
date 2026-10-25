@@ -106,6 +106,25 @@ setup() {
   [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull vendor/a' first" ]
 }
 
+@test "push: after 'git rebase main', an upstream merge, whose conflict resolution git cherry can't compare, still asks for a pull" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
+  local clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q -b feature "$upstream" "$clone"
+  git -C "$clone" config user.name Test
+  git -C "$clone" config user.email test@example.com
+  git -C "$clone" merge -q --no-commit origin/main
+  echo "resolved" >>"$clone/lock.txt"
+  git -C "$clone" add lock.txt
+  git -C "$clone" commit -q --no-edit
+  git -C "$clone" push -q origin feature
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_push vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull vendor/a' first" ]
+}
+
 @test "push: --force replaces an upstream branch that has the folder's files in another history, e.g. old commits a pull merged in before a reset" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
   git -C "$monorepo" rebase -q main

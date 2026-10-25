@@ -428,6 +428,42 @@ a: add vendor/a" ]
   [ "$(cat vendor/a/lock.txt)" = "bump dep" ]
 }
 
+@test "merge --rebase: names the upstream's default branch as the one the synced commit came from, though another branch that has it sorts first" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
+  git -C "$upstream" branch add-docs main
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"which this branch got from 'main' -- --rebase would drop it. To rebase 'feature' onto 'main', do it on one side only:" ]]
+}
+
+@test "merge --rebase: names every branch that has the synced commit when the default branch doesn't" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
+  git -C "$upstream" branch release main
+  git -C "$upstream" branch hotfix main
+  git -C "$upstream" update-ref refs/heads/main main~1
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"which this branch got from one of 'hotfix' and 'release' -- --rebase would drop it. To rebase 'feature' onto one of 'hotfix' and 'release', do it on one side only:" ]]
+}
+
+@test "merge --rebase: with --branch naming another upstream branch, doesn't suggest a push, which would go to the branch named like this one" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c take-the-pr
+  git rebase -q main
+  run cmd_merge --rebase --branch feature vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"push"* ]]
+  [[ "$output" == *"  # rebase or merge 'feature' onto 'main' upstream, e.g. with \"Update branch\" on GitHub, then:"* ]]
+  [[ "$output" == *"  git splice merge --branch feature -- vendor/a"* ]]
+}
+
 @test "merge: the suggested --rebase keeps the --branch the refused merge had" {
   scenario_unpushed_local_commit "$monorepo" "$upstream"
   cd "$monorepo"
