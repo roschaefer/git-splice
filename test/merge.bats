@@ -15,6 +15,7 @@ setup() {
   load 'scenarios/06-rewritten-history/01-edited-before-push/setup'
   load 'scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
   load 'scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/setup'
+  load 'scenarios/03-branches-and-teamwork/06-feature-branch-behind-default-branch/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -396,6 +397,33 @@ a: add vendor/a" ]
   run cmd_merge --rebase vendor/a
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   vendor/a: 'origin/main' has commits since $(git rev-parse --short=7 HEAD~3), which --rebase would rewrite -- merge on a branch nobody else has, e.g. a pull request's" ]
+}
+
+@test "merge --rebase: refuses when the upstream branch lacks the synced commit that another branch of it has, e.g. after 'git rebase main', whose changes it would drop" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before synced
+  before="$(git rev-parse HEAD)"
+  synced="$(splice_config vendor/a commit)"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: 'feature' lacks the synced commit ${synced:0:7}, which this branch got from 'main' -- --rebase would drop it. To rebase 'feature' onto 'main', do it on one side only:" ]
+  [[ "$output" == *"  git splice push --force -- vendor/a"* ]]
+  [[ "$output" == *"  git splice merge -- vendor/a"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge --rebase: takes the upstream branch in once it was rebased onto the branch the synced commit came from" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  local clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q -b feature "$upstream" "$clone"
+  git -C "$clone" -c user.name=Test -c user.email=test@example.com rebase -q origin/main
+  git -C "$clone" push -q --force origin feature
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/lock.txt)" = "bump dep" ]
 }
 
 @test "merge: the suggested --rebase keeps the --branch the refused merge had" {

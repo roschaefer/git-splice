@@ -16,7 +16,8 @@ setup() {
     01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-then-changed \
     04-upstreams/03-shared-remote-url \
     04-upstreams/01-default-branch \
-    01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes; do
+    01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
+    03-branches-and-teamwork/06-feature-branch-behind-default-branch; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -83,6 +84,24 @@ setup() {
   run cmd_push vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"run 'git splice pull vendor/a' first"* ]]
+}
+
+@test "push: after 'git rebase main', when upstream has only copies of this branch's commits, suggests --force instead of a pull, which would keep both" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream's 'feature' has only copies of commits this branch has, e.g. from before a 'git rebase' here -- run 'git splice push --force vendor/a' to replace them: a pull would keep both" ]
+}
+
+@test "push: after 'git rebase main', an upstream commit that isn't a copy of this branch's still asks for a pull" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "review fix" feature review.txt
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_push vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull vendor/a' first" ]
 }
 
 @test "push: nothing to push when upstream is ahead" {

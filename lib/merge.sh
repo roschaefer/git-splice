@@ -49,7 +49,10 @@ since then onto that, with 'git rebase'. The next push then sends the
 folder's changes as commits on top of the upstream branch, also after
 the upstream rewrote it. It rewrites the branch, so it refuses when a
 remote-tracking branch has any of those commits, and when one of them is
-a merge, whose own changes a rebase would drop. rebase.autoStash and
+a merge, whose own changes a rebase would drop. It also refuses when the
+upstream branch lacks the synced commit, which another of its branches
+has, e.g. after 'git rebase main' on a feature branch: the folder would
+lose that commit's changes. rebase.autoStash and
 rebase.updateRefs don't apply: it neither stashes nor moves other
 branches. On a conflict, resolve it and run 'git rebase --continue' (or
 'git rebase --abort' to give up).
@@ -165,6 +168,9 @@ merge_one() {
 # From X's folder, the synced commit, the upstream branch merges without a
 # conflict, as it does in merge_one: the pull commit gets exactly its
 # files, so the rebuild starts there, and the rebased commits follow it.
+# That drops the synced commit's changes if the upstream branch lacks
+# them, which is wanted only after the upstream rewrote the branch: it
+# refuses when they came from another branch (other_branch_with_synced).
 # `branch` and `verb` as for merge_one.
 rebase_onto_pull() {
   local path="$1" branch="$2" verb="$3" target synced_tree base="" commit count published
@@ -175,6 +181,11 @@ rebase_onto_pull() {
   fi
   if [[ -z "$SPLICE_SYNCED" ]]; then
     log_err "$path: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; $verb without --rebase"
+    return 1
+  fi
+  local other
+  if other="$(other_branch_with_synced "$path")"; then
+    print_rebased_onto_other_branch_guidance "$path" "$other" "$verb"
     return 1
   fi
   synced_tree="$(git rev-parse "$SPLICE_SYNCED^{tree}")"
@@ -227,6 +238,41 @@ rebase_onto_pull() {
     return 1
   fi
   log_ok "$path: $(past_tense "$verb") ${target:0:7}, and rebased $count commit$([[ "$count" -eq 1 ]] || echo s) onto it"
+}
+
+# For --rebase: prints the name of another fetched branch of splice
+# <path>'s upstream that has the synced commit, if the upstream branch
+# (SPLICE_TARGET_REF) doesn't. Then the synced commit came from that
+# branch, e.g. after 'git rebase main' on a feature branch whose upstream
+# branch wasn't rebased, and taking the upstream branch's files would
+# drop its changes. A branch the upstream rewrote, which lost the synced
+# commit with the rewrite, has none.
+other_branch_with_synced() {
+  local path="$1" prefix ref
+  git merge-base --is-ancestor "$SPLICE_SYNCED" "$SPLICE_TARGET_REF" && return 1
+  prefix="$(splice_refs_prefix "$path")"
+  ref="$(git for-each-ref --contains "$SPLICE_SYNCED" --exclude="$SPLICE_TARGET_REF" \
+    --count=1 --format='%(refname)' "$prefix")"
+  [[ -n "$ref" ]] || return 1
+  printf '%s\n' "${ref#"$prefix"}"
+}
+
+# Explains why --rebase refuses splice <path>, whose synced commit came
+# from the upstream's branch <other>, and the two ways to rebase the
+# upstream branch onto <other>. `verb` as for merge_one.
+print_rebased_onto_other_branch_guidance() {
+  local path="$1" other="$2" verb="$3" label="$SPLICE_UPSTREAM_LABEL" q_path
+  q_path="$(shell_quote "$path")"
+  log_err "$path: '$label' lacks the synced commit ${SPLICE_SYNCED:0:7}, which this branch got from '$other' -- --rebase would drop it. To rebase '$label' onto '$other', do it on one side only:"
+  cat >&2 <<EOF
+
+  # keep this branch's rebase, overwriting upstream's '$label':
+  git splice push $(upstream_option "$path")--force -- $q_path
+
+  # OR: rebase or merge '$label' onto '$other' upstream, e.g. with "Update branch" on GitHub, then:
+  git splice $verb $(selection_options "$path")-- $q_path
+
+EOF
 }
 
 # Prints the blob of splice <path>'s state file in commit <rev>, with
