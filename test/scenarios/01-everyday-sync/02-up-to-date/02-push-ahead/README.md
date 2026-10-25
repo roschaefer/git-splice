@@ -2,8 +2,14 @@
 
 Only the monorepo changed since the clone.
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit.
-- **Upstream**: `seed`, unchanged.
+- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), then *b* (`local change`) changes the folder.
+- **Upstream**: *k*, unchanged.
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k, T; b changes the folder, rebuilt as b prime, R, dashed](ahead.drawio.svg)
+
+</div>
 
 ## Output
 
@@ -18,6 +24,14 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_push_ahead
 ```
+
+<!--
+```scrut
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/ahead.drawio.svg" k="$k" a=HEAD~1 b=HEAD
+ok   ahead.drawio.svg: 4 commits, 5 arrows, 3 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git splice status

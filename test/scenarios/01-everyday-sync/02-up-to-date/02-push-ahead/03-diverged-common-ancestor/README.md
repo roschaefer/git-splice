@@ -2,8 +2,14 @@
 
 Both sides changed the same line since the clone.
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit.
-- **Upstream**: `seed`, then another commit, already fetched.
+- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), then *b* (`local change`) changes the folder.
+- **Upstream**: *k*, then *l* (`upstream change`), already fetched.
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k, then b changes the folder; the upstream has l on top of k, T, and the rebuild b prime on top of k, R, dashed](diverged.drawio.svg)
+
+</div>
 
 ## Output
 
@@ -18,6 +24,14 @@ $ source "$TESTDIR/../../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_diverged_common_ancestor
 ```
+
+<!--
+```scrut
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/diverged.drawio.svg" k="$k" a=HEAD~1 b=HEAD l=splices/upstream/heads/main
+ok   diverged.drawio.svg: 5 commits, 6 arrows, 3 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git splice status
