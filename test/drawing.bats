@@ -113,6 +113,17 @@ edit_drawing() {
   [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
 }
 
+@test "drawing: log.showSignature doesn't hide that R copies a signed commit" {
+  command -v ssh-keygen >/dev/null || skip "no ssh-keygen to sign a commit with"
+  ssh-keygen -q -t ed25519 -N "" -f "$BATS_TEST_TMPDIR/key"
+  git config gpg.format ssh
+  git config user.signingKey "$BATS_TEST_TMPDIR/key.pub"
+  git commit -q --amend --no-edit -S
+  git config log.showSignature true
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+}
+
 # Writes a drawing of two monorepo commits, x and its child y, styled $1
 # and $2.
 two_commits_drawing() {

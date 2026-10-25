@@ -279,6 +279,13 @@ check_drawing() {
   done
 
   # Commits, by label.
+  # What a copy shares with the commit it copies, read the way the
+  # rebuild's copy_commit reads it: author, committer and the whole
+  # message.
+  copy_key() {
+    git -c i18n.commitEncoding=UTF-8 -c i18n.logOutputEncoding=UTF-8 log -1 --no-show-signature \
+      --pretty=format:'%an%n%ae%n%aD%n%cn%n%ce%n%cD%n%B' "$1" | git hash-object --stdin
+  }
   local label base subject hash upstream_tips
   for id in "${commits[@]}"; do
     label="${value[$id]}"
@@ -310,11 +317,11 @@ check_drawing() {
         errors+=("$label is in no lane: draw it in the lane of the splice it's rebuilt for")
         continue
       fi
-      subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
+      subject="$(copy_key "$hash")"
       upstream_tips=(--glob="refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/heads/*")
       [[ -z "${truth["$sp|R"]}" ]] || upstream_tips+=("${truth["$sp|R"]}")
       hash="$(git log --format='%H' "${upstream_tips[@]}" | while read -r copy; do
-        [[ "$copy" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$copy")" == "$subject" ]] && {
+        [[ "$copy" != "$hash" && "$(copy_key "$copy")" == "$subject" ]] && {
           echo "$copy"
           break
         }
@@ -420,11 +427,6 @@ check_drawing() {
   # Without splices, e.g. in a drawing of git subtree, neither is checked.
   local walked_fill="#E0E0E0" carried_outline="#E07000" want have c
   local -A walked=() copied=() walked_label=()
-  # What a copy shares with the commit it copies: author, dates and the
-  # whole message.
-  copy_key() {
-    git show -s --format='%an%x1f%ae%x1f%ad%x1f%B' --date=raw "$1" | git hash-object --stdin
-  }
   for p in "${splices[@]}"; do
     [[ -n "${truth["$p|loaded"]:-}" && -n "${truth["$p|B"]}" ]] || continue
     if [[ -n "${truth["$p|R"]}" ]]; then
