@@ -103,14 +103,14 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 <div align="center">
 
-![Monorepo commits a to d, with HEAD at d and BOUNDARY at a, the clone of k; library commits k to n, THEIRS at n; OURS is d prime, the rebuilt b prime and d prime on top of k, which is U(BOUNDARY) and BASE](test/scenarios/01-everyday-sync/01-sync-model/before-pull-git-names.drawio.svg)
+![Monorepo commits a to d, with HEAD at d and boundary at a, the clone of k; library commits k to n, theirs at n; ours is d prime, the rebuilt b prime and d prime on top of k, which is U(boundary) and base](test/scenarios/01-everyday-sync/01-sync-model/before-pull-git-names.drawio.svg)
 
 </div>
 
-At *a*, the BOUNDARY, you spliced in *k* (`e849115`). To splice out,
+At *a*, the *boundary*, you spliced in *k* (`e849115`). To splice out,
 `git-splice` rebuilds the commits since *a* on top of *k*. *c* never touched
-`lib/`, so it's left out. The result is *d'*, OURS, a library commit
-ready for an ordinary three-way merge with THEIRS from BASE:
+`lib/`, so it's left out. The result is *d'*, *ours*, a library commit
+ready for an ordinary three-way merge with *theirs* from their *base*:
 
 ```scrut
 $ git splice status
@@ -121,8 +121,7 @@ On branch main
 
 `git splice pull lib` merges *l*, *m* and *n* in, as one ordinary monorepo
 commit. Then `git splice push lib` sends *b'* and *d'*, and the pull,
-rebuilt as their merge with *n*. Changes cross the
-splice, but commits don't: both repositories keep their own histories.
+rebuilt as their merge with *n*.
 
 ## Getting started
 
