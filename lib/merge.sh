@@ -251,10 +251,14 @@ other_branch_with_synced() {
   local path="$1" prefix ref
   git merge-base --is-ancestor "$SPLICE_SYNCED" "$SPLICE_TARGET_REF" && return 1
   prefix="$(splice_refs_prefix "$path")"
-  ref="$(git for-each-ref --contains "$SPLICE_SYNCED" --exclude="$SPLICE_TARGET_REF" \
-    --count=1 --format='%(refname)' "$prefix")"
-  [[ -n "$ref" ]] || return 1
-  printf '%s\n' "${ref#"$prefix"}"
+  # Not --exclude: Git 2.40 lacks it.
+  while IFS= read -r ref; do
+    if [[ "$ref" != "$SPLICE_TARGET_REF" ]]; then
+      printf '%s\n' "${ref#"$prefix"}"
+      return 0
+    fi
+  done < <(git for-each-ref --contains "$SPLICE_SYNCED" --format='%(refname)' "$prefix")
+  return 1
 }
 
 # Explains why --rebase refuses splice <path>, whose synced commit came
