@@ -48,12 +48,12 @@ names for a three-way merge:
 
 ```sh
 check-drawing/check-drawing before-pull-git-names.drawio.svg \
-  --alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T \
-  --alias 'BASE=merge-base(R,T)' a=HEAD~3
+  --alias HEAD=H --alias boundary=B --alias ours=R --alias theirs=T \
+  --alias 'base=merge-base(R,T)' a=HEAD~3
 ```
 
-An alias works inside `U(…)` too: `U(BOUNDARY)` is U(B). Without
-`--alias`, a name like `OURS` is an upstream branch.
+An alias works inside `U(…)` too: `U(boundary)` is U(B). Without
+`--alias`, a name like `ours` is an upstream branch.
 
 Sourced, the file defines the function `check_drawing`, with the same
 arguments.
