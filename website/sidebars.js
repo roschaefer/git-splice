@@ -18,6 +18,11 @@ module.exports = {
         'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key',
       ].map((command) => `test/walkthrough/${command}`),
     },
+    {
+      type: 'category',
+      label: 'Workflows',
+      items: ['feature-branches', 'diverged'].map((workflow) => `test/walkthrough/${workflow}`),
+    },
     {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},
     {type: 'doc', id: 'test/concepts/splice-file/README', label: 'The .splice file'},
     {type: 'doc', id: 'test/concepts/upstreams/README', label: 'Upstreams'},
@@ -30,8 +35,8 @@ module.exports = {
     },
     {
       type: 'category',
-      label: 'Workflows',
-      items: ['feature-branches', 'diverged', 'bump', 'fork'].map((workflow) => `test/walkthrough/${workflow}`),
+      label: 'Advanced workflows',
+      items: ['bump', 'fork'].map((workflow) => `test/walkthrough/${workflow}`),
     },
     {
       type: 'category',
