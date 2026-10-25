@@ -8,6 +8,12 @@ isn't rebased:
    GitHub. Here, it's a rebase in a clone of the upstream.
 2. On `feature`: `git splice pull`.
 
+<div align="center">
+
+![Strategy 2, the upstream first, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../../../../docs/images/rebase-upstream-first.drawio.svg)
+
+</div>
+
 ## Output
 
 <!--

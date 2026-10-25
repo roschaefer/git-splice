@@ -1,11 +1,17 @@
 # Strategy 1: rebase in the monorepo first
 
 In the [same state](README.md), `feature` is rebased onto `main` in the
-monorepo, and the result replaces the PR. `main` already pulled *m*,
-the first step. Then:
+monorepo, and the result replaces the PR:
 
-1. On `feature`: `git rebase main`.
-2. `git splice push --force`.
+1. On `main`: `git splice pull`. Done already: *p* brought in *m*.
+2. On `feature`: `git rebase main`.
+3. `git splice push --force`.
+
+<div align="center">
+
+![Strategy 1, the monorepo first, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../../../docs/images/rebase-monorepo-first.drawio.svg)
+
+</div>
 
 The PR ends up as "Update branch" with a rebase on GitHub would leave
 it. `--force` overwrites whatever upstream's `feature` has, so it's for
