@@ -437,14 +437,16 @@ check_drawing() {
     # e.g. right after init.
     [[ -z "${copied["$(copy_key "${truth["$p|B"]}")"]:-}" ]] || walked[${truth["$p|B"]}]=1
   done
-  # The color of style key $2 of shape $1: $3 where it sets none, white
-  # and black by those names.
+  # The color of style key $2 of shape $1: $3 where it sets no color or
+  # the default, none where it's transparent, white and black by those
+  # names.
   color_of() {
     local c
     c="$(sed -n "s/.*;$2=\([^;]*\);.*/\1/p" <<<";${style[$1]};")"
     c="${c^^}"
     case "$c" in
-      "" | NONE | DEFAULT) c="$3" ;;
+      "" | DEFAULT) c="$3" ;;
+      NONE) c=none ;;
       "#FFFFFF" | WHITE) c=white ;;
       "#000000" | BLACK) c=black ;;
     esac

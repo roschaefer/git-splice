@@ -102,6 +102,17 @@ edit_drawing() {
   [ "$output" = "!!   a is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
 }
 
+@test "drawing: a transparent outline or fill isn't black or white" {
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=none;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=none;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
+}
+
 # Writes a drawing of two monorepo commits, x and its child y, styled $1
 # and $2.
 two_commits_drawing() {
