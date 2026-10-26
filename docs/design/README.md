@@ -315,7 +315,9 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
    rebuild continues from U(L), and *L* is the boundary B. If it differs, a
    pull merged a divergence, or a squash merge mixed local edits into the
    commit that changed `.splice`. Then *L* is rebuilt as a commit with *L*'s
-   folder, whose parents are the rebuild of *L*'s first parent
+   folder, on the parents the
+   [sync model](../../test/concepts/sync-model/README.md#pulls-in-between)
+   picks: after a divergence, the rebuild of *L*'s first parent
    (recursively) and U(L), as `git pull` would have merged them. Here *L*
    is the pull *e*, rebuilt as *e'*
    ([scenario](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)):
