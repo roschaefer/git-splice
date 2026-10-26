@@ -70,20 +70,29 @@ svg_cells() {
         if (el == "text" && $7 > 0) { err("the text " $6 " holds other elements, e.g. a <tspan>: write the label as plain text"); next }
         if ("marker-end" in A && A["marker-end"] != "url(#arrow)") { err("a <" el "> has marker-end=\"" A["marker-end"] "\": an arrowhead is url(#arrow)"); ok = 0 }
         if ("marker-end" in A && !arrow) { err("the arrowhead url(#arrow) is drawn by no <marker id=\"arrow\"> in <defs>: add one"); ok = 0 }
-        if (!ok || el == "svg" || el == "defs") next
-        dashed = 0
-        if ("stroke-dasharray" in A) {
-          k = split(A["stroke-dasharray"], lengths, /[ ,]+/)
-          for (j = 1; j <= k; j++) {
-            if (lengths[j] !~ number || lengths[j] < 0) { dashed = -1; break }
-            if (lengths[j] > 0) dashed = 1
+        # The viewBox shows the drawing at its size, from 0,0: then a shape
+        # inside it is in the picture.
+        if (el == "svg") {
+          if (split(A["viewBox"], box, /[ ,]+/) != 4 || box[1] != 0 || box[2] != 0 || box[3] !~ number || box[4] !~ number ||
+            ("width" in A && A["width"] != box[3]) || ("height" in A && A["height"] != box[4])) {
+            err("the <svg> has viewBox=\"" A["viewBox"] "\": write viewBox=\"0 0 <width> <height>\", the drawing\047s width and height")
           }
-          if (dashed < 1) { err("a <" el "> has stroke-dasharray=\"" A["stroke-dasharray"] "\": give it dash lengths, like \"6 4\""); next }
+          vw = box[3] + 0; vh = box[4] + 0
+          next
+        }
+        if (!ok || el == "defs") next
+        # A dash and a gap, both longer than nothing.
+        dashed = "stroke-dasharray" in A
+        if (dashed && (split(A["stroke-dasharray"], lengths, /[ ,]+/) != 2 || lengths[1] !~ number || lengths[2] !~ number ||
+          lengths[1] <= 0 || lengths[2] <= 0)) {
+          err("a <" el "> has stroke-dasharray=\"" A["stroke-dasharray"] "\": give it a dash and a gap length, like \"6 4\"")
+          next
         }
         if (el == "circle") {
           n++; kind[n] = "circle"; cx[n] = A["cx"] + 0; cy[n] = A["cy"] + 0; rr[n] = A["r"] + 0; dash[n] = dashed
         } else if (el == "rect") {
           n++; kind[n] = "rect"; x[n] = A["x"] + 0; y[n] = A["y"] + 0; w[n] = A["width"] + 0; h[n] = A["height"] + 0; dash[n] = dashed
+          q[n] = min(A["rx"] + 0, min(w[n], h[n]) / 2)
         } else if (el == "text") {
           if ($6 != "") { nt++; tx[nt] = A["x"] + 0; ty[nt] = A["y"] + 0; tl[nt] = $6 }
         } else {
@@ -121,9 +130,13 @@ svg_cells() {
       function abs(v) { return v < 0 ? -v : v }
       function min(a, b) { return a < b ? a : b }
       # Whether point a,b lies on the outline of shape i, within 3 units.
-      function touches(i, a, b,   d) {
+      function touches(i, a, b,   d, ox, oy) {
         if (kind[i] == "circle") return abs(sqrt((a - cx[i]) ^ 2 + (b - cy[i]) ^ 2) - rr[i]) <= 3
         if (a < x[i] - 3 || a > x[i] + w[i] + 3 || b < y[i] - 3 || b > y[i] + h[i] + 3) return 0
+        # In a rounded corner, the outline is the arc around ox,oy.
+        ox = a < x[i] + q[i] ? x[i] + q[i] : a > x[i] + w[i] - q[i] ? x[i] + w[i] - q[i] : a
+        oy = b < y[i] + q[i] ? y[i] + q[i] : b > y[i] + h[i] - q[i] ? y[i] + h[i] - q[i] : b
+        if (ox != a && oy != b) return abs(sqrt((a - ox) ^ 2 + (b - oy) ^ 2) - q[i]) <= 3
         d = min(min(abs(a - x[i]), abs(a - x[i] - w[i])), min(abs(b - y[i]), abs(b - y[i] - h[i])))
         return d <= 3
       }
@@ -134,7 +147,19 @@ svg_cells() {
           if ((kind[i] == "circle" || !lane[i]) && touches(i, a, b) && (!best || area(i) < area(best))) best = i
         return best
       }
+      # Whether x1,y1 to x2,y2 lies inside the viewBox; names it if not.
+      function shown(what, x1, y1, x2, y2) {
+        if (x1 >= 0 && y1 >= 0 && x2 <= vw && y2 <= vh) return 1
+        err(what " lies outside the viewBox 0 0 " vw " " vh ": move it in, or make the drawing larger")
+        return 0
+      }
       END {
+        for (i = 1; i <= n; i++)
+          if (kind[i] == "circle") shown("the circle at " at(cx[i], cy[i]), cx[i] - rr[i], cy[i] - rr[i], cx[i] + rr[i], cy[i] + rr[i])
+          else shown("the rect at " at(x[i], y[i]), x[i], y[i], x[i] + w[i], y[i] + h[i])
+        for (t = 1; t <= nt; t++) shown("the text " tl[t], tx[t], ty[t], tx[t], ty[t])
+        for (a = 1; a <= na; a++)
+          for (j = 1; j <= np[a]; j++) shown("the line from " at(px[a, 1], py[a, 1]), px[a, j], py[a, j], px[a, j], py[a, j])
         # Each text belongs to the smallest shape around it.
         for (t = 1; t <= nt; t++) {
           best = 0

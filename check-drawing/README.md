@@ -157,7 +157,7 @@ where the check doesn't look. Everything else fails the check, e.g. a
 
 | Element | Attributes |
 | --- | --- |
-| `<svg>`, the root, holding all the others | `width`, `height`, `viewBox` |
+| `<svg>`, the root, holding all the others | `width`, `height`, `viewBox="0 0 <width> <height>"` |
 | `<style>` | none; its rules set only colors, strokes and fonts |
 | `<defs>` | none; holds `<marker id="arrow">`, the arrowhead |
 | `<circle>` | `cx`, `cy`, `r`, `stroke-dasharray`, `class` |
@@ -166,8 +166,8 @@ where the check doesn't look. Everything else fails the check, e.g. a
 | `<polyline>` | `points`, `stroke-dasharray`, `marker-end`, `class` |
 | `<text>`, holding only its label | `x`, `y`, `class` |
 
-Coordinates are plain numbers, and a `stroke-dasharray` gives dash
-lengths, like `6 4`. A dark theme is a `prefers-color-scheme: dark`
+Coordinates are plain numbers, every shape lies inside the `viewBox`,
+and a `stroke-dasharray` gives a dash and a gap, like `6 4`. A dark theme is a `prefers-color-scheme: dark`
 block in the `<style>`.
 
 ### draw.io

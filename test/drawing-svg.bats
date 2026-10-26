@@ -102,8 +102,9 @@ r_arrow='<line x1="812" y1="75" x2="744" y2="75" marker-end="url(#arrow)"/>'
 <g><line x1="812" y1="75" x2="744" y2="75" marker-end="url(#arrow)"/></g>|!!   a <g>: check-drawing reads circles, rects, lines, polylines and texts only
 <svg viewBox="0 0 1896 1140"><line x1="812" y1="75" x2="744" y2="75" marker-end="url(#arrow)"/></svg>|!!   an <svg> is inside the <svg>: put each shape directly into the outer one
 <line x1="812" y1="75" x2="744" y2="75" marker-end="url(#other)"/>|!!   a <line> has marker-end="url(#other)": an arrowhead is url(#arrow)
-<line x1="812" y1="75" x2="744" y2="75" stroke-dasharray="0 0" marker-end="url(#arrow)"/>|!!   a <line> has stroke-dasharray="0 0": give it dash lengths, like "6 4"
-<line x1="812" y1="75" x2="744" y2="75" stroke-dasharray="none" marker-end="url(#arrow)"/>|!!   a <line> has stroke-dasharray="none": give it dash lengths, like "6 4"
+<line x1="812" y1="75" x2="744" y2="75" stroke-dasharray="0 0" marker-end="url(#arrow)"/>|!!   a <line> has stroke-dasharray="0 0": give it a dash and a gap length, like "6 4"
+<line x1="812" y1="75" x2="744" y2="75" stroke-dasharray="6 0" marker-end="url(#arrow)"/>|!!   a <line> has stroke-dasharray="6 0": give it a dash and a gap length, like "6 4"
+<line x1="812" y1="75" x2="744" y2="75" stroke-dasharray="none" marker-end="url(#arrow)"/>|!!   a <line> has stroke-dasharray="none": give it a dash and a gap length, like "6 4"
 <polyline points="812,75 800" marker-end="url(#arrow)"/>|!!   the polyline 812,75 800 isn't two or more points
 EOF
   [ -z "$failed" ] || {
@@ -153,4 +154,27 @@ EOF
   run check_drawing "$drawing"
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = '!!   the arrowhead url(#arrow) is drawn by no <marker id="arrow"> in <defs>: add one' ]
+}
+
+@test "drawing-svg: the viewBox shows the whole drawing, at its size" {
+  sed -i 's|viewBox="0 0 948 570"|viewBox="0 0 100 100"|' "$drawing"
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = '!!   the <svg> has viewBox="0 0 100 100": write viewBox="0 0 <width> <height>", the drawing'"'"'s width and height' ]
+  cp "$committed" "$drawing"
+  edit_drawing -u "$(circle_at 213 495)/@cx" -v 2000 -u "$(text_at 213 495)/@x" -v 2000
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the circle at 2000,495 lies outside the viewBox 0 0 948 570: move it in, or make the drawing larger" ]
+}
+
+@test "drawing-svg: an arrow attaches to a box's rounded outline, not its cut-away corner" {
+  edit_drawing -u '//s:rect[@x="812" and @y="55"]/@rx' -v 48 -u "$(arrow_from 812 75)/@y1" -v 55
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the arrow from 812,55 to 744,75 doesn't touch a commit or box at its start: end it on the outline" ]
+  cp "$committed" "$drawing"
+  edit_drawing -u '//s:rect[@x="812" and @y="55"]/@rx' -v 20 -u '//s:line[@x2="744" and @y2="75"]/@x1' -v 818 -u '//s:line[@x2="744" and @y2="75"]/@y1' -v 61
+  run check_drawing "$drawing"
+  [ "$status" -eq 0 ]
 }
