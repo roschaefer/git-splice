@@ -445,7 +445,7 @@ a: add vendor/a" ]
   splice fetch vendor/a >/dev/null
   run cmd_merge --rebase vendor/a
   [ "$status" -eq 0 ]
-  [ "$(cat vendor/a/lock.txt)" = "bump dep" ]
+  [ "$(cat vendor/a/lock.txt)" = "m: bump dep" ]
 }
 
 @test "merge --rebase: with --branch naming another upstream branch, doesn't suggest a push, which would go to the branch named like this one" {

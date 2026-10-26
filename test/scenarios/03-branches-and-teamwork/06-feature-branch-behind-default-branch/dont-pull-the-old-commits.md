@@ -55,7 +55,7 @@ the two [rebase strategies](README.md#the-rebase-strategies):
 ```scrut
 $ git splice pull --rebase vendor/a
 ok   vendor/a fetched
-!!   vendor/a: 'feature' never had the synced commit 5cc5467, which this branch got elsewhere, e.g. with 'git rebase main' -- --rebase would drop it. To rebase 'feature', do it on one side only:
+!!   vendor/a: 'feature' never had the synced commit 48aa825, which this branch got elsewhere, e.g. with 'git rebase main' -- --rebase would drop it. To rebase 'feature', do it on one side only:
 
   # keep this branch's rebase, overwriting upstream's 'feature':
   git splice push --force -- vendor/a
@@ -72,14 +72,14 @@ before the rebase, into `feature` as the pull *x*. No change is lost,
 and `lock.txt` stays:
 
 ```scrut
-$ git splice pull vendor/a
+$ git splice pull -m "x: pull the PR" vendor/a
 ok   vendor/a fetched
-ok   vendor/a: pulled a35a3ef
+ok   vendor/a: pulled 1041672
 ```
 
 ```scrut
 $ cat vendor/a/lock.txt
-bump dep
+m: bump dep
 ```
 
 But the push then sends both copies of the feature change, the rebased
@@ -87,18 +87,18 @@ But the push then sends both copies of the feature change, the rebased
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: pushed c08925d to feature
+ok   vendor/a: pushed 7680df9 to feature
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s feature
-*   splice: pull vendor/a from feature at a35a3ef
+*   x: pull the PR
 |\  
-| * feature change
-* | feature change
-* | bump dep
+| * b: feature change
+* | b: feature change
+* | m: bump dep
 |/  
-* seed
+* k: seed
 ```
 
 <div align="center">
@@ -109,14 +109,12 @@ $ git -C "$UPSTREAM" log --graph --format=%s feature
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pulled-and-pushed.drawio.svg" \
->   a=HEAD~3 p=main c=HEAD~1 x=HEAD k=refs/splices/a/heads/main~1 \
->   m=refs/splices/a/heads/main f="$f"
+$ check_drawing "$TESTDIR/pulled-and-pushed.drawio.svg" c=HEAD~1 f="$f"
 ok   pulled-and-pushed.drawio.svg: 9 commits, 13 arrows, 5 boxes, 1 lanes
 ```
 -->
 
-The PR lists `feature change` twice, and the merge between them. A
+The PR lists `b: feature change` twice, and the merge between them. A
 squash merge of the PR hides that; a rebase merge puts both copies on
 `main`.
 
@@ -149,7 +147,7 @@ $ r="$(git splice rebuild vendor/a)"
 
 ```scrut
 $ git splice push --force --rebuilt-commit "$r" vendor/a
-ok   vendor/a: pushed 8613e5d to feature
+ok   vendor/a: pushed 125a49b to feature
 ```
 
 The PR ends up as rebase via monorepo leaves it: *m*, then the feature change
@@ -157,9 +155,9 @@ on top. The old copy *f* and the merge *x'* are on no branch any more:
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s feature
-* feature change
-* bump dep
-* seed
+* b: feature change
+* m: bump dep
+* k: seed
 ```
 
 <div align="center">
@@ -170,9 +168,7 @@ $ git -C "$UPSTREAM" log --graph --format=%s feature
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pushed-with-force.drawio.svg" \
->   a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 \
->   m=refs/splices/a/heads/main
+$ check_drawing "$TESTDIR/pushed-with-force.drawio.svg" c=HEAD
 ok   pushed-with-force.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
 ```
 -->

@@ -5,11 +5,11 @@ A feature branch was pushed, so upstream has it as a PR. Then upstream's
 behind `main`: GitHub says "This branch is out-of-date with the base
 branch". To bring it up to date, `feature` is rebased onto `main`.
 
-- **Upstream**: *k* (`seed`) on `main`, then *m* (`bump dep`), which adds
-  `lock.txt`. `feature`, the PR, is *f* (`feature change`) on top of
-  *k*.
+- **Upstream**: *k* on `main`, then *m*, which adds `lock.txt`.
+  `feature`, the PR, is *f* on top of *k*.
 - **Monorepo (`vendor/a/`)**: *a* cloned *k*. On `main`, the pull *p*
-  brought in *m*. On `feature`, *b* (`feature change`) was pushed as *f*.
+  brought in *m*. On `feature`, *b* was pushed as *f*, which keeps *b*'s
+  message.
 
 <div align="center">
 
@@ -64,18 +64,17 @@ $ build_scenario scenario_feature_branch_behind_default_branch
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/feature-branch-behind-default-branch.drawio.svg" \
->   a=HEAD~1 b=HEAD p=main k=refs/splices/a/heads/main~1 \
->   m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
+>   p=main m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
 ok   feature-branch-behind-default-branch.drawio.svg: 6 commits, 9 arrows, 5 boxes, 1 lanes
 ```
 -->
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s main feature
-* bump dep
-| * feature change
+* m: bump dep
+| * b: feature change
 |/  
-* seed
+* k: seed
 ```
 
 `git-splice` compares `feature` with upstream's `feature` only, and

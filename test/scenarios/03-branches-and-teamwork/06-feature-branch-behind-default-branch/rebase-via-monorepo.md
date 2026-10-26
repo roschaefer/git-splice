@@ -39,9 +39,9 @@ $ git rebase -q main
 
 ```scrut
 $ git log --graph --format=%s
-* feature change
-* splice: pull vendor/a from main at 5cc5467
-* splice: clone vendor/a from main at bde4164
+* b: feature change
+* p: pull the dependency update
+* a: clone vendor/a
 * initial commit
 ```
 
@@ -54,8 +54,7 @@ $ git log --graph --format=%s
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/rebased-in-the-monorepo.drawio.svg" \
->   a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 \
->   m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
+>   c=HEAD f=refs/splices/a/heads/feature
 ok   rebased-in-the-monorepo.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
 ```
 -->
@@ -82,14 +81,14 @@ $ git splice push vendor/a
 
 ```scrut
 $ git splice push --force vendor/a
-ok   vendor/a: pushed 8613e5d to feature
+ok   vendor/a: pushed 125a49b to feature
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s feature
-* feature change
-* bump dep
-* seed
+* b: feature change
+* m: bump dep
+* k: seed
 ```
 
 <div align="center">
@@ -100,9 +99,7 @@ $ git -C "$UPSTREAM" log --graph --format=%s feature
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pushed-with-force.drawio.svg" \
->   a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 \
->   m=refs/splices/a/heads/main
+$ check_drawing "$TESTDIR/pushed-with-force.drawio.svg" c=HEAD
 ok   pushed-with-force.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
 ```
 -->

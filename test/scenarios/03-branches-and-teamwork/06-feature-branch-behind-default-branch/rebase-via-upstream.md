@@ -45,23 +45,23 @@ $ git clone -q -b feature "$UPSTREAM" ../pr &&
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s feature
-* feature change
-* bump dep
-* seed
+* b: feature change
+* m: bump dep
+* k: seed
 ```
 
 The pull brings *m* into `feature` as *x*, and records *f'* as the
 synced commit:
 
 ```scrut
-$ git splice pull vendor/a
-ok   vendor/a fetched (feature moved a35a3ef..e724c1a)
-ok   vendor/a: pulled e724c1a
+$ git splice pull -m "x: pull the rebased PR" vendor/a
+ok   vendor/a fetched (feature moved 1041672..97810bc)
+ok   vendor/a: pulled 97810bc
 ```
 
 ```scrut
 $ cat vendor/a/lock.txt
-bump dep
+m: bump dep
 ```
 
 <div align="center">
@@ -72,9 +72,7 @@ bump dep
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pulled-the-rebased-pr.drawio.svg" \
->   a=HEAD~2 b=HEAD~1 x=HEAD p=main k=refs/splices/a/heads/main~1 \
->   m=refs/splices/a/heads/main f="$f"
+$ check_drawing "$TESTDIR/pulled-the-rebased-pr.drawio.svg" p=main f="$f"
 ok   pulled-the-rebased-pr.drawio.svg: 7 commits, 9 arrows, 4 boxes, 1 lanes
 ```
 -->
