@@ -8,8 +8,8 @@ A pull on a feature branch, squash-merged into `main`.
 
 </div>
 
-- **Upstream**: *k* (`seed`) on `main`, and someone else's commit *f*
-  (`upstream feature work`) on `feature`.
+- **Upstream**: *k* (`seed`) on `main`, and someone else's commit *f* on
+  `feature`.
 - **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k*. On `feature`,
   `git splice pull` brought in *f*. `feature` was squash-merged into `main`
   as *s* and deleted, then a local commit *c* followed on `main`.
@@ -40,16 +40,15 @@ $ build_scenario scenario_squash_merged_pull
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/squash-merged-pull.drawio.svg" \
->   a=HEAD~2 s=HEAD~1 c=HEAD k=refs/splices/upstream/heads/main \
->   f=refs/splices/upstream/heads/feature
+>   a=HEAD~2 k=refs/splices/upstream/heads/main
 ok   squash-merged-pull.drawio.svg: 6 commits, 9 arrows, 5 boxes, 1 lanes
 ```
 -->
 
 ```scrut
 $ git log --format=%s
-local change
-feature (squash-merged)
+c: local change
+s: feature (squash-merged)
 add vendor/a
 initial commit
 ```
@@ -64,18 +63,18 @@ On branch main
 ```scrut
 $ git splice log
 ===  vendor/a (main)
-< 5c5de89 local change  (Test <test@example.com>)
-< 223f9b4 upstream feature work  (Test <test@example.com>)
+< 2b23025 c: local change  (Test <test@example.com>)
+< 1ee7bf7 f: upstream feature work  (Test <test@example.com>)
 ```
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: pushed 5c5de89 to main
+ok   vendor/a: pushed 2b23025 to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main
-local change
-upstream feature work
+c: local change
+f: upstream feature work
 seed
 ```

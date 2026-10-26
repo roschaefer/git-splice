@@ -19,8 +19,8 @@ its message and author are lost. This is a known bug,
 
 `push` rebuilds the commits that changed the splice's folder. It looks for
 them under the folder's current path only, so it doesn't see the commits
-made under the old one, and the move commit *m* (`reorganize folders`)
-appears to create the whole folder. *m* added `libs/a/.splice`, so it's B,
+made under the old one, and the move commit *m* appears to create the
+whole folder. *m* added `libs/a/.splice`, so it's B,
 and R is *m'*, a copy of *m* alone: *b* has none.
 
 Workaround: push before moving a splice, as
@@ -52,7 +52,7 @@ Someone else reorganizes the folders:
 
 ```scrut
 $ git mv vendor/a libs/a &&
->   git -c user.name=Mover -c user.email=mover@example.com commit -q -m "reorganize folders"
+>   git -c user.name=Mover -c user.email=mover@example.com commit -q -m "m: reorganize folders"
 ```
 
 The splice's fetched refs stay under the old path
@@ -67,7 +67,7 @@ ok   libs/a fetched
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/moved-with-unpushed-commits.drawio.svg" \
->   a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/heads/main
+>   a=HEAD~2 b=HEAD~1 k=refs/splices/upstream/heads/main
 ok   moved-with-unpushed-commits.drawio.svg: 5 commits, 6 arrows, 3 boxes, 1 lanes
 ```
 -->
@@ -78,7 +78,7 @@ list:
 ```scrut
 $ git splice log
 ===  libs/a (main)
-< a9da2f2 reorganize folders  (Mover <mover@example.com>)
+< c304a04 m: reorganize folders  (Mover <mover@example.com>)
 ```
 
 The push sends the right content, as one commit with the move's message
@@ -86,12 +86,12 @@ and author:
 
 ```scrut
 $ git splice push libs/a
-ok   libs/a: pushed a9da2f2 to main
+ok   libs/a: pushed c304a04 to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --format='%s  (%an)' main
-reorganize folders  (Mover)
+m: reorganize folders  (Mover)
 seed  (Test)
 ```
 
