@@ -252,6 +252,13 @@
             # For test/drawing-export.bats.
             pkgs.bats
           ];
+          # The fonts draw.io measures labels with, e.g. for a label's
+          # background: the drawings' own, then a fallback. Without them
+          # draw.io measures with whatever the machine has, and the export
+          # differs between machines.
+          FONTCONFIG_FILE = pkgs.makeFontsConf {
+            fontDirectories = [ pkgs.roboto-mono pkgs.dejavu_fonts ];
+          };
         };
       });
 }
