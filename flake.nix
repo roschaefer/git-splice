@@ -241,5 +241,17 @@
             export PATH="$repo_root:$repo_root/test/walkthrough:$PATH"
           '';
         };
+
+        # draw.io, for `just drawings-check`: a shell of its own, since only
+        # that check needs it and it's large. From nixos-26.05, as
+        # nixos-25.05's draw.io is unfree; headless, so it runs in CI.
+        devShells.drawings = pkgs.mkShell {
+          packages = [
+            nixpkgs-scrut.legacyPackages.${system}.drawio-headless
+            pkgs.git
+            # For test/drawing-export.bats.
+            pkgs.bats
+          ];
+        };
       });
 }

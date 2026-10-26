@@ -6,16 +6,16 @@ lint:
     shellcheck test/walkthrough/setup.sh
     shellcheck completions/git-splice.bash
     shellcheck bench/setup.sh bench/run.sh
-    shellcheck -x check-drawing/check-drawing
+    shellcheck -x check-drawing/check-drawing check-drawing/check-export
     shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh
 
 # Format with shfmt
 fmt:
-    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing
+    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Check formatting with shfmt
 fmt-check:
-    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing
+    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Run the bats tests, one job per CPU
 test:
@@ -40,6 +40,13 @@ docs-check flag="":
     elif ! scrut test --jobs "$(nproc)" README.md test/walkthrough test/concepts test/scenarios test/comparisons; then \
       echo "The README, walkthroughs, concepts, scenario READMEs or comparisons don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
     fi
+
+# Check with draw.io that each drawing's picture is its diagram's export; --write exports the stale ones again
+drawings-check flag="":
+    @if [[ -n "{{flag}}" && "{{flag}}" != --write ]]; then \
+      echo "usage: just drawings-check [--write]" >&2; exit 1; \
+    fi
+    nix develop .#drawings --command check-drawing/check-export {{flag}}
 
 # Build the documentation site into website/build; fails on broken links
 site-build:

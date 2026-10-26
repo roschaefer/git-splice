@@ -1,0 +1,42 @@
+name: Drawings
+
+# Checks with draw.io that each drawing's picture is its diagram's export.
+# Only when a drawing, the check or the pinned draw.io changes: draw.io is
+# large, and nothing else can make a picture stale.
+on:
+  push:
+    paths:
+      - "**.drawio.svg"
+      - check-drawing/check-export
+      - test/drawing-export.bats
+      - flake.nix
+      - flake.lock
+      - .github/workflows/drawings.yml
+  pull_request:
+    paths:
+      - "**.drawio.svg"
+      - check-drawing/check-export
+      - test/drawing-export.bats
+      - flake.nix
+      - flake.lock
+      - .github/workflows/drawings.yml
+
+permissions:
+  contents: read
+
+jobs:
+  drawings-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
+      - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
+
+      - name: drawings-check
+        run: nix develop .#drawings --command check-drawing/check-export
+
+      - name: test
+        run: nix develop .#drawings --command bats test/drawing-export.bats

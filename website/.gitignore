@@ -2,3 +2,5 @@
 /build
 .docusaurus
 .cache-loader
+# The drawings without their diagrams, src/remark/drawio-plain.js.
+/.drawings
