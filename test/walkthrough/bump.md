@@ -326,7 +326,7 @@ ok   vendor/pkg-a fetched
 $ git splice status vendor/pkg-a
 On branch main
 
-  !! unrelated history  vendor/pkg-a  see 'git splice merge vendor/pkg-a' for options
+  ?? synced commit 89d4457 isn't here  vendor/pkg-a  run 'git splice fetch vendor/pkg-a', or check that upstream has it
 ```
 
 Without the bump, `main`'s `.splice` would name a commit on the

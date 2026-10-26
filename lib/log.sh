@@ -96,6 +96,10 @@ log_one() {
         --left-right --cherry-mark "$SPLICE_REBUILT...$SPLICE_DEFAULT_REF"
       return
       ;;
+    missing-synced)
+      log_warn "$path: $(missing_synced_message "$path")"
+      return 1
+      ;;
     missing-pin)
       log_err "$path: $(target_description) isn't here -- run 'git splice fetch $(upstream_option "$path")$path', or check that upstream has it"
       return 1

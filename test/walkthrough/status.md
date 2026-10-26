@@ -38,6 +38,7 @@ yet ([sync model](../concepts/sync-model/README.md)).
 | `status` shows | Meaning | What to do |
 | --- | --- | --- |
 | `?? never fetched` | The upstream wasn't fetched in this clone yet. ([example](../scenarios/01-everyday-sync/04-never-fetched/README.md)) | Run `git splice fetch`. |
+| `?? synced commit X isn't here` | `.splice` names an upstream commit this clone doesn't have, e.g. after `git pull` brought in a teammate's `git splice pull`. ([example](../scenarios/03-branches-and-teamwork/06-teammate-pulled/README.md)) | Run `git splice fetch`. If upstream doesn't have the commit any more, `pull` and `push` print the ways to pick a side. |
 | `up to date` | Both sides are the same. ([example](../scenarios/01-everyday-sync/02-up-to-date/README.md))<br/>![T and R point at the same commit k](../scenarios/01-everyday-sync/02-up-to-date/up-to-date.drawio.svg) | Nothing to do. |
 | `ahead N` | Only your side changed. ([example](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/README.md))<br/>![b changes the folder; its rebuild b prime, R, is on top of k, T](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/ahead.drawio.svg) | Run `git splice push`. |
 | `behind N` | Only the upstream changed. ([example](../scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/README.md))<br/>![The upstream has l, T, on top of k, R](../scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/behind.drawio.svg) | Run `git splice pull`. |

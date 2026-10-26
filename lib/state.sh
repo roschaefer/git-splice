@@ -22,6 +22,8 @@
 #   missing-branch     upstream has no branch like this one (or is empty)
 #   missing-pin        the tag or commit default-pin names isn't here:
 #                      upstream lacks it, or it wasn't fetched yet
+#   missing-synced     the synced commit isn't here: a teammate's pull
+#                      that wasn't fetched yet, or upstream lacks it
 #   up-to-date         the splice's content equals the upstream branch
 #   push               pushing fast-forwards the upstream branch
 #   pull               the upstream branch has commits this branch lacks
@@ -86,9 +88,7 @@ classify_splice() {
   fi
 
   if [[ -n "$SPLICE_SYNCED" ]] && ! git cat-file -e "$SPLICE_SYNCED^{commit}" 2>/dev/null; then
-    # The commit the splice last matched isn't here, e.g. a fresh clone
-    # fetched after upstream force-pushed it away: nothing to compare with.
-    SPLICE_STATE="unrelated-history"
+    SPLICE_STATE="missing-synced"
     return
   fi
 
@@ -201,6 +201,14 @@ splice_in() {
     log_err "$path: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)"
   fi
   return 1
+}
+
+# What's known when splice <path>'s synced commit isn't here
+# (missing-synced): a fetch gets it unless upstream lacks it.
+missing_synced_message() {
+  local path="$1"
+  printf "synced commit %s isn't here -- run 'git splice fetch %s%s', or check that upstream has it\n" \
+    "${SPLICE_SYNCED:0:7}" "$(upstream_option "$path")" "$path"
 }
 
 # Prints manual recovery commands for a splice in the "unrelated-history"

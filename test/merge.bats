@@ -16,6 +16,7 @@ setup() {
   load 'scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
   load 'scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/setup'
   load 'walkthrough/rebase-feature-branch/setup'
+  load 'scenarios/03-branches-and-teamwork/06-teammate-pulled/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -656,6 +657,37 @@ a: add vendor/a" ]
   run cmd_merge vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"not fetched yet"* ]]
+}
+
+@test "merge: asks for a fetch when a teammate's pull names a synced commit that isn't here" {
+  scenario_teammate_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  local synced
+  synced="$(splice_config vendor/a commit)"
+  run cmd_merge vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "??   vendor/a: synced commit ${synced:0:7} isn't here -- run 'git splice fetch vendor/a', or check that upstream has it" ]
+}
+
+@test "pull: fetches a teammate's synced commit, and has nothing to pull then" {
+  scenario_teammate_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_pull vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: nothing to pull"* ]]
+}
+
+@test "pull: offers to pick a side when upstream doesn't have the synced commit any more" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  rm -rf "$upstream"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "brand new unrelated history"
+  cd "$monorepo"
+  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
+  git reflog expire --expire=now --all && git gc -q --prune=now
+  run cmd_pull vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"share no history -- pick a side"* ]]
 }
 
 @test "merge -m: the commit gets the message instead of the default one, and .splice still records the synced commit" {
