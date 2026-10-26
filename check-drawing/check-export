@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# check-export: checks that each .drawio.svg shows the diagram embedded in
+# it: that its picture is what draw.io exports from that diagram. check-drawing
+# reads the diagram, readers see the picture, and an edit of the diagram
+# without exporting again would leave the two apart. Runs `drawio` on PATH.
+#
+# check-export [--write] [<drawing>...]
+# All tracked .drawio.svg files, unless given; --write exports the ones that
+# differ again.
+set -euo pipefail
+
+write=""
+if [[ "${1:-}" == --write ]]; then
+  write=1
+  shift
+fi
+drawings=("$@")
+[[ ${#drawings[@]} -gt 0 ]] || mapfile -t drawings < <(git ls-files '*.drawio.svg')
+
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+mkdir "$tmp/in" "$tmp/out"
+# draw.io exports a folder with one start, into one flat folder, so each
+# drawing gets a name of its own there.
+for i in "${!drawings[@]}"; do
+  cp -- "${drawings[$i]}" "$tmp/in/$i.drawio.svg"
+done
+if ! drawio -x -f svg -e -u --theme auto -b 10 -o "$tmp/out" "$tmp/in" >"$tmp/log" 2>&1; then
+  cat "$tmp/log" >&2
+  exit 1
+fi
+
+# The picture: the file without the diagram, and without the id draw.io
+# makes up anew for each export.
+picture() {
+  sed -E 's/ge-svg-[A-Za-z0-9_-]{20}/ge-svg-ID/g; s/ content="[^"]*"//' "$1"
+}
+stale=0
+for i in "${!drawings[@]}"; do
+  out="$tmp/out/$i.drawio.svg"
+  if [[ ! -f "$out" ]]; then
+    printf '!!   %s: draw.io exported nothing\n' "${drawings[$i]}"
+    stale=1
+  elif cmp -s <(picture "${drawings[$i]}") <(picture "$out"); then
+    continue
+  elif [[ -n "$write" ]]; then
+    cp -- "$out" "${drawings[$i]}"
+    printf 'wrote %s\n' "${drawings[$i]}"
+  else
+    printf "!!   %s: the picture isn't its diagram's export: run 'just drawings-check --write'\n" "${drawings[$i]}"
+    stale=1
+  fi
+done
+[[ $stale -eq 0 ]] || exit 1
+printf 'ok   %d drawings show their diagrams\n' "${#drawings[@]}"

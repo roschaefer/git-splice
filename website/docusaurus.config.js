@@ -8,6 +8,7 @@ const siteUrl = 'https://roschaefer.github.io';
 const baseUrl = '/git-splice/';
 const repoFileLinks = require('./src/remark/repo-file-links');
 const siteLinks = require('./src/remark/site-links');
+const drawioPlain = require('./src/remark/drawio-plain');
 const indexFirst = require('./src/index-first');
 
 /** @type {import('@docusaurus/types').Config} */
@@ -61,6 +62,7 @@ module.exports = {
           beforeDefaultRemarkPlugins: [
             [repoFileLinks, {repoUrl, repoRoot: require('path').resolve(__dirname, '..')}],
             [siteLinks, {siteUrl: siteUrl + baseUrl}],
+            [drawioPlain, {siteDir: __dirname, repoRoot: require('path').resolve(__dirname, '..')}],
           ],
         },
         blog: false,
@@ -70,6 +72,8 @@ module.exports = {
   ],
 
   // Full-text search, indexed at build time: no external service.
+  plugins: [[require.resolve('./src/drawings'), {repoRoot: require('path').resolve(__dirname, '..')}]],
+
   themes: [
     [
       require.resolve('@easyops-cn/docusaurus-search-local'),

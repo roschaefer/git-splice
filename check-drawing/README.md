@@ -137,6 +137,21 @@ them too. To export a `.drawio` file:
 drawio -x -f svg -e -u --theme auto -b 10 -o x.drawio.svg x.drawio
 ```
 
+`check-drawing` reads the diagram, and readers see the picture. An edit
+of the diagram without exporting again would leave the two apart, so
+[`check-export`](check-export) exports each drawing again from its
+diagram, with draw.io, and compares the pictures:
+
+```sh
+just drawings-check          # fails on a stale picture
+just drawings-check --write  # exports the stale ones again
+```
+
+It runs in `nix develop .#drawings`, which has a headless draw.io, and
+in CI whenever a drawing changes. The documentation site serves each
+drawing without its diagram, as a plain SVG:
+[`drawings.js`](../website/src/drawings.js).
+
 ## Limits
 
 `check-drawing` is as strict as the drawings it checks need it to be.
@@ -166,4 +181,5 @@ In `git-splice`, [`test/drawing.bats`](../test/drawing.bats) and
 [`test/drawing-lanes.bats`](../test/drawing-lanes.bats) and
 [`test/drawing-upstreams.bats`](../test/drawing-upstreams.bats) run it against
 `git-splice`'s test scenarios, and each [scenario](../test/scenarios/)
-with a drawing checks it in its README.
+with a drawing checks it in its README. [`test/drawing-export.bats`](../test/drawing-export.bats)
+tests `check-export`, with draw.io.
