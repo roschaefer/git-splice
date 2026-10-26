@@ -146,29 +146,29 @@ there is to keep up to date. In the sync model's drawing:
 | *b'*, *d'*, and the arrows into them | a dashed circle or arrow: `stroke-dasharray` | a commit no upstream branch has yet |
 | H, B, T, R, U(H) = U(B) | a `<rect>` with a `<text>` in it | a box |
 | `lib/` | a `<rect>` with a folder in it | a lane, whose other texts are boxes or upstreams' names |
-| the arrows | a `<line>`, `<polyline>` or `<path>` with `marker-end` | an arrow from the shape its start touches to the one its tip touches, within 3 units of the outline |
+| the arrows | a `<line>`, or a `<polyline>` for a bend, with `marker-end="url(#arrow)"` | an arrow from the shape its start touches to the one its tip touches, within 3 units of the outline |
 | a separator, in a split lane | a `<line>` without `marker-end` | a separator |
 
-A text belongs to the smallest shape around it. Paths are straight
-lines, M, L, H and V, in one piece. Inkscape keeps all of this: it
-writes a moved shape's new coordinates, and a label into a `<tspan>` at
-the text's position.
+A text belongs to the smallest shape around it.
 
-Each shape sets only what the check reads on it, plus what doesn't
-change which shape is where: colors, strokes and fonts. Anything else
-fails the check, instead of passing a graph the reader doesn't see:
+The drawing has a fixed format, so that nothing can change the picture
+where the check doesn't look. Everything else fails the check, e.g. a
+`<g>`, a `<path>`, a `<tspan>`, `transform` or `style`:
 
-| Fails | Because |
+| Element | Attributes |
 | --- | --- |
-| A circle or box without a label, a text in no shape | the check can't tell what it is |
-| `transform`, a text's `dx`, `dy` or `rotate`, a `<tspan>` elsewhere, geometry in CSS or with a unit | it moves a shape away from the coordinates the check reads |
-| `stroke-dasharray` or `marker-end` on a `<g>`, or in the `<style>` | it dashes or points shapes where the check reads each one |
-| `display: none`, `visibility: hidden` | the shape isn't shown |
-| `marker`, `marker-mid`, a `marker-end` no `<marker>` draws | the arrowhead isn't one tip |
-| A path with a second M, `filter`, `<polygon>`, `<image>` and other attributes and elements | the check doesn't read them |
+| `<svg>`, the root, holding all the others | `width`, `height`, `viewBox` |
+| `<style>` | none; its rules set only colors, strokes and fonts |
+| `<defs>` | none; holds `<marker id="arrow">`, the arrowhead |
+| `<circle>` | `cx`, `cy`, `r`, `stroke-dasharray`, `class` |
+| `<rect>` | `x`, `y`, `width`, `height`, `rx`, `stroke-dasharray`, `class` |
+| `<line>` | `x1`, `y1`, `x2`, `y2`, `stroke-dasharray`, `marker-end`, `class` |
+| `<polyline>` | `points`, `stroke-dasharray`, `marker-end`, `class` |
+| `<text>`, holding only its label | `x`, `y`, `class` |
 
-Colors go into the `<style>`, as plain values per element, with a
-`prefers-color-scheme: dark` block: Inkscape ignores CSS variables.
+Coordinates are plain numbers, and a `stroke-dasharray` gives dash
+lengths, like `6 4`. A dark theme is a `prefers-color-scheme: dark`
+block in the `<style>`.
 
 ### draw.io
 

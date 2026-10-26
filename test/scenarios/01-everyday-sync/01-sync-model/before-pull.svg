@@ -3,13 +3,14 @@
     svg { background-color: #fff; }
     circle { fill: #fff; stroke: #000; stroke-width: 2; }
     rect { fill: none; stroke: #000; stroke-width: 1.5; }
-    line, path { fill: none; stroke: #000; stroke-width: 1.5; }
+    line, polyline { fill: none; stroke: #000; stroke-width: 1.5; }
     marker path { fill: #000; stroke: none; }
     text { fill: #000; font-family: "Roboto Mono", monospace; font-size: 22px; text-anchor: middle; dominant-baseline: central; }
+    text.folder { font-size: 15px; text-anchor: start; }
     @media (prefers-color-scheme: dark) {
       svg { background-color: #121212; }
       circle { fill: #121212; stroke: #fff; }
-      rect, line, path { stroke: #fff; }
+      rect, line, polyline { stroke: #fff; }
       marker path, text { fill: #fff; }
     }
   </style>
@@ -19,7 +20,7 @@
     </marker>
   </defs>
   <rect x="310" y="10" width="628" height="550" rx="16"/>
-  <text x="322" y="30" style="font-size: 15px; text-anchor: start">lib/</text>
+  <text x="322" y="30" class="folder">lib/</text>
   <circle cx="213" cy="495" r="35"/>
   <text x="213" y="495">a</text>
   <circle cx="213" cy="355" r="35"/>
