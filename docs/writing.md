@@ -7,7 +7,7 @@ everywhere.
 | What | Markup | Examples |
 | --- | --- | --- |
 | Anything you can type or `git-splice` prints: commands, options, paths, files, branches, refs (`HEAD` too), config keys, variables, hashes, commit subjects, status output, the tool's name | `monospace` | `git splice push`, `--force`, `.splice`, `main`, `HEAD`, `refs/splices/<key>/`, `$UPSTREAM`, `e849115`, `add vendor/a`, `ahead 1`, `git-splice` |
-| A commit: a node in a drawing, or a variable for one | *italic* | *a*, *d'*, *X* |
+| A commit, named as a drawing names it, or a variable for one | *italic* | *a*, *d'*, *X* |
 | A role: our name for whichever commit plays a part, as `HEAD` names the checked-out one | plain capitals | H, B, T, R |
 | Git's name for a part in a three-way merge, which the README uses for a role | *italic*, lowercase | *boundary*, *base*, *ours*, *theirs* |
 | A formula | plain, nothing inside marked up | U(H), U(X^), U(e) |
