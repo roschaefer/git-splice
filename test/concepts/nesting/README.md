@@ -10,6 +10,16 @@ it to that upstream, where it is a splice again
 ([nested-splices](../../scenarios/05-nested-splices/01-nested-splices/README.md)). A splice's
 own push leaves its own `.splice` out.
 
+<div align="center">
+
+![The monorepo commit a; in the lane vendor/a/, the upstream commits k and l; in the lane vendor/a/b/, drawn inside it, the upstream commit m, which the b/.splice of l records](../../scenarios/05-nested-splices/01-nested-splices/nested-splices.drawio.svg)
+
+</div>
+
+Each splice has a lane, labelled with its folder, and the lanes nest as
+the folders do. The commit *l* of the upstream above has the splice
+below's `.splice`, which records *m*: U(l) = *m*.
+
 Because the splice below is contained in the files above, not referred
 to, some rules follow:
 
