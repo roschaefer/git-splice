@@ -48,7 +48,7 @@ $ git splice log
 
 ```scrut
 $ git splice push vendor/a
-!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull vendor/a' first
+!!   vendor/a: upstream has commits this branch lacks
 !!   Failed: vendor/a
 [1]
 ```

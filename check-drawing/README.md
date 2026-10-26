@@ -77,7 +77,9 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   or the subject's start before `: `, looked up on the monorepo's first-parent history, then upstream. A
   label with a trailing `'` (*b'* for *b*) is the rebuild's copy of the
   commit without it: the same message, author and dates, in R's history
-  or on a fetched upstream branch, where a push put it.
+  or on a fetched upstream branch, where a push put it. Where several
+  copies look alike, e.g. a pushed *b'* and R's *c'* after `git rebase`
+  copied *b* to *c*, give the copy in full: `b'=<rev>`.
 - **Parent arrow**: an arrow between two commits points from a parent to
   its child.
 - **Box**: points at the commit its label names: H, B, T or R, U(x),

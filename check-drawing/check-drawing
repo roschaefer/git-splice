@@ -279,13 +279,17 @@ check_drawing() {
   done
 
   # Commits, by label.
-  local label base subject hash upstream_tips
+  local label base subject hash upstream_tips tip
   for id in "${commits[@]}"; do
     label="${value[$id]}"
     base="${label%\'}"
     sp="${splice_of[$id]}"
     hash=""
-    if [[ -n "${rev_of[$base]:-}" ]]; then
+    if [[ -n "${rev_of[$label]:-}" ]]; then
+      # A copy given in full, e.g. b'=<rev>: several copies of b can look
+      # alike, e.g. a pushed one and R's after a 'git rebase'.
+      hash="$(git rev-parse --verify --quiet "${rev_of[$label]}^{commit}")"
+    elif [[ -n "${rev_of[$base]:-}" ]]; then
       hash="$(git rev-parse --verify --quiet "${rev_of[$base]}^{commit}")"
     else
       # On a side, its upstream's commit first: the monorepo or another
@@ -305,15 +309,19 @@ check_drawing() {
       [[ -n "$hash" || "$label" == *\' || ${#upstream_tips[@]} -eq 0 ]] ||
         hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
     fi
-    if [[ -n "$hash" && "$label" == *\' ]]; then
+    if [[ -n "$hash" && "$label" == *\' && -z "${rev_of[$label]:-}" ]]; then
       if [[ -z "$sp" ]]; then
         errors+=("$label is in no lane: draw it in the lane of the splice it's rebuilt for")
         continue
       fi
       subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
+      # R's history first: a monorepo commit pushed before a 'git rebase'
+      # has an older copy on an upstream branch too.
       upstream_tips=(--glob="refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/heads/*")
-      [[ -z "${truth["$sp|R"]}" ]] || upstream_tips+=("${truth["$sp|R"]}")
-      hash="$(git log --format='%H' "${upstream_tips[@]}" | while read -r copy; do
+      [[ -z "${truth["$sp|R"]}" ]] || upstream_tips=("${truth["$sp|R"]}" "${upstream_tips[@]}")
+      hash="$(for tip in "${upstream_tips[@]}"; do
+        git log --format='%H' "$tip"
+      done | while read -r copy; do
         [[ "$copy" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$copy")" == "$subject" ]] && {
           echo "$copy"
           break

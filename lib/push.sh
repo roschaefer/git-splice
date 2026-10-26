@@ -82,7 +82,7 @@ push_one() {
       ;;
     diverged)
       if [[ -z "$force" ]]; then
-        log_err "$path: upstream has commits this branch lacks -- run 'git splice pull $option$path' first"
+        log_err "$path: upstream has commits this branch lacks"
         return 1
       fi
       ;;

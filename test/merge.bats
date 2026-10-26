@@ -15,6 +15,7 @@ setup() {
   load 'scenarios/06-rewritten-history/01-edited-before-push/setup'
   load 'scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
   load 'scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/setup'
+  load 'scenarios/03-branches-and-teamwork/06-feature-branch-behind-default-branch/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -396,6 +397,83 @@ a: add vendor/a" ]
   run cmd_merge --rebase vendor/a
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   vendor/a: 'origin/main' has commits since $(git rev-parse --short=7 HEAD~3), which --rebase would rewrite -- merge on a branch nobody else has, e.g. a pull request's" ]
+}
+
+@test "merge --rebase: refuses when the upstream branch never had the synced commit, e.g. after 'git rebase main', whose changes it would drop" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
+  cd "$monorepo"
+  local before synced
+  before="$(git rev-parse HEAD)"
+  synced="$(splice_config vendor/a commit)"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: 'feature' never had the synced commit ${synced:0:7}, which this branch got elsewhere, e.g. with 'git rebase main' -- --rebase would drop it. To rebase 'feature', do it on one side only:" ]
+  [[ "$output" == *"  git splice push --force -- vendor/a"* ]]
+  [[ "$output" == *"  git splice merge --rebase -- vendor/a"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge --rebase: the refusal's way upstream, with --rebase again, takes the rebased upstream branch in under the local commits, without the copies a merge would join in" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
+  commit_local "$monorepo" vendor/a "d: more work" more.txt
+  local clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q -b feature "$upstream" "$clone"
+  git -C "$clone" -c user.name=Test -c user.email=test@example.com rebase -q origin/main
+  git -C "$clone" push -q --force origin feature
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log --format=%s -1 "$(rebuild_splice vendor/a)")" = "d: more work" ]
+  [ "$(git rev-parse "$(rebuild_splice vendor/a)^")" = "$(git -C "$upstream" rev-parse feature)" ]
+}
+
+@test "merge --rebase: refuses by the upstream branch alone, also when no other upstream branch has the synced commit" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
+  git -C "$upstream" update-ref refs/heads/main main~1
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"'feature' never had the synced commit"* ]]
+}
+
+@test "merge --rebase: without the fetched branch's reflog, e.g. in a clone that fetched only after the rebase, can't tell a rebased upstream branch from one that never had the synced commit, and refuses" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  git reflog expire --expire=all --all
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"'patches' never had the synced commit"* ]]
+}
+
+@test "merge --rebase: takes the upstream branch in once it was rebased upstream too, and has the synced commit" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  git -C "$monorepo" rebase -q main
+  local clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q -b feature "$upstream" "$clone"
+  git -C "$clone" -c user.name=Test -c user.email=test@example.com rebase -q origin/main
+  git -C "$clone" push -q --force origin feature
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/lock.txt)" = "m: bump dep" ]
+}
+
+@test "merge --rebase: with --branch naming another upstream branch, doesn't suggest a push, which would go to the branch named like this one" {
+  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c take-the-pr
+  git rebase -q main
+  run cmd_merge --rebase --branch feature vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"push"* ]]
+  [[ "$output" == *"  # rebase or merge 'feature' upstream, e.g. with \"Update branch\" on GitHub, then:"* ]]
+  [[ "$output" == *"  git splice merge --rebase --branch feature -- vendor/a"* ]]
 }
 
 @test "merge: the suggested --rebase keeps the --branch the refused merge had" {

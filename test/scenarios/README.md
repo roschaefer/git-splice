@@ -78,6 +78,7 @@ ok 03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash (1
 ok 03-branches-and-teamwork/04-concurrent-pulls (3 documents)
 ok 03-branches-and-teamwork/05-bisect-into-a-pull (1 document)
 ok 03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push (1 document)
+ok 03-branches-and-teamwork/06-feature-branch-behind-default-branch (4 documents)
 ok 04-upstreams/01-default-branch (1 document)
 ok 04-upstreams/02-several-upstreams (3 documents)
 ok 04-upstreams/02-several-upstreams/01-original-without-the-patch (1 document)
