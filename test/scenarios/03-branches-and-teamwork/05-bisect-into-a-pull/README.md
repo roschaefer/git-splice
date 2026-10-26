@@ -2,12 +2,8 @@
 
 `git bisect` in the monorepo ends at a pull *X*. A pull splices upstream
 changes in as one commit, so the bug came in with one of the upstream
-commits squashed into it. Which one?
-
-- **Upstream**: *k*, then three commits: *l*, *m* and *n*.
-- **Monorepo**: *a* spliced *k* in. Then *b* added
-  `check.sh`, a test outside the splice that fails when the library logs
-  at debug level. Then *X*, a pull of *l*, *m* and *n*, and one more commit, *d*.
+commits squashed into it. Which one? Here, *b* added `check.sh`, a test
+outside the splice that fails when the library logs at debug level.
 
 The upstream's own history has no test for it: the bug only shows in
 the monorepo. So the upstream commits are tested inside the monorepo, as

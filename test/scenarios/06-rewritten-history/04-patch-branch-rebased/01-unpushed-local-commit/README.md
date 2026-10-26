@@ -1,15 +1,8 @@
 # Scenario: unpushed-local-commit
 
 The [same state](../README.md), but the monorepo changed the folder
-after *a*, and didn't push the change before the fork rebased
-`patches`.
-
-- **Monorepo (`vendor/a/`)**: *a* cloned *q*, then the
-  unpushed commit *b* (`local change`), which adds `local.txt`.
-- **Upstream**: as before, `patches` rebased from *q* to *n*, on top of
-  *m*, the reworded first patch.
-
-Before the pull:
+after *a*, in *b*, which adds `local.txt`, and didn't push the change
+before the fork rebased `patches`:
 
 <div align="center">
 
@@ -17,8 +10,8 @@ Before the pull:
 
 </div>
 
-R, what a push would send, is *b'* on top of U(H), *q*: the old
-patches, which the rebase replaced. A merge would get the files right,
+R is built on the old patches, which the rebase replaced. A merge
+would get the files right,
 *n*'s plus `local.txt`, but the rebuild can only start at T again where
 the folder has exactly T's files. Here it would join *b'* in, and the
 next push would publish *p* and *q* again, merged into the rebased
@@ -26,9 +19,8 @@ next push would publish *p* and *q* again, merged into the rebased
 
 The way out: `git splice pull --rebase` takes *n* in as the pull *x* on
 top of *a*, and rebases *b* onto it as *c*. The folder at *x* has
-exactly *n*'s files, so the rebuild starts at *n*, and R is *c'*, *c*'s
-copy on top of *n*: the next push sends the local change alone, and *p*
-and *q* stay dropped. It rewrites the monorepo's branch, so it's for a
+exactly *n*'s files, so the rebuild starts at *n*: the next push sends
+the local change alone, and *p* and *q* stay dropped. It rewrites the monorepo's branch, so it's for a
 branch nobody else has yet: it refuses when a remote-tracking branch
 has *b*. After the pull:
 
@@ -142,9 +134,8 @@ m: patch, reworded upstream
 k: seed
 ```
 
-After the push, *c'* is on `patches`, so it's T as well as R. The push
-records nothing, so U(H) is still *n*, the commit the pull took, until
-the next pull:
+The push records nothing, so U(H) is still *n*, the commit the pull
+took, until the next pull:
 
 <div align="center">
 

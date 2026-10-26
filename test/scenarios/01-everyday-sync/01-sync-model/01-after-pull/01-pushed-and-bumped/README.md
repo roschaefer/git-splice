@@ -9,15 +9,9 @@ The [parent scenario](../README.md) after `git splice push` and a
 
 </div>
 
-- **Monorepo (`lib/`)**: the parent scenario's commits, then *f*, the
-  bump, which records *e'* in `.splice` and changes nothing else.
-- **Upstream**: *k*, *l*, *m* and *n*, then the pushed *b'*, *d'* and *e'*.
-
-The push made *b'*, *d'* and *e'* upstream commits, so they're drawn solid.
-The bump made *f* the new B: its folder is *e'*, the commit it records. So
-the rebuild starts at *f*, and has nothing to add: R = T = U(H) = U(B) = *e'*.
-The U boxes show the sync points along the way: U(a) = *k* from the
-clone, U(e) = *n* from the pull, and U(H) = U(B) = *e'* from the bump, *f*.
+The bump, *f*, records *e'* in `.splice` and changes nothing else. Its
+folder is *e'*, the commit it records, so it's the new B, and the
+rebuild has nothing to add.
 
 ## Output
 

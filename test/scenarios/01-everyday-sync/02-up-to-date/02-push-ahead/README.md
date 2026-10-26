@@ -2,9 +2,6 @@
 
 Only the monorepo changed since the clone.
 
-- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), then *b* (`local change`) changes the folder.
-- **Upstream**: *k*, unchanged.
-
 <div align="center">
 
 ![The monorepo commit a clones the upstream commit k, T; b changes the folder, rebuilt as b prime, R, dashed](ahead.drawio.svg)

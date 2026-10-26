@@ -3,24 +3,13 @@
 The [parent scenario's](../README.md) squash merge, but the feature
 branch also edited the folder. So one commit, *s*, does two things: it
 records the pulled upstream commit *f* in `.splice`, and it holds a local
-edit that the upstream doesn't have.
+edit that the upstream doesn't have, `local.txt`:
 
 <div align="center">
 
 ![The monorepo's a and the squash merge s; the upstream's k and f; B is a, and R is s prime on top of f](local-edit-in-the-squash.drawio.svg)
 
 </div>
-
-- **Upstream**: as in the parent scenario, *k* (`seed`) on `main`, and
-  someone else's commit *f* (`upstream feature work`) on `feature`.
-- **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k*. On `feature`,
-  `git splice pull` brought in *f*, then a commit added `local.txt`.
-  `feature` was squash-merged into `main` as *s*, and deleted.
-
-`.splice` records a commit, not a branch: *s* records *f* as U(H). The
-upstream's `main`, T, is still at *k*, since nobody merged `feature` into
-it there. *f* is on the upstream's `feature`, so it's solid. R's copy *s'*
-is dashed: no upstream branch has it yet.
 
 ## Output
 

@@ -2,9 +2,6 @@
 
 A splice freshly cloned and never touched again on either side.
 
-- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), no local changes since.
-- **Upstream**: *k*, unchanged.
-
 <div align="center">
 
 ![The monorepo commit a clones the upstream commit k; T and R both point at k](up-to-date.drawio.svg)

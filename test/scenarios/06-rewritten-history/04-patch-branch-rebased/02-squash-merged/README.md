@@ -4,19 +4,12 @@ The [same rebased branch](../README.md), taken into a protected `main`:
 changes reach it only through pull requests, which are squash-merged.
 This page goes there step by step, with a drawing after each.
 
-- **Monorepo (`vendor/a/`)**: *a* cloned *q*, and
-  follows `patches` on `main`.
-- **Upstream**: *k*, then `patches` rebased from *p* and *q* to *n*, on
-  top of `main`'s *m*. *q* and *n* are the same patch, `other patch`.
-
 ## 1. Pull on a pull request's branch
 
 A pull request's branch syncs with the upstream branch named like it,
 and the upstream has none for `take-the-release`. `--branch patches`
-names the branch `main` follows, for this pull only. The pull makes *c*,
-which records *n*. The
-folder has exactly *n*'s files, so R is *n*, and *p* and *q* stay
-dropped:
+names the branch `main` follows, for this pull only. The folder then
+has exactly *n*'s files, so *p* and *q* stay dropped:
 
 <div align="center">
 
@@ -26,8 +19,7 @@ dropped:
 
 ## 2. Add a local change
 
-A local change goes on top, *b*. On this branch, R is
-*b'* on top of *n*: linear, just right.
+A local change goes on top, *b*:
 
 <div align="center">
 
@@ -52,9 +44,9 @@ in a pull request of its own, and the local changes in the next one.
 ## 4. The way out, by hand
 
 Commit the folder's changes on top of `patches` in a clone of the
-upstream, push them, and pull: the pull records the new commit, *x*,
-in *f*, and the folder already has its files. The rebuild starts at *x*, and
-*p* and *q* stay dropped. On a protected `main`, *f* goes through a
+upstream, push them as *x*, and pull: the folder already has *x*'s
+files, so the pull, *f*, only records it, and *p* and *q* stay
+dropped. On a protected `main`, *f* goes through a
 pull request of its own too: it only changes `.splice`.
 
 <div align="center">

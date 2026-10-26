@@ -1,13 +1,8 @@
 # Scenario: diverged-then-pulled
 
 Both sides changed different files, then upstream's change was pulled in.
-The local change is still waiting to be pushed.
-
-- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), *b*
-  (`local change`) adds `local.txt`, then *e*, a `git splice pull`,
-  which merged cleanly.
-- **Upstream**: *k*, then *l* (`upstream change`), which adds
-  `upstream.txt`. It has never seen `local.txt`.
+The local change is still waiting to be pushed. *b* adds `local.txt`,
+*l* adds `upstream.txt`, and the pull, *e*, merged cleanly:
 
 <div align="center">
 
@@ -15,11 +10,9 @@ The local change is still waiting to be pushed.
 
 </div>
 
-The pull's commit is the newest that changed `.splice`, but its folder
-differs from the synced commit: it contains `local.txt`. So the boundary
-stays the clone, and the push rebuilds the pull as a merge
-of the local commit with upstream's, and the local commit keeps its own
-identity upstream.
+The pull's folder differs from *l*, the commit it records: it contains
+`local.txt`. So B stays at the clone, and the push rebuilds the pull as
+a merge, and the local commit keeps its own identity upstream.
 
 ## Output
 

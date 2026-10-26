@@ -2,9 +2,6 @@
 
 Upstream was rebuilt from scratch: it shares no history with the splice.
 
-- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), then *b* (`local change`) changes the folder.
-- **Upstream**: deleted and recreated with one unrelated commit, *z*, fetched.
-
 <div align="center">
 
 ![The monorepo commit a clones the upstream commit k, then b changes the folder, rebuilt as b prime on top of k, R; the upstream now has only z, T, unrelated to k, which is dashed](unrelated-history.drawio.svg)

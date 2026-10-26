@@ -5,11 +5,8 @@ here, a message that names an internal ticket is reworded. They're
 pushed with `git splice push --rebuilt-commit`. R is computed from the
 monorepo's history, which still has the original commit, so a `pull`
 right after the push records the edited commit as the synced commit. From there on, the monorepo
-builds on the edited commit.
-
-- **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k*, then the
-  unpushed commit *b* (`fix, see INTERNAL-123`).
-- **Upstream**: *k* (`seed`).
+builds on the edited commit. Here, *b*'s message is
+`fix, see INTERNAL-123`:
 
 <div align="center">
 
@@ -17,9 +14,7 @@ builds on the edited commit.
 
 </div>
 
-R is *b'*, the copy of *b* that the recipe edits.
-
-The recipe:
+The recipe edits *b'*:
 
 1. Get R: `git splice rebuild` prints it.
 2. Check it out in a worktree of its own: R has the upstream's layout,

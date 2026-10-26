@@ -2,9 +2,6 @@
 
 Both sides changed the same line since the clone.
 
-- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), then *b* (`local change`) changes the folder.
-- **Upstream**: *k*, then *l* (`upstream change`), already fetched.
-
 <div align="center">
 
 ![The monorepo commit a clones the upstream commit k, then b changes the folder; the upstream has l on top of k, T, and the rebuild b prime on top of k, R, dashed](diverged.drawio.svg)

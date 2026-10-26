@@ -13,10 +13,6 @@ named as in the drawing there:
 
 </div>
 
-- **Monorepo (`lib/`)**: cloned at *k* in *a*, then *b* and *d* change the
-  folder, *c* changes another one. `git splice pull` then merges *n* in, as *e*.
-- **Upstream**: *k*, then *l*, *m* and *n*. It has never seen *b* or *d*.
-
 ## Output
 
 <!--

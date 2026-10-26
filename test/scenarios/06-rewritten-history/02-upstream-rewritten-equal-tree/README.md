@@ -7,9 +7,11 @@ the new commit as the synced commit, so the next change builds on the
 rewritten history
 ([#17](https://github.com/roschaefer/git-splice/issues/17)).
 
-- **Monorepo (`vendor/a/`)**: *a* cloned *r*.
-- **Upstream**: *k*, *r*, then rewritten and force-pushed as one root
-  commit, *w*, with *r*'s files. Already fetched.
+<div align="center">
+
+![The monorepo's a records r, the old release on top of k; T is w, the rewritten release, a root commit of its own](upstream-rewritten-equal-tree.drawio.svg)
+
+</div>
 
 That only works while the folder still has the upstream's files. After a
 local change, the splice is `unrelated history`, and `merge` and `pull`
@@ -23,15 +25,6 @@ so [publishes the rewritten-away history
 again](push-force-undoes-the-rewrite.md). Keeping both publishes the
 monorepo's own history of the folder, which contains whatever the
 monorepo pulled before the rewrite.
-
-<div align="center">
-
-![The monorepo's a records r, the old release on top of k; T is w, the rewritten release, a root commit of its own](upstream-rewritten-equal-tree.drawio.svg)
-
-</div>
-
-U(H) is *r*, but T is *w*, which shares no history with it. No upstream
-branch has *k* and *r* any more, so they're dashed.
 
 ## Output
 

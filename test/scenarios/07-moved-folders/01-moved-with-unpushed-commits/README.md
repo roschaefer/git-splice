@@ -7,10 +7,6 @@ sends the right content, but squashes the unpushed commit into the move:
 its message and author are lost. This is a known bug,
 [#4](https://github.com/roschaefer/git-splice/issues/4).
 
-- **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k* (`seed`),
-  then a local commit *b* (`local change`), not pushed yet.
-- **Upstream**: *k*.
-
 <div align="center">
 
 ![After the move m: the monorepo's a, b and m, where m is H and B; in the lane libs/a/, R is m prime on top of k, and b has no copy](moved-with-unpushed-commits.drawio.svg)
@@ -20,8 +16,8 @@ its message and author are lost. This is a known bug,
 `push` rebuilds the commits that changed the splice's folder. It looks for
 them under the folder's current path only, so it doesn't see the commits
 made under the old one, and the move commit *m* appears to create the
-whole folder. *m* added `libs/a/.splice`, so it's B,
-and R is *m'*, a copy of *m* alone: *b* has none.
+whole folder. *m* added `libs/a/.splice`, so it's B, and *b* gets no
+copy.
 
 Workaround: push before moving a splice, as
 [shown here](push-before-moving.md).

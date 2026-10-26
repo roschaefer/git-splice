@@ -26,9 +26,8 @@ explains why both repositories agree on the inner splice's state.
 
 </div>
 
-Each splice has a lane, labelled with its folder, and the lanes nest
-as the folders do. *l*'s `b/.splice` records *m*: U(l) = *m*, the same commit
-as the monorepo's U(H) for `vendor/a/b/`.
+*l*'s `b/.splice` and the monorepo's `vendor/a/b/.splice` record the
+same commit, *m*.
 
 ## Output
 
