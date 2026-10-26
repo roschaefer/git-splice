@@ -4,12 +4,7 @@ A feature branch was pushed, so upstream has it as a PR. Then upstream's
 `main` moved on, and the monorepo's `main` pulled that in. The PR is now
 behind `main`: GitHub says "This branch is out-of-date with the base
 branch". To bring it up to date, `feature` is rebased onto `main`.
-
-- **Upstream**: *k* on `main`, then *m*, which adds `lock.txt`.
-  `feature`, the PR, is *f* on top of *k*.
-- **Monorepo (`vendor/a/`)**: *a* cloned *k*. On `main`, the pull *p*
-  brought in *m*. On `feature`, *b* was pushed as *f*, which keeps *b*'s
-  message.
+*m* adds `lock.txt`, and *f*, the push of *b*, keeps *b*'s message:
 
 <div align="center">
 
@@ -19,13 +14,11 @@ branch". To bring it up to date, `feature` is rebased onto `main`.
 
 ## The rebase strategies
 
-Four branches take part, two in each repository: `main` and `feature`
-in the monorepo, *p* and *b*, and `main` and `feature` upstream, *m*
-and *f*. `git-splice` syncs the monorepo's folder with the upstream
-branch of the same name. Rebasing `feature` onto `main` is plain Git,
-and it's one operation that can be done in either repository. Do it in
-one of them only, then carry the result across with `git-splice`, in
-this order:
+Four branches take part, two in each repository, and `git-splice`
+syncs the monorepo's folder with the upstream branch of the same name.
+Rebasing `feature` onto `main` is plain Git, and it's one operation
+that can be done in either repository. Do it in one of them only, then
+carry the result across with `git-splice`, in this order:
 
 <div align="center">
 

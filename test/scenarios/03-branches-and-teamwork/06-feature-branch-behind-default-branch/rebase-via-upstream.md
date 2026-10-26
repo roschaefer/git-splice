@@ -50,8 +50,7 @@ $ git -C "$UPSTREAM" log --graph --format=%s feature
 * k: seed
 ```
 
-The pull brings *m* into `feature` as *x*, and records *f'* as the
-synced commit:
+The pull brings *m* into `feature`:
 
 ```scrut
 $ git splice pull -m "x: pull the rebased PR" vendor/a
@@ -77,9 +76,8 @@ ok   pulled-the-rebased-pr.drawio.svg: 7 commits, 9 arrows, 4 boxes, 1 lanes
 ```
 -->
 
-The monorepo's `feature` keeps *b*, and the pull *x* on top of it: a
-rebase upstream doesn't rewrite the monorepo's history. Nothing is left
-to push:
+A rebase upstream doesn't rewrite the monorepo's history, and nothing
+is left to push:
 
 ```scrut
 $ git splice status

@@ -59,9 +59,6 @@ ok   rebased-in-the-monorepo.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
 ```
 -->
 
-Ahead 2 are *m* and *c'*, behind 1 is *f*, the copy of *b* the PR still
-has:
-
 ```scrut
 $ git splice status
 On branch feature

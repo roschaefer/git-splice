@@ -82,8 +82,7 @@ $ cat vendor/a/lock.txt
 m: bump dep
 ```
 
-But the push then sends both copies of the feature change, the rebased
-*c'* and the old *f*, joined by *x'*, the copy of the pull:
+But the push then sends both copies of the feature change to the PR:
 
 ```scrut
 $ git splice push vendor/a
@@ -150,8 +149,7 @@ $ git splice push --force --rebuilt-commit "$r" vendor/a
 ok   vendor/a: pushed 125a49b to feature
 ```
 
-The PR ends up as rebase via monorepo leaves it: *m*, then the feature change
-on top. The old copy *f* and the merge *x'* are on no branch any more:
+The PR ends up as rebase via monorepo leaves it:
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s feature
