@@ -6,12 +6,6 @@ on without it. The original's `main` lacks the synced commit, as a
 [rebased patch branch](../../../06-rewritten-history/04-patch-branch-rebased/README.md)
 does, but nothing was rewritten: the original never had the patch.
 
-- **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k*
-  (`seed`) from the original, *c* (`vendor/a: work with the company
-  fork`) added the fork, and *x* pulled *f* (`fork patch`) from it.
-- **Original (`origin`)**: *k*, then *r* (`original release`) on `main`.
-- **Fork (`fork`)**: *k*, then *f* on `main`.
-
 <div align="center">
 
 ![The monorepo's a, c and x, H and B; the lane vendor/a/ split in two: origin with r on top of k, its main; fork with f on top of k, which is T, R, U(H) and U(B)](original-without-the-patch.drawio.svg)

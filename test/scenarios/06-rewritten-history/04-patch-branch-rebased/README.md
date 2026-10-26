@@ -8,14 +8,8 @@ out, the others get new commits. Either way, the commit the monorepo
 synced last is on no upstream branch any more
 ([#169](https://github.com/roschaefer/git-splice/issues/169)).
 
-- **Monorepo (`vendor/a/`)**: *a* cloned *q* from
-  `patches`, and follows `patches` on `main`.
-- **Upstream** (`$UPSTREAM`, reached as `https://git.example.com/a.git`):
-  *k* on `main`, and two patches on top of it on
-  `patches`: *p* and *q* (`other patch`). Then `main` takes
-  the first patch reworded, *m*, and
-  `patches` is rebased onto it: *p* drops out, and the other patch gets
-  a new commit, *n* (`other patch`), on top of *m*. Already fetched.
+Here, the upstream's *m* is *p* reworded, and *n* is *q* rebased onto
+it:
 
 <div align="center">
 
@@ -23,14 +17,12 @@ synced last is on no upstream branch any more
 
 </div>
 
-U(H) is *q*, but T is *n*, and no upstream branch has *p* or *q* any
-more, so they're dashed. Git's merge base of the two is *k*, from before
-the patches: merging from there, the first patch and its rewording would
-be changes on both sides, and conflict. Like `git pull --rebase`, a
-`pull` merges from the branch's fork point instead: where the fetched
-`patches` was before the rebase, *q*, as the ref's reflog has it. Those
-are the files the monorepo took last, so the upstream's new version
-simply replaces them.
+Git's merge base of *q* and *n* is *k*: merging from there, *p* and *m*
+would be changes on both sides, and conflict. Like `git pull --rebase`,
+`pull` merges from the branch's fork point instead: *q*, where the
+fetched `patches` was before the rebase, as its reflog has it. The
+monorepo has changed nothing since it took *q*, so the upstream's new
+version simply replaces it.
 
 Another upstream's commit, like a fork's patch the original never had,
 isn't rewritten away: the original's fetched branch never pointed at it
@@ -100,8 +92,7 @@ On branch main
 `ahead 2` are *p* and *q*: the rebased branch lacks them, though the
 monorepo has nothing to push. That count is misleading after a rewrite upstream.
 
-The fetched branch's reflog has both *n* and *q*, where `patches` was
-before, each with the subject `other patch`:
+The fetched branch's reflog has *n*, and *q* before it:
 
 ```scrut
 $ git log -g --format='%h %s' refs/splices/a/heads/patches
@@ -146,14 +137,7 @@ $ [ "$(git splice rebuild vendor/a)" = "$(git rev-parse refs/splices/a/heads/pat
 R is T
 ```
 
-Why one `pull` is enough: since it took *q*, the monorepo changed
-nothing in `vendor/a/`. Merging from *q*, only the upstream changed
-something, from *q* to *n*, so the merge takes all of it, without a
-conflict. From *k*, Git's merge base, the first patch would be a change
-on both sides. The pull, *x*, then records *n* in `.splice`: H and B are
-*x*, U(H) = U(B) = *n*. The rebuild starts at *n* and adds nothing, so
-R is T, and `status` has nothing ahead. *p* and *q* are in neither
-history any more:
+After the pull, *x*:
 
 <div align="center">
 

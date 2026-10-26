@@ -11,10 +11,6 @@ named as in the drawing:
 
 </div>
 
-- **Monorepo (`lib/`)**: cloned at *k* in *a*, then *b* and *d* change the
-  folder, *c* changes another one.
-- **Upstream**: *k*, then *l*, *m* and *n*, fetched.
-
 [after-pull](01-after-pull/README.md) continues with the pull.
 
 ## Output

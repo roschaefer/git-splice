@@ -1,13 +1,13 @@
 # Scenario: many-splices
 
 A monorepo with five splices, each in a different state, on the
-monorepo's default branch.
+monorepo's default branch:
 
-- **Monorepo (`libs/*`)**: *a* to *e* add `cli`, `http`, `parser`, `store`
-  and `theme`, each from its own upstream's `seed`. Then a local commit
-  in `parser`, *f*, and one in `store`, *g*.
-- **Upstreams**: two new commits in `http`'s, *m* and *n*, one in
-  `store`'s, *o*. `theme`'s default branch is `master`.
+<div align="center">
+
+![Monorepo commits a to g, and one lane per splice: cli up to date, http behind by m and n, parser ahead by f prime, store diverged with o and g prime, theme up to date](many-splices.drawio.svg)
+
+</div>
 
 `status` gives every splice a line. Those that need something come first,
 most urgent first: diverged, then behind, then ahead. Those with nothing
@@ -18,15 +18,6 @@ The other documents here show the same monorepo
 [on a feature branch](feature-branch.md),
 [with uncommitted changes](uncommitted-changes.md) and
 [in a fresh clone](fresh-clone.md).
-
-<div align="center">
-
-![Monorepo commits a to g, and one lane per splice: cli up to date, http behind by m and n, parser ahead by f prime, store diverged with o and g prime, theme up to date](many-splices.drawio.svg)
-
-</div>
-
-Each splice has a lane, labelled with its folder. *f'* and *g'* are R's
-copies of *f* and *g*.
 
 ## Output
 

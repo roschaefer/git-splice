@@ -76,9 +76,8 @@ The pull of `vendor/a/` is *p*, on top of the monorepo's *a*
 
 </div>
 
-*n*'s `b/.splice` records *c*: U(n) = *c*, and so does *p*'s
-`vendor/a/b/.splice`, U(H). *c* is dashed: no branch of the inner
-upstream has it any more, but the pull fetched it by its hash.
+No branch of the inner upstream has *c* any more, but the pull fetched
+it by its hash.
 
 <!--
 ```scrut

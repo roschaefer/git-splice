@@ -6,20 +6,14 @@ commit, and the same lines of the files the upstream changed. When the
 second developer merges the first one's work, Git reports conflicts in
 both.
 
-- **Upstream**: *k* (`seed`), *l* (`upstream 1`), *n* (`upstream 2`).
-- **Alice's monorepo**, pushed as `origin/main`: *a* cloned *k*, then her
-  pull *q* brought in *l*.
-- **Bob's monorepo**, this one: from *a*, his pull *p* brought in *n*, without
-  pulling the monorepo first.
+Alice pushed her pull, *q*, which took *l*. Bob, in this monorepo, then
+pulled *n* as *p*, without pulling the monorepo first:
 
 <div align="center">
 
 ![The clone a with two children: Bob's pull p, which is H and B and whose .splice records n, and Alice's pull q on origin/main, whose .splice records l; upstream k, l and n, with T and R at n](concurrent-pulls.drawio.svg)
 
 </div>
-
-*p* and *q* each change the line of `.splice` that records the synced
-commit, from *k* to *n* and to *l*: U(p) and U(q) show what each one records.
 
 To avoid this, pull the monorepo before you pull a splice. To get out of
 it, resolve the conflict as below, or [redo the pull](redo-the-pull.md).

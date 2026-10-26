@@ -2,9 +2,6 @@
 
 Only upstream changed since the clone.
 
-- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), no local changes since.
-- **Upstream**: *k*, then *l* (`upstream change`), already fetched.
-
 <div align="center">
 
 ![The monorepo commit a clones the upstream commit k, R; the upstream moved on to l, T](behind.drawio.svg)
