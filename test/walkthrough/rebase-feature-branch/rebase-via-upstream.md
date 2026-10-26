@@ -11,7 +11,7 @@ isn't rebased:
 
 <div align="center">
 
-![Rebase via upstream, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../../../../docs/images/rebase-via-upstream.drawio.svg)
+![Rebase via upstream, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../../../docs/images/rebase-via-upstream.drawio.svg)
 
 </div>
 
@@ -19,7 +19,7 @@ isn't rebased:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh"
+$ source "$TESTDIR/../../scenarios/readme-setup.sh"
 ```
 -->
 

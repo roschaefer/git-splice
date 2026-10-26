@@ -215,6 +215,7 @@ The workflows combine these commands for everyday work:
 [diverged history](diverged.md). The
 [sync model](../concepts/sync-model/README.md) explains what they
 compute, and the advanced workflows build on it:
-[bumping the sync point](bump.md) and
-[contributing through a fork](fork.md). The [scenarios](../scenarios/README.md)
+[bumping the sync point](bump.md),
+[contributing through a fork](fork.md) and
+[rebasing a feature branch](rebase-feature-branch/README.md). The [scenarios](../scenarios/README.md)
 show them in many more situations.

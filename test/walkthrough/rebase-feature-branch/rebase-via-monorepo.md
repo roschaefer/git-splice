@@ -9,7 +9,7 @@ monorepo, and the result replaces the PR:
 
 <div align="center">
 
-![Rebase via monorepo, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../../../docs/images/rebase-via-monorepo.drawio.svg)
+![Rebase via monorepo, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../../docs/images/rebase-via-monorepo.drawio.svg)
 
 </div>
 
@@ -21,7 +21,7 @@ a PR nobody else pushes to.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh"
+$ source "$TESTDIR/../../scenarios/readme-setup.sh"
 ```
 -->
 
