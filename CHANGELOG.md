@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/roschaefer/git-splice/compare/v0.12.0...v0.13.0) (2026-10-26)
+
+
+### Features
+
+* -m &lt;message&gt; for the commits clone, init, merge and pull write ([#246](https://github.com/roschaefer/git-splice/issues/246)) ([4747d63](https://github.com/roschaefer/git-splice/commit/4747d634c3ec5d7f9e27d4f1a244dbce7b20bd6b)), closes [#244](https://github.com/roschaefer/git-splice/issues/244)
+
+
+### Bug Fixes
+
+* **pull:** --rebase refuses to drop the default branch's commits ([#238](https://github.com/roschaefer/git-splice/issues/238)) ([818d297](https://github.com/roschaefer/git-splice/commit/818d297ed1374fcabdf0a22cc08e94811f5fd706)), closes [#236](https://github.com/roschaefer/git-splice/issues/236)
+
 ## [0.12.0](https://github.com/roschaefer/git-splice/compare/v0.11.0...v0.12.0) (2026-10-24)
 
 
