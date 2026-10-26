@@ -31,8 +31,7 @@ The rebase copies *b* onto *p* as *c*:
 $ git rebase -q main
 ```
 
-`push` refuses: upstream has a commit this branch lacks, *f*. Out of
-habit, you'd bring it in with a pull before pushing again:
+`push` refuses: upstream has a commit this branch lacks, *f*:
 
 ```scrut
 $ git splice push vendor/a
@@ -41,9 +40,17 @@ $ git splice push vendor/a
 [1]
 ```
 
-`pull --rebase` would take *f* in as it is and drop *m*: *f* lacks it,
-and never had it, since `main` brought it in, not `feature`. It
-refuses, and prints the two rebase strategies:
+Out of habit, you pull before pushing again. Neither pull is the way
+here, but only one of them stops you:
+
+- A plain `pull` keeps every change, as `git pull` does, so it goes
+  through. What it does to the PR is what this page is about.
+- `pull --rebase` would take *f*'s files and drop *m*: *f* lacks it,
+  and never had it, since `main` brought it in, not `feature`. That
+  would lose a change, which `git pull --rebase` keeps, so it refuses.
+
+The refusal first, since a pull changes the state it needs. It prints
+the two [rebase strategies](README.md#the-rebase-strategies):
 
 ```scrut
 $ git splice pull --rebase vendor/a
@@ -60,9 +67,9 @@ ok   vendor/a fetched
 [1]
 ```
 
-A plain `pull` goes through. It merges *f*, the copy of the feature
-change from before the rebase, into `feature` as the pull *x*. No
-change is lost, and `lock.txt` stays:
+The plain `pull` merges *f*, the copy of the feature change from
+before the rebase, into `feature` as the pull *x*. No change is lost,
+and `lock.txt` stays:
 
 ```scrut
 $ git splice pull vendor/a
