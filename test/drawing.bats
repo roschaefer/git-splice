@@ -209,8 +209,22 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   git -C "$BATS_TEST_TMPDIR/rebased" rebase -q main
   cd "$BATS_TEST_TMPDIR/rebased"
   run check_drawing "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/06-feature-branch-behind-default-branch/rebased-in-the-monorepo.drawio.svg" \
-    a=HEAD~2 p=main c=HEAD k=refs/splices/a/heads/main~1 m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
+    c=HEAD "b'=refs/splices/a/heads/feature"
   [ "$status" -eq 0 ]
+}
+
+@test "drawing: without b'=<rev>, the pushed b' and R's c' after a 'git rebase' look alike, and b' is taken for c'" {
+  load 'scenarios/03-branches-and-teamwork/06-feature-branch-behind-default-branch/setup'
+  export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
+  scenario_feature_branch_behind_default_branch "$BATS_TEST_TMPDIR/rebased" "$BATS_TEST_TMPDIR/rebased-upstream.git"
+  local b
+  b="$(git -C "$BATS_TEST_TMPDIR/rebased" rev-parse HEAD)"
+  git -C "$BATS_TEST_TMPDIR/rebased" rebase -q main
+  cd "$BATS_TEST_TMPDIR/rebased"
+  run check_drawing "$BATS_TEST_DIRNAME/scenarios/03-branches-and-teamwork/06-feature-branch-behind-default-branch/rebased-in-the-monorepo.drawio.svg" \
+    c=HEAD b="$b"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   b' is solid, but no upstream branch has it: dash it"* ]]
 }
 
 @test "drawing: a lane names a splice whose folder Git quotes" {

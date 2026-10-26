@@ -47,14 +47,14 @@ $ git log --graph --format=%s
 
 <div align="center">
 
-![The monorepo, a, p on main and c on feature, with H at c; upstream, k with two children, m on main, which is U(H), and f on feature, which is T; R is c prime, dashed, on top of m](rebased-in-the-monorepo.drawio.svg)
+![The monorepo, a, p on main and c on feature, with H at c; upstream, k with two children, m on main, which is U(H), and b prime on feature, which is T; R is c prime, dashed, on top of m](rebased-in-the-monorepo.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/rebased-in-the-monorepo.drawio.svg" \
->   c=HEAD f=refs/splices/a/heads/feature
+>   c=HEAD "b'=refs/splices/a/heads/feature"
 ok   rebased-in-the-monorepo.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
 ```
 -->
@@ -67,7 +67,7 @@ On branch feature
 ```
 
 A plain `push` refuses: upstream has a commit this branch lacks. That
-it's *f*, an old copy of *b*, is for you to know:
+it's *b'*, the copy of *b* from before the rebase, is for you to know:
 
 ```scrut
 $ git splice push vendor/a

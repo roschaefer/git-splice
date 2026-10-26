@@ -285,7 +285,11 @@ check_drawing() {
     base="${label%\'}"
     sp="${splice_of[$id]}"
     hash=""
-    if [[ -n "${rev_of[$base]:-}" ]]; then
+    if [[ -n "${rev_of[$label]:-}" ]]; then
+      # A copy given in full, e.g. b'=<rev>: several copies of b can look
+      # alike, e.g. a pushed one and R's after a 'git rebase'.
+      hash="$(git rev-parse --verify --quiet "${rev_of[$label]}^{commit}")"
+    elif [[ -n "${rev_of[$base]:-}" ]]; then
       hash="$(git rev-parse --verify --quiet "${rev_of[$base]}^{commit}")"
     else
       # On a side, its upstream's commit first: the monorepo or another
@@ -305,7 +309,7 @@ check_drawing() {
       [[ -n "$hash" || "$label" == *\' || ${#upstream_tips[@]} -eq 0 ]] ||
         hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
     fi
-    if [[ -n "$hash" && "$label" == *\' ]]; then
+    if [[ -n "$hash" && "$label" == *\' && -z "${rev_of[$label]:-}" ]]; then
       if [[ -z "$sp" ]]; then
         errors+=("$label is in no lane: draw it in the lane of the splice it's rebuilt for")
         continue

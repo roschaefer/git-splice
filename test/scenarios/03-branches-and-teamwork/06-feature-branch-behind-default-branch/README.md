@@ -4,11 +4,11 @@ A feature branch was pushed, so upstream has it as a PR. Then upstream's
 `main` moved on, and the monorepo's `main` pulled that in. The PR is now
 behind `main`: GitHub says "This branch is out-of-date with the base
 branch". To bring it up to date, `feature` is rebased onto `main`.
-*m* adds `lock.txt`, and *f*, the push of *b*, keeps *b*'s message:
+*m* adds `lock.txt`:
 
 <div align="center">
 
-![The monorepo, a with two children, p on main and b on feature, which is H; upstream, k, which is U(H), with two children, m on main and f, which is T, R and feature](feature-branch-behind-default-branch.drawio.svg)
+![The monorepo, a with two children, p on main and b on feature, which is H; upstream, k, which is U(H), with two children, m on main and b prime, which is T, R and feature](feature-branch-behind-default-branch.drawio.svg)
 
 </div>
 
@@ -57,7 +57,7 @@ $ build_scenario scenario_feature_branch_behind_default_branch
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/feature-branch-behind-default-branch.drawio.svg" \
->   p=main m=refs/splices/a/heads/main f=refs/splices/a/heads/feature
+>   p=main m=refs/splices/a/heads/main
 ok   feature-branch-behind-default-branch.drawio.svg: 6 commits, 9 arrows, 5 boxes, 1 lanes
 ```
 -->

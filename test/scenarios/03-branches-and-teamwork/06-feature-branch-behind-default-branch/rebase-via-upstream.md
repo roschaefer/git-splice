@@ -28,13 +28,7 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_feature_branch_behind_default_branch
 ```
 
-<!--
-```scrut
-$ f="$(git rev-parse splices/a/heads/feature)"
-```
--->
-
-The rebase copies *f* onto *m* as *f'*:
+The rebase copies *b'* onto *m* as *n*:
 
 ```scrut
 $ git clone -q -b feature "$UPSTREAM" ../pr &&
@@ -65,13 +59,14 @@ m: bump dep
 
 <div align="center">
 
-![The monorepo, a with two children, p on main and b, then the pull x on feature, which is H; upstream, k, m on main, and f prime on top of m, which is T, R, U(H) and feature](pulled-the-rebased-pr.drawio.svg)
+![The monorepo, a with two children, p on main and b, then the pull x on feature, which is H; upstream, k, m on main, and n on top of m, which is T, R, U(H) and feature](pulled-the-rebased-pr.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pulled-the-rebased-pr.drawio.svg" p=main f="$f"
+$ check_drawing "$TESTDIR/pulled-the-rebased-pr.drawio.svg" \
+>   p=main n=refs/splices/a/heads/feature
 ok   pulled-the-rebased-pr.drawio.svg: 7 commits, 9 arrows, 4 boxes, 1 lanes
 ```
 -->

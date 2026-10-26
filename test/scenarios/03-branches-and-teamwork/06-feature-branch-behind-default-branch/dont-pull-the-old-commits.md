@@ -21,7 +21,7 @@ $ build_scenario scenario_feature_branch_behind_default_branch
 
 <!--
 ```scrut
-$ f="$(git rev-parse splices/a/heads/feature)"
+$ pushed="$(git rev-parse splices/a/heads/feature)"
 ```
 -->
 
@@ -31,7 +31,7 @@ The rebase copies *b* onto *p* as *c*:
 $ git rebase -q main
 ```
 
-`push` refuses: upstream has a commit this branch lacks, *f*:
+`push` refuses: upstream has a commit this branch lacks, *b'*:
 
 ```scrut
 $ git splice push vendor/a
@@ -45,7 +45,7 @@ here, but only one of them stops you:
 
 - A plain `pull` keeps every change, as `git pull` does, so it goes
   through. What it does to the PR is what this page is about.
-- `pull --rebase` would take *f*'s files and drop *m*: *f* lacks it,
+- `pull --rebase` would take *b'*'s files and drop *m*: *b'* lacks it,
   and never had it, since `main` brought it in, not `feature`. That
   would lose a change, which `git pull --rebase` keeps, so it refuses.
 
@@ -67,8 +67,8 @@ ok   vendor/a fetched
 [1]
 ```
 
-The plain `pull` merges *f*, the copy of the feature change from
-before the rebase, into `feature` as the pull *x*. No change is lost,
+The plain `pull` merges *b'*, the copy of *b* from before the rebase,
+into `feature` as the pull *x*. No change is lost,
 and `lock.txt` stays:
 
 ```scrut
@@ -102,13 +102,13 @@ $ git -C "$UPSTREAM" log --graph --format=%s feature
 
 <div align="center">
 
-![The monorepo, a, p on main, c and the pull x on feature, with H at x; upstream, k with two children, m on main and f, which is U(H); c prime on top of m; x prime merges c prime and f, and is T, R and feature](pulled-and-pushed.drawio.svg)
+![The monorepo, a, p on main, c and the pull x on feature, with H at x; upstream, k with two children, m on main and b prime, which is U(H); c prime on top of m; x prime merges c prime and b prime, and is T, R and feature](pulled-and-pushed.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pulled-and-pushed.drawio.svg" c=HEAD~1 f="$f"
+$ check_drawing "$TESTDIR/pulled-and-pushed.drawio.svg" c=HEAD~1 "b'=$pushed"
 ok   pulled-and-pushed.drawio.svg: 9 commits, 13 arrows, 5 boxes, 1 lanes
 ```
 -->
