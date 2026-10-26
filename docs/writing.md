@@ -29,7 +29,8 @@ A few details:
   `$UPSTREAM-b`, `https://git.example.com/b.git`. With one splice inside
   another, they're the outer and the inner upstream; an app and the
   library it splices in are the app's upstream and the library's.
-- Page titles, image alt text and code blocks get no markup.
+- Page titles, image alt text, labels in a drawing and code blocks get
+  no markup.
 
 ## Commands in scrut blocks
 
