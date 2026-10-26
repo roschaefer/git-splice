@@ -7,10 +7,12 @@ whole or squashed into one commit. `split` and `push` turn the monorepo's
 commits that touched the folder back into library commits.
 
 `git-splice` started as a wrapper around `git subtree`, and stopped
-because of two problems this page shows: without `--squash`, the
-library's whole history comes into the monorepo; with it, `split` walks
-the monorepo's whole history on every push. After them, the same with
-`git-splice`, and where `git subtree` is the better tool.
+because of the first two problems this page shows: without `--squash`,
+the library's whole history comes into the monorepo; with it, `split`
+walks the monorepo's whole history on every push. The third: with
+`--squash` and `--rejoin`, the sync points are lines in commit messages,
+found by the folder's name. After them, the same with `git-splice`, and
+where `git subtree` is the better tool.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits by
 three developers, and a monorepo with an app and 40 commits.
@@ -163,7 +165,7 @@ Merge made by the 'ort' strategy.
 ```
 
 `48108da` is the library commit with the two fixes, the same one
-`git splice push` makes [below](#how-git-splice-avoids-both). The merge
+`git splice push` makes [below](#how-git-splice-avoids-them). The merge
 *j* (`Split 'vendor/lib/' into commit
 '48108daa0f798109c3e672ed47a7de6204cf4e02'`) has *r* (`Squashed
 'vendor/lib/' changes from bafd496..48108da`) as its second parent, on
@@ -224,7 +226,117 @@ $ subtree_split_walks vendor/lib
 43
 ```
 
-## How `git-splice` avoids both
+## Problem 3: the sync points are in commit messages
+
+`git subtree` keeps no file of its own. Each commit that `--squash` and
+`--rejoin` make ends in lines that name the folder and the library
+commit it matches. *r*, the squashed changes from the rejoin above:
+
+```scrut
+$ git log -1 --format=%B squashed^2
+Squashed 'vendor/lib/' changes from bafd496..48108da
+
+48108da lib fix 2
+0579a80 lib fix 1
+
+git-subtree-dir: vendor/lib
+git-subtree-split: 48108daa0f798109c3e672ed47a7de6204cf4e02
+
+```
+
+The merge *j* names its monorepo side as well, in a third line,
+`git-subtree-mainline:`. To find the newest sync point, `pull --squash`
+and `split` search the commits reachable from `HEAD` with `git log
+--grep="^git-subtree-dir: vendor/lib/*$"`. So a sync point belongs to
+whatever folder name the message has, and to whichever commit carries
+the message.
+
+### A squash merge copies them into another commit
+
+Hosts can fill a squash merge's message with the messages of the pull
+request's commits. On the squash-merged branch from above, *p* then
+carries the lines of *j* and *r*:
+
+```scrut
+$ git commit -q --amend -m "lib fixes (#1)" \
+>   -m "$(git log --format='* %s%n%n%b' HEAD~1..squashed)"
+```
+
+```scrut
+$ git log -1 --format=%B | grep '^git-subtree-'
+git-subtree-dir: vendor/lib
+git-subtree-mainline: 9d3cc6061455cb38432ce9846218e1227e4771be
+git-subtree-split: 48108daa0f798109c3e672ed47a7de6204cf4e02
+git-subtree-dir: vendor/lib
+git-subtree-split: 48108daa0f798109c3e672ed47a7de6204cf4e02
+```
+
+*p* is no commit `git subtree` made. The newest message names a
+monorepo side, so `pull --squash` takes *p* for a `--rejoin` merge and
+asks for its second parent, which *p* doesn't have:
+
+```scrut
+$ git subtree pull -q --squash --prefix=vendor/lib https://git.example.com/lib.git main
+From $COMPARISON/upstream/lib
+ * branch            main       -> FETCH_HEAD
+fatal: Needed a single revision
+
+[1]
+```
+
+### A moved folder loses them
+
+Back on the branch with the rejoin, the library moves to
+`vendor/parser/`:
+
+```scrut
+$ git switch -q squashed &&
+>   git mv vendor/lib vendor/parser && git commit -q -m "move vendor/lib to vendor/parser"
+```
+
+The messages still say `vendor/lib`, so under the new name there's no
+sync point:
+
+```scrut
+$ git subtree pull -q --squash --prefix=vendor/parser https://git.example.com/lib.git main
+From $COMPARISON/upstream/lib
+ * branch            main       -> FETCH_HEAD
+fatal: can't squash-merge: 'vendor/parser' was never added.
+[1]
+```
+
+And under the old one, there's no folder:
+
+```scrut
+$ git subtree pull -q --squash --prefix=vendor/lib https://git.example.com/lib.git main
+fatal: 'vendor/lib' does not exist; use 'git subtree add'
+[1]
+```
+
+`split` walks the monorepo's whole history again:
+
+```scrut
+$ subtree_split_walks vendor/parser
+49
+```
+
+Before the move there was no `vendor/parser/`, so the history it builds
+starts at the move, without the library's:
+
+```scrut
+$ git subtree split --prefix=vendor/parser --branch=parser-split >/dev/null &&
+>   git log --format=%s parser-split
+move vendor/lib to vendor/parser
+```
+
+The library's `main` doesn't lead there, so `push` is refused:
+
+```scrut
+$ git subtree push --prefix=vendor/parser https://git.example.com/lib.git main | grep -F '[rejected]'
+ ! [rejected]        c7121590d05f5a17f3adebbbd88ff15816a537d2 -> main (non-fast-forward)
+```
+
+## How `git-splice` avoids them
 
 In a copy of the monorepo from before the library, `clone` adds one
 ordinary commit, and the history stays linear. It also adds
@@ -310,6 +422,11 @@ $ git log --oneline -4 refs/splices/lib/heads/main
 bafd496 lib commit 30
 eacfd66 lib commit 29
 ```
+
+The sync point is in `vendor/lib/.splice`, a file in the folder, not in
+a commit message. `git mv` moves it along, and a change to it shows in
+the diff like any other change. Moving a splice has gaps of its own,
+shown in the [moved folders scenarios](../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md).
 
 ## Where `git subtree` is the better tool
 
