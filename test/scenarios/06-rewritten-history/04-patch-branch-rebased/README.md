@@ -8,12 +8,12 @@ out, the others get new commits. Either way, the commit the monorepo
 synced last is on no upstream branch any more
 ([#169](https://github.com/roschaefer/git-splice/issues/169)).
 
-- **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *q* from
+- **Monorepo (`vendor/a/`)**: *a* cloned *q* from
   `patches`, and follows `patches` on `main`.
 - **Upstream** (`$UPSTREAM`, reached as `https://git.example.com/a.git`):
-  *k* (`seed`) on `main`, and two patches on top of it on
-  `patches`: *p* (`patch`) and *q* (`other patch`). Then `main` takes
-  the first patch reworded, *m* (`patch, reworded upstream`), and
+  *k* on `main`, and two patches on top of it on
+  `patches`: *p* and *q* (`other patch`). Then `main` takes
+  the first patch reworded, *m*, and
   `patches` is rebased onto it: *p* drops out, and the other patch gets
   a new commit, *n* (`other patch`), on top of *m*. Already fetched.
 
@@ -65,8 +65,8 @@ follow that branch, for `pull`, `push` and `status` alike:
 ```scrut
 $ cat vendor/a/.splice
 [splice]
-	commit = 05c1bab18820a907428ae83bd6ee0a2c8d817ed0
-	id = 5e134102fdb37eed
+	commit = f463f92ba0f70a0da1ffaa64c5af8e3b64f04c55
+	id = db77d5957130b5d2
 [upstream "origin"]
 	url = https://git.example.com/a.git
 	default-branch = patches
@@ -78,7 +78,7 @@ $ q="$(git config --file vendor/a/.splice splice.commit)"
 ```
 
 ```scrut
-$ check_drawing "$TESTDIR/patch-branch-rebased.drawio.svg" a=HEAD k="$q~2" p="$q~1" q="$q" m=refs/splices/a/heads/main n=refs/splices/a/heads/patches
+$ check_drawing "$TESTDIR/patch-branch-rebased.drawio.svg" q="$q" n=refs/splices/a/heads/patches
 ok   patch-branch-rebased.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
 ```
 -->
@@ -86,8 +86,8 @@ ok   patch-branch-rebased.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s patches
 other patch
-patch, reworded upstream
-seed
+m: patch, reworded upstream
+k: seed
 ```
 
 ```scrut
@@ -105,8 +105,8 @@ before, each with the subject `other patch`:
 
 ```scrut
 $ git log -g --format='%h %s' refs/splices/a/heads/patches
-63b44f3 other patch
-05c1bab other patch
+28d3fa4 other patch
+f463f92 other patch
 ```
 
 ```scrut
@@ -116,9 +116,9 @@ the fork point is q
 ```
 
 ```scrut
-$ git splice pull vendor/a
+$ git splice pull -m "x: pull the rebased patches" vendor/a
 ok   vendor/a fetched
-ok   vendor/a: pulled 63b44f3
+ok   vendor/a: pulled 28d3fa4
 ```
 
 The folder has the upstream's version of the first patch, and the other
@@ -126,8 +126,8 @@ patch as before:
 
 ```scrut
 $ cat vendor/a/file.txt vendor/a/other.txt
-seed
-patch, reworded upstream
+k: seed
+m: patch, reworded upstream
 other patch
 ```
 
@@ -163,8 +163,7 @@ history any more:
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pulled.drawio.svg" a=HEAD~1 x=HEAD k="$q~2" p="$q~1" q="$q" \
->   m=refs/splices/a/heads/main n=refs/splices/a/heads/patches
+$ check_drawing "$TESTDIR/pulled.drawio.svg" p="$q~1" q="$q" n=refs/splices/a/heads/patches
 ok   pulled.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
 ```
 -->
