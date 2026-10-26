@@ -144,6 +144,24 @@ ok   vendor/a fetched
 ok   vendor/a: bumped the synced commit to 8b60a90
 ```
 
+*c* is the first bump, *d* (`later change`) was pushed as *d'*, *e*
+(`unpushed change`) wasn't, and *f* is this bump. *b'* is the rebuild of
+the first push's *b* (`local change`):
+
+<div align="center">
+
+![The monorepo commits c to f, with B at the first bump c and H at the second bump f; upstream b prime, U(B), and d prime, T and U(H); the rebuild e prime, R, on top of d prime](bump-while-ahead.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/bump-while-ahead.drawio.svg" \
+>   b=HEAD~4 c=HEAD~3 d=HEAD~2 e=HEAD~1 f=HEAD
+ok   bump-while-ahead.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
+```
+-->
+
 ```scrut
 $ git splice status
 On branch main

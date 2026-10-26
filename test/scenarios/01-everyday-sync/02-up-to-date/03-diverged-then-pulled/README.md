@@ -3,10 +3,17 @@
 Both sides changed different files, then upstream's change was pulled in.
 The local change is still waiting to be pushed.
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, a local commit adding
-  `local.txt`, then `git splice pull`, which merged cleanly.
-- **Upstream**: `seed`, then a commit adding `upstream.txt`. It has never
-  seen `local.txt`.
+- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), *b*
+  (`local change`) adds `local.txt`, then *e*, a `git splice pull`,
+  which merged cleanly.
+- **Upstream**: *k*, then *l* (`upstream change`), which adds
+  `upstream.txt`. It has never seen `local.txt`.
+
+<div align="center">
+
+![The monorepo commits a, b and the pull e, with B at a; upstream k and l, T; the rebuild b prime on top of k, and e prime, R, a merge of b prime and l](diverged-then-pulled.drawio.svg)
+
+</div>
 
 The pull's commit is the newest that changed `.splice`, but its folder
 differs from the synced commit: it contains `local.txt`. So the boundary
@@ -27,6 +34,15 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_diverged_then_pulled
 ```
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diverged-then-pulled.drawio.svg" \
+>   a=HEAD~2 b=HEAD~1 e=HEAD \
+>   k=splices/upstream/heads/main~1 l=splices/upstream/heads/main
+ok   diverged-then-pulled.drawio.svg: 7 commits, 10 arrows, 4 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git splice status
