@@ -166,7 +166,8 @@ where the check doesn't look. Everything else fails the check, e.g. a
 | `<polyline>` | `points`, `stroke-dasharray`, `marker-end`, `class` |
 | `<text>`, holding only its label | `x`, `y`, `class` |
 
-Coordinates are plain numbers, every shape lies inside the `viewBox`,
+A shape has all its coordinates and sizes, `rx` and `class` aside, with
+sizes above 0. Coordinates are plain numbers, every shape lies inside the `viewBox`,
 and a `stroke-dasharray` gives a dash and a gap, like `6 4`. A dark theme is a `prefers-color-scheme: dark`
 block in the `<style>`.
 

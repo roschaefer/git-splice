@@ -38,6 +38,14 @@ svg_cells() {
         attrs["line"] = " x1 y1 x2 y2 stroke-dasharray marker-end class "
         attrs["polyline"] = " points stroke-dasharray marker-end class "
         attrs["text"] = " x y class "
+        # What each shape needs to be drawn at all, and the sizes that
+        # draw nothing at 0.
+        required["circle"] = " cx cy r "
+        required["rect"] = " x y width height "
+        required["line"] = " x1 y1 x2 y2 "
+        required["polyline"] = " points "
+        required["text"] = " x y "
+        sizes = " r width height "
         numeric = " cx cy r x y width height rx x1 y1 x2 y2 "
         number = "^[-+]?([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][-+]?[0-9]+)?$"
         # The stylesheet styles every shape alike: colors, strokes and fonts.
@@ -62,6 +70,11 @@ svg_cells() {
             err("a <" el "> has " p "=\"" v "\", which isn\047t a plain number")
             ok = 0
           }
+        }
+        k = split(required[el], need, " ")
+        for (j = 1; j <= k; j++) {
+          if (!(need[j] in A)) { err("a <" el "> has no " need[j] ": give it " listed(required[el])); ok = 0 }
+          else if (has(sizes, need[j]) && A[need[j]] ~ number && A[need[j]] <= 0) { err("a <" el "> has " need[j] "=\"" A[need[j]] "\", which draws nothing: make it larger than 0"); ok = 0 }
         }
         if (el == "style") {
           stylesheet($6)

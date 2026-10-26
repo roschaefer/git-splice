@@ -126,6 +126,8 @@ transform|translate(5,0)|!!   a <circle> has transform: check-drawing reads only
 style|stroke-dasharray:none|!!   a <circle> has style: check-drawing reads only cx, cy, r, stroke-dasharray, class on a <circle>, so remove it
 marker-end|url(#arrow)|!!   a <circle> has marker-end: check-drawing reads only cx, cy, r, stroke-dasharray, class on a <circle>, so remove it
 cx|50%|!!   a <circle> has cx="50%", which isn't a plain number
+r|0|!!   a <circle> has r="0", which draws nothing: make it larger than 0
+cy||!!   a <circle> has cy="", which isn't a plain number
 class|commit|ok   before-pull.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
 EOF
   [ -z "$failed" ] || {
@@ -177,4 +179,12 @@ EOF
   edit_drawing -u '//s:rect[@x="812" and @y="55"]/@rx' -v 20 -u '//s:line[@x2="744" and @y2="75"]/@x1' -v 818 -u '//s:line[@x2="744" and @y2="75"]/@y1' -v 61
   run check_drawing "$drawing"
   [ "$status" -eq 0 ]
+}
+
+@test "drawing-svg: a shape has what it needs to be drawn" {
+  edit_drawing -d "$(circle_at 213 495)/@r" -d '//s:rect[@x="812" and @y="55"]/@width'
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   a <circle> has no r: give it cx, cy, r" ]
+  [ "${lines[1]}" = "!!   a <rect> has no width: give it x, y, width, height" ]
 }
