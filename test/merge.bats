@@ -400,7 +400,7 @@ a: add vendor/a" ]
   [ "${lines[0]}" = "!!   vendor/a: 'origin/main' has commits since $(git rev-parse --short=7 HEAD~3), which --rebase would rewrite -- merge on a branch nobody else has, e.g. a pull request's" ]
 }
 
-@test "merge --rebase: refuses when the upstream branch never had the synced commit, e.g. after 'git rebase main', whose changes it would drop" {
+@test "merge --rebase: refuses when the upstream branch lacks the synced commit and its reflog doesn't show it had it, e.g. after 'git rebase main', whose changes it would drop" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
   git -C "$monorepo" rebase -q main
   cd "$monorepo"
@@ -409,13 +409,25 @@ a: add vendor/a" ]
   synced="$(splice_config vendor/a commit)"
   run cmd_merge --rebase vendor/a
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: 'feature' never had the synced commit ${synced:0:7}, which this branch got elsewhere, e.g. with 'git rebase main' -- --rebase would drop it. To rebase 'feature', do it on one side only:" ]
-  [[ "$output" == *"  git splice push --force -- vendor/a"* ]]
-  [[ "$output" == *"  git splice merge --rebase -- vendor/a"* ]]
+  [ "${lines[0]}" = "!!   vendor/a: 'feature' lacks the synced commit ${synced:0:7}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes" ]
+  [[ "$output" != *"git splice"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
-@test "merge --rebase: the refusal's way upstream, with --rebase again, takes the rebased upstream branch in under the local commits, without the copies a merge would join in" {
+@test "merge --rebase: in a fresh clone of the monorepo, whose reflog starts after the upstream rebased its branch, refuses with the same facts and suggests no push --force, which would overwrite that rebase" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/clone"
+  cd "$BATS_TEST_TMPDIR/clone"
+  splice fetch vendor/a >/dev/null
+  local synced
+  synced="$(splice_config vendor/a commit)"
+  run cmd_merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: 'patches' lacks the synced commit ${synced:0:7}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes" ]
+  [[ "$output" != *"--force"* ]]
+}
+
+@test "merge --rebase: once the upstream branch is rebased too, --rebase again takes the rebased upstream branch in under the local commits, without the copies a merge would join in" {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
   git -C "$monorepo" rebase -q main
   commit_local "$monorepo" vendor/a "d: more work" more.txt
@@ -439,7 +451,7 @@ a: add vendor/a" ]
   splice fetch vendor/a >/dev/null
   run cmd_merge --rebase vendor/a
   [ "$status" -eq 1 ]
-  [[ "${lines[0]}" == *"'feature' never had the synced commit"* ]]
+  [[ "${lines[0]}" == *"'feature' lacks the synced commit"* ]]
 }
 
 @test "merge --rebase: without the fetched branch's reflog, e.g. in a clone that fetched only after the rebase, can't tell a rebased upstream branch from one that never had the synced commit, and refuses" {
@@ -448,7 +460,7 @@ a: add vendor/a" ]
   git reflog expire --expire=all --all
   run cmd_merge --rebase vendor/a
   [ "$status" -eq 1 ]
-  [[ "${lines[0]}" == *"'patches' never had the synced commit"* ]]
+  [[ "${lines[0]}" == *"'patches' lacks the synced commit"* ]]
 }
 
 @test "merge --rebase: takes the upstream branch in once it was rebased upstream too, and has the synced commit" {
@@ -463,18 +475,6 @@ a: add vendor/a" ]
   run cmd_merge --rebase vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/lock.txt)" = "m: bump dep" ]
-}
-
-@test "merge --rebase: with --branch naming another upstream branch, doesn't suggest a push, which would go to the branch named like this one" {
-  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
-  cd "$monorepo"
-  git switch -q -c take-the-pr
-  git rebase -q main
-  run cmd_merge --rebase --branch feature vendor/a
-  [ "$status" -eq 1 ]
-  [[ "$output" != *"push"* ]]
-  [[ "$output" == *"  # rebase or merge 'feature' upstream, e.g. with \"Update branch\" on GitHub, then:"* ]]
-  [[ "$output" == *"  git splice merge --rebase --branch feature -- vendor/a"* ]]
 }
 
 @test "merge: the suggested --rebase keeps the --branch the refused merge had" {
