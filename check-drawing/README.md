@@ -167,9 +167,10 @@ where the check doesn't look. Everything else fails the check, e.g. a
 | `<text>`, holding only its label | `x`, `y`, `class` |
 
 A shape has all its coordinates and sizes, `rx` and `class` aside, with
-sizes above 0. Coordinates are plain numbers, every shape lies inside the `viewBox`,
-and a `stroke-dasharray` gives a dash and a gap, like `6 4`. A dark theme is a `prefers-color-scheme: dark`
-block in the `<style>`.
+sizes above 0. Coordinates are plain numbers, every shape lies inside
+the `viewBox`, and a `stroke-dasharray` gives a dash and a gap, like `6
+4`. A dark theme is a `prefers-color-scheme: dark` block in the
+`<style>`.
 
 ### draw.io
 
