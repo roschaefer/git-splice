@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const {optimize} = require('svgo');
 
 // Serves each .drawio.svg without the diagram draw.io embeds in it, its
 // content attribute: the picture alone, as `drawio -x` without -e exports
@@ -14,7 +15,7 @@ module.exports = function drawioPlain({siteDir, repoRoot}) {
         const source = path.resolve(path.dirname(file.path), decodeURIComponent(node.url));
         if (fs.existsSync(source)) {
           const plain = path.join(outDir, path.relative(repoRoot, source).replace(/\.drawio\.svg$/, '.svg'));
-          const picture = fs.readFileSync(source, 'utf8').replace(/ content="[^"]*"/, '');
+          const picture = optimize(fs.readFileSync(source, 'utf8'), {plugins: [dropDiagram]}).data;
           fs.mkdirSync(path.dirname(plain), {recursive: true});
           if (!fs.existsSync(plain) || fs.readFileSync(plain, 'utf8') !== picture) {
             fs.writeFileSync(plain, picture);
@@ -26,6 +27,21 @@ module.exports = function drawioPlain({siteDir, repoRoot}) {
     };
     visit(tree);
   };
+};
+
+// An svgo plugin, and the only one run: the root <svg> loses its content
+// attribute, and nothing else changes.
+const dropDiagram = {
+  name: 'dropDiagram',
+  fn: () => ({
+    element: {
+      enter(node, parent) {
+        if (parent.type === 'root' && node.name === 'svg') {
+          delete node.attributes.content;
+        }
+      },
+    },
+  }),
 };
 
 function isLocalDrawing(url) {
