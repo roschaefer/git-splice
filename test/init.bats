@@ -21,6 +21,16 @@ setup() {
   [ -z "$(splice_config lib/a commit)" ]
 }
 
+@test "init -m: the commit gets the message, and the first push sends it" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_init -m "a: publish lib/a" lib/a "$upstream"
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "a: publish lib/a" ]
+  cmd_push lib/a
+  [ "$(git -C "$upstream" log --format=%s main)" = "a: publish lib/a" ]
+}
+
 @test "init: gives the splice an id" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"

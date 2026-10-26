@@ -26,6 +26,7 @@ DEFAULT_UPSTREAM=origin
 # Results of parse_args.
 declare -g UPSTREAM_ARG=""
 declare -g ALL_ARG=""
+declare -g MESSAGE_ARG=""
 declare -ga PATH_ARGS=()
 declare -ga EXTRA_FLAGS=()
 
@@ -112,7 +113,8 @@ normalize_path() {
 
 # Parses the arguments of a command that takes `[--all] [<flag>...]
 # [path...]`. Sets ALL_ARG, UPSTREAM_ARG, REBUILT_COMMIT_ARG, BRANCH_ARG,
-# PATH_ARGS, and
+# MESSAGE_ARG (if "-m" is in $2; several join as paragraphs, as in git
+# commit), PATH_ARGS, and
 # EXTRA_FLAGS for every flag named in $2 (space-separated, e.g. "--merge").
 # $1 names the command's usage function, which is run (then exit 0) for
 # -h/--help. Everything after `--` is a path.
@@ -123,6 +125,7 @@ parse_args() {
   UPSTREAM_ARG=""
   REBUILT_COMMIT_ARG=""
   BRANCH_ARG=""
+  MESSAGE_ARG=""
   PATH_ARGS=()
   EXTRA_FLAGS=()
   while [[ $# -gt 0 ]]; do
@@ -161,6 +164,22 @@ parse_args() {
             ;;
         esac
         ;;
+      -m | -m?* | --message | --message=*)
+        [[ "$allowed" == *" -m "* ]] || {
+          "$usage_fn" >&2
+          die "unknown option: ${1%%=*}"
+        }
+        case "$1" in
+          -m?*) value="${1#-m}" ;;
+          --message=*) value="${1#*=}" ;;
+          *)
+            value="${2:-}"
+            [[ $# -lt 2 ]] || shift
+            ;;
+        esac
+        [[ -n "$value" ]] || die "-m needs a message"
+        MESSAGE_ARG="${MESSAGE_ARG:+$MESSAGE_ARG$'\n\n'}$value"
+        ;;
       --)
         shift
         PATH_ARGS+=("$@")
@@ -179,6 +198,20 @@ parse_args() {
     esac
     shift
   done
+}
+
+# Prints the message -m gave, else <default>: the message of the commit
+# a command writes. Nothing reads it back: .splice records the state.
+commit_message() {
+  printf '%s\n' "${MESSAGE_ARG:-$1}"
+}
+
+# Dies if -m was given for more than the one splice named in PATH_ARGS:
+# each splice gets a commit of its own, and the message would be the same.
+require_one_splice_for_message() {
+  [[ -z "$MESSAGE_ARG" ]] && return 0
+  [[ -z "$ALL_ARG" && ${#PATH_ARGS[@]} -le 1 ]] ||
+    die "-m names one splice's commit -- name one path, not several or --all"
 }
 
 # Succeeds if flag $1 was given (see parse_args).

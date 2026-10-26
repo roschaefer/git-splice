@@ -3,8 +3,8 @@
 
 usage_clone() {
   cat <<'EOF'
-usage: git splice clone [--merge] <url> [<path>]
-   or: git splice clone --from-submodule [--recursive] <path>
+usage: git splice clone [--merge] [-m <message>] <url> [<path>]
+   or: git splice clone --from-submodule [--recursive | -m <message>] <path>
 
 Splices an existing upstream repository into <path> (default: the
 repository's name), as one ordinary commit with a new <path>/.splice.
@@ -54,6 +54,10 @@ turns the submodule into a splice there too. Push it before that
 upstream moves its submodule to another commit: pulling such a change
 is refused. If a nested submodule is refused, the ones above stay
 converted; fix what the message says, then run clone on that path.
+
+-m gives the commit this message instead of the default one, which
+names the upstream branch and commit. Nothing reads the message back:
+.splice records them.
 EOF
 }
 
@@ -111,12 +115,14 @@ fetch_new_upstream() {
 }
 
 cmd_clone() {
-  parse_args usage_clone "--merge --from-submodule --recursive" "$@"
+  parse_args usage_clone "--merge --from-submodule --recursive -m" "$@"
   if has_flag --from-submodule; then
     require_args usage_clone clone 1 1
     has_flag --merge && die "--from-submodule takes no --merge: the folder gets the submodule's files"
     local recursive=""
     has_flag --recursive && recursive=1
+    [[ -z "$recursive" || -z "$MESSAGE_ARG" ]] ||
+      die "-m names one commit, and --recursive makes one per submodule"
     clone_from_submodule "${PATH_ARGS[0]}" "$recursive"
     return
   fi
@@ -174,7 +180,7 @@ cmd_clone() {
   blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")"
   # The merge base is an empty folder: the two sides share nothing.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
-    "splice: clone $path from $upstream_branch at ${target:0:7}"; then
+    "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")"; then
     log_err "$path: clone failed"
     exit 1
   fi
@@ -425,7 +431,7 @@ clone_from_submodule() {
     git add -- "$gitmodules"
   fi
   rm -f -- "$edited"
-  git commit --quiet -m "splice: clone $path from submodule at ${commit:0:7}"
+  git commit --quiet -m "$(commit_message "splice: clone $path from submodule at ${commit:0:7}")"
   log_ok "$path: cloned ${commit:0:7} from the submodule"
   if [[ -n "$SUBMODULE_PIN" ]]; then
     local tag

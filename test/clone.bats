@@ -39,6 +39,28 @@ new_upstream() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
+@test "clone -m: the commit gets the message, and .splice still records the commit" {
+  new_upstream
+  run cmd_clone -m "a: add the parser" "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "a: add the parser" ]
+  [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
+}
+
+@test "clone --merge -m: on a conflict, git commit keeps the message" {
+  new_upstream
+  mkdir -p vendor/a
+  echo local >vendor/a/file.txt
+  git add vendor/a
+  git commit -q -m "local copy"
+  run cmd_clone --merge -m "b: splice the copy in" "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  echo merged >vendor/a/file.txt
+  git add vendor/a/file.txt
+  git commit -q --no-edit
+  [ "$(git log -1 --format=%s)" = "b: splice the copy in" ]
+}
+
 @test "clone: gives the splice an id, another one than a clone at another path" {
   new_upstream
   cmd_clone "$upstream" vendor/a
