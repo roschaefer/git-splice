@@ -72,6 +72,8 @@ module.exports = {
   ],
 
   // Full-text search, indexed at build time: no external service.
+  plugins: [[require.resolve('./src/drawings'), {repoRoot: require('path').resolve(__dirname, '..')}]],
+
   themes: [
     [
       require.resolve('@easyops-cn/docusaurus-search-local'),

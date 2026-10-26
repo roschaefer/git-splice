@@ -150,7 +150,7 @@ just drawings-check --write  # exports the stale ones again
 It runs in `nix develop .#drawings`, which has a headless draw.io, and
 in CI whenever a drawing changes. The documentation site serves each
 drawing without its diagram, as a plain SVG:
-[`drawio-plain.js`](../website/src/remark/drawio-plain.js).
+[`drawings.js`](../website/src/drawings.js).
 
 ## Limits
 
