@@ -67,6 +67,19 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   block (`<!--` … `-->`): it keeps the drawing true, but a reader
   learns nothing from it. Only a page that explains the check itself,
   like its `--alias`, shows it.
+- A drawing with a legend says what the next rebuild does with a
+  commit: an orange outline (`#E07000`) for a change it carries across,
+  on both ends, a commit R copies and its copy, and, where the number
+  of commits it walks matters, a grey fill (`#E0E0E0`) for the monorepo
+  commits on the first-parent history since B. The legend, a shape
+  styled `legend=1` below the drawing, shows a sample commit for each
+  mark the drawing's commits use, orange, grey, dashed or a `'`, with
+  what it means. Without a legend, every commit is black and white.
+  `check_drawing` checks the marks against the legend, as it checks the
+  dashes. A drawing of another tool uses them the same way, for the
+  commits that tool walks and the ones it carries over, e.g.
+  `git subtree split`, with a legend in its words; there
+  `check_drawing` can't check them.
 - A drawn commit the page makes starts its subject with its label,
   `b: an option in pkg-a`, and a pull or bump gets one with `-m`. The
   output then shows the labels, so the prose doesn't need to name each

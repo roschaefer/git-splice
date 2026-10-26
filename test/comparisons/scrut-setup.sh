@@ -70,6 +70,14 @@ subtree_split_walks() {
     tr '\r' '\n' | sed -n 's#^[0-9]*/\([0-9]*\) .*#\1#p' | tail -1
 }
 
+# Prints the subjects of the monorepo commits that
+# `git subtree split --prefix=<path>` walks, from its debug output.
+subtree_split_walked() {
+  command git subtree split -d --prefix="$1" 2>&1 >/dev/null |
+    tr '\r' '\n' | sed -n 's#^Processing commit: ##p' |
+    while read -r commit; do command git log -1 --format=%s "$commit"; done
+}
+
 # Checks a drawing against the repositories it shows, as in the scenarios.
 # A command of its own, so its git calls don't go through git() above.
 check_drawing() {

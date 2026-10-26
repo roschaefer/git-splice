@@ -76,12 +76,15 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 - **Commit**: a circle (ellipse). Its label is the commit's subject,
   or the subject's start before `: `, looked up on the monorepo's first-parent history, then upstream. A
   label with a trailing `'` (*b'* for *b*) is the rebuild's copy of the
-  commit without it: the same message, author and dates, in R's history
+  commit without it, and a copy of a drawn commit is labelled so: the same message, author and dates, in R's history
   or on a fetched upstream branch, where a push put it. Where several
   copies look alike, e.g. a pushed *b'* and R's *c'* after `git rebase`
   copied *b* to *c*, give the copy in full: `b'=<rev>`.
 - **Parent arrow**: an arrow between two commits points from a parent to
   its child.
+- **Message arrow**: an arrow styled `message=1` points from a commit to
+  one its message names by hash, e.g. the `git-subtree-mainline:` line
+  of a `git subtree split --rejoin`.
 - **Box**: points at the commit its label names: H, B, T or R, U(x),
   the commit *x*'s `.splice` records, where *x* is H, B or a drawn commit, or
   a branch by its name: in a box on a monorepo commit, the monorepo's,
@@ -122,6 +125,25 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   history yet: no upstream branch has them, like R's copies of monorepo
   commits, or commits a rewrite of the upstream removed. A solid commit
   that T lacks needs a box for an upstream branch that has it.
+
+- **Legend**: a shape styled `legend=1`, with a sample commit inside
+  for each mark the drawing's commits use, and the words for it next to
+  it. Its shapes are no commits, boxes or texts of the drawing. It
+  explains each of the marks below the drawing uses, and no other: a
+  dash, a trailing `'`, and the colors, which only a drawing with a
+  legend shows.
+- **Filled and outlined**: what the next rebuild does with a commit,
+  in a drawing with a legend.
+  - Outlined orange, `#E07000`: a change the rebuild carries across, on
+    both ends: a walked commit R copies, and its copy, a commit with a
+    trailing `'` in R's history since U(B). Every other commit is
+    outlined black.
+  - Filled grey, `#E0E0E0`, if the legend has a grey sample: a monorepo
+    commit on the first-parent history since B, which the rebuild walks.
+    Every other commit is white.
+  - Without a legend, every commit is outlined black and white inside.
+    In a drawing without splices, e.g. of what `git subtree` makes,
+    neither is checked.
 
 What a drawing shows is checked, not where: positions only matter for
 which lane a shape is in.

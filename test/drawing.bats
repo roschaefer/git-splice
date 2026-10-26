@@ -43,10 +43,184 @@ edit_drawing() {
 }
 
 @test "drawing: a solid rebuilt commit is to be dashed" {
-  edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;'
+  edit_drawing -u '//mxCell[@id="b_"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#E07000;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   b' is solid, but no upstream branch has it: dash it" ]
+}
+
+@test "drawing: a commit the rebuild walks is filled grey only if the legend has a grey sample" {
+  edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;fillColor=#E0E0E0;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   the legend doesn't explain a grey fill: add a sample commit with it, and what it means" ]
+  edit_drawing -s '//mxCell[@id="legend"]/..' -t elem -n mxCell \
+    -i '//mxCell[not(@id)]' -t attr -n id -v legend_grey \
+    -i '//mxCell[@id="legend_grey"]' -t attr -n parent -v legend \
+    -i '//mxCell[@id="legend_grey"]' -t attr -n vertex -v 1 \
+    -i '//mxCell[@id="legend_grey"]' -t attr -n style -v 'ellipse;fillColor=#E0E0E0;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   b is a commit the rebuild walks: fill it grey, #E0E0E0"* ]]
+  [[ "$output" != *"c is"* ]]
+}
+
+@test "drawing: a commit the rebuild walks isn't filled in a color the legend doesn't explain" {
+  edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;fillColor=#FFFF00;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   c is filled #FFFF00, a color the legend doesn't explain: leave it white" ]
+}
+
+@test "drawing: a commit the rebuild doesn't walk stays white" {
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=#E0E0E0;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   a is filled, but the rebuild doesn't walk it: leave it white"* ]]
+}
+
+@test "drawing: a commit R copies is outlined orange" {
+  edit_drawing -u '//mxCell[@id="b"]/@style' -v 'ellipse;aspect=fixed;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   b is a commit R copies: outline it orange, #E07000" ]
+}
+
+@test "drawing: R's copy of a commit is outlined orange too" {
+  edit_drawing -u '//mxCell[@id="d_"]/@style' -v 'ellipse;aspect=fixed;dashed=1;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   d' is R's copy of a commit since B: outline it orange, #E07000" ]
+}
+
+@test "drawing: R's copy of a commit is labelled after it, with a '" {
+  edit_drawing -u '//mxCell[@id="d_"]/@value' -v z
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD z="$(splice rebuild lib)^1"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   z is R's copy of d: label it d'" ]
+}
+
+@test "drawing: a commit R doesn't copy is outlined black" {
+  edit_drawing -u '//mxCell[@id="c"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#E07000;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   c is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
+}
+
+@test "drawing: without a legend, a commit R copies is outlined black, as there's nothing to say why" {
+  edit_drawing -d '//mxCell[@id="legend" or @parent="legend"]'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   b is outlined in color, but the drawing has no legend to say why: add one, or outline it black"* ]]
+  sed -i 's/strokeColor=#E07000;//g' "$drawing"
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: the legend explains each mark a commit has" {
+  edit_drawing -d '//mxCell[@parent="legend" and contains(@style, "dashed=1")]'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   the legend doesn't explain a dashed outline: add a sample commit with it, and what it means" ]
+}
+
+@test "drawing: the legend explains no mark that no commit has" {
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="a" parent="1" vertex="1" style="ellipse;" value="a"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+$(legend_cells prime)
+</root></mxGraphModel></diagram></mxfile>
+XML
+  run check_drawing "$drawing" a=HEAD~4
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   the legend explains a ' after a label, which no commit has: drop that sample" ]
+}
+
+@test "drawing: black and white set explicitly are colors too" {
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=#000000;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#FFFFFF;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
+}
+
+@test "drawing: a transparent outline or fill isn't black or white" {
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=none;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=none;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
+}
+
+@test "drawing: log.showSignature doesn't hide that R copies a signed commit" {
+  command -v ssh-keygen >/dev/null || skip "no ssh-keygen to sign a commit with"
+  ssh-keygen -q -t ed25519 -N "" -f "$BATS_TEST_TMPDIR/key"
+  git config gpg.format ssh
+  git config user.signingKey "$BATS_TEST_TMPDIR/key.pub"
+  git commit -q --amend --no-edit -S
+  git config log.showSignature true
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+}
+
+# The cells of a legend explaining the marks $@: orange, dashed, prime.
+legend_cells() {
+  local mark row=0 style value
+  printf '<mxCell id="legend" parent="1" vertex="1" style="rounded=1;legend=1;" value=""><mxGeometry x="400" y="0" width="300" height="150" as="geometry" /></mxCell>\n'
+  for mark in "$@"; do
+    value=""
+    case "$mark" in
+      orange) style="ellipse;strokeColor=#E07000;" ;;
+      dashed) style="ellipse;dashed=1;" ;;
+      prime) style="ellipse;" value="a'" ;;
+    esac
+    printf '<mxCell id="legend_%s" parent="legend" vertex="1" style="%s" value="%s"><mxGeometry x="10" y="%d" width="30" height="30" as="geometry" /></mxCell>\n' \
+      "$mark" "$style" "$value" $((10 + 40 * row++))
+  done
+}
+
+# Writes a drawing of two monorepo commits, x and its child y, styled $1
+# and $2, with a legend explaining an orange outline.
+two_commits_drawing() {
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="x" parent="1" vertex="1" style="$1" value="x"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="y" parent="1" vertex="1" style="$2" value="y"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="e0" parent="1" edge="1" source="x" target="y"><mxGeometry relative="1" as="geometry" /></mxCell>
+$(legend_cells orange)
+</root></mxGraphModel></diagram></mxfile>
+XML
+}
+
+@test "drawing: a copy shares the whole message, not only the subject" {
+  export GIT_AUTHOR_DATE=2026-01-02T00:00:00Z GIT_COMMITTER_DATE=2026-01-02T00:00:00Z
+  echo fix >>lib/file.txt && git add lib/file.txt && git commit -q -m "fix" -m "in lib"
+  echo call >>app.txt && git add app.txt && git commit -q -m "fix" -m "in the app"
+  two_commits_drawing 'ellipse;strokeColor=#E07000;' 'ellipse;'
+  run check_drawing "$drawing" x=HEAD~1 y=HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: right after init, the rebuild walks the mount commit and copies it" {
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  scenario_init_new_upstream "$BATS_TEST_TMPDIR/init" "$BATS_TEST_TMPDIR/init.git"
+  cd "$BATS_TEST_TMPDIR/init"
+  splice init lib/a "$BATS_TEST_TMPDIR/init.git" >/dev/null
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="m" parent="1" vertex="1" style="ellipse;strokeColor=#E07000;" value="m"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="m_" parent="1" vertex="1" style="ellipse;dashed=1;strokeColor=#E07000;" value="m'"><mxGeometry x="160" y="0" width="70" height="70" as="geometry" /></mxCell>
+$(legend_cells orange dashed prime)
+</root></mxGraphModel></diagram></mxfile>
+XML
+  run check_drawing "$drawing" m=HEAD
+  [ "$status" -eq 0 ]
 }
 
 @test "drawing: a box sits with the commit it points at" {
@@ -313,13 +487,42 @@ plain_history() {
   [ "${lines[0]}" = "!!   q isn't a commit of the monorepo, which has no splices" ]
 }
 
+# plain_history, with e's message naming a, and a message arrow from e to
+# the commit given.
+message_arrow() {
+  plain_history
+  git commit -q --amend --allow-empty -m e -m "Up to $(git rev-parse --short HEAD~5) already split."
+  sed -i "s#</root>#<mxCell id=\"m\" parent=\"1\" edge=\"1\" source=\"e\" target=\"$1\" style=\"dashed=1;message=1;\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
+}
+
+@test "drawing: a message arrow points at a commit the message names by its hash" {
+  message_arrow a
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   plain.drawio: 7 commits, 8 arrows, 1 boxes" ]
+}
+
+@test "drawing: a message arrow at a commit the message doesn't name" {
+  message_arrow b
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   e's message doesn't name b: point the message arrow at the commit it names" ]
+}
+
+@test "drawing: a message arrow joins two commits" {
+  message_arrow box0
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a message arrow (m) doesn't join two commits: draw it from a commit to the one its message names" ]
+}
+
 # Two circles, x and x', with a box that points at x'.
 pushed_copy_drawing() {
-  local box="$1"
+  local box="$1" x_style="${2:-ellipse;}" copy_style="${3:-ellipse;}"
   cat >"$drawing" <<XML
 <mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
-<mxCell id="x" parent="1" vertex="1" style="ellipse;" value="x"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
-<mxCell id="x_" parent="1" vertex="1" style="ellipse;" value="x'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="x" parent="1" vertex="1" style="$x_style" value="x"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="x_" parent="1" vertex="1" style="$copy_style" value="x'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="box" parent="1" vertex="1" style="rounded=1;" value="$box"><mxGeometry x="120" y="175" width="120" height="40" as="geometry" /></mxCell>
 <mxCell id="e0" parent="1" edge="1" source="box" target="x_"><mxGeometry relative="1" as="geometry" /></mxCell>
 </root></mxGraphModel></diagram></mxfile>
@@ -351,6 +554,7 @@ XML
   git switch -q -c feature
   commit_local "$monorepo" lib "x"
   splice push lib >/dev/null 2>&1
+  # On feature, R copies x, as x'.
   pushed_copy_drawing pushed
   run check_drawing "$drawing" x=feature pushed=refs/splices/upstream/heads/feature
   [ "$status" -eq 0 ]
