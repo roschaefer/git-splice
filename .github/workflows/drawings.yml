@@ -35,6 +35,12 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
       - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
 
+      # draw.io is Electron, whose sandbox needs unprivileged user
+      # namespaces. Ubuntu 24.04 restricts them, and Electron then aborts
+      # on the setuid helper it finds, unset in the nix store.
+      - name: allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: drawings-check
         run: nix develop .#drawings --command check-drawing/check-export
 
