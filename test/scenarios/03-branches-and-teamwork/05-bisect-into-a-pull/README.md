@@ -4,12 +4,10 @@
 changes in as one commit, so the bug came in with one of the upstream
 commits squashed into it. Which one?
 
-- **Upstream**: *k* (`seed`), then three commits: *l* (`add config.txt`),
-  *m* (`log at debug level`) and *n* (`fix a typo`).
-- **Monorepo**: *a* (`add vendor/a`) spliced *k* in. Then *b* added
+- **Upstream**: *k*, then three commits: *l*, *m* and *n*.
+- **Monorepo**: *a* spliced *k* in. Then *b* added
   `check.sh`, a test outside the splice that fails when the library logs
-  at debug level. Then *X*, a pull of *l*, *m* and *n*, and one more commit, *d*
-  (`add notes`).
+  at debug level. Then *X*, a pull of *l*, *m* and *n*, and one more commit, *d*.
 
 The upstream's own history has no test for it: the bug only shows in
 the monorepo. So the upstream commits are tested inside the monorepo, as
@@ -41,9 +39,7 @@ $ build_scenario scenario_bisect_into_a_pull
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/bisect-into-a-pull.drawio.svg" \
->   a=HEAD~3 b=HEAD~2 X=HEAD~1 d=HEAD k=refs/splices/upstream/heads/main~3 \
->   l=refs/splices/upstream/heads/main~2 m=refs/splices/upstream/heads/main~1 \
->   n=refs/splices/upstream/heads/main
+>   X=HEAD~1
 ok   bisect-into-a-pull.drawio.svg: 8 commits, 10 arrows, 4 boxes, 1 lanes
 ```
 -->
@@ -52,10 +48,10 @@ ok   bisect-into-a-pull.drawio.svg: 8 commits, 10 arrows, 4 boxes, 1 lanes
 
 ```scrut
 $ git log --format=%s
-add notes
-splice: pull vendor/a from main at 803779d
-add check.sh
-add vendor/a
+d: add notes
+splice: pull vendor/a from main at b413207
+b: add check.sh
+a: add vendor/a
 initial commit
 ```
 
@@ -67,7 +63,7 @@ $ good="$(git log -1 --format=%H --diff-filter=A -- check.sh)" &&
 >   git bisect start HEAD "$good" >/dev/null &&
 >   git bisect run ./check.sh >/dev/null &&
 >   git show --stat --format='first bad commit: %s' refs/bisect/bad
-first bad commit: splice: pull vendor/a from main at 803779d
+first bad commit: splice: pull vendor/a from main at b413207
 
  vendor/a/.splice    | 2 +-
  vendor/a/config.txt | 1 +
@@ -93,9 +89,9 @@ The fetched upstream refs have them:
 $ U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" &&
 >   U2="$(git config --blob "$X:vendor/a/.splice" splice.commit)" &&
 >   git log --oneline "$U1..$U2"
-803779d fix a typo
-83019ad log at debug level
-4192552 add config.txt
+b413207 n: fix a typo
+be7ce06 m: log at debug level
+bdc6c70 l: add config.txt
 ```
 
 [#109](https://github.com/roschaefer/git-splice/issues/109) proposes
@@ -133,21 +129,21 @@ $ cat >../copy-and-check.sh <<'EOF'
 ```scrut
 $ git bisect start "$U2" "$U1"
 Bisecting: 0 revisions left to test after this (roughly 1 step)
-[83019adee0a2cf37e98fc79274ba471a0ba8f99a] log at debug level
+[be7ce0647ac80b4fc46a18cd62f417924503bc66] m: log at debug level
 ```
 
 ```scrut
 $ git bisect run sh ../copy-and-check.sh
 running 'sh' '../copy-and-check.sh'
 Bisecting: 0 revisions left to test after this (roughly 0 steps)
-[419255245bf628a762cb138a18347abd227d07e7] add config.txt
+[bdc6c706680c6d0250da4aedfed5b65755d11ba0] l: add config.txt
 running 'sh' '../copy-and-check.sh'
-83019adee0a2cf37e98fc79274ba471a0ba8f99a is the first bad commit
-commit 83019adee0a2cf37e98fc79274ba471a0ba8f99a
+be7ce0647ac80b4fc46a18cd62f417924503bc66 is the first bad commit
+commit be7ce0647ac80b4fc46a18cd62f417924503bc66
 Author: Upstream <upstream@example.com>
 Date:   Thu Jan 1 00:00:00 2026 +0000
 
-    log at debug level
+    m: log at debug level
 
  config.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

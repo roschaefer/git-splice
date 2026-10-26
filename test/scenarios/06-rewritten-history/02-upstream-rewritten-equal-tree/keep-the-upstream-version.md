@@ -42,7 +42,7 @@ $ git rm -r -q -- vendor/a &&
 >   git commit -q -m "remove vendor/a" &&
 >   git splice clone -- "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
-ok   vendor/a: cloned bc05937 from main
+ok   vendor/a: cloned 5cc12da from main
 ```
 
 Redo the local change, and push it:
@@ -51,7 +51,7 @@ Redo the local change, and push it:
 $ git apply --directory=vendor/a ../local-change.patch &&
 >   git commit -q -a -m "local change" &&
 >   git splice push vendor/a
-ok   vendor/a: pushed 5c7d4e1 to main
+ok   vendor/a: pushed 2a8eb25 to main
 ```
 
 The upstream's history is still the rewritten one:
@@ -59,5 +59,5 @@ The upstream's history is still the rewritten one:
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main
 local change
-release, history rewritten
+w: release, history rewritten
 ```

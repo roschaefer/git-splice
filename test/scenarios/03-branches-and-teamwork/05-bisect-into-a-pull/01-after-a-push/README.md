@@ -4,11 +4,11 @@ The [parent scenario's](../README.md) recipe takes the upstream commits
 of a pull *X* from `.splice`: U(X^) in *X*'s first parent, U(X) in *X*. That's
 only right if *X* merged from U(X^). After a push, it didn't.
 
-- **Monorepo**: the parent scenario, with its pull now named *c*, and *d*
-  (`add notes`). Then *e*, a local change in `vendor/a/`, pushed with
+- **Monorepo**: the parent scenario, with its pull now named *c*, and *d*.
+  Then *e*, a local change in `vendor/a/`, pushed with
   `git splice push`. Then *X*, a pull of one more upstream commit.
-- **Upstream**: the parent scenario's commits up to *n* (`fix a typo`),
-  *e'*, the pushed copy of *e*, and *o* (`add upstream.txt`).
+- **Upstream**: the parent scenario's commits up to *n*, *e'*, the
+  pushed copy of *e*, and *o*.
 
 <div align="center">
 
@@ -35,20 +35,19 @@ $ build_scenario scenario_after_a_push
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/after-a-push.drawio.svg" \
->   c=HEAD~3 d=HEAD~2 e=HEAD~1 X=HEAD n=refs/splices/upstream/heads/main~2 \
->   o=refs/splices/upstream/heads/main
+>   c=HEAD~3 X=HEAD
 ok   after-a-push.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
 ```
 -->
 
 ```scrut
 $ git log --format=%s
-splice: pull vendor/a from main at 9294a14
-a local change in vendor/a
-add notes
-splice: pull vendor/a from main at 803779d
-add check.sh
-add vendor/a
+splice: pull vendor/a from main at 747a38b
+e: a local change in vendor/a
+d: add notes
+splice: pull vendor/a from main at b413207
+b: add check.sh
+a: add vendor/a
 initial commit
 ```
 
@@ -59,8 +58,8 @@ $ X=HEAD &&
 >   U1="$(git config --blob "$X^:vendor/a/.splice" splice.commit)" &&
 >   U2="$(git config --blob "$X:vendor/a/.splice" splice.commit)" &&
 >   git log --format=%s "$U1..$U2"
-add upstream.txt
-a local change in vendor/a
+o: add upstream.txt
+e: a local change in vendor/a
 ```
 
 A push doesn't write to the monorepo, so `.splice` in *X*'s first parent

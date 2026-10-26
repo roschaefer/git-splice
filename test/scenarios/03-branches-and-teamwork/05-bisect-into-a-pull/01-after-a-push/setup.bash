@@ -7,7 +7,7 @@ scenario_after_a_push() {
   (
     cd "$monorepo"
     echo "a local line" >>vendor/a/file.txt
-    git commit -q -am "a local change in vendor/a"
+    git commit -q -am "e: a local change in vendor/a"
     splice push vendor/a
   )
   lib="$(mktemp -d)"
@@ -18,7 +18,7 @@ scenario_after_a_push() {
     git config user.email "upstream@example.com"
     echo "an upstream file" >upstream.txt
     git add upstream.txt
-    git commit -q -m "add upstream.txt"
+    git commit -q -m "o: add upstream.txt"
     git push -q origin main
   )
   (cd "$monorepo" && splice pull vendor/a)
