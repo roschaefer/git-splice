@@ -257,7 +257,7 @@ setup() {
   [ "$output" = "ok   vendor/a: merged ${target:0:7}, and rebased 1 commit onto it" ]
   [ "$(git log --format=%s -3)" = "local change
 splice: merge vendor/a from patches at ${target:0:7}
-add vendor/a" ]
+a: add vendor/a" ]
   [ "$(git rev-parse HEAD~1:vendor/a/file.txt)" = "$(git rev-parse "$target:file.txt")" ]
   [ "$(splice_config vendor/a commit)" = "$target" ]
   local rebuilt
@@ -624,7 +624,7 @@ add vendor/a" ]
   [ "$status" -eq 0 ]
   [ "$(git log --format=%s -3)" = "local change
 d: take the rebased patches
-add vendor/a" ]
+a: add vendor/a" ]
 }
 
 @test "merge --bump -m: the bump gets the message" {

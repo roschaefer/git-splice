@@ -67,3 +67,9 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   block (`<!--` … `-->`): it keeps the drawing true, but a reader
   learns nothing from it. Only a page that explains the check itself,
   like its `--alias`, shows it.
+- A drawn commit the page makes starts its subject with its label,
+  `b: an option in pkg-a`, and a pull or bump gets one with `-m`. The
+  output then shows the labels, so the prose doesn't need to name each
+  commit's subject. `<label>=<rev>` is for the rest: a rebased or copied
+  commit, which keeps another one's message, a commit the shared setup
+  makes, and a commit on a branch other than `HEAD`.

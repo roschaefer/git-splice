@@ -36,9 +36,10 @@ Otherwise it prints each difference, with what to change, and fails:
 !!   b' is solid, but no upstream branch has it: dash it
 ```
 
-A circle's label is the commit's subject. A commit whose subject makes
-a poor label, like `add vendor/a`, gets a short one, given as
-`<label>=<rev>`, a revision of the monorepo: `a=HEAD~3`. A box's name
+A circle's label is the commit's subject, or its start up to a colon:
+*a* is `a: add vendor/a`. Another tool's commit, whose message you
+can't choose, gets a label given as `<label>=<rev>`, a revision of the
+monorepo: `a=HEAD~3`. A box's name
 given that way points at that revision, e.g. a commit another tool
 records, as `parent=<rev>`.
 
@@ -73,7 +74,7 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 ## The drawing's vocabulary
 
 - **Commit**: a circle (ellipse). Its label is the commit's subject,
-  looked up on the monorepo's first-parent history, then upstream. A
+  or the subject's start before `: `, looked up on the monorepo's first-parent history, then upstream. A
   label with a trailing `'` (*b'* for *b*) is the rebuild's copy of the
   commit without it: the same message, author and dates, in R's history
   or on a fetched upstream branch, where a push put it.

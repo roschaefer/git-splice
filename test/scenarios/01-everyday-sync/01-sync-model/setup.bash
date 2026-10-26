@@ -5,7 +5,7 @@ scenario_sync_model() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "k" main k.txt
   init_monorepo "$monorepo"
-  add_splice "$monorepo" "$upstream" "lib"
+  add_splice "$monorepo" "$upstream" "lib" main "a"
   commit_local "$monorepo" "lib" "b" b.txt
   commit_local "$monorepo" "other" "c" c.txt
   commit_local "$monorepo" "lib" "d" d.txt

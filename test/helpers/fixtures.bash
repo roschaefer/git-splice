@@ -88,9 +88,10 @@ fetch_splice() {
 
 # Splices branch $4 (default: main) of upstream $2 into $3 inside monorepo
 # $1 via raw git plumbing -- deliberately NOT via cmd_clone, so other
-# commands' tests don't depend on clone's own correctness.
+# commands' tests don't depend on clone's own correctness. The commit's
+# message is $5, default "add <path>".
 add_splice() {
-  local monorepo="$1" url="$2" path="$3" branch="${4:-main}" commit id
+  local monorepo="$1" url="$2" path="$3" branch="${4:-main}" msg="${5:-add $3}" commit id
   fetch_splice "$monorepo" "$url" "$path"
   (
     cd "$monorepo"
@@ -103,7 +104,7 @@ add_splice() {
     git read-tree --prefix="$path/" -u "$commit"
     printf '[splice]\n\tcommit = %s\n\tid = %s\n[upstream "origin"]\n\turl = %s\n' "$commit" "$id" "$url" >"$path/.splice"
     git add "$path"
-    git commit -q -m "add $path"
+    git commit -q -m "$msg"
   )
 }
 

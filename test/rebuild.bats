@@ -198,7 +198,7 @@ split() {
   # The squash merge is the boundary: the rebuild starts at the pulled
   # upstream commit itself, then only the local change follows.
   [ "$(git rev-parse "$rebuilt^")" = "$feature_tip" ]
-  [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
+  [ "$(git log -1 --format=%s "$rebuilt")" = "c: local change" ]
   [ "$(git log --format=%s "$rebuilt" | grep -c "upstream feature work")" -eq 1 ]
 }
 

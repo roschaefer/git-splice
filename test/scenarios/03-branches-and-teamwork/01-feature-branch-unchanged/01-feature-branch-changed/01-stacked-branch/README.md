@@ -13,7 +13,7 @@ splice didn't change on the stacked branch.
   from the push.
 - **Monorepo (`vendor/a/`)**: *a* (`add vendor/a`) cloned *k*. On `feature`,
   a local commit *b* (`local change`) under `vendor/a/`, pushed; then the
-  branch `stacked` on top, with a commit *c* (`app work`) outside
+  branch `stacked` on top, with a commit *c* outside
   `vendor/a/` only.
 
 Upstream has no `stacked` branch, so there's no T, and `git-splice`
@@ -43,7 +43,7 @@ $ build_scenario scenario_stacked_branch
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/stacked-branch.drawio.svg" \
->   a=HEAD~2 b=HEAD~1 c=HEAD k=refs/splices/upstream/heads/main
+>   a=HEAD~2 b=HEAD~1 k=refs/splices/upstream/heads/main
 ok   stacked-branch.drawio.svg: 5 commits, 7 arrows, 4 boxes, 1 lanes
 ```
 -->

@@ -33,7 +33,7 @@ $ build_scenario scenario_sync_model
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/before-pull.drawio.svg" a=HEAD~3
+$ check_drawing "$TESTDIR/before-pull.drawio.svg"
 ok   before-pull.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
 ```
 -->
@@ -46,7 +46,7 @@ drawing check ([`check_drawing`](../../../../check-drawing/)) knows;
 ```scrut
 $ check_drawing "$TESTDIR/before-pull-git-names.drawio.svg" \
 >   --alias HEAD=H --alias boundary=B --alias ours=R --alias theirs=T \
->   --alias 'base=merge-base(R,T)' a=HEAD~3
+>   --alias 'base=merge-base(R,T)'
 ok   before-pull-git-names.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
 ```
 

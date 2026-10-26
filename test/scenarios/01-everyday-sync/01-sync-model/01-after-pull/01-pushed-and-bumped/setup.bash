@@ -8,6 +8,6 @@ scenario_pushed_and_bumped() {
   (
     cd "$monorepo"
     splice push lib >/dev/null 2>&1
-    splice pull --bump lib >/dev/null 2>&1
+    splice pull --bump -m f lib >/dev/null 2>&1
   )
 }

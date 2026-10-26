@@ -33,20 +33,20 @@ $ build_scenario scenario_after_pull
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/after-pull.drawio.svg" a=HEAD~4 e=HEAD
+$ check_drawing "$TESTDIR/after-pull.drawio.svg"
 ok   after-pull.drawio.svg: 12 commits, 16 arrows, 5 boxes, 1 lanes
 ```
 -->
 
-The monorepo, with *e* on top. *a* is the clone, `add lib`:
+The monorepo:
 
 ```scrut
 $ git log --format=%s
-splice: pull lib from main at df79a48
+e
 d
 c
 b
-add lib
+a
 initial commit
 ```
 
@@ -64,7 +64,7 @@ ae8b31f k
 
 ```scrut
 $ git log --first-parent -1 --format=%s -- lib/.splice
-splice: pull lib from main at df79a48
+e
 ```
 
 ```scrut
@@ -90,8 +90,8 @@ All of them, newest first:
 
 ```scrut
 $ git log --first-parent --format=%s -- lib/.splice
-splice: pull lib from main at df79a48
-add lib
+e
+a
 ```
 
 *a*'s folder is the commit it recorded, *k*. It's `HEAD~4`:
@@ -107,7 +107,7 @@ So *a* is B, what `git splice boundary` prints, and U(B) = *k*:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary lib)"
-add lib
+a
 ```
 
 The commits since B that change the folder are the ones the rebuild
@@ -115,7 +115,7 @@ copies, newest first:
 
 ```scrut
 $ git log --first-parent --format=%s "$(git splice boundary lib)"..HEAD -- lib
-splice: pull lib from main at df79a48
+e
 d
 b
 ```
@@ -130,7 +130,7 @@ the parent of *b'*:
 ```scrut
 $ git splice log --graph lib
 ===  lib (main)
-<   712cf4c (R) splice: pull lib from main at df79a48  (Test <test@example.com>)
+<   8430dba (R) e  (Test <test@example.com>)
 |\  
 < | d4da194 d  (Test <test@example.com>)
 < | 9ec734f b  (Test <test@example.com>)
@@ -145,7 +145,7 @@ The push sends *b'*, *d'* and *e'*, and T moves to *e'*:
 
 ```scrut
 $ git splice push lib
-ok   lib: pushed 712cf4c to main
+ok   lib: pushed 8430dba to main
 ```
 
 A pull right after it has nothing to bring in, and leaves `.splice` as it
@@ -160,7 +160,7 @@ ok   lib: nothing to pull
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary lib)"
-add lib
+a
 ```
 
 ### After a bump
@@ -168,9 +168,9 @@ add lib
 `git splice pull --bump` records *e'* as U(H), in a new commit:
 
 ```scrut
-$ git splice pull --bump lib
+$ git splice pull --bump -m f lib
 ok   lib fetched
-ok   lib: bumped the synced commit to 712cf4c
+ok   lib: bumped the synced commit to 8430dba
 ```
 
 Its folder is *e'*, so it's the new B, U(B) = *e'*, and rebuilds start there
@@ -178,5 +178,5 @@ Its folder is *e'*, so it's the new B, U(B) = *e'*, and rebuilds start there
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary lib)"
-splice: bump lib from main at 712cf4c
+f
 ```

@@ -27,12 +27,12 @@ $ build_scenario scenario_upstream_rewritten_equal_tree
 $ echo "local change" >>vendor/a/file.txt &&
 >   git commit -q -a -m "local change" &&
 >   git splice push --force vendor/a
-ok   vendor/a: pushed dea0473 to main
+ok   vendor/a: pushed 2543d4c to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main
 local change
-release
-seed
+r: release
+k: seed
 ```

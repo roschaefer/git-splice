@@ -13,7 +13,7 @@ $ source "$TESTDIR/scrut-setup.sh"
 First, bring `vendor/pkg-a/` up to date:
 
 ```scrut
-$ git splice pull vendor/pkg-a
+$ git splice pull -m "p: pull pkg-a" vendor/pkg-a
 ok   vendor/pkg-a fetched
 ok   vendor/pkg-a: pulled 703b936
 ```
@@ -23,13 +23,13 @@ ok   vendor/pkg-a: pulled 703b936
 The monorepo and the upstream each append a line to the same file:
 
 ```scrut
-$ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
+$ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "f: a local fix"
 ```
 
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
 >   echo "pkg-a: an upstream fix" >>../pkg-a/file.txt &&
->   git -C ../pkg-a commit -qam "pkg-a: an upstream fix" &&
+>   git -C ../pkg-a commit -qam "u: an upstream fix" &&
 >   git -C ../pkg-a push -q
 ```
 
@@ -38,7 +38,7 @@ both sides:
 
 ```scrut
 $ git splice fetch
-ok   vendor/pkg-a fetched (main moved 703b936..4527a78)
+ok   vendor/pkg-a fetched (main moved 703b936..5972aa1)
 ```
 
 ```scrut
@@ -51,8 +51,8 @@ On branch main
 ```scrut
 $ git splice log
 ===  vendor/pkg-a (main)
-< 2d02eb8 pkg-a: a local fix  (Walkthrough <walkthrough@example.com>)
-> 4527a78 pkg-a: an upstream fix  (Walkthrough <walkthrough@example.com>)
+< c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
+> 5972aa1 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 ```
 
 In terms of the [four commits](../concepts/sync-model/README.md), R and T each
@@ -64,12 +64,9 @@ have a commit the other lacks, and U(H) is where they part:
 
 </div>
 
-*p* is the pull, *f* the local fix; *s* is `pkg-a: a second commit, after the
-clone`, *u* the upstream fix, and *f'* the local fix as R has it.
-
 <!--
 ```scrut
-$ source "$TESTDIR/../../check-drawing/check-drawing" && check_drawing "$TESTDIR/diverged.drawio.svg" p=HEAD~1 f=HEAD s=refs/splices/pkg-a/heads/main~1 u=refs/splices/pkg-a/heads/main
+$ source "$TESTDIR/../../check-drawing/check-drawing" && check_drawing "$TESTDIR/diverged.drawio.svg" s=refs/splices/pkg-a/heads/main~1
 ok   diverged.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
 -->
@@ -79,8 +76,8 @@ ok   diverged.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```scrut
 $ git splice log --graph
 ===  vendor/pkg-a (main)
-< 2d02eb8 (R) pkg-a: a local fix  (Walkthrough <walkthrough@example.com>)
-| > 4527a78 (T) pkg-a: an upstream fix  (Walkthrough <walkthrough@example.com>)
+< c4dcfe0 (R) f: a local fix  (Walkthrough <walkthrough@example.com>)
+| > 5972aa1 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 |/  
 o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
 ```
@@ -118,7 +115,7 @@ pkg-a: a second commit, after the clone
 a local fix
 =======
 pkg-a: an upstream fix
->>>>>>> 6842613 (splice: pull vendor/pkg-a from main at 4527a78)
+>>>>>>> a3f4622 (splice: pull vendor/pkg-a from main at 5972aa1)
 ```
 
 ## Resolve and push
@@ -136,7 +133,7 @@ $ cat >vendor/pkg-a/file.txt <<'EOF'
 
 ```scrut
 $ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline -1
-d27a1cd splice: pull vendor/pkg-a from main at 4527a78
+f428907 splice: pull vendor/pkg-a from main at 5972aa1
 ```
 
 The resolved commit records T as the new U(H). Its folder is U(H) plus the
@@ -162,10 +159,10 @@ among them:
 ```scrut
 $ git splice log --graph
 ===  vendor/pkg-a (main)
-<   610288c (R) splice: pull vendor/pkg-a from main at 4527a78  (Walkthrough <walkthrough@example.com>)
+<   24f2ae6 (R) splice: pull vendor/pkg-a from main at 5972aa1  (Walkthrough <walkthrough@example.com>)
 |\  
-< | 2d02eb8 pkg-a: a local fix  (Walkthrough <walkthrough@example.com>)
-| o 4527a78 (T) pkg-a: an upstream fix  (Walkthrough <walkthrough@example.com>)
+< | c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
+| o 5972aa1 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 |/  
 o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
 ```
@@ -183,15 +180,15 @@ by a merge:
 
 ```scrut
 $ git splice push vendor/pkg-a
-ok   vendor/pkg-a: pushed 610288c to main
+ok   vendor/pkg-a: pushed 24f2ae6 to main
 ```
 
 ```scrut
 $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --graph --format=%s main
-*   splice: pull vendor/pkg-a from main at 4527a78
+*   splice: pull vendor/pkg-a from main at 5972aa1
 |\  
-| * pkg-a: an upstream fix
-* | pkg-a: a local fix
+| * u: an upstream fix
+* | f: a local fix
 |/  
 * pkg-a: a second commit, after the clone
 * pkg-a: seed
