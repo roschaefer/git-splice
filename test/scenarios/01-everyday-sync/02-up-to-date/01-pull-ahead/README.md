@@ -2,8 +2,14 @@
 
 Only upstream changed since the clone.
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, no local changes since.
-- **Upstream**: `seed`, then a commit, already fetched.
+- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), no local changes since.
+- **Upstream**: *k*, then *l* (`upstream change`), already fetched.
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k, R; the upstream moved on to l, T](behind.drawio.svg)
+
+</div>
 
 ## Output
 
@@ -18,6 +24,14 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_pull_ahead
 ```
+
+<!--
+```scrut
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/behind.drawio.svg" k="$k" a=HEAD l=splices/upstream/heads/main
+ok   behind.drawio.svg: 3 commits, 4 arrows, 3 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git splice status

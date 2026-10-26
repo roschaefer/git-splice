@@ -5,13 +5,10 @@
 Prints the splice boundary, B: the monorepo commit the
 [rebuild](rebuild.md) starts from. Like a boundary commit of
 `git log --boundary`, it starts the range of the folder's commits that
-the rebuild copies. Usually it's the last `pull`, the newest commit on the
-first-parent history that changed the splice's `.splice`. After a pull
-that merged commits that were never pushed, it's an earlier one, where
-the folder was the upstream commit `.splice` recorded
-([sync model](../concepts/sync-model/README.md#r-the-rebuild)). To tell,
-it compares the folder with that upstream commit, so the splice must
-have been fetched.
+the rebuild copies. Usually it's the last `pull`
+([where exactly](../concepts/sync-model/README.md#where-b-is)). To tell,
+it compares the folder with the upstream commit `.splice` recorded, so
+the splice must have been fetched.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}

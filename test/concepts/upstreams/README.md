@@ -15,8 +15,14 @@ A splice's `.splice` names its upstream like a Git remote:
 `[upstream "origin"]` with a `url`. It can name more than one, e.g. a
 company fork and the original; `default-upstream` then says which one
 commands use unless `--upstream` names another
-([several-upstreams](../../scenarios/04-upstreams/02-several-upstreams/README.md)). The
-synced commit U(H) stays one per splice: a sync point is a commit,
+([several-upstreams](../../scenarios/04-upstreams/02-several-upstreams/README.md)).
+`fetch` fetches all of them. A splice that lacks the named upstream
+stops the command before it starts
+([missing upstream names](../../scenarios/04-upstreams/02-several-upstreams/missing-upstream-names.md)),
+and each upstream records its own `default-branch`, e.g. for a fork
+whose default branch is named differently
+([fork-default-branch](../../scenarios/04-upstreams/02-several-upstreams/fork-default-branch.md)).
+The synced commit U(H) stays one per splice: a sync point is a commit,
 whichever upstream it came from.
 
 The monorepo knows an upstream by its URL. The first command that

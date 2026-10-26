@@ -43,27 +43,12 @@ the monorepo, commit there and push, as in [fetch](#fetch).
 namesakes do to a repository. `boundary`, `rebuild` and `key` are new:
 their names come from splicing.
 
-`merge`, `pull` and `push` change the monorepo or an upstream, so they
-name their splices, or take `--all`. `clone` and `init` start one splice
-each. `boundary` and `rebuild` look at one, and `key` prints or renames
-one's key. `status`, `diff` and `log` only look, and `fetch` only
-updates the fetched branches in `refs/splices/`; these four cover every
-splice unless you name some. `status`, `diff`, `log` and `merge` only use
-what was last fetched. Run
-`git splice <command> --help` for options.
-
-A splice can have several [upstreams](../concepts/upstreams/README.md),
-e.g. a company fork and the original it follows
-([several-upstreams](../scenarios/04-upstreams/02-several-upstreams/README.md)).
-`--upstream <name>` picks one for `fetch`, `merge`, `pull`, `push`,
-`status`, `diff`, `log` and `key`. Without it, commands use the splice's
-`default-upstream`, which `.splice` needs once it names several; `fetch`
-fetches all of them. A splice that lacks the named upstream stops the
-command before it starts
-([missing upstream names](../scenarios/04-upstreams/02-several-upstreams/missing-upstream-names.md)).
-Each upstream records its own `default-branch`, e.g. for a fork whose
-default branch is named differently
-([fork-default-branch](../scenarios/04-upstreams/02-several-upstreams/fork-default-branch.md)).
+`merge`, `pull` and `push` need paths or `--all`; `status`, `diff`,
+`log` and `fetch` cover every splice unless you name some
+([why](../../docs/design/README.md#how-the-commands-work)). `status`,
+`diff`, `log` and `merge` only use what was last fetched. With several
+[upstreams](../concepts/upstreams/README.md), `--upstream <name>` picks
+one. Run `git splice <command> --help` for options.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -225,10 +210,11 @@ pkg-a
 
 ## Next
 
-The [sync model](../concepts/sync-model/README.md) explains what these
-commands compute. The workflows combine them for everyday work:
-[feature branches](feature-branches.md),
-[diverged history](diverged.md),
+The workflows combine these commands for everyday work:
+[feature branches](feature-branches.md) and
+[diverged history](diverged.md). The
+[sync model](../concepts/sync-model/README.md) explains what they
+compute, and the advanced workflows build on it:
 [bumping the sync point](bump.md) and
 [contributing through a fork](fork.md). The [scenarios](../scenarios/README.md)
 show them in many more situations.

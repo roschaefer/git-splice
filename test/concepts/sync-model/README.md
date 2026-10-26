@@ -2,44 +2,8 @@
 
 A splice's folder has two histories: the monorepo's, where it's a
 folder, and its upstream's, where it's the whole repository. Commits
-don't cross between them, changes do. Every command works out what to
-cross from five commits:
-
-| | Commit | Lives in |
-|---|---|---|
-| B | The boundary, where the rebuild starts: on the monorepo's first-parent history, the newest commit that changed `.splice` and whose folder is the upstream commit it recorded. Usually the last pull. Where the splice starts, the mount (its first `.splice`, or a `git mv`), B is that commit whatever its folder, and the rebuild copies B too where its folder isn't U(B), e.g. after `init`, or a `git mv` with unpushed changes. For a nested splice, the last pull of the splice above can be B ([nesting](../nesting/README.md)). | the monorepo |
-| U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | the upstream |
-| U(B) | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | the upstream |
-| T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | the upstream |
-| R | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B), and merged with U(X) for each pull *X* since that merged unpushed commits. | computed |
-
-For a nested splice, R's history up to the last pull of the splice above
-comes from the upstream above, at its synced commit
-([nesting](../nesting/README.md)).
-
-A monorepo commit *X* whose `.splice` records an upstream commit has that
-as its sync point U(X): what
-`git config --blob X:lib/.splice splice.commit` prints. It only changes
-where a commit changes `.splice`, e.g. a pull, so the commits in between
-share one, as commits can share a tree. A pull *X* brought in
-U(X^)..U(X), the synced commits before and after it, unless a push came
-in between ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
-
-U(H) and T may be missing: right after `init`, there's no U(H) yet, and R
-starts as a root commit; before the first fetch, there's no T, and the
-splice is *never fetched*, or the upstream has *no such branch*.
-
-[Output](#output) shows the Git commands that find each of them.
-
-A pull could have been a merge, with U(H) as its second parent:
-[weak parents](../../../docs/going-forward/weak-parents.md) compares the two.
-
-## R, the rebuild
-
-The monorepo's commits that changed the folder are the splice's own
-changes, but they have the monorepo's layout and the monorepo's history.
-R copies each of them, since B, as an upstream commit: the folder's tree
-without `.splice`, the same author, dates and message, on top of U(B).
+don't cross between them, changes do. This is the
+[README](../../../README.md)'s drawing, with letters for its names:
 
 <div align="center">
 
@@ -48,11 +12,36 @@ without `.splice`, the same author, dates and message, on top of U(B).
 </div>
 
 Circles are commits, newest on top, and boxes point at them. The lane
-`lib/` holds the splice's upstream commits. *b* and *d* change
-`lib/`, so the rebuild copies them as *b'* and *d'*, on top of U(B); *c* doesn't,
-so it's left out. No upstream branch has the copies yet, so they're
-dashed
+`lib/` holds the splice's upstream commits. Dashed commits are on no
+upstream branch yet
 ([scenario](../../scenarios/01-everyday-sync/01-sync-model/README.md)).
+Every command works out what to cross from five commits:
+
+| | Commit | README | Lives in |
+|---|---|---|---|
+| B | The boundary, where the rebuild starts: usually the last pull ([where exactly](#where-b-is)). | *boundary* | the monorepo |
+| U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | | the upstream |
+| U(B) | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | | the upstream |
+| T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | *theirs* | the upstream |
+| R | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *ours* | computed |
+
+A monorepo commit *X* whose `.splice` records an upstream commit has that
+as its sync point U(X): what
+`git config --blob X:lib/.splice splice.commit` prints. It only changes
+where a commit changes `.splice`, e.g. a pull, so the commits in between
+share one, as commits can share a tree. A pull *X* brought in
+U(X^)..U(X), the synced commits before and after it, unless a push came
+in between ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
+[Output](#output) shows the Git commands that find each commit.
+
+## R, the rebuild
+
+The monorepo's commits that changed the folder are the splice's own
+changes, but they have the monorepo's layout and the monorepo's history.
+R copies each of them, since B, as an upstream commit: the folder's tree
+without `.splice`, the same author, dates and message, on top of U(B).
+Above, *b* and *d* change `lib/`, so the rebuild copies them as *b'* and
+*d'*; *c* doesn't, so it's left out.
 
 <div align="center">
 
@@ -100,25 +89,50 @@ with the commit it pulled as the second parent. R takes that commit from
 the pull's `.splice`, not from T: T may have moved on since, with a
 fetch, and the merge would then claim changes the pull never brought in.
 
+### Where B is
+
+B is the newest commit on the monorepo's first-parent history that
+changed `.splice` and whose folder is the upstream commit it recorded.
+So a pull that merged unpushed commits, like *e* above, isn't B. Two
+exceptions:
+
+- **Where the splice starts**, its *mount* (its first `.splice`, or a
+  `git mv`), B is that commit whatever its folder. The rebuild copies it
+  too where its folder isn't U(B), e.g. after `init`, or a `git mv` with
+  unpushed changes.
+- **For a nested splice**, B can be the last pull of the splice above,
+  and R's history up to there comes from the upstream above, at its
+  synced commit ([nesting](../nesting/README.md)).
+
+[`boundary`](../../walkthrough/boundary.md) prints B.
+
+### Never stored
+
 R is never stored. It's computed from `HEAD` each time, and the same
 `HEAD` always gives the same R. So a commit pushed once is rebuilt
 identically, and the next push is a fast-forward. And since R is
 computed, `.splice` needs no monorepo commit ids, which a rebase or a
 squash merge would invalidate
 ([design](../../../docs/design/README.md#splicing-out-push-and-the-rebuild)).
+A pull could have been a merge, with U(H) as its second parent:
+[weak parents](../../../docs/going-forward/weak-parents.md) compares the two.
 
 ## Three ways, both directions
 
 R and T are two histories of the same folder, as upstream commits. How
 they relate is the [sync state](../../walkthrough/status.md#sync-states):
 
-| R and T | State | What crosses |
-|---|---|---|
-| the same files, or the same commit | up to date | nothing |
-| T is an ancestor of R | push | `push` sends R, a fast-forward |
-| R is an ancestor of T | pull | `pull` merges T in |
-| neither, but with a common ancestor | diverged | `pull` merges T in, then `push` sends R |
-| no common ancestor | unrelated history | nothing: `pull` and `push` refuse, and print the commands to keep either side, or both |
+| R and T | `status` shows |
+|---|---|
+| the same files, or the same commit | `up to date` |
+| T is an ancestor of R | `ahead N` |
+| R is an ancestor of T | `behind N` |
+| neither, but with a common ancestor | `ahead N, behind M` |
+| no common ancestor | `!! unrelated history` |
+
+U(H) and T may be missing: right after `init`, there's no U(H) yet, and R
+starts as a root commit; before the first fetch, there's no T, and the
+splice is `never fetched`, or the upstream has no such branch.
 
 A pull is a **three-way merge**, in the monorepo's layout:
 

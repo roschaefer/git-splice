@@ -2,8 +2,14 @@
 
 A splice freshly cloned and never touched again on either side.
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, no local changes since.
-- **Upstream**: `seed`, unchanged.
+- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), no local changes since.
+- **Upstream**: *k*, unchanged.
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k; T and R both point at k](up-to-date.drawio.svg)
+
+</div>
 
 ## Output
 
@@ -18,6 +24,14 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_up_to_date
 ```
+
+<!--
+```scrut
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/up-to-date.drawio.svg" k="$k" a=HEAD
+ok   up-to-date.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
+```
+-->
 
 Nothing to do on either side:
 

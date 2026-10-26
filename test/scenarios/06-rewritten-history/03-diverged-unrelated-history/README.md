@@ -2,8 +2,14 @@
 
 Upstream was rebuilt from scratch: it shares no history with the splice.
 
-- **Monorepo (`vendor/a/`)**: cloned at `seed`, then a local commit.
-- **Upstream**: deleted and recreated with one unrelated commit, fetched.
+- **Monorepo (`vendor/a/`)**: *a* clones *k* (`seed`), then *b* (`local change`) changes the folder.
+- **Upstream**: deleted and recreated with one unrelated commit, *z*, fetched.
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k, then b changes the folder, rebuilt as b prime on top of k, R; the upstream now has only z, T, unrelated to k, which is dashed](unrelated-history.drawio.svg)
+
+</div>
 
 There's no common ancestor to merge from, so the tool doesn't guess.
 
@@ -20,6 +26,14 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_diverged_unrelated_history
 ```
+
+<!--
+```scrut
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/unrelated-history.drawio.svg" k="$k" a=HEAD~1 b=HEAD z=splices/upstream/heads/main
+ok   unrelated-history.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git splice status
