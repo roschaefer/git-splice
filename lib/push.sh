@@ -23,8 +23,7 @@ On the monorepo's default branch, a default-pin names a tag or a commit,
 which isn't pushed to: push refuses there.
 
 --force overwrites the upstream branch with the monorepo's side: when the
-two share no history, or to discard commits only upstream has, also
-when the upstream branch has the folder's files already.
+two share no history, or to discard commits only upstream has.
 
 --rebuilt-commit pushes <commit> instead of the rebuild, e.g. one whose
 history was edited after 'git splice rebuild <path>' printed it:
@@ -71,14 +70,9 @@ push_one() {
       return 1
       ;;
     up-to-date)
-      # The state compares files only: --force still replaces a history
-      # that differs, e.g. the old commits a pull merged in before a reset.
-      [[ -z "$force" ]] || SPLICE_REBUILT="$(splice_rebuild "$path")" || return 1
-      if [[ -z "$SPLICE_REBUILT" || "$SPLICE_REBUILT" == "$(git rev-parse "$SPLICE_TARGET_REF^{commit}")" ]]; then
-        log_ok "$path: nothing to push"
-        remind_pull "$path" "$option"
-        return 0
-      fi
+      log_ok "$path: nothing to push"
+      remind_pull "$path" "$option"
+      return 0
       ;;
     pull)
       if [[ -z "$force" ]]; then

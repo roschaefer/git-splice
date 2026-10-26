@@ -17,7 +17,8 @@ setup() {
     04-upstreams/03-shared-remote-url \
     04-upstreams/01-default-branch \
     01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
-    03-branches-and-teamwork/06-feature-branch-behind-default-branch; do
+    03-branches-and-teamwork/06-feature-branch-behind-default-branch \
+    06-rewritten-history/02-upstream-rewritten-equal-tree; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -96,29 +97,15 @@ setup() {
 !!   Failed: vendor/a" ]
 }
 
-@test "push: --force replaces an upstream branch that has the folder's files in another history, e.g. old commits a pull merged in before a reset" {
-  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
-  git -C "$monorepo" rebase -q main
+@test "push: --force has nothing to push when upstream rewrote its history to the folder's files, and doesn't undo the rewrite" {
+  scenario_upstream_rewritten_equal_tree "$monorepo" "$upstream"
   cd "$monorepo"
-  splice pull vendor/a >/dev/null
-  splice push vendor/a >/dev/null
-  git reset -q --keep HEAD~1
-  local rebuilt
-  rebuilt="$(rebuild_splice vendor/a)"
-  run cmd_push --force vendor/a
-  [ "$status" -eq 0 ]
-  [ "$output" = "ok   vendor/a: pushed ${rebuilt:0:7} to feature" ]
-  [ "$(git -C "$upstream" rev-parse feature)" = "$rebuilt" ]
-}
-
-@test "push: --force has nothing to push when the upstream branch is the rebuild" {
-  scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
-  git -C "$monorepo" rebase -q main
-  cd "$monorepo"
-  splice push --force vendor/a >/dev/null
+  local rewritten
+  rewritten="$(git -C "$upstream" rev-parse main)"
   run cmd_push --force vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: nothing to push" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$rewritten" ]
 }
 
 @test "push: nothing to push when upstream is ahead" {

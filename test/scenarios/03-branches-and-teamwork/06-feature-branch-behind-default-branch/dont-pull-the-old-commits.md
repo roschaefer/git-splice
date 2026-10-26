@@ -122,16 +122,33 @@ squash merge of the PR hides that; a rebase merge puts both copies on
 
 ## If it happened
 
-Before anyone else builds on the PR, drop the pull, and go on with
-[rebase via monorepo](rebase-via-monorepo.md): push the rebased branch with
-`--force`. `--keep` refuses if that would lose uncommitted changes:
+Before anyone else builds on the PR, drop the pull.
+`--keep` refuses if that would lose uncommitted changes:
 
 ```scrut
 $ git reset -q --keep HEAD~1
 ```
 
+The PR's merge *x'* now has exactly the folder's files, so to
+`git-splice` the splice is up to date, and even `push --force` has
+nothing to push:
+
 ```scrut
 $ git splice push --force vendor/a
+ok   vendor/a: nothing to push
+```
+
+It doesn't replace a history whose files are the same: that's how an
+upstream that rewrote its history, e.g. to remove a secret, stays
+rewritten. Name the commit to push instead, the rebuild *c'*, with
+`--rebuilt-commit`:
+
+```scrut
+$ r="$(git splice rebuild vendor/a)"
+```
+
+```scrut
+$ git splice push --force --rebuilt-commit "$r" vendor/a
 ok   vendor/a: pushed 8613e5d to feature
 ```
 
