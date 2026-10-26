@@ -6,7 +6,8 @@ isn't rebased:
 
 1. Upstream: rebase `feature` onto `main`, e.g. with "Update branch" on
    GitHub. Here, it's a rebase in a clone of the upstream.
-2. On `feature`: `git splice pull`.
+2. On `feature`: `git splice pull`, or
+   [`git splice pull --rebase`](#with---rebase) for a linear history.
 
 <div align="center">
 
@@ -83,3 +84,50 @@ On branch feature
 
 The same goes for "Update branch" with a merge: the pull brings the
 merge in, and records it as the synced commit.
+
+## With `--rebase`
+
+`pull --rebase` keeps the monorepo's `feature` linear: it takes *n* in
+on top of *a*, and drops *b*, whose change *n* has already. It rewrites
+the monorepo's `feature`, so it refuses when a remote-tracking branch
+has *b*, e.g. when the monorepo's own `feature` is pushed too. Here,
+drop the plain pull first:
+
+```scrut
+$ git reset -q --keep HEAD~1
+```
+
+```scrut
+$ git splice pull --rebase -m "y: pull the rebased PR" vendor/a
+ok   vendor/a fetched
+dropping 1f2e21664cfc9ac0b2d716f25237521692a29c2f b: feature change -- patch contents already upstream
+ok   vendor/a: pulled 97810bc, and rebased 1 commit onto it
+```
+
+```scrut
+$ git log --format=%s
+y: pull the rebased PR
+a: clone vendor/a
+initial commit
+```
+
+<div align="center">
+
+![The monorepo, a with two children, p on main and the pull y on feature, which is H; upstream, k, m on main, and n on top of m, which is T, R, U(H) and feature](pulled-the-rebased-pr-with-rebase.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/pulled-the-rebased-pr-with-rebase.drawio.svg" \
+>   p=main n=refs/splices/a/heads/feature
+ok   pulled-the-rebased-pr-with-rebase.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
+```
+-->
+
+```scrut
+$ git splice status
+On branch feature
+
+  up to date  vendor/a
+```
