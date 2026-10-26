@@ -1,0 +1,26 @@
+diff --git a/dist/cjs/types/svg.js b/dist/cjs/types/svg.js
+index 954eaa5bfdab098769d43a20972057a9c51b6eed..b6afdadd10d08b37298e379f04c60bb7f5ec68c8 100644
+--- a/dist/cjs/types/svg.js
++++ b/dist/cjs/types/svg.js
+@@ -72,7 +72,7 @@ function calculateByViewbox(attrs, viewbox) {
+     };
+ }
+ exports.SVG = {
+-    validate: (input) => svgReg.test((0, utils_1.toUTF8String)(input, 0, 1000)),
++    validate: (input) => svgReg.test((0, utils_1.toUTF8String)(input)),
+     calculate(input) {
+         const root = (0, utils_1.toUTF8String)(input).match(extractorRegExps.root);
+         if (root) {
+diff --git a/dist/esm/types/svg.js b/dist/esm/types/svg.js
+index f55a5777d51d02f2599f85dfa915a300b4f75c1c..052635ddfea8b222ae8b55a48069d1eae994084b 100644
+--- a/dist/esm/types/svg.js
++++ b/dist/esm/types/svg.js
+@@ -69,7 +69,7 @@ function calculateByViewbox(attrs, viewbox) {
+     };
+ }
+ export const SVG = {
+-    validate: (input) => svgReg.test(toUTF8String(input, 0, 1000)),
++    validate: (input) => svgReg.test(toUTF8String(input)),
+     calculate(input) {
+         const root = toUTF8String(input).match(extractorRegExps.root);
+         if (root) {

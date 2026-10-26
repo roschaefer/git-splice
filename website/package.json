@@ -37,6 +37,9 @@
   "pnpm": {
     "ignoredBuiltDependencies": [
       "core-js"
-    ]
+    ],
+    "patchedDependencies": {
+      "image-size@2.0.4": "patches/image-size@2.0.4.patch"
+    }
   }
 }
