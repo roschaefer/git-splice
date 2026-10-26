@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.0](https://github.com/roschaefer/git-splice/compare/v0.13.0...v0.14.0) (2026-10-26)
+
+
+### Features
+
+* **drawings:** check each picture is its diagram's export; serve it plain ([#259](https://github.com/roschaefer/git-splice/issues/259)) ([f4a23c1](https://github.com/roschaefer/git-splice/commit/f4a23c15a9af6816f6639534407d450f53cf39df)), closes [#171](https://github.com/roschaefer/git-splice/issues/171) [#258](https://github.com/roschaefer/git-splice/issues/258)
+
+
+### Bug Fixes
+
+* a synced commit that isn't here asks for a fetch, not to pick a side ([#257](https://github.com/roschaefer/git-splice/issues/257)) ([31db1e1](https://github.com/roschaefer/git-splice/commit/31db1e1d626ffb16c634732549a0aafb10c030c7)), closes [#67](https://github.com/roschaefer/git-splice/issues/67)
+* **deps:** update svgo to v4 ([#262](https://github.com/roschaefer/git-splice/issues/262)) ([d02c833](https://github.com/roschaefer/git-splice/commit/d02c833f9813a4f78bdfc2c9a6286bb9945f73a2))
+
 ## [0.13.0](https://github.com/roschaefer/git-splice/compare/v0.12.0...v0.13.0) (2026-10-26)
 
 
