@@ -12,8 +12,7 @@ don't cross between them, changes do. This is the
 </div>
 
 Circles are commits, newest on top, and boxes point at them. The lane
-`lib/` holds the splice's upstream commits. Dashed commits are on no
-upstream branch yet
+`lib/` holds the splice's upstream commits
 ([scenario](../../scenarios/01-everyday-sync/01-sync-model/README.md)).
 Every command works out what to cross from five commits:
 

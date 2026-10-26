@@ -100,8 +100,8 @@ $ git splice log vendor/a/b
 *c* (`vendor/a: add the company fork`) named the fork, and *p* pulled
 *q* (`a fork patch to b`) from it. The outer upstream and its fork share
 *k* and *l*, so the drawing shows them on each side of the dashed line.
-Only the fork has *q*. In `vendor/a/b/`, the patch is *q'*, dashed: the
-inner upstream lacks it, and the next push of `vendor/a/b/` sends it.
+Only the fork has *q*. In `vendor/a/b/`, the patch is *q'*: the inner
+upstream lacks it, and the next push of `vendor/a/b/` sends it.
 
 <div align="center">
 

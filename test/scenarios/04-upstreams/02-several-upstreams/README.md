@@ -198,14 +198,14 @@ On branch main
 ### Both upstreams afterwards
 
 The monorepo has *x*, which pulled the fork's patch *f*, and *y*, which
-joined the original's release *r* with it. The push sent *j*, the
+joined the original's release *r* with it. The push sent *y'*, the
 rebuild of *y*, to the fork. Both upstreams have *k* and *r*, so the
 drawing shows them on each side of the dashed line. Only the fork has
-*f* and *j*:
+*f* and *y'*:
 
 <div align="center">
 
-![The monorepo's a, c, x and y, H at y and B at x; the lane vendor/a/ split in two: origin with r on top of k, its main and U(H); fork with r and f on top of k, and j joining them, which is T and R; U(B) is f](several-upstreams.drawio.svg)
+![The monorepo's a, c, x and y, H at y and B at x; the lane vendor/a/ split in two: origin with r on top of k, its main and U(H); fork with r and f on top of k, and y prime joining them, which is T and R; U(B) is f](several-upstreams.drawio.svg)
 
 </div>
 
@@ -213,8 +213,7 @@ drawing shows them on each side of the dashed line. Only the fork has
 ```scrut
 $ check_drawing "$TESTDIR/several-upstreams.drawio.svg" \
 >   a=HEAD~3 c=HEAD~2 x=HEAD~1 y=HEAD k=refs/splices/lib/heads/main~1 \
->   r=refs/splices/lib/heads/main f=refs/splices/company-lib/heads/main^1 \
->   j=refs/splices/company-lib/heads/main
+>   r=refs/splices/lib/heads/main f=refs/splices/company-lib/heads/main^1
 ok   several-upstreams.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes, 2 upstreams
 ```
 -->

@@ -8,7 +8,8 @@ with your app: the monorepo doesn't see the library's files, the fix
 takes two pushes in the right order, worktrees barely support
 submodules, and moving the library's folder leaves colleagues with its
 old checkout. Each ends with the same in `git-splice`, and the
-page with where submodules are better.
+page with where submodules are better. First, though, where a submodule
+keeps its state, because most of the problems start there.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
 and a monorepo with an app. [How these pages run](README.md).
@@ -23,6 +24,87 @@ $ source "$TESTDIR/scrut-setup.sh"
 $ git submodule add -q https://git.example.com/lib.git vendor/lib &&
 >   git commit -q -m "add lib as a submodule"
 ```
+
+## Where a submodule keeps its state
+
+`git submodule add` and the commit after it wrote to six places:
+
+<div align="center">
+
+![The monorepo's folders and files where a submodule keeps its state, from top to bottom: 1 .gitmodules, 2 the file vendor/lib/.git, which points to 6, 3 the commit in .git/objects, 4 the index, 5 .git/config, 6 the library's repository in .git/modules/vendor/lib, which points back to 2](git-submodule-state.drawio.svg)
+
+</div>
+
+<!-- Each path the drawing shows exists:
+```scrut
+$ ls -d .gitmodules vendor/lib/.git .git/objects .git/index .git/config .git/modules/vendor/lib
+.git/config
+.git/index
+.git/modules/vendor/lib
+.git/objects
+.gitmodules
+vendor/lib/.git
+```
+-->
+
+The commit records the library's commit as a gitlink, an entry of mode
+`160000` in the tree:
+
+```scrut
+$ git ls-tree HEAD vendor/lib
+160000 commit bafd496b1f4512a95b69464604f3da428aa9e33b	vendor/lib
+```
+
+`.gitmodules`, committed too, maps the submodule's name to its path and
+URL:
+
+```scrut
+$ cat .gitmodules
+[submodule "vendor/lib"]
+	path = vendor/lib
+	url = https://git.example.com/lib.git
+```
+
+The index has the same entry as the commit. Git ignores its file stats: to see whether
+the submodule changed, it compares the submodule's `HEAD` with this
+commit:
+
+```scrut
+$ git ls-files --stage vendor/lib
+160000 bafd496b1f4512a95b69464604f3da428aa9e33b 0	vendor/lib
+```
+
+`git submodule add` (in a clone, `git submodule init`) copied the URL
+into the monorepo's `.git/config`, and marked the submodule active. A
+clone of the submodule uses this copy, not `.gitmodules`:
+
+```scrut
+$ git config --get-regexp '^submodule\.'
+submodule.vendor/lib.url https://git.example.com/lib.git
+submodule.vendor/lib.active true
+```
+
+The library's folder has no repository, only a file that points to one:
+
+```scrut
+$ cat vendor/lib/.git
+gitdir: ../../.git/modules/vendor/lib
+```
+
+The repository lives under the monorepo's `.git/modules/`. Its config
+points back at the folder, and has a third copy of the URL, which its
+fetches use. `git submodule sync` copies `.gitmodules` over the other two:
+
+```scrut
+$ git -C vendor/lib config --get-regexp 'core.worktree|remote.origin.url'
+core.worktree ../../../../vendor/lib
+remote.origin.url https://git.example.com/lib.git
+```
+
+So the submodule's state is in the commit, a committed file, the index,
+the monorepo's config, a file in the worktree and a repository of its own.
+Each worktree adds its own index, pointer file and repository, see
+[problem 3](#problem-3-worktrees-barely-support-submodules).
 
 ## Problem 1: the monorepo doesn't see the library's files
 
