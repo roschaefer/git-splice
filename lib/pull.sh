@@ -3,6 +3,7 @@
 usage_pull() {
   cat <<'EOF'
 usage: git splice pull [--upstream <name>] [--branch <name>] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+   or: git splice pull [<option>...] -m <message> <path>
 
 'git splice fetch' followed by 'git splice merge': fetches the splices'
 upstreams in parallel, then splices their changes in, as one ordinary
@@ -30,6 +31,9 @@ nothing to pull, e.g. right after a push; see 'git splice merge --help'.
 --no-fork-point merges a rewritten upstream branch from Git's merge base,
 not from where the branch was before the rewrite; see 'git splice merge
 --help'.
+
+-m gives the commit this message, for one splice; see 'git splice merge
+--help'.
 EOF
 }
 
@@ -44,7 +48,8 @@ below_selected() {
 }
 
 cmd_pull() {
-  parse_args usage_pull "--upstream --branch --bump --rebase --no-fork-point" "$@"
+  parse_args usage_pull "--upstream --branch --bump --rebase --no-fork-point -m" "$@"
+  require_one_splice_for_message
   REBUILD_JOINS_REWRITTEN=1
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1

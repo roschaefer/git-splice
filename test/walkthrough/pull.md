@@ -43,6 +43,27 @@ d2867e9 lib-c: first version
 ebe3b2b initial commit
 ```
 
+`-m` gives the commit your message instead, e.g. to say why you pull. It
+takes one splice: each gets a commit of its own. `.splice` records the
+upstream commit, so nothing needs to stay in the message:
+
+```scrut
+$ echo "pkg-b: fix the feature" >>../pkg-b/file.txt &&
+>   git -C ../pkg-b commit -qam "pkg-b: fix the feature" &&
+>   git -C ../pkg-b push -q
+```
+
+```scrut
+$ git splice pull -m "take pkg-b's fix for the release" vendor/pkg-b
+ok   vendor/pkg-b fetched (main moved b937c4f..e81697a)
+ok   vendor/pkg-b: pulled e81697a
+```
+
+```scrut
+$ git log -1 --format=%s
+take pkg-b's fix for the release
+```
+
 ## More
 
 - When both sides changed the same lines, the pull stops at a conflict;

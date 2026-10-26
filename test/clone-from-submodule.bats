@@ -41,6 +41,13 @@ add_submodule() {
   [ "$SPLICE_STATE" = up-to-date ]
 }
 
+@test "clone --from-submodule -m: the commit gets the message" {
+  add_submodule
+  run cmd_clone --from-submodule -m "a: vendor/a as a splice" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "a: vendor/a as a splice" ]
+}
+
 @test "clone --from-submodule: removes .gitmodules once empty, and the submodule's config" {
   add_submodule
   cmd_clone --from-submodule vendor/a
@@ -282,6 +289,14 @@ add_nested_submodule_with_branch() {
   run cmd_clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: the submodule has a submodule of its own, libs/inner -- turn it into a splice in its upstream first, or add --recursive to convert it here too"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+}
+
+@test "clone --from-submodule --recursive: refuses -m, which names one commit" {
+  add_nested_submodule
+  run cmd_clone --from-submodule --recursive -m "a: both" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"-m names one commit, and --recursive makes one per submodule"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
 }
 

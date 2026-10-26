@@ -580,6 +580,62 @@ add vendor/a" ]
   [[ "$output" == *"not fetched yet"* ]]
 }
 
+@test "merge -m: the commit gets the message instead of the default one, and .splice still records the synced commit" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_merge -m "b: take the faster parser" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%B)" = "b: take the faster parser" ]
+  [ "$(splice_config vendor/a commit)" = "$(git rev-parse "$(upstream_refs "$upstream")main")" ]
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = up-to-date ]
+}
+
+@test "merge -m: refuses several splices and --all, before merging any: each gets a commit of its own" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  add_splice "$monorepo" "$upstream" vendor/b
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_merge -m "take both" vendor/a vendor/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"-m names one splice's commit -- name one path, not several or --all"* ]]
+  run cmd_merge -m "take all" --all
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"-m names one splice's commit"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "merge -m: on a conflict, git commit keeps the message" {
+  scenario_diverged_common_ancestor "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_merge -m "c: merge upstream's change" vendor/a
+  [ "$status" -eq 1 ]
+  printf 'seed\nboth\n' >vendor/a/file.txt
+  git add vendor/a/file.txt
+  git commit -q --no-edit
+  [ "$(git log -1 --format=%s)" = "c: merge upstream's change" ]
+}
+
+@test "merge --rebase -m: the commit the rebased ones go on top of gets the message" {
+  scenario_unpushed_local_commit "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_merge --rebase -m "d: take the rebased patches" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log --format=%s -3)" = "local change
+d: take the rebased patches
+add vendor/a" ]
+}
+
+@test "merge --bump -m: the bump gets the message" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_merge --bump -m "e: bump vendor/a" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "e: bump vendor/a" ]
+  [ "$(git diff --name-only HEAD^ HEAD)" = "vendor/a/.splice" ]
+}
+
 @test "merge: needs paths or --all" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
@@ -606,6 +662,26 @@ add vendor/a" ]
   [[ "$output" == *"vendor/a fetched (main moved"* ]]
   [[ "$output" == *"vendor/a: pulled"* ]]
   [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from main at $(git rev-parse --short=7 "$(upstream_refs "$upstream")main")" ]
+}
+
+@test "pull -m: the commit gets the message, and several splices are refused before any fetch" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  run cmd_pull -m "f: pull the change" --all
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"fetched"* ]]
+  run cmd_pull -m "f: pull the change" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "f: pull the change" ]
+}
+
+@test "push: takes no -m, it writes no commit to the monorepo" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push -m "g: publish" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown option: -m"* ]]
 }
 
 @test "pull --bump: fetches, then bumps" {

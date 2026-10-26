@@ -3,6 +3,7 @@
 usage_merge() {
   cat <<'EOF'
 usage: git splice merge [--upstream <name>] [--branch <name>] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+   or: git splice merge [<option>...] -m <message> <path>
 
 Splices already-fetched upstream changes into each splice, as one ordinary
 commit per splice. Never touches the network: run 'git splice fetch'
@@ -52,6 +53,12 @@ a merge, whose own changes a rebase would drop. rebase.autoStash and
 rebase.updateRefs don't apply: it neither stashes nor moves other
 branches. On a conflict, resolve it and run 'git rebase --continue' (or
 'git rebase --abort' to give up).
+
+-m gives the commit this message instead of the default one, which
+names the upstream branch and commit; with --rebase, the commit the
+rebased ones go on top of. It takes one splice: each gets a commit of
+its own. Nothing reads the message back: .splice records the synced
+commit. On a conflict, 'git commit' keeps the message.
 EOF
 }
 
@@ -145,7 +152,7 @@ merge_one() {
   new_blob="$(state_blob "$path" "commit=$target")"
 
   if ! splice_in "$path" "$base_folder" "$base_blob" "$target^{tree}" "$new_blob" \
-    "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
+    "$(commit_message "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}")"; then
     log_err "$path: $verb failed"
     return 1
   fi
@@ -208,7 +215,7 @@ rebase_onto_pull() {
   local blob tree message pull
   blob="$(rebase_state_blob "$path" "$base" "$target")" || return 1
   tree="$(reroot_tree "$path" "$target^{tree}" "$blob" "$base")" || return 1
-  message="splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"
+  message="$(commit_message "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}")"
   pull="$(git commit-tree "$tree" -p "$base" -m "$message")" || return 1
   count="$(git rev-list --count "$base..HEAD")"
   if ! git -c advice.mergeConflict=false rebase -q --no-update-refs --no-autostash --onto "$pull" "$base"; then
@@ -283,7 +290,7 @@ record_equal_tree() {
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
   new_blob="$(state_blob "$path" "commit=$target")"
   if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
-    "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
+    "$(commit_message "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}")"; then
     log_err "$path: $verb failed"
     return 1
   fi
@@ -346,7 +353,7 @@ bump_synced() {
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
   new_blob="$(state_blob "$path" "commit=$target")"
   if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
-    "splice: bump $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}"; then
+    "$(commit_message "splice: bump $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}")"; then
     log_err "$path: bump failed"
     return 1
   fi
@@ -485,7 +492,8 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "--upstream --branch --bump --rebase --no-fork-point" "$@"
+  parse_args usage_merge "--upstream --branch --bump --rebase --no-fork-point -m" "$@"
+  require_one_splice_for_message
   REBUILD_JOINS_REWRITTEN=1
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1

@@ -19,7 +19,7 @@ end
 
 # True while the word being completed is positional argument number $argv[2]
 # (counting from 0) of command $argv[1], options and the value after
-# --upstream or --branch not counted.
+# --upstream, --branch or -m not counted.
 function __git_splice_positional
     set -l seen 0
     set -l count 0
@@ -34,7 +34,7 @@ function __git_splice_positional
             continue
         end
         switch $token
-            case --upstream --branch
+            case --upstream --branch -m --message
                 set skip 1
             case '-*'
             case '*'
@@ -72,6 +72,7 @@ complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l bump -d 'm
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l no-fork-point -d 'merge a rewritten upstream branch from the merge base'
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l rebase -d 'rebase onto the upstream branch instead of merging'
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l branch -x -d 'upstream branch, for this command only'
+complete -c git-splice -n "__fish_seen_subcommand_from clone init merge pull" -s m -l message -x -d 'commit message, instead of the default one'
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l rebuilt-commit -x -a $branches -d 'push this commit instead of the rebuild'
 complete -c git-splice -n "__fish_seen_subcommand_from log" -l graph -d 'draw both sides as a graph'
 complete -c git-splice -n "__fish_seen_subcommand_from clone" -l merge -d 'merge with an existing folder'

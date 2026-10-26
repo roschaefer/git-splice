@@ -139,6 +139,29 @@ setup() {
   [ "${PATH_ARGS[*]}" = "--odd-path" ]
 }
 
+@test "parse_args: -m takes its message in each of git's forms, and several join as paragraphs, as in git commit" {
+  usage() { echo usage; }
+  parse_args usage "-m" -m one -mtwo --message three --message=four vendor/a
+  [ "$MESSAGE_ARG" = "one
+
+two
+
+three
+
+four" ]
+  [ "${PATH_ARGS[*]}" = vendor/a ]
+}
+
+@test "parse_args: -m needs a message, and only commands that commit take it" {
+  usage() { echo usage; }
+  run parse_args usage "-m" -m ""
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"-m needs a message"* ]]
+  run parse_args usage "--force" --message=x vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown option: --message"* ]]
+}
+
 @test "state_blob sets and unsets keys of the committed .splice" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
