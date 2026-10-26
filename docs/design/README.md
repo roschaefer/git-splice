@@ -63,7 +63,7 @@ the folder and leave the sync point where it is
 | **splice out** | Publish the monorepo's changes upstream: `push`. |
 | **sync state** | How R and T relate: `up to date`, `push`, `pull`, `diverged` and so on. |
 | **default branch** | A repository's main branch (`HEAD` on the remote). The monorepo's default branch corresponds to upstream's. |
-| **nested splice** | A splice below another one's folder. Commands that change things go top-down (`merge`, `pull`: the splice above first) or bottom-up (`push`: the splice below first). |
+| **nested splice** | A splice below another one's folder ([nesting](../../test/concepts/nesting/README.md)). |
 
 "Default branch" belongs to a repository and is stored in `.splice` when
 needed. It isn't called "fallback", which would describe only one of its
@@ -171,7 +171,6 @@ folder:
   had another upstream doesn't see that one's refs.
 - Splices with equal URLs share refs, which is fine, since refs only
   describe the upstream. `fetch` fetches each upstream once.
-
 - No Git remote exists, so nothing can push the monorepo there by mistake.
   [Why that matters](accidental-monorepo-push.md).
 - `url.<base>.insteadOf` and `pushInsteadOf` still apply, since they work
@@ -186,14 +185,12 @@ folder:
 
 Two rules follow from the layout:
 
-- **A splice nested in another is a splice on both sides.** Each push
-  sends its folder without its own `.splice`, so the push of the splice
-  above sends the `.splice` of the one below along with its files. In the
-  upstream of the splice above, the folder below is then a splice too, which `git-splice` can
-  pull and push there. The `.splice` holds nothing specific to the
-  monorepo, and fetched refs are keyed by URL, so both repositories find
-  the same synced commit under the same refs. An upstream with a `.splice`
-  at its root is refused: it would replace the splice's own.
+- **Both sides of a [nested splice](../../test/concepts/nesting/README.md)
+  find the same state.** The `.splice` holds nothing specific to the
+  monorepo, and fetched refs are keyed by URL, so the monorepo and the
+  upstream above find the same synced commit under the same refs. An
+  upstream with a `.splice` at its root is refused: it would replace the
+  splice's own.
 - **A splice's path must work in a ref name** (`git check-ref-format`),
   which applies to the whole path: no spaces, no component ending in
   `.lock`, and so on.
@@ -311,31 +308,15 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
    `git log --first-parent -1 -- <path>/.splice`. Every `clone`, `init`
    and pull writes such a commit, and no rebase or squash merge can remove
    all of them. U(L) is the synced commit recorded at *L*.
-2. **Start at U(L).** If *L*'s folder (without `.splice`) equals U(L)'s tree, the
-   rebuild continues from U(L), and *L* is the boundary B. If it differs, a
-   pull merged a divergence, or a squash merge mixed local edits into the
-   commit that changed `.splice`. Then *L* is rebuilt as a commit with *L*'s
-   folder, on the parents the
+2. **Start at U(L).** If *L*'s folder (without `.splice`) equals U(L)'s
+   tree, *L* is B, and the rebuild continues from U(L). Otherwise a pull
+   merged a divergence, or a squash merge mixed local edits into *L*, and
+   *L* is rebuilt too, on the parents the
    [sync model](../../test/concepts/sync-model/README.md#pulls-in-between)
-   picks: after a divergence, the rebuild of *L*'s first parent
-   (recursively) and U(L), as `git pull` would have merged them. Here *L*
-   is the pull *e*, rebuilt as *e'*
-   ([scenario](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)):
-
-   <div align="center">
-
-   ![The monorepo commits a, b and the pull e, with B at a; upstream k and l, T; the rebuild b prime on top of k, and e prime, R, a merge of b prime and l](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg)
-
-   </div>
-
-   The recursion stops at B, the first last sync, going back, whose
-   folder is its synced commit
-   ([sync model](../../test/concepts/sync-model/README.md#where-b-is)), so
-   it only costs something after pulls of divergences.
-   If *L* is the splice's mount, its first parent isn't rebuilt at all, and
-   *L* goes on top of U(L) (see below). Without U(L), e.g. after `init`, the
-   rebuild starts at the mount instead, as a root commit, and the mount
-   is B.
+   picks, back to [B](../../test/concepts/sync-model/README.md#where-b-is)
+   ([scenario](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)).
+   Without U(L), e.g. after `init`, the rebuild starts at the mount, as a
+   root commit.
 3. **Copy each commit.** For each commit in
    `git rev-list --reverse --first-parent L..HEAD -- <path>` whose folder
    changed, `git commit-tree` with the folder's tree minus `.splice`.
@@ -343,10 +324,6 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
    `git subtree split`'s `copy_commit` does. The message is read with
    `--pretty=format:%B`, not `--format=`, which would add a newline.
    Commits are never signed: a signature would differ from run to run.
-
-**Deterministic:** commits pushed earlier are rebuilt identically, so the
-next push fast-forwards, and `status` can compare R with T without
-remembering anything.
 
 **First parent only:** a merge in the monorepo, e.g. `git merge main` on a
 feature branch, becomes **one ordinary commit** upstream, with the merge's
@@ -369,14 +346,9 @@ A new upstream URL keeps the history: the `id` stays
 ([example](../../test/scenarios/04-upstreams/04-upstream-moved/README.md)).
 
 **A nested splice's history up to the splice above's last sync** comes
-from that splice's upstream. A clone or pull of the splice above squashes
-the upstream's history into one commit, so the monorepo's own history
-can't tell which of the folder's changes the splice below already
-pushed, or who made them. The upstream's history can, and the monorepo
-has it: the synced commit of the splice above, fetched. So the rebuild of
-the splice below first rebuilds it in that upstream, at that synced
-commit, and continues from there with the monorepo's commits
-([example](../../test/scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
+from that splice's upstream, at its synced commit
+([nesting](../../test/concepts/nesting/README.md),
+[example](../../test/scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
 Of the splices above, it takes the one with the newest last sync, and on
 a tie the outermost: a push writes nothing to the monorepo, so the
 `.splice` of the splice in between may name a commit from before the
