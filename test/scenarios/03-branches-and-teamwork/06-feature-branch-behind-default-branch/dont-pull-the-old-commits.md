@@ -31,19 +31,19 @@ The rebase copies *b* onto *p* as *c*:
 $ git rebase -q main
 ```
 
-Every commit only upstream has, *f*, is a copy of one `feature` has
-now, so `push` suggests `--force`, not the usual `pull`:
+`push` refuses: upstream has a commit this branch lacks, *f*. Out of
+habit, you'd bring it in with a pull before pushing again:
 
 ```scrut
 $ git splice push vendor/a
-!!   vendor/a: upstream's 'feature' has only copies of commits this branch has, e.g. from before a 'git rebase' here -- run 'git splice push --force vendor/a' to replace them: a pull would keep both
+!!   vendor/a: upstream has commits this branch lacks
 !!   Failed: vendor/a
 [1]
 ```
 
 `pull --rebase` would take *f* in as it is and drop *m*: *f* lacks it,
-since `main` brought it in, not `feature`. It refuses, and prints the
-two strategies:
+and never had it, since `main` brought it in, not `feature`. It
+refuses, and prints the two rebase strategies:
 
 ```scrut
 $ git splice pull --rebase vendor/a
@@ -116,7 +116,7 @@ squash merge of the PR hides that; a rebase merge puts both copies on
 ## If it happened
 
 Before anyone else builds on the PR, drop the pull, and go on with
-[strategy 1](monorepo-first.md): push the rebased branch with
+[rebase via monorepo](rebase-via-monorepo.md): push the rebased branch with
 `--force`. `--keep` refuses if that would lose uncommitted changes:
 
 ```scrut
@@ -128,7 +128,7 @@ $ git splice push --force vendor/a
 ok   vendor/a: pushed 8613e5d to feature
 ```
 
-The PR ends up as strategy 1 leaves it: *m*, then the feature change
+The PR ends up as rebase via monorepo leaves it: *m*, then the feature change
 on top. The old copy *f* and the merge *x'* are on no branch any more:
 
 ```scrut

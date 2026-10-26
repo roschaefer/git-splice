@@ -1,4 +1,4 @@
-# Strategy 1: rebase in the monorepo first
+# Rebase via monorepo
 
 In the [same state](README.md), `feature` is rebased onto `main` in the
 monorepo, and the result replaces the PR:
@@ -9,7 +9,7 @@ monorepo, and the result replaces the PR:
 
 <div align="center">
 
-![Strategy 1, the monorepo first, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../../../docs/images/rebase-monorepo-first.drawio.svg)
+![Rebase via monorepo, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../../../docs/images/rebase-via-monorepo.drawio.svg)
 
 </div>
 
@@ -70,12 +70,12 @@ On branch feature
   ahead 2, behind 1  vendor/a
 ```
 
-Every commit only upstream has is a copy of one `feature` has, so
-`push` suggests `--force`:
+A plain `push` refuses: upstream has a commit this branch lacks. That
+it's *f*, an old copy of *b*, is for you to know:
 
 ```scrut
 $ git splice push vendor/a
-!!   vendor/a: upstream's 'feature' has only copies of commits this branch has, e.g. from before a 'git rebase' here -- run 'git splice push --force vendor/a' to replace them: a pull would keep both
+!!   vendor/a: upstream has commits this branch lacks
 !!   Failed: vendor/a
 [1]
 ```

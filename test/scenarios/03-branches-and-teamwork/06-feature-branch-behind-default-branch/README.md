@@ -17,6 +17,8 @@ branch". To bring it up to date, `feature` is rebased onto `main`.
 
 </div>
 
+## The rebase strategies
+
 Four branches take part, two in each repository: `main` and `feature`
 in the monorepo, *p* and *b*, and `main` and `feature` upstream, *m*
 and *f*. `git-splice` syncs the monorepo's folder with the upstream
@@ -27,18 +29,23 @@ this order:
 
 <div align="center">
 
-![Two strategies, each with the monorepo main and feature on the left and the upstream main and feature on the right. The monorepo first: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature. The upstream first: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../../../../docs/images/rebase-feature-branch.drawio.svg)
+![The two rebase strategies, each with the monorepo main and feature on the left and the upstream main and feature on the right. Rebase via upstream: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature. Rebase via monorepo: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../../../docs/images/rebase-strategies.drawio.svg)
 
 </div>
 
-- **[What you don't want](dont-pull-the-old-commits.md)**: a rebase in
-  the monorepo, then a pull of the PR that was never rebased. The next
-  push sends the old commits back to the PR.
-- **[Strategy 1, the monorepo first](monorepo-first.md)**: `git rebase
-  main` on `feature`, then `git splice push --force`.
-- **[Strategy 2, the upstream first](upstream-first.md)**: rebase
-  `feature` onto `main` upstream, e.g. with "Update branch" on GitHub,
-  then `git splice pull` on `feature`.
+1. **[Rebase via upstream](rebase-via-upstream.md)**: click "Update
+   branch" on GitHub, or rebase `feature` onto `main` in a clone of the
+   upstream, then `git splice pull` on `feature`. The simple default.
+2. **[Rebase via monorepo](rebase-via-monorepo.md)**: `git rebase main`
+   on `feature`, then `git splice push --force`. For when GitHub can't
+   rebase, e.g. on a conflict, which you then resolve with the whole
+   monorepo to build and test against. It rewrites the monorepo's
+   `feature` and overwrites the PR, so it's for branches nobody else
+   pushes to.
+
+**[What you don't want](dont-pull-the-old-commits.md)**: mixing the
+two. A rebase in the monorepo, then a pull of the PR that was never
+rebased, sends the old commits back to the PR.
 
 ## Output
 

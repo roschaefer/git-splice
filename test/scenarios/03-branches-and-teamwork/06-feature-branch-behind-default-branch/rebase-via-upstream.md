@@ -1,4 +1,4 @@
-# Strategy 2: rebase upstream first
+# Rebase via upstream
 
 In the [same state](README.md), `feature` is rebased onto `main`
 upstream, and the monorepo pulls the result. The monorepo's `feature`
@@ -10,7 +10,7 @@ isn't rebased:
 
 <div align="center">
 
-![Strategy 2, the upstream first, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../../../../docs/images/rebase-upstream-first.drawio.svg)
+![Rebase via upstream, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../../../../docs/images/rebase-via-upstream.drawio.svg)
 
 </div>
 
