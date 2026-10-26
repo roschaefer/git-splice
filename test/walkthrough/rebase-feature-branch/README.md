@@ -1,4 +1,4 @@
-# Scenario: feature-branch-behind-default-branch
+# Rebasing a feature branch
 
 A feature branch was pushed, so upstream has it as a PR. Then upstream's
 `main` moved on, and the monorepo's `main` pulled that in. The PR is now
@@ -22,7 +22,7 @@ carry the result across with `git-splice`, in this order:
 
 <div align="center">
 
-![The two rebase strategies, each with the monorepo main and feature on the left and the upstream main and feature on the right. Rebase via upstream: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature. Rebase via monorepo: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../../../docs/images/rebase-strategies.drawio.svg)
+![The two rebase strategies, each with the monorepo main and feature on the left and the upstream main and feature on the right. Rebase via upstream: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature. Rebase via monorepo: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../../docs/images/rebase-strategies.drawio.svg)
 
 </div>
 
@@ -44,7 +44,7 @@ rebased, sends the old commits back to the PR.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh"
+$ source "$TESTDIR/../../scenarios/readme-setup.sh"
 ```
 -->
 

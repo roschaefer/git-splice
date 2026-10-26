@@ -17,10 +17,10 @@ setup() {
     04-upstreams/03-shared-remote-url \
     04-upstreams/01-default-branch \
     01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
-    03-branches-and-teamwork/06-feature-branch-behind-default-branch \
     06-rewritten-history/02-upstream-rewritten-equal-tree; do
     load "scenarios/$scenario/setup"
   done
+  load 'walkthrough/rebase-feature-branch/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

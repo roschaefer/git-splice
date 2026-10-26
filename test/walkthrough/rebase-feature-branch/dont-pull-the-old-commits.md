@@ -9,7 +9,7 @@ the rebased ones.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh"
+$ source "$TESTDIR/../../scenarios/readme-setup.sh"
 ```
 -->
 

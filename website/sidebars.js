@@ -36,7 +36,15 @@ module.exports = {
     {
       type: 'category',
       label: 'Advanced workflows',
-      items: ['bump', 'fork'].map((workflow) => `test/walkthrough/${workflow}`),
+      items: [
+        ...['bump', 'fork'].map((workflow) => `test/walkthrough/${workflow}`),
+        {
+          type: 'category',
+          label: 'Rebasing a feature branch',
+          link: {type: 'doc', id: 'test/walkthrough/rebase-feature-branch/README'},
+          items: ['rebase-via-upstream', 'rebase-via-monorepo', 'dont-pull-the-old-commits'].map((page) => `test/walkthrough/rebase-feature-branch/${page}`),
+        },
+      ],
     },
     {
       type: 'category',
