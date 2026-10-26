@@ -95,6 +95,12 @@ complete_words() {
   mkdir -p libs
   run complete_words git-splice clone --message msg https://example.com/x.git li
   [ "$output" = "libs" ]
+  run complete_words git-splice init --message = msg vend
+  [ "$output" = "vendor" ]
+  run complete_words git-splice pull --message = ven
+  [ -z "$output" ]
+  run complete_words git-splice pull --upstream = ven
+  [ -z "$output" ]
 }
 
 @test "completion: nothing to offer for the branch after --branch" {
@@ -353,6 +359,8 @@ fish_complete() {
   [[ "$output" == *"--message"* ]]
   run zsh_complete "git-splice init -m msg vend"
   [[ "$output" == *"vendor/"* ]]
+  run zsh_complete "git-splice pull -m one --mes"
+  [[ "$output" == *"--message"* ]]
 }
 
 @test "fish completion: commands" {

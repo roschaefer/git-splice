@@ -56,13 +56,16 @@ __git_splice_completing_value() {
 }
 
 # Counts the positional arguments before the word being completed, skipping
-# options and the message after -m. $1 is the index of the subcommand in
-# COMP_WORDS.
+# options and the message after -m, also after the "=" bash splits
+# --message=<message> at. $1 is the index of the subcommand in COMP_WORDS.
 __git_splice_positionals() {
   local i count=0
   for ((i = $1 + 1; i < COMP_CWORD; i++)); do
     case "${COMP_WORDS[i]}" in
-      -m | --message) ((i++)) ;;
+      -m | --message)
+        ((i++))
+        [[ "${COMP_WORDS[i]:-}" != = ]] || ((i++))
+        ;;
       -*) ;;
       *) ((count++)) ;;
     esac
@@ -98,9 +101,10 @@ _git_splice() {
   cmd="${COMP_WORDS[start]}"
   # The word after --upstream, --branch or -m names an upstream, its branch
   # or a commit message: nothing to offer.
-  case "${COMP_WORDS[COMP_CWORD - 1]}" in
-    --upstream | --branch | -m | --message) return 0 ;;
-  esac
+  local option
+  for option in --upstream --branch -m --message; do
+    ! __git_splice_completing_value "$option" || return 0
+  done
   case "$cmd" in
     fetch)
       __git_splice_paths_or_options "$cur" --upstream -h --help

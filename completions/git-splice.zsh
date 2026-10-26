@@ -77,7 +77,7 @@ _git-splice() {
       _arguments '--upstream=[upstream named in .splice]:upstream name:' '--graph[draw both sides as a graph]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     merge | pull)
-      _arguments '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch, for this command only]:upstream branch:' '--all[every splice]' '(--rebase)--bump[move the synced commit up to the upstream branch]' '(--bump)--rebase[rebase onto the upstream branch instead of merging]' '--no-fork-point[merge a rewritten upstream branch from the merge base]' '(-m --message)'{-m+,--message=}'[commit message, instead of the default one]:message:' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      _arguments '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch, for this command only]:upstream branch:' '--all[every splice]' '(--rebase)--bump[move the synced commit up to the upstream branch]' '(--bump)--rebase[rebase onto the upstream branch instead of merging]' '--no-fork-point[merge a rewritten upstream branch from the merge base]' '*'{-m+,--message=}'[commit message, instead of the default one]:message:' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     status | diff)
       _arguments \
@@ -99,14 +99,14 @@ _git-splice() {
         '(--from-submodule --recursive)--merge[merge with an existing folder]' \
         '(--merge :)--from-submodule[turn a submodule into a splice]:submodule:_files -/' \
         '(--merge -m --message)--recursive[with --from-submodule, convert its submodules too]' \
-        '(-m --message --recursive)'{-m+,--message=}'[commit message, instead of the default one]:message:' \
+        '(--recursive)*'{-m+,--message=}'[commit message, instead of the default one]:message:' \
         '(-h --help)'{-h,--help}'[show usage]' \
         '1:url:' \
         '2:path:_files -/'
       ;;
     init)
       _arguments \
-        '(-m --message)'{-m+,--message=}'[commit message, instead of the default one]:message:' \
+        '*'{-m+,--message=}'[commit message, instead of the default one]:message:' \
         '(-h --help)'{-h,--help}'[show usage]' \
         '1:path:_files -/' \
         '2:url:'
