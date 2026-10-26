@@ -108,3 +108,64 @@ arrow_from() { echo "//s:line[@x1=\"$1\" and @y1=\"$2\"]"; }
   [ "$status" -eq 1 ]
   [ "$output" = "!!   a <polygon>: check-drawing reads circles, rects, lines, polylines, paths and texts only" ]
 }
+
+@test "drawing-svg: a label in a tspan, as Inkscape writes it, is read where the tspan puts it" {
+  edit_drawing -d "$(text_at 213 495)/text()" -s "$(text_at 213 495)" -t elem -n tspan -v a \
+    -i "$(text_at 213 495)/tspan" -t attr -n x -v 213 -i "$(text_at 213 495)/tspan" -t attr -n y -v 495
+  run check_drawing "$drawing"
+  [ "$status" -eq 0 ]
+  edit_drawing -u "$(text_at 213 495)/s:tspan/@x" -v 600 -u "$(text_at 213 495)/s:tspan/@y" -v 300
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the circle at 213,495 has no label: write one into it" ]
+}
+
+@test "drawing-svg: a label shifted by dx is refused, not guessed" {
+  edit_drawing -i "$(text_at 213 495)" -t attr -n dx -v 400
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the text a is shifted with dx, dy or rotate: write its position into x and y" ]
+}
+
+@test "drawing-svg: the stylesheet may not dash, hide or give arrowheads" {
+  sed -i 's|</style>|circle { stroke-dasharray: none; } line { marker-end: none; }</style>|' "$drawing"
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the <style> sets marker-end: set it on each shape it applies to, where the check reads it" ]
+  [ "${lines[1]}" = "!!   the <style> sets stroke-dasharray: set it on each shape it applies to, where the check reads it" ]
+}
+
+@test "drawing-svg: an arrowhead no marker draws is named" {
+  sed -i 's|marker-end="url(#arrow)"|marker-end="url(#nonexistent)"|' "$drawing"
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the arrow from 106,75 has the arrowhead url(#nonexistent), which no <marker> draws: point it at one in <defs>" ]
+  cp "$committed" "$drawing"
+  edit_drawing -d '//s:marker'
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the arrow from 106,75 has the arrowhead url(#arrow), which no <marker> draws: point it at one in <defs>" ]
+}
+
+@test "drawing-svg: an arrow in two pieces is refused, though its ends touch" {
+  edit_drawing -u "$(arrow_from 812 75)/@x2" -v 800 -s '/s:svg' -t elem -n path -v '' \
+    -i '/s:svg/path[last()]' -t attr -n d -v 'M 812 75 L 800 75 M 755 75 L 744 75' \
+    -i '/s:svg/path[last()]' -t attr -n marker-end -v 'url(#arrow)' -d "$(arrow_from 812 75)"
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the path M 812 75 L 800 75 M 755 75 L 744 75 has several pieces: draw each arrow as one piece, with one M" ]
+}
+
+@test "drawing-svg: a hidden shape is refused, not read" {
+  edit_drawing -i "$(circle_at 709 75)" -t attr -n style -v 'display:none'
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   a <circle> is hidden: delete it, or show it" ]
+}
+
+@test "drawing-svg: marker draws an arrowhead at both ends, so an arrow uses marker-end" {
+  edit_drawing -r "$(arrow_from 812 75)/@marker-end" -v marker
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   a <line> has marker or marker-mid: give an arrow one arrowhead, with marker-end" ]
+}

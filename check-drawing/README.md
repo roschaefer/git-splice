@@ -132,28 +132,42 @@ which lane a shape is in.
 ### Plain SVG
 
 `check-drawing` reads what the picture shows, so the picture is all
-there is to keep up to date:
+there is to keep up to date. In the sync model's drawing:
 
-- A **circle** with a text in it is a commit, labelled by the text.
-- A **rect** with a text in it is a box; with a folder, e.g. `lib/`, a
-  lane, whose other texts are upstreams' names or boxes by their labels.
-- A **line, polyline or path with an arrowhead** (`marker-end`) is an
-  arrow from the shape its start touches to the one its end touches,
-  within 3 units of the outline. Paths are straight lines: M, L, H and
-  V.
-- A **line without an arrowhead** is a separator.
-- **Dashed** is a `stroke-dasharray`, as an attribute or in `style`.
+<div align="center">
 
-A text belongs to the smallest shape around it. What the check can't
-read fails it, rather than being skipped: a circle or box without a
-label, a text that is neither a label nor an upstream's name, another
-kind of shape, a `transform`. Inkscape writes moved shapes' new
-coordinates, not a `transform`.
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](../test/scenarios/01-everyday-sync/01-sync-model/before-pull.svg)
 
-Colors go into the drawing's `<style>`, as plain values per element,
-with a `prefers-color-scheme: dark` block: Inkscape ignores CSS
-variables. [before-pull.svg](../test/scenarios/01-everyday-sync/01-sync-model/before-pull.svg)
-is an example.
+</div>
+
+| In the picture | Drawn as | Read as |
+| --- | --- | --- |
+| *a* to *d*, *k* to *n* | a `<circle>` with a `<text>` in it | a commit, by its label |
+| *b'*, *d'*, and the arrows into them | a dashed circle or arrow: `stroke-dasharray` | a commit no upstream branch has yet |
+| H, B, T, R, U(H) = U(B) | a `<rect>` with a `<text>` in it | a box |
+| `lib/` | a `<rect>` with a folder in it | a lane, whose other texts are boxes or upstreams' names |
+| the arrows | a `<line>`, `<polyline>` or `<path>` with `marker-end` | an arrow from the shape its start touches to the one its tip touches, within 3 units of the outline |
+| a separator, in a split lane | a `<line>` without `marker-end` | a separator |
+
+A text belongs to the smallest shape around it. Paths are straight
+lines, M, L, H and V, in one piece. Inkscape keeps all of this: it
+writes a moved shape's new coordinates, and a label into a `<tspan>` at
+the text's position.
+
+What changes the picture somewhere the check doesn't read fails the
+check, instead of passing a graph the reader doesn't see:
+
+| Fails | Because |
+| --- | --- |
+| A circle or box without a label, a text in no shape | the check can't tell what it is |
+| `transform`, a text's `dx`, `dy` or `rotate`, a `<tspan>` elsewhere | it moves a shape away from its coordinates |
+| `stroke-dasharray`, `marker-*`, `transform`, `display` or `visibility` in the `<style>` | it changes every shape alike, where the check reads each shape |
+| `display: none`, `visibility: hidden` | the shape isn't shown |
+| `marker`, `marker-mid`, a `marker-end` no `<marker>` draws | the arrowhead isn't one tip |
+| A path with a second M, `<polygon>`, `<image>` and other elements | the check doesn't read them |
+
+Colors go into the `<style>`, as plain values per element, with a
+`prefers-color-scheme: dark` block: Inkscape ignores CSS variables.
 
 ### draw.io
 

@@ -10,16 +10,29 @@
 # in it is a commit, a rect with a text a box, or a lane if the text is a
 # folder, a line or path with an arrowhead an arrow between the shapes its
 # ends touch, a line without one a separator. Dashed is a stroke-dasharray.
-# A cell "!" carries an error: a shape the check can't read.
+# A cell "!" carries an error: a shape the check can't read, or a property
+# that changes what a shape shows somewhere the check doesn't read it.
 svg_cells() {
+  local markers p
+  # The stylesheet styles every shape alike, so it may not set what tells
+  # them apart.
+  for p in $(xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '//s:style' "$1" 2>/dev/null |
+    grep -oE '(stroke-dasharray|marker(-start|-mid|-end)?|transform|display|visibility)[[:space:]]*:' | tr -d ': ' | sort -u); do
+    printf '!\x1f\x1f%s\n' "the <style> sets $p: set it on each shape it applies to, where the check reads it"
+  done
+  # The markers that draw an arrowhead.
+  markers=" $(xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -m '//s:marker[@id and s:*]' -v '@id' -o ' ' "$1" 2>/dev/null)"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t \
-    -m '//s:*[not(ancestor-or-self::s:defs or ancestor-or-self::s:style or ancestor::s:text or self::s:title or self::s:desc or self::s:metadata)]' \
-    -v 'local-name()' -o $'\x1f' -v '@transform' -o $'\x1f' -v '(@x|s:tspan/@x)[1]' -o $'\x1f' -v '(@y|s:tspan/@y)[1]' -o $'\x1f' \
+    -m '//s:*[not(ancestor-or-self::s:defs or ancestor-or-self::s:marker or ancestor-or-self::s:style or ancestor::s:text or self::s:title or self::s:desc or self::s:metadata)]' \
+    -v 'local-name()' -o $'\x1f' -v '@transform' -o $'\x1f' -v '@x' -o $'\x1f' -v '@y' -o $'\x1f' \
     -v '@width' -o $'\x1f' -v '@height' -o $'\x1f' -v '@cx' -o $'\x1f' -v '@cy' -o $'\x1f' -v '@r' -o $'\x1f' \
     -v '@rx' -o $'\x1f' -v '@ry' -o $'\x1f' -v '@x1' -o $'\x1f' -v '@y1' -o $'\x1f' -v '@x2' -o $'\x1f' -v '@y2' -o $'\x1f' \
     -v '@d' -o $'\x1f' -v '@points' -o $'\x1f' -v '@stroke-dasharray' -o $'\x1f' -v '@marker-start' -o $'\x1f' \
-    -v '@marker-end' -o $'\x1f' -v '@style' -o $'\x1f' -i 'self::s:text' -v 'normalize-space(.)' -b -n "$1" 2>/dev/null |
-    awk -F $'\x1f' -v OFS=$'\x1f' '
+    -v '@marker-end' -o $'\x1f' -v '@style' -o $'\x1f' -i 'self::s:text' -v 'normalize-space(.)' -b -o $'\x1f' \
+    -v '@display' -o $'\x1f' -v '@visibility' -o $'\x1f' -v '@marker' -o $'\x1f' -v '@marker-mid' -o $'\x1f' \
+    -v 'concat(@dx, @dy, @rotate)' -o $'\x1f' -m './/s:tspan' -v 'concat(@x, ",", @y, ",", @dx, @dy, @rotate, @transform)' -o ';' -b \
+    -n "$1" 2>/dev/null |
+    awk -F $'\x1f' -v OFS=$'\x1f' -v markers="$markers" '
       function err(m) { print "!", "", m }
       function at(x, y) { return sprintf("%g,%g", x, y) }
       # A style property overrides the attribute of the same name, as in CSS.
@@ -32,8 +45,21 @@ svg_cells() {
         return attr
       }
       function is_dashed(v) { return v != "" && v != "none" }
-      # The points of a path, absolute: M, L, H and V, in either case.
-      function path_points(d, i,   n, tok, k, cmd, x, y, t) {
+      # Whether marker value v draws an arrowhead: none doesn\047t, a
+      # reference to no <marker> fails.
+      function arrowhead(v, from,   id) {
+        if (v == "" || v == "none") return 0
+        id = v
+        if (!sub(/^url\([ ]*#/, "", id) || !sub(/[ ]*\)$/, "", id) || index(markers, " " id " ") == 0) {
+          err("the arrow from " from " has the arrowhead " v ", which no <marker> draws: point it at one in <defs>")
+          return -1
+        }
+        return 1
+      }
+      # The points of a path, absolute: M, L, H and V, in either case. A
+      # second M is a second piece: -2.
+      function path_points(d, i,   n, tok, k, cmd, x, y, t, moves) {
+        np[i] = 0
         gsub(/,/, " ", d)
         gsub(/[A-Za-z]/, " & ", d)
         n = split(d, tok, " ")
@@ -43,6 +69,7 @@ svg_cells() {
           if (t ~ /^[A-Za-z]$/) {
             cmd = t
             if (cmd !~ /^[MmLlHhVv]$/) return -1
+            if (cmd ~ /^[Mm]$/ && ++moves > 1) return -2
             continue
           }
           if (cmd == "M" || cmd == "L") { x = t + 0; y = tok[++k] + 0 }
@@ -61,10 +88,12 @@ svg_cells() {
       {
         name = $1
         if ($2 != "") { err("a <" name "> is moved with transform=\"" $2 "\": write the position into its coordinates instead"); next }
+        v = prop("display", $23, $21); u = prop("visibility", $24, $21)
+        if (v == "none" || u == "hidden" || u == "collapse") { err("a <" name "> is hidden: delete it, or show it"); next }
         if (name == "svg" || name == "g") next
+        v = prop("marker", $25, $21); u = prop("marker-mid", $26, $21)
+        if ((v != "" && v != "none") || (u != "" && u != "none")) { err("a <" name "> has marker or marker-mid: give an arrow one arrowhead, with marker-end"); next }
         dashed = is_dashed(prop("stroke-dasharray", $18, $21))
-        ms = prop("marker-start", $19, $21); me = prop("marker-end", $20, $21)
-        ms = ms != "" && ms != "none"; me = me != "" && me != "none"
         if (name == "circle" || name == "ellipse") {
           r = name == "circle" ? $9 : $10
           if (name == "ellipse" && $10 != $11) { err("the ellipse at " at($7, $8) " isn\047t a circle: draw commits as circles"); next }
@@ -73,16 +102,35 @@ svg_cells() {
           n++; kind[n] = "rect"; x[n] = $3 + 0; y[n] = $4 + 0; w[n] = $5; h[n] = $6; dash[n] = dashed
         } else if (name == "text") {
           if ($22 == "") next
-          nt++; tx[nt] = $3; ty[nt] = $4; tl[nt] = $22
+          # A tspan with x or y moves the text there; dx, dy and rotate
+          # shift it by an amount the check doesn\047t follow.
+          ex = $3; ey = $4; setx = sety = 0
+          if ($27 != "") { err("the text " $22 " is shifted with dx, dy or rotate: write its position into x and y"); next }
+          k = split($28, spans, ";")
+          for (j = 1; j < k; j++) {
+            split(spans[j], f, ",")
+            if (f[3] != "") { err("the text " $22 " is shifted inside, with dx, dy, rotate or transform: write its position into x and y"); next }
+            if (f[1] != "" && setx && f[1] != ex || f[2] != "" && sety && f[2] != ey) {
+              err("the text " $22 " has lines at two positions: write each label as one text"); next
+            }
+            if (f[1] != "") { ex = f[1]; setx = 1 }
+            if (f[2] != "") { ey = f[2]; sety = 1 }
+          }
+          nt++; tx[nt] = ex; ty[nt] = ey; tl[nt] = $22
         } else if (name == "line" || name == "polyline" || name == "path") {
           na++; adash[na] = dashed
           if (name == "line") {
             px[na, 1] = $12; py[na, 1] = $13; px[na, 2] = $14; py[na, 2] = $15; np[na] = 2
           } else if (name == "polyline") {
             if (path_points("M " $17, na) < 2) { err("the polyline " $17 " has fewer than two points"); na--; next }
-          } else if (path_points($16, na) < 2) {
-            err("the path " $16 " isn\047t made of straight lines: draw arrows with M, L, H and V only"); na--; next
+          } else if ((k = path_points($16, na)) < 2) {
+            if (k == -2) err("the path " $16 " has several pieces: draw each arrow as one piece, with one M")
+            else err("the path " $16 " isn\047t made of straight lines: draw arrows with M, L, H and V only")
+            na--; next
           }
+          ms = arrowhead(prop("marker-start", $19, $21), at(px[na, 1], py[na, 1]))
+          me = arrowhead(prop("marker-end", $20, $21), at(px[na, 1], py[na, 1]))
+          if (ms < 0 || me < 0) { na--; next }
           if (ms && me) { err("the arrow from " at(px[na, 1], py[na, 1]) " has two arrowheads: give it one, at the child or commit"); na--; next }
           arrow[na] = ms || me; back[na] = ms
           if (!arrow[na] && name != "line") { err("the " name " from " at(px[na, 1], py[na, 1]) " has no arrowhead: give it one, or draw a separator as a line"); na--; next }
