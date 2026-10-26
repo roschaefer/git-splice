@@ -140,10 +140,29 @@ ok   vendor/pkg-a fetched (main moved 9816d9f..0d27eb0)
 ok   vendor/pkg-a: pulled 0d27eb0
 ```
 
+*a* is the bump on `main`, *b* the feature, pushed as *b'*, and *c* its
+bump. *d* is `main`'s pull of *s* (`an option (#1)`), the library's
+squashed commit, on top of *k* (`pkg-a: a faster parser`):
+
+<div align="center">
+
+![The monorepo commits a and d on main, and b and c on feature, both from a; in the lane vendor/pkg-a/, s on main and b prime on feature, both on top of k; U(d) is s and U(c) is b prime](bump-conflict.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ source "$TESTDIR/../../check-drawing/check-drawing" &&
+>   check_drawing "$TESTDIR/bump-conflict.drawio.svg" \
+>   a=main~1 d=main b=feature~1 c=feature \
+>   k=splices/pkg-a/heads/main~1 s=splices/pkg-a/heads/main
+ok   bump-conflict.drawio.svg: 7 commits, 9 arrows, 4 boxes, 1 lanes
+```
+-->
+
 `main` has the library's change now, but not the app's. So the monorepo's
-`feature` still needs merging, and that conflicts: `main` changed
-`.splice` to the squashed commit, and the bump on `feature` changed the
-same line to the pull request's commit. A squash merge computes its
+`feature` still needs merging, and that conflicts: *d*'s `.splice`
+records *s*, and *c*'s the same line as *b'*. A squash merge computes its
 files like any merge, so it conflicts too:
 
 ```scrut
@@ -192,6 +211,24 @@ $ git splice pull vendor/pkg-a
 ok   vendor/pkg-a fetched (feature moved 556e8b7..0d27eb0)
 ok   vendor/pkg-a: recorded 0d27eb0 as the synced commit -- the folder already has its files
 ```
+
+The record *e* names *s*, as `main`'s *d* does:
+
+<div align="center">
+
+![The same graphs after the rebase: e on top of c on feature records s, which is now both main and feature of the library](bump-way-out.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ source "$TESTDIR/../../check-drawing/check-drawing" &&
+>   check_drawing "$TESTDIR/bump-way-out.drawio.svg" \
+>   a=main~1 d=main b=feature~2 c=feature~1 e=feature \
+>   k=splices/pkg-a/heads/main~1 s=splices/pkg-a/heads/main
+ok   bump-way-out.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
+```
+-->
 
 Now both branches name the same commit in `.splice`, and the merge only
 brings in the app:
