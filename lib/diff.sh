@@ -40,6 +40,10 @@ diff_one() {
       log_warn "$path: upstream and the splice share no history -- no push diff available"
       return 1
       ;;
+    missing-synced)
+      log_warn "$path: $(missing_synced_message "$path")"
+      return 1
+      ;;
     missing-pin)
       log_err "$path: $(target_description) isn't here -- run 'git splice fetch $(upstream_option "$path")$path', or check that upstream has it"
       return 1

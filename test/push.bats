@@ -139,7 +139,10 @@ setup() {
   fetch_splice "$monorepo" "$upstream" vendor/a
   ! git cat-file -e "$(splice_config vendor/a commit)^{commit}" 2>/dev/null
   classify_splice vendor/a main
-  [ "$SPLICE_STATE" = unrelated-history ]
+  [ "$SPLICE_STATE" = missing-synced ]
+  run cmd_push vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"synced commit ${SPLICE_SYNCED:0:7} isn't here -- run 'git splice fetch vendor/a', or check that upstream has it"* ]]
   run cmd_push --force vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]

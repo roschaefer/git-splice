@@ -86,6 +86,13 @@ push_one() {
         return 1
       fi
       ;;
+    missing-synced)
+      if [[ -z "$force" ]]; then
+        log_warn "$path: $(missing_synced_message "$path")"
+        return 1
+      fi
+      SPLICE_REBUILT="$(REBUILD_WITHOUT_SYNCED=1 splice_rebuild "$path")" || return 1
+      ;;
     unrelated-history)
       if [[ -z "$force" ]]; then
         print_unrelated_history_guidance "$path"

@@ -20,7 +20,8 @@ setup() {
     04-upstreams/03-shared-remote-url \
     02-starting-a-splice/04-init-new-upstream \
     01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
-    05-nested-splices/01-nested-splices; do
+    05-nested-splices/01-nested-splices \
+    03-branches-and-teamwork/06-teammate-pulled; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -42,6 +43,15 @@ assert_state() {
 @test "classify_splice: diverged" { assert_state diverged-common-ancestor diverged; }
 @test "classify_splice: unrelated-history" { assert_state diverged-unrelated-history unrelated-history; }
 @test "classify_splice: never-fetched" { assert_state never-fetched never-fetched; }
+@test "classify_splice: missing-synced after a teammate's pull that wasn't fetched" { assert_state teammate-pulled missing-synced; }
+
+@test "classify_splice: up-to-date once a teammate's pull is fetched" {
+  scenario_teammate_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null 2>&1
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = up-to-date ]
+}
 @test "classify_splice: missing-branch" { assert_state feature-branch-unchanged missing-branch; }
 @test "classify_splice: push after pulling a divergence" { assert_state diverged-then-pulled push; }
 @test "classify_splice: push after our own push and another local change" { assert_state pushed-then-changed push; }

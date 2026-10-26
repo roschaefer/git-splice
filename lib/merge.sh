@@ -108,6 +108,15 @@ merge_one() {
       log_ok "$path: nothing to $verb"
       return 0
       ;;
+    missing-synced)
+      # A pull fetched it by its id, if upstream still had it.
+      if [[ "$verb" != pull ]]; then
+        log_warn "$path: $(missing_synced_message "$path")"
+        return 1
+      fi
+      print_unrelated_history_guidance "$path"
+      return 1
+      ;;
     unrelated-history)
       print_unrelated_history_guidance "$path"
       return 1

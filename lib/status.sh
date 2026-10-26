@@ -92,6 +92,9 @@ add_status_row() {
     missing-branch)
       classify_missing_branch "$path"
       ;;
+    missing-synced)
+      STATUS_KIND=warning STATUS_LABEL="?? synced commit ${SPLICE_SYNCED:0:7} isn't here" STATUS_HINT="run 'git splice fetch $option$path', or check that upstream has it"
+      ;;
     missing-pin)
       STATUS_KIND=problem STATUS_LABEL="!! $(target_description) isn't here" STATUS_HINT="run 'git splice fetch $option$path', or check that upstream has it"
       ;;
