@@ -292,9 +292,9 @@ check_drawing() {
       # upstream may have one with the same subject.
       hash=""
       [[ -z "${side_key[$id]:-}" || "$label" == *\' ]] ||
-        hash="$(git log --format='%H%x09%s' --glob="refs/splices/${side_key[$id]}/heads/*" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+        hash="$(git log --format='%H%x09%s' --glob="refs/splices/${side_key[$id]}/heads/*" | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
       [[ -n "$hash" ]] ||
-        hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+        hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
       upstream_tips=()
       if [[ -n "$sp" ]]; then
         for k in T R U S; do
@@ -303,7 +303,7 @@ check_drawing() {
       fi
       [[ -z "${side_key[$id]:-}" ]] || upstream_tips+=(--glob="refs/splices/${side_key[$id]}/heads/*")
       [[ -n "$hash" || "$label" == *\' || ${#upstream_tips[@]} -eq 0 ]] ||
-        hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+        hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
     fi
     if [[ -n "$hash" && "$label" == *\' ]]; then
       if [[ -z "$sp" ]]; then

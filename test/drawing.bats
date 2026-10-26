@@ -311,6 +311,16 @@ XML
   [ "$output" = "ok   after-pull.drawio: 2 commits, 1 arrows, 1 boxes" ]
 }
 
+@test "drawing: a label also names the commit whose subject starts with it and a colon, and its rebuilt copy" {
+  git switch -q -c feature
+  commit_local "$monorepo" lib "x: a change"
+  splice push lib >/dev/null 2>&1
+  pushed_copy_drawing feature
+  run check_drawing "$drawing"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   after-pull.drawio: 2 commits, 1 arrows, 1 boxes" ]
+}
+
 @test "drawing: a box named as <label>=<rev> points at that revision" {
   git switch -q -c feature
   commit_local "$monorepo" lib "x"

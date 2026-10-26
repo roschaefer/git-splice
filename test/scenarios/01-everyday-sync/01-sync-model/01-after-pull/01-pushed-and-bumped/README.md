@@ -35,21 +35,21 @@ $ build_scenario scenario_pushed_and_bumped
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/pushed-and-bumped.drawio.svg" a=HEAD~5 e=HEAD~1 f=HEAD
+$ check_drawing "$TESTDIR/pushed-and-bumped.drawio.svg"
 ok   pushed-and-bumped.drawio.svg: 13 commits, 16 arrows, 4 boxes, 1 lanes
 ```
 -->
 
-The monorepo, with *f* on top:
+The monorepo:
 
 ```scrut
 $ git log --format=%s
-splice: bump lib from main at 712cf4c
-splice: pull lib from main at df79a48
+f
+e
 d
 c
 b
-add lib
+a
 initial commit
 ```
 
@@ -57,7 +57,7 @@ The upstream has the pushed commits, with the messages of *b*, *d* and *e*:
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s main
-*   splice: pull lib from main at df79a48
+*   e
 |\  
 | * n
 | * m
@@ -72,7 +72,7 @@ $ git -C "$UPSTREAM" log --graph --format=%s main
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary lib)"
-splice: bump lib from main at 712cf4c
+f
 ```
 
 And the splice is up to date:

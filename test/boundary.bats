@@ -62,7 +62,7 @@ setup() {
   cd "$monorepo"
   run cmd_boundary lib
   [ "$output" = "$(git rev-parse HEAD~4)" ]
-  [ "$(git log --first-parent --format=%s "$output"..HEAD -- lib)" = "$(printf '%s\n' 'splice: pull lib from main at '"$(git -C "$upstream" rev-parse --short main)" d b)" ]
+  [ "$(git log --first-parent --format=%s "$output"..HEAD -- lib)" = "$(printf '%s\n' e d b)" ]
 }
 
 @test "boundary: stays before the merged commits after they're pushed, until a bump" {
