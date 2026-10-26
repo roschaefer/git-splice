@@ -61,7 +61,7 @@ ok   vendor/a fetched
   git splice push --force -- vendor/a
 
   # OR: rebase or merge 'feature' upstream, e.g. with "Update branch" on GitHub, then:
-  git splice pull -- vendor/a
+  git splice pull --rebase -- vendor/a
 
 !!   Failed: vendor/a
 [1]

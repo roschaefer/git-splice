@@ -261,7 +261,9 @@ lacks_synced_it_never_had() {
 # had the synced commit, and the two ways to rebase the upstream branch
 # onto where it came from. A push only reaches the branch named like the
 # monorepo's, so with --branch naming another one, only the way upstream
-# is left. `verb` as for merge_one.
+# is left. That way keeps --rebase: this branch is rebased already, and a
+# merge would join the upstream branch's copies of its commits in.
+# `verb` as for merge_one.
 print_never_had_synced_guidance() {
   local path="$1" verb="$2" label="$SPLICE_UPSTREAM_LABEL" q_path or=""
   q_path="$(shell_quote "$path")"
@@ -277,7 +279,7 @@ EOF
   fi
   cat >&2 <<EOF
   # ${or}rebase or merge '$label' upstream, e.g. with "Update branch" on GitHub, then:
-  git splice $verb $(selection_options "$path")-- $q_path
+  git splice $verb --rebase $(selection_options "$path")-- $q_path
 
 EOF
 }
