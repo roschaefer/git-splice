@@ -154,17 +154,18 @@ lines, M, L, H and V, in one piece. Inkscape keeps all of this: it
 writes a moved shape's new coordinates, and a label into a `<tspan>` at
 the text's position.
 
-What changes the picture somewhere the check doesn't read fails the
-check, instead of passing a graph the reader doesn't see:
+Each shape sets only what the check reads on it, plus what doesn't
+change which shape is where: colors, strokes and fonts. Anything else
+fails the check, instead of passing a graph the reader doesn't see:
 
 | Fails | Because |
 | --- | --- |
 | A circle or box without a label, a text in no shape | the check can't tell what it is |
-| `transform`, a text's `dx`, `dy` or `rotate`, a `<tspan>` elsewhere | it moves a shape away from its coordinates |
-| `stroke-dasharray`, `marker-*`, `transform`, `display` or `visibility` in the `<style>` | it changes every shape alike, where the check reads each shape |
+| `transform`, a text's `dx`, `dy` or `rotate`, a `<tspan>` elsewhere, geometry in CSS or with a unit | it moves a shape away from the coordinates the check reads |
+| `stroke-dasharray` or `marker-end` on a `<g>`, or in the `<style>` | it dashes or points shapes where the check reads each one |
 | `display: none`, `visibility: hidden` | the shape isn't shown |
 | `marker`, `marker-mid`, a `marker-end` no `<marker>` draws | the arrowhead isn't one tip |
-| A path with a second M, `<polygon>`, `<image>` and other elements | the check doesn't read them |
+| A path with a second M, `filter`, `<polygon>`, `<image>` and other attributes and elements | the check doesn't read them |
 
 Colors go into the `<style>`, as plain values per element, with a
 `prefers-color-scheme: dark` block: Inkscape ignores CSS variables.
@@ -186,6 +187,8 @@ drawio -x -f svg -e -u --theme auto -b 10 -o x.drawio.svg x.drawio
 What no drawing has needed yet, it doesn't handle:
 
 - **Notes**: free text is read by its label, as a box or a lane.
+- **Colors in a plain SVG**: a shape colored like the background, or with
+  `opacity: 0`, still counts, though no one sees it.
 - **Branch names that read as names of the vocabulary**: an upstream
   branch called H, B, T, R or `U(…)`.
 - **Several upstreams without a separator**: a lane that isn't split is

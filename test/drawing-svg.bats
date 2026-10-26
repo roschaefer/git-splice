@@ -131,8 +131,8 @@ arrow_from() { echo "//s:line[@x1=\"$1\" and @y1=\"$2\"]"; }
   sed -i 's|</style>|circle { stroke-dasharray: none; } line { marker-end: none; }</style>|' "$drawing"
   run check_drawing "$drawing"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   the <style> sets marker-end: set it on each shape it applies to, where the check reads it" ]
-  [ "${lines[1]}" = "!!   the <style> sets stroke-dasharray: set it on each shape it applies to, where the check reads it" ]
+  [ "${lines[0]}" = "!!   the <style> sets stroke-dasharray: set it on each shape it applies to, where the check reads it" ]
+  [ "${lines[1]}" = "!!   the <style> sets marker-end: set it on each shape it applies to, where the check reads it" ]
 }
 
 @test "drawing-svg: an arrowhead no marker draws is named" {
@@ -168,4 +168,45 @@ arrow_from() { echo "//s:line[@x1=\"$1\" and @y1=\"$2\"]"; }
   run check_drawing "$drawing"
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   a <line> has marker or marker-mid: give an arrow one arrowhead, with marker-end" ]
+}
+
+@test "drawing-svg: a group may not dash what's in it" {
+  sed -i 's|<circle cx="534" cy="75" r="35"/>|<g stroke-dasharray="6 4"><circle cx="534" cy="75" r="35"/></g>|' "$drawing"
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a <g> sets stroke-dasharray, which check-drawing doesn't read on a <g>: set it on each shape it applies to" ]
+}
+
+@test "drawing-svg: path numbers without a space between them are read apart" {
+  sed -i 's|<line x1="812" y1="75" x2="744" y2="75" marker-end="url(#arrow)"/>|<path d="M812 75l-68-280" marker-end="url(#arrow)"/>|' "$drawing"
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the arrow from 812,75 to 744,-205 doesn't touch a commit or box at its end: end it on the outline" ]
+  sed -i 's|M812 75l-68-280|M812 75l-68|' "$drawing"
+  run check_drawing "$drawing"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   the path M812 75l-68 isn't one the check reads: draw arrows with M, L, H and V and their numbers only" ]
+}
+
+@test "drawing-svg: a shape sets only what the check reads and colors, strokes and fonts" {
+  # attribute on the circle a, its value, and the check's first line.
+  local attr value expected failed=""
+  while IFS='|' read -r attr value expected; do
+    cp "$committed" "$drawing"
+    edit_drawing -d "(//s:circle)[1]/@$attr" -i "(//s:circle)[1]" -t attr -n "$attr" -v "$value"
+    run check_drawing "$drawing"
+    [[ "${lines[0]}" == "$expected" ]] || failed+=$'\n'"$attr=$value: ${lines[0]}"
+  done <<'EOF'
+style|transform:translate(400px, 0px)|!!   a <circle> is moved with transform="translate(400px, 0px)": write the position into its coordinates instead
+style|cx: 600|!!   a <circle> sets cx, which check-drawing doesn't read: remove it
+style|visibility:hidden|!!   a <circle> is hidden: delete it, or show it
+filter|url(#blur)|!!   a <circle> sets filter, which check-drawing doesn't read: remove it
+cx|50%|!!   a <circle> has cx="50%", which isn't a plain number: write it in user units, without a unit or %
+marker-end|url(#arrow)|!!   a <circle> sets marker-end, which check-drawing doesn't read on a <circle>: set it on each shape it applies to
+style|fill:#eee;stroke:#333;stroke-width:3;opacity:1;display:inline|ok   before-pull.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
+EOF
+  [ -z "$failed" ] || {
+    echo "$failed"
+    false
+  }
 }

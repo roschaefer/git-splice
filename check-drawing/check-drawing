@@ -10,40 +10,95 @@
 # in it is a commit, a rect with a text a box, or a lane if the text is a
 # folder, a line or path with an arrowhead an arrow between the shapes its
 # ends touch, a line without one a separator. Dashed is a stroke-dasharray.
-# A cell "!" carries an error: a shape the check can't read, or a property
-# that changes what a shape shows somewhere the check doesn't read it.
+# Each element may set only what the check reads on it, and what doesn't
+# change which shape is where: colors, strokes and fonts. A cell "!"
+# carries an error: anything else, which could change the picture
+# unnoticed.
 svg_cells() {
-  local markers p
-  # The stylesheet styles every shape alike, so it may not set what tells
-  # them apart.
-  for p in $(xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '//s:style' "$1" 2>/dev/null |
-    grep -oE '(stroke-dasharray|marker(-start|-mid|-end)?|transform|display|visibility)[[:space:]]*:' | tr -d ': ' | sort -u); do
-    printf '!\x1f\x1f%s\n' "the <style> sets $p: set it on each shape it applies to, where the check reads it"
-  done
+  local markers
   # The markers that draw an arrowhead.
   markers=" $(xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -m '//s:marker[@id and s:*]' -v '@id' -o ' ' "$1" 2>/dev/null)"
+  # One line per element: its name, its attributes as name=value joined
+  # by \x1e, and a text's or stylesheet's content.
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t \
-    -m '//s:*[not(ancestor-or-self::s:defs or ancestor-or-self::s:marker or ancestor-or-self::s:style or ancestor::s:text or self::s:title or self::s:desc or self::s:metadata)]' \
-    -v 'local-name()' -o $'\x1f' -v '@transform' -o $'\x1f' -v '@x' -o $'\x1f' -v '@y' -o $'\x1f' \
-    -v '@width' -o $'\x1f' -v '@height' -o $'\x1f' -v '@cx' -o $'\x1f' -v '@cy' -o $'\x1f' -v '@r' -o $'\x1f' \
-    -v '@rx' -o $'\x1f' -v '@ry' -o $'\x1f' -v '@x1' -o $'\x1f' -v '@y1' -o $'\x1f' -v '@x2' -o $'\x1f' -v '@y2' -o $'\x1f' \
-    -v '@d' -o $'\x1f' -v '@points' -o $'\x1f' -v '@stroke-dasharray' -o $'\x1f' -v '@marker-start' -o $'\x1f' \
-    -v '@marker-end' -o $'\x1f' -v '@style' -o $'\x1f' -i 'self::s:text' -v 'normalize-space(.)' -b -o $'\x1f' \
-    -v '@display' -o $'\x1f' -v '@visibility' -o $'\x1f' -v '@marker' -o $'\x1f' -v '@marker-mid' -o $'\x1f' \
-    -v 'concat(@dx, @dy, @rotate)' -o $'\x1f' -m './/s:tspan' -v 'concat(@x, ",", @y, ",", @dx, @dy, @rotate, @transform)' -o ';' -b \
-    -n "$1" 2>/dev/null |
+    -m '//s:*[self::s:style or not(ancestor-or-self::s:defs or ancestor-or-self::s:marker or ancestor::s:style or (ancestor::s:text and not(self::s:tspan)) or self::s:title or self::s:desc or self::s:metadata)]' \
+    -v 'local-name()' -o $'\x1f' -m '@*' -v 'name()' -o '=' -v 'normalize-space(.)' -o $'\x1e' -b \
+    -o $'\x1f' -i 'self::s:text or self::s:tspan or self::s:style' -v 'normalize-space(.)' -b -n "$1" 2>/dev/null |
     awk -F $'\x1f' -v OFS=$'\x1f' -v markers="$markers" '
       function err(m) { print "!", "", m }
       function at(x, y) { return sprintf("%g,%g", x, y) }
-      # A style property overrides the attribute of the same name, as in CSS.
-      function prop(name, attr, style,   v) {
-        if (match(style, "(^|;)[ ]*" name "[ ]*:[^;]*")) {
-          v = substr(style, RSTART, RLENGTH)
-          sub(/^[; ]*[^:]*:[ ]*/, "", v)
-          return v
-        }
-        return attr
+      function has(list, word) { return index(list, " " word " ") > 0 }
+      function trim(v) { gsub(/^[ ]+|[ ]+$/, "", v); return v }
+      BEGIN {
+        # Properties that don\047t change which shape is where.
+        harmless = " fill fill-opacity fill-rule stroke stroke-width stroke-opacity stroke-linecap stroke-linejoin stroke-miterlimit stroke-dashoffset paint-order opacity color background-color font-family font-size font-weight font-style font-variant font-stretch line-height letter-spacing word-spacing white-space text-anchor text-align dominant-baseline -inkscape-font-specification "
+        # Geometry, only as attributes: CSS could set it too.
+        geometry["svg"] = " width height viewBox version preserveAspectRatio "
+        geometry["circle"] = " cx cy r "
+        geometry["ellipse"] = " cx cy rx ry "
+        geometry["rect"] = " x y width height rx ry "
+        geometry["line"] = " x1 y1 x2 y2 "
+        geometry["polyline"] = " points "
+        geometry["path"] = " d "
+        geometry["text"] = " x y "
+        geometry["tspan"] = " x y "
+        dashable = " circle ellipse rect line polyline path "
+        arrowable = " line polyline path "
+        number = "^[-+]?([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][-+]?[0-9]+)?$"
       }
+      function named(el, label) { return el == "text" || el == "tspan" ? "the text " label : "a <" el ">" }
+      # Whether element el may set property p to v, as an attribute or in
+      # its style; names the problem if not.
+      function allowed(el, p, v, attr, label) {
+        if (p == "transform") {
+          err(named(el, label) " is moved with transform=\"" v "\": write the position into its coordinates instead")
+          return 0
+        }
+        if (p == "display" || p == "visibility") {
+          if (v == "inline" || v == "visible") return 1
+          err(named(el, label) " is hidden: delete it, or show it")
+          return 0
+        }
+        if (p == "marker" || p == "marker-mid") {
+          if (v == "none") return 1
+          err(named(el, label) " has marker or marker-mid: give an arrow one arrowhead, with marker-end")
+          return 0
+        }
+        if (p == "dx" || p == "dy" || p == "rotate") {
+          err(named(el, label) " is shifted with dx, dy or rotate: write its position into x and y")
+          return 0
+        }
+        if (has(harmless, p)) return 1
+        if (attr && has(geometry[el], p)) {
+          if (el == "svg" || p == "d" || p == "points" || v ~ number) return 1
+          err(named(el, label) " has " p "=\"" v "\", which isn\047t a plain number: write it in user units, without a unit or %")
+          return 0
+        }
+        if (p == "stroke-dasharray" && has(dashable, el)) return 1
+        if ((p == "marker-start" || p == "marker-end") && has(arrowable, el)) return 1
+        if (p == "stroke-dasharray" || p == "marker-start" || p == "marker-end")
+          err(named(el, label) " sets " p ", which check-drawing doesn\047t read on a <" el ">: set it on each shape it applies to")
+        else
+          err(named(el, label) " sets " p ", which check-drawing doesn\047t read: remove it")
+        return 0
+      }
+      # The stylesheet styles every shape alike, so it may set only what
+      # doesn\047t tell them apart.
+      function stylesheet(css,   p, seen) {
+        gsub(/\([^)]*\)/, "", css)
+        while (match(css, /[{;][ ]*[-a-zA-Z]+[ ]*:/)) {
+          p = substr(css, RSTART + 1, RLENGTH - 2)
+          css = substr(css, RSTART + RLENGTH)
+          p = trim(p)
+          if (has(harmless, p) || has(seen, p)) continue
+          seen = seen " " p " "
+          if (p == "stroke-dasharray" || p ~ /^marker/ || p == "transform" || p == "display" || p == "visibility")
+            err("the <style> sets " p ": set it on each shape it applies to, where the check reads it")
+          else
+            err("the <style> sets " p ", which check-drawing doesn\047t read: remove it")
+        }
+      }
+      function prop(p) { return p in P ? P[p] : A[p] }
       function is_dashed(v) { return v != "" && v != "none" }
       # Whether marker value v draws an arrowhead: none doesn\047t, a
       # reference to no <marker> fails.
@@ -56,28 +111,40 @@ svg_cells() {
         }
         return 1
       }
-      # The points of a path, absolute: M, L, H and V, in either case. A
-      # second M is a second piece: -2.
-      function path_points(d, i,   n, tok, k, cmd, x, y, t, moves) {
+      # The tokens of path data: letters and numbers, which may follow
+      # each other without a space, as in l-68-280. -1 if it has others.
+      function tokens(d, tok,   n) {
+        n = 0
+        while (1) {
+          sub(/^[ ,]+/, "", d)
+          if (d == "") return n
+          if (match(d, /^[A-Za-z]/) || match(d, /^[-+]?([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][-+]?[0-9]+)?/)) {
+            tok[++n] = substr(d, 1, RLENGTH)
+            d = substr(d, RLENGTH + 1)
+          } else return -1
+        }
+      }
+      # The points of a path, absolute: M, L, H and V, in either case. -1
+      # if it has other commands or misses a number, -2 for a second M: a
+      # second piece.
+      function path_points(d, i,   n, tok, k, cmd, x, y, moves) {
         np[i] = 0
-        gsub(/,/, " ", d)
-        gsub(/[A-Za-z]/, " & ", d)
-        n = split(d, tok, " ")
+        if ((n = tokens(d, tok)) < 0) return -1
         x = 0; y = 0; cmd = ""
         for (k = 1; k <= n; k++) {
-          t = tok[k]
-          if (t ~ /^[A-Za-z]$/) {
-            cmd = t
+          if (tok[k] ~ /^[A-Za-z]$/) {
+            cmd = tok[k]
             if (cmd !~ /^[MmLlHhVv]$/) return -1
             if (cmd ~ /^[Mm]$/ && ++moves > 1) return -2
             continue
           }
-          if (cmd == "M" || cmd == "L") { x = t + 0; y = tok[++k] + 0 }
-          else if (cmd == "m" || cmd == "l") { x += t; y += tok[++k] }
-          else if (cmd == "H") x = t + 0
-          else if (cmd == "h") x += t
-          else if (cmd == "V") y = t + 0
-          else if (cmd == "v") y += t
+          if (cmd ~ /^[MmLl]$/ && (k == n || tok[k + 1] ~ /^[A-Za-z]$/)) return -1
+          if (cmd == "M" || cmd == "L") { x = tok[k] + 0; y = tok[++k] + 0 }
+          else if (cmd == "m" || cmd == "l") { x += tok[k]; y += tok[++k] }
+          else if (cmd == "H") x = tok[k] + 0
+          else if (cmd == "h") x += tok[k]
+          else if (cmd == "V") y = tok[k] + 0
+          else if (cmd == "v") y += tok[k]
           else return -1
           px[i, ++np[i]] = x; py[i, np[i]] = y
           if (cmd == "M") cmd = "L"
@@ -87,49 +154,61 @@ svg_cells() {
       }
       {
         name = $1
-        if ($2 != "") { err("a <" name "> is moved with transform=\"" $2 "\": write the position into its coordinates instead"); next }
-        v = prop("display", $23, $21); u = prop("visibility", $24, $21)
-        if (v == "none" || u == "hidden" || u == "collapse") { err("a <" name "> is hidden: delete it, or show it"); next }
+        if (name == "style") { stylesheet($3); next }
+        split("", A); split("", P)
+        k = split($2, pairs, "\036")
+        for (j = 1; j <= k; j++) {
+          if ((e = index(pairs[j], "=")) == 0) continue
+          A[substr(pairs[j], 1, e - 1)] = substr(pairs[j], e + 1)
+        }
+        k = split(A["style"], decls, ";")
+        for (j = 1; j <= k; j++)
+          if ((e = index(decls[j], ":")) > 0) P[trim(substr(decls[j], 1, e - 1))] = trim(substr(decls[j], e + 1))
+        ok = 1
+        for (p in A) {
+          # Other namespaces, e.g. Inkscape\047s own, don\047t draw.
+          if (p == "id" || p == "class" || p == "style" || p ~ /:/) continue
+          ok = allowed(name, p, A[p], 1, $3) && ok
+        }
+        for (p in P) ok = allowed(name, p, P[p], 0, $3) && ok
+        if (!ok) { if (name == "text") cur = 0; next }
         if (name == "svg" || name == "g") next
-        v = prop("marker", $25, $21); u = prop("marker-mid", $26, $21)
-        if ((v != "" && v != "none") || (u != "" && u != "none")) { err("a <" name "> has marker or marker-mid: give an arrow one arrowhead, with marker-end"); next }
-        dashed = is_dashed(prop("stroke-dasharray", $18, $21))
-        if (name == "circle" || name == "ellipse") {
-          r = name == "circle" ? $9 : $10
-          if (name == "ellipse" && $10 != $11) { err("the ellipse at " at($7, $8) " isn\047t a circle: draw commits as circles"); next }
-          n++; kind[n] = "circle"; cx[n] = $7; cy[n] = $8; rr[n] = r; dash[n] = dashed
-        } else if (name == "rect") {
-          n++; kind[n] = "rect"; x[n] = $3 + 0; y[n] = $4 + 0; w[n] = $5; h[n] = $6; dash[n] = dashed
-        } else if (name == "text") {
-          if ($22 == "") next
-          # A tspan with x or y moves the text there; dx, dy and rotate
-          # shift it by an amount the check doesn\047t follow.
-          ex = $3; ey = $4; setx = sety = 0
-          if ($27 != "") { err("the text " $22 " is shifted with dx, dy or rotate: write its position into x and y"); next }
-          k = split($28, spans, ";")
-          for (j = 1; j < k; j++) {
-            split(spans[j], f, ",")
-            if (f[3] != "") { err("the text " $22 " is shifted inside, with dx, dy, rotate or transform: write its position into x and y"); next }
-            if (f[1] != "" && setx && f[1] != ex || f[2] != "" && sety && f[2] != ey) {
-              err("the text " $22 " has lines at two positions: write each label as one text"); next
-            }
-            if (f[1] != "") { ex = f[1]; setx = 1 }
-            if (f[2] != "") { ey = f[2]; sety = 1 }
+        # A tspan with x or y moves its text there.
+        if (name == "tspan") {
+          if (!cur) next
+          if ("x" in A && setx && A["x"] != tx[cur] || "y" in A && sety && A["y"] != ty[cur]) {
+            err("the text " tl[cur] " has lines at two positions: write each label as one text")
+            gone[cur] = 1
           }
-          nt++; tx[nt] = ex; ty[nt] = ey; tl[nt] = $22
+          if ("x" in A) { tx[cur] = A["x"]; setx = 1 }
+          if ("y" in A) { ty[cur] = A["y"]; sety = 1 }
+          next
+        }
+        dashed = is_dashed(prop("stroke-dasharray"))
+        if (name == "circle" || name == "ellipse") {
+          r = name == "circle" ? A["r"] : A["rx"]
+          if (name == "ellipse" && A["rx"] != A["ry"]) { err("the ellipse at " at(A["cx"], A["cy"]) " isn\047t a circle: draw commits as circles"); next }
+          n++; kind[n] = "circle"; cx[n] = A["cx"] + 0; cy[n] = A["cy"] + 0; rr[n] = r + 0; dash[n] = dashed
+        } else if (name == "rect") {
+          n++; kind[n] = "rect"; x[n] = A["x"] + 0; y[n] = A["y"] + 0; w[n] = A["width"] + 0; h[n] = A["height"] + 0; dash[n] = dashed
+        } else if (name == "text") {
+          cur = 0
+          if ($3 == "") next
+          nt++; tx[nt] = A["x"] + 0; ty[nt] = A["y"] + 0; tl[nt] = $3
+          cur = nt; setx = sety = 0
         } else if (name == "line" || name == "polyline" || name == "path") {
           na++; adash[na] = dashed
           if (name == "line") {
-            px[na, 1] = $12; py[na, 1] = $13; px[na, 2] = $14; py[na, 2] = $15; np[na] = 2
+            px[na, 1] = A["x1"] + 0; py[na, 1] = A["y1"] + 0; px[na, 2] = A["x2"] + 0; py[na, 2] = A["y2"] + 0; np[na] = 2
           } else if (name == "polyline") {
-            if (path_points("M " $17, na) < 2) { err("the polyline " $17 " has fewer than two points"); na--; next }
-          } else if ((k = path_points($16, na)) < 2) {
-            if (k == -2) err("the path " $16 " has several pieces: draw each arrow as one piece, with one M")
-            else err("the path " $16 " isn\047t made of straight lines: draw arrows with M, L, H and V only")
+            if (path_points("M " A["points"], na) < 2) { err("the polyline " A["points"] " isn\047t two or more points"); na--; next }
+          } else if ((k = path_points(A["d"], na)) < 2) {
+            if (k == -2) err("the path " A["d"] " has several pieces: draw each arrow as one piece, with one M")
+            else err("the path " A["d"] " isn\047t one the check reads: draw arrows with M, L, H and V and their numbers only")
             na--; next
           }
-          ms = arrowhead(prop("marker-start", $19, $21), at(px[na, 1], py[na, 1]))
-          me = arrowhead(prop("marker-end", $20, $21), at(px[na, 1], py[na, 1]))
+          ms = arrowhead(prop("marker-start"), at(px[na, 1], py[na, 1]))
+          me = arrowhead(prop("marker-end"), at(px[na, 1], py[na, 1]))
           if (ms < 0 || me < 0) { na--; next }
           if (ms && me) { err("the arrow from " at(px[na, 1], py[na, 1]) " has two arrowheads: give it one, at the child or commit"); na--; next }
           arrow[na] = ms || me; back[na] = ms
@@ -162,6 +241,7 @@ svg_cells() {
       END {
         # Each text belongs to the smallest shape around it.
         for (t = 1; t <= nt; t++) {
+          if (gone[t]) { used[t] = 1; continue }
           best = 0
           for (i = 1; i <= n; i++)
             if (holds(i, tx[t], ty[t]) && (!best || area(i) < area(best))) best = i
