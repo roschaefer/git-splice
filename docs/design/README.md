@@ -316,13 +316,20 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
    pull merged a divergence, or a squash merge mixed local edits into the
    commit that changed `.splice`. Then *L* is rebuilt as a commit with *L*'s
    folder, whose parents are the rebuild of *L*'s first parent
-   (recursively) and U(L). Local commits that were never pushed keep their
-   identity, and upstream gets them joined with its own by a merge, as a
-   plain `git pull` would have made. Where that recursive rebuild is a
-   parent, its boundary is B, so B is the first last sync, going back,
-   whose folder equals its synced commit, U(B)
-   ([sync model](../../test/concepts/sync-model/README.md)), and the
-   recursion only costs something after pulls of divergences.
+   (recursively) and U(L), as `git pull` would have merged them. Here *L*
+   is the pull *e*, rebuilt as *e'*
+   ([scenario](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)):
+
+   <div align="center">
+
+   ![The monorepo commits a, b and the pull e, with B at a; upstream k and l, T; the rebuild b prime on top of k, and e prime, R, a merge of b prime and l](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg)
+
+   </div>
+
+   The recursion stops at B, the first last sync, going back, whose
+   folder is its synced commit
+   ([sync model](../../test/concepts/sync-model/README.md#where-b-is)), so
+   it only costs something after pulls of divergences.
    If *L* is the splice's mount, its first parent isn't rebuilt at all, and
    *L* goes on top of U(L) (see below). Without U(L), e.g. after `init`, the
    rebuild starts at the mount instead, as a root commit, and the mount
