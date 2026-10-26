@@ -154,7 +154,7 @@ $ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" "$WALKTHROUGH/pkg-a" &&
 ```scrut
 $ echo "a new feature" >feature.txt &&
 >   git add feature.txt &&
->   git commit -q -m "add a feature" &&
+>   git commit -q -m "n: add a feature" &&
 >   git push -q origin main
 ```
 
@@ -183,7 +183,7 @@ $ git fetch -q origin &&
 $ git log --format=%s origin/patches
 pkg-a: document the parser
 pkg-a: fix the parser
-add a feature
+n: add a feature
 pkg-a: a second commit, after the clone
 pkg-a: seed
 ```
@@ -192,9 +192,9 @@ The monorepo pulls the rebased `patches`. The commit it synced last is
 still in its history, so this is an ordinary pull:
 
 ```scrut
-$ cd "$WALKTHROUGH/monorepo" && git splice pull vendor/pkg-a
-ok   vendor/pkg-a fetched from fork (patches moved 0091412..9cf4aab)
-ok   vendor/pkg-a: pulled 9cf4aab
+$ cd "$WALKTHROUGH/monorepo" && git splice pull -m "p: pull the rebased patches" vendor/pkg-a
+ok   vendor/pkg-a fetched from fork (patches moved 0091412..d4bba3a)
+ok   vendor/pkg-a: pulled d4bba3a
 ```
 
 ```scrut
@@ -208,18 +208,17 @@ On branch main
 
 ```scrut
 $ git splice fetch vendor/pkg-a
-ok   vendor/pkg-a fetched from origin (main moved 703b936..a4c229c)
+ok   vendor/pkg-a fetched from origin (main moved 703b936..3f31d3d)
 ok   vendor/pkg-a fetched from fork
 ```
 
 The splice's two upstreams side by side. The original, `origin`, has
 *k* (`pkg-a: seed`), *m* (`pkg-a: a second commit, after the clone`)
-and *n* (`add a feature`) on `main`. The fork has the same `main`, and
+and *n* on `main`. The fork has the same `main`, and
 on top of it a branch for each pull request: *q* (`pkg-a: fix the
 parser`) on `fix/parser`, and *e* (`pkg-a: document the parser`) on
 `docs/parser`. `patches` stacks both, with *d*, the same change as *e*,
-on top of *q*. The monorepo made the changes as *x* and *y*, and *p*
-pulled *d*:
+on top of *q*. The monorepo made the changes as *x* and *y*:
 
 <div align="center">
 
@@ -231,8 +230,8 @@ pulled *d*:
 ```scrut
 $ source "$TESTDIR/../../check-drawing/check-drawing" &&
 >   check_drawing "$TESTDIR/fork.drawio.svg" \
->     x=HEAD~2 y=HEAD~1 p=HEAD \
->     k=refs/splices/pkg-a/heads/main~2 m=refs/splices/pkg-a/heads/main~1 n=refs/splices/pkg-a/heads/main \
+>     x=HEAD~2 y=HEAD~1 \
+>     k=refs/splices/pkg-a/heads/main~2 m=refs/splices/pkg-a/heads/main~1 \
 >     q=refs/splices/pkg-a-fork/heads/fix/parser e=refs/splices/pkg-a-fork/heads/docs/parser \
 >     d=refs/splices/pkg-a-fork/heads/patches
 ok   fork.drawio.svg: 12 commits, 15 arrows, 6 boxes, 1 lanes, 2 upstreams
@@ -252,7 +251,7 @@ change, new message, new parent, as a squash merge would.
 $ cd "$WALKTHROUGH/pkg-a" &&
 >   git fetch -q "$WALKTHROUGH/upstream/pkg-a-fork.git" fix/parser &&
 >   git cherry-pick --no-commit FETCH_HEAD &&
->   git commit -q -m "Fix the parser (#1)" &&
+>   git commit -q -m "f: Fix the parser (#1)" &&
 >   git push -q origin main
 ```
 
@@ -276,8 +275,8 @@ $ cd "$WALKTHROUGH/pkg-a-fork" &&
 ```scrut
 $ git log --format=%s origin/patches
 pkg-a: document the parser
-Fix the parser (#1)
-add a feature
+f: Fix the parser (#1)
+n: add a feature
 pkg-a: a second commit, after the clone
 pkg-a: seed
 ```
@@ -289,9 +288,9 @@ the folder already has the files of the new `patches`, so the pull only
 records it:
 
 ```scrut
-$ cd "$WALKTHROUGH/monorepo" && git splice pull vendor/pkg-a
-ok   vendor/pkg-a fetched from fork (patches moved 9cf4aab..267e5d5)
-ok   vendor/pkg-a: recorded 267e5d5 as the synced commit -- the folder already has its files
+$ cd "$WALKTHROUGH/monorepo" && git splice pull -m "r: record the merged fix" vendor/pkg-a
+ok   vendor/pkg-a fetched from fork (patches moved d4bba3a..bea4f85)
+ok   vendor/pkg-a: recorded bea4f85 as the synced commit -- the folder already has its files
 ```
 
 ```scrut
@@ -305,12 +304,12 @@ To see the original too, fetch both upstreams again:
 
 ```scrut
 $ git splice fetch vendor/pkg-a
-ok   vendor/pkg-a fetched from origin (main moved a4c229c..35d9f8f)
+ok   vendor/pkg-a fetched from origin (main moved 3f31d3d..d159ec6)
 ok   vendor/pkg-a fetched from fork
 ```
 
-The original's `main` has the fix as a new commit, *f*
-(`Fix the parser (#1)`), on top of *n*, and so has the fork's.
+The original's `main` has the fix as a new commit, *f*, on top of *n*,
+and so has the fork's.
 `patches` and `docs/parser` are now one commit, *g*
 (`pkg-a: document the parser`) on top of *f*: rebased onto the same
 `main`, the documentation came out the same in both. *r* recorded *g*:
@@ -324,9 +323,8 @@ The original's `main` has the fix as a new commit, *f*
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/fork-merged.drawio.svg" \
->     p=HEAD~1 r=HEAD \
->     k=refs/splices/pkg-a/heads/main~3 m=refs/splices/pkg-a/heads/main~2 n=refs/splices/pkg-a/heads/main~1 \
->     f=refs/splices/pkg-a/heads/main g=refs/splices/pkg-a-fork/heads/patches
+>     k=refs/splices/pkg-a/heads/main~3 m=refs/splices/pkg-a/heads/main~2 \
+>     g=refs/splices/pkg-a-fork/heads/patches
 ok   fork-merged.drawio.svg: 11 commits, 12 arrows, 4 boxes, 1 lanes, 2 upstreams
 ```
 -->
