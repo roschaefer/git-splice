@@ -33,9 +33,9 @@ strip_state_tree() {
     if [[ -n "$found" && ${#stripped[@]} -eq 0 ]]; then
       # Only the state file: the folder is empty upstream. printf would
       # still print one NUL, which mktree refuses.
-      CONTENT_TREE_CACHE[$tree]="$(git mktree </dev/null)"
+      CONTENT_TREE_CACHE[$tree]="$(git mktree </dev/null)" || return 1
     elif [[ -n "$found" ]]; then
-      CONTENT_TREE_CACHE[$tree]="$(printf '%s\0' "${stripped[@]}" | git mktree -z)"
+      CONTENT_TREE_CACHE[$tree]="$(printf '%s\0' "${stripped[@]}" | git mktree -z)" || return 1
     else
       CONTENT_TREE_CACHE[$tree]="$tree"
     fi
@@ -50,7 +50,7 @@ content_tree() {
   CONTENT_TREE=""
   tree="$(folder_tree "$1" "$2")"
   [[ -n "$tree" ]] || return 0
-  strip_state_tree "$tree"
+  strip_state_tree "$tree" || return 1
 }
 
 # Prints the newest first-parent commit reachable from <rev> that changed
@@ -237,7 +237,7 @@ rebuild_with_start() {
     done
   fi
   if [[ -n "$best" ]]; then
-    from_above="$(rebuild_splice "${path#"$best/"}" "$best_synced")"
+    from_above="$(rebuild_splice "${path#"$best/"}" "$best_synced")" || return
     if [[ -n "$from_above" ]]; then
       last_sync="$best_last_sync"
       synced="$from_above"
@@ -256,8 +256,8 @@ rebuild_with_start() {
   if [[ -n "$synced" ]]; then
     rebuild_start="$last_sync"
     prev="$synced"
-    prev_tree="$(git rev-parse "$synced^{tree}")"
-    content_tree "$last_sync" "$path"
+    prev_tree="$(git rev-parse "$synced^{tree}")" || return
+    content_tree "$last_sync" "$path" || return
     tree="$CONTENT_TREE"
     # With the history from above, L's folder may equal it while the
     # monorepo's history before L has commits it lacks, e.g. one pushed
@@ -309,7 +309,7 @@ rebuild_with_start() {
       if [[ ${#parents[@]} -eq 1 && "$tree" == "$(git rev-parse "${parents[0]}^{tree}")" ]]; then
         prev="${parents[0]}"
       else
-        prev="$(copy_commit "$last_sync" "$tree" "${parents[@]}")"
+        prev="$(copy_commit "$last_sync" "$tree" "${parents[@]}")" || return
       fi
       prev_tree="$tree"
     fi
@@ -326,7 +326,7 @@ rebuild_with_start() {
     git rev-parse --verify --quiet "$start^1" >/dev/null && range="$start^1..$rev"
   fi
 
-  prev="$(rebuild_walk "$path" "$prev" "$range")"
+  prev="$(rebuild_walk "$path" "$prev" "$range")" || return
   printf '%s %s\n' "${prev:--}" "$rebuild_start"
 }
 
@@ -341,7 +341,9 @@ rebuild_with_start() {
 # instead of eight.
 rebuild_walk() {
   local path="$1" prev="$2" range="$3" prev_tree="" i
-  [[ -n "$prev" ]] && prev_tree="$(git rev-parse "$prev^{tree}")"
+  if [[ -n "$prev" ]]; then
+    prev_tree="$(git rev-parse "$prev^{tree}")" || return 1
+  fi
 
   local -a hashes=() authors=() emails=() dates=() cnames=() cemails=() cdates=() messages=()
   local hash an ae ad cn ce cd message
@@ -377,7 +379,7 @@ rebuild_walk() {
   local parents=()
   for i in "${!hashes[@]}"; do
     [[ -n "${folders[$i]}" ]] || continue
-    strip_state_tree "${folders[$i]}"
+    strip_state_tree "${folders[$i]}" || return 1
     [[ "$CONTENT_TREE" == "$prev_tree" ]] && continue
     parents=()
     [[ -n "$prev" ]] && parents=(-p "$prev")
@@ -385,7 +387,7 @@ rebuild_walk() {
     prev="$(printf '%s' "${messages[$i]}" |
       GIT_AUTHOR_NAME="${authors[$i]}" GIT_AUTHOR_EMAIL="${emails[$i]}" GIT_AUTHOR_DATE="${dates[$i]}" \
         GIT_COMMITTER_NAME="${cnames[$i]}" GIT_COMMITTER_EMAIL="${cemails[$i]}" GIT_COMMITTER_DATE="${cdates[$i]}" \
-        git "${REBUILD_ENCODING[@]}" commit-tree --no-gpg-sign "$CONTENT_TREE" "${parents[@]}")"
+        git "${REBUILD_ENCODING[@]}" commit-tree --no-gpg-sign "$CONTENT_TREE" "${parents[@]}")" || return 1
     prev_tree="$CONTENT_TREE"
   done
   printf '%s\n' "$prev"

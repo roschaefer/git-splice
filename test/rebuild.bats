@@ -536,3 +536,29 @@ squash_merge_rebased_pull() {
   (cmd_merge vendor/a) >/dev/null
   [ "$(rebuild_splice vendor/a)" = "$(git rev-parse "$(upstream_refs "$upstream")patches")" ]
 }
+
+@test "rebuild: a commit the rebuild can't write fails status, push and log, instead of reading as unrelated history" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "another change" another.txt
+  cd "$monorepo"
+  # As on a full disk: git can't add the rebuild's new objects.
+  find .git/objects -type d -exec chmod a-w {} +
+  local status_status status_output push_status push_output log_status log_output
+  run splice status
+  status_status="$status" status_output="$output"
+  run splice push vendor/a
+  push_status="$status" push_output="$output"
+  run splice log vendor/a
+  log_status="$status" log_output="$output"
+  run splice rebuild vendor/a
+  find .git/objects -type d -exec chmod u+w {} +
+  [ "$status_status" -eq 1 ]
+  [[ "$status_output" != *"unrelated history"* ]]
+  [ "$push_status" -eq 1 ]
+  [[ "$push_output" != *"pick a side"* ]]
+  [ "$log_status" -eq 1 ]
+  [[ "$log_output" != *"share no history"* ]]
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"has no content yet"* ]]
+  [[ "$output" == *"insufficient permission"* ]]
+}

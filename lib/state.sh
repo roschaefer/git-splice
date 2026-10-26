@@ -77,7 +77,7 @@ classify_splice() {
   fi
 
   local local_tree remote_tree remote_head
-  content_tree HEAD "$path"
+  content_tree HEAD "$path" || return 1
   local_tree="$CONTENT_TREE"
   remote_tree="$(git rev-parse "$SPLICE_TARGET_REF^{tree}")"
   # A commit given with push --rebuilt-commit differs in its history, not

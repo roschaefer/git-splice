@@ -160,10 +160,11 @@ remind_pull() {
 # upstream doesn't have, which the next push would publish. Without the
 # synced commit here, there's no rebuild to compare with.
 given_is_rebuild() {
-  local path="$1" synced
+  local path="$1" synced own
   synced="$(splice_config "$path" commit)"
   [[ -z "$synced" ]] || git cat-file -e "$synced^{commit}" 2>/dev/null || return 1
-  [[ "${REBUILD_GIVEN[$path]}" == "$(rebuild_splice "$path" HEAD)" ]]
+  own="$(rebuild_splice "$path" HEAD)" || exit 1
+  [[ "${REBUILD_GIVEN[$path]}" == "$own" ]]
 }
 
 # Records <commit> as the rebuild push sends for splice <path>
@@ -172,17 +173,20 @@ given_is_rebuild() {
 # commit -- unless $3 is "force", which may replace the published history
 # too. An upstream that has moved on is left to the push to reject.
 give_rebuild() {
-  local path="$1" commit="$2" force="${3:-}" rebuilt synced outcome
+  local path="$1" commit="$2" force="${3:-}" rebuilt synced outcome own
   rebuilt="$(git rev-parse --verify --quiet "$commit^{commit}")" ||
     die "--rebuilt-commit: unknown commit: $commit"
-  content_tree HEAD "$path"
+  content_tree HEAD "$path" || exit 1
   [[ "$(git rev-parse "$rebuilt^{tree}")" == "$CONTENT_TREE" ]] ||
     die "$path: ${rebuilt:0:7} has other files than the folder -- --rebuilt-commit only takes edits to the history; commit changes to files in the monorepo"
   synced="$(splice_config "$path" commit)"
   # The monorepo's own rebuild needs no record, even where it's the
   # synced commit, e.g. with an upstream that's ahead.
   outcome="$(equal_tree_outcome "$path" "$rebuilt")" || exit 1
-  [[ "$outcome" != keep || "$rebuilt" == "$(rebuild_splice "$path" HEAD)" ]] ||
+  if [[ "$outcome" == keep ]]; then
+    own="$(rebuild_splice "$path" HEAD)" || exit 1
+  fi
+  [[ "$outcome" != keep || "$rebuilt" == "$own" ]] ||
     die "$path: pull can't record ${rebuilt:0:7} as the synced commit -- it isn't newer than ${synced:0:7}, so the next push would publish the rebuild's commits after it again"
   if [[ -n "$synced" && -z "$force" ]]; then
     git cat-file -e "$synced^{commit}" 2>/dev/null ||

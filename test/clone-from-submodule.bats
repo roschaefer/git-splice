@@ -743,3 +743,19 @@ add_nested_submodule_with_branch() {
   [[ "$output" == *"===  vendor/a: pinned at ${pinned:0:7}, the tag 'v1', as the submodule was"* ]]
   [ "$(git config --file vendor/a/.splice upstream.origin.default-pin)" = "$pinned" ]
 }
+
+@test "clone --from-submodule --recursive: stops when a hook rejects a nested conversion's commit, which stays staged" {
+  add_nested_submodule
+  local hooks outer_pin
+  outer_pin="$(git rev-parse HEAD:vendor/a)"
+  hooks="$(git rev-parse --git-path hooks)"
+  mkdir -p "$hooks"
+  printf '#!/bin/sh\n! git diff --cached --name-only | grep -q libs/inner/.splice\n' >"$hooks/pre-commit"
+  chmod +x "$hooks/pre-commit"
+  run splice clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"ok   vendor/a/libs/inner: cloned"* ]]
+  [[ "$output" == *"!!   vendor/a/libs/inner: 'git commit' failed -- the conversion stays staged"* ]]
+  [ "$(git log -1 --format=%s)" = "splice: clone vendor/a from submodule at ${outer_pin:0:7}" ]
+  [ -n "$(git diff --cached --name-only -- vendor/a/libs/inner/.splice)" ]
+}

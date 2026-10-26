@@ -177,7 +177,7 @@ cmd_clone() {
   fi
 
   local blob
-  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")"
+  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")" || exit 1
   # The merge base is an empty folder: the two sides share nothing.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
     "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")"; then
@@ -398,7 +398,7 @@ clone_from_submodule() {
   done < <(git config --blob "HEAD:$gitmodules" --name-only --get-regexp '^submodule\.')
 
   local blob edited
-  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$commit")" "commit=$commit" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$SUBMODULE_BRANCH" "upstream.$DEFAULT_UPSTREAM.default-pin=$SUBMODULE_PIN")"
+  blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$commit")" "commit=$commit" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$SUBMODULE_BRANCH" "upstream.$DEFAULT_UPSTREAM.default-pin=$SUBMODULE_PIN")" || exit 1
   edited="$(mktemp)"
   git cat-file blob "HEAD:$gitmodules" >"$edited"
   git config --file "$edited" --remove-section "submodule.$name"
@@ -431,7 +431,8 @@ clone_from_submodule() {
     git add -- "$gitmodules"
   fi
   rm -f -- "$edited"
-  git commit --quiet -m "$(commit_message "splice: clone $path from submodule at ${commit:0:7}")"
+  git commit --quiet -m "$(commit_message "splice: clone $path from submodule at ${commit:0:7}")" ||
+    die "$path: 'git commit' failed -- the conversion stays staged"
   log_ok "$path: cloned ${commit:0:7} from the submodule"
   if [[ -n "$SUBMODULE_PIN" ]]; then
     local tag

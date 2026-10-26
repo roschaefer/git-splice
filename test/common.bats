@@ -174,6 +174,15 @@ four" ]
   ! git config --blob "$blob" splice.commit
 }
 
+@test "state_blob fails when it can't write the blob, e.g. on a full disk" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  find .git/objects -type d -exec chmod a-w {} +
+  run state_blob vendor/a commit=abc
+  find .git/objects -type d -exec chmod u+w {} +
+  [ "$status" -ne 0 ]
+}
+
 @test "upstream_branch_for maps only the monorepo's default branch to default-branch" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
