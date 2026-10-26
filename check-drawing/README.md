@@ -1,13 +1,13 @@
 # check-drawing
 
-Checks a draw.io drawing of commit graphs against the repositories it
-shows.
+Checks a drawing of commit graphs, a plain SVG or a draw.io one, against
+the repositories it shows.
 
 A drawing that explains a Git history goes stale without anyone
 noticing: the history in the docs' setup changes, and the picture still
-shows the old one. `check-drawing` reads the diagram embedded in a
-`.drawio.svg`, looks up each commit, arrow and label in the real
-repositories, and names every difference.
+shows the old one. `check-drawing` reads the drawing's commits, arrows
+and labels, looks each one up in the real repositories, and names every
+difference.
 
 It's made for drawings of [`git-splice`](../README.md) histories: a
 monorepo, the upstreams of its splices, and the names of
@@ -22,7 +22,8 @@ In the monorepo, with the path to `check-drawing/check-drawing`:
 check-drawing/check-drawing <drawing> [<label>=<rev>...]
 ```
 
-`<drawing>` is a `.drawio.svg`, or a `.drawio` file. When everything
+`<drawing>` is a plain `.svg`, a `.drawio.svg`, or a `.drawio` file.
+When everything
 matches, it prints what it checked and succeeds:
 
 ```
@@ -105,7 +106,7 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
   - U(x) reads *x*'s `.splice` of the splice whose lane the box is in: in
     a nested drawing, U(l) in the lane of `vendor/a/b/` reads the
     `b/.splice` of l, a commit of `vendor/a/`'s upstream.
-- **Separator**: a dashed vertical line (draw.io's line shape,
+- **Separator**: a dashed vertical line (in draw.io, the line shape,
   `direction=south`) splits a lane for a splice with several upstreams,
   side by side. A text on each side names the upstream whose commits
   that side holds, e.g. `origin` and `fork`: every side one upstream,
@@ -127,6 +128,34 @@ What a drawing shows is checked, not where: positions only matter for
 which lane a shape is in.
 
 ## Saving drawings
+
+### Plain SVG
+
+`check-drawing` reads what the picture shows, so the picture is all
+there is to keep up to date:
+
+- A **circle** with a text in it is a commit, labelled by the text.
+- A **rect** with a text in it is a box; with a folder, e.g. `lib/`, a
+  lane, whose other texts are upstreams' names or boxes by their labels.
+- A **line, polyline or path with an arrowhead** (`marker-end`) is an
+  arrow from the shape its start touches to the one its end touches,
+  within 3 units of the outline. Paths are straight lines: M, L, H and
+  V.
+- A **line without an arrowhead** is a separator.
+- **Dashed** is a `stroke-dasharray`, as an attribute or in `style`.
+
+A text belongs to the smallest shape around it. What the check can't
+read fails it, rather than being skipped: a circle or box without a
+label, a text that is neither a label nor an upstream's name, another
+kind of shape, a `transform`. Inkscape writes moved shapes' new
+coordinates, not a `transform`.
+
+Colors go into the drawing's `<style>`, as plain values per element,
+with a `prefers-color-scheme: dark` block: Inkscape ignores CSS
+variables. [before-pull.svg](../test/scenarios/01-everyday-sync/01-sync-model/before-pull.svg)
+is an example.
+
+### draw.io
 
 Draw with [draw.io](https://www.drawio.com/) desktop, and save as an
 uncompressed `.drawio.svg`: File > Properties > Compressed off. Labels
@@ -163,7 +192,8 @@ What no drawing has needed yet, it doesn't handle:
 ## Tests
 
 In `git-splice`, [`test/drawing.bats`](../test/drawing.bats) and
-[`test/drawing-lanes.bats`](../test/drawing-lanes.bats) and
-[`test/drawing-upstreams.bats`](../test/drawing-upstreams.bats) run it against
+[`test/drawing-lanes.bats`](../test/drawing-lanes.bats),
+[`test/drawing-upstreams.bats`](../test/drawing-upstreams.bats) and
+[`test/drawing-svg.bats`](../test/drawing-svg.bats) run it against
 `git-splice`'s test scenarios, and each [scenario](../test/scenarios/)
 with a drawing checks it in its README.

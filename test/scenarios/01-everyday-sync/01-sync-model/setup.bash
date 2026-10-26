@@ -1,5 +1,5 @@
 # See README.md in this directory. Commits are named as in the drawing
-# there, before-pull.drawio.svg.
+# there, before-pull.svg.
 scenario_sync_model() {
   local monorepo="$1" upstream="$2"
   make_bare_repo "$upstream"

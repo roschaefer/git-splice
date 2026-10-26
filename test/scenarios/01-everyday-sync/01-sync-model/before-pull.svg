@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="948" height="570" viewBox="0 0 948 570">
+  <style>
+    svg { background-color: #fff; }
+    circle { fill: #fff; stroke: #000; stroke-width: 2; }
+    rect { fill: none; stroke: #000; stroke-width: 1.5; }
+    line, path { fill: none; stroke: #000; stroke-width: 1.5; }
+    marker path { fill: #000; stroke: none; }
+    text { fill: #000; font-family: "Roboto Mono", monospace; font-size: 22px; text-anchor: middle; dominant-baseline: central; }
+    @media (prefers-color-scheme: dark) {
+      svg { background-color: #121212; }
+      circle { fill: #121212; stroke: #fff; }
+      rect, line, path { stroke: #fff; }
+      marker path, text { fill: #fff; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z"/>
+    </marker>
+  </defs>
+  <rect x="310" y="10" width="628" height="550" rx="16"/>
+  <text x="322" y="30" style="font-size: 15px; text-anchor: start">lib/</text>
+  <circle cx="213" cy="495" r="35"/>
+  <text x="213" y="495">a</text>
+  <circle cx="213" cy="355" r="35"/>
+  <text x="213" y="355">b</text>
+  <circle cx="213" cy="216" r="35"/>
+  <text x="213" y="216">c</text>
+  <circle cx="213" cy="75" r="35"/>
+  <text x="213" y="75">d</text>
+  <circle cx="622" cy="495" r="35"/>
+  <text x="622" y="495">k</text>
+  <circle cx="534" cy="355" r="35"/>
+  <text x="534" y="355">l</text>
+  <circle cx="534" cy="216" r="35"/>
+  <text x="534" y="216">m</text>
+  <circle cx="534" cy="75" r="35"/>
+  <text x="534" y="75">n</text>
+  <circle cx="709" cy="355" r="35" stroke-dasharray="6 4"/>
+  <text x="709" y="355">b'</text>
+  <circle cx="709" cy="75" r="35" stroke-dasharray="6 4"/>
+  <text x="709" y="75">d'</text>
+  <rect x="10" y="55" width="96" height="40" rx="4"/>
+  <text x="58" y="75">H</text>
+  <rect x="10" y="475" width="96" height="40" rx="4"/>
+  <text x="58" y="495">B</text>
+  <rect x="330" y="475" width="172" height="40" rx="4"/>
+  <text x="416" y="495">U(H) = U(B)</text>
+  <rect x="330" y="55" width="96" height="40" rx="4"/>
+  <text x="378" y="75">T</text>
+  <rect x="812" y="55" width="96" height="40" rx="4"/>
+  <text x="860" y="75">R</text>
+  <line x1="106" y1="75" x2="178" y2="75" marker-end="url(#arrow)"/>
+  <line x1="213" y1="181" x2="213" y2="110" marker-end="url(#arrow)"/>
+  <line x1="213" y1="320" x2="213" y2="251" marker-end="url(#arrow)"/>
+  <line x1="213" y1="460" x2="213" y2="390" marker-end="url(#arrow)"/>
+  <line x1="106" y1="495" x2="178" y2="495" marker-end="url(#arrow)"/>
+  <line x1="502" y1="495" x2="587" y2="495" marker-end="url(#arrow)"/>
+  <line x1="426" y1="75" x2="499" y2="75" marker-end="url(#arrow)"/>
+  <line x1="603.4" y1="465.4" x2="552.6" y2="384.6" marker-end="url(#arrow)"/>
+  <line x1="534" y1="320" x2="534" y2="251" marker-end="url(#arrow)"/>
+  <line x1="534" y1="181" x2="534" y2="110" marker-end="url(#arrow)"/>
+  <line x1="640.5" y1="465.3" x2="690.5" y2="384.7" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <line x1="709" y1="320" x2="709" y2="110" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <line x1="812" y1="75" x2="744" y2="75" marker-end="url(#arrow)"/>
+</svg>

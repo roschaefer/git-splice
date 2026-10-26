@@ -7,7 +7,7 @@ named as in the drawing:
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](before-pull.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](before-pull.svg)
 
 </div>
 
@@ -29,8 +29,8 @@ $ build_scenario scenario_sync_model
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/before-pull.drawio.svg"
-ok   before-pull.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
+$ check_drawing "$TESTDIR/before-pull.svg"
+ok   before-pull.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
 ```
 -->
 
