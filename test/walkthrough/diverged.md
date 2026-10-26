@@ -88,7 +88,7 @@ o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@exa
 
 ```scrut
 $ git splice push vendor/pkg-a
-!!   vendor/pkg-a: upstream has commits this branch lacks -- run 'git splice pull vendor/pkg-a' first
+!!   vendor/pkg-a: upstream has commits this branch lacks
 !!   Failed: vendor/pkg-a
 [1]
 ```

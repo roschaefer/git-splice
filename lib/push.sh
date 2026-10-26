@@ -87,11 +87,8 @@ push_one() {
       fi
       ;;
     diverged)
-      if [[ -z "$force" ]] && only_copies_upstream; then
-        log_err "$path: upstream's '$label' has only copies of commits this branch has, e.g. from before a 'git rebase' here -- run 'git splice push $option--force $path' to replace them: a pull would keep both"
-        return 1
-      elif [[ -z "$force" ]]; then
-        log_err "$path: upstream has commits this branch lacks -- run 'git splice pull $option$path' first"
+      if [[ -z "$force" ]]; then
+        log_err "$path: upstream has commits this branch lacks"
         return 1
       fi
       ;;
@@ -144,19 +141,6 @@ push_one() {
   fi
   log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $label"
   remind_pull "$path" "$option"
-}
-
-# Succeeds if each commit of the upstream branch (SPLICE_TARGET_REF) that
-# the rebuild (SPLICE_REBUILT) lacks makes the same change as one of the
-# rebuild's, by git cherry: the copies that were pushed before a 'git
-# rebase' in the monorepo rewrote them. git cherry skips merges, whose
-# conflict resolutions may be changes of their own, so it fails if one
-# of those commits is a merge.
-only_copies_upstream() {
-  local cherry
-  [[ "$(git rev-list --merges --count "$SPLICE_REBUILT..$SPLICE_TARGET_REF")" -eq 0 ]] || return 1
-  cherry="$(git cherry "$SPLICE_REBUILT" "$SPLICE_TARGET_REF")" || return 1
-  [[ -n "$cherry" && "$cherry" != *"+ "* ]]
 }
 
 # Reminds to record the commit given for splice <path> with a pull, if

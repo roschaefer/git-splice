@@ -238,7 +238,7 @@ add_upstream() {
   [ "$(git rev-parse refs/splices/upstream/heads/main)" = "$(git -C "$upstream" rev-parse main)" ]
 }
 
-@test "--upstream: hints name it when the upstream in use isn't the default" {
+@test "--upstream: push compares with the upstream it names, not the default one" {
   scenario_several_upstreams "$monorepo" "$upstream"
   cd "$monorepo"
   add_upstream vendor/a fork "$fork" origin
@@ -247,7 +247,7 @@ add_upstream() {
   git commit -q -am "local"
   run splice push --upstream fork vendor/a
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull --upstream fork vendor/a' first" ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks" ]
   run splice status
   [ "$output" = "$(printf 'On branch main\n\n  ahead 1  vendor/a -> origin/main')" ]
 }
