@@ -15,50 +15,17 @@ clone of the monorepo has every splice, with nothing to set up.
 	default-branch = master     # only if it's named differently, see below
 ```
 
-- **It's in Git's config format**, so `git config --file` reads and
-  writes it. It looks like TOML, but isn't. A `.splice` that `git config`
-  can't parse, e.g. one committed with conflict markers, stops every
-  command with Git's message.
-- **Only a committed one counts.** Commands find splices by every
-  `*/.splice` in `HEAD`, at any depth. A staged `.splice` isn't a splice
-  yet.
-- **`clone` and `init` create it, `merge` and `pull` update it.** `push`
-  never changes the monorepo, so it never writes `.splice`.
-- **It stores no path and no monorepo commit.** The folder that contains
-  it is the splice, so it moves along with `git mv`, and rebases or
-  squash merges in the monorepo can't invalidate it.
-- **Its own upstream never gets it.** A push leaves it out of every
-  commit it sends. The `.splice` of a [nested](../nesting/README.md)
-  splice is content of the splice above, whose push sends it.
-- **Its `id` names the splice**, not an upstream: it stays the same when
-  the folder moves or the upstream's URL changes
-  ([splice identity](../splice-identity/README.md)). Commands refuse a
-  `.splice` without one.
-- **Its upstreams are named**, like Git remotes, so a splice can follow
-  several, e.g. a company fork and the original
-  ([upstreams](../upstreams/README.md)). `clone` and `init` name theirs
-  `origin`.
-- **Without `default-branch`**, an upstream's default branch is named
-  like the monorepo's, or, for a nested splice, like the splice above's
-  ([nested-default-branch](../../scenarios/05-nested-splices/02-nested-default-branch/README.md)).
-  `clone` and `init` record it only where it differs, e.g. when `main`
-  syncs with `master`
-  ([default-branch](../../scenarios/04-upstreams/01-default-branch/README.md)). If the
-  splice above has several upstreams with different default branches and
-  no `default-upstream`, commands refuse
-  ([example](../../scenarios/05-nested-splices/01-nested-splices/01-outer-fork/fork-default-branch-below.md)).
-- **`default-pin` pins a tag or a commit** instead of following a
-  branch, in place of `default-branch`. The monorepo's default branch
-  then stays with it: `pull` brings in a newer one only once `.splice`
-  names it, and `push` refuses there ([default-pin](../../scenarios/04-upstreams/06-default-pin/README.md)).
-  `clone --from-submodule` records what the submodule followed: its
-  `branch` in `.gitmodules` as `default-branch`, unless the splice
-  follows that branch anyway, or else its commit as
-  `default-pin`
-  ([clone-from-submodule](../../scenarios/02-starting-a-splice/08-clone-from-submodule/README.md)).
-- **Two branches that both pulled conflict in it** when they're merged.
-  Resolve it by keeping the newer synced commit
-  ([concurrent-pulls](../../scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).
+- **It's in Git's config format**, so `git config --file` reads it. Only
+  the `.splice` committed in `HEAD` counts.
+- **`clone` and `init` create it; `merge` and `pull` update it.** `push`
+  does not change the monorepo, so it does not change `.splice`.
+- **`default-branch` names the branch to follow** when it differs from
+  the monorepo branch. For example, it can map monorepo `main` to
+  upstream `master`
+  ([example](../../scenarios/04-upstreams/01-default-branch/README.md)).
+- **`default-pin` follows a tag or commit instead of a branch.** `pull`
+  stays at that revision until `.splice` names another one, and `push`
+  refuses there ([example](../../scenarios/04-upstreams/06-default-pin/README.md)).
 
 The [design](../../../docs/design/README.md#the-splice-file) explains
 each of these choices.
