@@ -1,12 +1,18 @@
 # Diverged history
 
 A splice has diverged when both the monorepo and the upstream changed it
-since the last sync. This walkthrough, in [its repositories](README.md), makes
-both sides change the same line, then resolves the conflict.
+since the last sync. In this example, both sides change the same line, then
+resolve the conflict. It uses the [walkthrough sandbox](README.md).
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
+```
+
+```scrut
+$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a-s &&
+>   git -C ../pkg-a-s commit --amend -qm "s: pkg-a second commit" &&
+>   git -C ../pkg-a-s push --force -q
 ```
 -->
 
@@ -14,17 +20,47 @@ First, bring `vendor/pkg-a/` up to date:
 
 ```scrut
 $ git splice pull -m "p: pull pkg-a" vendor/pkg-a
-ok   vendor/pkg-a fetched
-ok   vendor/pkg-a: pulled 703b936
+ok   vendor/pkg-a fetched (main moved 703b936..53e5f5f)
+ok   vendor/pkg-a: pulled 53e5f5f
 ```
+
+<div align="center">
+
+![The monorepo and pkg-a upstream are up to date on main](diverged-up-to-date.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ source "$TESTDIR/../../check-drawing/check-drawing" && \
+>   check_drawing "$TESTDIR/diverged-up-to-date.drawio.svg" p=HEAD
+ok   diverged-up-to-date.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
+```
+-->
 
 ## Both sides change
 
-The monorepo and the upstream each append a line to the same file:
+The monorepo changes `vendor/pkg-a/`:
 
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "f: a local fix"
 ```
+
+<div align="center">
+
+![The monorepo main has local fix f, ready to rebuild on upstream main](diverged-local-change.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diverged-local-change.drawio.svg" \
+>   p=HEAD~1 f=HEAD
+ok   diverged-local-change.drawio.svg: 4 commits, 4 arrows, 2 boxes, 1 lanes
+```
+-->
+
+The upstream also gets a new commit, changing the same file:
 
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
@@ -33,13 +69,27 @@ $ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
 >   git -C ../pkg-a push -q
 ```
 
-Once fetched, `status` reports the splice as `diverged`, and `log` shows
-both sides:
+Fetch it into the monorepo:
 
 ```scrut
 $ git splice fetch
-ok   vendor/pkg-a fetched (main moved 703b936..5972aa1)
+ok   vendor/pkg-a fetched (main moved 53e5f5f..bc52052)
 ```
+
+<div align="center">
+
+![The monorepo main has local fix f while upstream main has upstream fix u; rebuilding f would start from their shared commit s](diverged.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diverged.drawio.svg"
+ok   diverged.drawio.svg: 5 commits, 5 arrows, 2 boxes, 1 lanes
+```
+-->
+
+`status` now reports the splice as diverged, and `log` shows both sides:
 
 ```scrut
 $ git splice status
@@ -51,35 +101,19 @@ On branch main
 ```scrut
 $ git splice log
 ===  vendor/pkg-a (main)
-< c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
-> 5972aa1 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
+< 4bb4822 f: a local fix  (Walkthrough <walkthrough@example.com>)
+> bc52052 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 ```
 
-In terms of the [four commits](../concepts/sync-model/README.md), R and T each
-have a commit the other lacks, and U(H) is where they part:
-
-<div align="center">
-
-![The monorepo's pull p is B, the local fix f is H; upstream, s is U(H) = U(B), T is the upstream fix u, and R is f prime, the rebuilt local fix](diverged.drawio.svg)
-
-</div>
-
-<!--
-```scrut
-$ source "$TESTDIR/../../check-drawing/check-drawing" && check_drawing "$TESTDIR/diverged.drawio.svg" s=refs/splices/pkg-a/heads/main~1
-ok   diverged.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
-```
--->
-
-`log --graph` draws that right-hand side:
+`git splice log --graph` draws both sides:
 
 ```scrut
 $ git splice log --graph
 ===  vendor/pkg-a (main)
-< c4dcfe0 (R) f: a local fix  (Walkthrough <walkthrough@example.com>)
-| > 5972aa1 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
+< 4bb4822 (R) f: a local fix  (Walkthrough <walkthrough@example.com>)
+| > bc52052 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 |/  
-o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
+o 53e5f5f s: pkg-a second commit  (Walkthrough <walkthrough@example.com>)
 ```
 
 ## Pull first
@@ -115,7 +149,7 @@ pkg-a: a second commit, after the clone
 a local fix
 =======
 pkg-a: an upstream fix
->>>>>>> a3f4622 (splice: pull vendor/pkg-a from main at 5972aa1)
+>>>>>>> 40b5011 (splice: pull vendor/pkg-a from main at bc52052)
 ```
 
 ## Resolve and push
@@ -132,39 +166,42 @@ $ cat >vendor/pkg-a/file.txt <<'EOF'
 ```
 
 ```scrut
-$ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline -1
-f428907 splice: pull vendor/pkg-a from main at 5972aa1
+$ git add vendor/pkg-a/file.txt && git commit -qm "q: pull pkg-a"
 ```
 
-The resolved commit records T as the new U(H). Its folder is U(H) plus the
-local fix, which was never pushed, so B stays the earlier pull, and R
-joins the rebuilt local fix with U(H) by a merge, as a plain `git pull`
-would have:
-
-```text
-      monorepo, newest first                 pkg-a.git, newest first
-
-      = splice: pull vendor/pkg-a        R   <   splice: pull vendor/pkg-a from main at 4527a78
-          (folder = U(H) + local fix)        |\
-      * pkg-a: a local fix                   < | pkg-a: a local fix
-  B   = splice: pull vendor/pkg-a     U(H) = T | * pkg-a: an upstream fix
-                                             |/
-                                             * pkg-a: a second commit, after the clone
+```scrut
+$ git log --oneline -1
+16ab6ed q: pull pkg-a
 ```
 
-T is an ancestor of R now, so the state is `push`, ahead by R's two `<`
-commits. `log --graph` draws them down to the commits they build on, T
-among them:
+The pull joins the rebuilt local fix with the upstream fix. The splice is
+now ahead by two commits and ready to push:
+
+<div align="center">
+
+![The resolved pull q on monorepo main rebuilds as a merge of local fix f prime and upstream fix u](diverged-after-pull.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diverged-after-pull.drawio.svg" \
+>   p=HEAD~2 f=HEAD~1
+ok   diverged-after-pull.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
+```
+-->
+
+`git splice log --graph` draws the resolved history:
 
 ```scrut
 $ git splice log --graph
 ===  vendor/pkg-a (main)
-<   24f2ae6 (R) splice: pull vendor/pkg-a from main at 5972aa1  (Walkthrough <walkthrough@example.com>)
+<   9624043 (R) q: pull pkg-a  (Walkthrough <walkthrough@example.com>)
 |\  
-< | c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
-| o 5972aa1 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
+< | 4bb4822 f: a local fix  (Walkthrough <walkthrough@example.com>)
+| o bc52052 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 |/  
-o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
+o 53e5f5f s: pkg-a second commit  (Walkthrough <walkthrough@example.com>)
 ```
 
 
@@ -180,17 +217,31 @@ by a merge:
 
 ```scrut
 $ git splice push vendor/pkg-a
-ok   vendor/pkg-a: pushed 24f2ae6 to main
+ok   vendor/pkg-a: pushed 9624043 to main
 ```
+
+<div align="center">
+
+![After push, pkg-a upstream main points to the same resolved merge rebuilt from the monorepo](diverged-after-push.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diverged-after-push.drawio.svg" \
+>   p=HEAD~2 f=HEAD~1
+ok   diverged-after-push.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --graph --format=%s main
-*   splice: pull vendor/pkg-a from main at 5972aa1
+*   q: pull pkg-a
 |\  
 | * u: an upstream fix
 * | f: a local fix
 |/  
-* pkg-a: a second commit, after the clone
+* s: pkg-a second commit
 * pkg-a: seed
 ```
 
@@ -200,9 +251,3 @@ On branch main
 
   up to date  vendor/pkg-a
 ```
-
-If the two sides share no history at all, e.g. because the upstream was
-rebuilt from scratch, `merge`, `pull` and `push` don't try to merge. They
-print the commands to keep either side instead; see the
-[`diverged-unrelated-history`](../scenarios/06-rewritten-history/03-diverged-unrelated-history/README.md)
-scenario.
