@@ -1,16 +1,55 @@
 # pull
 
-`git splice pull [--upstream <name>] [--bump] (<path>… | --all)`
-
-[`fetch`](fetch.md) and [`merge`](merge.md) in one. It also fetches the
-splices nested in each, whose synced commits a pull can move
-([nesting](../concepts/nesting/README.md)).
-
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
+
+```scrut
+$ git splice pull -h
+NAME
+    git-splice-pull - Fetch and splice in upstream changes
+
+SYNOPSIS
+    git splice pull [--upstream <name>] [--branch <name>] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice pull [<option>...] -m <message> <path>
+
+DESCRIPTION
+    'git splice fetch' followed by 'git splice merge': fetches the splices'
+    upstreams in parallel, then splices their changes in, as one ordinary
+    commit per splice. Also fetches the splices below each: pulling a splice
+    can move their synced commits. Top-down: a splice is pulled before the
+    ones below it, and a failed fetch stops the splices above and below it.
+
+    On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
+    --abort' to give up), then re-run pull for any splices left. With
+    --rebase, it's 'git rebase --continue' (or 'git rebase --abort').
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts. The splices below, selected or not,
+    are fetched from every upstream they name: names are only unique within one .splice, and
+    any of them may have the synced commit the pull moves to.
+
+    --branch names the upstream branch to pull, for this pull only; --rebase
+    rebases instead of merging, like 'git pull --rebase'; see 'git splice
+    merge --help' for both.
+
+    --bump also moves the synced commit up to the upstream branch when there's
+    nothing to pull, e.g. right after a push; see 'git splice merge --help'.
+
+    --no-fork-point merges a rewritten upstream branch from Git's merge base,
+    not from where the branch was before the rewrite; see 'git splice merge
+    --help'.
+
+    -m gives the commit this message, for one splice; see 'git splice merge
+    --help'.
+```
+
+In the [walkthrough's repositories](README.md), `vendor/pkg-a/` is
+already one commit behind. Splice in `pkg-b/`, then push another commit
+to its upstream, so both splices are behind:
 
 ```scrut
 $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null &&
@@ -20,8 +59,8 @@ $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null &&
 >   git -C ../pkg-b push -q
 ```
 
-Both splices of the [walkthrough's repositories](README.md) are behind now. Commands that
-change the monorepo or an upstream name their splices, or take `--all`:
+Commands that change the monorepo or an upstream name their splices, or
+take `--all`:
 
 ```scrut
 $ git splice pull --all

@@ -23,8 +23,7 @@ DESCRIPTION
 
     If the upstream has no branch named like the current one, the other side
     is upstream's default branch, as for a PR from the branch push would
-    create. If it lacks that one too, every commit is one push would
-    publish.
+    create. If it lacks that one too, push would publish every commit.
 
     Each line shows the author, who is published along with the commit. Purely
     local -- run 'git splice fetch' first. Defaults to every splice when no

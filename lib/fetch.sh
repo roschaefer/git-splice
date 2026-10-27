@@ -15,7 +15,7 @@ DESCRIPTION
     no Git remote; 'git splice key' prints and renames keys. Branches deleted
     upstream are pruned. Defaults to every splice when no paths are given.
     Fetches upstreams in parallel, each once, and reports when the branch a
-    splice syncs with moved.
+    splice syncs with has moved.
 
     A splice whose .splice names several upstreams has each fetched, unless
     --upstream names one.
