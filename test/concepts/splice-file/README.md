@@ -4,14 +4,15 @@ A folder is a splice because it has a committed `.splice` file. The file
 names the upstream and the upstream commit the folder last matched: the
 synced commit U(H) of the [sync model](../sync-model/README.md).
 
-The folder carries that state, so clones and branches have it and `git mv`
-moves it ([why](../../../docs/design/README.md#principles)). `pull` updates
-the synced commit. `push` publishes the folder without its own `.splice`,
-because the file describes the relationship from the monorepo side
-([why](../../../docs/design/README.md#splicing-out-push-and-the-rebuild)).
-Upstreams use private refs instead of Git remotes, so a plain `git push`
-cannot publish the monorepo to one by mistake
-([why](../../../docs/design/accidental-monorepo-push.md)).
+- The folder carries that state, so clones and branches have it and
+  `git mv` moves it ([why](../../../docs/design/README.md#principles)).
+- `pull` updates the synced commit. `push` publishes the folder without
+  its own `.splice`, because the file describes the relationship from
+  the monorepo side
+  ([why](../../../docs/design/README.md#splicing-out-push-and-the-rebuild)).
+- Upstreams use private refs instead of Git remotes, so a plain `git push`
+  cannot publish the monorepo to one by mistake
+  ([why](../../../docs/design/accidental-monorepo-push.md)).
 
 ```text
 [splice]
