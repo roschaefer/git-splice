@@ -166,7 +166,11 @@ $ cat >vendor/pkg-a/file.txt <<'EOF'
 ```
 
 ```scrut
-$ git add vendor/pkg-a/file.txt && git commit -qm "q: pull pkg-a" && git log --oneline -1
+$ git add vendor/pkg-a/file.txt && git commit -qm "q: pull pkg-a"
+```
+
+```scrut
+$ git log --oneline -1
 16ab6ed q: pull pkg-a
 ```
 
