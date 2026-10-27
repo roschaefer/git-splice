@@ -27,7 +27,7 @@ URL a short local *key* and stores its branches under
 Splices with the same URL therefore share fetched refs, but each keeps its
 own synced commit.
 
-## One upstream, two splices
+## The same library at different versions
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
@@ -75,10 +75,10 @@ The two folders are independent splices because they have different
 [`id`s](../splice-identity/README.md). Sharing an upstream does not make
 them mirrors.
 
-## One repository, two URLs
+## Using a mirror
 
-URLs are compared as written. A mirror URL or an SSH URL is another
-upstream, even when it reaches the same repository:
+URLs are compared as written. A mirror is another upstream, even when its
+URL reaches the same repository:
 
 ```scrut
 $ git splice clone https://mirror.example.com/s.git app-c/s >/dev/null &&
@@ -93,4 +93,6 @@ splice.mirror.example.com-s.url https://mirror.example.com/s.git
 ```
 
 Each URL gets its own key and fetched refs. To use both for one splice,
-name both as upstreams in its `.splice` file.
+name both as upstreams in its `.splice` file. A fork is a separate
+repository rather than another URL for the same one, but it is likewise a
+separate upstream.
