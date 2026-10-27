@@ -18,6 +18,20 @@ ok   vendor/pkg-a fetched
 ok   vendor/pkg-a: pulled 703b936
 ```
 
+<div align="center">
+
+![The monorepo and pkg-a upstream are up to date on main](diverged-up-to-date.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ source "$TESTDIR/../../check-drawing/check-drawing" && \
+>   check_drawing "$TESTDIR/diverged-up-to-date.drawio.svg" p=HEAD s=refs/splices/pkg-a/heads/main
+ok   diverged-up-to-date.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
+```
+-->
+
 ## Both sides change
 
 The monorepo and the upstream each append a line to the same file:
@@ -25,6 +39,20 @@ The monorepo and the upstream each append a line to the same file:
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "f: a local fix"
 ```
+
+<div align="center">
+
+![The monorepo main has local fix f, ready to rebuild on upstream main](diverged-local-change.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diverged-local-change.drawio.svg" \
+>   p=HEAD~1 f=HEAD s=refs/splices/pkg-a/heads/main
+ok   diverged-local-change.drawio.svg: 4 commits, 4 arrows, 2 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
@@ -55,19 +83,16 @@ $ git splice log
 > 5972aa1 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 ```
 
-In terms of the [four commits](../concepts/sync-model/README.md), R and T each
-have a commit the other lacks, and U(H) is where they part:
-
 <div align="center">
 
-![The monorepo's pull p is B, the local fix f is H; upstream, s is U(H) = U(B), T is the upstream fix u, and R is f prime, the rebuilt local fix](diverged.drawio.svg)
+![The monorepo main has local fix f while upstream main has upstream fix u; rebuilding f would start from their shared commit s](diverged.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
-$ source "$TESTDIR/../../check-drawing/check-drawing" && check_drawing "$TESTDIR/diverged.drawio.svg" s=refs/splices/pkg-a/heads/main~1
-ok   diverged.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
+$ check_drawing "$TESTDIR/diverged.drawio.svg" s=refs/splices/pkg-a/heads/main~1
+ok   diverged.drawio.svg: 5 commits, 5 arrows, 2 boxes, 1 lanes
 ```
 -->
 
@@ -136,25 +161,24 @@ $ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline 
 f428907 splice: pull vendor/pkg-a from main at 5972aa1
 ```
 
-The resolved commit records T as the new U(H). Its folder is U(H) plus the
-local fix, which was never pushed, so B stays the earlier pull, and R
-joins the rebuilt local fix with U(H) by a merge, as a plain `git pull`
-would have:
+The pull joins the rebuilt local fix with the upstream fix. The splice is
+now ahead by two commits and ready to push:
 
-```text
-      monorepo, newest first                 pkg-a.git, newest first
+<div align="center">
 
-      = splice: pull vendor/pkg-a        R   <   splice: pull vendor/pkg-a from main at 4527a78
-          (folder = U(H) + local fix)        |\
-      * pkg-a: a local fix                   < | pkg-a: a local fix
-  B   = splice: pull vendor/pkg-a     U(H) = T | * pkg-a: an upstream fix
-                                             |/
-                                             * pkg-a: a second commit, after the clone
+![The resolved pull q on monorepo main rebuilds as a merge of local fix f prime and upstream fix u](diverged-after-pull.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diverged-after-pull.drawio.svg" \
+>   p=HEAD~2 f=HEAD~1 q=HEAD s=refs/splices/pkg-a/heads/main~1
+ok   diverged-after-pull.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
 ```
+-->
 
-T is an ancestor of R now, so the state is `push`, ahead by R's two `<`
-commits. `log --graph` draws them down to the commits they build on, T
-among them:
+`log --graph` draws those commits down to their shared history:
 
 ```scrut
 $ git splice log --graph
@@ -182,6 +206,21 @@ by a merge:
 $ git splice push vendor/pkg-a
 ok   vendor/pkg-a: pushed 24f2ae6 to main
 ```
+
+<div align="center">
+
+![After push, pkg-a upstream main points to the same resolved merge rebuilt from the monorepo](diverged-after-push.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diverged-after-push.drawio.svg" \
+>   p=HEAD~2 f=HEAD~1 q=HEAD \
+>   s=refs/splices/pkg-a/heads/main~2 u=refs/splices/pkg-a/heads/main^2
+ok   diverged-after-push.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --graph --format=%s main
