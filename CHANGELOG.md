@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/roschaefer/git-splice/compare/v0.14.0...v0.14.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* a step that fails stops the command, instead of a wrong rebuild ([#261](https://github.com/roschaefer/git-splice/issues/261)) ([ffa5f3c](https://github.com/roschaefer/git-splice/commit/ffa5f3c9cc962957c7508d9904b2b5b39c2d2bc0)), closes [#12](https://github.com/roschaefer/git-splice/issues/12)
+
 ## [0.14.0](https://github.com/roschaefer/git-splice/compare/v0.13.0...v0.14.0) (2026-10-26)
 
 
