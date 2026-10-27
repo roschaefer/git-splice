@@ -160,8 +160,8 @@ $ cat >vendor/pkg-a/file.txt <<'EOF'
 ```
 
 ```scrut
-$ git add vendor/pkg-a/file.txt && git commit -q --no-edit && git log --oneline -1
-f428907 splice: pull vendor/pkg-a from main at 5972aa1
+$ git add vendor/pkg-a/file.txt && git commit -qm "q: pull pkg-a" && git log --oneline -1
+cedd100 q: pull pkg-a
 ```
 
 The pull joins the rebuilt local fix with the upstream fix. The splice is
@@ -176,7 +176,7 @@ now ahead by two commits and ready to push:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/diverged-after-pull.drawio.svg" \
->   p=HEAD~2 f=HEAD~1 q=HEAD s=refs/splices/pkg-a/heads/main~1
+>   p=HEAD~2 f=HEAD~1 s=refs/splices/pkg-a/heads/main~1
 ok   diverged-after-pull.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
 ```
 -->
@@ -186,7 +186,7 @@ ok   diverged-after-pull.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
 ```scrut
 $ git splice log --graph
 ===  vendor/pkg-a (main)
-<   24f2ae6 (R) splice: pull vendor/pkg-a from main at 5972aa1  (Walkthrough <walkthrough@example.com>)
+<   c58ed07 (R) q: pull pkg-a  (Walkthrough <walkthrough@example.com>)
 |\  
 < | c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
 | o 5972aa1 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
@@ -207,7 +207,7 @@ by a merge:
 
 ```scrut
 $ git splice push vendor/pkg-a
-ok   vendor/pkg-a: pushed 24f2ae6 to main
+ok   vendor/pkg-a: pushed c58ed07 to main
 ```
 
 <div align="center">
@@ -219,7 +219,7 @@ ok   vendor/pkg-a: pushed 24f2ae6 to main
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/diverged-after-push.drawio.svg" \
->   p=HEAD~2 f=HEAD~1 q=HEAD \
+>   p=HEAD~2 f=HEAD~1 \
 >   s=refs/splices/pkg-a/heads/main~2 u=refs/splices/pkg-a/heads/main^2
 ok   diverged-after-push.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
 ```
@@ -227,7 +227,7 @@ ok   diverged-after-push.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
 
 ```scrut
 $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --graph --format=%s main
-*   splice: pull vendor/pkg-a from main at 5972aa1
+*   q: pull pkg-a
 |\  
 | * u: an upstream fix
 * | f: a local fix
@@ -242,9 +242,3 @@ On branch main
 
   up to date  vendor/pkg-a
 ```
-
-If the two sides share no history at all, e.g. because the upstream was
-rebuilt from scratch, `merge`, `pull` and `push` don't try to merge. They
-print the commands to keep either side instead; see the
-[`diverged-unrelated-history`](../scenarios/06-rewritten-history/03-diverged-unrelated-history/README.md)
-scenario.
