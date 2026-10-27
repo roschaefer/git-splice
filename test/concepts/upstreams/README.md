@@ -41,8 +41,9 @@ the upstream's identity.
 
 A *key* is a short, ref-friendly nickname for one unique upstream URL. The
 mapping is one-to-one within the monorepo: one URL has one key, and one key
-names one URL. This turns URLs containing `/`, `:`, `@` and other awkward
-characters into refs such as `refs/splices/s/heads/main`.
+names one URL. For example, `https://github.com/acme/shared-lib.git` gets
+the key `shared-lib`, so its `main` branch is fetched to
+`refs/splices/shared-lib/heads/main`.
 
 The first fetch records the mapping and fetches the upstream's branches to
 `refs/splices/<key>/heads/`. These are ordinary Git refs, so commands such
