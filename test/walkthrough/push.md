@@ -12,8 +12,8 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--force] (<path>... | --all)
-    git splice push [--upstream <name>] [--force] --rebuilt-commit <commit> <path>
+    git splice push [--upstream <name>] [--branch <name>] [--force] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
 
 DESCRIPTION
     Publishes each splice's local changes: rebuilds the commits that changed
@@ -53,6 +53,11 @@ DESCRIPTION
 
     Only committed changes are pushed; push warns about uncommitted ones in a
     splice's folder.
+
+    --branch names another upstream branch to push to, for this push only,
+    as 'git splice pull --branch' pulls from one: with the same checks, and
+    created like the one named like the current branch. It doesn't change
+    .splice, and the splices below keep theirs.
 
     --upstream names one of the upstreams a splice's .splice names; without
     it, the splice's default upstream. A splice without the named upstream
