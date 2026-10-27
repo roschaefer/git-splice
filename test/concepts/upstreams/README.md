@@ -49,13 +49,32 @@ $ git splice clone https://git.example.com/s.git app-a/s >/dev/null &&
 ```
 -->
 
-Both splices use the same key and fetched branch:
+In this example, `app-a/` and `app-b/` each contain their own splice of
+the library `s`. Both `.splice` files name the same upstream URL:
 
 ```scrut
-$ git splice key app-a/s && git splice key app-b/s
-s
+$ git config --file app-a/s/.splice upstream.origin.url
+https://git.example.com/s.git
+```
+
+```scrut
+$ git config --file app-b/s/.splice upstream.origin.url
+https://git.example.com/s.git
+```
+
+The URL therefore resolves to the same key from either splice:
+
+```scrut
+$ git splice key app-a/s
 s
 ```
+
+```scrut
+$ git splice key app-b/s
+s
+```
+
+There is only one fetched `main` ref for that key:
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
