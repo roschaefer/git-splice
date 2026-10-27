@@ -16,17 +16,21 @@ uses `--upstream`
 
 ## URLs, keys and refs
 
-The monorepo identifies an upstream by its URL. The first fetch gives that
-URL a short local *key* and stores its branches under
-`refs/splices/<key>/heads/`.
+Each named upstream in `.splice` has a URL. The monorepo uses that URL as
+the upstream's identity.
 
-| State | One per |
-|---|---|
-| `.splice`, `id`, synced commit | splice |
-| key, fetched refs | upstream URL |
+A *key* is a short, ref-friendly nickname for one unique upstream URL. The
+mapping is one-to-one within the monorepo: one URL has one key, and one key
+names one URL. This turns URLs containing `/`, `:`, `@` and other awkward
+characters into refs such as `refs/splices/s/heads/main`.
 
-Splices with the same URL therefore share fetched refs, but each keeps its
-own synced commit.
+The first fetch records the mapping and fetches the upstream's branches to
+`refs/splices/<key>/heads/`. These are ordinary Git refs, so commands such
+as `git log` can read them and `git worktree add` can check them out
+([example](../../walkthrough/fetch.md#looking-at-an-upstream)).
+
+Splices that name the same URL share its key and fetched refs. Their
+`.splice` files, IDs and synced commits remain independent.
 
 ## The same library at different versions
 
