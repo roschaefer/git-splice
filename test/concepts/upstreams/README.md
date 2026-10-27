@@ -27,8 +27,8 @@ still fetching the original:
 
 When `.splice` names several upstreams, `default-upstream` says which one
 commands use when `--upstream` is omitted. Without it, commands that need
-one upstream refuse to guess. Above, commands use `fork` unless
-`--upstream origin` selects the original; `fetch` fetches both
+one upstream refuse to guess. In the example above, commands use `fork`
+unless `--upstream origin` selects the original; `fetch` fetches both
 ([example](../../scenarios/04-upstreams/02-several-upstreams/README.md)).
 
 ## URLs, keys and refs
