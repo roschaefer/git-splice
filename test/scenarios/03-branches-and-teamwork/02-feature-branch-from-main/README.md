@@ -6,7 +6,7 @@ changes only go in through a PR from another branch.
 
 <div align="center">
 
-![The monorepo's a and b, the upstream's k on main, and R, the rebuilt b prime on top of k; there is no T](feature-branch-from-main.drawio.svg)
+![The monorepo's feature and main branches at b, and the upstream's main at k with b prime ready for a feature branch](feature-branch-from-main.drawio.svg)
 
 </div>
 
@@ -32,7 +32,7 @@ $ build_scenario scenario_feature_branch_from_main
 ```scrut
 $ check_drawing "$TESTDIR/feature-branch-from-main.drawio.svg" \
 >   a=HEAD~1 b=HEAD k=refs/splices/upstream/heads/main
-ok   feature-branch-from-main.drawio.svg: 4 commits, 6 arrows, 4 boxes, 1 lanes
+ok   feature-branch-from-main.drawio.svg: 4 commits, 4 arrows, 2 boxes, 1 lanes
 ```
 -->
 
