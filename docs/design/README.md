@@ -32,6 +32,9 @@ switches the branch every folder syncs with.
 - **Name the target when writing, show everything when looking.** Commands
   that change the monorepo or an upstream need a path or `--all`.
   Commands that only look cover every splice.
+- **Git's words keep Git's meaning.** `status`, `pull`, `upstream` or
+  `rebase` do what they do in Git. A new word, like *splice*, is one Git
+  doesn't use.
 - **Refuse rather than guess.** With unrelated histories, or a path that
   can't be a ref name, the tool stops and says what to do.
 - **Weigh every fix against its complexity.** An easy, safe fix goes in.
