@@ -10,6 +10,7 @@ back here.
 | --- | --- | --- |
 | [init-then-cloned](02-starting-a-splice/05-init-then-cloned/README.md) | [#11](https://github.com/roschaefer/git-splice/issues/11) | Until a fresh clone fetches, the upstream reads as empty though it has commits. |
 | [init-then-cloned: push before the fetch](02-starting-a-splice/05-init-then-cloned/push-before-fetch.md) | [#11](https://github.com/roschaefer/git-splice/issues/11) | A push before the first fetch says it creates the upstream branch, which already exists. |
+| [nested-splices: a pull retried after the synced commit below is gone](05-nested-splices/01-nested-splices/gone-below.md) | [#274](https://github.com/roschaefer/git-splice/issues/274) | A retry of a failed pull succeeds, though the splice below still lacks its synced commit. |
 | [nested-splices: a and b swap their `.splice`](05-nested-splices/01-nested-splices/swapped-ids.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | A push sends one splice's files to the other's upstream. |
 | [edited-before-push: a change before the pull](06-rewritten-history/01-edited-before-push/change-before-the-pull.md) | [#82](https://github.com/roschaefer/git-splice/issues/82) | The next push publishes the original commit next to its edited version; `pull -s ours` isn't implemented. |
 | [upstream-rewritten-equal-tree: `push --force`](06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) | [#38](https://github.com/roschaefer/git-splice/issues/38) | `push --force`, one of the ways out `merge` prints, publishes the history the upstream rewrote away. |
@@ -31,6 +32,7 @@ $ source "$TESTDIR/readme-setup.sh"
 $ check_known_bugs
 ok 02-starting-a-splice/05-init-then-cloned/README.md #11
 ok 02-starting-a-splice/05-init-then-cloned/push-before-fetch.md #11
+ok 05-nested-splices/01-nested-splices/gone-below.md #274
 ok 05-nested-splices/01-nested-splices/swapped-ids.md #174
 ok 06-rewritten-history/01-edited-before-push/change-before-the-pull.md #82
 ok 06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md #38
