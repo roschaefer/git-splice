@@ -76,7 +76,7 @@ Pushing all splices creates `feature` only in `pkg-b`'s upstream:
 
 ```scrut
 $ git splice push --all
-ok   vendor/pkg-a: nothing to push (upstream has no 'feature' branch, and 'main' has every commit)
+ok   vendor/pkg-a: nothing to push (upstream has no 'feature' branch, and a PR to 'main' would show no changes)
 ??   vendor/pkg-b: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/pkg-b: pushed 5023101 to feature
 ```

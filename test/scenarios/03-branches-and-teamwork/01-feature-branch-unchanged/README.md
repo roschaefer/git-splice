@@ -9,8 +9,8 @@ change on it.
 
 Without a `feature` branch upstream, `git-splice` compares with upstream's
 default branch, `main`, as a PR would. `push` creates the branch only if
-`main` lacks commits. Here it has every commit, so starting a feature
-branch doesn't spawn empty branches upstream.
+the PR would show changes. Here `main` has every commit, so starting a
+feature branch doesn't spawn empty branches upstream.
 
 ## Output
 
@@ -35,5 +35,5 @@ On branch feature
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: nothing to push (upstream has no 'feature' branch, and 'main' has every commit)
+ok   vendor/a: nothing to push (upstream has no 'feature' branch, and a PR to 'main' would show no changes)
 ```

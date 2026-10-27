@@ -121,12 +121,16 @@ classify_splice() {
 #   SPLICE_NEW_COMMITS      commits of R the default branch lacks: the
 #                           push that creates the branch publishes them
 #   SPLICE_BEHIND_COMMITS   commits of the default branch R lacks
+#   SPLICE_NO_CHANGES       1 if a PR from R to the default branch would
+#                           show no changes: R has the files of the commit
+#                           where it meets the default branch. Its commits
+#                           may still be new, e.g. a change and its revert.
 # Commits from the monorepo branch the current one was cut from count too:
 # upstream may never have taken them. Returns 1 if upstream's default
 # branch is unknown, or the rebuild or the count fails.
 compare_with_default_branch() {
-  local path="$1" counts
-  SPLICE_NEW_COMMITS=0 SPLICE_BEHIND_COMMITS=0 SPLICE_DEFAULT_REF=""
+  local path="$1" counts merge_base
+  SPLICE_NEW_COMMITS=0 SPLICE_BEHIND_COMMITS=0 SPLICE_DEFAULT_REF="" SPLICE_NO_CHANGES=""
   resolve_default_target "$path"
   [[ -n "$TARGET_NAME" ]] || return 1
   SPLICE_DEFAULT_BRANCH="$(target_label)"
@@ -136,6 +140,10 @@ compare_with_default_branch() {
     SPLICE_DEFAULT_REF="$TARGET_REF"
     counts="$(git rev-list --left-right --count "$SPLICE_REBUILT...$SPLICE_DEFAULT_REF")" || return 1
     read -r SPLICE_NEW_COMMITS SPLICE_BEHIND_COMMITS <<<"$counts"
+    if merge_base="$(git merge-base "$SPLICE_REBUILT" "$SPLICE_DEFAULT_REF")" &&
+      [[ "$(git rev-parse "$SPLICE_REBUILT^{tree}")" == "$(git rev-parse "$merge_base^{tree}")" ]]; then
+      SPLICE_NO_CHANGES=1
+    fi
   else
     SPLICE_NEW_COMMITS="$(git rev-list --count "$SPLICE_REBUILT")" || return 1
   fi

@@ -171,7 +171,7 @@ setup() {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_push vendor/a
-  [[ "$output" == *"nothing to push (upstream has no 'feature' branch, and 'main' has every commit)"* ]]
+  [[ "$output" == *"nothing to push (upstream has no 'feature' branch, and a PR to 'main' would show no changes)"* ]]
   ! git -C "$upstream" rev-parse --verify --quiet feature
   commit_local "$monorepo" "vendor/a" "local change"
   run cmd_push vendor/a
@@ -179,6 +179,16 @@ setup() {
   [[ "$output" == *"upstream has no 'feature' branch yet -- this push creates it"* ]]
   [ "$(git -C "$upstream" log -1 --format=%s feature)" = "local change" ]
   [ "$(git -C "$upstream" rev-parse feature^)" = "$(git -C "$upstream" rev-parse main)" ]
+}
+
+@test "push: doesn't create a missing upstream branch a PR from which would show no changes, though its commits are new" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  git -C "$monorepo" revert --no-edit HEAD >/dev/null
+  cd "$monorepo"
+  run cmd_push vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nothing to push (upstream has no 'feature' branch, and a PR to 'main' would show no changes)"* ]]
+  ! git -C "$upstream" rev-parse --verify --quiet feature
 }
 
 @test "push: creates a missing upstream branch for commits from the branch it was cut from that upstream lacks" {

@@ -66,6 +66,32 @@ ok   vendor/a/b fetched
 ok   vendor/a: pulled 5e4833c
 ```
 
+## On a feature branch
+
+`vendor/a/b/` now has the files of the inner upstream's `main`, but its
+rebuild has two commits `main` lacks: the maintainer's, and the pull
+that joins it in. On a branch the inner upstream doesn't have, a PR from
+them would show no changes, so `vendor/a/b/` is unchanged there, and
+`push` creates no branch:
+
+```scrut
+$ git switch -q -c feature && git splice status vendor/a/b
+On branch feature
+
+  unchanged, no upstream branch  vendor/a/b
+```
+
+```scrut
+$ git splice push vendor/a/b
+ok   vendor/a/b: nothing to push (upstream has no 'feature' branch, and a PR to 'main' would show no changes)
+```
+
+```scrut
+$ git switch -q main
+```
+
+## The next change
+
 The files of `vendor/a/b/` are the same as in the outer upstream. The
 next change to `vendor/a/b/` goes on top of the commit the inner
 upstream got from the push: `vendor/a/b/` is ahead, not diverged. Ahead

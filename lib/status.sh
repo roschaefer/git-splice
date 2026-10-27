@@ -25,7 +25,9 @@ DESCRIPTION
     the comparison is with upstream's default branch, as for a PR: "new"
     counts the commits the push that creates the branch would publish, and
     how many the default branch has that this one lacks. "unchanged" means
-    the default branch has every commit.
+    a PR from the branch would show no changes: the default branch has
+    every commit, or the others change no files, e.g. a change and its
+    revert.
 
     Like every command, status reads splices from the last commit. It warns
     about uncommitted changes in a splice's folder, which push leaves out.
@@ -74,7 +76,7 @@ classify_missing_branch() {
     else
       STATUS_HINT="could not compare with upstream's '$SPLICE_DEFAULT_BRANCH'"
     fi
-  elif ((SPLICE_NEW_COMMITS == 0)); then
+  elif [[ -n "$SPLICE_NO_CHANGES" ]]; then
     STATUS_KIND=unchanged STATUS_LABEL="unchanged, no upstream branch"
   else
     STATUS_KIND=new STATUS_LABEL="new, ahead $SPLICE_NEW_COMMITS" STATUS_HINT="push creates the branch"

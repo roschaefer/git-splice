@@ -19,10 +19,11 @@ DESCRIPTION
     above it.
 
     If the upstream has no branch named like the current one, push creates it
-    -- but only if it has commits upstream's default branch lacks, so working
-    on a feature branch doesn't spawn empty branches upstream. Commits the
-    feature branch got from the branch it was cut from count too: when
-    upstream takes changes only through PRs, that's how they get there.
+    -- but only if a PR from it to upstream's default branch would show
+    changes, so working on a feature branch doesn't spawn empty branches
+    upstream. Changes the feature branch got from the branch it was cut
+    from count too: when upstream takes changes only through PRs, that's
+    how they get there.
 
     On the monorepo's default branch, a default-pin names a tag or a commit,
     which isn't pushed to: push refuses there.
@@ -116,8 +117,8 @@ push_one() {
       fi
       # A commit given with --rebuilt-commit is pushed even if upstream's
       # default branch has it: it was asked for, and needs recording.
-      if [[ -n "$SPLICE_REBUILT" && -z "${REBUILD_GIVEN[$path]:-}" ]] && ((SPLICE_NEW_COMMITS == 0)); then
-        log_ok "$path: nothing to push (upstream has no '$label' branch, and '$SPLICE_DEFAULT_BRANCH' has every commit)"
+      if [[ -n "$SPLICE_REBUILT" && -z "${REBUILD_GIVEN[$path]:-}" && -n "$SPLICE_NO_CHANGES" ]]; then
+        log_ok "$path: nothing to push (upstream has no '$label' branch, and a PR to '$SPLICE_DEFAULT_BRANCH' would show no changes)"
         return 0
       fi
       [[ -z "$SPLICE_REBUILT" ]] || log_warn "$path: upstream has no '$label' branch yet -- this push creates it"
