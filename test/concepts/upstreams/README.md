@@ -1,16 +1,17 @@
 # Upstreams
 
-An upstream is a repository a splice syncs with. `.splice` names it and
-stores its URL:
+An upstream is much like a Git remote: a named repository a splice fetches
+from and pushes to. Its name and URL live in `.splice`:
 
 ```text
 [upstream "origin"]
 	url = https://git.example.com/s.git
 ```
 
-The name works like a Git remote name, but no remote is created. A splice
-can name several upstreams, such as a fork and the original;
-`default-upstream` selects one unless a command uses `--upstream`
+Unlike a Git remote, it is fetched into private refs without creating an
+entry under `git remote`. A splice can name several upstreams, such as a
+fork and the original; `default-upstream` selects one unless a command
+uses `--upstream`
 ([example](../../scenarios/04-upstreams/02-several-upstreams/README.md)).
 
 ## URLs, keys and refs
