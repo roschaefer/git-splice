@@ -6,32 +6,40 @@ module.exports = {
     {type: 'doc', id: 'README', label: 'Overview'},
     {
       type: 'category',
-      label: 'Installation',
-      link: {type: 'doc', id: 'docs/installation'},
-      items: ['docs/sandbox'],
+      label: 'Getting started',
+      items: [
+        'docs/installation',
+        'docs/sandbox',
+        'test/walkthrough/README',
+      ],
     },
     {
       type: 'category',
-      label: 'Walkthrough',
-      link: {type: 'doc', id: 'test/walkthrough/README'},
+      label: 'Using git-splice',
+      items: ['feature-branches', 'diverged'].map((workflow) => `test/walkthrough/${workflow}`),
+    },
+    {
+      type: 'category',
+      label: 'Concepts',
+      items: [
+        {type: 'doc', id: 'test/concepts/splice-file/README', label: 'The .splice file'},
+        {type: 'doc', id: 'test/concepts/upstreams/README', label: 'Upstreams'},
+        {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},
+        {type: 'doc', id: 'test/concepts/splice-identity/README', label: 'Splice identity'},
+        {
+          type: 'category',
+          label: 'Nesting',
+          link: {type: 'doc', id: 'test/concepts/nesting/README'},
+          items: ['test/concepts/nesting/diamond', 'test/concepts/nesting/cycle'],
+        },
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Command reference',
       items: [
         'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key',
       ].map((command) => `test/walkthrough/${command}`),
-    },
-    {
-      type: 'category',
-      label: 'Workflows',
-      items: ['feature-branches', 'diverged'].map((workflow) => `test/walkthrough/${workflow}`),
-    },
-    {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},
-    {type: 'doc', id: 'test/concepts/splice-file/README', label: 'The .splice file'},
-    {type: 'doc', id: 'test/concepts/upstreams/README', label: 'Upstreams'},
-    {type: 'doc', id: 'test/concepts/splice-identity/README', label: 'Splice identity'},
-    {
-      type: 'category',
-      label: 'Nesting',
-      link: {type: 'doc', id: 'test/concepts/nesting/README'},
-      items: ['test/concepts/nesting/diamond', 'test/concepts/nesting/cycle'],
     },
     {
       type: 'category',
