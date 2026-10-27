@@ -1,12 +1,12 @@
 # Scenario: feature-branch-from-main
 
-The monorepo's `main` has a commit that upstream's `main` lacks, and the
-monorepo is on a branch cut from it. Upstream protects its `main`, say, so
-changes only go in through a PR from another branch.
+The monorepo's `feature` branch has a commit that its `main` lacks. Upstream
+protects its `main`, say, so changes only go in through a PR from another
+branch.
 
 <div align="center">
 
-![The monorepo's feature and main branches at b, and the upstream's main at k with b prime ready for a feature branch](feature-branch-from-main.drawio.svg)
+![The monorepo's main branch at a and feature branch at b, and the upstream's main at k with b prime ready for a feature branch](feature-branch-from-main.drawio.svg)
 
 </div>
 
@@ -32,7 +32,7 @@ $ build_scenario scenario_feature_branch_from_main
 ```scrut
 $ check_drawing "$TESTDIR/feature-branch-from-main.drawio.svg" \
 >   a=HEAD~1 b=HEAD k=refs/splices/upstream/heads/main
-ok   feature-branch-from-main.drawio.svg: 4 commits, 4 arrows, 2 boxes, 1 lanes
+ok   feature-branch-from-main.drawio.svg: 4 commits, 5 arrows, 3 boxes, 1 lanes
 ```
 -->
 

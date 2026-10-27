@@ -5,4 +5,5 @@ scenario_feature_branch_from_main() {
   local monorepo="$1" upstream="$2"
   scenario_push_ahead "$monorepo" "$upstream"
   git -C "$monorepo" checkout -q -b feature
+  git -C "$monorepo" branch -f main HEAD~1
 }
