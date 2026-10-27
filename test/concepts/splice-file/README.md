@@ -27,77 +27,17 @@ clone of the monorepo has every splice, with nothing to set up.
   stays at that revision until `.splice` names another one, and `push`
   refuses there ([example](../../scenarios/04-upstreams/06-default-pin/README.md)).
 
-The [design](../../../docs/design/README.md#the-splice-file) explains
-each of these choices.
+Upstreams are fetched into private refs, not configured as Git remotes. A
+plain `git push` therefore cannot publish the whole monorepo to a splice's
+upstream by mistake
+([why that matters](../../../docs/design/accidental-monorepo-push.md)).
 
-## Output
+`pull` records the new synced commit in `.splice` and commits it with the
+folder. The folder carries its own state, so clones and branches have it,
+and `git mv` moves it
+([design principle](../../../docs/design/README.md#principles)).
 
-The walkthrough's [sandbox](../../../docs/sandbox.md), where
-`vendor/pkg-a/` is behind its upstream by one commit.
-
-<!-- Builds a fresh sandbox; see `just docs-check`.
-```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
-```
--->
-
-```scrut
-$ cat vendor/pkg-a/.splice
-[splice]
-	id = 679c78b9916de804
-	commit = 9bb866a3ba726f2229597a45e8ea3368f7e669a8
-[upstream "origin"]
-	url = https://git.example.com/pkg-a.git
-```
-
-`git config` reads it like any config file:
-
-```scrut
-$ git config --file vendor/pkg-a/.splice splice.commit
-9bb866a3ba726f2229597a45e8ea3368f7e669a8
-```
-
-There's no Git remote, so nothing can push the monorepo to an upstream by
-mistake:
-
-```scrut
-$ git remote
-```
-
-A pull records the new synced commit:
-
-```scrut
-$ git splice pull vendor/pkg-a >/dev/null && git show --format=%s -- vendor/pkg-a/.splice
-splice: pull vendor/pkg-a from main at 703b936
-
-diff --git a/vendor/pkg-a/.splice b/vendor/pkg-a/.splice
-index 16b61ae..5635a7f 100644
---- a/vendor/pkg-a/.splice
-+++ b/vendor/pkg-a/.splice
-@@ -1,5 +1,5 @@
- [splice]
- 	id = 679c78b9916de804
--	commit = 9bb866a3ba726f2229597a45e8ea3368f7e669a8
-+	commit = 703b9360f7ac335a1134e9b5771a90a7c09ba39a
- [upstream "origin"]
- 	url = https://git.example.com/pkg-a.git
-```
-
-A push sends the folder's files, without `.splice`:
-
-```scrut
-$ echo "a local fix" >>vendor/pkg-a/file.txt &&
->   git commit -qam "pkg-a: a local fix" &&
->   git splice push vendor/pkg-a >/dev/null
-```
-
-```scrut
-$ ls -A vendor/pkg-a
-.splice
-file.txt
-```
-
-```scrut
-$ git ls-tree --name-only splices/pkg-a/heads/main
-file.txt
-```
+`push` publishes the folder as the upstream repository, without the
+splice's own `.splice`. That file describes the relationship from the
+monorepo side; it is not part of the upstream's files
+([how push rebuilds the folder](../../../docs/design/README.md#splicing-out-push-and-the-rebuild)).
