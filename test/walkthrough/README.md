@@ -1,25 +1,17 @@
 # Walkthrough
 
-Every command once, in order, with the output it prints. Each command
-has a page of its own with the details. To try them yourself, run
-`just sandbox`: it opens a shell in a throwaway
-[sandbox](../../docs/sandbox.md) of this page, and `just sandbox
-walkthrough/<command>` one of a command's page.
+Let's start with an example monorepo and three upstreams. The walkthrough
+uses the same [sandbox](../../docs/sandbox.md) throughout, under
+`$WALKTHROUGH`:
 
-Each page starts from the same repositories, in `$WALKTHROUGH`:
-
-- `monorepo`: the monorepo, on `main`. You start here.
-- `upstream/pkg-a.git`, `pkg-b.git` and `lib-c.git`: bare repositories
-  that stand in for the splices' upstreams. The monorepo reaches them
-  as `https://git.example.com/<name>.git`.
-- `vendor/pkg-a/`: a splice whose upstream has one commit the monorepo
-  doesn't have yet. It's already fetched.
-- `pkg-b.git`: a repository that isn't spliced in yet.
-- `libs/c/`: a folder of the monorepo, to be published to the empty
-  `lib-c.git`.
-
-To push a commit to an upstream as if someone else had, clone it next to
-the monorepo, commit there and push, as in [fetch](#fetch).
+- `monorepo/` is the working repository, on `main`.
+- `upstream/` holds three bare upstreams: `pkg-a.git`, `pkg-b.git` and
+  `lib-c.git`, reached as `https://git.example.com/<name>.git`.
+- `monorepo/vendor/pkg-a/` is already a splice. Its fetched upstream is
+  one commit ahead.
+- `pkg-b.git` has not been spliced in yet.
+- `monorepo/libs/c/` is an ordinary folder whose upstream, `lib-c.git`,
+  is empty.
 
 ## Commands
 
@@ -207,15 +199,3 @@ The short name of `vendor/pkg-a/`'s upstream in `refs/splices/`
 $ git splice key vendor/pkg-a
 pkg-a
 ```
-
-## Next
-
-The workflows combine these commands for everyday work:
-[feature branches](feature-branches.md) and
-[diverged history](diverged.md). The
-[sync model](../concepts/sync-model/README.md) explains what they
-compute, and the advanced workflows build on it:
-[bumping the sync point](bump.md),
-[contributing through a fork](fork.md) and
-[rebasing a feature branch](rebase-feature-branch/README.md). The [scenarios](../scenarios/README.md)
-show them in many more situations.
