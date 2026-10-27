@@ -100,11 +100,11 @@ ok 07-moved-folders/01-moved-with-unpushed-commits (2 documents)
 ok 07-moved-folders/02-swapped-splices (1 document)
 ```
 
-## The output is real
+## Scenario output
 
-As on every page with output, [scrut](../../docs/sandbox.md#the-output-is-real)
-runs the commands. Under "Output", each document first calls its
-folder's scenario function, so it runs in the state the bats tests use:
+The docs use [specification by example](../../docs/sandbox.md).
+Under "Output", each document first calls its folder's scenario
+function, so it runs in the state the bats tests use:
 
     $ build_scenario scenario_pull_ahead
 

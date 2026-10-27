@@ -22,18 +22,13 @@ It runs the page's setup, up to the first command the page shows, and
 opens bash in the page's monorepo, with the settings scrut runs the page
 with. So you get the page's output, down to the commit hashes.
 
-## The output is real
+## Specification by example and acceptance test-driven development
 
-No output in these docs is pasted in.
 [scrut](https://facebookincubator.github.io/scrut/) runs every command
-on these pages and compares what it prints. To get the same output on
-every run, it runs them in the C locale and GMT, and each page starts
-with a setup block, which GitHub doesn't render, that fixes the commit
-dates and author and keeps your git config out.
+on these pages and compares its output. The pages are both the
+[specification by example](https://en.wikipedia.org/wiki/Specification_by_example)
+and the acceptance tests for `git-splice`.
 
-Every page is tested in CI, so the docs are the specification of
-`git-splice`, written as examples: what each command prints in each
-scenario. This is [specification by
-example](https://en.wikipedia.org/wiki/Specification_by_example).
-`just docs-check` runs them all, and `just docs-check --write` updates
-the pages after an intended change.
+Each page starts with a hidden setup block. It fixes the commit dates
+and author, ignores your Git config, and runs in the C locale and GMT,
+so the output stays the same in CI and on your machine.
