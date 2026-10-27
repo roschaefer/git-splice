@@ -34,6 +34,6 @@ dates and author and keeps your git config out.
 Every page is tested in CI, so the docs are the specification of
 `git-splice`, written as examples: what each command prints in each
 scenario. This is [specification by
-example](https://martinfowler.com/bliki/SpecificationByExample.html).
+example](https://en.wikipedia.org/wiki/Specification_by_example).
 `just docs-check` runs them all, and `just docs-check --write` updates
 the pages after an intended change.
