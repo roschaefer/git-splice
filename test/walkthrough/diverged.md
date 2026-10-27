@@ -8,14 +8,20 @@ resolve the conflict. It uses the [walkthrough sandbox](README.md).
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
 ```
+
+```scrut
+$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a-s &&
+>   git -C ../pkg-a-s commit --amend -qm "s: pkg-a second commit" &&
+>   git -C ../pkg-a-s push --force -q
+```
 -->
 
 First, bring `vendor/pkg-a/` up to date:
 
 ```scrut
 $ git splice pull -m "p: pull pkg-a" vendor/pkg-a
-ok   vendor/pkg-a fetched
-ok   vendor/pkg-a: pulled 703b936
+ok   vendor/pkg-a fetched (main moved 703b936..53e5f5f)
+ok   vendor/pkg-a: pulled 53e5f5f
 ```
 
 <div align="center">
@@ -27,7 +33,7 @@ ok   vendor/pkg-a: pulled 703b936
 <!--
 ```scrut
 $ source "$TESTDIR/../../check-drawing/check-drawing" && \
->   check_drawing "$TESTDIR/diverged-up-to-date.drawio.svg" p=HEAD s=refs/splices/pkg-a/heads/main
+>   check_drawing "$TESTDIR/diverged-up-to-date.drawio.svg" p=HEAD
 ok   diverged-up-to-date.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
 ```
 -->
@@ -49,7 +55,7 @@ $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "f: a local fix"
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/diverged-local-change.drawio.svg" \
->   p=HEAD~1 f=HEAD s=refs/splices/pkg-a/heads/main
+>   p=HEAD~1 f=HEAD
 ok   diverged-local-change.drawio.svg: 4 commits, 4 arrows, 2 boxes, 1 lanes
 ```
 -->
@@ -67,7 +73,7 @@ Fetch it into the monorepo:
 
 ```scrut
 $ git splice fetch
-ok   vendor/pkg-a fetched (main moved 703b936..5972aa1)
+ok   vendor/pkg-a fetched (main moved 53e5f5f..bc52052)
 ```
 
 <div align="center">
@@ -78,7 +84,7 @@ ok   vendor/pkg-a fetched (main moved 703b936..5972aa1)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/diverged.drawio.svg" s=refs/splices/pkg-a/heads/main~1
+$ check_drawing "$TESTDIR/diverged.drawio.svg"
 ok   diverged.drawio.svg: 5 commits, 5 arrows, 2 boxes, 1 lanes
 ```
 -->
@@ -95,8 +101,8 @@ On branch main
 ```scrut
 $ git splice log
 ===  vendor/pkg-a (main)
-< c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
-> 5972aa1 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
+< 4bb4822 f: a local fix  (Walkthrough <walkthrough@example.com>)
+> bc52052 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 ```
 
 Plain `git log` can draw both sides when given the rebuilt result and the
@@ -107,7 +113,7 @@ $ git log --graph --format=%s "$(git splice rebuild vendor/pkg-a)" refs/splices/
 * f: a local fix
 | * u: an upstream fix
 |/  
-* pkg-a: a second commit, after the clone
+* s: pkg-a second commit
 * pkg-a: seed
 ```
 
@@ -144,7 +150,7 @@ pkg-a: a second commit, after the clone
 a local fix
 =======
 pkg-a: an upstream fix
->>>>>>> a3f4622 (splice: pull vendor/pkg-a from main at 5972aa1)
+>>>>>>> 40b5011 (splice: pull vendor/pkg-a from main at bc52052)
 ```
 
 ## Resolve and push
@@ -162,7 +168,7 @@ $ cat >vendor/pkg-a/file.txt <<'EOF'
 
 ```scrut
 $ git add vendor/pkg-a/file.txt && git commit -qm "q: pull pkg-a" && git log --oneline -1
-cedd100 q: pull pkg-a
+16ab6ed q: pull pkg-a
 ```
 
 The pull joins the rebuilt local fix with the upstream fix. The splice is
@@ -177,7 +183,7 @@ now ahead by two commits and ready to push:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/diverged-after-pull.drawio.svg" \
->   p=HEAD~2 f=HEAD~1 s=refs/splices/pkg-a/heads/main~1
+>   p=HEAD~2 f=HEAD~1
 ok   diverged-after-pull.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
 ```
 -->
@@ -191,7 +197,7 @@ $ git log --graph --format=%s "$(git splice rebuild vendor/pkg-a)" refs/splices/
 | * u: an upstream fix
 * | f: a local fix
 |/  
-* pkg-a: a second commit, after the clone
+* s: pkg-a second commit
 * pkg-a: seed
 ```
 
@@ -208,7 +214,7 @@ by a merge:
 
 ```scrut
 $ git splice push vendor/pkg-a
-ok   vendor/pkg-a: pushed c58ed07 to main
+ok   vendor/pkg-a: pushed 9624043 to main
 ```
 
 <div align="center">
@@ -220,8 +226,7 @@ ok   vendor/pkg-a: pushed c58ed07 to main
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/diverged-after-push.drawio.svg" \
->   p=HEAD~2 f=HEAD~1 \
->   s=refs/splices/pkg-a/heads/main~2 u=refs/splices/pkg-a/heads/main^2
+>   p=HEAD~2 f=HEAD~1
 ok   diverged-after-push.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
 ```
 -->
@@ -233,7 +238,7 @@ $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --graph --format=%s main
 | * u: an upstream fix
 * | f: a local fix
 |/  
-* pkg-a: a second commit, after the clone
+* s: pkg-a second commit
 * pkg-a: seed
 ```
 
