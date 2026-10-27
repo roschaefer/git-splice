@@ -49,23 +49,20 @@ here, but only one of them stops you:
   and never had it, since `main` brought it in, not `feature`. That
   would lose a change, which `git pull --rebase` keeps, so it refuses.
 
-The refusal first, since a pull changes the state it needs. It prints
-the two [rebase strategies](README.md#the-rebase-strategies):
+The refusal first, since a pull changes the state it needs:
 
 ```scrut
 $ git splice pull --rebase vendor/a
 ok   vendor/a fetched
-!!   vendor/a: 'feature' never had the synced commit 48aa825, which this branch got elsewhere, e.g. with 'git rebase main' -- --rebase would drop it. To rebase 'feature', do it on one side only:
-
-  # keep this branch's rebase, overwriting upstream's 'feature':
-  git splice push --force -- vendor/a
-
-  # OR: rebase or merge 'feature' upstream, e.g. with "Update branch" on GitHub, then:
-  git splice pull --rebase -- vendor/a
-
+!!   vendor/a: 'feature' lacks the synced commit 48aa825, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes
 !!   Failed: vendor/a
 [1]
 ```
+
+It states only what it knows. It can't tell this `feature` from one
+that upstream rebased before this clone fetched it, e.g. in a fresh
+clone, so it suggests no command; here, the
+[rebase strategies](README.md#the-rebase-strategies) are the ways out.
 
 The plain `pull` merges *b'*, the copy of *b* from before the rebase,
 into `feature` as the pull *x*. No change is lost,
