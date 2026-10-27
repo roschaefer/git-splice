@@ -30,9 +30,29 @@ $ build_scenario scenario_feature_branch_from_main
 
 <!--
 ```scrut
+$ changed="$(git rev-parse feature)" &&
+>   git switch -q main &&
+>   git branch -D feature >/dev/null
+```
+
+```scrut
+$ check_drawing "$TESTDIR/feature-branch-before-switch.drawio.svg" \
+>   a=HEAD k=refs/splices/upstream/heads/main
+ok   feature-branch-before-switch.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
+```
+
+```scrut
+$ git switch -q -c feature
+```
+
+```scrut
 $ check_drawing "$TESTDIR/feature-branch-before-change.drawio.svg" \
->   a=HEAD~1 k=refs/splices/upstream/heads/main feature=HEAD~1
+>   a=HEAD k=refs/splices/upstream/heads/main
 ok   feature-branch-before-change.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
+```
+
+```scrut
+$ git reset -q --hard "$changed"
 ```
 
 ```scrut

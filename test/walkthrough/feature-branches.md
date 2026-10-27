@@ -9,7 +9,7 @@ merge request: the feature branch is compared with the default branch.
 
 <div align="center">
 
-![The monorepo's feature branch starts at main, while the splice upstream has only main](../scenarios/03-branches-and-teamwork/02-feature-branch-from-main/feature-branch-before-change.drawio.svg)
+![The monorepo and the splice upstream each have only a main branch](../scenarios/03-branches-and-teamwork/02-feature-branch-from-main/feature-branch-before-switch.drawio.svg)
 
 </div>
 
@@ -32,6 +32,12 @@ $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null &&
 $ git switch -c feature
 Switched to a new branch 'feature'
 ```
+
+<div align="center">
+
+![The monorepo's new feature branch starts at main, while the splice upstream still has only main](../scenarios/03-branches-and-teamwork/02-feature-branch-from-main/feature-branch-before-change.drawio.svg)
+
+</div>
 
 Both splices still match upstream `main`, so neither needs an upstream
 branch of its own:
