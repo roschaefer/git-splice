@@ -65,7 +65,7 @@ diff_one() {
       ;;
   esac
 
-  content_tree HEAD "$path"
+  content_tree HEAD "$path" || return 1
   new_tree="$CONTENT_TREE"
   [[ -n "$old_tree" ]] || old_tree="$(git hash-object -t tree /dev/null)"
 

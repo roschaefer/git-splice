@@ -161,7 +161,7 @@ merge_one() {
   fi
   base_folder="$(git rev-parse "$merge_base^{tree}")"
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
-  new_blob="$(state_blob "$path" "commit=$target")"
+  new_blob="$(state_blob "$path" "commit=$target")" || return 1
 
   if ! splice_in "$path" "$base_folder" "$base_blob" "$target^{tree}" "$new_blob" \
     "$(commit_message "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}")"; then
@@ -199,7 +199,7 @@ rebase_onto_pull() {
   synced_tree="$(git rev-parse "$SPLICE_SYNCED^{tree}")"
   while IFS= read -r commit; do
     [[ "$(splice_config "$path" commit "$commit")" == "$SPLICE_SYNCED" ]] || break
-    content_tree "$commit" "$path"
+    content_tree "$commit" "$path" || return 1
     if [[ "$CONTENT_TREE" == "$synced_tree" ]]; then
       base="$commit"
       break
@@ -352,7 +352,7 @@ record_equal_tree() {
   local folder base_blob new_blob
   folder="$(git rev-parse "$target^{tree}")"
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
-  new_blob="$(state_blob "$path" "commit=$target")"
+  new_blob="$(state_blob "$path" "commit=$target")" || return 1
   if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
     "$(commit_message "splice: $verb $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}")"; then
     log_err "$path: $verb failed"
@@ -415,7 +415,7 @@ bump_synced() {
   fi
   folder="$(git rev-parse "HEAD:$path")"
   base_blob="$(git rev-parse "HEAD:$path/$STATE_FILE")"
-  new_blob="$(state_blob "$path" "commit=$target")"
+  new_blob="$(state_blob "$path" "commit=$target")" || return 1
   if ! splice_in "$path" "$folder" "$base_blob" "$folder" "$new_blob" \
     "$(commit_message "splice: bump $path from $SPLICE_UPSTREAM_LABEL at ${target:0:7}")"; then
     log_err "$path: bump failed"

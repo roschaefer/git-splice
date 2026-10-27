@@ -475,7 +475,7 @@ upstream_config() {
 # without a section is in [splice], e.g. "commit"; others are given in
 # full, e.g. "upstream.origin.url".
 state_blob() {
-  local path="$1" tmp kv key value
+  local path="$1" tmp kv key value rc=0
   shift
   tmp="$(mktemp)"
   git cat-file blob "HEAD:$path/$STATE_FILE" >"$tmp" 2>/dev/null || : >"$tmp"
@@ -484,13 +484,14 @@ state_blob() {
     value="${kv#*=}"
     [[ "$key" == *.* ]] || key="splice.$key"
     if [[ -n "$value" ]]; then
-      git config --file "$tmp" "$key" "$value"
+      git config --file "$tmp" "$key" "$value" || rc=1
     else
       git config --file "$tmp" --unset "$key" 2>/dev/null || true
     fi
   done
-  git hash-object -w "$tmp"
+  ((rc)) || git hash-object -w "$tmp" || rc=1
   rm -f "$tmp"
+  return "$rc"
 }
 
 # Prints a new id for a splice that clone or init mounts at <path> from
