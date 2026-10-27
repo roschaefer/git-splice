@@ -35,6 +35,11 @@ DESCRIPTION
     every commit, or the others change no files, e.g. a change and its
     revert.
 
+    A splice whose upstream branch 'git splice push --set-branch' (or pull,
+    merge) remembered for the current branch says so: "set for <branch>,
+    local". It's in this repository's config only, so another clone of the
+    monorepo shows the usual branch there.
+
     Like every command, status reads splices from the last commit. It warns
     about uncommitted changes in a splice's folder, which push leaves out.
 

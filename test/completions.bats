@@ -78,6 +78,16 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: --set-branch for merge, pull and push" {
+  local cmd
+  for cmd in merge pull push; do
+    run complete_words git-splice "$cmd" --set
+    [ "$output" = "--set-branch" ]
+  done
+  run complete_words git-splice status --set
+  [ -z "$output" ]
+}
+
 @test "completion: --bump and --rebase only for merge and pull" {
   local option
   for option in --bump --rebase; do
@@ -470,10 +480,11 @@ fish_complete() {
   [ "$output" = "--graph" ]
 }
 
-@test "fish completion: push completes --branch" {
+@test "fish completion: push completes --branch first, before --set-branch, which fish matches inside the word" {
   require_shell fish
   run fish_complete "git-splice push --br"
-  [ "$output" = "--branch" ]
+  [ "${lines[0]}" = "--branch" ]
+  [ "${lines[1]}" = "--set-branch" ]
 }
 
 @test "fish completion: pull completes --bump, --rebase and --branch" {
@@ -483,7 +494,7 @@ fish_complete() {
   run fish_complete "git-splice pull --reb"
   [ "$output" = "--rebase" ]
   run fish_complete "git-splice pull --br"
-  [ "$output" = "--branch" ]
+  [ "${lines[0]}" = "--branch" ]
 }
 
 @test "fish completion: init completes --message, and the path after its message" {

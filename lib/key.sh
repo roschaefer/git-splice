@@ -18,6 +18,8 @@ DESCRIPTION
     [upstream "<name>"]. Without it, the splice's default upstream.
 
     A key belongs to an upstream URL, so splices with the same URL share it.
+    Renaming it also renames it in the upstream branches --set-branch
+    remembered, branch.<branch>.splice = <key>:<name>.
     The first fetch of an upstream records its key in the repository's config,
     as splice.<key>.url, from the end of its URL: lib for
     https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
@@ -46,10 +48,23 @@ rename_upstream_key() {
     done | git update-ref --stdin || die "couldn't move the refs of key '$old'"
   git config --local --rename-section "splice.$old" "splice.$new" ||
     die "moved the refs to refs/splices/$new/, but couldn't rename splice.$old in the repository's config -- rename it by hand (git config --local --rename-section splice.$old splice.$new)"
+  rename_remembered_branches "$old" "$new"
   unlock_upstream_keys
   URL_OF_KEY[$new]="$url"
   unset 'URL_OF_KEY[$old]'
   KEY_OF_URL[$url]="$new"
+}
+
+# Renames upstream key <old> to <new> in every upstream branch remembered
+# for a monorepo branch (see REMEMBERED_BRANCHES).
+rename_remembered_branches() {
+  local old="$1" new="$2" name value
+  while read -r name value; do
+    [[ "$value" == "$old:"* ]] || continue
+    git config --local --fixed-value --replace-all "$name" "$new:${value#"$old:"}" "$value" ||
+      die "couldn't rename key '$old' in $name -- rename it by hand (git config --local --fixed-value --replace-all $name $(shell_quote "$new:${value#"$old:"}") $(shell_quote "$value"))"
+  done < <(git config --local --get-regexp '^branch\..*\.splice$' 2>/dev/null || true)
+  REMEMBERED_FOR=""
 }
 
 cmd_key() {

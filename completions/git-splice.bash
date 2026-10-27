@@ -113,13 +113,13 @@ _git_splice() {
       __git_splice_paths_or_options "$cur" --upstream --graph -h --help
       ;;
     merge | pull)
-      __git_splice_paths_or_options "$cur" --upstream --branch --all --bump --rebase --no-fork-point -m --message -h --help
+      __git_splice_paths_or_options "$cur" --upstream --branch --set-branch --all --bump --rebase --no-fork-point -m --message -h --help
       ;;
     push | status | diff)
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --branch --all --force --rebuilt-commit -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --set-branch --all --force --rebuilt-commit -h --help
       else
         __git_splice_paths_or_options "$cur" --upstream -h --help
       fi

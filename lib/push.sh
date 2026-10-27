@@ -6,7 +6,7 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--branch <name>] [--force] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name> [--set-branch]] [--force] (<path>... | --all)
     git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
 
 DESCRIPTION
@@ -51,7 +51,9 @@ DESCRIPTION
     --branch names another upstream branch to push to, for this push only,
     as 'git splice pull --branch' pulls from one: with the same checks, and
     created like the one named like the current branch. It doesn't change
-    .splice, and the splices below keep theirs.
+    .splice, and the splices below keep theirs. --set-branch also remembers
+    it for the current branch, like 'git push -u'; see 'git splice merge
+    --help'.
 
     --upstream names one of the upstreams a splice's .splice names; without
     it, the splice's default upstream. A splice without the named upstream
@@ -211,7 +213,8 @@ give_rebuild() {
 }
 
 cmd_push() {
-  parse_args usage_push "--force --upstream --branch --rebuilt-commit" "$@"
+  parse_args usage_push "--force --upstream --branch --set-branch --rebuilt-commit" "$@"
+  require_branch_for_set_branch
   local force=""
   has_flag --force && force=force
   open_repository
@@ -241,7 +244,11 @@ cmd_push() {
       failures+=("$path")
       continue
     fi
-    push_one "$path" "$branch" "$force" || failures+=("$path")
+    if ! push_one "$path" "$branch" "$force"; then
+      failures+=("$path")
+    elif has_flag --set-branch; then
+      remember_branch "$path" "$branch" "$BRANCH_ARG" || failures+=("$path")
+    fi
   done
   rm -rf "$ssh_control_dir"
 

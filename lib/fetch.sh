@@ -88,7 +88,8 @@ fetch_shared_upstream() {
     [[ -z "${tag_of[i]}" || " ${tags[*]} " == *" ${tag_of[i]} "* ]] || tags+=("${tag_of[i]}")
     # A splice pinned on this branch has no branch that could move.
     target_refs[i]=""
-    if [[ -z "$pin" ]] || branch_arg_applies "$path" || [[ "$branch" != "$(monorepo_default_branch)" ]]; then
+    if [[ -z "$pin" ]] || branch_arg_applies "$path" ||
+      { [[ "${entry#*:}" == "${SPLICE_UPSTREAM_NAMES[$path]:-}" ]] && named_branch "$path" "$branch" >/dev/null; } || [[ "$branch" != "$(monorepo_default_branch)" ]]; then
       target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
     fi
     old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
