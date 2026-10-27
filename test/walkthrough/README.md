@@ -1,8 +1,8 @@
 # Walkthrough
 
-Every command once, in order, with the output it prints. Each command
-has a page of its own with the details. They all start in the same
-[sandbox](../../docs/sandbox.md), under `$WALKTHROUGH`:
+Let's start with an example monorepo and three upstreams. The walkthrough
+uses the same [sandbox](../../docs/sandbox.md) throughout, under
+`$WALKTHROUGH`:
 
 - `monorepo/` is the working repository, on `main`.
 - `upstream/` holds three bare upstreams: `pkg-a.git`, `pkg-b.git` and
