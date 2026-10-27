@@ -99,15 +99,16 @@ $ git splice log
 > 5972aa1 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 ```
 
-`log --graph` draws that right-hand side:
+Plain `git log` can draw both sides when given the rebuilt result and the
+fetched upstream branch:
 
 ```scrut
-$ git splice log --graph
-===  vendor/pkg-a (main)
-< c4dcfe0 (R) f: a local fix  (Walkthrough <walkthrough@example.com>)
-| > 5972aa1 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
+$ git log --graph --format=%s "$(git splice rebuild vendor/pkg-a)" refs/splices/pkg-a/heads/main
+* f: a local fix
+| * u: an upstream fix
 |/  
-o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
+* pkg-a: a second commit, after the clone
+* pkg-a: seed
 ```
 
 ## Pull first
@@ -181,17 +182,17 @@ ok   diverged-after-pull.drawio.svg: 7 commits, 8 arrows, 2 boxes, 1 lanes
 ```
 -->
 
-`log --graph` draws those commits down to their shared history:
+The same plain `git log` command draws the resolved history:
 
 ```scrut
-$ git splice log --graph
-===  vendor/pkg-a (main)
-<   c58ed07 (R) q: pull pkg-a  (Walkthrough <walkthrough@example.com>)
+$ git log --graph --format=%s "$(git splice rebuild vendor/pkg-a)" refs/splices/pkg-a/heads/main
+*   q: pull pkg-a
 |\  
-< | c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
-| o 5972aa1 (T) u: an upstream fix  (Walkthrough <walkthrough@example.com>)
+| * u: an upstream fix
+* | f: a local fix
 |/  
-o 703b936 pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
+* pkg-a: a second commit, after the clone
+* pkg-a: seed
 ```
 
 
