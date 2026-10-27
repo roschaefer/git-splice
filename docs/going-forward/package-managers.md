@@ -14,14 +14,14 @@ maps, and what doesn't.
 | what you got: the exact version in the lockfile (a *locator* in Yarn) | the synced commit U(H) |
 | a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../../test/concepts/nesting/README.md)) |
 | registries and mirror servers | several upstreams per splice ([several-upstreams](../../test/scenarios/04-upstreams/02-several-upstreams/README.md)) |
-| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../../test/concepts/upstreams/README.md#one-library-at-two-versions)) |
+| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../../test/concepts/upstreams/README.md#the-same-library-at-different-versions)) |
 | one package, deduplicated | mirrors: splices with the same `id` ([mirrors](mirrors.md)) |
 | `yarn dedupe --check` | a report of mirrors that drifted, not yet |
 | — | the [`id`](../../test/concepts/splice-identity/README.md): which copies are one splice, history included. A package can't be edited in place, so its name and version say that already |
 
 A package name is one identity in a registry. A URL is only a location:
 two URLs of one repository are two upstreams to the monorepo
-([upstreams](../../test/concepts/upstreams/README.md#one-repository-two-urls)).
+([upstreams](../../test/concepts/upstreams/README.md#urls-keys-and-refs)).
 
 ## What doesn't: reference versus containment
 
