@@ -1,8 +1,8 @@
 # Diverged history
 
 A splice has diverged when both the monorepo and the upstream changed it
-since the last sync. This walkthrough, in [its repositories](README.md), makes
-both sides change the same line, then resolves the conflict.
+since the last sync. In this example, both sides change the same line, then
+resolve the conflict. It uses the [walkthrough sandbox](README.md).
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
