@@ -310,6 +310,24 @@ EOF
   [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
 }
 
+@test "status: a missing branch is unchanged when a PR from it would show no changes, though its commits are new: a change and its revert" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  git -C "$monorepo" revert --no-edit HEAD >/dev/null
+  cd "$monorepo"
+  run cmd_status
+  [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
+}
+
+@test "status: a missing branch with a change and its revert stays unchanged after upstream's default branch moves on" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  git -C "$monorepo" revert --no-edit HEAD >/dev/null
+  seed_bare_repo "$upstream" "upstream change"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  run cmd_status
+  [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
+}
+
 @test "status: a missing branch that can't be rebuilt warns, without the rebuild's error" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"

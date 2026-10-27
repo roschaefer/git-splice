@@ -58,7 +58,7 @@ diff_one() {
         log_err "$path: could not compare with upstream's default branch${SPLICE_DEFAULT_BRANCH:+ '$SPLICE_DEFAULT_BRANCH'}"
         return 1
       fi
-      ((SPLICE_NEW_COMMITS > 0)) || return 0
+      [[ -z "$SPLICE_NO_CHANGES" ]] || return 0
       # As a PR shows it: from where R and the default branch meet.
       old_tree=""
       if [[ -n "$SPLICE_DEFAULT_REF" ]] && merge_base="$(git merge-base "$SPLICE_REBUILT" "$SPLICE_DEFAULT_REF")"; then

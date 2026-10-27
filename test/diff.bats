@@ -48,6 +48,15 @@ setup() {
   [[ "$output" != *"+seed"* ]]
 }
 
+@test "diff: a missing upstream branch a PR from which would show no changes shows nothing, though its commits are new" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  git -C "$monorepo" revert --no-edit HEAD >/dev/null
+  cd "$monorepo"
+  run cmd_diff
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 @test "diff: without upstream's default branch, a missing upstream branch shows everything as new" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
