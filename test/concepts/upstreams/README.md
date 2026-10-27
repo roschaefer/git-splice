@@ -59,15 +59,11 @@ $ source "$TESTDIR/../../scenarios/readme-setup.sh"
 ```scrut
 $ build_scenario scenario_upstreams
 ```
-
-```scrut
-$ git splice clone https://git.example.com/s.git app-a/s >/dev/null &&
->   git splice clone https://git.example.com/s.git app-b/s >/dev/null
-```
 -->
 
-In this example, `app-a/` and `app-b/` each contain their own splice of
-the library `s`. Both `.splice` files name the same upstream URL:
+[`setup.bash`](setup.bash) builds this example: `app-a/` and `app-b/`
+each contain their own splice of the library `s`. Both `.splice` files
+name the same upstream URL:
 
 ```scrut
 $ git config --file app-a/s/.splice upstream.origin.url

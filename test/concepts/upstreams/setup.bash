@@ -4,8 +4,10 @@ scenario_upstreams() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
-  # Two URLs for the same repository, both the same on every run, so
-  # .splice and the commits that contain it are too.
   git -C "$monorepo" config "url.$upstream.insteadOf" https://git.example.com/s.git
-  git -C "$monorepo" config --add "url.$upstream.insteadOf" https://mirror.example.com/s.git
+  (
+    cd "$monorepo" || return
+    splice clone https://git.example.com/s.git app-a/s >/dev/null 2>&1 &&
+      splice clone https://git.example.com/s.git app-b/s >/dev/null 2>&1
+  )
 }
