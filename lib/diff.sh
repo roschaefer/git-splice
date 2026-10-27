@@ -3,23 +3,28 @@
 
 usage_diff() {
   cat <<'EOF'
-usage: git splice diff [--upstream <name>] [--stat] [path...]
+NAME
+    git-splice-diff - Show the changes push would send
 
-Shows the file changes 'git splice push' would send to each splice's
-upstream, with paths as the upstream sees them. Purely local -- run
-'git splice fetch' first for up-to-date results. Defaults to every splice
-when no paths are given.
+SYNOPSIS
+    git splice diff [--upstream <name>] [--stat] [path...]
 
---stat summarizes the changes per file instead, like 'git diff --stat'.
+DESCRIPTION
+    Shows the file changes 'git splice push' would send to each splice's
+    upstream, with paths as the upstream sees them. Purely local -- run
+    'git splice fetch' first for up-to-date results. Defaults to every splice
+    when no paths are given.
 
-For a splice whose upstream has no branch named like the current one, the
-diff is against upstream's default branch, from where the two meet, as a
-PR from the new branch would show it. Without a default branch upstream,
-the whole splice is new.
+    --stat summarizes the changes per file instead, like 'git diff --stat'.
 
---upstream names one of the upstreams a splice's .splice names; without
-it, the splice's default upstream. A splice without the named upstream
-stops the command before it starts.
+    For a splice whose upstream has no branch named like the current one, the
+    diff is against upstream's default branch, from where the two meet, as a
+    PR from the new branch would show it. Without a default branch upstream,
+    the whole splice is new.
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts.
 EOF
 }
 

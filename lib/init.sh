@@ -2,17 +2,22 @@
 
 usage_init() {
   cat <<'EOF'
-usage: git splice init [-m <message>] <path> <url>
+NAME
+    git-splice-init - Make an existing folder a splice of an empty repository
 
-Makes the existing folder <path> a splice, to be published to <url>: an
-empty repository you created for it. Commits <path>/.splice and nothing
-else. Your first 'git splice push <path>' then starts the upstream with
-that commit, the folder as it is now, followed by any commits after it.
-The folder's earlier history stays in the monorepo.
+SYNOPSIS
+    git splice init [-m <message>] <path> <url>
 
-If <url> has commits already, use 'git splice clone --merge <url> <path>'.
+DESCRIPTION
+    Makes the existing folder <path> a splice, to be published to <url>: an
+    empty repository you created for it. Commits <path>/.splice and nothing
+    else. Your first 'git splice push <path>' then starts the upstream with
+    that commit, the folder as it is now, followed by any commits after it.
+    The folder's earlier history stays in the monorepo.
 
--m gives the commit this message instead of the default one.
+    If <url> has commits already, use 'git splice clone --merge <url> <path>'.
+
+    -m gives the commit this message instead of the default one.
 EOF
 }
 

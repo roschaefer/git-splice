@@ -395,26 +395,31 @@ rebuild_walk() {
 
 usage_rebuild() {
   cat <<'EOF'
-usage: git splice rebuild <path>
+NAME
+    git-splice-rebuild - Print the commit push would send
 
-Prints the commit 'git splice push <path>' would send: the splice's
-history rebuilt without its .splice file, on top of the upstream commit
-it last synced with. If nothing changed since, that's the synced commit
-itself. The rebuild is deterministic, so a later push sees what was
-pushed of it as already upstream.
+SYNOPSIS
+    git splice rebuild <path>
 
-Writes no ref and no monorepo commit. Purely local, but the synced
-commit must have been fetched.
+DESCRIPTION
+    Prints the commit 'git splice push <path>' would send: the splice's
+    history rebuilt without its .splice file, on top of the upstream commit
+    it last synced with. If nothing changed since, that's the synced commit
+    itself. The rebuild is deterministic, so a later push sees what was
+    pushed of it as already upstream.
 
-Push it to an upstream branch other than the one named like the current
-one, e.g. a release branch:
+    Writes no ref and no monorepo commit. Purely local, but the synced
+    commit must have been fetched.
 
-  git push <url> "$(git splice rebuild <path>)":refs/heads/<branch>
+    Push it to an upstream branch other than the one named like the current
+    one, e.g. a release branch:
 
-or check it out in a separate worktree, since it has the upstream's
-layout, not the monorepo's:
+      git push <url> "$(git splice rebuild <path>)":refs/heads/<branch>
 
-  git worktree add ../rebuild "$(git splice rebuild <path>)"
+    or check it out in a separate worktree, since it has the upstream's
+    layout, not the monorepo's:
+
+      git worktree add ../rebuild "$(git splice rebuild <path>)"
 EOF
 }
 

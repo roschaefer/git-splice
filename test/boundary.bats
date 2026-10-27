@@ -150,10 +150,10 @@ setup() {
   cd "$monorepo"
   run cmd_boundary
   [ "$status" -eq 1 ]
-  [[ "$output" == "usage: git splice boundary <path>"* ]]
+  [[ "$output" == *$'SYNOPSIS\n    git splice boundary <path>'* ]]
   run cmd_boundary vendor/a vendor/b
   [ "$status" -eq 1 ]
-  [[ "$output" == "usage: git splice boundary <path>"* ]]
+  [[ "$output" == *$'SYNOPSIS\n    git splice boundary <path>'* ]]
   run cmd_boundary --all
   [ "$output" = "!!   boundary takes no --all" ]
   run cmd_boundary vendor

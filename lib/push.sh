@@ -2,49 +2,54 @@
 
 usage_push() {
   cat <<'EOF'
-usage: git splice push [--upstream <name>] [--force] (<path>... | --all)
-       git splice push [--upstream <name>] [--force] --rebuilt-commit <commit> <path>
+NAME
+    git-splice-push - Publish local splice changes upstream
 
-Publishes each splice's local changes: rebuilds the commits that changed
-it since its boundary, without its .splice file, and pushes them to its
-upstream URL. Nothing is written to the monorepo.
+SYNOPSIS
+    git splice push [--upstream <name>] [--force] (<path>... | --all)
+    git splice push [--upstream <name>] [--force] --rebuilt-commit <commit> <path>
 
-Bottom-up: a splice below another is pushed first, since the push of the
-one above publishes its .splice, and a failed push stops the splices
-above it.
+DESCRIPTION
+    Publishes each splice's local changes: rebuilds the commits that changed
+    it since its boundary, without its .splice file, and pushes them to its
+    upstream URL. Nothing is written to the monorepo.
 
-If the upstream has no branch named like the current one, push creates it
--- but only if it has commits upstream's default branch lacks, so working
-on a feature branch doesn't spawn empty branches upstream. Commits the
-feature branch got from the branch it was cut from count too: when
-upstream takes changes only through PRs, that's how they get there.
+    Bottom-up: a splice below another is pushed first, since the push of the
+    one above publishes its .splice, and a failed push stops the splices
+    above it.
 
-On the monorepo's default branch, a default-pin names a tag or a commit,
-which isn't pushed to: push refuses there.
+    If the upstream has no branch named like the current one, push creates it
+    -- but only if it has commits upstream's default branch lacks, so working
+    on a feature branch doesn't spawn empty branches upstream. Commits the
+    feature branch got from the branch it was cut from count too: when
+    upstream takes changes only through PRs, that's how they get there.
 
---force overwrites the upstream branch with the monorepo's side: when the
-two share no history, or to discard commits only upstream has.
+    On the monorepo's default branch, a default-pin names a tag or a commit,
+    which isn't pushed to: push refuses there.
 
---rebuilt-commit pushes <commit> instead of the rebuild, e.g. one whose
-history was edited after 'git splice rebuild <path>' printed it:
-messages reworded, commits squashed. Only the history: its files must be
-the folder's, and it must contain the synced commit -- with --force, it
-may also replace commits the upstream already has. Either way, a pull
-must be able to record it: a commit of the rebuild's history that isn't
-newer than the synced commit is refused. push checks only that; the
-rest of <commit>'s history -- its parents, the files of the commits
-before it -- is pushed as it is, as with 'git push'. Like every
-push, it records no sync point: the monorepo keeps rebuilding the
-original commits, and a later push publishes them too, unless 'git
-splice pull --bump <path>' records <commit> as the synced commit before
-the next change, as push reminds you.
+    --force overwrites the upstream branch with the monorepo's side: when the
+    two share no history, or to discard commits only upstream has.
 
-Only committed changes are pushed; push warns about uncommitted ones in a
-splice's folder.
+    --rebuilt-commit pushes <commit> instead of the rebuild, e.g. one whose
+    history was edited after 'git splice rebuild <path>' printed it:
+    messages reworded, commits squashed. Only the history: its files must be
+    the folder's, and it must contain the synced commit -- with --force, it
+    may also replace commits the upstream already has. Either way, a pull
+    must be able to record it: a commit of the rebuild's history that isn't
+    newer than the synced commit is refused. push checks only that; the
+    rest of <commit>'s history -- its parents, the files of the commits
+    before it -- is pushed as it is, as with 'git push'. Like every
+    push, it records no sync point: the monorepo keeps rebuilding the
+    original commits, and a later push publishes them too, unless 'git
+    splice pull --bump <path>' records <commit> as the synced commit before
+    the next change, as push reminds you.
 
---upstream names one of the upstreams a splice's .splice names; without
-it, the splice's default upstream. A splice without the named upstream
-stops the command before it starts.
+    Only committed changes are pushed; push warns about uncommitted ones in a
+    splice's folder.
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts.
 EOF
 }
 

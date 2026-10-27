@@ -29,12 +29,19 @@ setup() {
   [[ "$output" == *"unknown command: bogus"* ]]
 }
 
-@test "cli: each command's own -h works" {
-  local cmd
-  for cmd in clone init fetch merge pull push status diff log boundary rebuild; do
+@test "cli: each command's -h and --help show the same structured help" {
+  local cmd short_help
+  for cmd in clone init fetch merge pull push status diff log key boundary rebuild; do
     run "$entrypoint" "$cmd" -h
     [ "$status" -eq 0 ]
-    [[ "$output" == *"usage: git splice $cmd"* ]]
+    [[ "$output" == *$'NAME\n'"    git-splice-$cmd - "* ]]
+    [[ "$output" == *$'\nSYNOPSIS\n'"    git splice $cmd "* ]]
+    [[ "$output" == *$'\nDESCRIPTION\n'* ]]
+    short_help="$output"
+
+    run "$entrypoint" "$cmd" --help
+    [ "$status" -eq 0 ]
+    [ "$output" = "$short_help" ]
   done
 }
 

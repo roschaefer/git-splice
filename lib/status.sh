@@ -2,33 +2,38 @@
 
 usage_status() {
   cat <<'EOF'
-usage: git splice status [--upstream <name>] [path...]
+NAME
+    git-splice-status - Show each splice's sync state
 
-Shows the sync state of every splice. Purely local -- run 'git splice
-fetch' first for up-to-date results. Defaults to every splice when no
-paths are given.
+SYNOPSIS
+    git splice status [--upstream <name>] [path...]
 
-Every splice gets a line: the splices that need something come first,
-most urgent first -- "!!" and "??" mark problems -- and those that are up
-to date or unchanged come last.
+DESCRIPTION
+    Shows the sync state of every splice. Purely local -- run 'git splice
+    fetch' first for up-to-date results. Defaults to every splice when no
+    paths are given.
 
-Like 'git status' against a tracking branch, it counts commits: "ahead"
-is how many 'git splice push' would publish, "behind" how many 'git
-splice pull' would bring in. 'git splice diff --stat' shows the files.
+    Every splice gets a line: the splices that need something come first,
+    most urgent first -- "!!" and "??" mark problems -- and those that are up
+    to date or unchanged come last.
 
-For a splice whose upstream has no branch named like the current one,
-the comparison is with upstream's default branch, as for a PR: "new"
-counts the commits the push that creates the branch would publish, and
-how many the default branch has that this one lacks. "unchanged" means
-the default branch has every commit.
+    Like 'git status' against a tracking branch, it counts commits: "ahead"
+    is how many 'git splice push' would publish, "behind" how many 'git
+    splice pull' would bring in. 'git splice diff --stat' shows the files.
 
-Like every command, status reads splices from the last commit. It warns
-about uncommitted changes in a splice's folder, which push leaves out.
+    For a splice whose upstream has no branch named like the current one,
+    the comparison is with upstream's default branch, as for a PR: "new"
+    counts the commits the push that creates the branch would publish, and
+    how many the default branch has that this one lacks. "unchanged" means
+    the default branch has every commit.
 
---upstream names one of the upstreams a splice's .splice names; without
-it, the splice's default upstream. A splice without the named upstream
-stops the command before it starts. A splice with several upstreams shows its
-upstream branch as <name>/<branch>.
+    Like every command, status reads splices from the last commit. It warns
+    about uncommitted changes in a splice's folder, which push leaves out.
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts. A splice with several upstreams shows its
+    upstream branch as <name>/<branch>.
 EOF
 }
 
