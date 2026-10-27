@@ -9,9 +9,24 @@ from and pushes to. Its name and URL live in `.splice`:
 ```
 
 Unlike a Git remote, it is fetched into private refs without creating an
-entry under `git remote`. A splice can name several upstreams, such as a
-fork and the original; `default-upstream` selects one unless a command
-uses `--upstream`
+entry under `git remote`.
+
+## A fork and the original
+
+A common use for several upstreams is working with a company fork while
+still fetching the original:
+
+```text
+[splice]
+	default-upstream = fork
+[upstream "origin"]
+	url = https://git.example.com/lib.git
+[upstream "fork"]
+	url = https://git.example.com/company/lib.git
+```
+
+Commands use `fork` unless `--upstream origin` selects the original.
+`fetch` fetches both
 ([example](../../scenarios/04-upstreams/02-several-upstreams/README.md)).
 
 ## URLs, keys and refs
@@ -96,27 +111,4 @@ On branch main
 ```
 
 The two folders are independent splices because they have different
-[`id`s](../splice-identity/README.md). Sharing an upstream does not make
-them mirrors.
-
-## Using a mirror
-
-URLs are compared as written. A mirror is another upstream, even when its
-URL reaches the same repository:
-
-```scrut
-$ git splice clone https://mirror.example.com/s.git app-c/s >/dev/null &&
->   git splice key app-c/s
-mirror.example.com-s
-```
-
-```scrut
-$ git config --get-regexp '^splice\.'
-splice.s.url https://git.example.com/s.git
-splice.mirror.example.com-s.url https://mirror.example.com/s.git
-```
-
-Each URL gets its own key and fetched refs. To use both for one splice,
-name both as upstreams in its `.splice` file. A fork is a separate
-repository rather than another URL for the same one, but it is likewise a
-separate upstream.
+[`id`s](../splice-identity/README.md).
