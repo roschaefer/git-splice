@@ -1,3 +1,7 @@
 :root {
   --ifm-code-font-size: 95%;
 }
+
+:not(pre) > code {
+  white-space: nowrap;
+}
