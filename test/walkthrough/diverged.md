@@ -34,7 +34,7 @@ ok   diverged-up-to-date.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
 
 ## Both sides change
 
-The monorepo and the upstream each append a line to the same file:
+The monorepo changes `vendor/pkg-a/`:
 
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "f: a local fix"
@@ -54,6 +54,8 @@ ok   diverged-local-change.drawio.svg: 4 commits, 4 arrows, 2 boxes, 1 lanes
 ```
 -->
 
+The upstream also gets a new commit, changing the same file:
+
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
 >   echo "pkg-a: an upstream fix" >>../pkg-a/file.txt &&
@@ -61,26 +63,11 @@ $ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
 >   git -C ../pkg-a push -q
 ```
 
-Once fetched, `status` reports the splice as `diverged`, and `log` shows
-both sides:
+Fetch it into the monorepo:
 
 ```scrut
 $ git splice fetch
 ok   vendor/pkg-a fetched (main moved 703b936..5972aa1)
-```
-
-```scrut
-$ git splice status
-On branch main
-
-  ahead 1, behind 1  vendor/pkg-a
-```
-
-```scrut
-$ git splice log
-===  vendor/pkg-a (main)
-< c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
-> 5972aa1 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
 ```
 
 <div align="center">
@@ -95,6 +82,22 @@ $ check_drawing "$TESTDIR/diverged.drawio.svg" s=refs/splices/pkg-a/heads/main~1
 ok   diverged.drawio.svg: 5 commits, 5 arrows, 2 boxes, 1 lanes
 ```
 -->
+
+`status` now reports the splice as diverged, and `log` shows both sides:
+
+```scrut
+$ git splice status
+On branch main
+
+  ahead 1, behind 1  vendor/pkg-a
+```
+
+```scrut
+$ git splice log
+===  vendor/pkg-a (main)
+< c4dcfe0 f: a local fix  (Walkthrough <walkthrough@example.com>)
+> 5972aa1 u: an upstream fix  (Walkthrough <walkthrough@example.com>)
+```
 
 `log --graph` draws that right-hand side:
 
