@@ -1,7 +1,9 @@
 # Upstreams
 
 An upstream is much like a Git remote: a named repository a splice fetches
-from and pushes to. Its name and URL live in `.splice`:
+from and pushes to. Its name and URL live inside the splice folder, in
+`.splice`, so they move and branch with it
+([why](../../../docs/design/README.md#principles)):
 
 ```text
 [upstream "origin"]
