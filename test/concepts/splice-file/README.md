@@ -1,10 +1,17 @@
 # The `.splice` file
 
-A folder is a splice because it has a `.splice` file, committed like any
-other file. It names the upstream, and the upstream commit the folder
-last matched, the synced commit U(H) of the
-[sync model](../sync-model/README.md). That's all the state there is: a
-clone of the monorepo has every splice, with nothing to set up.
+A folder is a splice because it has a committed `.splice` file. The file
+names the upstream and the upstream commit the folder last matched: the
+synced commit U(H) of the [sync model](../sync-model/README.md).
+
+The folder carries that state, so clones and branches have it and `git mv`
+moves it ([why](../../../docs/design/README.md#principles)). `pull` updates
+the synced commit. `push` publishes the folder without its own `.splice`,
+because the file describes the relationship from the monorepo side
+([why](../../../docs/design/README.md#splicing-out-push-and-the-rebuild)).
+Upstreams use private refs instead of Git remotes, so a plain `git push`
+cannot publish the monorepo to one by mistake
+([why](../../../docs/design/accidental-monorepo-push.md)).
 
 ```text
 [splice]
@@ -12,57 +19,25 @@ clone of the monorepo has every splice, with nothing to set up.
 	commit = 9bb866a3ba726f2229597a45e8ea3368f7e669a8 # the synced commit U(H)
 [upstream "origin"]
 	url = git@github.com:x/a.git
-	default-branch = master     # only if it's named differently, see below
+	default-branch = master
 ```
 
-- **It's in Git's config format**, so `git config --file` reads it. Only
-  the `.splice` committed in `HEAD` counts.
-- **`clone` and `init` create it; `merge` and `pull` update it.** `push`
-  does not change the monorepo, so it does not change `.splice`.
-- **`default-branch` names the branch to follow** when it differs from
-  the monorepo branch. For example, it can map monorepo `main` to
-  upstream `master`
-  ([example](../../scenarios/04-upstreams/01-default-branch/README.md)).
-- **`default-pin` follows a tag or commit instead of a branch.** `pull`
-  stays at that revision until `.splice` names another one, and `push`
-  refuses there ([example](../../scenarios/04-upstreams/06-default-pin/README.md)).
+The file uses Git's config format, so `git config --file` reads and writes
+it. Only the `.splice` committed in `HEAD` counts. Here,
+`default-branch = master` maps the monorepo's default branch, say `main`,
+to upstream `master`
+([example](../../scenarios/04-upstreams/01-default-branch/README.md)).
 
-<!-- Builds a fresh sandbox; see `just docs-check`.
-```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
-```
--->
+To pin the monorepo's default branch at a tag or complete commit ID, use
+`default-pin` in place of `default-branch`:
 
-Upstreams are fetched into private refs, not configured as Git remotes. A
-plain `git push` therefore cannot publish the whole monorepo to a splice's
-upstream by mistake
-([why that matters](../../../docs/design/accidental-monorepo-push.md)).
-
-```scrut
-$ git remote
+```text
+[upstream "origin"]
+	url = git@github.com:x/a.git
+	default-pin = v1.2.3
 ```
 
-`pull` records the new synced commit in `.splice` and commits it with the
-folder. The folder carries its own state, so clones and branches have it,
-and `git mv` moves it
-([design principle](../../../docs/design/README.md#principles)).
-
-```scrut
-$ before="$(git config --file vendor/pkg-a/.splice splice.commit)" &&
->   git splice pull vendor/pkg-a >/dev/null &&
->   printf '%s -> %s\n' "$before" "$(git config --file vendor/pkg-a/.splice splice.commit)"
-9bb866a3ba726f2229597a45e8ea3368f7e669a8 -> 703b9360f7ac335a1134e9b5771a90a7c09ba39a
-```
-
-`push` publishes the folder as the upstream repository, without the
-splice's own `.splice`. That file describes the relationship from the
-monorepo side; it is not part of the upstream's files
-([how push rebuilds the folder](../../../docs/design/README.md#splicing-out-push-and-the-rebuild)).
-
-```scrut
-$ echo "a local fix" >>vendor/pkg-a/file.txt &&
->   git commit -qam "pkg-a: a local fix" &&
->   git splice push vendor/pkg-a >/dev/null &&
->   git ls-tree --name-only refs/splices/pkg-a/heads/main
-file.txt
-```
+`pull` then stays at that revision until `.splice` names another one, and
+`push` refuses from the monorepo's default branch. Feature branches still
+follow upstream branches of the same name
+([example](../../scenarios/04-upstreams/06-default-pin/README.md)).
