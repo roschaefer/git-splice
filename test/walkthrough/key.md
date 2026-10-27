@@ -30,15 +30,23 @@ DESCRIPTION
     taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
     long.
 ```
+
+In the [walkthrough's repositories](README.md), `vendor/pkg-a/` has
+already been fetched, so its upstream has the key `pkg-a`:
+
 ```scrut
 $ git splice key vendor/pkg-a
 pkg-a
 ```
 
+Rename it to `a`:
+
 ```scrut
 $ git splice key vendor/pkg-a a
 ok   vendor/pkg-a: renamed key 'pkg-a' to 'a'
 ```
+
+The fetched branch moves with it:
 
 ```scrut
 $ git log --oneline -1 splices/a/heads/main

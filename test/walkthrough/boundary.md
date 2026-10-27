@@ -35,11 +35,17 @@ DESCRIPTION
     Purely local, but the synced commit must have been fetched. Writes no
     ref and no monorepo commit.
 ```
+
+In the [walkthrough's repositories](README.md), pull `vendor/pkg-a/`,
+then add a local commit. Its boundary is the pull commit:
+
 ```scrut
 $ git splice pull vendor/pkg-a >/dev/null &&
 >   echo "a local fix" >>vendor/pkg-a/file.txt &&
 >   git commit -qam "pkg-a: a local fix"
 ```
+
+`boundary` prints that pull:
 
 ```scrut
 $ git show -s --oneline "$(git splice boundary vendor/pkg-a)"

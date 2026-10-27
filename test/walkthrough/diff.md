@@ -31,6 +31,11 @@ DESCRIPTION
     it, the splice's default upstream. A splice without the named upstream
     stops the command before it starts.
 ```
+
+In the [walkthrough's repositories](README.md), `vendor/pkg-a/` starts
+one commit behind. Pull it first, so the example compares a local change
+with an up-to-date upstream:
+
 ```scrut
 $ git splice pull vendor/pkg-a >/dev/null
 ```

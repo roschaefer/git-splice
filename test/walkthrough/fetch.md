@@ -26,7 +26,8 @@ DESCRIPTION
     A splice whose .splice names several upstreams has each fetched, unless
     --upstream names one.
 ```
-Someone pushes to `pkg-a`'s upstream:
+In the [walkthrough's repositories](README.md), someone pushes another
+commit to `pkg-a`'s upstream:
 
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&

@@ -46,6 +46,11 @@ DESCRIPTION
     -m gives the commit this message, for one splice; see 'git splice merge
     --help'.
 ```
+
+In the [walkthrough's repositories](README.md), `vendor/pkg-a/` is
+already one commit behind. Splice in `pkg-b/`, then push another commit
+to its upstream, so both splices are behind:
+
 ```scrut
 $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null &&
 >   git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b &&
@@ -54,8 +59,8 @@ $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b >/dev/null &&
 >   git -C ../pkg-b push -q
 ```
 
-Both splices of the [walkthrough's repositories](README.md) are behind now. Commands that
-change the monorepo or an upstream name their splices, or take `--all`:
+Commands that change the monorepo or an upstream name their splices, or
+take `--all`:
 
 ```scrut
 $ git splice pull --all

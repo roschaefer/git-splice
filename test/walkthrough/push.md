@@ -57,13 +57,21 @@ DESCRIPTION
     it, the splice's default upstream. A splice without the named upstream
     stops the command before it starts.
 ```
+
+In the [walkthrough's repositories](README.md), `vendor/pkg-a/` starts
+one commit behind. Pull it to start from an up-to-date splice:
+
 ```scrut
 $ git splice pull vendor/pkg-a >/dev/null
 ```
 
+Then commit a local change:
+
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
 ```
+
+Push it upstream:
 
 ```scrut
 $ git splice push vendor/pkg-a

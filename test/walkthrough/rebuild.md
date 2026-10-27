@@ -34,11 +34,18 @@ DESCRIPTION
 
       git worktree add ../rebuild "$(git splice rebuild <path>)"
 ```
+
+In the [walkthrough's repositories](README.md), pull `vendor/pkg-a/`,
+then add a local commit. The rebuild puts that commit on the upstream's
+history:
+
 ```scrut
 $ git splice pull vendor/pkg-a >/dev/null &&
 >   echo "a local fix" >>vendor/pkg-a/file.txt &&
 >   git commit -qam "pkg-a: a local fix"
 ```
+
+`rebuild` returns that upstream-shaped history:
 
 ```scrut
 $ git log --oneline "$(git splice rebuild vendor/pkg-a)"
