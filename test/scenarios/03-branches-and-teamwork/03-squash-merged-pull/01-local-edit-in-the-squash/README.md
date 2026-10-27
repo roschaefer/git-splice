@@ -32,6 +32,13 @@ $ check_drawing "$TESTDIR/local-edit-in-the-squash.drawio.svg" \
 >   f=refs/splices/upstream/heads/feature
 ok   local-edit-in-the-squash.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
+
+```scrut
+$ check_drawing "$TESTDIR/local-edit-in-the-squash-table.drawio.svg" \
+>   a=HEAD~1 s=HEAD k=refs/splices/upstream/heads/main \
+>   f=refs/splices/upstream/heads/feature
+ok   local-edit-in-the-squash-table.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
+```
 -->
 
 *s* is the last commit, and the only one since the clone *a*:
