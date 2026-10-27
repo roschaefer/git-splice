@@ -25,8 +25,10 @@ still fetching the original:
 	url = https://git.example.com/company/lib.git
 ```
 
-Commands use `fork` unless `--upstream origin` selects the original.
-`fetch` fetches both
+When `.splice` names several upstreams, `default-upstream` says which one
+commands use when `--upstream` is omitted. Without it, commands that need
+one upstream refuse to guess. Above, commands use `fork` unless
+`--upstream origin` selects the original; `fetch` fetches both
 ([example](../../scenarios/04-upstreams/02-several-upstreams/README.md)).
 
 ## URLs, keys and refs
