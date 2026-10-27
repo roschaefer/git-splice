@@ -9,7 +9,7 @@ clone of the monorepo has every splice, with nothing to set up.
 ```text
 [splice]
 	id = 9b2e41c07d5a8f36       # which splice this is, wherever it moves
-	commit = 3f1c…              # the synced commit U(H)
+	commit = 9bb866a3ba726f2229597a45e8ea3368f7e669a8 # the synced commit U(H)
 [upstream "origin"]
 	url = git@github.com:x/a.git
 	default-branch = master     # only if it's named differently, see below
