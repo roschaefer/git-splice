@@ -1,5 +1,8 @@
 # Writing the docs
 
+Run `just docs-check` to test every page. After an intended change, run
+`just docs-check --write` to update their output.
+
 Markup in running text tells a reader what kind of thing a word names:
 the commit *a*, not the English word "a". Each kind gets one markup,
 everywhere.

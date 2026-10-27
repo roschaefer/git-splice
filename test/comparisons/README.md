@@ -32,9 +32,3 @@ also says where it is the better tool.
 Josh, splitsh-lite, and the export tools Copybara and Meta's ShipIt.
 [Version control systems](vcs/README.md) compares Sapling and Jujutsu,
 which work in a Git repository, and `git-splice` running next to them.
-
-## The output is real
-
-As on every page with output, [scrut](../../docs/sandbox.md#the-output-is-real)
-runs the commands. Here [`scrut-setup.sh`](scrut-setup.sh) builds the
-library and the monorepo, and the work directory shows as `$COMPARISON`.
