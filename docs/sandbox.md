@@ -22,7 +22,7 @@ It runs the page's setup, up to the first command the page shows, and
 opens bash in the page's monorepo, with the settings scrut runs the page
 with. So you get the page's output, down to the commit hashes.
 
-## Specification by example and acceptance test-driven development
+## Specification by example
 
 [scrut](https://facebookincubator.github.io/scrut/) runs every command
 on these pages and compares its output. The pages are both the
