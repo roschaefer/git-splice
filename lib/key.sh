@@ -2,22 +2,27 @@
 
 usage_key() {
   cat <<'EOF'
-usage: git splice key [--upstream <name>] <path> [<new-key>]
+NAME
+    git-splice-key - Print or rename an upstream's key
 
-Prints the key splice <path>'s upstream has in this repository: its
-fetched branches are refs/splices/<key>/heads/<branch>, e.g. for
-'git log splices/<key>/heads/main'. With <new-key>, renames the key and
-moves its refs along.
+SYNOPSIS
+    git splice key [--upstream <name>] <path> [<new-key>]
 
---upstream names the upstream, as <path>/.splice does in
-[upstream "<name>"]. Without it, the splice's default upstream.
+DESCRIPTION
+    Prints the key splice <path>'s upstream has in this repository: its
+    fetched branches are refs/splices/<key>/heads/<branch>, e.g. for
+    'git log splices/<key>/heads/main'. With <new-key>, renames the key and
+    moves its refs along.
 
-A key belongs to an upstream URL, so splices with the same URL share it.
-The first fetch of an upstream records its key in the repository's config,
-as splice.<key>.url, from the end of its URL: lib for
-https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
-taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
-long.
+    --upstream names the upstream, as <path>/.splice does in
+    [upstream "<name>"]. Without it, the splice's default upstream.
+
+    A key belongs to an upstream URL, so splices with the same URL share it.
+    The first fetch of an upstream records its key in the repository's config,
+    as splice.<key>.url, from the end of its URL: lib for
+    https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
+    taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
+    long.
 EOF
 }
 

@@ -2,18 +2,23 @@
 
 usage_fetch() {
   cat <<'EOF'
-usage: git splice fetch [--upstream <name>] [path...]
+NAME
+    git-splice-fetch - Fetch splice upstreams
 
-Fetches every branch of each splice's upstreams into
-refs/splices/<key>/heads/*, where <key> is the upstream's key in this
-repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
-no Git remote; 'git splice key' prints and renames keys. Branches deleted
-upstream are pruned. Defaults to every splice when no paths are given.
-Fetches upstreams in parallel, each once, and reports when the branch a
-splice syncs with moved.
+SYNOPSIS
+    git splice fetch [--upstream <name>] [path...]
 
-A splice whose .splice names several upstreams has each fetched, unless
---upstream names one.
+DESCRIPTION
+    Fetches every branch of each splice's upstreams into
+    refs/splices/<key>/heads/*, where <key> is the upstream's key in this
+    repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
+    no Git remote; 'git splice key' prints and renames keys. Branches deleted
+    upstream are pruned. Defaults to every splice when no paths are given.
+    Fetches upstreams in parallel, each once, and reports when the branch a
+    splice syncs with moved.
+
+    A splice whose .splice names several upstreams has each fetched, unless
+    --upstream names one.
 EOF
 }
 

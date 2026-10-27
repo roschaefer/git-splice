@@ -427,10 +427,10 @@ two_splices_ahead() {
   cd "$monorepo"
   run cmd_rebuild
   [ "$status" -eq 1 ]
-  [[ "$output" == "usage: git splice rebuild <path>"* ]]
+  [[ "$output" == *$'SYNOPSIS\n    git splice rebuild <path>'* ]]
   run cmd_rebuild vendor/a vendor/b
   [ "$status" -eq 1 ]
-  [[ "$output" == "usage: git splice rebuild <path>"* ]]
+  [[ "$output" == *$'SYNOPSIS\n    git splice rebuild <path>'* ]]
   run cmd_rebuild --all
   [ "$output" = "!!   rebuild takes no --all" ]
   run cmd_rebuild vendor
