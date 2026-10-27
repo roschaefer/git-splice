@@ -1,19 +1,46 @@
 # status
 
-`git splice status [--upstream <name>] [path…]`
-
-Lists every splice: a folder with a
-[`.splice` file](../concepts/splice-file/README.md). Each one gets its sync
-state, with commits counted like `git status` counts them against a
-tracking branch: "behind 1" is one commit for `pull` to bring in.
-`status` doesn't fetch; it uses what was fetched last.
-
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
+```scrut
+$ git splice status -h
+NAME
+    git-splice-status - Show each splice's sync state
+
+SYNOPSIS
+    git splice status [--upstream <name>] [path...]
+
+DESCRIPTION
+    Shows the sync state of every splice. Purely local -- run 'git splice
+    fetch' first for up-to-date results. Defaults to every splice when no
+    paths are given.
+
+    Every splice gets a line: the splices that need something come first,
+    most urgent first -- "!!" and "??" mark problems -- and those that are up
+    to date or unchanged come last.
+
+    Like 'git status' against a tracking branch, it counts commits: "ahead"
+    is how many 'git splice push' would publish, "behind" how many 'git
+    splice pull' would bring in. 'git splice diff --stat' shows the files.
+
+    For a splice whose upstream has no branch named like the current one,
+    the comparison is with upstream's default branch, as for a PR: "new"
+    counts the commits the push that creates the branch would publish, and
+    how many the default branch has that this one lacks. "unchanged" means
+    the default branch has every commit.
+
+    Like every command, status reads splices from the last commit. It warns
+    about uncommitted changes in a splice's folder, which push leaves out.
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts. A splice with several upstreams shows its
+    upstream branch as <name>/<branch>.
+```
 In the [walkthrough's repositories](README.md), `vendor/pkg-a/`'s upstream has one commit the
 monorepo doesn't have yet:
 
@@ -29,8 +56,6 @@ On branch main
 `status` reports one of these states for each splice, and `merge`, `pull`
 and `push` act on it. Each example is a small, tested scenario;
 [all scenarios](../scenarios/README.md) cover more situations.
-`status` lists the splices that need something first, most urgent first,
-as in [this monorepo with many splices](../scenarios/01-everyday-sync/03-many-splices/README.md).
 In the drawings, H is `HEAD`, R the rebuild `push` would send, and T
 the fetched upstream branch; dashed commits are on no upstream branch
 yet ([sync model](../concepts/sync-model/README.md)).

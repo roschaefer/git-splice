@@ -1,17 +1,74 @@
 # clone
 
-`git splice clone [--merge] <url> [<path>]`\
-`git splice clone --from-submodule <path>`
-
-Splices an existing repository into a new folder, as one commit, or turns
-a submodule into a splice.
-
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
+```scrut
+$ git splice clone -h
+NAME
+    git-splice-clone - Splice an existing repository into the monorepo
+
+SYNOPSIS
+    git splice clone [--merge] [-m <message>] <url> [<path>]
+    git splice clone --from-submodule [--recursive | -m <message>] <path>
+
+DESCRIPTION
+    Splices an existing upstream repository into <path> (default: the
+    repository's name), as one ordinary commit with a new <path>/.splice.
+
+    The upstream branch is the one named like the current branch, else the
+    upstream's default branch; your first push then creates the missing
+    branch. If the upstream's default branch is named differently from the
+    monorepo's, .splice records it as the upstream's default-branch. Inside another splice,
+    it's compared with that splice's default branch instead, and on the
+    monorepo's default branch, that's the upstream branch: the monorepo's
+    branch name isn't tried.
+
+    If <path> already exists with exactly the upstream's content, clone only
+    adds .splice. If its content differs, clone refuses, unless --merge is
+    given: then every file that differs becomes a conflict to resolve, and
+    nothing is lost. Resolve it and run 'git commit'.
+
+    With --from-submodule, <path> is a submodule committed in HEAD, and clone
+    turns it into a splice of the same upstream, at the same commit: the
+    upstream is the submodule's URL in .gitmodules, and the folder gets the
+    files of the commit the submodule points to. One commit replaces the
+    submodule with the folder, and removes it from .gitmodules (the file too,
+    once empty). Upstream must serve the commit, on a branch, a tag or by
+    id, and a checkout of the submodule must be at that commit without
+    changes; clone refuses otherwise. It asks git status for those changes,
+    so it can't see the ones hidden by 'git update-index --assume-unchanged'
+    or '--skip-worktree': an edited file keeps its edit, but a deleted one
+    comes back. Clear these flags first. Files Git ignores in the checkout
+    stay, and its repository stays in .git/modules/.
+
+    The splice keeps what the submodule followed. submodule.<name>.branch,
+    the branch 'git submodule update --remote' follows, becomes the
+    upstream's default-branch ("." needs none: a splice follows the branch
+    named like the current one by default; inside a splice that pins a tag
+    or a commit, it stays at its commit). Without it, the submodule stayed
+    at its commit, and the upstream's default-pin pins that commit: on the
+    monorepo's default branch, pull brings in nothing and push refuses until
+    default-pin is removed. Other settings in .gitmodules are dropped.
+
+    A submodule whose commit has submodules of its own is refused, unless
+    --recursive is given: then clone converts those too, one commit each,
+    top-down. Their URLs and settings come from the .gitmodules in the
+    folder above, and a relative URL is relative to that folder's upstream.
+    The upstream above still has the submodule, so the folder differs from
+    it by that commit: the next push of the folder above sends it, which
+    turns the submodule into a splice there too. Push it before that
+    upstream moves its submodule to another commit: pulling such a change
+    is refused. If a nested submodule is refused, the ones above stay
+    converted; fix what the message says, then run clone on that path.
+
+    -m gives the commit this message instead of the default one, which
+    names the upstream branch and commit. Nothing reads the message back:
+    .splice records them.
+```
 In the [walkthrough's repositories](README.md), `pkg-b.git` isn't spliced in yet:
 
 ```scrut

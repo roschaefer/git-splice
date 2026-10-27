@@ -1,17 +1,39 @@
 # rebuild
 
-`git splice rebuild <path>`
-
-Prints the commit `push` would send, R, without pushing it. It writes
-nothing. The rebuild is deterministic, so a later push sees what was
-pushed of it as already upstream.
-
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
+```scrut
+$ git splice rebuild -h
+NAME
+    git-splice-rebuild - Print the commit push would send
+
+SYNOPSIS
+    git splice rebuild <path>
+
+DESCRIPTION
+    Prints the commit 'git splice push <path>' would send: the splice's
+    history rebuilt without its .splice file, on top of the upstream commit
+    it last synced with. If nothing changed since, that's the synced commit
+    itself. The rebuild is deterministic, so a later push sees what was
+    pushed of it as already upstream.
+
+    Writes no ref and no monorepo commit. Purely local, but the synced
+    commit must have been fetched.
+
+    Push it to an upstream branch other than the one named like the current
+    one, e.g. a release branch:
+
+      git push <url> "$(git splice rebuild <path>)":refs/heads/<branch>
+
+    or check it out in a separate worktree, since it has the upstream's
+    layout, not the monorepo's:
+
+      git worktree add ../rebuild "$(git splice rebuild <path>)"
+```
 ```scrut
 $ git splice pull vendor/pkg-a >/dev/null &&
 >   echo "a local fix" >>vendor/pkg-a/file.txt &&
@@ -24,10 +46,6 @@ $ git log --oneline "$(git splice rebuild vendor/pkg-a)"
 703b936 pkg-a: a second commit, after the clone
 9bb866a pkg-a: seed
 ```
-
-With nothing changed since the last sync, it prints the synced commit
-itself. It can also be checked out in a separate worktree, like a
-[fetched upstream](fetch.md#looking-at-an-upstream).
 
 ## Editing it before the push
 

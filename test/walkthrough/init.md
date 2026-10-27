@@ -1,17 +1,30 @@
 # init
 
-`git splice init <path> <url>`
-
-Makes a folder of the monorepo a splice of a new, empty repository. The
-first `push` starts the upstream at the init commit; the folder's
-earlier history stays in the monorepo.
-
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
+```scrut
+$ git splice init -h
+NAME
+    git-splice-init - Make an existing folder a splice of an empty repository
+
+SYNOPSIS
+    git splice init [-m <message>] <path> <url>
+
+DESCRIPTION
+    Makes the existing folder <path> a splice, to be published to <url>: an
+    empty repository you created for it. Commits <path>/.splice and nothing
+    else. Your first 'git splice push <path>' then starts the upstream with
+    that commit, the folder as it is now, followed by any commits after it.
+    The folder's earlier history stays in the monorepo.
+
+    If <url> has commits already, use 'git splice clone --merge <url> <path>'.
+
+    -m gives the commit this message instead of the default one.
+```
 In the [walkthrough's repositories](README.md), `libs/c/` grew inside the monorepo, and
 `lib-c.git` is empty:
 

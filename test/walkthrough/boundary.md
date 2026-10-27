@@ -1,21 +1,40 @@
 # boundary
 
-`git splice boundary <path>`
-
-Prints the splice boundary, B: the monorepo commit the
-[rebuild](rebuild.md) starts from. Like a boundary commit of
-`git log --boundary`, it starts the range of the folder's commits that
-the rebuild copies. Usually it's the last `pull`
-([where exactly](../concepts/sync-model/README.md#where-b-is)). To tell,
-it compares the folder with the upstream commit `.splice` recorded, so
-the splice must have been fetched.
-
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
+```scrut
+$ git splice boundary -h
+NAME
+    git-splice-boundary - Print where a splice's rebuild starts
+
+SYNOPSIS
+    git splice boundary <path>
+
+DESCRIPTION
+    Prints the commit the rebuild of splice <path> starts from, B. The
+    rebuild copies the commits after it on the current branch's
+    first-parent history that change the folder's files:
+
+      git log --first-parent "$(git splice boundary <path>)"..HEAD -- <path> ':!<path>/.splice'
+
+    Usually B is the last pull, merge, clone or init. After a pull that
+    merged commits that were never pushed, it's an earlier one, where the
+    folder was the upstream commit .splice recorded.
+
+    For a nested splice, run it in a worktree of a fetched commit of the
+    upstream above, with the path there, to get where that upstream's
+    rebuild of it starts:
+
+      git worktree add --detach ../a refs/splices/a/heads/main
+      git -C ../a splice boundary b
+
+    Purely local, but the synced commit must have been fetched. Writes no
+    ref and no monorepo commit.
+```
 ```scrut
 $ git splice pull vendor/pkg-a >/dev/null &&
 >   echo "a local fix" >>vendor/pkg-a/file.txt &&
@@ -34,16 +53,3 @@ The folder's commits since then, on the first-parent history, are what
 $ git log --first-parent --oneline "$(git splice boundary vendor/pkg-a)"..HEAD -- vendor/pkg-a
 2774c1a pkg-a: a local fix
 ```
-
-## Nested splices
-
-A nested splice has two boundaries. In the monorepo, `boundary` prints
-where the monorepo's rebuild of it starts, often a pull of the splice
-above. Where the upstream above's starts is a commit of that upstream:
-check out a fetched commit of it in a worktree, and run `boundary` there
-with the path in that upstream, e.g. `b/` for `vendor/a/b/`:
-
-    git worktree add --detach ../a refs/splices/a/heads/main
-    git -C ../a splice boundary b
-
-See [nesting](../concepts/nesting/README.md).
