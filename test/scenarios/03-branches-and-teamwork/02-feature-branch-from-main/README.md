@@ -30,6 +30,12 @@ $ build_scenario scenario_feature_branch_from_main
 
 <!--
 ```scrut
+$ check_drawing "$TESTDIR/feature-branch-before-change.drawio.svg" \
+>   a=HEAD~1 k=refs/splices/upstream/heads/main feature=HEAD~1
+ok   feature-branch-before-change.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
+```
+
+```scrut
 $ check_drawing "$TESTDIR/feature-branch-from-main.drawio.svg" \
 >   a=HEAD~1 b=HEAD k=refs/splices/upstream/heads/main
 ok   feature-branch-from-main.drawio.svg: 4 commits, 5 arrows, 3 boxes, 1 lanes
@@ -61,6 +67,14 @@ $ git splice push vendor/a
 ??   vendor/a: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/a: pushed e859a6b to feature
 ```
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/feature-branch-after-push.drawio.svg" \
+>   a=HEAD~1 b=HEAD k=refs/splices/upstream/heads/main
+ok   feature-branch-after-push.drawio.svg: 4 commits, 6 arrows, 4 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git splice status
