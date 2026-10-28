@@ -145,8 +145,9 @@ R^1 (first parent): d
 R^2 (second parent): n
 ```
 
-The same comparison happens whenever the rebuild reaches a monorepo
-commit that changed `.splice`:
+A commit that changes only the spliced folder is copied on top of the
+rebuilt tip. The comparison below is only needed when a commit also
+changes `.splice`, introducing a new synced commit:
 
 | Rebuilt tip and synced commit | The copy's parents | Common situation |
 |---|---|---|
