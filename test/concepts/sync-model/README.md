@@ -27,34 +27,37 @@ the model finds five other commits:
 | T | The fetched tip of tracked(X), in `refs/splices/`: the branch [tracked](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) for monorepo branch X, or the upstream branch named X. | *tracked*, *theirs* | the upstream |
 | R | The [rebuild](../../walkthrough/rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *rebuild*, *ours* | computed |
 
-<!-- Builds a fresh sandbox; see `just docs-check`.
+<!-- Build the scenario in the diagram; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
+$ source "$TESTDIR/../../scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/../../scenarios/01-everyday-sync/01-sync-model/setup.bash" &&
+>   scenario_sync_model "$PWD/monorepo" "$UPSTREAM" &&
+>   cd monorepo && scenario_built=1
 ```
 -->
 
-In the walkthrough [sandbox](../../../docs/sandbox.md), these commands
-locate the five commits for `vendor/pkg-a/`:
+These commands locate the five commits in the diagram:
 
 ```scrut
-$ B="$(git splice boundary vendor/pkg-a)" &&
->   U_H="$(git config --file vendor/pkg-a/.splice splice.commit)" &&
->   U_B="$(git config --blob "$B:vendor/pkg-a/.splice" splice.commit)" &&
->   T="$(git rev-parse splices/pkg-a/heads/main)" &&
->   R="$(git splice rebuild vendor/pkg-a)" &&
+$ B="$(git splice boundary lib)" &&
+>   U_H="$(git config --file lib/.splice splice.commit)" &&
+>   U_B="$(git config --blob "$B:lib/.splice" splice.commit)" &&
+>   T="$(git rev-parse "splices/$(git splice key lib)/heads/main")" &&
+>   R="$(git splice rebuild lib)" &&
 >   git show -s --format='B: %s' "$B" &&
 >   git show -s --format='U(H): %s' "$U_H" &&
 >   git show -s --format='U(B): %s' "$U_B" &&
 >   git show -s --format='T: %s' "$T" &&
 >   git show -s --format='R: %s' "$R"
-B: splice: clone vendor/pkg-a from main at 9bb866a
-U(H): pkg-a: seed
-U(B): pkg-a: seed
-T: pkg-a: a second commit, after the clone
-R: pkg-a: seed
+B: a
+U(H): k
+U(B): k
+T: n
+R: d
 ```
 
-Here R, U(H) and U(B) are the same commit, and R is one commit behind T.
+The letters now match the diagram: B is *a*, U(H) and U(B) are *k*, T is
+*n*, and R is *d'*, the rebuilt copy of *d*.
 
 A monorepo commit *X* has a sync point U(X): the upstream commit recorded
 in *X*'s `.splice`.
@@ -118,19 +121,6 @@ contains those local changes. Two exceptions:
 [`boundary`](../../walkthrough/boundary.md) prints B.
 
 ## R, the rebuild
-
-<!-- Build the scenario drawn above, while keeping the walkthrough sandbox
-available for the example below.
-```scrut
-$ WALKTHROUGH_MONOREPO="$PWD" &&
->   SCENARIO_ROOT="$WALKTHROUGH/sync-model-scenario" &&
->   mkdir "$SCENARIO_ROOT" && cd "$SCENARIO_ROOT" &&
->   source "$TESTDIR/../../scenarios/readme-setup.sh" &&
->   source "$TESTDIR/../../scenarios/01-everyday-sync/01-sync-model/setup.bash" &&
->   scenario_sync_model "$PWD/monorepo" "$UPSTREAM" &&
->   cd monorepo && scenario_built=1
-```
--->
 
 [`git splice rebuild`](../../walkthrough/rebuild.md) computes R. It
 recreates each monorepo commit since B that changed the folder as an
