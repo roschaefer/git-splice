@@ -39,6 +39,16 @@ $ check_drawing "$TESTDIR/local-edit-in-the-squash-table.drawio.svg" \
 >   f=refs/splices/upstream/heads/feature
 ok   local-edit-in-the-squash-table.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
+
+```scrut
+$ k="$(git rev-parse refs/splices/upstream/heads/main)" &&
+> f="$(git rev-parse refs/splices/upstream/heads/feature)" &&
+> git update-ref refs/splices/upstream/heads/main "$f" &&
+> check_drawing "$TESTDIR/../../../../concepts/sync-model/synced-commit-contains-rebuilt-tip.drawio.svg" \
+>   a=HEAD~1 s=HEAD k="$k" f=refs/splices/upstream/heads/main &&
+> git update-ref refs/splices/upstream/heads/main "$k"
+ok   synced-commit-contains-rebuilt-tip.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
+```
 -->
 
 *s* is the last commit, and the only one since the clone *a*:

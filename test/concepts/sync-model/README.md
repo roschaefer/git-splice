@@ -5,95 +5,55 @@ folder, and its upstream's, where it's the whole repository. Commits
 don't cross between them, changes do. This is the
 [README](../../../README.md)'s drawing, with letters for its names:
 
+## Before the pull
+
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](../../scenarios/01-everyday-sync/01-sync-model/before-pull.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b' and d' on top of k: U(H) = U(B) = k](../../scenarios/01-everyday-sync/01-sync-model/before-pull.drawio.svg)
 
 </div>
 
 Circles are commits, newest on top, and boxes point at them. The lane
 `lib/` holds the splice's upstream commits
 ([scenario](../../scenarios/01-everyday-sync/01-sync-model/README.md)).
-Every command works out what to cross from five commits:
+H is `HEAD`, the monorepo commit whose splice is being examined. From H,
+the model finds five other commits:
 
-| | Commit | README | Lives in |
+| Name | Meaning | Also called | Lives in |
 |---|---|---|---|
-| B | The boundary, where the rebuild starts: usually the last pull ([where exactly](#where-b-is)). | *boundary* | the monorepo |
+| B | The [boundary](../../walkthrough/boundary.md), where the rebuild starts: usually the last pull ([where exactly](#where-b-is)). | *boundary* | the monorepo |
 | U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | | the upstream |
-| U(B) | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | | the upstream |
-| T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`: tracked(X) where the splice [tracks](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) one on the monorepo's branch X, else the one named like X. | *theirs* | the upstream |
-| R | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *ours* | computed |
+| U(B) | The upstream commit recorded by B's `.splice`. R starts there. Usually U(H). | | the upstream |
+| T | The fetched tip of tracked(X), in `refs/splices/`: the branch [tracked](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) for monorepo branch X, or the upstream branch named X. | *tracked*, *theirs* | the upstream |
+| R | The [rebuild](../../walkthrough/rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *rebuild*, *ours* | computed |
 
-A monorepo commit *X* whose `.splice` records an upstream commit has that
-as its sync point U(X): what
-`git config --blob X:lib/.splice splice.commit` prints. It only changes
-where a commit changes `.splice`, e.g. a pull, so the commits in between
-share one, as commits can share a tree. A pull *X* brought in
-U(X^)..U(X), the synced commits before and after it, unless a push came
-in between ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
-[Output](#output) shows the Git commands that find each commit.
+<!-- Builds a fresh sandbox; see `just docs-check`.
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
+```
+-->
 
-## R, the rebuild
+A monorepo commit *X* has a sync point U(X): the upstream commit recorded
+in *X*'s `.splice`. For example, this prints U(H) in the walkthrough
+sandbox:
 
-The monorepo's commits that changed the folder are the splice's own
-changes, but they have the monorepo's layout and the monorepo's history.
-R copies each of them, since B, as an upstream commit: the folder's tree
-without `.splice`, the same author, dates and message, on top of U(B).
-Above, *b* and *d* change `lib/`, so the rebuild copies them as *b'* and
-*d'*; *c* doesn't, so it's left out.
+```scrut
+$ git config --blob HEAD:vendor/pkg-a/.splice splice.commit
+9bb866a3ba726f2229597a45e8ea3368f7e669a8
+```
 
-<div align="center">
+The sync point changes only when `.splice` changes, for example in a pull.
+The monorepo commits between two such changes share the same sync point. A
+pull commit *X* normally brought in U(X^)..U(X), the range between the
+previous and new sync points. A push between them is the exception
+([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
 
-![The same graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg)
-
-</div>
-
-A box U(x) points at what *x*'s `.splice` records. After
-`git splice pull`, the pull commit *e* records *n*, so U(H) = *n*. But *b*
-and *d* were never pushed, so *e*'s folder isn't *n*, and a rebuild from *e*
-would send their changes as one lump under *e*'s message. So B stays *a*,
-and U(B) = *k* still. R copies *b* and *d* as before, and *e* as *e'*, a merge of *d'*
-and *n*, as `git pull` would have
-([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/README.md)).
-
-A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
-[`git splice pull --bump`](../../walkthrough/bump.md) records *e'* as U(H),
-in a new commit *f*:
-
-<div align="center">
-
-![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e prime, and T and R point at e prime too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/pushed-and-bumped.drawio.svg)
-
-</div>
-
-*f*'s folder is *e'*, so *f* is the new B, and the rebuild has nothing to add:
-R = T = U(H) = U(B) = *e'*
-([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/README.md)).
-
-### Pulls in between
-
-Between B and H, every commit that changed `.splice` differs from the
-commit it recorded, or it would be B. The rebuild copies each of them
-with that folder, and picks its parents from two commits: what the
-rebuild has so far, *before*, and the commit it recorded, U(X):
-
-| *before* and U(X) | The copy's parents | When |
-|---|---|---|
-| neither contains the other | *before*, then U(X): a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e prime, a merge of b prime and l](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
-| U(X) contains *before*, or there's no *before* | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The squash merge s is rebuilt as s prime, on top of f, the commit it pulled](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/local-edit-in-the-squash-table.drawio.svg) |
-| *before* contains U(X) | *before*, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead))<br/>![The bump f records d prime, which the rebuild e prime already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
-
-So each pull since B that merged unpushed commits adds one merge to R,
-with the commit it pulled as the second parent. R takes that commit from
-the pull's `.splice`, not from T: T may have moved on since, with a
-fetch, and the merge would then claim changes the pull never brought in.
-
-### Where B is
+## Where B is
 
 B is the newest commit on the monorepo's first-parent history that
 changed `.splice` and whose folder is the upstream commit it recorded.
-So a pull that merged unpushed commits, like *e* above, isn't B. Two
-exceptions:
+A pull that merged unpushed commits is not B because its folder also
+contains those local changes. Two exceptions:
 
 - **Where the splice starts**, its *mount* (its first `.splice`, or a
   `git mv`), B is that commit whatever its folder. The rebuild copies it
@@ -105,7 +65,119 @@ exceptions:
 
 [`boundary`](../../walkthrough/boundary.md) prints B.
 
-### Never stored
+## R, the rebuild
+
+<!-- Build the scenario drawn above, while keeping the walkthrough sandbox
+available for the example below.
+```scrut
+$ WALKTHROUGH_MONOREPO="$PWD" &&
+>   SCENARIO_ROOT="$WALKTHROUGH/sync-model-scenario" &&
+>   mkdir "$SCENARIO_ROOT" && cd "$SCENARIO_ROOT" &&
+>   source "$TESTDIR/../../scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/../../scenarios/01-everyday-sync/01-sync-model/setup.bash" &&
+>   scenario_sync_model "$PWD/monorepo" "$UPSTREAM" &&
+>   cd monorepo && scenario_built=1
+```
+-->
+
+[`git splice rebuild`](../../walkthrough/rebuild.md) computes R. It
+recreates each monorepo commit since B that changed the folder as an
+upstream commit on top of U(B). A rebuilt commit contains the folder's
+tree without `.splice` and keeps the original author, dates and message.
+
+### After the pull
+
+Pulling the upstream creates commit *e* in the next diagram:
+
+```scrut
+$ git splice pull -m e lib
+ok   lib fetched
+ok   lib: pulled df79a48
+```
+
+<div align="center">
+
+![The same graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e', a merge of the rebuilt d' and n](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg)
+
+</div>
+
+A box U(x) points at the commit recorded in *x*'s `.splice`. After the
+pull in the drawing:
+
+- The pull commit *e* records *n*, so U(H) = *n*.
+- The earlier changes *b* and *d* were never pushed. They remain in *e*'s
+  folder, so that folder is not the tree of *n*. Therefore *e* is not B.
+- B stays at *a*, and U(B) stays at *k*.
+- When the rebuild reaches *e*, it has two histories to preserve: the
+  unpushed changes ending at *d'*, and the pulled history ending at *n*.
+  Therefore *e'* has both as parents and is a merge commit.
+
+The [scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/README.md)
+builds this state.
+
+### After the push and bump
+
+A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
+[`git splice pull --bump`](../../walkthrough/bump.md) records *e'* as U(H),
+in a new commit *f*:
+
+```scrut
+$ git splice push lib
+ok   lib: pushed 8430dba to main
+```
+
+```scrut
+$ git splice pull --bump -m f lib
+ok   lib fetched
+ok   lib: bumped the synced commit to 8430dba
+```
+
+<div align="center">
+
+![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e', and T and R point at e' too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/pushed-and-bumped.drawio.svg)
+
+</div>
+
+*f*'s folder is *e'*, so *f* is the new B, and the rebuild has nothing to add:
+R = T = U(H) = U(B) = *e'*
+([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/README.md)).
+
+### Parents of rebuilt commits
+
+In the situation after the [pull](#after-the-pull), the rebuild walks through
+the monorepo commits from B to H. It rebuilds *b* and *d*, then reaches H,
+the pull commit *e*. At that point, the rebuilt tip—the newest commit
+produced so far—is *d'*, and the synced commit U(H) is *n*. The parents
+of *e'* depend on the relationship between these commits. Neither
+contains the other, so *e'* gets *d'* as its first parent and *n* as its
+second parent. The rebuild has reached H, so *e'* is R.
+
+Git numbers these parents first and second:
+
+```scrut
+$ R="$(git splice rebuild lib)" &&
+>   git show -s --format='R^1 (first parent): %s' "$R^1" &&
+>   git show -s --format='R^2 (second parent): %s' "$R^2"
+R^1 (first parent): d
+R^2 (second parent): n
+```
+
+Most monorepo commits are copied on top of the rebuilt tip. A pull also
+records a new synced commit, so its rebuilt copy may need a second
+parent. The table shows how the relationship between those two commits
+determines the parents. A [scenario with two pulls](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/02-pulled-again/README.md)
+shows each pull becoming a separate merge in R's history.
+
+| Rebuilt tip and synced commit | The copy's parents | Common situation |
+|---|---|---|
+| neither contains the other | rebuilt tip as first parent, synced commit as second: a merge | pulling after both the monorepo and upstream changed, without rewritten upstream history ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge with b' as its first parent and l as its second](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
+| synced commit contains the rebuilt tip, or there is no rebuilt tip | synced commit | squash-merging a feature branch that also changed the folder ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or starting or moving a splice ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The synced commit U(H) contains U(B), and the squash merge s is rebuilt as s' on top of U(H)](synced-commit-contains-rebuilt-tip.drawio.svg) |
+| rebuilt tip contains the synced commit | rebuilt tip, and no copy if the folder didn't change | bumping after a push while newer commits remain local ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)), or editing `.splice` by hand<br/>![The bump f records d', which the rebuild e' already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
+
+The rebuilt copy becomes the new tip. Once the rebuild reaches H, its
+final tip is R.
+
+### R is computed, not stored
 
 R is never stored. It's computed from `HEAD` each time, and the same
 `HEAD` always gives the same R. So a commit pushed once is rebuilt
@@ -116,7 +188,7 @@ squash merge would invalidate
 A pull could have been a merge, with U(H) as its second parent:
 [weak parents](../../../docs/going-forward/weak-parents.md) compares the two.
 
-## Three ways, both directions
+## How R and T determine the status
 
 R and T are two histories of the same folder, as upstream commits. How
 they relate is the [sync state](../../walkthrough/status.md#sync-states):
@@ -175,16 +247,16 @@ The cost is that each rebuild walks every commit since B, pushed or not.
 [Bumping](../../walkthrough/bump.md) records the pushed commit as U(H) where
 that matters.
 
-## Output
+## Finding the commits in the walkthrough sandbox
+
+<!-- Return to the walkthrough sandbox built at the start of this page.
+```scrut
+$ cd "$WALKTHROUGH_MONOREPO"
+```
+-->
 
 The walkthrough's [sandbox](../../../docs/sandbox.md), where
 `vendor/pkg-a/` is behind its upstream by one commit.
-
-<!-- Builds a fresh sandbox; see `just docs-check`.
-```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
-```
--->
 
 For `vendor/pkg-a/`:
 
@@ -204,11 +276,11 @@ marks R's commits that T lacks, `>` T's commits that R lacks. Since B, no
 commit changed the folder, so R has nothing to add to U(H): R = U(H). U(H) is an
 ancestor of T, so `status` shows `behind 1`, the commit between them.
 
-B is what [`boundary`](../../walkthrough/boundary.md) prints. Here,
-it's the newest commit that changed `.splice`:
+B is what [`boundary`](../../walkthrough/boundary.md) prints. Here, it is
+the clone commit:
 
 ```scrut
-$ git log --first-parent -1 --oneline -- vendor/pkg-a/.splice
+$ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
 3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
 ```
 
@@ -238,9 +310,16 @@ $ git log --oneline splices/pkg-a/heads/main
 9bb866a pkg-a: seed
 ```
 
-R is what [`rebuild`](../../walkthrough/rebuild.md) prints, and
-`log --graph` draws it and T, labeled, down to the commit they have in
-common, `o`. Nothing changed the folder since B, so R is U(H):
+R is what [`rebuild`](../../walkthrough/rebuild.md) prints. Nothing
+changed the folder since B, so R is U(H):
+
+```scrut
+$ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
+9bb866a pkg-a: seed
+```
+
+`log --graph` draws R and T, labeled, down to the commit they have in
+common, `o`:
 
 ```scrut
 $ git splice log --graph vendor/pkg-a
@@ -283,16 +362,17 @@ ok   vendor/pkg-a fetched
 ok   vendor/pkg-a: pulled 703b936
 ```
 
-The pull commit records T as U(H). Its folder isn't T's tree, since it has
-the local file too, so it isn't the new B: B stays the clone, and U(B) its synced commit,
-`pkg-a: seed`,
+The pull commit records T as the new U(H). Its folder also contains the
+local file, so it is not the same tree as T and the pull is not the new B.
+B stays at the clone commit:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/pkg-a)"
 splice: clone vendor/pkg-a from main at 9bb866a
 ```
 
-and R joins the local commit with T by a merge, as `git pull` would have:
+U(B) stays at `pkg-a: seed`. R joins the local commit with T by a merge,
+as `git pull` would have:
 
 ```scrut
 $ git splice log --graph vendor/pkg-a
