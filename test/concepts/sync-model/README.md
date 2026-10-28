@@ -145,9 +145,10 @@ R^1 (first parent): d
 R^2 (second parent): n
 ```
 
-A commit that changes only the spliced folder is copied on top of the
-rebuilt tip. The comparison below is only needed when a commit also
-changes `.splice`, introducing a new synced commit:
+Most monorepo commits are copied on top of the rebuilt tip. A pull also
+changes `.splice`, introducing a new synced commit. Its rebuilt copy may
+therefore need a second parent. If the pull is H, that copy is R, so the
+comparison below determines whether R is a merge commit:
 
 | Rebuilt tip and synced commit | The copy's parents | Common situation |
 |---|---|---|
