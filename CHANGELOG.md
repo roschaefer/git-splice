@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.0](https://github.com/roschaefer/git-splice/compare/v0.15.0...v0.16.0) (2026-10-28)
+
+
+### Features
+
+* --track an upstream branch per monorepo branch, like git push -u ([#292](https://github.com/roschaefer/git-splice/issues/292)) ([315a805](https://github.com/roschaefer/git-splice/commit/315a8051810974a2f7cfe5e2f0ea241b304a3054)), closes [#289](https://github.com/roschaefer/git-splice/issues/289)
+* **push:** --branch pushes to another upstream branch, like pull --branch ([#291](https://github.com/roschaefer/git-splice/issues/291)) ([eec593f](https://github.com/roschaefer/git-splice/commit/eec593fc3ccc8a4039deef4fae2732d28156f9ac)), closes [#290](https://github.com/roschaefer/git-splice/issues/290)
+
 ## [0.15.0](https://github.com/roschaefer/git-splice/compare/v0.14.2...v0.15.0) (2026-10-28)
 
 
