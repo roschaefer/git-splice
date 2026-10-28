@@ -152,6 +152,9 @@ newer commits follow the pull, their rebuilt copies go on top of it, and
 the rebuilt pull becomes an ancestor of R. The comparison below
 determines whether the rebuilt pull is a merge commit:
 
+Each pull since B that merged unpushed commits adds its own merge to R's
+history. Repeated pulls can therefore add several merge commits.
+
 | Rebuilt tip and synced commit | The copy's parents | Common situation |
 |---|---|---|
 | neither contains the other | rebuilt tip as first parent, synced commit as second: a merge | pulling after both the monorepo and upstream changed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge with b' as its first parent and l as its second](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
@@ -161,10 +164,9 @@ determines whether the rebuilt pull is a merge commit:
 The rebuilt copy becomes the new tip. Once the rebuild reaches H, its
 final tip is R.
 
-So each pull since B that merged unpushed commits adds one merge to R,
-with the commit it pulled as the second parent. R takes that commit from
-the pull's `.splice`, not from T: T may have moved on since, with a
-fetch, and the merge would then claim changes the pull never brought in.
+The synced commit comes from the pull's `.splice`, not from T: T may have
+moved on since, with a fetch, and the merge would then claim changes the
+pull never brought in.
 
 ### Where B is
 
