@@ -24,7 +24,7 @@ the model finds five other commits:
 | B | The [boundary](../../walkthrough/boundary.md), where the rebuild starts: usually the last pull ([where exactly](#where-b-is)). | *boundary* | the monorepo |
 | U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | | the upstream |
 | U(B) | The upstream commit recorded by B's `.splice`. R starts there. Usually U(H). | | the upstream |
-| T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`: tracked(X) where the splice [tracks](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) one on the monorepo's branch X, else the one named like X. | *theirs* | the upstream |
+| T | The fetched tip of tracked(X), in `refs/splices/`: the branch [tracked](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) for monorepo branch X, or the upstream branch named X. | *tracked*, *theirs* | the upstream |
 | R | The [rebuild](../../walkthrough/rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *rebuild*, *ours* | computed |
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
@@ -47,6 +47,23 @@ The monorepo commits between two such changes share the same sync point. A
 pull commit *X* normally brought in U(X^)..U(X), the range between the
 previous and new sync points. A push between them is the exception
 ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
+
+## Where B is
+
+B is the newest commit on the monorepo's first-parent history that
+changed `.splice` and whose folder is the upstream commit it recorded.
+A pull that merged unpushed commits is not B because its folder also
+contains those local changes. Two exceptions:
+
+- **Where the splice starts**, its *mount* (its first `.splice`, or a
+  `git mv`), B is that commit whatever its folder. The rebuild copies it
+  too where its folder isn't U(B), e.g. after `init`, or a `git mv` with
+  unpushed changes.
+- **For a nested splice**, B can be the last pull of the splice above,
+  and R's history up to there comes from the upstream above, at its
+  synced commit ([nesting](../nesting/README.md)).
+
+[`boundary`](../../walkthrough/boundary.md) prints B.
 
 ## R, the rebuild
 
@@ -146,14 +163,10 @@ R^2 (second parent): n
 ```
 
 Most monorepo commits are copied on top of the rebuilt tip. A pull also
-changes `.splice`, introducing a new synced commit. Its rebuilt copy may
-therefore need a second parent. If the pull is H, that copy is R. If
-newer commits follow the pull, their rebuilt copies go on top of it, and
-the rebuilt pull becomes an ancestor of R. The comparison below
-determines whether the rebuilt pull is a merge commit:
-
-Each pull since B that merged unpushed commits adds its own merge to R's
-history. Repeated pulls can therefore add several merge commits.
+records a new synced commit, so its rebuilt copy may need a second
+parent. The table shows how the relationship between those two commits
+determines the parents. A [scenario with two pulls](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/02-pulled-again/README.md)
+shows each pull becoming a separate merge in R's history.
 
 | Rebuilt tip and synced commit | The copy's parents | Common situation |
 |---|---|---|
@@ -163,27 +176,6 @@ history. Repeated pulls can therefore add several merge commits.
 
 The rebuilt copy becomes the new tip. Once the rebuild reaches H, its
 final tip is R.
-
-The synced commit comes from the pull's `.splice`, not from T: T may have
-moved on since, with a fetch, and the merge would then claim changes the
-pull never brought in.
-
-### Where B is
-
-B is the newest commit on the monorepo's first-parent history that
-changed `.splice` and whose folder is the upstream commit it recorded.
-So a pull that merged unpushed commits, like *e* above, isn't B. Two
-exceptions:
-
-- **Where the splice starts**, its *mount* (its first `.splice`, or a
-  `git mv`), B is that commit whatever its folder. The rebuild copies it
-  too where its folder isn't U(B), e.g. after `init`, or a `git mv` with
-  unpushed changes.
-- **For a nested splice**, B can be the last pull of the splice above,
-  and R's history up to there comes from the upstream above, at its
-  synced commit ([nesting](../nesting/README.md)).
-
-[`boundary`](../../walkthrough/boundary.md) prints B.
 
 ### R is computed, not stored
 
