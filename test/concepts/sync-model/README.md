@@ -47,10 +47,31 @@ previous and new sync points. A push between them is the exception
 ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
 ## R, the rebuild
 
+<!-- Build the scenario drawn above, while keeping the walkthrough sandbox
+available for the example below.
+```scrut
+$ WALKTHROUGH_MONOREPO="$PWD" &&
+>   SCENARIO_ROOT="$WALKTHROUGH/sync-model-scenario" &&
+>   mkdir "$SCENARIO_ROOT" && cd "$SCENARIO_ROOT" &&
+>   source "$TESTDIR/../../scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/../../scenarios/01-everyday-sync/01-sync-model/setup.bash" &&
+>   scenario_sync_model "$PWD/monorepo" "$UPSTREAM" &&
+>   cd monorepo && scenario_built=1
+```
+-->
+
 [`git splice rebuild`](../../walkthrough/rebuild.md) computes R. It
 recreates each monorepo commit since B that changed the folder as an
 upstream commit on top of U(B). A rebuilt commit contains the folder's
 tree without `.splice` and keeps the original author, dates and message.
+
+Pulling the upstream creates commit *e* in the next diagram:
+
+```scrut
+$ git splice pull -m e lib
+ok   lib fetched
+ok   lib: pulled df79a48
+```
 
 <div align="center">
 
@@ -75,6 +96,17 @@ builds this state.
 A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
 [`git splice pull --bump`](../../walkthrough/bump.md) records *e'* as U(H),
 in a new commit *f*:
+
+```scrut
+$ git splice push lib
+ok   lib: pushed 8430dba to main
+```
+
+```scrut
+$ git splice pull --bump -m f lib
+ok   lib fetched
+ok   lib: bumped the synced commit to 8430dba
+```
 
 <div align="center">
 
@@ -193,6 +225,12 @@ The cost is that each rebuild walks every commit since B, pushed or not.
 that matters.
 
 ## Finding the commits in the walkthrough sandbox
+
+<!-- Return to the walkthrough sandbox built at the start of this page.
+```scrut
+$ cd "$WALKTHROUGH_MONOREPO"
+```
+-->
 
 The walkthrough's [sandbox](../../../docs/sandbox.md), where
 `vendor/pkg-a/` is behind its upstream by one commit.
