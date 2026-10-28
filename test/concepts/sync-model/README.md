@@ -33,14 +33,31 @@ $ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
 ```
 -->
 
-A monorepo commit *X* has a sync point U(X): the upstream commit recorded
-in *X*'s `.splice`. For example, this prints U(H) in the walkthrough
-sandbox:
+In the walkthrough [sandbox](../../../docs/sandbox.md), these commands
+locate the five commits for `vendor/pkg-a/`:
 
 ```scrut
-$ git config --blob HEAD:vendor/pkg-a/.splice splice.commit
-9bb866a3ba726f2229597a45e8ea3368f7e669a8
+$ B="$(git splice boundary vendor/pkg-a)" &&
+>   U_H="$(git config --file vendor/pkg-a/.splice splice.commit)" &&
+>   U_B="$(git config --blob "$B:vendor/pkg-a/.splice" splice.commit)" &&
+>   T="$(git rev-parse splices/pkg-a/heads/main)" &&
+>   R="$(git splice rebuild vendor/pkg-a)" &&
+>   git show -s --format='B: %s' "$B" &&
+>   git show -s --format='U(H): %s' "$U_H" &&
+>   git show -s --format='U(B): %s' "$U_B" &&
+>   git show -s --format='T: %s' "$T" &&
+>   git show -s --format='R: %s' "$R"
+B: splice: clone vendor/pkg-a from main at 9bb866a
+U(H): pkg-a: seed
+U(B): pkg-a: seed
+T: pkg-a: a second commit, after the clone
+R: pkg-a: seed
 ```
+
+Here R, U(H) and U(B) are the same commit, and R is one commit behind T.
+
+A monorepo commit *X* has a sync point U(X): the upstream commit recorded
+in *X*'s `.splice`.
 
 The sync point changes only when `.splice` changes, for example in a pull.
 The monorepo commits between two such changes share the same sync point. A
@@ -237,34 +254,3 @@ matters.
 
 A pull could have been a merge, with U(H) as its second parent:
 [weak parents](../../../docs/going-forward/weak-parents.md) compares the two.
-
-## Finding the commits in the walkthrough sandbox
-
-<!-- Return to the walkthrough sandbox built at the start of this page.
-```scrut
-$ cd "$WALKTHROUGH_MONOREPO"
-```
--->
-
-In the walkthrough [sandbox](../../../docs/sandbox.md), these commands
-locate the five commits for `vendor/pkg-a/`:
-
-```scrut
-$ B="$(git splice boundary vendor/pkg-a)" &&
->   U_H="$(git config --file vendor/pkg-a/.splice splice.commit)" &&
->   U_B="$(git config --blob "$B:vendor/pkg-a/.splice" splice.commit)" &&
->   T="$(git rev-parse splices/pkg-a/heads/main)" &&
->   R="$(git splice rebuild vendor/pkg-a)" &&
->   git show -s --format='B: %s' "$B" &&
->   git show -s --format='U(H): %s' "$U_H" &&
->   git show -s --format='U(B): %s' "$U_B" &&
->   git show -s --format='T: %s' "$T" &&
->   git show -s --format='R: %s' "$R"
-B: splice: clone vendor/pkg-a from main at 9bb866a
-U(H): pkg-a: seed
-U(B): pkg-a: seed
-T: pkg-a: a second commit, after the clone
-R: pkg-a: seed
-```
-
-Here R, U(H) and U(B) are the same commit, and R is one commit behind T.
