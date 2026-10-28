@@ -67,7 +67,9 @@ splice is `never fetched`, or the upstream has no such branch.
 
 A pull is a **three-way merge**, in the monorepo's layout:
 
-- **base**: the newest commit R and T have in common, `git merge-base R T`
+- **base**: normally the newest commit R and T have in common,
+  `git merge-base R T`; after an upstream rewrite, pull can use the fetched
+  branch's [fork point](../../scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)
 - **ours**: `HEAD`, with the folder as it is
 - **theirs**: `HEAD` with T's files in the folder
 
