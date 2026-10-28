@@ -128,11 +128,11 @@ Let's look at the after-pull diagram again:
 
 </div>
 
-The rebuild walks through the monorepo commits from B to H. In the
-after-pull diagram, it rebuilds *b* and *d*, then reaches the pull commit
-*e*. At that point, *d'* is the newest commit produced by the rebuild, and
-U(e) is *n*, the upstream commit recorded by *e*. Neither contains the
-other, so *e'* needs both as parents.
+The rebuild walks through the monorepo commits from B to H. It rebuilds
+*b* and *d*, then reaches the pull commit *e*. At that point, *d'* is the
+newest commit produced by the rebuild, and U(e) is *n*, the upstream
+commit recorded by *e*. Neither contains the other, so *e'* needs both as
+parents.
 
 The same rule applies to any monorepo commit that changed `.splice`. The
 table calls that commit *X* and the newest commit produced so far the
