@@ -118,7 +118,7 @@ ok   lib: bumped the synced commit to 8430dba
 R = T = U(H) = U(B) = *e'*
 ([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/README.md)).
 
-### Pulls between B and H
+### Parents of rebuilt commits
 
 The rebuild walks through the monorepo commits from B to H. In the
 after-pull diagram, it rebuilds *b* and *d*, then reaches the pull commit

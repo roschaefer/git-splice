@@ -315,7 +315,7 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
    tree, *L* is B, and the rebuild continues from U(L). Otherwise a pull
    merged a divergence, or a squash merge mixed local edits into *L*, and
    *L* is rebuilt too, on the parents the
-   [sync model](../../test/concepts/sync-model/README.md#pulls-between-b-and-h)
+   [sync model](../../test/concepts/sync-model/README.md#parents-of-rebuilt-commits)
    picks, back to [B](../../test/concepts/sync-model/README.md#where-b-is)
    ([scenario](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)).
    Without U(L), e.g. after `init`, the rebuild starts at the mount, as a
