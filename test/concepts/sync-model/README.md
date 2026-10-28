@@ -147,8 +147,10 @@ R^2 (second parent): n
 
 Most monorepo commits are copied on top of the rebuilt tip. A pull also
 changes `.splice`, introducing a new synced commit. Its rebuilt copy may
-therefore need a second parent. If the pull is H, that copy is R, so the
-comparison below determines whether R is a merge commit:
+therefore need a second parent. If the pull is H, that copy is R. If
+newer commits follow the pull, their rebuilt copies go on top of it, and
+the rebuilt pull becomes an ancestor of R. The comparison below
+determines whether the rebuilt pull is a merge commit:
 
 | Rebuilt tip and synced commit | The copy's parents | Common situation |
 |---|---|---|
