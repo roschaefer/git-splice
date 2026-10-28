@@ -6,7 +6,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--set-branch]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 
 DESCRIPTION
@@ -27,7 +27,7 @@ DESCRIPTION
     any of them may have the synced commit the pull moves to.
 
     --branch names the upstream branch to pull, for this pull only, and
-    --set-branch remembers it for the current branch; --rebase rebases
+    --track tracks it on the current branch; --rebase rebases
     instead of merging, like 'git pull --rebase'; see 'git splice merge
     --help' for these.
 
@@ -54,9 +54,9 @@ below_selected() {
 }
 
 cmd_pull() {
-  parse_args usage_pull "--upstream --branch --set-branch --bump --rebase --no-fork-point -m" "$@"
+  parse_args usage_pull "--upstream --branch --track --bump --rebase --no-fork-point -m" "$@"
   require_one_splice_for_message
-  require_branch_for_set_branch
+  require_branch_for_track
   REBUILD_JOINS_REWRITTEN=1
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1

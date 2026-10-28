@@ -107,19 +107,19 @@ _git_splice() {
   done
   case "$cmd" in
     fetch)
-      __git_splice_paths_or_options "$cur" --upstream -h --help
+      __git_splice_paths_or_options "$cur" --upstream --branch --track --no-track -h --help
       ;;
     log)
       __git_splice_paths_or_options "$cur" --upstream --graph -h --help
       ;;
     merge | pull)
-      __git_splice_paths_or_options "$cur" --upstream --branch --set-branch --all --bump --rebase --no-fork-point -m --message -h --help
+      __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point -m --message -h --help
       ;;
     push | status | diff)
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --branch --set-branch --all --force --rebuilt-commit -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit -h --help
       else
         __git_splice_paths_or_options "$cur" --upstream -h --help
       fi

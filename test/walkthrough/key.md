@@ -24,8 +24,8 @@ DESCRIPTION
     [upstream "<name>"]. Without it, the splice's default upstream.
 
     A key belongs to an upstream URL, so splices with the same URL share it.
-    Renaming it also renames it in the upstream branches --set-branch
-    remembered, branch.<branch>.splice = <key>:<name>.
+    Renaming it also renames it in the tracked upstream branches,
+    branch.<branch>.splice = <key>:<name>.
     The first fetch of an upstream records its key in the repository's config,
     as splice.<key>.url, from the end of its URL: lib for
     https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's

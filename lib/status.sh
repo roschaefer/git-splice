@@ -17,7 +17,7 @@ DESCRIPTION
     most urgent first -- "!!" and "??" mark problems -- and those that are up
     to date or unchanged come last.
 
-    Like 'git status' against a tracking branch, it counts commits: "ahead"
+    Like 'git status' against its upstream branch, it counts commits: "ahead"
     is how many 'git splice push' would publish, "behind" how many 'git
     splice pull' would bring in. 'git splice diff --stat' shows the files.
 
@@ -29,10 +29,10 @@ DESCRIPTION
     every commit, or the others change no files, e.g. a change and its
     revert.
 
-    A splice whose upstream branch 'git splice push --set-branch' (or pull,
-    merge) remembered for the current branch says so: "set for <branch>,
-    local". It's in this repository's config only, so another clone of the
-    monorepo shows the usual branch there.
+    A splice that tracks an upstream branch on the current branch, by
+    'git splice fetch --track' (or push, pull, merge), says so: "tracked on
+    <branch>, local". It's in this repository's config only, so another
+    clone of the monorepo shows the usual branch there.
 
     Like every command, status reads splices from the last commit. It warns
     about uncommitted changes in a splice's folder, which push leaves out.
@@ -138,8 +138,8 @@ add_status_row() {
       ;;
   esac
 
-  if [[ -n "$(remembered_branch "$path" "$branch")" ]]; then
-    STATUS_HINT="${STATUS_HINT:+$STATUS_HINT; }set for $branch, local"
+  if [[ -n "$(tracked_branch "$path" "$branch")" ]]; then
+    STATUS_HINT="${STATUS_HINT:+$STATUS_HINT; }tracked on $branch, local"
   fi
 
   local rank uncommitted=""

@@ -68,9 +68,9 @@ complete_words() {
   [ -z "$output" ]
 }
 
-@test "completion: --branch for merge, pull and push" {
+@test "completion: --branch for fetch, merge, pull and push" {
   local cmd
-  for cmd in merge pull push; do
+  for cmd in fetch merge pull push; do
     run complete_words git-splice "$cmd" --br
     [ "$output" = "--branch" ]
   done
@@ -78,13 +78,17 @@ complete_words() {
   [ -z "$output" ]
 }
 
-@test "completion: --set-branch for merge, pull and push" {
+@test "completion: --track for fetch, merge, pull and push, --no-track only for fetch" {
   local cmd
-  for cmd in merge pull push; do
-    run complete_words git-splice "$cmd" --set
-    [ "$output" = "--set-branch" ]
+  for cmd in fetch merge pull push; do
+    run complete_words git-splice "$cmd" --tr
+    [ "$output" = "--track" ]
   done
-  run complete_words git-splice status --set
+  run complete_words git-splice status --tr
+  [ -z "$output" ]
+  run complete_words git-splice fetch --no-t
+  [ "$output" = "--no-track" ]
+  run complete_words git-splice pull --no-t
   [ -z "$output" ]
 }
 
@@ -480,11 +484,10 @@ fish_complete() {
   [ "$output" = "--graph" ]
 }
 
-@test "fish completion: push completes --branch first, before --set-branch, which fish matches inside the word" {
+@test "fish completion: push completes --branch" {
   require_shell fish
   run fish_complete "git-splice push --br"
-  [ "${lines[0]}" = "--branch" ]
-  [ "${lines[1]}" = "--set-branch" ]
+  [ "$output" = "--branch" ]
 }
 
 @test "fish completion: pull completes --bump, --rebase and --branch" {
@@ -494,7 +497,7 @@ fish_complete() {
   run fish_complete "git-splice pull --reb"
   [ "$output" = "--rebase" ]
   run fish_complete "git-splice pull --br"
-  [ "${lines[0]}" = "--branch" ]
+  [ "$output" = "--branch" ]
 }
 
 @test "fish completion: init completes --message, and the path after its message" {

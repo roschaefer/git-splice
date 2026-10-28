@@ -35,6 +35,22 @@ A few details:
 - Page titles, image alt text, labels in a drawing and code blocks get
   no markup.
 
+## Words Git uses too
+
+Git uses "upstream" and "tracking" for several things. Here each word
+means one:
+
+- **Upstream** is the repository a splice comes from, and an *upstream
+  branch* is one of its branches. Git's upstream branch, the one
+  `@{upstream}` names, is a *tracked branch* here.
+- **Tracked branch** is the upstream branch that `--track` set for a
+  monorepo branch, in `branch.<branch>.splice`. Never "tracking branch":
+  Git says that for the local branch, and it's easily mistaken for a
+  remote-tracking branch. A tracked branch is no ref, only a name.
+- **Remote-tracking branch** keeps Git's meaning only, a ref like
+  `refs/remotes/origin/main`. The refs `git splice fetch` writes,
+  `refs/splices/<key>/heads/*`, work like them, but are *splice refs*.
+
 ## Commands in scrut blocks
 
 Each step a reader would type gets its own line. A scrut command goes on
