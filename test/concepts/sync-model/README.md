@@ -120,11 +120,15 @@ R = T = U(H) = U(B) = *e'*
 
 ### Pulls between B and H
 
-The rebuild processes monorepo commits from B towards H. Before processing
-a commit *X*, it has a *rebuilt tip*: the newest upstream commit produced
-so far. If *X* changed `.splice`, the rebuild also reads U(X), the upstream
-commit *X* recorded. Their relationship determines the parents of *X*'s
-copy:
+The rebuild walks through the monorepo commits from B to H. In the
+after-pull diagram, it rebuilds *b* and *d*, then reaches the pull commit
+*e*. At that point, *d'* is the newest commit produced by the rebuild, and
+U(e) is *n*, the upstream commit recorded by *e*. Neither contains the
+other, so *e'* needs both as parents.
+
+The same rule applies to any monorepo commit that changed `.splice`. The
+table calls that commit *X* and the newest commit produced so far the
+*rebuilt tip*:
 
 | Rebuilt tip and U(X) | The copy's parents | When |
 |---|---|---|
