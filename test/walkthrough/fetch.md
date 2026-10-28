@@ -12,7 +12,7 @@ NAME
     git-splice-fetch - Fetch splice upstreams
 
 SYNOPSIS
-    git splice fetch [--upstream <name>] [path...]
+    git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [path...]
 
 DESCRIPTION
     Fetches every branch of each splice's upstreams into
@@ -25,6 +25,12 @@ DESCRIPTION
 
     A splice whose .splice names several upstreams has each fetched, unless
     --upstream names one.
+
+    --branch <name> --track also tracks that upstream branch on the current
+    branch, without a pull or push: from then on, every command syncs the
+    splice with it there, and 'git splice status' compares with it.
+    --no-track stops tracking one, so the splice syncs with the branch named
+    like the current one again. See 'git splice merge --help'.
 ```
 In the [walkthrough's repositories](README.md), someone pushes another
 commit to `pkg-a`'s upstream:

@@ -12,7 +12,7 @@ repositories, and names every difference.
 It's made for drawings of [`git-splice`](../README.md) histories: a
 monorepo, the upstreams of its splices, and the names of
 `git-splice`'s [sync model](../test/concepts/sync-model/README.md),
-H, B, T, R and U(x).
+H, B, T, R, U(x) and tracked(x).
 
 ## Usage
 
@@ -88,8 +88,10 @@ beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
 - **Box**: points at the commit its label names: H, B, T or R, U(x),
   the commit *x*'s `.splice` records, where *x* is H, B or a drawn commit, or
   a branch by its name: in a box on a monorepo commit, the monorepo's,
-  e.g. `main` or `origin/main`, otherwise the upstream's, as fetched, or
-  `merge-base(R,T)`, the newest commit R and T have in common. Several
+  e.g. `main` or `origin/main`, otherwise the upstream's, as fetched,
+  `tracked(<branch>)`, the upstream branch the splice tracks on that
+  monorepo branch, as fetched, or `merge-base(R,T)`, the newest commit R
+  and T have in common. Several
   names
   are joined by ` = `, e.g. `U(H) = U(B)`: each must name that commit.
 - **Lane**: a shape labelled with a splice's folder, e.g. `vendor/a/`,
@@ -201,7 +203,8 @@ What no drawing has needed yet, it doesn't handle:
 
 In `git-splice`, [`test/drawing.bats`](../test/drawing.bats) and
 [`test/drawing-lanes.bats`](../test/drawing-lanes.bats) and
-[`test/drawing-upstreams.bats`](../test/drawing-upstreams.bats) run it against
+[`test/drawing-upstreams.bats`](../test/drawing-upstreams.bats) and
+[`test/drawing-tracked.bats`](../test/drawing-tracked.bats) run it against
 `git-splice`'s test scenarios, and each [scenario](../test/scenarios/)
 with a drawing checks it in its README. [`test/drawing-export.bats`](../test/drawing-export.bats)
 tests `check-export`, with draw.io.

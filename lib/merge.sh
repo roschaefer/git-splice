@@ -6,7 +6,7 @@ NAME
     git-splice-merge - Splice in fetched upstream changes
 
 SYNOPSIS
-    git splice merge [--upstream <name>] [--branch <name>] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
 
 DESCRIPTION
@@ -20,6 +20,15 @@ DESCRIPTION
     --branch names another one for this merge, e.g. the one the default
     branch follows, on a pull request's branch the upstream has none for.
     It doesn't change .splice, and the splices below keep theirs.
+
+    --track also tracks that branch on the monorepo's current branch, as
+    'git push -u' does: from then on, every command syncs the splice with
+    it there, until --track names another. It's kept in the repository's
+    config, as branch.<branch>.splice = <key>:<name>, by the upstream's key
+    ('git splice key'), so it stays in this clone, and 'git splice status'
+    marks the splices that track one. 'git splice fetch --branch <name>
+    --track' tracks one without a merge, and 'git splice fetch --no-track'
+    stops tracking it.
 
     --upstream names one of the upstreams a splice's .splice names; without
     it, the splice's default upstream. A splice without the named upstream
@@ -98,6 +107,9 @@ merge_one() {
     missing-branch)
       if branch_arg_applies "$path"; then
         log_err "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch, which --branch names"
+        return 1
+      elif [[ -n "$(tracked_branch "$path" "$branch")" ]]; then
+        log_err "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch, which branch.$branch.splice tracks -- 'git splice fetch --branch <name> --track $(shell_quote "$path")' tracks another, '--no-track' none"
         return 1
       fi
       log_ok "$path: upstream has no '$SPLICE_UPSTREAM_LABEL' branch -- nothing to $verb"
@@ -507,7 +519,11 @@ merge_paths() {
       failures+=("$path")
       continue
     fi
-    merge_one "$path" "$branch" "$verb" || failures+=("$path")
+    if ! merge_one "$path" "$branch" "$verb"; then
+      failures+=("$path")
+    elif has_flag --track && ! splice_in_progress; then
+      track_branch "$path" "$branch" "$BRANCH_ARG" || failures+=("$path")
+    fi
   done
   # A pull above may also move the synced commit of a splice below it that
   # isn't pulled itself: fetch that commit too, or the splice would look
@@ -538,8 +554,9 @@ merge_paths() {
 }
 
 cmd_merge() {
-  parse_args usage_merge "--upstream --branch --bump --rebase --no-fork-point -m" "$@"
+  parse_args usage_merge "--upstream --branch --track --bump --rebase --no-fork-point -m" "$@"
   require_one_splice_for_message
+  require_branch_for_track
   REBUILD_JOINS_REWRITTEN=1
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1

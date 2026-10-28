@@ -68,13 +68,27 @@ complete_words() {
   [ -z "$output" ]
 }
 
-@test "completion: --branch for merge, pull and push" {
+@test "completion: --branch for fetch, merge, pull and push" {
   local cmd
-  for cmd in merge pull push; do
+  for cmd in fetch merge pull push; do
     run complete_words git-splice "$cmd" --br
     [ "$output" = "--branch" ]
   done
   run complete_words git-splice status --br
+  [ -z "$output" ]
+}
+
+@test "completion: --track for fetch, merge, pull and push, --no-track only for fetch" {
+  local cmd
+  for cmd in fetch merge pull push; do
+    run complete_words git-splice "$cmd" --tr
+    [ "$output" = "--track" ]
+  done
+  run complete_words git-splice status --tr
+  [ -z "$output" ]
+  run complete_words git-splice fetch --no-t
+  [ "$output" = "--no-track" ]
+  run complete_words git-splice pull --no-t
   [ -z "$output" ]
 }
 

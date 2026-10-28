@@ -12,7 +12,7 @@ NAME
     git-splice-merge - Splice in fetched upstream changes
 
 SYNOPSIS
-    git splice merge [--upstream <name>] [--branch <name>] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
 
 DESCRIPTION
@@ -26,6 +26,15 @@ DESCRIPTION
     --branch names another one for this merge, e.g. the one the default
     branch follows, on a pull request's branch the upstream has none for.
     It doesn't change .splice, and the splices below keep theirs.
+
+    --track also tracks that branch on the monorepo's current branch, as
+    'git push -u' does: from then on, every command syncs the splice with
+    it there, until --track names another. It's kept in the repository's
+    config, as branch.<branch>.splice = <key>:<name>, by the upstream's key
+    ('git splice key'), so it stays in this clone, and 'git splice status'
+    marks the splices that track one. 'git splice fetch --branch <name>
+    --track' tracks one without a merge, and 'git splice fetch --no-track'
+    stops tracking it.
 
     --upstream names one of the upstreams a splice's .splice names; without
     it, the splice's default upstream. A splice without the named upstream

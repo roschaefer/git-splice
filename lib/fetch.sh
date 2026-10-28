@@ -6,7 +6,7 @@ NAME
     git-splice-fetch - Fetch splice upstreams
 
 SYNOPSIS
-    git splice fetch [--upstream <name>] [path...]
+    git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [path...]
 
 DESCRIPTION
     Fetches every branch of each splice's upstreams into
@@ -19,6 +19,12 @@ DESCRIPTION
 
     A splice whose .splice names several upstreams has each fetched, unless
     --upstream names one.
+
+    --branch <name> --track also tracks that upstream branch on the current
+    branch, without a pull or push: from then on, every command syncs the
+    splice with it there, and 'git splice status' compares with it.
+    --no-track stops tracking one, so the splice syncs with the branch named
+    like the current one again. See 'git splice merge --help'.
 EOF
 }
 
@@ -88,7 +94,8 @@ fetch_shared_upstream() {
     [[ -z "${tag_of[i]}" || " ${tags[*]} " == *" ${tag_of[i]} "* ]] || tags+=("${tag_of[i]}")
     # A splice pinned on this branch has no branch that could move.
     target_refs[i]=""
-    if [[ -z "$pin" ]] || branch_arg_applies "$path" || [[ "$branch" != "$(monorepo_default_branch)" ]]; then
+    if [[ -z "$pin" ]] || branch_arg_applies "$path" ||
+      { [[ "${entry#*:}" == "${SPLICE_UPSTREAM_NAMES[$path]:-}" ]] && named_branch "$path" "$branch" >/dev/null; } || [[ "$branch" != "$(monorepo_default_branch)" ]]; then
       target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
     fi
     old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
@@ -233,13 +240,15 @@ used_upstream_entry() {
 }
 
 cmd_fetch() {
-  parse_args usage_fetch "--upstream" "$@"
+  parse_args usage_fetch "--upstream --branch --track --no-track" "$@"
+  require_branch_for_track
   open_repository
   select_paths overview fetch
-  local branch i entries=()
+  local branch i path entries=() failures=()
   branch="$(current_branch)"
 
-  if [[ -n "$UPSTREAM_ARG" ]]; then
+  # Tracking is per upstream in use, so only that one is fetched.
+  if [[ -n "$UPSTREAM_ARG" ]] || has_flag --track || has_flag --no-track; then
     use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
     mapfile -t entries < <(used_upstream_entry "${SELECTED_PATHS[@]}")
   else
@@ -249,9 +258,24 @@ cmd_fetch() {
   for i in "${!entries[@]}"; do
     print_fetch_output "$i"
   done
+  failures=("${FETCH_FAILURES[@]}")
 
-  if [[ ${#FETCH_FAILURES[@]} -gt 0 ]]; then
-    log_err "Failed: ${FETCH_FAILURES[*]}"
+  for path in "${SELECTED_PATHS[@]}"; do
+    fetch_failed_for_path "$path" && continue
+    if has_flag --track; then
+      if ! git rev-parse --verify --quiet "refs/splices/${SPLICE_KEYS[$path]}/heads/$BRANCH_ARG" >/dev/null; then
+        log_err "$path: upstream has no '$BRANCH_ARG' branch to track"
+        failures+=("$path")
+      else
+        track_branch "$path" "$branch" "$BRANCH_ARG" || failures+=("$path")
+      fi
+    elif has_flag --no-track; then
+      untrack_branch "$path" "$branch" || failures+=("$path")
+    fi
+  done
+
+  if [[ ${#failures[@]} -gt 0 ]]; then
+    log_err "Failed: ${failures[*]}"
     exit 1
   fi
 }

@@ -13,7 +13,7 @@ everywhere.
 | A commit, named as a drawing names it, or a variable for one | *italic* | *a*, *d'*, *X* |
 | A role: our name for whichever commit plays a part, as `HEAD` names the checked-out one | plain capitals | H, B, T, R |
 | Git's name for a part in a three-way merge, which the README uses for a role | *italic*, lowercase | *boundary*, *base*, *ours*, *theirs* |
-| A formula | plain, nothing inside marked up | U(H), U(X^), U(e) |
+| A formula | plain, nothing inside marked up | U(H), U(X^), U(e), tracked(feature) |
 | A splice | its folder, with a trailing slash | `vendor/a/` |
 | A repository | words, never a letter | the monorepo, the upstream of `vendor/a/` |
 | A term, where it's defined | *italic*, only there | a splice's history starts at its *mount* |
@@ -34,6 +34,23 @@ A few details:
   library it splices in are the app's upstream and the library's.
 - Page titles, image alt text, labels in a drawing and code blocks get
   no markup.
+
+## Words Git uses too
+
+Git uses "upstream" and "tracking" for several things. Here each word
+means one:
+
+- **Upstream** is the repository a splice comes from, and an *upstream
+  branch* is one of its branches. Git's upstream branch, the one
+  `@{upstream}` names, is a *tracked branch* here.
+- **Tracked branch** is the upstream branch that `--track` set for a
+  monorepo branch, in `branch.<branch>.splice`; tracked(X) in a formula.
+  Never "tracking branch": Git says that for the local branch, and it's
+  easily mistaken for a remote-tracking branch. A tracked branch is no
+  ref, only a name.
+- **Remote-tracking branch** keeps Git's meaning only, a ref like
+  `refs/remotes/origin/main`. The refs `git splice fetch` writes,
+  `refs/splices/<key>/heads/*`, work like them, but are *splice refs*.
 
 ## Commands in scrut blocks
 

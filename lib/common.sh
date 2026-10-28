@@ -400,6 +400,7 @@ select_splices() {
   select_paths "$1" "$2"
   use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   MONOREPO_BRANCH="$(current_branch)"
+  load_tracked_branches "$MONOREPO_BRANCH"
   require_upstream_branches "$MONOREPO_BRANCH" "${SELECTED_PATHS[@]}"
 }
 
@@ -659,6 +660,106 @@ upstream_branch_label() {
 # the command selected it, not only a splice above it.
 branch_arg_applies() {
   [[ -n "${BRANCH_ARG:-}" && " ${SELECTED_PATHS[*]-} " == *" $1 "* ]]
+}
+
+# The upstream branches tracked on monorepo branch TRACKED_FOR, by
+# upstream key: branch.<branch>.splice entries "<key>:<upstream branch>"
+# in the repository's config, which --track writes. Local, like Git's
+# branch.<branch>.merge: under branch.<branch>, so 'git branch -m'
+# renames them along with the branch and 'git branch -d' removes them.
+# Unlike a remote-tracking branch, a tracked branch is no ref: it's only
+# the name of the branch to sync with.
+declare -gA TRACKED_BRANCHES=()
+declare -g TRACKED_FOR=""
+
+# Reads the upstream branches tracked on monorepo branch <branch> into
+# TRACKED_BRANCHES; the last entry for a key wins.
+load_tracked_branches() {
+  local branch="$1" entry entries=()
+  TRACKED_BRANCHES=()
+  TRACKED_FOR="$branch"
+  mapfile -t entries < <(git config --local --get-all "branch.$branch.splice" 2>/dev/null || true)
+  for entry in "${entries[@]}"; do
+    [[ "$entry" == ?*:?* ]] || continue
+    TRACKED_BRANCHES[${entry%%:*}]="${entry#*:}"
+  done
+}
+
+# Prints the upstream branch tracked for splice <path>'s upstream in use,
+# by its key, while the monorepo is on <branch>; nothing if none is.
+tracked_branch() {
+  local path="$1" branch="$2" key
+  key="${SPLICE_KEYS[$path]:-}"
+  [[ -n "$key" ]] || return 0
+  [[ "$TRACKED_FOR" == "$branch" ]] || load_tracked_branches "$branch"
+  printf '%s' "${TRACKED_BRANCHES[$key]:-}"
+}
+
+# Prints the upstream branch named for splice <path> while the monorepo
+# is on <branch>, beyond the rule of the same name: --branch's, else the
+# tracked one (tracked_branch). Fails if neither names one.
+named_branch() {
+  local path="$1" branch="$2" name
+  if branch_arg_applies "$path"; then
+    printf '%s\n' "$BRANCH_ARG"
+    return 0
+  fi
+  name="$(tracked_branch "$path" "$branch")"
+  [[ -n "$name" ]] || return 1
+  printf '%s\n' "$name"
+}
+
+# Prints splice <path>'s upstream key, or fails, explaining that a fetch
+# records one, for what <action> needs it.
+key_to_track() {
+  [[ -n "${SPLICE_KEYS[$1]:-}" ]] || {
+    log_err "$1: its upstream has no key yet, which $2 needs -- 'git splice fetch $(shell_quote "$1")' records one"
+    return 1
+  }
+  printf '%s\n' "${SPLICE_KEYS[$1]}"
+}
+
+# Tracks upstream branch <name> for splice <path>'s upstream, by its key,
+# while the monorepo is on <branch>, replacing the branch tracked for that
+# key (see TRACKED_BRANCHES).
+track_branch() {
+  local path="$1" branch="$2" name="$3" key
+  key="$(key_to_track "$path" "tracking '$name'")" || return 1
+  git config --local --unset-all "branch.$branch.splice" "^${key//./\\.}:" 2>/dev/null || true
+  git config --local --add "branch.$branch.splice" "$key:$name" || {
+    log_err "$path: couldn't track '$name' in branch.$branch.splice"
+    return 1
+  }
+  TRACKED_FOR=""
+  log_ok "$path: '$branch' tracks '$(upstream_branch_label "$path" "$name")' from now on"
+}
+
+# Stops tracking a branch for splice <path>'s upstream while the monorepo
+# is on <branch>, so it syncs by the rule of the same name again.
+untrack_branch() {
+  local path="$1" branch="$2" key name
+  name="$(tracked_branch "$path" "$branch")"
+  if [[ -z "$name" ]]; then
+    log_ok "$path: '$branch' tracks no branch of its upstream"
+    return 0
+  fi
+  key="$(key_to_track "$path" "--no-track")" || return 1
+  git config --local --unset-all "branch.$branch.splice" "^${key//./\\.}:" || {
+    log_err "$path: couldn't remove '$name' from branch.$branch.splice"
+    return 1
+  }
+  TRACKED_FOR=""
+  log_ok "$path: '$branch' no longer tracks '$(upstream_branch_label "$path" "$name")'"
+}
+
+# Dies if --track was given without --branch, which names the branch it
+# tracks, or together with --no-track.
+require_branch_for_track() {
+  if has_flag --track && has_flag --no-track; then
+    die "--track and --no-track contradict each other -- give one"
+  fi
+  ! has_flag --track || [[ -n "$BRANCH_ARG" ]] ||
+    die "--track tracks the branch --branch names -- add --branch <name>"
 }
 
 # Prints the options that select splice <path>'s upstream and branch in
@@ -1052,10 +1153,13 @@ container_default_branch() {
 # the one it uses, while the monorepo is on branch $2: the same name,
 # except that the monorepo's default branch maps to that upstream's
 # default branch (splice_default_branch). --branch (BRANCH_ARG) names it
-# for the splices the command selected, not for the ones below them.
+# for the splices the command selected, not for the ones below them, and
+# a branch tracked for the upstream in use (named_branch) for any.
 upstream_branch_for() {
   local path="$1" branch="$2"
-  if branch_arg_applies "$path"; then
+  if [[ $# -lt 3 || "$3" == "${SPLICE_UPSTREAM_NAMES[$path]:-}" ]] && named_branch "$path" "$branch"; then
+    return 0
+  elif branch_arg_applies "$path"; then
     printf '%s\n' "$BRANCH_ARG"
   elif [[ "$branch" == "$(monorepo_default_branch)" ]]; then
     splice_default_branch "$path" "${@:3}"
@@ -1122,7 +1226,7 @@ resolve_default_target() {
 # every other branch name a branch (upstream_branch_for).
 resolve_upstream_target() {
   local path="$1" branch="$2"
-  if ! branch_arg_applies "$path" && [[ "$branch" == "$(monorepo_default_branch)" ]]; then
+  if ! named_branch "$path" "$branch" >/dev/null && [[ "$branch" == "$(monorepo_default_branch)" ]]; then
     resolve_default_target "$path"
   else
     resolve_branch "$path" "$(upstream_branch_for "$path" "$branch")"

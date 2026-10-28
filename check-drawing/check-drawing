@@ -568,10 +568,17 @@ check_drawing() {
     done
   fi
 
-  # Succeeds if box term $1 is a branch name, not H, B, T, R, U(x) or
-  # merge-base(R,T).
+  # Succeeds if box term $1 is a branch name, not H, B, T, R, U(x),
+  # tracked(b) or merge-base(R,T).
   is_branch_term() {
-    [[ "$1" != H && "$1" != [BTR] && "$1" != "merge-base(R,T)" && "$1" != U\(*\) ]]
+    [[ "$1" != H && "$1" != [BTR] && "$1" != "merge-base(R,T)" && "$1" != U\(*\) && "$1" != tracked\(*\) ]]
+  }
+  # Prints the upstream branch tracked for the upstream with key $2 on
+  # monorepo branch $1, as git-splice reads branch.<b>.splice: the last
+  # entry for the key wins.
+  tracked_name() {
+    git config --get-all "branch.$1.splice" 2>/dev/null |
+      awk -v p="$2:" 'index($0, p) == 1 { name = substr($0, length(p) + 1) } END { if (name != "") print name }'
   }
   # What box term $1 of splice $2 names, or nothing. A branch name in a box
   # pointing at monorepo commit $4 names a monorepo branch, e.g. main or
@@ -590,6 +597,10 @@ check_drawing() {
       printf '%s\n' "${truth["$sp|$term"]}"
     elif [[ "$term" == "merge-base(R,T)" ]]; then
       printf '%s\n' "${truth["$sp|base"]}"
+    elif [[ "$term" == tracked\(*\) ]]; then
+      k="${term#tracked(}" k="${k%)}"
+      k="$(tracked_name "$k" "${3:-${truth["$sp|key"]}}")"
+      [[ -z "$k" ]] || git rev-parse --verify --quiet "refs/splices/${3:-${truth["$sp|key"]}}/heads/$k^{commit}"
     elif [[ "$term" != U\(*\) ]]; then
       git rev-parse --verify --quiet "refs/splices/${3:-${truth["$sp|key"]}}/heads/$term^{commit}"
     else
@@ -679,8 +690,9 @@ check_drawing() {
           named="$(git rev-parse --verify --quiet "${rev_of[$shown]}^{commit}")"
         else
           named="$(resolve_term "$term" "$sp" "${side_key[$s]:-}" "${commit_of[$t]:-}")"
-          ! is_branch_term "$term" || [[ -z "$named" ]] || in_monorepo "$named" ||
+          if { is_branch_term "$term" || [[ "$term" == tracked\(*\) ]]; } && [[ -n "$named" ]] && ! in_monorepo "$named"; then
             branch_tips["$sp|${side_of[$s]:-}"]+=" $named"
+          fi
         fi
         if [[ -z "$named" ]]; then
           errors+=("$shown points at ${value[$t]}, but there's no $shown")
