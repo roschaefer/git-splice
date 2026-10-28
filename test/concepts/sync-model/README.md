@@ -65,8 +65,9 @@ pull in the drawing:
 - The earlier changes *b* and *d* were never pushed. They remain in *e*'s
   folder, so that folder is not the tree of *n*. Therefore *e* is not B.
 - B stays at *a*, and U(B) stays at *k*.
-- R rebuilds *b* and *d* as *b'* and *d'*, then rebuilds *e* as *e'*: a
-  merge of *d'* and *n*, like the merge made by `git pull`.
+- When the rebuild reaches *e*, it has two histories to preserve: the
+  unpushed changes ending at *d'*, and the pulled history ending at *n*.
+  Therefore *e'* has both as parents and is a merge commit.
 
 The [scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/README.md)
 builds this state.
