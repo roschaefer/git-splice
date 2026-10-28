@@ -5,6 +5,8 @@ folder, and its upstream's, where it's the whole repository. Commits
 don't cross between them, changes do. This is the
 [README](../../../README.md)'s drawing, with letters for its names:
 
+## Before the pull
+
 <div align="center">
 
 ![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b' and d' on top of k: U(H) = U(B) = k](../../scenarios/01-everyday-sync/01-sync-model/before-pull.drawio.svg)
@@ -45,6 +47,7 @@ The monorepo commits between two such changes share the same sync point. A
 pull commit *X* normally brought in U(X^)..U(X), the range between the
 previous and new sync points. A push between them is the exception
 ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
+
 ## R, the rebuild
 
 <!-- Build the scenario drawn above, while keeping the walkthrough sandbox
@@ -64,6 +67,8 @@ $ WALKTHROUGH_MONOREPO="$PWD" &&
 recreates each monorepo commit since B that changed the folder as an
 upstream commit on top of U(B). A rebuilt commit contains the folder's
 tree without `.splice` and keeps the original author, dates and message.
+
+### After the pull
 
 Pulling the upstream creates commit *e* in the next diagram:
 
@@ -93,6 +98,8 @@ pull in the drawing:
 The [scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/README.md)
 builds this state.
 
+### After the push and bump
+
 A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
 [`git splice pull --bump`](../../walkthrough/bump.md) records *e'* as U(H),
 in a new commit *f*:
@@ -120,34 +127,37 @@ R = T = U(H) = U(B) = *e'*
 
 ### Parents of rebuilt commits
 
-Let's look at the after-pull diagram again:
+In the situation after the [pull](#after-the-pull), the rebuild walks through
+the monorepo commits from B to H. It rebuilds *b* and *d*, then reaches H,
+the pull commit *e*. At that point, the rebuilt tip—the newest commit
+produced so far—is *d'*, and the synced commit U(H) is *n*. The parents
+of *e'* depend on the relationship between these commits. Neither
+contains the other, so *e'* gets *d'* as its first parent and *n* as its
+second. The diagram draws the first parent on the left and the second on
+the right. The rebuild has reached H, so *e'* is R.
 
-<div align="center">
+Git numbers these parents first and second; the diagrams draw the first
+on the left:
 
-![The graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e', a merge of d' and n](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg)
+```scrut
+$ R="$(git splice rebuild lib)" &&
+>   git show -s --format='R^1 (left): %s' "$R^1" &&
+>   git show -s --format='R^2 (right): %s' "$R^2"
+R^1 (left): d
+R^2 (right): n
+```
 
-</div>
-
-The rebuild walks through the monorepo commits from B to H. It rebuilds
-*b* and *d*, then reaches the pull commit *e*. At that point, *d'* is the
-newest commit produced by the rebuild. The pull commit *e* is H, and
-U(H) is *n*. Neither *d'* nor *n* contains the other, so *e'* needs both
-as parents.
-
-The same rule applies to any monorepo commit that changed `.splice`. The
-commit at the end of the history built so far is the *rebuilt tip*: *d'*
-in this example. The rebuild compares it with the synced commit recorded
-in `.splice`:
+The same comparison happens whenever the rebuild reaches a monorepo
+commit that changed `.splice`:
 
 | Rebuilt tip and synced commit | The copy's parents | When |
 |---|---|---|
-| neither contains the other | rebuilt tip first, synced commit second: a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge of b' on the left and l on the right](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
+| neither contains the other | rebuilt tip first (left), synced commit second (right): a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge of b' on the left and l on the right](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
 | synced commit contains the rebuilt tip, or there is no rebuilt tip | synced commit | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The synced commit U(H) contains U(B), and the squash merge s is rebuilt as s' on top of U(H)](synced-commit-contains-rebuilt-tip.drawio.svg) |
 | rebuilt tip contains the synced commit | rebuilt tip, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead))<br/>![The bump f records d', which the rebuild e' already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
 
 The rebuilt copy becomes the new tip. Once the rebuild reaches H, its
-final tip is R. In the merge case above, *d'* is the first parent of
-*e'*, and *e'* becomes R.
+final tip is R.
 
 So each pull since B that merged unpushed commits adds one merge to R,
 with the commit it pulled as the second parent. R takes that commit from
