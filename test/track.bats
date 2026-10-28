@@ -208,3 +208,13 @@ EOF
   [ "$status" -eq 1 ]
   [ "$output" = "!!   --track and --no-track contradict each other -- give one" ]
 }
+
+@test "track: push --track doesn't track a branch the push didn't create, and keeps the tracked one" {
+  scenario_feature_branch_unchanged "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice fetch --branch main --track vendor/a >/dev/null 2>&1
+  run splice push --branch development --track vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: upstream has no 'development' branch to track -- the push didn't create it"* ]]
+  [ "$(git config --local --get-all branch.feature.splice)" = "$(splice key vendor/a):main" ]
+}

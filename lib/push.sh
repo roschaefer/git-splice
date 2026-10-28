@@ -247,7 +247,14 @@ cmd_push() {
     if ! push_one "$path" "$branch" "$force"; then
       failures+=("$path")
     elif has_flag --track; then
-      track_branch "$path" "$branch" "$BRANCH_ARG" || failures+=("$path")
+      # A push with nothing to push, e.g. no changes for a PR, creates no
+      # branch, and a missing tracked branch would stop every pull.
+      if ! git rev-parse --verify --quiet "$(splice_ref "$path" "$BRANCH_ARG")" >/dev/null; then
+        log_err "$path: upstream has no '$BRANCH_ARG' branch to track -- the push didn't create it"
+        failures+=("$path")
+      else
+        track_branch "$path" "$branch" "$BRANCH_ARG" || failures+=("$path")
+      fi
     fi
   done
   rm -rf "$ssh_control_dir"
