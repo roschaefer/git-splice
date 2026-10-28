@@ -45,9 +45,6 @@ The monorepo commits between two such changes share the same sync point. A
 pull commit *X* normally brought in U(X^)..U(X), the range between the
 previous and new sync points. A push between them is the exception
 ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
-The [walkthrough sandbox example](#finding-the-commits-in-the-walkthrough-sandbox)
-shows the Git commands that find each commit.
-
 ## R, the rebuild
 
 [`git splice rebuild`](../../walkthrough/rebuild.md) computes R. It
