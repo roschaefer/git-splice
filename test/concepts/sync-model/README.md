@@ -23,7 +23,7 @@ the model finds five other commits:
 | U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | | the upstream |
 | U(B) | The upstream commit recorded by B's `.splice`. R starts there. Usually U(H). | | the upstream |
 | T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`: tracked(X) where the splice [tracks](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) one on the monorepo's branch X, else the one named like X. | *theirs* | the upstream |
-| R | The [rebuild](../../walkthrough/rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *ours* | computed |
+| R | The [rebuild](../../walkthrough/rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *rebuild*, *ours* | computed |
 
 A monorepo commit *X* has a sync point U(X): the upstream commit recorded
 in *X*'s `.splice`. This command prints it:
