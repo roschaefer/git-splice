@@ -9,6 +9,17 @@ setup() {
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
+# Splices vendor/b from a second upstream, whose key "upstream.de" starts
+# with vendor/a's key "upstream".
+add_second_upstream() {
+  local second="$BATS_TEST_TMPDIR/upstream.de.git"
+  make_bare_repo "$second"
+  seed_bare_repo "$second" "seed"
+  add_splice "$monorepo" "$second" vendor/b
+  commit_local "$monorepo" vendor/b "local change"
+  (cd "$monorepo" && splice fetch vendor/b >/dev/null 2>&1)
+}
+
 @test "set-branch: push --branch --set-branch remembers the upstream branch for the current branch, by the upstream's key, and the next push goes there" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
@@ -84,6 +95,36 @@ EOF
   [ "$(git config --local --get-all branch.feature.splice)" = "renamed:development" ]
   run splice status
   [ "${lines[1]}" = "  up to date  vendor/a -> development  set for feature, local" ]
+}
+
+@test "set-branch: each upstream remembers its own branch for the same monorepo branch" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  add_second_upstream
+  cd "$monorepo"
+  splice push --branch development --set-branch vendor/a >/dev/null 2>&1
+  splice push --branch review --set-branch vendor/b >/dev/null 2>&1
+  [ "$(git config --local --get-all branch.feature.splice)" = "$(printf '%s\n' upstream:development upstream.de:review)" ]
+  run splice status
+  [ "$output" = "$(cat <<'EOF'
+On branch feature
+
+  up to date  vendor/a -> development  set for feature, local
+  up to date  vendor/b -> review       set for feature, local
+EOF
+  )" ]
+}
+
+@test "set-branch: renaming a key renames it on every monorepo branch, and leaves keys it's only a prefix of alone" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  add_second_upstream
+  cd "$monorepo"
+  splice push --branch development --set-branch vendor/a >/dev/null 2>&1
+  splice push --branch review --set-branch vendor/b >/dev/null 2>&1
+  git switch -q -c other
+  splice push --branch development --set-branch vendor/a >/dev/null 2>&1
+  splice key vendor/a renamed >/dev/null
+  [ "$(git config --local --get-all branch.feature.splice)" = "$(printf '%s\n' renamed:development upstream.de:review)" ]
+  [ "$(git config --local --get-all branch.other.splice)" = renamed:development ]
 }
 
 @test "set-branch: 'git branch -m' takes the remembered branch along, as Git does its own tracking" {
