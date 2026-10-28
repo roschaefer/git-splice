@@ -50,11 +50,6 @@ The first fetch records the mapping and fetches the upstream's branches to
 as `git log` can read them and `git worktree add` can check them out
 ([example](../../walkthrough/fetch.md#looking-at-an-upstream)).
 
-Splices that name the same URL share its key and fetched refs. Their
-`.splice` files, IDs and synced commits remain independent.
-
-## The same library at different versions
-
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/../../scenarios/readme-setup.sh"
@@ -65,9 +60,34 @@ $ build_scenario scenario_upstreams
 ```
 -->
 
-[`setup.bash`](setup.bash) builds this example: `app-a/` and `app-b/`
-each contain their own splice of the library `s`. Both `.splice` files
-name the same upstream URL:
+## Choosing a key
+
+The generated key comes from the URL, but it can be renamed. Choose a name
+you already associate with the upstream, or one that makes its refs easier
+to recognize and type.
+
+[`setup.bash`](setup.bash) builds an example whose generated key is `s`.
+Rename it to `shared-lib` through any splice that uses the URL:
+
+```scrut
+$ git splice key app-a/s shared-lib
+ok   app-a/s: renamed key 's' to 'shared-lib'
+```
+
+The refs move with the key:
+
+```scrut
+$ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
+bde4164 refs/splices/shared-lib/heads/main
+```
+
+Because a key belongs to its URL, the rename applies to every splice that
+names that URL.
+
+## The same library at different versions
+
+In the same example, `app-a/` and `app-b/` each contain their own splice
+of the library `s`. Both `.splice` files name the same upstream URL:
 
 ```scrut
 $ git config --file app-a/s/.splice upstream.origin.url
@@ -79,16 +99,7 @@ $ git config --file app-b/s/.splice upstream.origin.url
 https://git.example.com/s.git
 ```
 
-The generated key is `s`. Rename it through either splice if another name
-is clearer; the refs move with it:
-
-```scrut
-$ git splice key app-a/s shared-lib
-ok   app-a/s: renamed key 's' to 'shared-lib'
-```
-
-Because the key belongs to the URL, both splices now report the preferred
-name:
+Both therefore report the key chosen above:
 
 ```scrut
 $ git splice key app-a/s
@@ -98,13 +109,6 @@ shared-lib
 ```scrut
 $ git splice key app-b/s
 shared-lib
-```
-
-There is only one fetched `main` ref for that key:
-
-```scrut
-$ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
-bde4164 refs/splices/shared-lib/heads/main
 ```
 
 They still choose versions independently. Pulling a new upstream commit
