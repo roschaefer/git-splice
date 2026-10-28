@@ -21,7 +21,7 @@ Every command works out what to cross from five commits:
 | B | The boundary, where the rebuild starts: usually the last pull ([where exactly](#where-b-is)). | *boundary* | the monorepo |
 | U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | | the upstream |
 | U(B) | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | | the upstream |
-| T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`. | *theirs* | the upstream |
+| T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`: tracked(X) where the splice [tracks](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) one on the monorepo's branch X, else the one named like X. | *theirs* | the upstream |
 | R | The rebuild, *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *ours* | computed |
 
 A monorepo commit *X* whose `.splice` records an upstream commit has that

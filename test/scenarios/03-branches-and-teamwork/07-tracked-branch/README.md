@@ -4,10 +4,21 @@ The monorepo is on `feature`. Each splice should sync with another
 upstream branch than `feature`: `vendor/a/` with `development`, where
 its upstream's team works, `vendor/b/` with `review`.
 
-- **Monorepo**: `vendor/a/` and `vendor/b/`, each cloned at `seed` on
-  `main`, then the branch `feature`, with no changes.
-- **Upstream of `vendor/a/`**: `main`, and `development` one commit ahead.
-- **Upstream of `vendor/b/`**: `main`, and `review` one commit ahead.
+- **Monorepo**: *a* clones `vendor/a/` at *k*, *b* clones `vendor/b/`
+  at *m*, both on `main`, then the branch `feature`, with no changes.
+- **Upstream of `vendor/a/`**: *k* on `main`, and *l* on `development`.
+- **Upstream of `vendor/b/`**: *m* on `main`, and *n* on `review`.
+
+<div align="center">
+
+![The monorepo's a and b, which is H, feature and main; in vendor/a/, k, which is U(H), R and main, and l on top, which is T, tracked(feature) and development; in vendor/b/ the same with m, and n on top, which is review](tracked-branch.drawio.svg)
+
+</div>
+
+tracked(X) is the upstream branch a splice tracks on the monorepo
+branch X, if any: here tracked(feature) is `development` for
+`vendor/a/` and `review` for `vendor/b/`. T is the fetched tracked
+branch where there is one, else the branch named like X.
 
 `--branch` names another upstream branch for one command; `--track`
 also keeps it, as `git push -u` does: on this monorepo branch, every
@@ -68,7 +79,14 @@ ok   vendor/b: 'feature' tracks 'review' from now on
 ```
 
 Each upstream has its own tracked branch, by its key, in the monorepo's
-`branch.feature.splice`:
+`branch.feature.splice`, as drawn above:
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/tracked-branch.drawio.svg"
+ok   tracked-branch.drawio.svg: 6 commits, 10 arrows, 7 boxes, 2 lanes
+```
+-->
 
 ```scrut
 $ git config --get-all branch.feature.splice
