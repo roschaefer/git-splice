@@ -159,6 +159,15 @@ setup() {
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
 }
 
+@test "push: --branch to a branch with unrelated history suggests the --force push with the same --branch" {
+  scenario_diverged_unrelated_history "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  run cmd_push --branch main vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"git splice push --branch main --force -- vendor/a"* ]]
+}
+
 @test "push: asks for a fetch first" {
   scenario_never_fetched "$monorepo" "$upstream"
   cd "$monorepo"
