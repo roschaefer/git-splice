@@ -7,7 +7,7 @@ don't cross between them, changes do. This is the
 
 <div align="center">
 
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](../../scenarios/01-everyday-sync/01-sync-model/before-pull.drawio.svg)
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b' and d' on top of k: U(H) = U(B) = k](../../scenarios/01-everyday-sync/01-sync-model/before-pull.drawio.svg)
 
 </div>
 
@@ -42,18 +42,14 @@ shows the Git commands that find each commit.
 
 ## R, the rebuild
 
-[`git splice rebuild`](../../walkthrough/rebuild.md) computes R. The
-monorepo commits that changed the folder contain the splice's own changes,
-but they also have the monorepo's layout and history. The rebuild copies
-each one since B as an upstream commit: the folder's tree without
-`.splice`, with the same author, dates and message, on top of U(B). Above,
-*b* and *d* change `lib/`, so the rebuild copies them as *b'* and *d'*.
-The prime marks a rebuilt copy. *c* doesn't change `lib/`, so it is left
-out.
+[`git splice rebuild`](../../walkthrough/rebuild.md) computes R. It
+recreates each monorepo commit since B that changed the folder as an
+upstream commit on top of U(B). A rebuilt commit contains the folder's
+tree without `.splice` and keeps the original author, dates and message.
 
 <div align="center">
 
-![The same graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg)
+![The same graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e', a merge of the rebuilt d' and n](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg)
 
 </div>
 
@@ -76,7 +72,7 @@ in a new commit *f*:
 
 <div align="center">
 
-![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e prime, and T and R point at e prime too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/pushed-and-bumped.drawio.svg)
+![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e', and T and R point at e' too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/pushed-and-bumped.drawio.svg)
 
 </div>
 
@@ -94,9 +90,9 @@ copy:
 
 | Rebuilt tip and U(X) | The copy's parents | When |
 |---|---|---|
-| neither contains the other | rebuilt tip, then U(X): a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e prime, a merge of b prime and l](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
-| U(X) contains the rebuilt tip, or there is no rebuilt tip | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The squash merge s is rebuilt as s prime, on top of f, the commit it pulled](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/local-edit-in-the-squash-table.drawio.svg) |
-| rebuilt tip contains U(X) | rebuilt tip, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead))<br/>![The bump f records d prime, which the rebuild e prime already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
+| neither contains the other | rebuilt tip, then U(X): a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge of b' and l](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
+| U(X) contains the rebuilt tip, or there is no rebuilt tip | U(X) | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The squash merge s is rebuilt as s', on top of f, the commit it pulled](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/local-edit-in-the-squash-table.drawio.svg) |
+| rebuilt tip contains U(X) | rebuilt tip, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead))<br/>![The bump f records d', which the rebuild e' already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
 
 So each pull since B that merged unpushed commits adds one merge to R,
 with the commit it pulled as the second parent. R takes that commit from
