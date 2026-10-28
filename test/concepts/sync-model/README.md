@@ -135,14 +135,14 @@ U(H) is *n*. Neither *d'* nor *n* contains the other, so *e'* needs both
 as parents.
 
 The same rule applies to any monorepo commit that changed `.splice`. The
-table calls the newest commit produced so far the *rebuilt tip*, and the
-upstream commit named by `.splice` the *recorded commit*:
+rebuild compares the latest commit it has produced with the synced commit
+recorded in `.splice`:
 
-| Rebuilt tip and recorded commit | The copy's parents | When |
+| Latest rebuilt commit and synced commit | The copy's parents | When |
 |---|---|---|
-| neither contains the other | rebuilt tip, then recorded commit: a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge of b' and l](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
-| recorded commit contains the rebuilt tip, or there is no rebuilt tip | recorded commit | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The squash merge s is rebuilt as s', on top of f, the commit it pulled](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/local-edit-in-the-squash-table.drawio.svg) |
-| rebuilt tip contains the recorded commit | rebuilt tip, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead))<br/>![The bump f records d', which the rebuild e' already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
+| neither contains the other | latest rebuilt commit, then synced commit: a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge of b' and l](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
+| synced commit contains the latest rebuilt commit, or the rebuild has not produced a commit yet | synced commit | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The squash merge s is rebuilt as s', on top of f, the commit it pulled](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/local-edit-in-the-squash-table.drawio.svg) |
+| latest rebuilt commit contains the synced commit | latest rebuilt commit, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead))<br/>![The bump f records d', which the rebuild e' already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
 
 So each pull since B that merged unpushed commits adds one merge to R,
 with the commit it pulled as the second parent. R takes that commit from
