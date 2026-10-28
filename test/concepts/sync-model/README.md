@@ -57,13 +57,18 @@ out.
 
 </div>
 
-A box U(x) points at what *x*'s `.splice` records. After
-`git splice pull`, the pull commit *e* records *n*, so U(H) = *n*. But *b*
-and *d* were never pushed, so *e*'s folder isn't *n*, and a rebuild from *e*
-would send their changes as one lump under *e*'s message. So B stays *a*,
-and U(B) = *k* still. R copies *b* and *d* as before, and *e* as *e'*, a merge of *d'*
-and *n*, as `git pull` would have
-([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/README.md)).
+A box U(x) points at the commit recorded in *x*'s `.splice`. After the
+pull in the drawing:
+
+- The pull commit *e* records *n*, so U(H) = *n*.
+- The earlier changes *b* and *d* were never pushed. They remain in *e*'s
+  folder, so that folder is not the tree of *n*. Therefore *e* is not B.
+- B stays at *a*, and U(B) stays at *k*.
+- R rebuilds *b* and *d* as *b'* and *d'*, then rebuilds *e* as *e'*: a
+  merge of *d'* and *n*, like the merge made by `git pull`.
+
+The [scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/README.md)
+builds this state.
 
 A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
 [`git splice pull --bump`](../../walkthrough/bump.md) records *e'* as U(H),
@@ -300,16 +305,17 @@ ok   vendor/pkg-a fetched
 ok   vendor/pkg-a: pulled 703b936
 ```
 
-The pull commit records T as U(H). Its folder isn't T's tree, since it has
-the local file too, so it isn't the new B: B stays the clone, and U(B) its synced commit,
-`pkg-a: seed`,
+The pull commit records T as the new U(H). Its folder also contains the
+local file, so it is not the same tree as T and the pull is not the new B.
+B stays at the clone commit:
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary vendor/pkg-a)"
 splice: clone vendor/pkg-a from main at 9bb866a
 ```
 
-and R joins the local commit with T by a merge, as `git pull` would have:
+U(B) stays at `pkg-a: seed`. R joins the local commit with T by a merge,
+as `git pull` would have:
 
 ```scrut
 $ git splice log --graph vendor/pkg-a
