@@ -25,11 +25,19 @@ the model finds five other commits:
 | T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`: tracked(X) where the splice [tracks](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) one on the monorepo's branch X, else the one named like X. | *theirs* | the upstream |
 | R | The [rebuild](../../walkthrough/rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *rebuild*, *ours* | computed |
 
-A monorepo commit *X* has a sync point U(X): the upstream commit recorded
-in *X*'s `.splice`. This command prints it:
+<!-- Builds a fresh sandbox; see `just docs-check`.
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
+```
+-->
 
-```sh
-git config --blob X:lib/.splice splice.commit
+A monorepo commit *X* has a sync point U(X): the upstream commit recorded
+in *X*'s `.splice`. For example, this prints U(H) in the walkthrough
+sandbox:
+
+```scrut
+$ git config --blob HEAD:vendor/pkg-a/.splice splice.commit
+9bb866a3ba726f2229597a45e8ea3368f7e669a8
 ```
 
 The sync point changes only when `.splice` changes, for example in a pull.
@@ -190,12 +198,6 @@ that matters.
 
 The walkthrough's [sandbox](../../../docs/sandbox.md), where
 `vendor/pkg-a/` is behind its upstream by one commit.
-
-<!-- Builds a fresh sandbox; see `just docs-check`.
-```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../walkthrough/scrut-setup.sh"
-```
--->
 
 For `vendor/pkg-a/`:
 
