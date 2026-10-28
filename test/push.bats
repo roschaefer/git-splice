@@ -159,6 +159,15 @@ setup() {
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
 }
 
+@test "push: --branch to a branch with unrelated history suggests the --force push with the same --branch" {
+  scenario_diverged_unrelated_history "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  run cmd_push --branch main vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"git splice push --branch main --force -- vendor/a"* ]]
+}
+
 @test "push: asks for a fetch first" {
   scenario_never_fetched "$monorepo" "$upstream"
   cd "$monorepo"
@@ -189,6 +198,43 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"nothing to push (upstream has no 'feature' branch, and a PR to 'main' would show no changes)"* ]]
   ! git -C "$upstream" rev-parse --verify --quiet feature
+}
+
+@test "push: --branch pushes to the named upstream branch, not the one named like the current branch" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push --branch main vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok   vendor/a: pushed "*" to main"* ]]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
+  ! git -C "$upstream" rev-parse --verify --quiet feature
+}
+
+@test "push: --branch creates the named upstream branch, as a push creates the one named like the current branch" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push --branch development vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"upstream has no 'development' branch yet -- this push creates it"* ]]
+  [ "$(git -C "$upstream" log -1 --format=%s development)" = "local change" ]
+  ! git -C "$upstream" rev-parse --verify --quiet feature
+}
+
+@test "push: --branch to a branch upstream is ahead on suggests the pull with the same --branch" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  run cmd_push --branch main vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: nothing to push (upstream is ahead -- 'git splice pull --branch main vendor/a' brings it in)" ]
+}
+
+@test "push: --branch needs a branch's name" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_push vendor/a --branch
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --branch needs an upstream branch's name" ]
 }
 
 @test "push: creates a missing upstream branch for commits from the branch it was cut from that upstream lacks" {

@@ -88,6 +88,7 @@ _git-splice() {
     push)
       _arguments \
         '--upstream=[upstream named in .splice]:upstream name:' \
+        '--branch=[upstream branch, for this command only]:upstream branch:' \
         '--all[every splice]' \
         '--force[overwrite upstream'\''s branch]' \
         '--rebuilt-commit=[push this commit instead of the rebuild]:commit:__git_splice_branches' \

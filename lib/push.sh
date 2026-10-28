@@ -6,8 +6,8 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--force] (<path>... | --all)
-    git splice push [--upstream <name>] [--force] --rebuilt-commit <commit> <path>
+    git splice push [--upstream <name>] [--branch <name>] [--force] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
 
 DESCRIPTION
     Publishes each splice's local changes: rebuilds the commits that changed
@@ -48,6 +48,11 @@ DESCRIPTION
     Only committed changes are pushed; push warns about uncommitted ones in a
     splice's folder.
 
+    --branch names another upstream branch to push to, for this push only,
+    as 'git splice pull --branch' pulls from one: with the same checks, and
+    created like the one named like the current branch. It doesn't change
+    .splice, and the splices below keep theirs.
+
     --upstream names one of the upstreams a splice's .splice names; without
     it, the splice's default upstream. A splice without the named upstream
     stops the command before it starts.
@@ -64,8 +69,9 @@ push_one() {
     2) log_warn "$path: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ;;
   esac
   classify_splice "$path" "$branch" || return 1
-  local upstream_branch="$SPLICE_UPSTREAM_BRANCH" label="$SPLICE_UPSTREAM_LABEL" option
+  local upstream_branch="$SPLICE_UPSTREAM_BRANCH" label="$SPLICE_UPSTREAM_LABEL" option selection
   option="$(upstream_option "$path")"
+  selection="$(selection_options "$path")"
   if [[ "$SPLICE_TARGET_KIND" != branch ]]; then
     log_err "$path: pinned at $(target_description) -- a $SPLICE_TARGET_KIND isn't pushed to: push from a feature branch, or follow a branch again: git config --file $(shell_quote "$path/$STATE_FILE") --unset upstream.${SPLICE_UPSTREAM_NAMES[$path]}.default-pin"
     return 1
@@ -77,12 +83,12 @@ push_one() {
       ;;
     up-to-date)
       log_ok "$path: nothing to push"
-      remind_pull "$path" "$option"
+      remind_pull "$path" "$selection"
       return 0
       ;;
     pull)
       if [[ -z "$force" ]]; then
-        log_ok "$path: nothing to push (upstream is ahead -- 'git splice pull $option$path' brings it in)"
+        log_ok "$path: nothing to push (upstream is ahead -- 'git splice pull $selection$path' brings it in)"
         return 0
       fi
       ;;
@@ -147,13 +153,14 @@ push_one() {
     return 1
   fi
   log_ok "$path: pushed ${SPLICE_REBUILT:0:7} to $label"
-  remind_pull "$path" "$option"
+  remind_pull "$path" "$selection"
 }
 
 # Reminds to record the commit given for splice <path> with a pull, if
 # one was given and the monorepo's rebuild isn't that commit already.
 # Also after a retry that finds it upstream: the earlier push may have
-# gone through without its reminder. $2 is the --upstream option, if any.
+# gone through without its reminder. $2 is the --upstream and --branch
+# options, if any (selection_options).
 remind_pull() {
   local path="$1" option="$2"
   [[ -z "${REBUILD_GIVEN[$path]:-}" ]] || given_is_rebuild "$path" ||
@@ -204,7 +211,7 @@ give_rebuild() {
 }
 
 cmd_push() {
-  parse_args usage_push "--force --upstream --rebuilt-commit" "$@"
+  parse_args usage_push "--force --upstream --branch --rebuilt-commit" "$@"
   local force=""
   has_flag --force && force=force
   open_repository

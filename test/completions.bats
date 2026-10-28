@@ -68,9 +68,19 @@ complete_words() {
   [ -z "$output" ]
 }
 
-@test "completion: --bump, --rebase and --branch only for merge and pull" {
+@test "completion: --branch for merge, pull and push" {
+  local cmd
+  for cmd in merge pull push; do
+    run complete_words git-splice "$cmd" --br
+    [ "$output" = "--branch" ]
+  done
+  run complete_words git-splice status --br
+  [ -z "$output" ]
+}
+
+@test "completion: --bump and --rebase only for merge and pull" {
   local option
-  for option in --bump --rebase --branch; do
+  for option in --bump --rebase; do
     run complete_words git-splice merge "${option:0:4}"
     [ "$output" = "$option" ]
     run complete_words git-splice pull "${option:0:4}"
@@ -343,6 +353,12 @@ fish_complete() {
   [[ "$output" == *"--graph"* ]]
 }
 
+@test "zsh completion: push completes --branch" {
+  require_shell zsh
+  run zsh_complete "git-splice push --br"
+  [[ "$output" == *"--branch"* ]]
+}
+
 @test "zsh completion: pull completes --bump, --rebase and --branch" {
   require_shell zsh
   run zsh_complete "git-splice pull --bu"
@@ -452,6 +468,12 @@ fish_complete() {
   require_shell fish
   run fish_complete "git-splice log --g"
   [ "$output" = "--graph" ]
+}
+
+@test "fish completion: push completes --branch" {
+  require_shell fish
+  run fish_complete "git-splice push --br"
+  [ "$output" = "--branch" ]
 }
 
 @test "fish completion: pull completes --bump, --rebase and --branch" {

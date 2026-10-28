@@ -238,7 +238,7 @@ print_unrelated_history_guidance() {
   git splice clone --merge -- $q_url $q_path
 
   # OR: keep the monorepo version, overwriting upstream's branch:
-  git splice push $(upstream_option "$path")--force -- $q_path
+  git splice push $(selection_options "$path")--force -- $q_path
 
 EOF
 }
