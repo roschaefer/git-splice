@@ -48,6 +48,41 @@ pull commit *X* normally brought in U(X^)..U(X), the range between the
 previous and new sync points. A push between them is the exception
 ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
 
+## How R and T determine the status
+
+R and T are two histories of the same folder, as upstream commits. How
+they relate is the [sync state](../../walkthrough/status.md#sync-states):
+
+| R and T | `status` shows |
+|---|---|
+| the same files, or the same commit | `up to date` |
+| T is an ancestor of R | `ahead N` |
+| R is an ancestor of T | `behind N` |
+| neither, but with a common ancestor | `ahead N, behind M` |
+| no common ancestor | `!! unrelated history` |
+
+U(H) and T may be missing: right after `init`, there's no U(H) yet, and R
+starts as a root commit; before the first fetch, there's no T, and the
+splice is `never fetched`, or the upstream has no such branch.
+
+A pull is a **three-way merge**, in the monorepo's layout:
+
+- **base**: normally the newest commit R and T have in common,
+  `git merge-base R T`; after an upstream rewrite, pull can use the fetched
+  branch's [fork point](../../scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)
+- **ours**: `HEAD`, with the folder as it is
+- **theirs**: `HEAD` with T's files in the folder
+
+Git merges them as usual. Only the folder differs between base and
+theirs, so only the folder can conflict. The result is one ordinary
+monorepo commit, which records T as the new U(H). It's the new B too,
+unless it merged commits that were never pushed.
+
+The base is usually U(H). After a push, it's the pushed commit: R contains
+it, so the merge doesn't replay changes the upstream already has. That's
+also why U(H) alone says little about where a splice stands. A push moves
+T, and with it R's relation to T, but not U(H).
+
 ## Where B is
 
 B is the newest commit on the monorepo's first-parent history that
@@ -181,71 +216,27 @@ final tip is R.
 
 R is never stored. It's computed from `HEAD` each time, and the same
 `HEAD` always gives the same R. So a commit pushed once is rebuilt
-identically, and the next push is a fast-forward. And since R is
-computed, `.splice` needs no monorepo commit ids, which a rebase or a
-squash merge would invalidate
+identically, and the next push is a fast-forward. Since R is computed,
+`.splice` needs no monorepo commit ids, which a rebase or a squash merge
+would invalidate
 ([design](../../../docs/design/README.md#splicing-out-push-and-the-rebuild)).
+
+A push moves T but doesn't write to the monorepo, so U(H) stays at the
+last pull. It need not record anything: `status` compares R with T, and
+the deterministic rebuild contains the pushed commit with the same hash.
+A later pull normally starts where R and T meet
+([example](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/README.md)).
+
+After `git splice push --rebuilt-commit`, R doesn't contain the edited
+commit. `git splice pull --bump` must record it as U(H) before the next
+change, as `push` reminds you
+([scenario](../../scenarios/06-rewritten-history/01-edited-before-push/README.md)).
+Rebuilding walks every commit since B, pushed or not;
+[`pull --bump`](../../walkthrough/bump.md) moves B forward where that cost
+matters.
+
 A pull could have been a merge, with U(H) as its second parent:
 [weak parents](../../../docs/going-forward/weak-parents.md) compares the two.
-
-## How R and T determine the status
-
-R and T are two histories of the same folder, as upstream commits. How
-they relate is the [sync state](../../walkthrough/status.md#sync-states):
-
-| R and T | `status` shows |
-|---|---|
-| the same files, or the same commit | `up to date` |
-| T is an ancestor of R | `ahead N` |
-| R is an ancestor of T | `behind N` |
-| neither, but with a common ancestor | `ahead N, behind M` |
-| no common ancestor | `!! unrelated history` |
-
-U(H) and T may be missing: right after `init`, there's no U(H) yet, and R
-starts as a root commit; before the first fetch, there's no T, and the
-splice is `never fetched`, or the upstream has no such branch.
-
-A pull is a **three-way merge**, in the monorepo's layout:
-
-- **base**: the newest commit R and T have in common, `git merge-base R T`
-- **ours**: `HEAD`, with the folder as it is
-- **theirs**: `HEAD` with T's files in the folder
-
-Git merges them as usual. Only the folder differs between base and
-theirs, so only the folder can conflict. The result is one ordinary
-monorepo commit, which records T as the new U(H). It's the new B too,
-unless it merged commits that were never pushed.
-
-The base is usually U(H). After a push, it's the pushed commit: R contains
-it, so the merge doesn't replay changes the upstream already has. That's
-also why U(H) alone says little about where a splice stands. A push moves
-T, and with it R's relation to T, but not U(H).
-
-## Why a push isn't recorded
-
-A push never writes to the monorepo, so U(H) stays what the last pull
-brought in. Recording the push would take a monorepo commit that changes
-`.splice`, on the branch that pushed. Merging that branch would then
-carry the record to a branch that syncs with a different upstream
-branch: a feature branch's `.splice` would name a commit of the
-upstream's feature branch, and after the merge, `main`'s would too.
-
-It isn't needed either. `status` compares the folder's files with T, and
-after the push they're the same, so the splice is up to date. And a pull
-merges from where R and T meet, not from U(H), unless the upstream
-rewrote its branch: then from where the branch was before, its fork point
-([example](../../scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)).
-The rebuild is
-deterministic, so R contains the pushed commit, with the same hash, and
-they meet there ([example](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/README.md)).
-Except after `git splice push --rebuilt-commit`: R doesn't contain an
-edited commit, so `git splice pull --bump` has to record it as U(H) before
-the next change, as `push` reminds you
-([edited-before-push](../../scenarios/06-rewritten-history/01-edited-before-push/README.md)).
-
-The cost is that each rebuild walks every commit since B, pushed or not.
-[Bumping](../../walkthrough/bump.md) records the pushed commit as U(H) where
-that matters.
 
 ## Finding the commits in the walkthrough sandbox
 

@@ -1,6 +1,6 @@
 # Bumping the sync point
 
-A push [never writes to the monorepo](../concepts/sync-model/README.md#why-a-push-isnt-recorded),
+A push [never writes to the monorepo](../concepts/sync-model/README.md#r-is-computed-not-stored),
 so after one, `.splice` still names the upstream commit from before it.
 `git splice pull --bump` records the upstream branch anyway, in a
 commit that only changes `.splice`, like a submodule bump. Later rebuilds then start at the pushed commit, instead

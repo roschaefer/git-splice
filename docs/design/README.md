@@ -369,7 +369,7 @@ reads all commit metadata with one `git log` and all folder trees with one
 `git cat-file --batch-check`, so it spawns about one process per commit.
 
 **Never writes to the monorepo**
-([why](../../test/concepts/sync-model/README.md#why-a-push-isnt-recorded)).
+([why](../../test/concepts/sync-model/README.md#r-is-computed-not-stored)).
 
 **A new upstream branch** is created only if R has commits that
 upstream's default branch lacks, which a PR from the new branch would

@@ -10,7 +10,7 @@ brings in an upstream change moves it.
 - **Synced commit**: still `seed`.
 
 A push never writes to the monorepo
-([why](../../../../../concepts/sync-model/README.md#why-a-push-isnt-recorded)).
+([why](../../../../../concepts/sync-model/README.md#r-is-computed-not-stored)).
 [bump-after-push](bump-after-push.md) shows what bumping after the push
 changes, with `git splice pull --bump`
 ([#115](https://github.com/roschaefer/git-splice/issues/115)).
