@@ -8,7 +8,7 @@ commit's files, so nothing tells the edit apart from a divergence. R
 still starts at the synced commit with the original commit, and the
 next push publishes it, next to the edited one: the pull that merges the
 two sides becomes a merge in R that keeps the original commit
-([pulls in between](../../../concepts/sync-model/README.md#pulls-in-between)).
+([pulls between B and H](../../../concepts/sync-model/README.md#pulls-between-b-and-h)).
 
 The way out would be `git splice pull -s ours`: record the upstream's
 tip as the synced commit, keep the monorepo's files, and build on top of

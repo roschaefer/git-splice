@@ -265,7 +265,7 @@ explicitly:
    the work, including rename detection.
 
 The merge base is `git merge-base R T`
-([why](../../test/concepts/sync-model/README.md#three-ways-both-directions)).
+([why](../../test/concepts/sync-model/README.md#how-r-and-t-determine-the-status)).
 
 **The same files, another history:** if the folder already has T's
 files, there's nothing to merge. But if T isn't part of R's history,
@@ -315,7 +315,7 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
    tree, *L* is B, and the rebuild continues from U(L). Otherwise a pull
    merged a divergence, or a squash merge mixed local edits into *L*, and
    *L* is rebuilt too, on the parents the
-   [sync model](../../test/concepts/sync-model/README.md#pulls-in-between)
+   [sync model](../../test/concepts/sync-model/README.md#pulls-between-b-and-h)
    picks, back to [B](../../test/concepts/sync-model/README.md#where-b-is)
    ([scenario](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)).
    Without U(L), e.g. after `init`, the rebuild starts at the mount, as a
@@ -385,7 +385,7 @@ with nothing new
 ### `status`: the sync state
 
 `classify_splice` works the state out each time, from R and T, as the
-[sync model](../../test/concepts/sync-model/README.md#three-ways-both-directions)
+[sync model](../../test/concepts/sync-model/README.md#how-r-and-t-determine-the-status)
 describes. It compares the files first: when they're equal, nothing
 needs rebuilding. Before that, it checks there's something to compare:
 without `refs/splices/<key>/*`, and with U(H) recorded but not available
