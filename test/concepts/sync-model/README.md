@@ -14,13 +14,14 @@ don't cross between them, changes do. This is the
 Circles are commits, newest on top, and boxes point at them. The lane
 `lib/` holds the splice's upstream commits
 ([scenario](../../scenarios/01-everyday-sync/01-sync-model/README.md)).
-The model gives names to five commits:
+H is `HEAD`, the monorepo commit whose splice is being examined. From H,
+the model finds five other commits:
 
-| | Commit | README | Lives in |
+| Name | Meaning | Also called | Lives in |
 |---|---|---|---|
 | B | The [boundary](../../walkthrough/boundary.md), where the rebuild starts: usually the last pull ([where exactly](#where-b-is)). | *boundary* | the monorepo |
 | U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | | the upstream |
-| U(B) | Where R starts: the upstream commit B's `.splice` records, and B's folder. Usually U(H). | | the upstream |
+| U(B) | The upstream commit recorded by B's `.splice`. R starts there. Usually U(H). | | the upstream |
 | T | *Theirs*: the upstream branch as the monorepo last saw it, in `refs/splices/`: tracked(X) where the splice [tracks](../../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) one on the monorepo's branch X, else the one named like X. | *theirs* | the upstream |
 | R | The [rebuild](../../walkthrough/rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *ours* | computed |
 
@@ -36,7 +37,8 @@ The monorepo commits between two such changes share the same sync point. A
 pull commit *X* normally brought in U(X^)..U(X), the range between the
 previous and new sync points. A push between them is the exception
 ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
-[Output](#output) shows the Git commands that find each commit.
+The [worked example](#worked-example) shows the Git commands that find
+each commit.
 
 ## R, the rebuild
 
@@ -45,8 +47,9 @@ monorepo commits that changed the folder contain the splice's own changes,
 but they also have the monorepo's layout and history. The rebuild copies
 each one since B as an upstream commit: the folder's tree without
 `.splice`, with the same author, dates and message, on top of U(B). Above,
-*b* and *d* change `lib/`, so the rebuild copies them as *b'* and *d'*;
-*c* doesn't, so it is left out.
+*b* and *d* change `lib/`, so the rebuild copies them as *b'* and *d'*.
+The prime marks a rebuilt copy. *c* doesn't change `lib/`, so it is left
+out.
 
 <div align="center">
 
@@ -182,7 +185,7 @@ The cost is that each rebuild walks every commit since B, pushed or not.
 [Bumping](../../walkthrough/bump.md) records the pushed commit as U(H) where
 that matters.
 
-## Output
+## Worked example
 
 The walkthrough's [sandbox](../../../docs/sandbox.md), where
 `vendor/pkg-a/` is behind its upstream by one commit.
@@ -211,11 +214,11 @@ marks R's commits that T lacks, `>` T's commits that R lacks. Since B, no
 commit changed the folder, so R has nothing to add to U(H): R = U(H). U(H) is an
 ancestor of T, so `status` shows `behind 1`, the commit between them.
 
-B is what [`boundary`](../../walkthrough/boundary.md) prints. Here,
-it's the newest commit that changed `.splice`:
+B is what [`boundary`](../../walkthrough/boundary.md) prints. Here, it is
+the clone commit:
 
 ```scrut
-$ git log --first-parent -1 --oneline -- vendor/pkg-a/.splice
+$ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
 3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
 ```
 
@@ -245,9 +248,16 @@ $ git log --oneline splices/pkg-a/heads/main
 9bb866a pkg-a: seed
 ```
 
-R is what [`rebuild`](../../walkthrough/rebuild.md) prints, and
-`log --graph` draws it and T, labeled, down to the commit they have in
-common, `o`. Nothing changed the folder since B, so R is U(H):
+R is what [`rebuild`](../../walkthrough/rebuild.md) prints. Nothing
+changed the folder since B, so R is U(H):
+
+```scrut
+$ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
+9bb866a pkg-a: seed
+```
+
+`log --graph` draws R and T, labeled, down to the commit they have in
+common, `o`:
 
 ```scrut
 $ git splice log --graph vendor/pkg-a
