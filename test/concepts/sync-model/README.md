@@ -120,6 +120,14 @@ R = T = U(H) = U(B) = *e'*
 
 ### Parents of rebuilt commits
 
+Let's look at the after-pull diagram again:
+
+<div align="center">
+
+![The graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e', a merge of d' and n](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg)
+
+</div>
+
 The rebuild walks through the monorepo commits from B to H. In the
 after-pull diagram, it rebuilds *b* and *d*, then reaches the pull commit
 *e*. At that point, *d'* is the newest commit produced by the rebuild, and
