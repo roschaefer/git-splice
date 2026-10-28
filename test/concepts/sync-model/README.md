@@ -133,18 +133,16 @@ the pull commit *e*. At that point, the rebuilt tip—the newest commit
 produced so far—is *d'*, and the synced commit U(H) is *n*. The parents
 of *e'* depend on the relationship between these commits. Neither
 contains the other, so *e'* gets *d'* as its first parent and *n* as its
-second. The diagram draws the first parent on the left and the second on
-the right. The rebuild has reached H, so *e'* is R.
+second parent. The rebuild has reached H, so *e'* is R.
 
-Git numbers these parents first and second; the diagrams draw the first
-on the left:
+Git numbers these parents first and second:
 
 ```scrut
 $ R="$(git splice rebuild lib)" &&
->   git show -s --format='R^1 (left): %s' "$R^1" &&
->   git show -s --format='R^2 (right): %s' "$R^2"
-R^1 (left): d
-R^2 (right): n
+>   git show -s --format='R^1 (first parent): %s' "$R^1" &&
+>   git show -s --format='R^2 (second parent): %s' "$R^2"
+R^1 (first parent): d
+R^2 (second parent): n
 ```
 
 The same comparison happens whenever the rebuild reaches a monorepo
@@ -152,7 +150,7 @@ commit that changed `.splice`:
 
 | Rebuilt tip and synced commit | The copy's parents | When |
 |---|---|---|
-| neither contains the other | rebuilt tip first (left), synced commit second (right): a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge of b' on the left and l on the right](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
+| neither contains the other | rebuilt tip as first parent, synced commit as second: a merge | a pull merged unpushed commits ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge with b' as its first parent and l as its second](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
 | synced commit contains the rebuilt tip, or there is no rebuilt tip | synced commit | a squash merge put local edits into the pull commit itself ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or the commit is where the splice starts, e.g. a `git mv` ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The synced commit U(H) contains U(B), and the squash merge s is rebuilt as s' on top of U(H)](synced-commit-contains-rebuilt-tip.drawio.svg) |
 | rebuilt tip contains the synced commit | rebuilt tip, and no copy if the folder didn't change | a hand edit of `.splice`, or a bump while commits are unpushed ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead))<br/>![The bump f records d', which the rebuild e' already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
 
