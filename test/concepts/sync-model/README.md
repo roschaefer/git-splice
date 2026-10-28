@@ -246,170 +246,25 @@ $ cd "$WALKTHROUGH_MONOREPO"
 ```
 -->
 
-The walkthrough's [sandbox](../../../docs/sandbox.md), where
-`vendor/pkg-a/` is behind its upstream by one commit.
-
-For `vendor/pkg-a/`:
-
-```text
-      monorepo, newest first                 pkg-a.git, newest first
-
-      . lib-c: first version             T   > pkg-a: a second commit, after the clone
-  B   = splice: clone vendor/pkg-a           |
-          (folder = U(B))           U(H) = R * pkg-a: seed
-```
-
-On the left, as in the [README](../../../README.md#the-solution), `=` marks
-the commits that change `.splice`, `*` those that change other files in
-the folder, whether or not they change files elsewhere too, and `.` those
-that don't touch the folder. On the right, as in `git splice log`, `<`
-marks R's commits that T lacks, `>` T's commits that R lacks. Since B, no
-commit changed the folder, so R has nothing to add to U(H): R = U(H). U(H) is an
-ancestor of T, so `status` shows `behind 1`, the commit between them.
-
-B is what [`boundary`](../../walkthrough/boundary.md) prints. Here, it is
-the clone commit:
+In the walkthrough [sandbox](../../../docs/sandbox.md), these commands
+locate the five commits for `vendor/pkg-a/`:
 
 ```scrut
-$ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
-3aef6fd splice: clone vendor/pkg-a from main at 9bb866a
+$ B="$(git splice boundary vendor/pkg-a)" &&
+>   U_H="$(git config --file vendor/pkg-a/.splice splice.commit)" &&
+>   U_B="$(git config --blob "$B:vendor/pkg-a/.splice" splice.commit)" &&
+>   T="$(git rev-parse splices/pkg-a/heads/main)" &&
+>   R="$(git splice rebuild vendor/pkg-a)" &&
+>   git show -s --format='B: %s' "$B" &&
+>   git show -s --format='U(H): %s' "$U_H" &&
+>   git show -s --format='U(B): %s' "$U_B" &&
+>   git show -s --format='T: %s' "$T" &&
+>   git show -s --format='R: %s' "$R"
+B: splice: clone vendor/pkg-a from main at 9bb866a
+U(H): pkg-a: seed
+U(B): pkg-a: seed
+T: pkg-a: a second commit, after the clone
+R: pkg-a: seed
 ```
 
-U(H) is the commit recorded there. `fetch` copied it into the monorepo, so
-Git can show it:
-
-```scrut
-$ git log -1 --oneline "$(git config --file vendor/pkg-a/.splice splice.commit)"
-9bb866a pkg-a: seed
-```
-
-Its folder is U(H), so it's B, and U(B) = U(H), where R starts:
-
-```scrut
-$ B="$(git log --first-parent -1 --format=%H -- vendor/pkg-a/.splice)" &&
->   U_B="$(git config --file vendor/pkg-a/.splice splice.commit)" &&
->   git diff --quiet "$U_B" "$B:vendor/pkg-a" -- ':!.splice' &&
->   echo "B's folder is U(B)"
-B's folder is U(B)
-```
-
-T is the fetched branch. Its history leads to U(H):
-
-```scrut
-$ git log --oneline splices/pkg-a/heads/main
-703b936 pkg-a: a second commit, after the clone
-9bb866a pkg-a: seed
-```
-
-R is what [`rebuild`](../../walkthrough/rebuild.md) prints. Nothing
-changed the folder since B, so R is U(H):
-
-```scrut
-$ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
-9bb866a pkg-a: seed
-```
-
-`log --graph` draws R and T, labeled, down to the commit they have in
-common, `o`:
-
-```scrut
-$ git splice log --graph vendor/pkg-a
-===  vendor/pkg-a (main)
-> 703b936 (T) pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
-o 9bb866a (R) pkg-a: seed  (Walkthrough <walkthrough@example.com>)
-```
-
-A change in the monorepo, to a file the upstream didn't change:
-
-```scrut
-$ echo "local" >vendor/pkg-a/local.txt &&
->   git add vendor/pkg-a/local.txt &&
->   git commit -q -m "pkg-a: a local file"
-```
-
-Now R has a commit T lacks, and the other way around:
-
-```scrut
-$ git splice status vendor/pkg-a
-On branch main
-
-  ahead 1, behind 1  vendor/pkg-a
-```
-
-```scrut
-$ git splice log --graph vendor/pkg-a
-===  vendor/pkg-a (main)
-< f985b9f (R) pkg-a: a local file  (Walkthrough <walkthrough@example.com>)
-| > 703b936 (T) pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
-|/  
-o 9bb866a pkg-a: seed  (Walkthrough <walkthrough@example.com>)
-```
-
-The pull merges T in, with `o` as the base:
-
-```scrut
-$ git splice pull vendor/pkg-a
-ok   vendor/pkg-a fetched
-ok   vendor/pkg-a: pulled 703b936
-```
-
-The pull commit records T as the new U(H). Its folder also contains the
-local file, so it is not the same tree as T and the pull is not the new B.
-B stays at the clone commit:
-
-```scrut
-$ git log -1 --format=%s "$(git splice boundary vendor/pkg-a)"
-splice: clone vendor/pkg-a from main at 9bb866a
-```
-
-U(B) stays at `pkg-a: seed`. R joins the local commit with T by a merge,
-as `git pull` would have:
-
-```scrut
-$ git splice log --graph vendor/pkg-a
-===  vendor/pkg-a (main)
-<   6dc0e40 (R) splice: pull vendor/pkg-a from main at 703b936  (Walkthrough <walkthrough@example.com>)
-|\  
-< | f985b9f pkg-a: a local file  (Walkthrough <walkthrough@example.com>)
-| o 703b936 (T) pkg-a: a second commit, after the clone  (Walkthrough <walkthrough@example.com>)
-|/  
-o 9bb866a pkg-a: seed  (Walkthrough <walkthrough@example.com>)
-```
-
-The push sends R, a fast-forward of T:
-
-```scrut
-$ git splice push vendor/pkg-a
-ok   vendor/pkg-a: pushed 6dc0e40 to main
-```
-
-```scrut
-$ git log --graph --format='%h %s' splices/pkg-a/heads/main
-*   6dc0e40 splice: pull vendor/pkg-a from main at 703b936
-|\  
-| * 703b936 pkg-a: a second commit, after the clone
-* | f985b9f pkg-a: a local file
-|/  
-* 9bb866a pkg-a: seed
-```
-
-Now R and T are equal, and the splice is up to date. U(H) is still the
-commit the pull brought in. It lags behind T, since the push didn't
-write to the monorepo:
-
-```scrut
-$ git splice status vendor/pkg-a
-On branch main
-
-  up to date  vendor/pkg-a
-```
-
-```scrut
-$ git config --file vendor/pkg-a/.splice splice.commit
-703b9360f7ac335a1134e9b5771a90a7c09ba39a
-```
-
-```scrut
-$ git rev-parse splices/pkg-a/heads/main
-6dc0e40cd5eda556b7b18759d2e2bb1ae2ae214a
-```
+Here R, U(H) and U(B) are the same commit, and R is one commit behind T.
