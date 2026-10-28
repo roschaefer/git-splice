@@ -79,23 +79,32 @@ $ git config --file app-b/s/.splice upstream.origin.url
 https://git.example.com/s.git
 ```
 
-The URL therefore resolves to the same key from either splice:
+The generated key is `s`. Rename it through either splice if another name
+is clearer; the refs move with it:
+
+```scrut
+$ git splice key app-a/s shared-lib
+ok   app-a/s: renamed key 's' to 'shared-lib'
+```
+
+Because the key belongs to the URL, both splices now report the preferred
+name:
 
 ```scrut
 $ git splice key app-a/s
-s
+shared-lib
 ```
 
 ```scrut
 $ git splice key app-b/s
-s
+shared-lib
 ```
 
 There is only one fetched `main` ref for that key:
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
-bde4164 refs/splices/s/heads/main
+bde4164 refs/splices/shared-lib/heads/main
 ```
 
 They still choose versions independently. Pulling a new upstream commit
