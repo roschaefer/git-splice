@@ -706,6 +706,22 @@ two_splices_ahead() {
   [ -z "$output" ]
 }
 
+@test "rebuild command: a synced commit from before a move that isn't available locally names the splice's path now" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local synced
+  synced="$(splice_config vendor/a commit)"
+  git config --file vendor/a/.splice splice.commit 1234567890123456789012345678901234567890
+  git commit -q -am "point at a missing commit"
+  mkdir libs
+  git mv vendor/a libs/a
+  git config --file libs/a/.splice splice.commit "$synced"
+  git commit -q -am "move and point back"
+  run cmd_rebuild libs/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == "!!   libs/a: synced commit 1234567 isn't available locally -- run 'git splice fetch libs/a'"* ]]
+}
+
 # From scenario_patch_branch_rebased: a pull request's branch pulls the
 # rebased patch branch, adds local change $1 (nothing: none), and is
 # squash-merged into main.
@@ -750,6 +766,24 @@ squash_merge_rebased_pull() {
   run rebuild_splice libs/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   libs/a: $(git rev-parse --short=7 HEAD) records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again" ]
+}
+
+@test "rebuild: refuses that squash merge also after a later move that changed .splice, naming the splice's path now" {
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  local previous
+  previous="$(git -C "$monorepo" config --file vendor/a/.splice splice.commit)"
+  squash_merge_rebased_pull "local change"
+  local squash synced
+  squash="$(git rev-parse --short=7 HEAD)"
+  synced="$(splice_config vendor/a commit)"
+  mkdir libs
+  git mv vendor/a libs/a
+  printf '# moved\n' >>libs/a/.splice
+  git add libs/a/.splice
+  git commit -q -m "reorganize folders"
+  run rebuild_splice libs/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   libs/a: $squash records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again" ]
 }
 
 @test "rebuild: without the fetched branch's reflog, e.g. in a clone that fetched only after the rewrite, the squash merge is joined and keeps the rewritten-away commits, as git merge would" {

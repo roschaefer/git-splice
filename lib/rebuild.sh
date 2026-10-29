@@ -327,8 +327,10 @@ rewritten_away() {
 # it was then. Nothing from before the mount is published, with or
 # without a synced commit: the folder was no splice then, or another one,
 # and its history may hold what was removed before it became this splice.
+# <name> (default: <path>) is the splice's path in HEAD, for its upstreams
+# and messages, where step 2 rebuilds it at the path it had before a move.
 rebuild_with_start() {
-  local path="$1" rev="${2:-HEAD}"
+  local path="$1" rev="${2:-HEAD}" name="${3:-$1}"
   local last_sync="" synced="" prev="" prev_tree="" tree range rebuild_start="" i
   local at="" before_path="" upper=""
   local -a paths=() ranges=()
@@ -377,7 +379,7 @@ rebuild_with_start() {
     # the synced commit, and the monorepo's side replaces its history
     # anyway, so it's rebuilt as if the splice had no synced commit.
     [[ -n "${REBUILD_WITHOUT_SYNCED:-}" ]] ||
-      die "$path: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch $path'"
+      die "$name: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch $name'"
     synced=""
   fi
 
@@ -397,7 +399,7 @@ rebuild_with_start() {
       # Unless L is the mount: what came before isn't this splice's.
       if git rev-parse --verify --quiet "$last_sync^1" >/dev/null &&
         same_splice "$before_path" "$last_sync^1" "$last_sync" "$at"; then
-        before="$(rebuild_with_start "$before_path" "$last_sync^1")" || return
+        before="$(rebuild_with_start "$before_path" "$last_sync^1" "$name")" || return
         before_start="${before#* }"
         before="${before% *}"
         [[ "$before" != - ]] || before=""
@@ -429,8 +431,8 @@ rebuild_with_start() {
         if [[ -z "${REBUILD_JOINS_REWRITTEN:-}" && -n "$previous" ]] &&
           git cat-file -e "$previous^{commit}" 2>/dev/null &&
           ! git merge-base --is-ancestor "$previous" "$synced" &&
-          rewritten_away "$path" "$previous" "$synced"; then
-          die "$path: ${last_sync:0:7} records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again"
+          rewritten_away "$name" "$previous" "$synced"; then
+          die "$name: ${last_sync:0:7} records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again"
         fi
         # A pull merged a divergence: join both sides, as git pull would.
         parents=("$before" "$synced")
