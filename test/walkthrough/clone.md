@@ -32,6 +32,14 @@ DESCRIPTION
     given: then every file that differs becomes a conflict to resolve, and
     nothing is lost. Resolve it and run 'git commit'.
 
+    In upstream, and in a submodule, only upstream's own .gitattributes
+    apply to its files. Where text, eol, filter, ident or
+    working-tree-encoding set above <path> would change what a checkout
+    writes or what git add stores, clone unsets these for <path> in the
+    deepest .gitattributes above it, in the same commit. Remove that line
+    to apply the monorepo's attributes instead; push then sends the files
+    as these store them.
+
     With --from-submodule, <path> is a submodule committed in HEAD, and clone
     turns it into a splice of the same upstream, at the same commit: the
     upstream is the submodule's URL in .gitmodules, and the folder gets the
@@ -43,11 +51,7 @@ DESCRIPTION
     so it can't see the ones hidden by 'git update-index --assume-unchanged'
     or '--skip-worktree': an edited file keeps its edit, but a deleted one
     comes back. Clear these flags first. Files Git ignores in the checkout
-    stay, and its repository stays in .git/modules/. Git never applied the
-    monorepo's .gitattributes to the submodule's files: where text, eol,
-    filter, ident or working-tree-encoding above the folder would change
-    what a checkout writes, clone unsets these for the folder in the
-    deepest .gitattributes above it.
+    stay, and its repository stays in .git/modules/.
 
     The splice keeps what the submodule followed. submodule.<name>.branch,
     the branch 'git submodule update --remote' follows, becomes the

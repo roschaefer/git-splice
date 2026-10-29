@@ -27,6 +27,14 @@ DESCRIPTION
     given: then every file that differs becomes a conflict to resolve, and
     nothing is lost. Resolve it and run 'git commit'.
 
+    In upstream, and in a submodule, only upstream's own .gitattributes
+    apply to its files. Where text, eol, filter, ident or
+    working-tree-encoding set above <path> would change what a checkout
+    writes or what git add stores, clone unsets these for <path> in the
+    deepest .gitattributes above it, in the same commit. Remove that line
+    to apply the monorepo's attributes instead; push then sends the files
+    as these store them.
+
     With --from-submodule, <path> is a submodule committed in HEAD, and clone
     turns it into a splice of the same upstream, at the same commit: the
     upstream is the submodule's URL in .gitmodules, and the folder gets the
@@ -38,11 +46,7 @@ DESCRIPTION
     so it can't see the ones hidden by 'git update-index --assume-unchanged'
     or '--skip-worktree': an edited file keeps its edit, but a deleted one
     comes back. Clear these flags first. Files Git ignores in the checkout
-    stay, and its repository stays in .git/modules/. Git never applied the
-    monorepo's .gitattributes to the submodule's files: where text, eol,
-    filter, ident or working-tree-encoding above the folder would change
-    what a checkout writes, clone unsets these for the folder in the
-    deepest .gitattributes above it.
+    stay, and its repository stays in .git/modules/.
 
     The splice keeps what the submodule followed. submodule.<name>.branch,
     the branch 'git submodule update --remote' follows, becomes the
@@ -193,9 +197,16 @@ cmd_clone() {
   # The merge base is an empty folder: the two sides share nothing.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
     "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")"; then
+    # A --merge conflict: the line goes in with its resolution.
+    ! git rev-parse --quiet --verify CHERRY_PICK_HEAD >/dev/null 2>&1 ||
+      keep_upstream_checkout_attributes "$path" "$target"
     log_err "$path: clone failed"
     exit 1
   fi
+  keep_upstream_checkout_attributes "$path" "$target"
+  # The cherry-pick ran no pre-commit or commit-msg hook, and neither
+  # does adding the line to its commit.
+  git diff --cached --quiet || git commit --quiet --amend --no-edit --no-verify
   log_ok "$path: cloned ${target:0:7} from $upstream_branch"
 }
 
@@ -385,8 +396,8 @@ checkout_attributes() {
 
 # Unsets CHECKOUT_ATTRIBUTES for the files of the new splice at <path>,
 # at <commit>, where .gitattributes above it set them otherwise than
-# upstream's own do: Git applied those to the submodule's files, never
-# the monorepo's. The line goes to the deepest .gitattributes above the
+# upstream's own do: in upstream, and in a submodule, Git applies only
+# those to its files. The line goes to the deepest .gitattributes above the
 # splice, which wins over those further up; the splice's own, deeper
 # still, win over it. Stages only the line, not other edits of the file.
 keep_upstream_checkout_attributes() {
@@ -403,7 +414,26 @@ keep_upstream_checkout_attributes() {
   done
   # Only a local attributes file differs, which nobody else has.
   [[ -n "$file" ]] || return 0
-  local line
+  # Files whose content hashes to their blob under the attributes so far
+  # hold what a checkout wrote with them, and get written again with the
+  # line below. The content decides, not stat data: the clone wrote them
+  # moments ago, too recently for Git to trust it.
+  local entry info mode object stage line i
+  local -a names=() objects=() hashes=() unchanged=()
+  while IFS= read -r -d '' entry; do
+    info="${entry%%$'\t'*}"
+    read -r mode object stage <<<"$info"
+    entry="${entry#*$'\t'}"
+    [[ "$mode" == 1006[0-9][0-9] && "$stage" == 0 && -f "$entry" && ! -L "$entry" && "$entry" != *$'\n'* ]] || continue
+    names+=("$entry")
+    objects+=("$object")
+  done < <(git ls-files -z --stage -- ":(top,literal)$path")
+  if ((${#names[@]})); then
+    mapfile -t hashes < <(printf '%s\n' "${names[@]}" | git hash-object --stdin-paths)
+  fi
+  for i in "${!names[@]}"; do
+    [[ "${hashes[i]:-}" != "${objects[i]}" ]] || unchanged+=("${names[i]}")
+  done
   line="$(attributes_pattern "${path#"${dir:+$dir/}"}")$(printf ' !%s' "${CHECKOUT_ATTRIBUTES[@]}")"
   # awk 1 ends the last line with a newline, if it has none.
   blob="$({
@@ -415,8 +445,13 @@ keep_upstream_checkout_attributes() {
     [[ ! -s "$file" || -z "$(tail -c 1 -- "$file")" ]] || echo >>"$file"
     printf '%s\n' "$line" >>"$file"
   fi
+  if ((${#unchanged[@]})); then
+    # checkout-index skips a file whose stat data matches its entry.
+    rm -f -- "${unchanged[@]}"
+    printf '%s\0' "${unchanged[@]}" | git checkout-index -u -z --stdin
+  fi
   git update-index -q --refresh >/dev/null || true
-  log_step "$path: unset ${CHECKOUT_ATTRIBUTES[*]} for it in $file -- Git never applied these from above a submodule to its files"
+  log_step "$path: unset ${CHECKOUT_ATTRIBUTES[*]} for it in $file -- in upstream, only its own .gitattributes apply to its files"
 }
 
 # Turns the submodule at <path> into a splice, as clone --from-submodule

@@ -38,7 +38,7 @@ ok   vendor/a: cloned [0-9a-f]{7} from the submodule (regex)
 ===  vendor/a: pinned at [0-9a-f]{7}, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin (regex)
 ===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
 ===  vendor/a/libs/inner: fetching https://git.example.com/inner.git
-===  vendor/a/libs/inner: unset text eol filter ident working-tree-encoding for it in vendor/a/.gitattributes -- Git never applied these from above a submodule to its files
+===  vendor/a/libs/inner: unset text eol filter ident working-tree-encoding for it in vendor/a/.gitattributes -- in upstream, only its own .gitattributes apply to its files
 ok   vendor/a/libs/inner: cloned [0-9a-f]{7} from the submodule (regex)
 ===  vendor/a/libs/inner: pinned at [0-9a-f]{7}, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/libs/inner/.splice --unset upstream.origin.default-pin (regex)
 ===  vendor/a/libs/inner: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a/modules/libs/inner -- remove it once you don't need it (regex)

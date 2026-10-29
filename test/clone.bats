@@ -8,7 +8,8 @@ setup() {
     02-starting-a-splice/01-clone-copied-content \
     02-starting-a-splice/02-clone-differing-content \
     02-starting-a-splice/03-clone-on-feature-branch \
-    02-starting-a-splice/06-clone-without-commits; do
+    02-starting-a-splice/06-clone-without-commits \
+    02-starting-a-splice/09-clone-under-monorepo-attributes; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -238,4 +239,31 @@ new_upstream() {
   git config init.defaultBranch main
   run cmd_clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
+}
+
+@test "clone: unsets the monorepo's line ending attributes for the splice, in the clone's commit" {
+  scenario_clone_under_monorepo_attributes "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: unset text eol filter ident working-tree-encoding for it in .gitattributes -- in upstream, only its own .gitattributes apply to its files"* ]]
+  [ "$(git rev-parse HEAD^)" = "$before" ]
+  [ "$(git show HEAD:.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
+  [ -z "$(git status --porcelain)" ]
+  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\n' | od -c)" ]
+}
+
+@test "clone --merge: a conflict stages the line unsetting the monorepo's attributes with it" {
+  new_upstream
+  commit_raw_file "$upstream" build.bat 'echo build\r\n'
+  printf '*.bat text eol=crlf\n' >.gitattributes
+  mkdir -p vendor/a
+  echo "mine" >vendor/a/file.txt
+  git add .gitattributes vendor/a
+  git commit -q -m "CRLF for .bat, vendor/a by hand"
+  run cmd_clone --merge "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$(git show :.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
 }
