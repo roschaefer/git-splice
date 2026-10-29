@@ -560,6 +560,39 @@ two_splices_ahead() {
   [ "$(rebuild_splice libs/a)" = "$before" ]
 }
 
+@test "rebuild: mirrors with the same files, moved in one commit, each follow the folder with its own name" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  cp -r vendor/a vendor/b
+  git add vendor/b
+  git commit -q -m "mirror a as b"
+  commit_local "$monorepo" vendor/a "in both" both.txt
+  commit_local "$monorepo" vendor/b "in both" both.txt
+  local a b
+  a="$(rebuild_splice vendor/a)"
+  b="$(rebuild_splice vendor/b)"
+  [ "$a" != "$b" ]
+  mkdir -p libs
+  git mv vendor/a libs/a
+  git mv vendor/b libs/b
+  git commit -q -m "move both mirrors"
+  [ "$(rebuild_splice libs/a)" = "$a" ]
+  [ "$(rebuild_splice libs/b)" = "$b" ]
+}
+
+@test "rebuild: mirrors with the same files, moved in one commit to other names, are no move: nothing tells them apart" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  cp -r vendor/a vendor/b
+  git add vendor/b
+  git commit -q -m "mirror a as b"
+  mkdir -p libs
+  git mv vendor/a libs/x
+  git mv vendor/b libs/y
+  git commit -q -m "move both mirrors"
+  [ "$(splice_start libs/x)" = "$(git rev-parse HEAD)" ]
+}
+
 @test "rebuild: a move while another splice with the same files is deleted follows the moved one, by its id" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "the same change" x.txt

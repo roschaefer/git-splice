@@ -98,10 +98,11 @@ splice_mount() {
 # parent, and no longer has it in <rev>. So a move may also change, add or
 # delete files, two splices may swap paths, and a new folder may take the
 # old path. If several folders had the id, mirrors moved together, the one
-# with the most files unchanged at <path> wins; a tie is no move.
+# with the most files unchanged at <path> wins, and on a tie the one with
+# <path>'s folder name; otherwise it's no move.
 moved_from() {
-  local rev="$1" path="$2" id file from score best_score=-1 tie=""
-  local -a candidates=()
+  local rev="$1" path="$2" id file from score best_score=-1 here
+  local -a candidates=() best=() named=()
   MOVED_FROM=""
   MOVED_STATE_KEPT=""
   id="$(splice_config "$path" id "$rev")"
@@ -120,16 +121,24 @@ moved_from() {
   if [[ ${#candidates[@]} -eq 1 ]]; then
     MOVED_FROM="${candidates[0]}"
   else
+    here="$(git ls-tree -r "$rev:$path" | sort)"
     for from in "${candidates[@]}"; do
       # Files with the same name and content: lines both listings have.
-      score="$(comm -12 <(git ls-tree -r "$rev^1:$from" | sort) <(git ls-tree -r "$rev:$path" | sort) | wc -l)"
+      score="$(comm -12 <(git ls-tree -r "$rev^1:$from" | sort) <(printf '%s\n' "$here") | wc -l)"
       if ((score > best_score)); then
-        MOVED_FROM="$from" best_score="$score" tie=""
+        best=("$from") best_score="$score"
       elif ((score == best_score)); then
-        tie=1
+        best+=("$from")
       fi
     done
-    [[ -z "$tie" ]] || MOVED_FROM=""
+    if [[ ${#best[@]} -eq 1 ]]; then
+      MOVED_FROM="${best[0]}"
+    else
+      for from in "${best[@]}"; do
+        [[ "${from##*/}" != "${path##*/}" ]] || named+=("$from")
+      done
+      [[ ${#named[@]} -ne 1 ]] || MOVED_FROM="${named[0]}"
+    fi
   fi
   [[ -n "$MOVED_FROM" && "$(git rev-parse "$rev^1:$MOVED_FROM/$STATE_FILE")" == "$(git rev-parse "$rev:$path/$STATE_FILE")" ]] &&
     MOVED_STATE_KEPT=1

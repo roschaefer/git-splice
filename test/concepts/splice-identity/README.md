@@ -116,8 +116,9 @@ splice's history starts: its mount.
 The id alone can't say where a splice came from, once two folders have
 it, as in the next section. A commit that adds `c/` and removes both
 `a/` and `b/`, which had the same id, is a move from the one with more
-unchanged files, and a tie is no move, as with Git's own rename
-detection and two identical files.
+unchanged files. On a tie, e.g. two mirrors kept alike, `libs/a/` comes
+from `vendor/a/`, the folder with its name; without one, it's no move,
+and the splice's history starts there.
 
 ### A copy shares the id
 
