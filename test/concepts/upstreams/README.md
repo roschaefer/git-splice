@@ -84,6 +84,38 @@ bde4164 refs/splices/shared-lib/heads/main
 Because a key belongs to its URL, the rename applies to every splice that
 names that URL.
 
+## Tracking another upstream branch locally
+
+A splice normally syncs with the upstream branch that corresponds to the
+current monorepo branch. When their names deliberately differ, track the
+upstream branch to use instead, much like setting a Git branch's upstream:
+
+<!--
+```scrut
+$ seed_bare_repo "$UPSTREAM" "development change" development >/dev/null
+```
+-->
+
+```scrut
+$ git splice fetch --branch development --track app-a/s
+ok   app-a/s fetched
+ok   app-a/s: 'main' tracks 'development' from now on
+```
+
+The override is local to this clone and the current monorepo branch. It is
+stored by upstream key, so it applies to every splice using that upstream.
+Plain sync and status commands use it from then on. Stop using it with
+`--no-track`:
+
+```scrut
+$ git splice fetch --no-track app-a/s
+ok   app-a/s fetched
+ok   app-a/s: 'main' no longer tracks 'development'
+```
+
+See the [`fetch` command reference](../../walkthrough/fetch.md) for the other
+ways to set a tracked branch and its exact fallback behavior.
+
 ## The same library at different versions
 
 In the same example, `app-a/` and `app-b/` each contain their own splice
