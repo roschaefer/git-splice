@@ -23,6 +23,8 @@ endings, never applied to its files, and the conversion keeps it that
 way: those of the monorepo
 ([monorepo-line-endings](04-monorepo-line-endings/README.md)), or of a
 splice above it ([line-endings-in-splice-above](05-line-endings-in-splice-above/README.md)).
+A macro upstream's own `.gitattributes` defines is lost, though
+([upstream-macro](06-upstream-macro/README.md)).
 
 ## Output
 

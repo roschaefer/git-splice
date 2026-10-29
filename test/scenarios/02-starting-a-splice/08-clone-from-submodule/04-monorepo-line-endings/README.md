@@ -73,6 +73,28 @@ Nothing shows as changed:
 $ git status --short
 ```
 
+## Attributes added later
+
+The line wins over the lines before it in the same file. A rule added
+after it applies to the splice again:
+
+```scrut
+$ printf '*.txt text eol=crlf\n' >>.gitattributes && git check-attr eol -- vendor/a/file.txt
+vendor/a/file.txt: eol: crlf
+```
+
+So does one in a `.gitattributes` deeper than the line's, between the
+root and the splice:
+
+```scrut
+$ git checkout -q -- .gitattributes && printf '*.txt text eol=crlf\n' >vendor/.gitattributes && git check-attr eol -- vendor/a/file.txt
+vendor/a/file.txt: eol: crlf
+```
+
+```scrut
+$ rm vendor/.gitattributes
+```
+
 ## Without the line
 
 With the `.gitattributes` from before the conversion, Git stores
