@@ -2,9 +2,8 @@
   description = "git splice -- keep folders of a monorepo in sync with their own repositories";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
-    # Only builds scrut/, which needs a newer Rust than nixos-25.05 has.
-    nixpkgs-scrut.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs-scrut.follows = "nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
   };
 

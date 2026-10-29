@@ -26,7 +26,7 @@ $ source "$TESTDIR/../scrut-setup.sh"
 
 ```scrut
 $ josh-filter --version
-Version: r24.10.04
+Version: r26.05.08
 ```
 
 ## Import the library
@@ -38,6 +38,7 @@ developed in `vendor/lib/`, and merging that into the monorepo:
 $ git fetch -q https://git.example.com/lib.git main &&
 >   josh-filter ':prefix=vendor/lib' FETCH_HEAD &&
 >   git merge -q --allow-unrelated-histories -m "import vendor/lib" FILTERED_HEAD
+aa49e1798265c0235945ab8c9597d4c5de166969
 ```
 
 The monorepo now has a copy of each of the library's 30 commits, with
@@ -54,6 +55,7 @@ commits:
 
 ```scrut
 $ josh-filter ':/vendor/lib' && git rev-parse FILTERED_HEAD
+bafd496b1f4512a95b69464604f3da428aa9e33b
 bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
@@ -77,6 +79,7 @@ library could take as a fast-forward:
 
 ```scrut
 $ josh-filter ':/vendor/lib' && git log --oneline -2 FILTERED_HEAD
+50697019d17eb5ce5e06b61545e3947bb0c08f55
 5069701 fix parse() and call it
 bafd496 lib commit 30
 ```
@@ -157,6 +160,7 @@ $ cd ../monorepo &&
 >   git update-ref refs/josh/main main &&
 >   josh-filter --reverse ':/vendor/lib' refs/josh/main &&
 >   git merge -q --ff-only refs/josh/main
+99943ffa60f0e666d7c9d14a1bcb1c556f6d9b98
 ```
 
 ```scrut
@@ -281,6 +285,7 @@ $ git fetch -q https://git.example.com/lib.git main:refs/lib/main &&
 >   josh-filter ':/vendor/lib' &&
 >   git worktree add -q --detach ../lib-view FILTERED_HEAD &&
 >   git -C ../lib-view merge -q -m "merge release 1.3" refs/lib/main
+15560d75aab425a7d5cd9e9c4263dbd4c39412f3
 ```
 
 `--reverse` carries the merge back into the monorepo, here into a ref that
@@ -291,6 +296,7 @@ $ git update-ref FILTERED_HEAD "$(git -C ../lib-view rev-parse HEAD)" &&
 >   git update-ref refs/josh/main main &&
 >   josh-filter --reverse ':/vendor/lib' refs/josh/main &&
 >   git merge -q --ff-only refs/josh/main
+151bbf6389edb01576588e515121f0c4beeb2698
 ```
 
 The release reaches the monorepo as a commit of its own, joined by the
@@ -372,6 +378,7 @@ behind:
 
 ```scrut
 $ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
+27886715d65462c101ec16b7762e92b5efe4a121
 *   2788671 Merge branch 'parse-options'
 |\  
 | * 3b58a7e lib: fix options typo
