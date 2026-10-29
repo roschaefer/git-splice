@@ -759,3 +759,44 @@ add_nested_submodule_with_branch() {
   [ "$(git log -1 --format=%s)" = "splice: clone vendor/a from submodule at ${outer_pin:0:7}" ]
   [ -n "$(git diff --cached --name-only -- vendor/a/libs/inner/.splice)" ]
 }
+
+@test "clone --from-submodule: refuses a submodule that update = none keeps out of checkouts" {
+  add_submodule
+  git config --file .gitmodules submodule.vendor/a.update none
+  git commit -q -a -m "keep vendor/a out of checkouts"
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  cd "$BATS_TEST_TMPDIR/colleague"
+  git -c protocol.file.allow=always submodule -q update --init --recursive
+  [ -z "$(ls -A vendor/a)" ]
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a has update = none"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+  [ -z "$(ls -A vendor/a)" ]
+}
+
+@test "clone --from-submodule --recursive: refuses a nested submodule that update = none keeps out of checkouts, before converting anything" {
+  inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  add_upstream_submodule "$upstream" "$inner" libs/inner
+  local tmp
+  tmp="$(mktemp -d)"
+  git clone -q "$upstream" "$tmp"
+  (
+    cd "$tmp"
+    git config --file .gitmodules submodule.libs/inner.update none
+    git commit -q -a -m "keep libs/inner out of checkouts"
+    git push -q origin HEAD:main
+  )
+  add_submodule
+  git -c protocol.file.allow=always submodule -q update --init --recursive
+  [ -z "$(ls -A vendor/a/libs/inner)" ]
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/libs/inner has update = none"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -z "$(ls -A vendor/a/libs/inner)" ]
+}
