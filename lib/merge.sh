@@ -281,12 +281,7 @@ merge_paths() {
       failures+=("$path")
       continue
     fi
-    if merge_one "$path" "$branch" "$verb"; then
-      # Its merge may have replaced the .splice files below it.
-      forget_default_branches_below "$path"
-    else
-      failures+=("$path")
-    fi
+    merge_one "$path" "$branch" "$verb" || failures+=("$path")
   done
   # A pull above may also move the synced commit of a splice below it that
   # isn't pulled itself: fetch that commit too, or the splice would look

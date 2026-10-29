@@ -56,8 +56,7 @@ cmd_init() {
   local upstream_default monorepo_default container_default default_branch=""
   upstream_default="$(empty_upstream_default_branch "$url")"
   monorepo_default="$(monorepo_default_branch)"
-  find_container_default_branch "$path"
-  container_default="$DEFAULT_BRANCH"
+  container_default="$(container_default_branch "$path")"
   if [[ -n "$upstream_default" && -z "$monorepo_default" && "$upstream_default" != "$(current_branch)" ]]; then
     die "$path: upstream's default branch is '$upstream_default', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
   elif [[ -n "$upstream_default" && -n "$container_default" && "$upstream_default" != "$container_default" ]]; then

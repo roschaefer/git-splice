@@ -151,38 +151,6 @@ setup() {
   ! git config --blob "$blob" splice.commit
 }
 
-@test "discover_splices reads a key without a value as empty, as git config --get does: a bare default-branch names no branch, a bare url no upstream" {
-  scenario_up_to_date "$monorepo" "$upstream"
-  cd "$monorepo"
-  printf '\tdefault-branch\n[upstream "fork"]\n\turl\n' >>vendor/a/.splice
-  git commit -q -am "keys without values"
-  discover_splices
-  [ "${SPLICE_UPSTREAM_LISTS[vendor/a]}" = origin ]
-  [ "$(upstream_branch_for vendor/a main)" = main ]
-}
-
-@test "merge forgets the default-branch values kept for the splices below one it merged, so their next lookup reads their .splice again" {
-  scenario_nested_splices "$monorepo" "$upstream"
-  cd "$monorepo"
-  splice fetch >/dev/null
-  discover_splices
-  [ -n "${UPSTREAM_DEFAULT_BRANCHES[vendor/a/b:origin]+set}" ]
-  merge_paths main merge vendor/a >/dev/null
-  [ -z "${UPSTREAM_DEFAULT_BRANCHES[vendor/a/b:origin]+set}" ]
-  [ -n "${UPSTREAM_DEFAULT_BRANCHES[vendor/a:origin]+set}" ]
-}
-
-@test "splice_default_branch reads the .splice files below a merged splice again: its merge may have replaced them" {
-  scenario_nested_splices "$monorepo" "$upstream"
-  cd "$monorepo"
-  discover_splices
-  [ "$(splice_default_branch vendor/a/b)" = main ]
-  git config --file vendor/a/b/.splice upstream.origin.default-branch master
-  git commit -q -am "a merge of vendor/a changed vendor/a/b's .splice"
-  forget_default_branches_below vendor/a
-  [ "$(splice_default_branch vendor/a/b)" = master ]
-}
-
 @test "upstream_branch_for maps only the monorepo's default branch to default-branch" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
