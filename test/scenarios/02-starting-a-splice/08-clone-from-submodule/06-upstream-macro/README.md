@@ -45,17 +45,17 @@ echo run^M$
 ```scrut
 $ git splice clone --from-submodule vendor/a
 ===  vendor/a: fetching https://git.example.com/a.git
+??   vendor/a: Git applies other text eol filter ident working-tree-encoding attributes to some of its files than in upstream, which unsetting them above it can't change -- e.g. those of a macro its own .gitattributes defines, which Git accepts only at the top
 \[attr\]crlf-text text eol=crlf not allowed: vendor/a/\.gitattributes:1 (regex+)
 ok   vendor/a: cloned [0-9a-f]{7} from the submodule (regex)
 ===  vendor/a: pinned at [0-9a-f]{7}, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin (regex)
 ===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
 ```
 
-Git warns each time it reads the definition, as the conversion did.
-Asked from the top of the monorepo, as checkout and `git add` ask, the
-attributes are gone. Nothing above the splice sets any, so the
-conversion added no line to `.gitattributes`, and one couldn't bring
-the macro back: it only resets what comes from above.
+Git warns each time it reads the definition. Asked from the top of the
+monorepo, as checkout and `git add` ask, the attributes are gone. The
+conversion says so (`??`) and adds no line to `.gitattributes`: one
+only resets what comes from above, and can't bring the macro back.
 
 ```scrut
 $ git check-attr text eol -- vendor/a/run.bat

@@ -267,3 +267,32 @@ new_upstream() {
   [ "$status" -eq 1 ]
   [ "$(git show :.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
 }
+
+@test "clone: the line unsetting the monorepo's attributes skips a .gitattributes that's a symbolic link, which Git doesn't read" {
+  scenario_clone_under_monorepo_attributes "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir vendor
+  echo "notes" >notes.txt
+  ln -s ../notes.txt vendor/.gitattributes
+  git add notes.txt vendor/.gitattributes
+  git commit -q -m "notes, and a link to them"
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git show HEAD:notes.txt)" = notes ]
+  [ "$(git ls-tree HEAD -- vendor/.gitattributes | cut -d' ' -f1)" = 120000 ]
+  [ "$(git show HEAD:.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone: writes no line where unsetting the monorepo's attributes can't make them upstream's, and says so" {
+  new_upstream
+  commit_raw_file "$upstream" .gitattributes '[attr]crlf-text text eol=crlf\n*.bat crlf-text\n'
+  commit_raw_file "$upstream" run.bat 'echo run\n'
+  printf '*.png binary\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "binary images"
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: Git applies other text eol filter ident working-tree-encoding attributes to some of its files than in upstream, which unsetting them above it can't change -- e.g. those of a macro its own .gitattributes defines, which Git accepts only at the top"* ]]
+  [ "$(git show HEAD:.gitattributes)" = '*.png binary' ]
+}

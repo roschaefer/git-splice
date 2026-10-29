@@ -192,21 +192,18 @@ cmd_clone() {
     die "$path exists and differs from '$upstream_branch' upstream -- '--merge' keeps both, and every file that differs becomes a conflict to resolve"
   fi
 
-  local blob
+  local blob tree
   blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")" || exit 1
-  # The merge base is an empty folder: the two sides share nothing.
+  tree="$(reroot_tree "$path" "$target^{tree}" "$blob")" || exit 1
+  upstream_attributes_line "$path" "$target" "$tree"
+  # The merge base is an empty folder: the two sides share nothing. The
+  # line comes in the same commit, so the files are written with it.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
-    "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")"; then
-    # A --merge conflict: the line goes in with its resolution.
-    ! git rev-parse --quiet --verify CHERRY_PICK_HEAD >/dev/null 2>&1 ||
-      keep_upstream_checkout_attributes "$path" "$target"
+    "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")" \
+    "$ATTRIBUTES_FILE" "$ATTRIBUTES_BLOB"; then
     log_err "$path: clone failed"
     exit 1
   fi
-  keep_upstream_checkout_attributes "$path" "$target"
-  # The cherry-pick ran no pre-commit or commit-msg hook, and neither
-  # does adding the line to its commit.
-  git diff --cached --quiet || git commit --quiet --amend --no-edit --no-verify
   log_ok "$path: cloned ${target:0:7} from $upstream_branch"
 }
 
@@ -380,78 +377,72 @@ prefix_paths() {
   done
 }
 
-# Prints the CHECKOUT_ATTRIBUTES of each NUL-terminated path read, one
-# "<attribute> <value>" line each, without the path: the same files under
-# another prefix compare equal. Asks from the top of the repository, as
-# checkout and git add do: Git accepts a macro definition in a nested
-# .gitattributes when asked from below it, but not from the top. Any
-# arguments go to git check-attr.
-checkout_attributes() {
-  local file attribute value
-  git check-attr -z --stdin "$@" "${CHECKOUT_ATTRIBUTES[@]}" 2>/dev/null |
+# Prints the CHECKOUT_ATTRIBUTES tree <tree> gives the NUL-terminated
+# paths read, each with <prefix> in front, as one "<attribute> <value>"
+# line each, without the path: the same files in another folder compare
+# equal. Reads only <tree>'s .gitattributes, from the top, as checkout
+# and git add do. Git warns about a macro defined below the top each time
+# it reads one; upstream_attributes_line says what that means instead.
+checkout_attributes() (
+  set -o pipefail
+  local tree="$1" prefix="$2" file attribute value
+  prefix_paths "$prefix" |
+    git check-attr -z --stdin --source="$tree" "${CHECKOUT_ATTRIBUTES[@]}" 2>/dev/null |
     while IFS= read -r -d '' file && IFS= read -r -d '' attribute && IFS= read -r -d '' value; do
       printf '%s %s\n' "$attribute" "$value"
     done
-}
+)
 
-# Unsets CHECKOUT_ATTRIBUTES for the files of the new splice at <path>,
-# at <commit>, where .gitattributes above it set them otherwise than
-# upstream's own do: in upstream, and in a submodule, Git applies only
-# those to its files. The line goes to the deepest .gitattributes above the
-# splice, which wins over those further up; the splice's own, deeper
-# still, win over it. Stages only the line, not other edits of the file.
-keep_upstream_checkout_attributes() {
-  local path="$1" commit="$2" dir="$1" file="" blob
-  cmp -s <(git ls-tree -r -z --name-only "$commit" | prefix_paths "$path/" | checkout_attributes) \
-    <(git ls-tree -r -z --name-only "$commit" | checkout_attributes --source="$commit") &&
-    return 0
-  while [[ -n "$dir" ]]; do
-    if [[ "$dir" == */* ]]; then dir="${dir%/*}"; else dir=""; fi
-    if git cat-file -e ":${dir:+$dir/}.gitattributes" 2>/dev/null; then
-      file="${dir:+$dir/}.gitattributes"
-      break
+# Sets ATTRIBUTES_FILE, ATTRIBUTES_LINE and ATTRIBUTES_BLOB to a
+# .gitattributes, a line to add to it and its content with the line,
+# for a new splice at <path>, at upstream commit <commit>, in monorepo
+# tree <tree>; to nothing where Git applies the same attributes to its
+# files as in upstream, where only upstream's own .gitattributes count.
+# The line unsets CHECKOUT_ATTRIBUTES for the folder in the deepest
+# .gitattributes above it, which wins over those further up; the
+# splice's own, deeper still, win over it. Where that wouldn't make them
+# match, e.g. for a macro upstream's own .gitattributes defines, which
+# Git accepts only at the top, it says so and sets nothing.
+upstream_attributes_line() {
+  local path="$1" commit="$2" tree="$3" dir="$1" file="" names upstream monorepo
+  ATTRIBUTES_FILE="" ATTRIBUTES_LINE="" ATTRIBUTES_BLOB=""
+  names="$(mktemp)" upstream="$(mktemp)" monorepo="$(mktemp)"
+  if ! { git ls-tree -r -z --name-only "$commit" >"$names" &&
+    checkout_attributes "$commit" "" <"$names" >"$upstream" &&
+    checkout_attributes "$tree" "$path/" <"$names" >"$monorepo"; }; then
+    rm -f "$names" "$upstream" "$monorepo"
+    die "$path: git check-attr failed for its files"
+  fi
+  if ! cmp -s "$upstream" "$monorepo"; then
+    while [[ -n "$dir" ]]; do
+      if [[ "$dir" == */* ]]; then dir="${dir%/*}"; else dir=""; fi
+      # Git doesn't read a .gitattributes that's a symbolic link.
+      if [[ "$(git ls-tree "$tree" -- "${dir:+$dir/}.gitattributes")" == 100* ]]; then
+        file="${dir:+$dir/}.gitattributes"
+        break
+      fi
+    done
+    local line blob fixed
+    if [[ -n "$file" ]]; then
+      line="$(attributes_pattern "${path#"${dir:+$dir/}"}")$(printf ' !%s' "${CHECKOUT_ATTRIBUTES[@]}")"
+      # awk 1 ends the last line with a newline, if it has none.
+      blob="$({
+        git cat-file blob "$tree:$file" | awk 1
+        printf '%s\n' "$line"
+      } | git hash-object -w --stdin)"
+      fixed="$(tree_with_blob "$tree" "$file" "$blob")" &&
+        checkout_attributes "$fixed" "$path/" <"$names" >"$monorepo" &&
+        if cmp -s "$upstream" "$monorepo"; then
+          ATTRIBUTES_FILE="$file" ATTRIBUTES_LINE="$line" ATTRIBUTES_BLOB="$blob"
+        fi
     fi
-  done
-  # Only a local attributes file differs, which nobody else has.
-  [[ -n "$file" ]] || return 0
-  # Files whose content hashes to their blob under the attributes so far
-  # hold what a checkout wrote with them, and get written again with the
-  # line below. The content decides, not stat data: the clone wrote them
-  # moments ago, too recently for Git to trust it.
-  local entry info mode object stage line i
-  local -a names=() objects=() hashes=() unchanged=()
-  while IFS= read -r -d '' entry; do
-    info="${entry%%$'\t'*}"
-    read -r mode object stage <<<"$info"
-    entry="${entry#*$'\t'}"
-    [[ "$mode" == 1006[0-9][0-9] && "$stage" == 0 && -f "$entry" && ! -L "$entry" && "$entry" != *$'\n'* ]] || continue
-    names+=("$entry")
-    objects+=("$object")
-  done < <(git ls-files -z --stage -- ":(top,literal)$path")
-  if ((${#names[@]})); then
-    mapfile -t hashes < <(printf '%s\n' "${names[@]}" | git hash-object --stdin-paths)
+    if [[ -n "$ATTRIBUTES_FILE" ]]; then
+      log_step "$path: unset ${CHECKOUT_ATTRIBUTES[*]} for it in $file -- in upstream, only its own .gitattributes apply to its files"
+    else
+      log_warn "$path: Git applies other ${CHECKOUT_ATTRIBUTES[*]} attributes to some of its files than in upstream, which unsetting them above it can't change -- e.g. those of a macro its own .gitattributes defines, which Git accepts only at the top"
+    fi
   fi
-  for i in "${!names[@]}"; do
-    [[ "${hashes[i]:-}" != "${objects[i]}" ]] || unchanged+=("${names[i]}")
-  done
-  line="$(attributes_pattern "${path#"${dir:+$dir/}"}")$(printf ' !%s' "${CHECKOUT_ATTRIBUTES[@]}")"
-  # awk 1 ends the last line with a newline, if it has none.
-  blob="$({
-    git cat-file blob ":$file" | awk 1
-    printf '%s\n' "$line"
-  } | git hash-object -w --stdin)"
-  git update-index --cacheinfo "$(git ls-files -s -- ":(top,literal)$file" | cut -d' ' -f1),$blob,$file"
-  if [[ -f "$file" ]]; then
-    [[ ! -s "$file" || -z "$(tail -c 1 -- "$file")" ]] || echo >>"$file"
-    printf '%s\n' "$line" >>"$file"
-  fi
-  if ((${#unchanged[@]})); then
-    # checkout-index skips a file whose stat data matches its entry.
-    rm -f -- "${unchanged[@]}"
-    printf '%s\0' "${unchanged[@]}" | git checkout-index -u -z --stdin
-  fi
-  git update-index -q --refresh >/dev/null || true
-  log_step "$path: unset ${CHECKOUT_ATTRIBUTES[*]} for it in $file -- in upstream, only its own .gitattributes apply to its files"
+  rm -f "$names" "$upstream" "$monorepo"
 }
 
 # Turns the submodule at <path> into a splice, as clone --from-submodule
@@ -536,12 +527,22 @@ clone_from_submodule() {
   [[ -n "$above" ]] || git config --remove-section "submodule.$name" 2>/dev/null || true
   git rm -q --cached -- ":(top,literal)$path"
   git read-tree --prefix="$path/" "$commit"
+  # Staged before any file is written, so they're written with it. Those
+  # of the checkout were written without the monorepo's attributes.
+  upstream_attributes_line "$path" "$commit" "$(git write-tree)"
+  if [[ -n "$ATTRIBUTES_FILE" ]]; then
+    git update-index --cacheinfo "$(git ls-files -s -- ":(top,literal)$ATTRIBUTES_FILE" | cut -d' ' -f1),$ATTRIBUTES_BLOB,$ATTRIBUTES_FILE"
+    # Edits of the file stay, unstaged.
+    if [[ -f "$ATTRIBUTES_FILE" && ! -L "$ATTRIBUTES_FILE" ]]; then
+      [[ ! -s "$ATTRIBUTES_FILE" || -z "$(tail -c 1 -- "$ATTRIBUTES_FILE")" ]] || echo >>"$ATTRIBUTES_FILE"
+      printf '%s\n' "$ATTRIBUTES_LINE" >>"$ATTRIBUTES_FILE"
+    fi
+  fi
   # Writes only the files that are missing, as in a submodule that was
   # never checked out. A file the checks above missed, e.g. one hidden by
   # assume-unchanged, keeps its edit and shows as changed afterwards.
   git ls-files -z --deleted -- ":(top,literal)$path" | git checkout-index -z --stdin
   git update-index -q --refresh >/dev/null || true
-  keep_upstream_checkout_attributes "$path" "$commit"
   # A commit without files left no folder to write .splice into.
   mkdir -p -- "$path"
   git cat-file blob "$blob" >"$path/$STATE_FILE"
