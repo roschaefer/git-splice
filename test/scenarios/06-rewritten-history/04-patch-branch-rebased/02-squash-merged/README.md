@@ -41,6 +41,15 @@ A pull request that only pulls goes through: its squash merge has
 exactly *n*'s files, and the rebuild starts at *n*. So take the release
 in a pull request of its own, and the local changes in the next one.
 
+The refusal needs the fetched `patches` branch's reflog, which has *q*
+before *n* ([fork point](../README.md)). A clone of the monorepo that
+first fetched after the rewrite has no *q* in it. There, a synced
+commit missing from *n*'s history looks like a move to another
+upstream branch, so the rebuild joins *s* with *p* and *q*, and the
+next push publishes them again. `git merge` does the same after an
+upstream rebase
+([recovering from upstream rebase](https://git-scm.com/docs/git-rebase#_recovering_from_upstream_rebase)).
+
 ## 4. The way out, by hand
 
 Commit the folder's changes on top of `patches` in a clone of the
