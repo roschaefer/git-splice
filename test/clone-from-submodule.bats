@@ -824,3 +824,59 @@ commit_raw_file() {
   [ "$status" -eq 0 ]
   [ -z "$(git status --porcelain)" ]
 }
+
+@test "clone --from-submodule: the line unsetting the monorepo's text attribute names only the splice's folder, whatever its name" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  printf '*.bat text eol=crlf\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "CRLF for .bat"
+  git -c protocol.file.allow=always submodule add -q "$upstream" "#a"
+  git -c protocol.file.allow=always submodule add -q "$upstream" "#ab"
+  git commit -q -m "add two submodules"
+  run cmd_clone --from-submodule "#a"
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 .gitattributes)" = '\#a/** !text !eol' ]
+  [ -z "$(git status --porcelain)" ]
+  [ "$(git check-attr text -- "#ab/run.bat")" = "#ab/run.bat: text: set" ]
+}
+
+@test "attributes_pattern: escapes a leading character a .gitattributes line would read otherwise" {
+  while IFS='|' read -r path expected; do
+    [ "$(attributes_pattern "$path")" = "$expected" ] || {
+      echo "$path: $(attributes_pattern "$path"), expected $expected"
+      return 1
+    }
+  done <<'TABLE'
+vendor/a|vendor/a/**
+vendor/#a|vendor/#a/**
+#a|\#a/**
+!a|\!a/**
+"a|\"a/**
+TABLE
+}
+
+@test "clone --from-submodule: without text attributes above the submodule, .gitattributes stays as it was" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  printf '*.png binary\n*.c diff=cpp\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "attributes"
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat .gitattributes)" = "$(printf '*.png binary\n*.c diff=cpp')" ]
+  [[ "$output" != *"unset text and eol"* ]]
+}
+
+@test "clone --from-submodule: the line goes on a line of its own after a .gitattributes without a final newline, and only it is staged" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  printf '*.bat text eol=crlf' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "CRLF for .bat"
+  add_submodule
+  printf '*.sh text eol=lf' >>.gitattributes
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git show HEAD:.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol')" ]
+  [ "$(cat .gitattributes)" = "$(printf '*.bat text eol=crlf*.sh text eol=lf\nvendor/a/** !text !eol')" ]
+  [ "$(git status --porcelain)" = " M .gitattributes" ]
+}
