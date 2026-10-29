@@ -536,7 +536,7 @@ folder_tree() {
 # several, a command without --upstream needs it (require_default_upstream),
 # so that no order or name in the file decides by accident.
 load_splice_upstream() {
-  local path="$1" records=() record urls=() names=() defaults=() name id="" default="" error q_file i
+  local path="$1" records=() record key value urls=() names=() defaults=() name id="" default="" error q_file i
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
@@ -556,29 +556,31 @@ load_splice_upstream() {
   fi
   unset 'records[-1]'
   for record in "${records[@]}"; do
-    # Each record is <key>, a newline, and the value.
-    case "${record%%$'\n'*}" in
+    # Each record is <key>, a newline, and the value -- or only <key>, for
+    # a key without "= <value>", which git config --get reads as empty.
+    key="${record%%$'\n'*}"
+    value=""
+    [[ "$record" != *$'\n'* ]] || value="${record#*$'\n'}"
+    case "$key" in
       # An empty URL names no upstream.
       upstream.*.url)
-        [[ -n "${record#*$'\n'}" ]] || continue
-        name="${record%%$'\n'*}"
-        name="${name#upstream.}"
+        [[ -n "$value" ]] || continue
+        name="${key#upstream.}"
         name="${name%.url}"
         valid_upstream_name "$name" ||
           die "$path/$STATE_FILE: '$name' isn't supported as an upstream's name -- use letters, digits, '.', '_' and '-'"
         [[ " ${names[*]} " != *" $name "* ]] ||
           die "$path/$STATE_FILE names upstream '$name' twice -- keep one"
-        urls+=("${record#*$'\n'}")
+        urls+=("$value")
         names+=("$name")
         ;;
-      splice.id) id="${record#*$'\n'}" ;;
-      splice.default-upstream) default="${record#*$'\n'}" ;;
+      splice.id) id="$value" ;;
+      splice.default-upstream) default="$value" ;;
       splice.default-branch)
         die "$path/$STATE_FILE has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"
         ;;
       upstream.*.default-branch | upstream.*.default-pin)
-        name="${record%%$'\n'*}"
-        defaults+=("${name%.*}")
+        defaults+=("${key%.*}")
         ;;
     esac
   done

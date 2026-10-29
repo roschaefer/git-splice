@@ -364,3 +364,26 @@ add_upstream() {
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse main)" ]
 }
+
+@test "upstreams: a url key without a value names no upstream, as git config --get reads it as empty" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  printf '[upstream "fork"]\n\turl\n' >>vendor/a/.splice
+  git commit -q -am "vendor/a: a bare url"
+  run splice status vendor/a
+  [ "$status" -eq 0 ]
+  run splice status --upstream fork vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a has no upstream 'fork' -- its upstream is 'origin'" ]
+}
+
+@test "upstreams: an id key without a value reads as no id" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice --unset splice.id
+  printf '[splice]\n\tid\n' >>vendor/a/.splice
+  git commit -q -am "vendor/a: a bare id"
+  run splice status vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a/.splice has no id" ]
+}
