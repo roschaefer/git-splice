@@ -13,8 +13,6 @@ back here.
 | [nested-splices: a and b swap their `.splice`](05-nested-splices/01-nested-splices/swapped-ids.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | A push sends one splice's files to the other's upstream. |
 | [edited-before-push: a change before the pull](06-rewritten-history/01-edited-before-push/change-before-the-pull.md) | [#82](https://github.com/roschaefer/git-splice/issues/82) | The next push publishes the original commit next to its edited version; `pull -s ours` isn't implemented. |
 | [upstream-rewritten-equal-tree: `push --force`](06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) | [#38](https://github.com/roschaefer/git-splice/issues/38) | `push --force`, one of the ways out `merge` prints, publishes the history the upstream rewrote away. |
-| [moved-with-unpushed-commits](07-moved-folders/01-moved-with-unpushed-commits/README.md) | [#4](https://github.com/roschaefer/git-splice/issues/4) | A `git mv` squashes unpushed commits into the move. Workaround: [push before moving](07-moved-folders/01-moved-with-unpushed-commits/push-before-moving.md). |
-| [swapped-splices](07-moved-folders/02-swapped-splices/README.md) | [#4](https://github.com/roschaefer/git-splice/issues/4) | Two folders that trade places fold unpushed work into the swap commit. |
 
 ## Every known bug
 
@@ -34,8 +32,6 @@ ok 02-starting-a-splice/05-init-then-cloned/push-before-fetch.md #11
 ok 05-nested-splices/01-nested-splices/swapped-ids.md #174
 ok 06-rewritten-history/01-edited-before-push/change-before-the-pull.md #82
 ok 06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md #38
-ok 07-moved-folders/01-moved-with-unpushed-commits/README.md #4
-ok 07-moved-folders/02-swapped-splices/README.md #4
 ```
 
 ## Adding a known bug

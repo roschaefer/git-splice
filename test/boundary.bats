@@ -39,6 +39,18 @@ setup() {
   [ "$output" = "$(git rev-parse HEAD)" ]
 }
 
+@test "boundary: a git mv of the folder doesn't move it: the rebuild follows the folder to its old path" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(cmd_boundary vendor/a)"
+  mkdir libs
+  git mv vendor/a libs/a
+  git commit -q -m "move vendor/a"
+  run cmd_boundary libs/a
+  [ "$output" = "$before" ]
+}
+
 @test "boundary: a commit that edits .splice by hand moves it, if nothing is waiting to be pushed" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

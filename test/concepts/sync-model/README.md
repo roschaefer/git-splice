@@ -110,10 +110,11 @@ changed `.splice` and whose folder is the upstream commit it recorded.
 A pull that merged unpushed commits is not B because its folder also
 contains those local changes. Two exceptions:
 
-- **Where the splice starts**, its *mount* (its first `.splice`, or a
-  `git mv`), B is that commit whatever its folder. The rebuild copies it
-  too where its folder isn't U(B), e.g. after `init`, or a `git mv` with
-  unpushed changes.
+- **Where the splice starts**, its *mount* (its first `.splice`), B is
+  that commit whatever its folder. The rebuild copies it too where its
+  folder isn't U(B), e.g. after `init`. A `git mv` of the folder isn't a
+  start: the rebuild follows it to the old path
+  ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
 - **For a nested splice**, B can be the last pull of the splice above,
   and R's history up to there comes from the upstream above, at its
   synced commit ([nesting](../nesting/README.md)).
@@ -213,7 +214,7 @@ shows each pull becoming a separate merge in R's history.
 | Rebuilt tip and synced commit | The copy's parents | Common situation |
 |---|---|---|
 | neither contains the other | rebuilt tip as first parent, synced commit as second: a merge | pulling after both the monorepo and upstream changed, without rewritten upstream history ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md))<br/>![The pull e is rebuilt as e', a merge with b' as its first parent and l as its second](../../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/diverged-then-pulled.drawio.svg) |
-| synced commit contains the rebuilt tip, or there is no rebuilt tip | synced commit | squash-merging a feature branch that also changed the folder ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or starting or moving a splice ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md))<br/>![The synced commit U(H) contains U(B), and the squash merge s is rebuilt as s' on top of U(H)](synced-commit-contains-rebuilt-tip.drawio.svg) |
+| synced commit contains the rebuilt tip, or there is no rebuilt tip | synced commit | squash-merging a feature branch that also changed the folder ([scenario](../../scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/README.md)), or starting a splice<br/>![The synced commit U(H) contains U(B), and the squash merge s is rebuilt as s' on top of U(H)](synced-commit-contains-rebuilt-tip.drawio.svg) |
 | rebuilt tip contains the synced commit | rebuilt tip, and no copy if the folder didn't change | bumping after a push while newer commits remain local ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md#a-bump-while-ahead)), or editing `.splice` by hand<br/>![The bump f records d', which the rebuild e' already contains, so f adds no copy](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-while-ahead.drawio.svg) |
 
 The rebuilt copy becomes the new tip. Once the rebuild reaches H, its
