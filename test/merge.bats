@@ -34,6 +34,25 @@ setup() {
   [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from main at $(git rev-parse --short=7 "$(upstream_refs "$upstream")main")" ]
 }
 
+@test "merge: a divergence pulled after a move joins the unpushed commit from before the move with the upstream's, as git pull would" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "local change" local.txt
+  cd "$monorepo"
+  mkdir -p libs
+  git mv vendor/a libs/a
+  git commit -q -m "reorganize folders"
+  seed_bare_repo "$upstream" "upstream change"
+  splice pull libs/a
+  [ "$(cat libs/a/local.txt)" = "local change" ]
+  grep -q "upstream change" libs/a/file.txt
+  local rebuilt
+  rebuilt="$(rebuild_splice libs/a)"
+  [ "$(git log -1 --format=%s "$rebuilt^1")" = "local change" ]
+  [ "$(git rev-parse "$rebuilt^2")" = "$(git -C "$upstream" rev-parse main)" ]
+  splice push libs/a
+  [ "$(git -C "$upstream" rev-parse main)" = "$rebuilt" ]
+}
+
 @test "merge: refuses an upstream that added a submodule" {
   scenario_pull_ahead "$monorepo" "$upstream"
   local inner="$BATS_TEST_TMPDIR/inner.git"

@@ -356,6 +356,42 @@ two_splices_ahead() {
   [ "$(git log -1 --format=%s "$before_move")" = "local change" ]
 }
 
+@test "rebuild: a move on a feature branch, merged with a merge commit, keeps the unpushed commits from before it" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before_move
+  before_move="$(rebuild_splice vendor/a)"
+  git switch -q -c reorganize
+  mkdir -p libs
+  git mv vendor/a libs/a
+  git commit -q -m "reorganize folders"
+  git switch -q main
+  echo "meanwhile" >README.md
+  git add README.md
+  git commit -q -m "meanwhile on main"
+  git merge -q --no-ff -m "merge reorganize" reorganize
+  [ "$(rebuild_splice libs/a)" = "$before_move" ]
+}
+
+@test "rebuild: changes on both sides of a feature branch that moved the folder become one commit for the merge, on top of the commits from before the move" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c reorganize
+  commit_local "$monorepo" vendor/a "before the move on the branch" branch.txt
+  mkdir -p libs
+  git mv vendor/a libs/a
+  git commit -q -m "reorganize folders"
+  commit_local "$monorepo" libs/a "after the move on the branch" branch.txt
+  git switch -q main
+  commit_local "$monorepo" vendor/a "on main"
+  git merge -q --no-ff -m "merge reorganize" reorganize
+  local rebuilt
+  rebuilt="$(rebuild_splice libs/a)"
+  [ "$(git log --format=%s "$rebuilt")" = $'merge reorganize\non main\nlocal change\nseed' ]
+  [ "$(git rev-parse "$rebuilt:branch.txt")" = "$(git rev-parse HEAD:libs/a/branch.txt)" ]
+  [ "$(git rev-parse "$rebuilt:file.txt")" = "$(git rev-parse HEAD:libs/a/file.txt)" ]
+}
+
 @test "rebuild: commits after a move, and a second move, keep the history" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
