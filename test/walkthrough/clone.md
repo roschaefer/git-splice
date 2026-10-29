@@ -44,9 +44,10 @@ DESCRIPTION
     or '--skip-worktree': an edited file keeps its edit, but a deleted one
     comes back. Clear these flags first. Files Git ignores in the checkout
     stay, and its repository stays in .git/modules/. Git never applied the
-    monorepo's .gitattributes to the submodule's files: where text or eol
-    attributes above the folder would change their line endings, clone
-    unsets these for the folder in the deepest .gitattributes above it.
+    monorepo's .gitattributes to the submodule's files: where text, eol,
+    filter, ident or working-tree-encoding above the folder would change
+    what a checkout writes, clone unsets these for the folder in the
+    deepest .gitattributes above it.
 
     The splice keeps what the submodule followed. submodule.<name>.branch,
     the branch 'git submodule update --remote' follows, becomes the

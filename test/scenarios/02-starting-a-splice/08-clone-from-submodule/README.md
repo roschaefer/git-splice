@@ -18,8 +18,9 @@ it follows from then on depends on the submodule's `branch` in
 | `stable` | follows `stable` | `default-branch stable` | follows `stable` ([submodule-with-branch](02-submodule-with-branch/README.md)) |
 | `.` | follows the branch named like the monorepo's | neither | follows `main` ([submodule-with-branch-dot](03-submodule-with-branch-dot/README.md)) |
 
-Line ending attributes above the submodule never applied to its files,
-and the conversion keeps it that way: those of the monorepo
+Attributes above the submodule that change a checkout, such as line
+endings, never applied to its files, and the conversion keeps it that
+way: those of the monorepo
 ([monorepo-line-endings](04-monorepo-line-endings/README.md)), or of a
 splice above it ([line-endings-in-splice-above](05-line-endings-in-splice-above/README.md)).
 

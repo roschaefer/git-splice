@@ -39,9 +39,10 @@ DESCRIPTION
     or '--skip-worktree': an edited file keeps its edit, but a deleted one
     comes back. Clear these flags first. Files Git ignores in the checkout
     stay, and its repository stays in .git/modules/. Git never applied the
-    monorepo's .gitattributes to the submodule's files: where text or eol
-    attributes above the folder would change their line endings, clone
-    unsets these for the folder in the deepest .gitattributes above it.
+    monorepo's .gitattributes to the submodule's files: where text, eol,
+    filter, ident or working-tree-encoding above the folder would change
+    what a checkout writes, clone unsets these for the folder in the
+    deepest .gitattributes above it.
 
     The splice keeps what the submodule followed. submodule.<name>.branch,
     the branch 'git submodule update --remote' follows, becomes the
@@ -356,16 +357,20 @@ attributes_pattern() {
   printf '%s/**\n' "$pattern"
 }
 
-# Unsets text and eol for the files of the new splice at <path>, at
-# <commit>, where .gitattributes above it give them other line endings
-# than upstream's own do: Git applied those to the submodule's files,
-# never the monorepo's. The line goes to the deepest .gitattributes above
-# the splice, which wins over those further up; the splice's own, deeper
+# The attributes that change what a checkout writes, or what git add
+# stores.
+CHECKOUT_ATTRIBUTES=(text eol filter ident working-tree-encoding)
+
+# Unsets CHECKOUT_ATTRIBUTES for the files of the new splice at <path>,
+# at <commit>, where .gitattributes above it set them otherwise than
+# upstream's own do: Git applied those to the submodule's files, never
+# the monorepo's. The line goes to the deepest .gitattributes above the
+# splice, which wins over those further up; the splice's own, deeper
 # still, win over it. Stages only the line, not other edits of the file.
-keep_upstream_line_endings() {
+keep_upstream_checkout_attributes() {
   local path="$1" commit="$2" dir="$1" file="" blob
-  cmp -s <(git ls-tree -r -z --name-only "$commit" | git -C "$path" check-attr -z --stdin text eol) \
-    <(git ls-tree -r -z --name-only "$commit" | git check-attr -z --source="$commit" --stdin text eol) &&
+  cmp -s <(git ls-tree -r -z --name-only "$commit" | git -C "$path" check-attr -z --stdin "${CHECKOUT_ATTRIBUTES[@]}") \
+    <(git ls-tree -r -z --name-only "$commit" | git check-attr -z --source="$commit" --stdin "${CHECKOUT_ATTRIBUTES[@]}") &&
     return 0
   while [[ -n "$dir" ]]; do
     if [[ "$dir" == */* ]]; then dir="${dir%/*}"; else dir=""; fi
@@ -377,7 +382,7 @@ keep_upstream_line_endings() {
   # Only a local attributes file differs, which nobody else has.
   [[ -n "$file" ]] || return 0
   local line
-  line="$(attributes_pattern "${path#"${dir:+$dir/}"}") !text !eol"
+  line="$(attributes_pattern "${path#"${dir:+$dir/}"}")$(printf ' !%s' "${CHECKOUT_ATTRIBUTES[@]}")"
   # awk 1 ends the last line with a newline, if it has none.
   blob="$({
     git cat-file blob ":$file" | awk 1
@@ -389,7 +394,7 @@ keep_upstream_line_endings() {
     printf '%s\n' "$line" >>"$file"
   fi
   git update-index -q --refresh >/dev/null || true
-  log_step "$path: unset text and eol for it in $file -- line ending attributes above a submodule never applied to its files"
+  log_step "$path: unset ${CHECKOUT_ATTRIBUTES[*]} for it in $file -- Git never applied these from above a submodule to its files"
 }
 
 # Turns the submodule at <path> into a splice, as clone --from-submodule
@@ -479,7 +484,7 @@ clone_from_submodule() {
   # assume-unchanged, keeps its edit and shows as changed afterwards.
   git ls-files -z --deleted -- ":(top,literal)$path" | git checkout-index -z --stdin
   git update-index -q --refresh >/dev/null || true
-  keep_upstream_line_endings "$path" "$commit"
+  keep_upstream_checkout_attributes "$path" "$commit"
   # A commit without files left no folder to write .splice into.
   mkdir -p -- "$path"
   git cat-file blob "$blob" >"$path/$STATE_FILE"
