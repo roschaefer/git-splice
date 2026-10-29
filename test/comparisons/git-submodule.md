@@ -440,10 +440,7 @@ On branch main
 - **The library's files stay out of the monorepo's history.** A clone
   that doesn't need them, `git clone` without `--recurse-submodules`,
   doesn't download them. A splice's files are monorepo content, in every
-  clone. `update = none` in `.gitmodules` keeps a submodule out even of
-  `git submodule update --init --recursive`; `git splice clone
-  --from-submodule` refuses such a submodule rather than adding files no
-  checkout had.
+  clone.
 - **The commit pins an exact upstream revision.** A splice's commit is
   where it last matched upstream; the folder may have changed since.
 - **Access stays separate.** The library can be private while the
