@@ -76,7 +76,7 @@ $ git status --short
 ## Attributes added later
 
 The line wins over the lines before it in the same file. A rule added
-after it applies to the splice again:
+after it applies to the splice again, a known gap ([#311](https://github.com/roschaefer/git-splice/issues/311)):
 
 ```scrut
 $ printf '*.txt text eol=crlf\n' >>.gitattributes && git check-attr eol -- vendor/a/file.txt

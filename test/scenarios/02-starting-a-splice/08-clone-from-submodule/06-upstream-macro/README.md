@@ -4,7 +4,7 @@ Upstream's own `.gitattributes` defines a macro. Git accepts macro
 definitions only in the top-level `.gitattributes`, which upstream's is
 in its own repository and in a submodule, but not in a splice's folder.
 This is a known gap, for a converted submodule and a plain `clone`
-alike.
+alike ([#311](https://github.com/roschaefer/git-splice/issues/311)).
 
 - **Monorepo, on `main`**: no `.gitattributes`. `vendor/a/` is a
   submodule of the upstream, checked out at `add run.bat`.
