@@ -35,6 +35,23 @@ seed_bare_repo() {
   rm -rf "$tmp"
 }
 
+# Commits file $2 with content $3, where printf %b escapes such as \r\n
+# apply, to branch main of bare repository $1, as is: past any line
+# ending conversion.
+commit_raw_file() {
+  local repo="$1" file="$2" content="$3" tmp
+  tmp="$(mktemp -d)"
+  git clone -q "$repo" "$tmp" 2>/dev/null
+  (
+    cd "$tmp"
+    printf '%b' "$content" >"$file"
+    git -c core.autocrlf=false add -- "$file"
+    git -c user.name=Test -c user.email=test@example.com commit -q -m "add $file"
+    git push -q origin HEAD:main
+  )
+  rm -rf "$tmp"
+}
+
 # Commits a submodule of bare repository $2 at path $3 to branch main of
 # bare repository $1.
 add_upstream_submodule() {
