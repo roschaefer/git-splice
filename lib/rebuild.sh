@@ -425,7 +425,7 @@ rebuild_with_start() {
         # can say. merge and pull set REBUILD_JOINS_REWRITTEN: they only
         # compare with the rebuild, and their pull is the way out.
         local previous
-        previous="$(splice_config "$path" commit "$last_sync^1")"
+        previous="$(splice_config "$before_path" commit "$last_sync^1")"
         if [[ -z "${REBUILD_JOINS_REWRITTEN:-}" && -n "$previous" ]] &&
           git cat-file -e "$previous^{commit}" 2>/dev/null &&
           ! git merge-base --is-ancestor "$previous" "$synced" &&
