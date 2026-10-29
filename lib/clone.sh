@@ -196,15 +196,42 @@ cmd_clone() {
   blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")" || exit 1
   tree="$(reroot_tree "$path" "$target^{tree}" "$blob")" || exit 1
   upstream_attributes_line "$path" "$target" "$tree"
+  local unchanged
+  unchanged="$(mktemp)"
+  [[ -z "$ATTRIBUTES_FILE" || -z "$local_folder" ]] || unchanged_files "$path" >"$unchanged"
   # The merge base is an empty folder: the two sides share nothing. The
   # line comes in the same commit, so the files are written with it.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
     "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")" \
     "$ATTRIBUTES_FILE" "$ATTRIBUTES_BLOB"; then
+    rm -f "$unchanged"
     log_err "$path: clone failed"
     exit 1
   fi
+  # The files that were there already were written without the line.
+  # checkout-index skips a file whose stat data matches its entry.
+  if [[ -s "$unchanged" ]]; then
+    xargs -0 rm -f -- <"$unchanged"
+    git checkout-index -u -z --stdin <"$unchanged"
+  fi
+  rm -f "$unchanged"
   log_ok "$path: cloned ${target:0:7} from $upstream_branch"
+}
+
+# Prints the tracked files and symbolic links below <path> that show no
+# change, NUL-terminated: what a checkout wrote there, or what's equal to
+# it.
+unchanged_files() {
+  local path="$1" file
+  local -A changed=()
+  git update-index -q --refresh >/dev/null 2>&1 || true
+  while IFS= read -r -d '' file; do
+    changed[$file]=1
+  done < <(git diff-files -z --name-only -- ":(top,literal)$path")
+  while IFS= read -r -d '' file; do
+    [[ -z "${changed[$file]:-}" && (-f "$file" || -L "$file") ]] && printf '%s\0' "$file"
+  done < <(git ls-files -z -- ":(top,literal)$path")
+  return 0
 }
 
 # Prints the mode of <path> in commit <rev>, e.g. 160000 for a submodule,

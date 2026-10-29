@@ -296,3 +296,24 @@ new_upstream() {
   [[ "$output" == *"vendor/a: Git applies other text eol filter ident working-tree-encoding attributes to some of its files than in upstream, which unsetting them above it can't change -- e.g. those of a macro its own .gitattributes defines, which Git accepts only at the top"* ]]
   [ "$(git show HEAD:.gitattributes)" = '*.png binary' ]
 }
+
+@test "clone: files of an existing folder with upstream's content are written again without the monorepo's attributes, edits kept" {
+  new_upstream
+  commit_raw_file "$upstream" run.bat 'echo run\n'
+  commit_raw_file "$upstream" build.bat 'echo build\n'
+  printf '*.bat text eol=crlf\n' >.gitattributes
+  mkdir -p vendor/a
+  git --git-dir="$upstream" archive main | tar -x -C vendor/a
+  git add .gitattributes vendor/a
+  git commit -q -m "copy vendor/a by hand"
+  rm vendor/a/run.bat vendor/a/build.bat
+  git checkout -- vendor/a
+  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\r\n' | od -c)" ]
+  [ -z "$(git status --porcelain)" ]
+  printf 'echo edited\r\n' >vendor/a/build.bat
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\n' | od -c)" ]
+  [ "$(od -c vendor/a/build.bat)" = "$(printf 'echo edited\r\n' | od -c)" ]
+  [ "$(git status --porcelain)" = " M vendor/a/build.bat" ]
+}
