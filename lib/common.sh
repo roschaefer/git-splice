@@ -536,7 +536,7 @@ folder_tree() {
 # several, a command without --upstream needs it (require_default_upstream),
 # so that no order or name in the file decides by accident.
 load_splice_upstream() {
-  local path="$1" records=() record key value urls=() names=() defaults=() name id="" default="" error q_file i
+  local path="$1" records=() record key value urls=() names=() seen=() defaults=() name id="" default="" error q_file i
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
@@ -564,13 +564,14 @@ load_splice_upstream() {
     case "$key" in
       # An empty URL names no upstream.
       upstream.*.url)
-        [[ -n "$value" ]] || continue
         name="${key#upstream.}"
         name="${name%.url}"
         valid_upstream_name "$name" ||
           die "$path/$STATE_FILE: '$name' isn't supported as an upstream's name -- use letters, digits, '.', '_' and '-'"
-        [[ " ${names[*]} " != *" $name "* ]] ||
+        [[ " ${seen[*]} " != *" $name "* ]] ||
           die "$path/$STATE_FILE names upstream '$name' twice -- keep one"
+        seen+=("$name")
+        [[ -n "$value" ]] || continue
         urls+=("$value")
         names+=("$name")
         ;;
