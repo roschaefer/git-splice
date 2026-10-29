@@ -759,3 +759,62 @@ add_nested_submodule_with_branch() {
   [ "$(git log -1 --format=%s)" = "splice: clone vendor/a from submodule at ${outer_pin:0:7}" ]
   [ -n "$(git diff --cached --name-only -- vendor/a/libs/inner/.splice)" ]
 }
+
+@test "clone --from-submodule: refuses a submodule that update = none keeps out of checkouts" {
+  add_submodule
+  git config --file .gitmodules submodule.vendor/a.update none
+  git commit -q -a -m "keep vendor/a out of checkouts"
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  cd "$BATS_TEST_TMPDIR/colleague"
+  git -c protocol.file.allow=always submodule -q update --init --recursive
+  [ -z "$(ls -A vendor/a)" ]
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: update = none keeps the submodule out of every checkout, and a splice's files are always there -- remove the submodule, or unset submodule.vendor/a.update in .gitmodules and commit to splice it anyway"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+  [ -z "$(ls -A vendor/a)" ]
+}
+
+# As add_nested_submodule, with update = none for libs/inner in upstream's
+# .gitmodules: a recursive checkout leaves its folder empty.
+add_nested_submodule_update_none() {
+  inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  add_upstream_submodule "$upstream" "$inner" libs/inner
+  local tmp
+  tmp="$(mktemp -d)"
+  git clone -q "$upstream" "$tmp"
+  (
+    cd "$tmp"
+    git config --file .gitmodules submodule.libs/inner.update none
+    git commit -q -a -m "keep libs/inner out of checkouts"
+    git push -q origin HEAD:main
+  )
+  rm -rf "$tmp"
+  add_submodule
+  git -c protocol.file.allow=always submodule -q update --init --recursive
+}
+
+@test "clone --from-submodule --recursive: refuses a nested submodule that update = none keeps out of checkouts, the one above converted" {
+  add_nested_submodule_update_none
+  [ -z "$(ls -A vendor/a/libs/inner)" ]
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/libs/inner: update = none keeps the submodule out of every checkout, and a splice's files are always there -- remove the submodule, or unset submodule.libs/inner.update in vendor/a/.gitmodules and commit to splice it anyway"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 040000 ]
+  [ "$(path_mode HEAD vendor/a/libs/inner)" = 160000 ]
+  [ -z "$(ls -A vendor/a/libs/inner)" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule --recursive: a nested submodule with update = none unset and committed is spliced on resume" {
+  add_nested_submodule_update_none
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 1 ]
+  git config --file vendor/a/.gitmodules --unset submodule.libs/inner.update
+  git commit -q -a -m "splice libs/inner anyway"
+  run cmd_clone --from-submodule --recursive vendor/a/libs/inner
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
+}

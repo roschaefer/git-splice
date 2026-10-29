@@ -65,6 +65,9 @@ DESCRIPTION
     is refused. If a nested submodule is refused, the ones above stay
     converted; fix what the message says, then run clone on that path.
 
+    A submodule with update = none is refused: no checkout contains it,
+    and a splice's files are in every checkout.
+
     -m gives the commit this message instead of the default one, which
     names the upstream branch and commit. Nothing reads the message back:
     .splice records them.
