@@ -819,7 +819,7 @@ add_nested_submodule_with_branch() {
   git commit -q -m "add two submodules"
   run cmd_clone --from-submodule "#a"
   [ "$status" -eq 0 ]
-  [ "$(tail -n 1 .gitattributes)" = '\#a/** !text !eol' ]
+  [ "$(tail -n 1 .gitattributes)" = '\#a/** !text !eol !filter !ident !working-tree-encoding' ]
   [ -z "$(git status --porcelain)" ]
   [ "$(git check-attr text -- "#ab/run.bat")" = "#ab/run.bat: text: set" ]
 }
@@ -848,7 +848,7 @@ TABLE
   run cmd_clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat .gitattributes)" = "$(printf '*.png binary\n*.c diff=cpp')" ]
-  [[ "$output" != *"unset text and eol"* ]]
+  [[ "$output" != *"unset text eol"* ]]
 }
 
 @test "clone --from-submodule: the line goes on a line of its own after a .gitattributes without a final newline, and only it is staged" {
@@ -860,7 +860,44 @@ TABLE
   printf '*.sh text eol=lf' >>.gitattributes
   run cmd_clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
-  [ "$(git show HEAD:.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol')" ]
-  [ "$(cat .gitattributes)" = "$(printf '*.bat text eol=crlf*.sh text eol=lf\nvendor/a/** !text !eol')" ]
+  [ "$(git show HEAD:.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
+  [ "$(cat .gitattributes)" = "$(printf '*.bat text eol=crlf*.sh text eol=lf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
   [ "$(git status --porcelain)" = " M .gitattributes" ]
+}
+
+@test "clone --from-submodule: the monorepo's filter attribute doesn't apply to the splice's files" {
+  git config filter.upper.clean "tr a-z A-Z"
+  git config filter.upper.smudge cat
+  printf '*.txt filter=upper\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "upper-case text files"
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+  [ "$(git show HEAD:vendor/a/file.txt)" = seed ]
+}
+
+@test "clone --from-submodule: the monorepo's ident attribute doesn't expand \$Id\$ in the splice's files" {
+  commit_raw_file "$upstream" version.c 'const char *id = "$Id$";\n'
+  printf '*.c ident\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "expand ident in C files"
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  [ "$(cat "$BATS_TEST_TMPDIR/colleague/vendor/a/version.c")" = 'const char *id = "$Id$";' ]
+}
+
+@test "clone --from-submodule: the monorepo's working-tree-encoding attribute doesn't re-encode the splice's files" {
+  printf '*.txt working-tree-encoding=UTF-16LE\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "UTF-16 text files"
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  [ "$(od -c "$BATS_TEST_TMPDIR/colleague/vendor/a/file.txt")" = "$(echo seed | od -c)" ]
 }
