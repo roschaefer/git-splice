@@ -819,22 +819,6 @@ add_nested_submodule_update_none() {
   [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
 }
 
-# Commits file $2 with content $3 to branch main of bare repository $1, as
-# is, past any line ending conversion.
-commit_raw_file() {
-  local repo="$1" file="$2" content="$3" tmp
-  tmp="$(mktemp -d)"
-  git clone -q "$repo" "$tmp"
-  (
-    cd "$tmp"
-    printf '%b' "$content" >"$file"
-    git -c core.autocrlf=false add -- "$file"
-    git commit -q -m "add $file"
-    git push -q origin HEAD:main
-  )
-  rm -rf "$tmp"
-}
-
 @test "clone --from-submodule: a file upstream committed with CRLF stays unmodified under the monorepo's text=auto, which leaves CRLF in the index alone" {
   commit_raw_file "$upstream" run.bat 'echo hi\r\n'
   printf '* text=auto\n' >.gitattributes
