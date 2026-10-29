@@ -146,6 +146,24 @@ setup() {
   [[ "$output" == "!!   lib/a: this shallow clone may cut off where its rebuild starts"* ]]
 }
 
+@test "boundary: a shallow clone that cuts off a moved splice's history names the splice's path now" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  (cd "$monorepo" && splice init lib/a "$upstream" >/dev/null)
+  (
+    cd "$monorepo"
+    mkdir libs pkg
+    git mv lib/a libs/a
+    git commit -q -m "move to libs"
+    git mv libs/a pkg/a
+    git commit -q -m "move to pkg"
+  )
+  git clone -q --depth 2 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  run splice boundary pkg/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == "!!   pkg/a: this shallow clone may cut off where its rebuild starts"* ]]
+}
+
 @test "boundary: a shallow clone deep enough to have the commit before it works" {
   scenario_push_ahead "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "second local change"

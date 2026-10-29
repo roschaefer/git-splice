@@ -344,7 +344,7 @@ rebuild_with_start() {
   local at="" before_path="" upper=""
   local -a paths=() ranges=()
   read_lineage 5 paths ranges last_sync synced at before_path upper < <(splice_lineage "$path" "$rev") || return
-  [[ -z "$last_sync" ]] || refuse_shallow_start "$at" "$last_sync"
+  [[ -z "$last_sync" ]] || refuse_shallow_start "$name" "$last_sync"
 
   # A nested splice's history up to the last sync of a splice above it is
   # in that splice's upstream: a clone or pull of the splice above
@@ -486,7 +486,7 @@ rebuild_with_start() {
       printf -- '- -\n'
       return 0
     fi
-    refuse_shallow_start "$at" "$rebuild_start"
+    refuse_shallow_start "$name" "$rebuild_start"
     range="$upper"
     git rev-parse --verify --quiet "$rebuild_start^1" >/dev/null && range="$rebuild_start^1..$upper"
   fi
