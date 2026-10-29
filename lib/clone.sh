@@ -38,7 +38,10 @@ DESCRIPTION
     so it can't see the ones hidden by 'git update-index --assume-unchanged'
     or '--skip-worktree': an edited file keeps its edit, but a deleted one
     comes back. Clear these flags first. Files Git ignores in the checkout
-    stay, and its repository stays in .git/modules/.
+    stay, and its repository stays in .git/modules/. Git never applied the
+    monorepo's .gitattributes to the submodule's files: where text or eol
+    attributes above the folder would change their line endings, clone
+    unsets these for the folder in the deepest .gitattributes above it.
 
     The splice keeps what the submodule followed. submodule.<name>.branch,
     the branch 'git submodule update --remote' follows, becomes the
@@ -343,6 +346,52 @@ tag_naming() {
     awk -v c="$2" '!found && $1 == c { sub("^refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2; found = 1 }'
 }
 
+# Prints a .gitattributes pattern for everything below folder <path>,
+# a splice path: usable_splice_path leaves out whitespace and glob
+# characters, but a leading #, ! or " would make a comment, a negative
+# pattern or a quoted one.
+attributes_pattern() {
+  local pattern="$1"
+  [[ "$pattern" != [#!\"]* ]] || pattern="\\$pattern"
+  printf '%s/**\n' "$pattern"
+}
+
+# Unsets text and eol for the files of the new splice at <path>, at
+# <commit>, where .gitattributes above it give them other line endings
+# than upstream's own do: Git applied those to the submodule's files,
+# never the monorepo's. The line goes to the deepest .gitattributes above
+# the splice, which wins over those further up; the splice's own, deeper
+# still, win over it. Stages only the line, not other edits of the file.
+keep_upstream_line_endings() {
+  local path="$1" commit="$2" dir="$1" file="" blob
+  cmp -s <(git ls-tree -r -z --name-only "$commit" | git -C "$path" check-attr -z --stdin text eol) \
+    <(git ls-tree -r -z --name-only "$commit" | git check-attr -z --source="$commit" --stdin text eol) &&
+    return 0
+  while [[ -n "$dir" ]]; do
+    if [[ "$dir" == */* ]]; then dir="${dir%/*}"; else dir=""; fi
+    if git cat-file -e ":${dir:+$dir/}.gitattributes" 2>/dev/null; then
+      file="${dir:+$dir/}.gitattributes"
+      break
+    fi
+  done
+  # Only a local attributes file differs, which nobody else has.
+  [[ -n "$file" ]] || return 0
+  local line
+  line="$(attributes_pattern "${path#"${dir:+$dir/}"}") !text !eol"
+  # awk 1 ends the last line with a newline, if it has none.
+  blob="$({
+    git cat-file blob ":$file" | awk 1
+    printf '%s\n' "$line"
+  } | git hash-object -w --stdin)"
+  git update-index --cacheinfo "$(git ls-files -s -- ":(top,literal)$file" | cut -d' ' -f1),$blob,$file"
+  if [[ -f "$file" ]]; then
+    [[ ! -s "$file" || -z "$(tail -c 1 -- "$file")" ]] || echo >>"$file"
+    printf '%s\n' "$line" >>"$file"
+  fi
+  git update-index -q --refresh >/dev/null || true
+  log_step "$path: unset text and eol for it in $file -- line ending attributes above a submodule never applied to its files"
+}
+
 # Turns the submodule at <path> into a splice, as clone --from-submodule
 # does; with <recursive> non-empty, its own submodules too, each in a
 # commit of its own after the one above. A submodule inside a splice --
@@ -430,6 +479,7 @@ clone_from_submodule() {
   # assume-unchanged, keeps its edit and shows as changed afterwards.
   git ls-files -z --deleted -- ":(top,literal)$path" | git checkout-index -z --stdin
   git update-index -q --refresh >/dev/null || true
+  keep_upstream_line_endings "$path" "$commit"
   # A commit without files left no folder to write .splice into.
   mkdir -p -- "$path"
   git cat-file blob "$blob" >"$path/$STATE_FILE"
