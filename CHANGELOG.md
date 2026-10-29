@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.2](https://github.com/roschaefer/git-splice/compare/v0.16.1...v0.16.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **state:** read a .splice key without a value as empty ([#194](https://github.com/roschaefer/git-splice/issues/194)) ([8288a75](https://github.com/roschaefer/git-splice/commit/8288a7534788ff37e03eec15415b5b511fe93975))
+
 ## [0.16.1](https://github.com/roschaefer/git-splice/compare/v0.16.0...v0.16.1) (2026-10-29)
 
 
