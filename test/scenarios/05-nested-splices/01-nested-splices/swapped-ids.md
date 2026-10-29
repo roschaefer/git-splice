@@ -19,7 +19,7 @@ is:
   isn't a cycle either, a splice that contains itself
   ([#86](https://github.com/roschaefer/git-splice/issues/86)).
 - **Each splice follows its id across the swap**, as across a `git mv`
-  ([swapped-splices](../swapped-splices/README.md)): its history from
+  ([swapped-splices](../../07-moved-folders/02-swapped-splices/README.md)): its history from
   before the swap is read from its old path. Nothing from before it
   reaches the other upstream.
 - **But a push replaces the upstream's files.** The swap reads as a
