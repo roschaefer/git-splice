@@ -361,6 +361,28 @@ attributes_pattern() {
 # stores.
 CHECKOUT_ATTRIBUTES=(text eol filter ident working-tree-encoding)
 
+# Prints each NUL-terminated path read with <prefix> in front.
+prefix_paths() {
+  local file
+  while IFS= read -r -d '' file; do
+    printf '%s%s\0' "$1" "$file"
+  done
+}
+
+# Prints the CHECKOUT_ATTRIBUTES of each NUL-terminated path read, one
+# "<attribute> <value>" line each, without the path: the same files under
+# another prefix compare equal. Asks from the top of the repository, as
+# checkout and git add do: Git accepts a macro definition in a nested
+# .gitattributes when asked from below it, but not from the top. Any
+# arguments go to git check-attr.
+checkout_attributes() {
+  local file attribute value
+  git check-attr -z --stdin "$@" "${CHECKOUT_ATTRIBUTES[@]}" 2>/dev/null |
+    while IFS= read -r -d '' file && IFS= read -r -d '' attribute && IFS= read -r -d '' value; do
+      printf '%s %s\n' "$attribute" "$value"
+    done
+}
+
 # Unsets CHECKOUT_ATTRIBUTES for the files of the new splice at <path>,
 # at <commit>, where .gitattributes above it set them otherwise than
 # upstream's own do: Git applied those to the submodule's files, never
@@ -369,8 +391,8 @@ CHECKOUT_ATTRIBUTES=(text eol filter ident working-tree-encoding)
 # still, win over it. Stages only the line, not other edits of the file.
 keep_upstream_checkout_attributes() {
   local path="$1" commit="$2" dir="$1" file="" blob
-  cmp -s <(git ls-tree -r -z --name-only "$commit" | git -C "$path" check-attr -z --stdin "${CHECKOUT_ATTRIBUTES[@]}") \
-    <(git ls-tree -r -z --name-only "$commit" | git check-attr -z --source="$commit" --stdin "${CHECKOUT_ATTRIBUTES[@]}") &&
+  cmp -s <(git ls-tree -r -z --name-only "$commit" | prefix_paths "$path/" | checkout_attributes) \
+    <(git ls-tree -r -z --name-only "$commit" | checkout_attributes --source="$commit") &&
     return 0
   while [[ -n "$dir" ]]; do
     if [[ "$dir" == */* ]]; then dir="${dir%/*}"; else dir=""; fi
