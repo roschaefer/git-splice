@@ -346,32 +346,56 @@ rebuild_with_start() {
   # the outermost, whose upstream has the ones below it too, at least as
   # new as their own synced commits. Only where the upstream above has
   # the same splice at the path: it may have replaced it with another.
-  # The splices above are the ones at its last sync's path, in the newest
-  # commit it had that path: a move since, e.g. of a folder above it,
-  # changes neither its path in the upstream above nor that history.
-  local dir="$at" above above_last_sync above_synced from_above=""
-  local best="" best_last_sync="" best_synced=""
+  # The splices above are looked up along its lineage, newest path first:
+  # within each, its path in the upstream above stays the same, and a
+  # move, e.g. of a folder above it, changes no history there. A splice
+  # above's last sync follows its own moves (splice_lineage), so moving it
+  # isn't one.
+  local dir above above_last_sync above_synced from_above="" k
+  local best="" best_last_sync="" best_synced="" best_k=""
+  local -a seg_paths=("${paths[@]}" "$at") seg_uppers=() seg_lowers=() above_paths above_ranges
+  for ((k = 0; k < ${#paths[@]}; k++)); do
+    seg_uppers+=("${ranges[k]#*..}")
+    seg_lowers+=("${ranges[k]%%..*}")
+  done
+  seg_uppers+=("$upper")
+  seg_lowers+=("")
   if [[ -n "$last_sync" ]]; then
-    while above="$(splice_above_in "$upper" "$dir")"; do
-      dir="$above"
-      above_last_sync="$(splice_last_sync "$above" "$upper")"
-      [[ -n "$above_last_sync" ]] || continue
-      above_synced="$(splice_config "$above" commit "$above_last_sync")"
-      [[ -n "$above_synced" ]] && git cat-file -e "$above_synced^{commit}" 2>/dev/null || continue
-      git merge-base --is-ancestor "$last_sync" "$above_last_sync" || continue
-      [[ -z "$best" ]] || git merge-base --is-ancestor "$best_last_sync" "$above_last_sync" || continue
-      [[ "$(splice_config "${at#"$above/"}" id "$above_synced")" == "$(splice_config "$at" id "$upper")" ]] || continue
-      best="$above" best_last_sync="$above_last_sync" best_synced="$above_synced"
+    for k in "${!seg_paths[@]}"; do
+      dir="${seg_paths[k]}"
+      while above="$(splice_above_in "${seg_uppers[k]}" "$dir")"; do
+        dir="$above"
+        above_paths=() above_ranges=()
+        read_lineage 2 above_paths above_ranges above_last_sync above_synced < <(splice_lineage "$above" "${seg_uppers[k]}") || return
+        [[ -n "$above_last_sync" && -n "$above_synced" ]] || continue
+        git cat-file -e "$above_synced^{commit}" 2>/dev/null || continue
+        git merge-base --is-ancestor "$last_sync" "$above_last_sync" || continue
+        # On a newer path, only a last sync since the move to it.
+        [[ -z "${seg_lowers[k]}" ]] || ! git merge-base --is-ancestor "$above_last_sync" "${seg_lowers[k]}" || continue
+        [[ -z "$best" ]] || git merge-base --is-ancestor "$best_last_sync" "$above_last_sync" || continue
+        [[ "$(splice_config "${seg_paths[k]#"$above/"}" id "$above_synced")" == "$(splice_config "${seg_paths[k]}" id "${seg_uppers[k]}")" ]] || continue
+        best="$above" best_last_sync="$above_last_sync" best_synced="$above_synced" best_k="$k"
+      done
+      [[ -z "$best" ]] || break
     done
   fi
   if [[ -n "$best" ]]; then
-    from_above="$(rebuild_splice "${at#"$best/"}" "$best_synced")" || return
+    from_above="$(rebuild_splice "${seg_paths[best_k]#"$best/"}" "$best_synced")" || return
     if [[ -n "$from_above" ]]; then
-      # A newer last sync above: the splice had its path in its first
-      # parent, since it didn't move after its own last sync.
-      [[ "$best_last_sync" == "$last_sync" ]] || before_path="$at"
+      # A newer last sync above: the splice had this path in its first
+      # parent, or the one before, if the last sync is the move to it.
+      if [[ "$best_last_sync" != "$last_sync" ]]; then
+        before_path="${seg_paths[best_k]}"
+        [[ -z "${seg_lowers[best_k]}" || "$(git rev-parse "$best_last_sync^1")" != "$(git rev-parse "${seg_lowers[best_k]}")" ]] ||
+          before_path="${seg_paths[best_k + 1]}"
+      fi
       last_sync="$best_last_sync"
       synced="$from_above"
+      # The walk starts on that path; only the moves after it are left.
+      at="${seg_paths[best_k]}"
+      upper="${seg_uppers[best_k]}"
+      paths=("${paths[@]:0:best_k}")
+      ranges=("${ranges[@]:0:best_k}")
     fi
   fi
 

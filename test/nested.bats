@@ -239,6 +239,38 @@ swap_splice_files() {
   [ "$(git log -1 --format='%s (%an)' "$before_move")" = "b in a's upstream (Maintainer)" ]
 }
 
+@test "nested: a change to b made in a's upstream keeps its author when a pull of a brings it after a moved" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir libs
+  git mv vendor/a libs/a
+  git commit -q -m "move a"
+  b_changed_in_upstream_a
+  cd "$monorepo"
+  splice pull libs/a
+  local rebuilt
+  rebuilt="$(rebuild_splice libs/a/b)"
+  [ "$(git log -1 --format='%s (%an)' "$rebuilt")" = "b in a's upstream (Maintainer)" ]
+  [ "$(git rev-parse "$rebuilt^")" = "$(git -C "$upstream_b" rev-parse main)" ]
+}
+
+@test "nested: b's unpushed commit from before a moved is kept when a pull of a after the move brings a change to b" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local" local.txt
+  cd "$monorepo"
+  mkdir libs
+  git mv vendor/a libs/a
+  git commit -q -m "move a"
+  b_changed_in_upstream_a
+  cd "$monorepo"
+  splice pull libs/a
+  local rebuilt
+  rebuilt="$(rebuild_splice libs/a/b)"
+  git log --format='%s (%an)' "$rebuilt" | grep -qx "b local (Test)"
+  git log --format='%s (%an)' "$rebuilt" | grep -qx "b in a's upstream (Maintainer)"
+  [ "$(git rev-parse "$rebuilt:local.txt")" = "$(git rev-parse HEAD:libs/a/b/local.txt)" ]
+}
+
 @test "nested: after a moves, b's history from before a's clone still comes from a's upstream, so another monorepo's push of b isn't made again" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local"
@@ -262,6 +294,19 @@ swap_splice_files() {
   git mv b c
   git config --file c/.splice splice.default-branch main
   git commit -q -am "move b to c"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  splice pull vendor/a
+  grep -qx "b local" vendor/a/c/file.txt
+  git log --format=%s "$(rebuild_splice vendor/a/c)" | grep -qx "b local"
+}
+
+@test "nested: a pull of a that moves b without changing its .splice keeps b's unpushed commit, made before the move" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  work_in_upstream_a
+  git mv b c
+  git commit -q -m "move b to c"
   git push -q origin HEAD:main
   cd "$monorepo"
   splice pull vendor/a
