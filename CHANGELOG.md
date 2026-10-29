@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.1](https://github.com/roschaefer/git-splice/compare/v0.16.0...v0.16.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **clone:** refuse to splice a submodule that update = none keeps out of checkouts ([#303](https://github.com/roschaefer/git-splice/issues/303)) ([7252f07](https://github.com/roschaefer/git-splice/commit/7252f07dbca1f66f5a1ebceb6898d2d3415563cc))
+* **rebuild:** follow git mv, so a move keeps unpushed commits ([#24](https://github.com/roschaefer/git-splice/issues/24)) ([7f1003d](https://github.com/roschaefer/git-splice/commit/7f1003db981d039966200d6f4c2401b57e2fb02c)), closes [#4](https://github.com/roschaefer/git-splice/issues/4) [#187](https://github.com/roschaefer/git-splice/issues/187)
+
 ## [0.16.0](https://github.com/roschaefer/git-splice/compare/v0.15.0...v0.16.0) (2026-10-28)
 
 
