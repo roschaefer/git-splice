@@ -770,12 +770,14 @@ add_nested_submodule_with_branch() {
   [ -z "$(ls -A vendor/a)" ]
   run cmd_clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a has update = none"* ]]
+  [[ "$output" == *"vendor/a: update = none keeps the submodule out of every checkout, and a splice's files are always there -- remove the submodule, or unset submodule.vendor/a.update in .gitmodules and commit to splice it anyway"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
   [ -z "$(ls -A vendor/a)" ]
 }
 
-@test "clone --from-submodule --recursive: refuses a nested submodule that update = none keeps out of checkouts, before converting anything" {
+# As add_nested_submodule, with update = none for libs/inner in upstream's
+# .gitmodules: a recursive checkout leaves its folder empty.
+add_nested_submodule_update_none() {
   inner="$BATS_TEST_TMPDIR/inner.git"
   make_bare_repo "$inner"
   seed_bare_repo "$inner" "inner"
@@ -789,14 +791,30 @@ add_nested_submodule_with_branch() {
     git commit -q -a -m "keep libs/inner out of checkouts"
     git push -q origin HEAD:main
   )
+  rm -rf "$tmp"
   add_submodule
   git -c protocol.file.allow=always submodule -q update --init --recursive
+}
+
+@test "clone --from-submodule --recursive: refuses a nested submodule that update = none keeps out of checkouts, the one above converted" {
+  add_nested_submodule_update_none
   [ -z "$(ls -A vendor/a/libs/inner)" ]
-  local before
-  before="$(git rev-parse HEAD)"
   run cmd_clone --from-submodule --recursive vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a/libs/inner has update = none"* ]]
-  [ "$(git rev-parse HEAD)" = "$before" ]
+  [[ "$output" == *"vendor/a/libs/inner: update = none keeps the submodule out of every checkout, and a splice's files are always there -- remove the submodule, or unset submodule.libs/inner.update in vendor/a/.gitmodules and commit to splice it anyway"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 040000 ]
+  [ "$(path_mode HEAD vendor/a/libs/inner)" = 160000 ]
   [ -z "$(ls -A vendor/a/libs/inner)" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule --recursive: a nested submodule with update = none unset and committed is spliced on resume" {
+  add_nested_submodule_update_none
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 1 ]
+  git config --file vendor/a/.gitmodules --unset submodule.libs/inner.update
+  git commit -q -a -m "splice libs/inner anyway"
+  run cmd_clone --from-submodule --recursive vendor/a/libs/inner
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
 }
