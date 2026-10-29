@@ -255,19 +255,6 @@ new_upstream() {
   [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\n' | od -c)" ]
 }
 
-@test "clone --merge: a conflict stages the line unsetting the monorepo's attributes with it" {
-  new_upstream
-  commit_raw_file "$upstream" build.bat 'echo build\r\n'
-  printf '*.bat text eol=crlf\n' >.gitattributes
-  mkdir -p vendor/a
-  echo "mine" >vendor/a/file.txt
-  git add .gitattributes vendor/a
-  git commit -q -m "CRLF for .bat, vendor/a by hand"
-  run cmd_clone --merge "$upstream" vendor/a
-  [ "$status" -eq 1 ]
-  [ "$(git show :.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
-}
-
 @test "clone: the line unsetting the monorepo's attributes skips a .gitattributes that's a symbolic link, which Git doesn't read" {
   scenario_clone_under_monorepo_attributes "$monorepo" "$upstream"
   cd "$monorepo"
@@ -297,23 +284,20 @@ new_upstream() {
   [ "$(git show HEAD:.gitattributes)" = '*.png binary' ]
 }
 
-@test "clone: files of an existing folder with upstream's content are written again without the monorepo's attributes, edits kept" {
+@test "clone: into an existing folder, whose files were checked out with the monorepo's attributes, only names the line unsetting them" {
   new_upstream
   commit_raw_file "$upstream" run.bat 'echo run\n'
-  commit_raw_file "$upstream" build.bat 'echo build\n'
   printf '*.bat text eol=crlf\n' >.gitattributes
   mkdir -p vendor/a
   git --git-dir="$upstream" archive main | tar -x -C vendor/a
   git add .gitattributes vendor/a
   git commit -q -m "copy vendor/a by hand"
-  rm vendor/a/run.bat vendor/a/build.bat
+  rm vendor/a/run.bat
   git checkout -- vendor/a
-  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\r\n' | od -c)" ]
-  [ -z "$(git status --porcelain)" ]
-  printf 'echo edited\r\n' >vendor/a/build.bat
   run cmd_clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
-  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\n' | od -c)" ]
-  [ "$(od -c vendor/a/build.bat)" = "$(printf 'echo edited\r\n' | od -c)" ]
-  [ "$(git status --porcelain)" = " M vendor/a/build.bat" ]
+  [[ "$output" == *"vendor/a: attributes from .gitattributes or above it apply to its files, unlike in upstream, and its files were checked out with them -- 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' in .gitattributes unsets them"* ]]
+  [ "$(git show HEAD:.gitattributes)" = '*.bat text eol=crlf' ]
+  [ -z "$(git status --porcelain)" ]
+  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\r\n' | od -c)" ]
 }

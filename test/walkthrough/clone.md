@@ -38,7 +38,9 @@ DESCRIPTION
     writes or what git add stores, clone unsets these for <path> in the
     deepest .gitattributes above it, in the same commit. Remove that line
     to apply the monorepo's attributes instead; push then sends the files
-    as these store them.
+    as these store them. Where <path> already exists, its files were
+    checked out with the monorepo's attributes, and clone only names the
+    line.
 
     With --from-submodule, <path> is a submodule committed in HEAD, and clone
     turns it into a splice of the same upstream, at the same commit: the

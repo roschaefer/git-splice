@@ -33,7 +33,9 @@ DESCRIPTION
     writes or what git add stores, clone unsets these for <path> in the
     deepest .gitattributes above it, in the same commit. Remove that line
     to apply the monorepo's attributes instead; push then sends the files
-    as these store them.
+    as these store them. Where <path> already exists, its files were
+    checked out with the monorepo's attributes, and clone only names the
+    line.
 
     With --from-submodule, <path> is a submodule committed in HEAD, and clone
     turns it into a splice of the same upstream, at the same commit: the
@@ -196,42 +198,24 @@ cmd_clone() {
   blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")" || exit 1
   tree="$(reroot_tree "$path" "$target^{tree}" "$blob")" || exit 1
   upstream_attributes_line "$path" "$target" "$tree"
-  local unchanged
-  unchanged="$(mktemp)"
-  [[ -z "$ATTRIBUTES_FILE" || -z "$local_folder" ]] || unchanged_files "$path" >"$unchanged"
+  if [[ -n "$ATTRIBUTES_FILE" && -n "$local_folder" ]]; then
+    # Its files were checked out with the monorepo's attributes, and
+    # whether one can be written again without losing an edit is more
+    # than git status can tell.
+    log_warn "$path: attributes from $ATTRIBUTES_FILE or above it apply to its files, unlike in upstream, and its files were checked out with them -- '$ATTRIBUTES_LINE' in $ATTRIBUTES_FILE unsets them"
+    ATTRIBUTES_FILE="" ATTRIBUTES_BLOB=""
+  elif [[ -n "$ATTRIBUTES_FILE" ]]; then
+    log_attributes_line "$path"
+  fi
   # The merge base is an empty folder: the two sides share nothing. The
   # line comes in the same commit, so the files are written with it.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
     "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")" \
     "$ATTRIBUTES_FILE" "$ATTRIBUTES_BLOB"; then
-    rm -f "$unchanged"
     log_err "$path: clone failed"
     exit 1
   fi
-  # The files that were there already were written without the line.
-  # checkout-index skips a file whose stat data matches its entry.
-  if [[ -s "$unchanged" ]]; then
-    xargs -0 rm -f -- <"$unchanged"
-    git checkout-index -u -z --stdin <"$unchanged"
-  fi
-  rm -f "$unchanged"
   log_ok "$path: cloned ${target:0:7} from $upstream_branch"
-}
-
-# Prints the tracked files and symbolic links below <path> that show no
-# change, NUL-terminated: what a checkout wrote there, or what's equal to
-# it.
-unchanged_files() {
-  local path="$1" file
-  local -A changed=()
-  git update-index -q --refresh >/dev/null 2>&1 || true
-  while IFS= read -r -d '' file; do
-    changed[$file]=1
-  done < <(git diff-files -z --name-only -- ":(top,literal)$path")
-  while IFS= read -r -d '' file; do
-    [[ -z "${changed[$file]:-}" && (-f "$file" || -L "$file") ]] && printf '%s\0' "$file"
-  done < <(git ls-files -z -- ":(top,literal)$path")
-  return 0
 }
 
 # Prints the mode of <path> in commit <rev>, e.g. 160000 for a submodule,
@@ -430,6 +414,7 @@ checkout_attributes() (
 # splice's own, deeper still, win over it. Where that wouldn't make them
 # match, e.g. for a macro upstream's own .gitattributes defines, which
 # Git accepts only at the top, it says so and sets nothing.
+# log_attributes_line reports a line found.
 upstream_attributes_line() {
   local path="$1" commit="$2" tree="$3" dir="$1" file="" names upstream monorepo
   ATTRIBUTES_FILE="" ATTRIBUTES_LINE="" ATTRIBUTES_BLOB=""
@@ -463,13 +448,15 @@ upstream_attributes_line() {
           ATTRIBUTES_FILE="$file" ATTRIBUTES_LINE="$line" ATTRIBUTES_BLOB="$blob"
         fi
     fi
-    if [[ -n "$ATTRIBUTES_FILE" ]]; then
-      log_step "$path: unset ${CHECKOUT_ATTRIBUTES[*]} for it in $file -- in upstream, only its own .gitattributes apply to its files"
-    else
+    [[ -n "$ATTRIBUTES_FILE" ]] ||
       log_warn "$path: Git applies other ${CHECKOUT_ATTRIBUTES[*]} attributes to some of its files than in upstream, which unsetting them above it can't change -- e.g. those of a macro its own .gitattributes defines, which Git accepts only at the top"
-    fi
   fi
   rm -f "$names" "$upstream" "$monorepo"
+}
+
+# Says that <path> gets the line upstream_attributes_line found.
+log_attributes_line() {
+  log_step "$1: unset ${CHECKOUT_ATTRIBUTES[*]} for it in $ATTRIBUTES_FILE -- in upstream, only its own .gitattributes apply to its files"
 }
 
 # Turns the submodule at <path> into a splice, as clone --from-submodule
@@ -558,6 +545,7 @@ clone_from_submodule() {
   # of the checkout were written without the monorepo's attributes.
   upstream_attributes_line "$path" "$commit" "$(git write-tree)"
   if [[ -n "$ATTRIBUTES_FILE" ]]; then
+    log_attributes_line "$path"
     git update-index --cacheinfo "$(git ls-files -s -- ":(top,literal)$ATTRIBUTES_FILE" | cut -d' ' -f1),$ATTRIBUTES_BLOB,$ATTRIBUTES_FILE"
     # Edits of the file stay, unstaged.
     if [[ -f "$ATTRIBUTES_FILE" && ! -L "$ATTRIBUTES_FILE" ]]; then
