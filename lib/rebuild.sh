@@ -346,29 +346,30 @@ rebuild_with_start() {
   # the outermost, whose upstream has the ones below it too, at least as
   # new as their own synced commits. Only where the upstream above has
   # the same splice at the path: it may have replaced it with another.
-  # And only if the splice didn't move since its last sync: the path in
-  # the upstream above would be another one.
-  local dir="$path" above above_last_sync above_synced from_above=""
+  # The splices above are the ones at its last sync's path, in the newest
+  # commit it had that path: a move since, e.g. of a folder above it,
+  # changes neither its path in the upstream above nor that history.
+  local dir="$at" above above_last_sync above_synced from_above=""
   local best="" best_last_sync="" best_synced=""
-  if [[ -n "$last_sync" && ${#paths[@]} -eq 0 ]]; then
-    while above="$(splice_above_in "$rev" "$dir")"; do
+  if [[ -n "$last_sync" ]]; then
+    while above="$(splice_above_in "$upper" "$dir")"; do
       dir="$above"
-      above_last_sync="$(splice_last_sync "$above" "$rev")"
+      above_last_sync="$(splice_last_sync "$above" "$upper")"
       [[ -n "$above_last_sync" ]] || continue
       above_synced="$(splice_config "$above" commit "$above_last_sync")"
       [[ -n "$above_synced" ]] && git cat-file -e "$above_synced^{commit}" 2>/dev/null || continue
       git merge-base --is-ancestor "$last_sync" "$above_last_sync" || continue
       [[ -z "$best" ]] || git merge-base --is-ancestor "$best_last_sync" "$above_last_sync" || continue
-      [[ "$(splice_config "${path#"$above/"}" id "$above_synced")" == "$(splice_config "$path" id "$rev")" ]] || continue
+      [[ "$(splice_config "${at#"$above/"}" id "$above_synced")" == "$(splice_config "$at" id "$upper")" ]] || continue
       best="$above" best_last_sync="$above_last_sync" best_synced="$above_synced"
     done
   fi
   if [[ -n "$best" ]]; then
-    from_above="$(rebuild_splice "${path#"$best/"}" "$best_synced")" || return
+    from_above="$(rebuild_splice "${at#"$best/"}" "$best_synced")" || return
     if [[ -n "$from_above" ]]; then
       # A newer last sync above: the splice had its path in its first
       # parent, since it didn't move after its own last sync.
-      [[ "$best_last_sync" == "$last_sync" ]] || before_path="$path"
+      [[ "$best_last_sync" == "$last_sync" ]] || before_path="$at"
       last_sync="$best_last_sync"
       synced="$from_above"
     fi
