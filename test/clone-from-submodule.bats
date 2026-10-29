@@ -818,3 +818,68 @@ add_nested_submodule_update_none() {
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
 }
+
+# Commits file $2 with content $3 to branch main of bare repository $1, as
+# is, past any line ending conversion.
+commit_raw_file() {
+  local repo="$1" file="$2" content="$3" tmp
+  tmp="$(mktemp -d)"
+  git clone -q "$repo" "$tmp"
+  (
+    cd "$tmp"
+    printf '%b' "$content" >"$file"
+    git -c core.autocrlf=false add -- "$file"
+    git commit -q -m "add $file"
+    git push -q origin HEAD:main
+  )
+  rm -rf "$tmp"
+}
+
+@test "clone --from-submodule: a file upstream committed with CRLF stays unmodified under the monorepo's text=auto, which leaves CRLF in the index alone" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  printf '* text=auto\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "normalize line endings"
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule: a file upstream committed with CRLF stays unmodified under the monorepo's text attribute" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  printf '*.bat text eol=crlf\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "normalize line endings"
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule: a file upstream committed with LF checks out as the submodule did, under the monorepo's eol attribute" {
+  commit_raw_file "$upstream" run.bat 'echo hi\n'
+  printf '*.bat text eol=crlf\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "CRLF for .bat"
+  add_submodule
+  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo hi\n' | od -c)" ]
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  [ "$(od -c "$BATS_TEST_TMPDIR/colleague/vendor/a/run.bat")" = "$(printf 'echo hi\n' | od -c)" ]
+}
+
+@test "clone --from-submodule --recursive: a file the nested upstream committed with CRLF stays unmodified under the splice above's text attributes" {
+  inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  commit_raw_file "$inner" settings.h '#define X 1\r\n'
+  commit_raw_file "$upstream" .gitattributes '*.h text eol=lf\n'
+  add_upstream_submodule "$upstream" "$inner" libs/inner
+  add_submodule
+  git -c protocol.file.allow=always submodule -q update --init --recursive
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+}
