@@ -1,0 +1,330 @@
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+use std::collections::BTreeMap;
+use std::io::ErrorKind;
+use std::io::Seek;
+use std::io::Write;
+use std::path::PathBuf;
+use std::time::Duration;
+use std::time::Instant;
+
+use anyhow::Context;
+use anyhow::Result;
+use subprocess::Exec;
+use subprocess::ExitStatus;
+use subprocess::Job;
+use subprocess::Redirection;
+use tempfile::tempfile_in;
+use tracing::debug;
+use tracing::debug_span;
+use tracing::trace;
+
+use super::DEFAULT_SHELL;
+use super::context::Context as ExecutionContext;
+use super::runner::Runner;
+use crate::output::DetachedProcess;
+use crate::output::ExitStatus as OutputExitStatus;
+use crate::output::Output;
+use crate::testcase::TestCase;
+
+/// A runner that starts an interpreter (usually `bash`) in a sub-process and
+/// writes the shell expression of a given [`crate::testcase::TestCase`] into
+/// STDIN.
+///
+/// Constraining the max execution time is supported.
+#[derive(Clone)]
+pub struct SubprocessRunner(pub(super) PathBuf);
+
+impl SubprocessRunner {
+    pub fn new(p: PathBuf) -> Self {
+        Self(p)
+    }
+}
+
+impl Runner for SubprocessRunner {
+    fn run(&self, _name: &str, testcase: &TestCase, context: &ExecutionContext) -> Result<Output> {
+        let shell = &self.0;
+
+        // apply environment variables (ensure SHELL is set)
+        let mut envs = testcase.config.environment.clone();
+        envs.insert("SHELL".into(), shell.to_string_lossy().to_string());
+
+        let mut exec = Exec::cmd(shell)
+            .env_extend(&envs)
+            .cwd(&context.work_directory);
+
+        let input = &testcase.shell_expression as &str;
+        let is_detached = testcase.config.detached.unwrap_or(false);
+        if is_detached {
+            // Why is a temporary file created here? Because the subprocess crate closes the
+            // STDIN pipe when it goes out of scope, which will interrupt the detached child.
+            let mut tmp =
+                tempfile_in(&context.temp_directory).context("Create temporary STDIN file")?;
+            tmp.write(input.as_bytes()).context("write to STDIN file")?;
+            tmp.seek(std::io::SeekFrom::Start(0))
+                .context("reset STDIN file")?;
+            exec = exec
+                .stdout(Redirection::Null)
+                .stderr(Redirection::Null)
+                .stdin(Redirection::File(tmp));
+        } else {
+            exec = exec
+                .stdout(Redirection::Pipe)
+                .stderr(
+                    if testcase.config.output_stream
+                        == Some(crate::config::OutputStreamControl::Combined)
+                    {
+                        Redirection::Merge
+                    } else {
+                        Redirection::Pipe
+                    },
+                )
+                .stdin(input.as_bytes().to_vec());
+        }
+
+        let started = Instant::now();
+        let mut process = start(exec.detached()).context("start process")?;
+        let span = debug_span!("process", pid = ?process.pid());
+        let _s = span.enter();
+        trace!(testcase = %&testcase, "running testcase in subprocess");
+
+        // when detaching, do not wait for the process to finish
+        if is_detached {
+            let detached_process =
+                testcase
+                    .config
+                    .detached_kill_signal
+                    .clone()
+                    .map(|signal| DetachedProcess {
+                        pid: process.pid(),
+                        signal,
+                    });
+            debug!(
+                "detaching, not waiting for output, marking for kill = {}",
+                detached_process.is_some(),
+            );
+            return Ok(Output {
+                exit_code: OutputExitStatus::Detached,
+                detached_process,
+                duration: Some(started.elapsed()),
+                ..Default::default()
+            });
+        }
+
+        // constraint max execution time?
+        let mut comm = process.communicate().context("communicate with process")?;
+        if let Some(timeout) = testcase.config.timeout {
+            comm = comm.limit_time(timeout);
+            debug!(
+                "waiting for output (max {})",
+                humantime::format_duration(Duration::from_secs(timeout.as_secs()))
+            );
+        } else {
+            debug!("waiting for output (no timeout)");
+        }
+
+        // wait for the process to finish and handle the result; on error, the
+        // output read until then is kept
+        let (mut stdout, mut stderr) = (vec![], vec![]);
+        let exit_code = match comm.read_to(&mut stdout, &mut stderr) {
+            // successs! we are happy!
+            Ok(()) => process.wait().context("capture process exit")?.into(),
+
+            // bummer, a sad thing happened
+            Err(err) => {
+                let kind = err.kind();
+
+                // windows execution returns [`ErrorKind::BrokenPipe`] in case
+                // anything explicitly runs `exit <code>`
+                if cfg!(windows) {
+                    let process_code = process.wait().ok().and_then(|status| status.code());
+                    if kind == ErrorKind::TimedOut {
+                        OutputExitStatus::Timeout(testcase.config.timeout.unwrap_or_default())
+                    } else if let Some(code) = process_code {
+                        (code as i32).into()
+                    } else {
+                        OutputExitStatus::Unknown
+                    }
+                } else if kind == ErrorKind::TimedOut {
+                    OutputExitStatus::Timeout(testcase.config.timeout.unwrap_or_default())
+                } else {
+                    OutputExitStatus::Unknown
+                }
+            }
+        };
+
+        Ok(Output {
+            stderr: testcase.render_output(&stderr[..])?.to_vec().into(),
+            stdout: testcase.render_output(&stdout[..])?.to_vec().into(),
+            exit_code,
+            detached_process: None,
+            captured_env: BTreeMap::new(),
+            duration: Some(started.elapsed()),
+            validation_result: None,
+        })
+    }
+}
+
+/// Starts the process of `exec`. Where there is no `pipe2()`, subprocess
+/// creates its pipes with `pipe()` and marks them close-on-exec only
+/// afterwards, so a process another thread starts in between (see `--jobs`)
+/// would inherit them, and could keep this process's STDIN open. Starting
+/// one process at a time there closes that gap.
+fn start(exec: Exec) -> std::io::Result<Job> {
+    #[cfg(any(target_os = "aix", target_vendor = "apple", target_os = "haiku"))]
+    let _one_at_a_time = {
+        static STARTING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        STARTING
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    };
+    exec.start()
+}
+
+impl Default for SubprocessRunner {
+    fn default() -> Self {
+        Self(DEFAULT_SHELL.to_owned())
+    }
+}
+
+impl From<ExitStatus> for OutputExitStatus {
+    fn from(value: ExitStatus) -> Self {
+        match value.code() {
+            Some(code) => OutputExitStatus::Code(code as i32),
+            None => OutputExitStatus::Unknown,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::Runner;
+    use super::SubprocessRunner;
+    use crate::config::OutputStreamControl;
+    use crate::config::TestCaseConfig;
+    use crate::executors::context::Context as ExecutionContext;
+    use crate::output::ExitStatus;
+    use crate::output::Output;
+    use crate::testcase::TestCase;
+
+    #[cfg(not(target_os = "windows"))]
+    #[cfg(feature = "volatile_tests")]
+    #[test]
+    fn test_execute_with_timeout_with_timeout() {
+        let output = SubprocessRunner::default()
+            .run(
+                "name",
+                &TestCase::from_expression("sleep 0.2 && echo OK1 && sleep 0.2 && echo OK2"),
+                &ExecutionContext::new_for_test(),
+            )
+            .expect("execute without error");
+        let expect: Output = ("OK1\nOK2\n", "").into();
+        assert_eq!(expect, output);
+    }
+
+    #[test]
+    fn test_execute_captures_stdout_and_stderr_separately() {
+        let output = SubprocessRunner::default()
+            .run(
+                "name",
+                &TestCase::from_expression("echo OK1 && ( 1>&2 echo OK2 )"),
+                &ExecutionContext::new_for_test(),
+            )
+            .expect("execute without error");
+        let expect: Output = ("OK1\n", "OK2\n").into();
+        assert_eq!(expect, output);
+    }
+
+    #[test]
+    fn test_execute_captures_stdout_and_stderr_combined() {
+        let output = SubprocessRunner::default()
+            .run(
+                "name",
+                &TestCase {
+                    title: "Test".into(),
+                    shell_expression: "echo OK1 && ( 1>&2 echo OK2 )".into(),
+                    config: TestCaseConfig {
+                        output_stream: Some(OutputStreamControl::Combined),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                &ExecutionContext::new_for_test(),
+            )
+            .expect("execute without error");
+        let expect: Output = ("OK1\nOK2\n", "").into();
+        assert_eq!(expect, output);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_execute_captures_non_printable_characters() {
+        let output = SubprocessRunner::default()
+            .run(
+                "name",
+                &TestCase::from_expression("echo -e \"🦀\r\n😊\""),
+                &ExecutionContext::new_for_test(),
+            )
+            .expect("execute without error");
+
+        let expect: Output = ("🦀\n😊\n", "").into();
+        assert_eq!(expect, output);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_execute_captures_exit_code() {
+        let output = SubprocessRunner::default()
+            .run(
+                "name",
+                &TestCase::from_expression("( exit 123 )"),
+                &ExecutionContext::new_for_test(),
+            )
+            .expect("execute without error");
+
+        let expect: Output = ("", "", Some(123)).into();
+        assert_eq!(expect, output);
+    }
+
+    #[test]
+    fn test_execute_respects_timeout() {
+        let start = std::time::SystemTime::now();
+        let output = SubprocessRunner::default()
+            .run(
+                "name",
+                &TestCase::from_expression_timed(
+                    "echo ONE && sleep 1 && echo TWO",
+                    Some(Duration::from_millis(100)),
+                ),
+                &ExecutionContext::new_for_test(),
+            )
+            .expect("execution still ends in non-error");
+        let duration = std::time::SystemTime::now()
+            .duration_since(start)
+            .expect("duration between start and now");
+
+        assert!(
+            duration >= Duration::from_millis(100),
+            "waited at least 100 ms ({:?})",
+            duration,
+        );
+        let max_wait = if cfg!(windows) { 10000 } else { 1000 };
+        assert!(
+            duration < Duration::from_millis(max_wait),
+            "waited at most 1 s ({:?})",
+            duration,
+        );
+        assert_eq!(
+            ExitStatus::Timeout(Duration::from_millis(100)),
+            output.exit_code,
+            "timeout reflected in exit code",
+        );
+    }
+}

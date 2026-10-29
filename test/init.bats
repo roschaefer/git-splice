@@ -2,8 +2,8 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/init-new-upstream/setup'
-  load 'scenarios/up-to-date/setup'
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -19,6 +19,16 @@ setup() {
   [ "$(git status --porcelain)" = "A  other.txt" ]
   [ "$(git config --file lib/a/.splice upstream.origin.url)" = "$upstream" ]
   [ -z "$(splice_config lib/a commit)" ]
+}
+
+@test "init -m: the commit gets the message, and the first push sends it" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  run cmd_init -m "a: publish lib/a" lib/a "$upstream"
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "a: publish lib/a" ]
+  cmd_push lib/a
+  [ "$(git -C "$upstream" log --format=%s main)" = "a: publish lib/a" ]
 }
 
 @test "init: gives the splice an id" {

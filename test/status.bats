@@ -4,23 +4,24 @@ setup() {
   hermetic_git_config
   local scenario
   for scenario in \
-    up-to-date \
-    up-to-date/push-ahead \
-    up-to-date/pull-ahead \
-    up-to-date/push-ahead/diverged-common-ancestor \
-    up-to-date/push-ahead/diverged-unrelated-history \
-    never-fetched \
-    up-to-date/feature-branch-unchanged \
-    up-to-date/feature-branch-unchanged/feature-branch-changed \
-    up-to-date/diverged-then-pulled \
-    up-to-date/push-ahead/pushed-then-pulled/pushed-then-changed \
-    up-to-date/squash-merged-pull \
-    up-to-date/feature-branch-unchanged/merge-in-monorepo \
-    default-branch \
-    up-to-date/shared-remote-url \
-    init-new-upstream \
-    up-to-date/push-ahead/uncommitted-changes \
-    nested-splices; do
+    01-everyday-sync/02-up-to-date \
+    01-everyday-sync/02-up-to-date/02-push-ahead \
+    01-everyday-sync/02-up-to-date/01-pull-ahead \
+    01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor \
+    06-rewritten-history/03-diverged-unrelated-history \
+    01-everyday-sync/04-never-fetched \
+    03-branches-and-teamwork/01-feature-branch-unchanged \
+    03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed \
+    01-everyday-sync/02-up-to-date/03-diverged-then-pulled \
+    01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-then-changed \
+    03-branches-and-teamwork/03-squash-merged-pull \
+    03-branches-and-teamwork/01-feature-branch-unchanged/02-merge-in-monorepo \
+    04-upstreams/01-default-branch \
+    04-upstreams/03-shared-remote-url \
+    02-starting-a-splice/04-init-new-upstream \
+    01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
+    05-nested-splices/01-nested-splices \
+    03-branches-and-teamwork/06-teammate-pulled; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -42,6 +43,15 @@ assert_state() {
 @test "classify_splice: diverged" { assert_state diverged-common-ancestor diverged; }
 @test "classify_splice: unrelated-history" { assert_state diverged-unrelated-history unrelated-history; }
 @test "classify_splice: never-fetched" { assert_state never-fetched never-fetched; }
+@test "classify_splice: missing-synced after a teammate's pull that wasn't fetched" { assert_state teammate-pulled missing-synced; }
+
+@test "classify_splice: up-to-date once a teammate's pull is fetched" {
+  scenario_teammate_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice fetch vendor/a >/dev/null 2>&1
+  classify_splice vendor/a main
+  [ "$SPLICE_STATE" = up-to-date ]
+}
 @test "classify_splice: missing-branch" { assert_state feature-branch-unchanged missing-branch; }
 @test "classify_splice: push after pulling a divergence" { assert_state diverged-then-pulled push; }
 @test "classify_splice: push after our own push and another local change" { assert_state pushed-then-changed push; }
@@ -158,7 +168,7 @@ EOF
 }
 
 @test "status: a missing branch is new with commits from the branch it was cut from that upstream lacks" {
-  load 'scenarios/up-to-date/push-ahead/feature-branch-from-main/setup'
+  load 'scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
@@ -292,10 +302,28 @@ EOF
 }
 
 @test "status: a missing branch is unchanged right after cloning on a feature branch: upstream has every commit" {
-  load 'scenarios/clone-on-feature-branch/setup'
+  load 'scenarios/02-starting-a-splice/03-clone-on-feature-branch/setup'
   scenario_clone_on_feature_branch "$monorepo" "$upstream"
   cd "$monorepo"
   splice clone "$upstream" vendor/a >/dev/null
+  run cmd_status
+  [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
+}
+
+@test "status: a missing branch is unchanged when a PR from it would show no changes, though its commits are new: a change and its revert" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  git -C "$monorepo" revert --no-edit HEAD >/dev/null
+  cd "$monorepo"
+  run cmd_status
+  [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
+}
+
+@test "status: a missing branch with a change and its revert stays unchanged after upstream's default branch moves on" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  git -C "$monorepo" revert --no-edit HEAD >/dev/null
+  seed_bare_repo "$upstream" "upstream change"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
   run cmd_status
   [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
 }
@@ -360,7 +388,7 @@ EOF
 }
 
 @test "status: lists the splices that need something first, most urgent first, then the quiet ones" {
-  load 'scenarios/many-splices/setup'
+  load 'scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   run cmd_status
@@ -378,7 +406,7 @@ EOF2
 }
 
 @test "status: a quiet splice with uncommitted changes moves up" {
-  load 'scenarios/many-splices/setup'
+  load 'scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   echo "work in progress" >>libs/cli/file.txt
@@ -388,7 +416,7 @@ EOF2
 }
 
 @test "status: without a splice that needs something, prints no blank line between groups" {
-  load 'scenarios/many-splices/setup'
+  load 'scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q -b feature

@@ -196,7 +196,7 @@ a subfolder's. Upstreams are fetched and pushed by URL, from the committed
   nor a repository.
 - Nothing needs installing per clone, `--no-verify` has nothing to skip,
   and no tool sees an invalid or unusual URL.
-- `git splice push` updates `refs/splices/<key>/<branch>` itself, so
+- `git splice push` updates `refs/splices/<key>/heads/<branch>` itself, so
   `status` stays current without tracking refs.
 
 What remains is typing an upstream's URL into a plain `git push` by hand,
@@ -208,7 +208,7 @@ what never belonged to the splice: everything before the splice's
 [mount](README.md#splicing-out-push-and-the-rebuild), the commit where the
 folder became this splice. A folder's history from before it got its
 `.splice` stays in the monorepo
-([example](../../test/scenarios/init-new-upstream/removed-before-init/README.md)),
+([example](../../test/scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)),
 and so does another splice's, e.g. after two splices swapped paths
-([example](../../test/scenarios/swapped-splices/README.md),
+([example](../../test/scenarios/07-moved-folders/02-swapped-splices/README.md),
 [#73](https://github.com/roschaefer/git-splice/issues/73)).

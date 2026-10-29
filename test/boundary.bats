@@ -2,13 +2,13 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/up-to-date/push-ahead/setup'
-  load 'scenarios/up-to-date/pull-ahead/setup'
-  load 'scenarios/up-to-date/shared-remote-url/setup'
-  load 'scenarios/nested-splices/setup'
-  load 'scenarios/init-new-upstream/setup'
-  load 'scenarios/sync-model/after-pull/setup'
-  load 'scenarios/up-to-date/squash-merged-pull/local-edit-in-the-squash/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
+  load 'scenarios/04-upstreams/03-shared-remote-url/setup'
+  load 'scenarios/05-nested-splices/01-nested-splices/setup'
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load 'scenarios/01-everyday-sync/01-sync-model/01-after-pull/setup'
+  load 'scenarios/03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -39,6 +39,18 @@ setup() {
   [ "$output" = "$(git rev-parse HEAD)" ]
 }
 
+@test "boundary: a git mv of the folder doesn't move it: the rebuild follows the folder to its old path" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(cmd_boundary vendor/a)"
+  mkdir libs
+  git mv vendor/a libs/a
+  git commit -q -m "move vendor/a"
+  run cmd_boundary libs/a
+  [ "$output" = "$before" ]
+}
+
 @test "boundary: a commit that edits .splice by hand moves it, if nothing is waiting to be pushed" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
@@ -60,20 +72,20 @@ setup() {
 @test "boundary: a pull that merged unpushed commits leaves it before them" {
   scenario_after_pull "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_boundary vendor/a
+  run cmd_boundary lib
   [ "$output" = "$(git rev-parse HEAD~4)" ]
-  [ "$(git log --first-parent --format=%s "$output"..HEAD -- vendor/a)" = "$(printf '%s\n' 'splice: pull vendor/a from main at '"$(git -C "$upstream" rev-parse --short main)" d b)" ]
+  [ "$(git log --first-parent --format=%s "$output"..HEAD -- lib)" = "$(printf '%s\n' e d b)" ]
 }
 
 @test "boundary: stays before the merged commits after they're pushed, until a bump" {
   scenario_after_pull "$monorepo" "$upstream"
   cd "$monorepo"
-  cmd_push vendor/a >/dev/null
-  cmd_merge vendor/a >/dev/null
-  run cmd_boundary vendor/a
+  cmd_push lib >/dev/null
+  cmd_merge lib >/dev/null
+  run cmd_boundary lib
   [ "$output" = "$(git rev-parse HEAD~4)" ]
-  cmd_merge --bump vendor/a >/dev/null
-  run cmd_boundary vendor/a
+  cmd_merge --bump lib >/dev/null
+  run cmd_boundary lib
   [ "$output" = "$(git rev-parse HEAD)" ]
 }
 
@@ -105,7 +117,7 @@ setup() {
 
 @test "boundary: of a nested splice, in a worktree of the upstream above, is where that upstream's rebuild of it starts" {
   scenario_nested_splices "$monorepo" "$upstream"
-  git -C "$monorepo" worktree add -q --detach "$BATS_TEST_TMPDIR/a" refs/splices/upstream/main
+  git -C "$monorepo" worktree add -q --detach "$BATS_TEST_TMPDIR/a" refs/splices/upstream/heads/main
   cd "$BATS_TEST_TMPDIR/a"
   run cmd_boundary b
   [ "$status" -eq 0 ]
@@ -134,6 +146,24 @@ setup() {
   [[ "$output" == "!!   lib/a: this shallow clone may cut off where its rebuild starts"* ]]
 }
 
+@test "boundary: a shallow clone that cuts off a moved splice's history names the splice's path now" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  (cd "$monorepo" && splice init lib/a "$upstream" >/dev/null)
+  (
+    cd "$monorepo"
+    mkdir libs pkg
+    git mv lib/a libs/a
+    git commit -q -m "move to libs"
+    git mv libs/a pkg/a
+    git commit -q -m "move to pkg"
+  )
+  git clone -q --depth 2 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  run splice boundary pkg/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == "!!   pkg/a: this shallow clone may cut off where its rebuild starts"* ]]
+}
+
 @test "boundary: a shallow clone deep enough to have the commit before it works" {
   scenario_push_ahead "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "second local change"
@@ -150,10 +180,10 @@ setup() {
   cd "$monorepo"
   run cmd_boundary
   [ "$status" -eq 1 ]
-  [[ "$output" == "usage: git splice boundary <path>"* ]]
+  [[ "$output" == *$'SYNOPSIS\n    git splice boundary <path>'* ]]
   run cmd_boundary vendor/a vendor/b
   [ "$status" -eq 1 ]
-  [[ "$output" == "usage: git splice boundary <path>"* ]]
+  [[ "$output" == *$'SYNOPSIS\n    git splice boundary <path>'* ]]
   run cmd_boundary --all
   [ "$output" = "!!   boundary takes no --all" ]
   run cmd_boundary vendor

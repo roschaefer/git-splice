@@ -29,12 +29,19 @@ setup() {
   [[ "$output" == *"unknown command: bogus"* ]]
 }
 
-@test "cli: each command's own -h works" {
-  local cmd
-  for cmd in clone init fetch merge pull push status diff log boundary rebuild; do
+@test "cli: each command's -h and --help show the same structured help" {
+  local cmd short_help
+  for cmd in clone init fetch merge pull push status diff log key boundary rebuild; do
     run "$entrypoint" "$cmd" -h
     [ "$status" -eq 0 ]
-    [[ "$output" == *"usage: git splice $cmd"* ]]
+    [[ "$output" == *$'NAME\n'"    git-splice-$cmd - "* ]]
+    [[ "$output" == *$'\nSYNOPSIS\n'"    git splice $cmd "* ]]
+    [[ "$output" == *$'\nDESCRIPTION\n'* ]]
+    short_help="$output"
+
+    run "$entrypoint" "$cmd" --help
+    [ "$status" -eq 0 ]
+    [ "$output" = "$short_help" ]
   done
 }
 
@@ -47,7 +54,7 @@ setup() {
 }
 
 @test "cli: -- terminates options so a path named like a flag is treated literally" {
-  load 'scenarios/up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   local cmd
@@ -59,7 +66,7 @@ setup() {
 }
 
 @test "cli: splicing in or out needs a path or --all, looking doesn't" {
-  load 'scenarios/up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   local cmd
@@ -95,7 +102,7 @@ setup() {
 }
 
 @test "cli: runs from any subfolder" {
-  load 'scenarios/up-to-date/push-ahead/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo/vendor/a"
   run "$entrypoint" status
@@ -103,7 +110,7 @@ setup() {
 }
 
 @test "cli: every command refuses a detached HEAD" {
-  load 'scenarios/up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q --detach

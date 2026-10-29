@@ -1,45 +1,80 @@
 # git-splice
 
-`git-splice` is a developer-friendly way to contribute to other repositories
-from one monorepo. Edit them as folders, test them together, and sync both
-ways with plain Git.
+`git-splice` is a developer-friendly way to work across repositories from
+one monorepo. Edit them as folders, test them together, and sync both ways
+with plain Git.
 
 ## The problem
 
-You vendored a library into your monorepo and fixed a bug in it, tested
-together with your app. Now the fix should go back to the library's own
-repository, but it is buried in monorepo commits that also touch `app/`,
-and the two repositories share no history:
+Your app depends on a library from another repository. You find a bug in
+the library while working on the app, but its code isn't yours to change:
+all you get is its releases.
 
-```text
-  your monorepo                              github.com/x/lib
- ┌──────────────────────────────┐           ┌─────────────────────┐
- │ app/                         │           │ src/                │
- │ path/        (copy of x/lib) │           │ README.md           │
- │   src/       <- your fix     │ ───?───>  │                     │
- └──────────────────────────────┘           └─────────────────────┘
-   one history for app and lib                its own history
-```
+<div align="center">
 
-Meanwhile the library moves on, and its next release should come in
-without overwriting your fix. The same holds the other way round: a
-package developed in the monorepo that you publish as its own repository,
-while still merging outside contributions back in. Neither side should
-become the source of truth.
+![Your monorepo with app/, and the library repository with src/: releases come in, but a fix has no way back](docs/images/readme-problem.drawio.svg)
+
+</div>
 
 ## The common workaround
 
-Fork the library and point your package manager at the fork, or at a
-checkout on your disk. The fix is easy to send back, but it lives outside
-the monorepo, not versioned with the app that needs it.
+Fork the library and point your package manager at the fork. The fix goes
+back to the library as a pull request, and its releases come in through
+the fork. But now you maintain two repositories: the fix lives outside the
+monorepo, not versioned and tested with the app that needs it. Submodules
+and side-by-side checkouts split the work the same way.
 
-So it's either or: change the library outside the monorepo and maintain
-it in two places, or inside and have no way out. `git-splice` gives you
-both.
+<div align="center">
+
+![Your monorepo with app/, your fork of the library with the fix, and the original: the fork sends pull requests and takes releases, and the monorepo and the fork are two places to maintain](docs/images/readme-workaround.drawio.svg)
+
+</div>
 
 ## The solution
 
-Instead of copying the library, splice it in once:
+Keep the fork, but work on it from the monorepo. The library becomes a
+folder next to the app: one commit can change both, tested together.
+`git splice push` sends the library's part of your commits to the fork,
+and `git splice pull` merges the fork's releases back in. The fork and the
+original keep their own histories, reviews and CI.
+
+<div align="center">
+
+![Your monorepo with app/ and the spliced lib/, your fork of the library and the original: git splice push and pull connect the monorepo and the fork, pull requests and releases connect the fork and the original](docs/images/readme-solution.drawio.svg)
+
+</div>
+
+## No shared history
+
+The monorepo and the library share no commits: only file changes cross
+the splice. `push` rebuilds yours as library commits, and `pull` brings
+theirs in as one monorepo commit. So you can compose repositories as you
+like, and everyone else keeps working in each one with plain `git`.
+
+It's worktree friendly, too. The library's own commits are fetched into
+the monorepo's repository, so a linked worktree can check them out: you
+work on two unrelated histories side by side, in one repository.
+
+## Not only libraries
+
+A splice works for any repositories you change together:
+
+- **Instead of submodules:** `git splice clone --from-submodule` turns a
+  submodule into a folder. No more gitlinks to bump, and a change across
+  the boundary is one commit.
+- **Services split across repositories:** change an API and its clients
+  in one commit, test them together, and push each part to its own
+  repository.
+- **Each repository keeps its pipeline:** your pushes arrive as ordinary
+  commits, so GitHub Actions, reviews and releases run in each repository
+  as before.
+- **Private monorepo, public folders:** open-source part of your code
+  as its own repository. `push` sends only the folder's changes, never
+  the monorepo's history, so the rest of the files stay private.
+
+## How it works
+
+Splice your fork of the library in once:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
@@ -48,9 +83,9 @@ $ source "$TESTDIR/test/readme/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice clone https://github.com/x/lib.git path
-===  path: fetching https://github.com/x/lib.git
-ok   path: cloned e849115 from main
+$ git splice clone 'https://github.com/<you>/lib.git' lib
+===  lib: fetching https://github.com/<you>/lib.git
+ok   lib: cloned e849115 from main
 ```
 
 The folder is now a splice: a folder of the monorepo that is also the
@@ -58,7 +93,7 @@ library. A committed `.splice` file inside it records which repository,
 and the library commit the folder last matched.
 
 From there, both sides move on. Say you fix a bug in the library while working
-on the app, and the library gets a release meanwhile:
+on the app, and the fork takes in a release of the original meanwhile:
 
 <!--
 ```scrut
@@ -68,26 +103,25 @@ $ source "$TESTDIR/test/readme/both-sides-move-on.sh"
 
 <div align="center">
 
-![Monorepo commits a to d, with HEAD at d and BOUNDARY at a, the clone of k; library commits k to n, THEIRS at n; OURS is d prime, the rebuilt b prime and d prime on top of k, which is U(BOUNDARY) and BASE](test/scenarios/sync-model/before-pull-git-names.drawio.svg)
+![Monorepo commits a to d, with HEAD at d and boundary at a, the clone of k; library commits k to n, theirs at n; ours is d prime, the rebuilt b prime and d prime on top of k, which is U(boundary) and base](test/scenarios/01-everyday-sync/01-sync-model/before-pull-git-names.drawio.svg)
 
 </div>
 
-At *a*, the BOUNDARY, you spliced in *k* (`e849115`). To splice out,
+At *a*, the *boundary*, you spliced in *k* (`e849115`). To splice out,
 `git-splice` rebuilds the commits since *a* on top of *k*. *c* never touched
-`path/`, so it's left out. The result is *d'*, OURS, a library commit
-ready for an ordinary three-way merge with THEIRS from BASE:
+`lib/`, so it's left out. The result is *d'*, *ours*, a library commit
+ready for an ordinary three-way merge with *theirs* from their *base*:
 
 ```scrut
 $ git splice status
 On branch main
 
-  ahead 2, behind 3  path
+  ahead 2, behind 3  lib
 ```
 
-`git splice pull path` merges *l*, *m* and *n* in, as one ordinary monorepo
-commit. Then `git splice push path` sends *b'* and *d'*, and the pull,
-rebuilt as their merge with *n*. Changes cross the
-splice, but commits don't: both repositories keep their own histories.
+`git splice pull lib` merges *l*, *m* and *n* in, as one ordinary monorepo
+commit. Then `git splice push lib` sends *b'* and *d'*, and the pull,
+rebuilt as their merge with *n*.
 
 ## Getting started
 

@@ -2,22 +2,29 @@
 
 usage_key() {
   cat <<'EOF'
-usage: git splice key [--upstream <name>] <path> [<new-key>]
+NAME
+    git-splice-key - Print or rename an upstream's key
 
-Prints the key splice <path>'s upstream has in this repository: its
-fetched branches are refs/splices/<key>/<branch>, e.g. for
-'git log splices/<key>/main'. With <new-key>, renames the key and moves
-its refs along.
+SYNOPSIS
+    git splice key [--upstream <name>] <path> [<new-key>]
 
---upstream names the upstream, as <path>/.splice does in
-[upstream "<name>"]. Without it, the splice's default upstream.
+DESCRIPTION
+    Prints the key splice <path>'s upstream has in this repository: its
+    fetched branches are refs/splices/<key>/heads/<branch>, e.g. for
+    'git log splices/<key>/heads/main'. With <new-key>, renames the key and
+    moves its refs along.
 
-A key belongs to an upstream URL, so splices with the same URL share it.
-The first fetch of an upstream records its key in the repository's config,
-as splice.<key>.url, from the end of its URL: lib for
-https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
-taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
-long.
+    --upstream names the upstream, as <path>/.splice does in
+    [upstream "<name>"]. Without it, the splice's default upstream.
+
+    A key belongs to an upstream URL, so splices with the same URL share it.
+    Renaming it also renames it in the tracked upstream branches,
+    branch.<branch>.splice = <key>:<name>.
+    The first fetch of an upstream records its key in the repository's config,
+    as splice.<key>.url, from the end of its URL: lib for
+    https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
+    taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
+    long.
 EOF
 }
 
@@ -41,10 +48,23 @@ rename_upstream_key() {
     done | git update-ref --stdin || die "couldn't move the refs of key '$old'"
   git config --local --rename-section "splice.$old" "splice.$new" ||
     die "moved the refs to refs/splices/$new/, but couldn't rename splice.$old in the repository's config -- rename it by hand (git config --local --rename-section splice.$old splice.$new)"
+  rename_tracked_branches "$old" "$new"
   unlock_upstream_keys
   URL_OF_KEY[$new]="$url"
   unset 'URL_OF_KEY[$old]'
   KEY_OF_URL[$url]="$new"
+}
+
+# Renames upstream key <old> to <new> in every upstream branch tracked
+# on a monorepo branch (see TRACKED_BRANCHES).
+rename_tracked_branches() {
+  local old="$1" new="$2" name value
+  while read -r name value; do
+    [[ "$value" == "$old:"* ]] || continue
+    git config --local --fixed-value --replace-all "$name" "$new:${value#"$old:"}" "$value" ||
+      die "couldn't rename key '$old' in $name -- rename it by hand (git config --local --fixed-value --replace-all $name $(shell_quote "$new:${value#"$old:"}") $(shell_quote "$value"))"
+  done < <(git config --local --get-regexp '^branch\..*\.splice$' 2>/dev/null || true)
+  TRACKED_FOR=""
 }
 
 cmd_key() {

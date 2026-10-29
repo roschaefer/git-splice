@@ -1,5 +1,122 @@
 # Changelog
 
+## [0.16.1](https://github.com/roschaefer/git-splice/compare/v0.16.0...v0.16.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **clone:** refuse to splice a submodule that update = none keeps out of checkouts ([#303](https://github.com/roschaefer/git-splice/issues/303)) ([7252f07](https://github.com/roschaefer/git-splice/commit/7252f07dbca1f66f5a1ebceb6898d2d3415563cc))
+* **rebuild:** follow git mv, so a move keeps unpushed commits ([#24](https://github.com/roschaefer/git-splice/issues/24)) ([7f1003d](https://github.com/roschaefer/git-splice/commit/7f1003db981d039966200d6f4c2401b57e2fb02c)), closes [#4](https://github.com/roschaefer/git-splice/issues/4) [#187](https://github.com/roschaefer/git-splice/issues/187)
+
+## [0.16.0](https://github.com/roschaefer/git-splice/compare/v0.15.0...v0.16.0) (2026-10-28)
+
+
+### Features
+
+* --track an upstream branch per monorepo branch, like git push -u ([#292](https://github.com/roschaefer/git-splice/issues/292)) ([315a805](https://github.com/roschaefer/git-splice/commit/315a8051810974a2f7cfe5e2f0ea241b304a3054)), closes [#289](https://github.com/roschaefer/git-splice/issues/289)
+* **push:** --branch pushes to another upstream branch, like pull --branch ([#291](https://github.com/roschaefer/git-splice/issues/291)) ([eec593f](https://github.com/roschaefer/git-splice/commit/eec593fc3ccc8a4039deef4fae2732d28156f9ac)), closes [#290](https://github.com/roschaefer/git-splice/issues/290)
+
+## [0.15.0](https://github.com/roschaefer/git-splice/compare/v0.14.2...v0.15.0) (2026-10-28)
+
+
+### Features
+
+* **help:** structure command reference output ([#282](https://github.com/roschaefer/git-splice/issues/282)) ([7ef6a04](https://github.com/roschaefer/git-splice/commit/7ef6a04ec7eabbca2aea1cd48780e438c3225546))
+
+
+### Bug Fixes
+
+* **status:** unchanged when a PR would show no changes ([#286](https://github.com/roschaefer/git-splice/issues/286)) ([7f031d6](https://github.com/roschaefer/git-splice/commit/7f031d66542ef311e4b502d6c209898c061c8026)), closes [#285](https://github.com/roschaefer/git-splice/issues/285)
+
+## [0.14.2](https://github.com/roschaefer/git-splice/compare/v0.14.1...v0.14.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **pull:** --rebase states only that the reflog lacks the synced commit ([#263](https://github.com/roschaefer/git-splice/issues/263)) ([cd2dcb3](https://github.com/roschaefer/git-splice/commit/cd2dcb3112231a9fd923a1181dc12e6f409c99c3)), closes [#256](https://github.com/roschaefer/git-splice/issues/256)
+
+## [0.14.1](https://github.com/roschaefer/git-splice/compare/v0.14.0...v0.14.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* a step that fails stops the command, instead of a wrong rebuild ([#261](https://github.com/roschaefer/git-splice/issues/261)) ([ffa5f3c](https://github.com/roschaefer/git-splice/commit/ffa5f3c9cc962957c7508d9904b2b5b39c2d2bc0)), closes [#12](https://github.com/roschaefer/git-splice/issues/12)
+
+## [0.14.0](https://github.com/roschaefer/git-splice/compare/v0.13.0...v0.14.0) (2026-10-26)
+
+
+### Features
+
+* **drawings:** check each picture is its diagram's export; serve it plain ([#259](https://github.com/roschaefer/git-splice/issues/259)) ([f4a23c1](https://github.com/roschaefer/git-splice/commit/f4a23c15a9af6816f6639534407d450f53cf39df)), closes [#171](https://github.com/roschaefer/git-splice/issues/171) [#258](https://github.com/roschaefer/git-splice/issues/258)
+
+
+### Bug Fixes
+
+* a synced commit that isn't here asks for a fetch, not to pick a side ([#257](https://github.com/roschaefer/git-splice/issues/257)) ([31db1e1](https://github.com/roschaefer/git-splice/commit/31db1e1d626ffb16c634732549a0aafb10c030c7)), closes [#67](https://github.com/roschaefer/git-splice/issues/67)
+* **deps:** update svgo to v4 ([#262](https://github.com/roschaefer/git-splice/issues/262)) ([d02c833](https://github.com/roschaefer/git-splice/commit/d02c833f9813a4f78bdfc2c9a6286bb9945f73a2))
+
+## [0.13.0](https://github.com/roschaefer/git-splice/compare/v0.12.0...v0.13.0) (2026-10-26)
+
+
+### Features
+
+* -m &lt;message&gt; for the commits clone, init, merge and pull write ([#246](https://github.com/roschaefer/git-splice/issues/246)) ([4747d63](https://github.com/roschaefer/git-splice/commit/4747d634c3ec5d7f9e27d4f1a244dbce7b20bd6b)), closes [#244](https://github.com/roschaefer/git-splice/issues/244)
+
+
+### Bug Fixes
+
+* **pull:** --rebase refuses to drop the default branch's commits ([#238](https://github.com/roschaefer/git-splice/issues/238)) ([818d297](https://github.com/roschaefer/git-splice/commit/818d297ed1374fcabdf0a22cc08e94811f5fd706)), closes [#236](https://github.com/roschaefer/git-splice/issues/236)
+
+## [0.12.0](https://github.com/roschaefer/git-splice/compare/v0.11.0...v0.12.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **clone:** --from-submodule keeps what the submodule followed ([#233](https://github.com/roschaefer/git-splice/issues/233))
+* **fetch:** keep fetched branches under refs/splices/<key>/heads/ ([#230](https://github.com/roschaefer/git-splice/issues/230))
+
+### Features
+
+* **clone:** --from-submodule keeps what the submodule followed ([#233](https://github.com/roschaefer/git-splice/issues/233)) ([6679ce0](https://github.com/roschaefer/git-splice/commit/6679ce04954e5fd9f25bc8bacffedca64fc2d2af))
+* pin a splice to a tag or a commit with default-pin ([#232](https://github.com/roschaefer/git-splice/issues/232)) ([7ad7478](https://github.com/roschaefer/git-splice/commit/7ad7478b312c33723b9931a9b9967b41f37fa50b))
+* **sandbox:** open any docs page in a sandbox, the walkthrough by default ([#234](https://github.com/roschaefer/git-splice/issues/234)) ([6a16d0e](https://github.com/roschaefer/git-splice/commit/6a16d0ef1fb239e395938af6cea4e1d74e04d3e0))
+* **website:** search the docs with a local full-text index ([#226](https://github.com/roschaefer/git-splice/issues/226)) ([0cc2560](https://github.com/roschaefer/git-splice/commit/0cc25604510b48e8a0e9771a47d6d314a3ace272))
+
+
+### Code Refactoring
+
+* **fetch:** keep fetched branches under refs/splices/&lt;key&gt;/heads/ ([#230](https://github.com/roschaefer/git-splice/issues/230)) ([1f4890a](https://github.com/roschaefer/git-splice/commit/1f4890aaa2d551c3d8e95b60e1bfa8c2ea2d5b92))
+
+## [0.11.0](https://github.com/roschaefer/git-splice/compare/v0.10.0...v0.11.0) (2026-10-22)
+
+
+### Features
+
+* **pull:** rebase local splice changes onto the upstream with --rebase ([#208](https://github.com/roschaefer/git-splice/issues/208)) ([889c19e](https://github.com/roschaefer/git-splice/commit/889c19e0ae57258d7b9553bc50dcdd85f384e783))
+
+## [0.10.0](https://github.com/roschaefer/git-splice/compare/v0.9.0...v0.10.0) (2026-10-22)
+
+
+### Features
+
+* **check-drawing:** draw a splice's upstreams side by side ([#219](https://github.com/roschaefer/git-splice/issues/219)) ([14a647a](https://github.com/roschaefer/git-splice/commit/14a647adac852120b4b882d24b40d7cdf7432a87))
+* **merge:** pull an upstream branch rebased since the synced commit, from its fork point ([#207](https://github.com/roschaefer/git-splice/issues/207)) ([cadf751](https://github.com/roschaefer/git-splice/commit/cadf751380e0f4e4254e00807895f459cb358b0b))
+
+## [0.9.0](https://github.com/roschaefer/git-splice/compare/v0.8.4...v0.9.0) (2026-10-18)
+
+
+### Features
+
+* **scrut:** run docs-check's documents in parallel with scrut --jobs ([#189](https://github.com/roschaefer/git-splice/issues/189)) ([283e8b6](https://github.com/roschaefer/git-splice/commit/283e8b6d412d9dc30a5a67a7c9c8118fe740e928))
+
+## [0.8.4](https://github.com/roschaefer/git-splice/compare/v0.8.3...v0.8.4) (2026-10-16)
+
+
+### Performance Improvements
+
+* **order:** order splices without a subshell per path ([#184](https://github.com/roschaefer/git-splice/issues/184)) ([72c532f](https://github.com/roschaefer/git-splice/commit/72c532ffbfda0ab0a1d599112cb55903bb58705f))
+* **status:** ask git status once for all splices ([#191](https://github.com/roschaefer/git-splice/issues/191)) ([cc6b002](https://github.com/roschaefer/git-splice/commit/cc6b0026f4c627459433b8284f6b10ec94d9afb6))
+
 ## [0.8.3](https://github.com/roschaefer/git-splice/compare/v0.8.2...v0.8.3) (2026-10-16)
 
 

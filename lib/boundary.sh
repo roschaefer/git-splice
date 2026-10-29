@@ -2,27 +2,38 @@
 
 usage_boundary() {
   cat <<'EOF'
-usage: git splice boundary <path>
+NAME
+    git-splice-boundary - Print where a splice's rebuild starts
 
-Prints the commit the rebuild of splice <path> starts from, B. The
-rebuild copies the commits after it on the current branch's
-first-parent history that change the folder's files:
+SYNOPSIS
+    git splice boundary <path>
 
-  git log --first-parent "$(git splice boundary <path>)"..HEAD -- <path> ':!<path>/.splice'
+DESCRIPTION
+    Prints the commit the rebuild of splice <path> starts from, B. The
+    rebuild copies the commits after it on the current branch's
+    first-parent history that change the folder's files:
 
-Usually B is the last pull, merge, clone or init. After a pull that
-merged commits that were never pushed, it's an earlier one, where the
-folder was the upstream commit .splice recorded.
+      git log --first-parent "$(git splice boundary <path>)"..HEAD -- <path> ':!<path>/.splice'
 
-For a nested splice, run it in a worktree of a fetched commit of the
-upstream above, with the path there, to get where that upstream's
-rebuild of it starts:
+    After a 'git mv' of the folder, the commits from before the move
+    changed it under its old path. List those with the old path, up to the
+    move's first parent, since another folder may take the old path later:
 
-  git worktree add --detach ../a refs/splices/a/main
-  git -C ../a splice boundary b
+      git log --first-parent "$(git splice boundary <path>)"..<move>^ -- <old-path> ':!<old-path>/.splice'
 
-Purely local, but the synced commit must have been fetched. Writes no
-ref and no monorepo commit.
+    Usually B is the last pull, merge, clone or init. After a pull that
+    merged commits that were never pushed, it's an earlier one, where the
+    folder was the upstream commit .splice recorded.
+
+    For a nested splice, run it in a worktree of a fetched commit of the
+    upstream above, with the path there, to get where that upstream's
+    rebuild of it starts:
+
+      git worktree add --detach ../a refs/splices/a/heads/main
+      git -C ../a splice boundary b
+
+    Purely local, but the synced commit must have been fetched. Writes no
+    ref and no monorepo commit.
 EOF
 }
 

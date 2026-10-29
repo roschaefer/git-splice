@@ -2,8 +2,8 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/several-upstreams/setup'
-  load 'scenarios/nested-splices/outer-fork/setup'
+  load 'scenarios/04-upstreams/02-several-upstreams/setup'
+  load 'scenarios/05-nested-splices/01-nested-splices/01-outer-fork/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   fork="$BATS_TEST_TMPDIR/upstream-fork.git"
@@ -26,6 +26,48 @@ add_upstream() {
   [ "${lines[0]}" = "ok   vendor/a fetched from fork" ]
   [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from fork/main at $(git -C "$fork" rev-parse --short main)" ]
   [ "$(splice_config vendor/a commit)" = "$(git -C "$fork" rev-parse main)" ]
+}
+
+@test "upstreams: pulling from one upstream keeps the patch the other still has, though the first never had it" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  add_upstream vendor/a fork "$fork" fork
+  splice pull vendor/a >/dev/null
+  seed_bare_repo "$upstream" "original release" main release.txt
+  run splice pull --upstream origin vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\nfork patch')" ]
+  [ "$(cat vendor/a/release.txt)" = "original release" ]
+}
+
+@test "upstreams: pulling after the upstream with the patch is dropped from .splice keeps the patch: the remaining upstream's branch never had it, so it rewrote nothing" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  add_upstream vendor/a fork "$fork" fork
+  splice pull vendor/a >/dev/null
+  seed_bare_repo "$upstream" "original release" main release.txt
+  git config --file vendor/a/.splice --remove-section upstream.fork
+  git config --file vendor/a/.splice --unset splice.default-upstream
+  git commit -q -m "vendor/a: drop fork" -- vendor/a/.splice
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\nfork patch')" ]
+  [ "$(cat vendor/a/release.txt)" = "original release" ]
+}
+
+@test "upstreams: pulling after the upstream with the patch got another URL keeps the patch: the branch it now pulls never had it, so it rewrote nothing" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  add_upstream vendor/a fork "$fork" fork
+  splice pull vendor/a >/dev/null
+  seed_bare_repo "$upstream" "original release" main release.txt
+  git config --file vendor/a/.splice --remove-section upstream.origin
+  git config --file vendor/a/.splice upstream.fork.url "$upstream"
+  git commit -q -m "vendor/a: fork is the original now" -- vendor/a/.splice
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\nfork patch')" ]
+  [ "$(cat vendor/a/release.txt)" = "original release" ]
 }
 
 @test "upstreams: a splice with one upstream needs no default-upstream, and messages don't name it" {
@@ -133,7 +175,7 @@ add_upstream() {
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "ok   vendor/a fetched from origin" ]
   [ "${lines[1]}" = "ok   vendor/a fetched from fork" ]
-  [ "$(git rev-parse refs/splices/upstream-fork/main)" = "$(git -C "$fork" rev-parse main)" ]
+  [ "$(git rev-parse refs/splices/upstream-fork/heads/main)" = "$(git -C "$fork" rev-parse main)" ]
 }
 
 @test "fetch: says which branch moved in each upstream, by that upstream's default branch" {
@@ -193,10 +235,10 @@ add_upstream() {
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: pushed $(git -C "$upstream" rev-parse --short main) to origin/main" ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "fork patch" ]
-  [ "$(git rev-parse refs/splices/upstream/main)" = "$(git -C "$upstream" rev-parse main)" ]
+  [ "$(git rev-parse refs/splices/upstream/heads/main)" = "$(git -C "$upstream" rev-parse main)" ]
 }
 
-@test "--upstream: hints name it when the upstream in use isn't the default" {
+@test "--upstream: push compares with the upstream it names, not the default one" {
   scenario_several_upstreams "$monorepo" "$upstream"
   cd "$monorepo"
   add_upstream vendor/a fork "$fork" origin
@@ -205,7 +247,7 @@ add_upstream() {
   git commit -q -am "local"
   run splice push --upstream fork vendor/a
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks -- run 'git splice pull --upstream fork vendor/a' first" ]
+  [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks" ]
   run splice status
   [ "$output" = "$(printf 'On branch main\n\n  ahead 1  vendor/a -> origin/main')" ]
 }

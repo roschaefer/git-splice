@@ -3,31 +3,35 @@
 
 usage_log() {
   cat <<'EOF'
-usage: git splice log [--upstream <name>] [--graph] [path...]
+NAME
+    git-splice-log - Show commits push and pull would move
 
-Shows the commits between each splice and the upstream branch it syncs
-with, in both directions:
+SYNOPSIS
+    git splice log [--upstream <name>] [--graph] [path...]
 
-  <  a commit 'git splice push' would publish
-  >  a commit 'git splice pull' would bring in
-  =  the same change on both sides, e.g. cherry-picked upstream
+DESCRIPTION
+    Shows the commits between each splice and the upstream branch it syncs
+    with, in both directions:
 
---graph draws both sides as a graph, like 'git log --graph', with the
-marks as its nodes, and the commit both sides build on as 'o'. The
-rebuild of the splice's commits is labeled (R), the upstream branch (T).
+      <  a commit 'git splice push' would publish
+      >  a commit 'git splice pull' would bring in
+      =  the same change on both sides, e.g. cherry-picked upstream
 
-If the upstream has no branch named like the current one, the other side
-is upstream's default branch, as for a PR from the branch push would
-create. If it lacks that one too, every commit is one push would
-publish.
+    --graph draws both sides as a graph, like 'git log --graph', with the
+    marks as its nodes, and the commit both sides build on as 'o'. The
+    rebuild of the splice's commits is labeled (R), the upstream branch (T).
 
-Each line shows the author, who is published along with the commit. Purely
-local -- run 'git splice fetch' first. Defaults to every splice when no
-paths are given.
+    If the upstream has no branch named like the current one, the other side
+    is upstream's default branch, as for a PR from the branch push would
+    create. If it lacks that one too, push would publish every commit.
 
---upstream names one of the upstreams a splice's .splice names; without
-it, the splice's default upstream. A splice without the named upstream
-stops the command before it starts.
+    Each line shows the author, who is published along with the commit. Purely
+    local -- run 'git splice fetch' first. Defaults to every splice when no
+    paths are given.
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts.
 EOF
 }
 
@@ -95,6 +99,14 @@ log_one() {
       splice_git_log "$SPLICE_REBUILT" "$(git rev-parse "$SPLICE_DEFAULT_REF^{commit}")" \
         --left-right --cherry-mark "$SPLICE_REBUILT...$SPLICE_DEFAULT_REF"
       return
+      ;;
+    missing-synced)
+      log_warn "$path: $(missing_synced_message "$path")"
+      return 1
+      ;;
+    missing-pin)
+      log_err "$path: $(target_description) isn't here -- run 'git splice fetch $(upstream_option "$path")$path', or check that upstream has it"
+      return 1
       ;;
     up-to-date)
       [[ -n "$SPLICE_REBUILT" ]] || return 0

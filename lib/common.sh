@@ -26,6 +26,7 @@ DEFAULT_UPSTREAM=origin
 # Results of parse_args.
 declare -g UPSTREAM_ARG=""
 declare -g ALL_ARG=""
+declare -g MESSAGE_ARG=""
 declare -ga PATH_ARGS=()
 declare -ga EXTRA_FLAGS=()
 
@@ -111,7 +112,9 @@ normalize_path() {
 }
 
 # Parses the arguments of a command that takes `[--all] [<flag>...]
-# [path...]`. Sets ALL_ARG, PATH_ARGS, and
+# [path...]`. Sets ALL_ARG, UPSTREAM_ARG, REBUILT_COMMIT_ARG, BRANCH_ARG,
+# MESSAGE_ARG (if "-m" is in $2; several join as paragraphs, as in git
+# commit), PATH_ARGS, and
 # EXTRA_FLAGS for every flag named in $2 (space-separated, e.g. "--merge").
 # $1 names the command's usage function, which is run (then exit 0) for
 # -h/--help. Everything after `--` is a path.
@@ -121,6 +124,8 @@ parse_args() {
   ALL_ARG=""
   UPSTREAM_ARG=""
   REBUILT_COMMIT_ARG=""
+  BRANCH_ARG=""
+  MESSAGE_ARG=""
   PATH_ARGS=()
   EXTRA_FLAGS=()
   while [[ $# -gt 0 ]]; do
@@ -132,7 +137,7 @@ parse_args() {
       --all)
         ALL_ARG=1
         ;;
-      --upstream | --upstream=* | --rebuilt-commit | --rebuilt-commit=*)
+      --upstream | --upstream=* | --rebuilt-commit | --rebuilt-commit=* | --branch | --branch=*)
         option="${1%%=*}"
         [[ "$allowed" == *" $option "* ]] || {
           "$usage_fn" >&2
@@ -153,7 +158,27 @@ parse_args() {
             [[ -n "$value" ]] || die "--rebuilt-commit needs a commit"
             REBUILT_COMMIT_ARG="$value"
             ;;
+          --branch)
+            [[ -n "$value" ]] || die "--branch needs an upstream branch's name"
+            BRANCH_ARG="$value"
+            ;;
         esac
+        ;;
+      -m | -m?* | --message | --message=*)
+        [[ "$allowed" == *" -m "* ]] || {
+          "$usage_fn" >&2
+          die "unknown option: ${1%%=*}"
+        }
+        case "$1" in
+          -m?*) value="${1#-m}" ;;
+          --message=*) value="${1#*=}" ;;
+          *)
+            value="${2:-}"
+            [[ $# -lt 2 ]] || shift
+            ;;
+        esac
+        [[ -n "$value" ]] || die "-m needs a message"
+        MESSAGE_ARG="${MESSAGE_ARG:+$MESSAGE_ARG$'\n\n'}$value"
         ;;
       --)
         shift
@@ -173,6 +198,20 @@ parse_args() {
     esac
     shift
   done
+}
+
+# Prints the message -m gave, else <default>: the message of the commit
+# a command writes. Nothing reads it back: .splice records the state.
+commit_message() {
+  printf '%s\n' "${MESSAGE_ARG:-$1}"
+}
+
+# Dies if -m was given for more than the one splice named in PATH_ARGS:
+# each splice gets a commit of its own, and the message would be the same.
+require_one_splice_for_message() {
+  [[ -z "$MESSAGE_ARG" ]] && return 0
+  [[ -z "$ALL_ARG" && ${#PATH_ARGS[@]} -le 1 ]] ||
+    die "-m names one splice's commit -- name one path, not several or --all"
 }
 
 # Succeeds if flag $1 was given (see parse_args).
@@ -361,6 +400,7 @@ select_splices() {
   select_paths "$1" "$2"
   use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
   MONOREPO_BRANCH="$(current_branch)"
+  load_tracked_branches "$MONOREPO_BRANCH"
   require_upstream_branches "$MONOREPO_BRANCH" "${SELECTED_PATHS[@]}"
 }
 
@@ -390,7 +430,7 @@ require_usable_splice_path() {
 # Dies while a cherry-pick or merge waits to be concluded: the commands
 # that commit can't start another.
 require_no_splice_in_progress() {
-  ! splice_in_progress || die "a cherry-pick or merge is in progress -- conclude it first"
+  ! splice_in_progress || die "a cherry-pick, merge or rebase is in progress -- conclude it first"
 }
 
 # Runs <fn> <path> <branch> for each splice <path>..., and reports the
@@ -436,7 +476,7 @@ upstream_config() {
 # without a section is in [splice], e.g. "commit"; others are given in
 # full, e.g. "upstream.origin.url".
 state_blob() {
-  local path="$1" tmp kv key value
+  local path="$1" tmp kv key value rc=0
   shift
   tmp="$(mktemp)"
   git cat-file blob "HEAD:$path/$STATE_FILE" >"$tmp" 2>/dev/null || : >"$tmp"
@@ -445,13 +485,14 @@ state_blob() {
     value="${kv#*=}"
     [[ "$key" == *.* ]] || key="splice.$key"
     if [[ -n "$value" ]]; then
-      git config --file "$tmp" "$key" "$value"
+      git config --file "$tmp" "$key" "$value" || rc=1
     else
       git config --file "$tmp" --unset "$key" 2>/dev/null || true
     fi
   done
-  git hash-object -w "$tmp"
+  ((rc)) || git hash-object -w "$tmp" || rc=1
   rm -f "$tmp"
+  return "$rc"
 }
 
 # Prints a new id for a splice that clone or init mounts at <path> from
@@ -495,7 +536,7 @@ folder_tree() {
 # several, a command without --upstream needs it (require_default_upstream),
 # so that no order or name in the file decides by accident.
 load_splice_upstream() {
-  local path="$1" records=() record urls=() names=() name id="" default="" error q_file i
+  local path="$1" records=() record urls=() names=() defaults=() name id="" default="" error q_file i
   # One git config per splice: discovery runs this for every splice, in
   # every command. NUL-delimited, since a value, e.g. a local path, may
   # contain a newline; git's status follows as the last record, since it
@@ -535,9 +576,16 @@ load_splice_upstream() {
       splice.default-branch)
         die "$path/$STATE_FILE has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"
         ;;
+      upstream.*.default-branch | upstream.*.default-pin)
+        name="${record%%$'\n'*}"
+        defaults+=("${name%.*}")
+        ;;
     esac
   done
   q_file="$(shell_quote "$path/$STATE_FILE")"
+  name="$(printf '%s\n' "${defaults[@]}" | sort | uniq -d | head -n 1)"
+  [[ -z "$name" ]] ||
+    die "$path/$STATE_FILE has both default-branch and default-pin for $name -- follow the branch or pin, not both: git config --file $q_file --unset $name.default-pin"
   [[ ${#urls[@]} -gt 0 ]] ||
     die "$path/$STATE_FILE names no upstream -- add one: git config --file $q_file upstream.$DEFAULT_UPSTREAM.url <url>"
   if [[ -n "$default" && " ${names[*]} " != *" $default "* ]]; then
@@ -605,6 +653,122 @@ upstream_branch_label() {
     printf '%s/%s\n' "${SPLICE_UPSTREAM_NAMES[$1]}" "$2"
   else
     printf '%s\n' "$2"
+  fi
+}
+
+# Succeeds if --branch (BRANCH_ARG) names splice <path>'s upstream branch:
+# the command selected it, not only a splice above it.
+branch_arg_applies() {
+  [[ -n "${BRANCH_ARG:-}" && " ${SELECTED_PATHS[*]-} " == *" $1 "* ]]
+}
+
+# The upstream branches tracked on monorepo branch TRACKED_FOR, by
+# upstream key: branch.<branch>.splice entries "<key>:<upstream branch>"
+# in the repository's config, which --track writes. Local, like Git's
+# branch.<branch>.merge: under branch.<branch>, so 'git branch -m'
+# renames them along with the branch and 'git branch -d' removes them.
+# Unlike a remote-tracking branch, a tracked branch is no ref: it's only
+# the name of the branch to sync with.
+declare -gA TRACKED_BRANCHES=()
+declare -g TRACKED_FOR=""
+
+# Reads the upstream branches tracked on monorepo branch <branch> into
+# TRACKED_BRANCHES; the last entry for a key wins.
+load_tracked_branches() {
+  local branch="$1" entry entries=()
+  TRACKED_BRANCHES=()
+  TRACKED_FOR="$branch"
+  mapfile -t entries < <(git config --local --get-all "branch.$branch.splice" 2>/dev/null || true)
+  for entry in "${entries[@]}"; do
+    [[ "$entry" == ?*:?* ]] || continue
+    TRACKED_BRANCHES[${entry%%:*}]="${entry#*:}"
+  done
+}
+
+# Prints the upstream branch tracked for splice <path>'s upstream in use,
+# by its key, while the monorepo is on <branch>; nothing if none is.
+tracked_branch() {
+  local path="$1" branch="$2" key
+  key="${SPLICE_KEYS[$path]:-}"
+  [[ -n "$key" ]] || return 0
+  [[ "$TRACKED_FOR" == "$branch" ]] || load_tracked_branches "$branch"
+  printf '%s' "${TRACKED_BRANCHES[$key]:-}"
+}
+
+# Prints the upstream branch named for splice <path> while the monorepo
+# is on <branch>, beyond the rule of the same name: --branch's, else the
+# tracked one (tracked_branch). Fails if neither names one.
+named_branch() {
+  local path="$1" branch="$2" name
+  if branch_arg_applies "$path"; then
+    printf '%s\n' "$BRANCH_ARG"
+    return 0
+  fi
+  name="$(tracked_branch "$path" "$branch")"
+  [[ -n "$name" ]] || return 1
+  printf '%s\n' "$name"
+}
+
+# Prints splice <path>'s upstream key, or fails, explaining that a fetch
+# records one, for what <action> needs it.
+key_to_track() {
+  [[ -n "${SPLICE_KEYS[$1]:-}" ]] || {
+    log_err "$1: its upstream has no key yet, which $2 needs -- 'git splice fetch $(shell_quote "$1")' records one"
+    return 1
+  }
+  printf '%s\n' "${SPLICE_KEYS[$1]}"
+}
+
+# Tracks upstream branch <name> for splice <path>'s upstream, by its key,
+# while the monorepo is on <branch>, replacing the branch tracked for that
+# key (see TRACKED_BRANCHES).
+track_branch() {
+  local path="$1" branch="$2" name="$3" key
+  key="$(key_to_track "$path" "tracking '$name'")" || return 1
+  git config --local --unset-all "branch.$branch.splice" "^${key//./\\.}:" 2>/dev/null || true
+  git config --local --add "branch.$branch.splice" "$key:$name" || {
+    log_err "$path: couldn't track '$name' in branch.$branch.splice"
+    return 1
+  }
+  TRACKED_FOR=""
+  log_ok "$path: '$branch' tracks '$(upstream_branch_label "$path" "$name")' from now on"
+}
+
+# Stops tracking a branch for splice <path>'s upstream while the monorepo
+# is on <branch>, so it syncs by the rule of the same name again.
+untrack_branch() {
+  local path="$1" branch="$2" key name
+  name="$(tracked_branch "$path" "$branch")"
+  if [[ -z "$name" ]]; then
+    log_ok "$path: '$branch' tracks no branch of its upstream"
+    return 0
+  fi
+  key="$(key_to_track "$path" "--no-track")" || return 1
+  git config --local --unset-all "branch.$branch.splice" "^${key//./\\.}:" || {
+    log_err "$path: couldn't remove '$name' from branch.$branch.splice"
+    return 1
+  }
+  TRACKED_FOR=""
+  log_ok "$path: '$branch' no longer tracks '$(upstream_branch_label "$path" "$name")'"
+}
+
+# Dies if --track was given without --branch, which names the branch it
+# tracks, or together with --no-track.
+require_branch_for_track() {
+  if has_flag --track && has_flag --no-track; then
+    die "--track and --no-track contradict each other -- give one"
+  fi
+  ! has_flag --track || [[ -n "$BRANCH_ARG" ]] ||
+    die "--track tracks the branch --branch names -- add --branch <name>"
+}
+
+# Prints the options that select splice <path>'s upstream and branch in
+# this command, "--upstream <name> --branch <name> ", for the commands
+# that messages suggest: without them, they would sync with another one.
+selection_options() {
+  upstream_option "$1"
+  if branch_arg_applies "$1"; then
+    printf -- '--branch %s ' "$(shell_quote "$BRANCH_ARG")"
   fi
 }
 
@@ -712,7 +876,7 @@ reload_upstream_keys() {
 }
 
 # Sets UPSTREAM_KEY to the key the fetched refs of upstream <url> live
-# under, refs/splices/<key>/<branch>, or to nothing if the upstream has
+# under, refs/splices/<key>/heads/<branch>, or to nothing if the upstream has
 # never been fetched. Keyed by URL rather than by the splice's path, refs
 # follow a splice through git mv, and splices at one path with different
 # upstreams, e.g. on two branches, don't share them. The URL is taken
@@ -735,7 +899,7 @@ upstream_key() {
 valid_upstream_key() {
   local key="$1"
   [[ "$key" =~ ^[a-z0-9]([a-z0-9._-]{0,62}[a-z0-9])?$ ]] &&
-    git check-ref-format "refs/splices/$key/main"
+    git check-ref-format "refs/splices/$key/heads/main"
 }
 
 # Succeeds if <key> names an upstream already, or refs are left under it,
@@ -864,11 +1028,12 @@ ensure_splice_key() {
   done
 }
 
-# Prints the ref prefix splice <path>'s fetched upstream branches share. An
-# upstream without a key has no refs: its prefix, "refs/splices/./", isn't
-# a valid ref name, so it matches none.
+# Prints the ref prefix splice <path>'s fetched upstream branches share,
+# refs/splices/<key>/heads/, laid out like a repository's own refs. An
+# upstream without a key has no refs: its prefix,
+# "refs/splices/./heads/", isn't a valid ref name, so it matches none.
 splice_refs_prefix() {
-  printf 'refs/splices/%s/\n' "${SPLICE_KEYS[$1]:-.}"
+  printf 'refs/splices/%s/heads/\n' "${SPLICE_KEYS[$1]:-.}"
 }
 
 # Prints the ref of upstream branch <branch> of splice <path>, as fetched.
@@ -943,6 +1108,19 @@ splice_default_branch() {
   fi
 }
 
+# Prints the default branch of splice <above>, the one of its upstream $3
+# or of the one it uses (splice_default_branch), for splice <path> inside
+# it to follow. Dies if <above> pins a tag or a commit there: the
+# upstream of <path> has no branch named after that.
+followed_default_branch() {
+  local path="$1" above="$2"
+  resolve_default_target "$above" "${@:3}"
+  if [[ "$TARGET_KIND" != branch ]]; then
+    die "$path follows the default branch of $above, which pins $(target_description) -- record one for $path: git config --file $(shell_quote "$path/$STATE_FILE") upstream.<name>.default-branch <branch>"
+  fi
+  printf '%s\n' "$TARGET_NAME"
+}
+
 # Prints the default branch of what folder $1 lives in: the default branch
 # of the upstream the splice above it uses, or the monorepo's. Dies if that
 # splice names several upstreams with different default branches, but none
@@ -956,12 +1134,12 @@ container_default_branch() {
   fi
   require_splice_upstream_list "$above"
   if [[ -n "${SPLICE_UPSTREAM_NAMES[$above]}" ]]; then
-    splice_default_branch "$above"
+    followed_default_branch "$path" "$above"
     return
   fi
   read -r -a names <<<"${SPLICE_UPSTREAM_LISTS[$above]}"
   for name in "${names[@]}"; do
-    branch="$(splice_default_branch "$above" "$name")"
+    branch="$(followed_default_branch "$path" "$above" "$name")"
     branches+="${branches:+, }$name: $branch"
     [[ " ${seen[*]} " == *" $branch "* ]] || seen+=("$branch")
   done
@@ -974,24 +1152,117 @@ container_default_branch() {
 # Prints the upstream branch splice $1 syncs with, from its upstream $3 or
 # the one it uses, while the monorepo is on branch $2: the same name,
 # except that the monorepo's default branch maps to that upstream's
-# default branch (splice_default_branch).
+# default branch (splice_default_branch). --branch (BRANCH_ARG) names it
+# for the splices the command selected, not for the ones below them, and
+# a branch tracked for the upstream in use (named_branch) for any.
 upstream_branch_for() {
   local path="$1" branch="$2"
-  if [[ "$branch" == "$(monorepo_default_branch)" ]]; then
+  if [[ $# -lt 3 || "$3" == "${SPLICE_UPSTREAM_NAMES[$path]:-}" ]] && named_branch "$path" "$branch"; then
+    return 0
+  elif branch_arg_applies "$path"; then
+    printf '%s\n' "$BRANCH_ARG"
+  elif [[ "$branch" == "$(monorepo_default_branch)" ]]; then
     splice_default_branch "$path" "${@:3}"
   else
     printf '%s\n' "$branch"
   fi
 }
 
-# Dies unless each splice <path>... has an upstream branch while the
-# monorepo is on branch <branch> (upstream_branch_for): before any splice is
-# touched, and outside $(...), where a refusal wouldn't end the command.
+# Succeeds if <name> is a full commit id, the way default-pin pins a
+# commit. Shorter ids aren't taken: they'd read as tag names.
+is_commit_id() {
+  [[ "$1" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]
+}
+
+# Sets TARGET_KIND (branch, tag or commit), TARGET_NAME (the branch's or
+# tag's name, or the commit id) and TARGET_REF (its fetched ref, or the
+# commit id) for branch <name> of the upstream splice <path> uses.
+resolve_branch() {
+  TARGET_KIND=branch
+  TARGET_NAME="$2"
+  TARGET_REF="refs/splices/${SPLICE_KEYS[$1]:-.}/heads/$2"
+}
+
+# Sets TARGET_* (see resolve_branch) for <pin>, the default-pin of
+# upstream <name> of splice <path>: a full commit id is a commit, anything
+# else a tag. Dies if upstream has no such tag but a branch: that's
+# followed with default-branch.
+resolve_pin() {
+  local path="$1" name="$2" pin="$3" prefix q_file
+  prefix="refs/splices/${SPLICE_KEYS[$path]:-.}/"
+  TARGET_NAME="$pin"
+  if is_commit_id "$pin"; then
+    TARGET_KIND=commit
+    TARGET_REF="$pin"
+    return
+  fi
+  TARGET_KIND=tag
+  TARGET_REF="${prefix}tags/$pin"
+  if ! git show-ref --verify --quiet "$TARGET_REF" &&
+    git show-ref --verify --quiet "${prefix}heads/$pin"; then
+    q_file="$(shell_quote "$path/$STATE_FILE")"
+    die "$path: default-pin names '$pin', a branch upstream, not a tag -- to follow it: git config --file $q_file upstream.$name.default-branch $(shell_quote "$pin") && git config --file $q_file --unset upstream.$name.default-pin"
+  fi
+}
+
+# Sets TARGET_* (see resolve_branch) for what the monorepo's default
+# branch syncs splice <path> with, from its upstream $2 or the one it
+# uses: the tag or commit that upstream's default-pin names, else its
+# default branch (splice_default_branch).
+resolve_default_target() {
+  local path="$1" name="${2-${SPLICE_UPSTREAM_NAMES[$1]:-}}" pin branch
+  pin="$(upstream_config "$path" "$name" default-pin)"
+  if [[ -n "$pin" ]]; then
+    resolve_pin "$path" "$name" "$pin"
+  else
+    branch="$(splice_default_branch "$path" "$name")" || exit 1
+    resolve_branch "$path" "$branch"
+  fi
+}
+
+# Sets TARGET_* (see resolve_branch) for what splice <path> syncs with
+# while the monorepo is on <branch>: on the monorepo's default branch,
+# resolve_default_target, which may pin a tag or a commit; --branch and
+# every other branch name a branch (upstream_branch_for).
+resolve_upstream_target() {
+  local path="$1" branch="$2"
+  if ! named_branch "$path" "$branch" >/dev/null && [[ "$branch" == "$(monorepo_default_branch)" ]]; then
+    resolve_default_target "$path"
+  else
+    resolve_branch "$path" "$(upstream_branch_for "$path" "$branch")"
+  fi
+}
+
+# Prints how a status line or a commit message names TARGET_* (see
+# resolve_branch): the branch, tags/<tag>, or the short commit id.
+target_label() {
+  case "$TARGET_KIND" in
+    branch) printf '%s\n' "$TARGET_NAME" ;;
+    tag) printf 'tags/%s\n' "$TARGET_NAME" ;;
+    commit) printf '%s\n' "${TARGET_NAME:0:7}" ;;
+  esac
+}
+
+# Prints how a sentence names TARGET_* (see resolve_branch): the tag
+# '<tag>', or the commit <id>. Branches don't need it: messages say
+# "the '<branch>' branch" already.
+target_description() {
+  case "$TARGET_KIND" in
+    tag) printf "the tag '%s'\n" "$TARGET_NAME" ;;
+    commit) printf 'the commit %s\n' "${TARGET_NAME:0:7}" ;;
+    *) printf "the '%s' branch\n" "$TARGET_NAME" ;;
+  esac
+}
+
+# Dies unless each splice <path>... has something to sync with while the
+# monorepo is on branch <branch> (resolve_upstream_target): before any
+# splice is touched, and outside $(...), where a refusal wouldn't end the
+# command.
 require_upstream_branches() {
   local branch="$1" path
   shift
   for path in "$@"; do
-    upstream_branch_for "$path" "$branch" >/dev/null
+    resolve_upstream_target "$path" "$branch"
   done
 }
 

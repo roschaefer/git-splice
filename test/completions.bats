@@ -68,12 +68,67 @@ complete_words() {
   [ -z "$output" ]
 }
 
-@test "completion: --bump only for merge and pull" {
-  run complete_words git-splice merge --b
-  [ "$output" = "--bump" ]
-  run complete_words git-splice pull --b
-  [ "$output" = "--bump" ]
-  run complete_words git-splice push --b
+@test "completion: --branch for fetch, merge, pull and push" {
+  local cmd
+  for cmd in fetch merge pull push; do
+    run complete_words git-splice "$cmd" --br
+    [ "$output" = "--branch" ]
+  done
+  run complete_words git-splice status --br
+  [ -z "$output" ]
+}
+
+@test "completion: --track for fetch, merge, pull and push, --no-track only for fetch" {
+  local cmd
+  for cmd in fetch merge pull push; do
+    run complete_words git-splice "$cmd" --tr
+    [ "$output" = "--track" ]
+  done
+  run complete_words git-splice status --tr
+  [ -z "$output" ]
+  run complete_words git-splice fetch --no-t
+  [ "$output" = "--no-track" ]
+  run complete_words git-splice pull --no-t
+  [ -z "$output" ]
+}
+
+@test "completion: --bump and --rebase only for merge and pull" {
+  local option
+  for option in --bump --rebase; do
+    run complete_words git-splice merge "${option:0:4}"
+    [ "$output" = "$option" ]
+    run complete_words git-splice pull "${option:0:4}"
+    [ "$output" = "$option" ]
+    run complete_words git-splice push "$option"
+    [ -z "$output" ]
+  done
+}
+
+@test "completion: -m only for the commands that commit, nothing for the message, and the message is no path" {
+  local command
+  for command in clone init merge pull; do
+    run complete_words git-splice "$command" --mes
+    [ "$output" = "--message" ]
+  done
+  run complete_words git-splice push --mes
+  [ -z "$output" ]
+  run complete_words git-splice pull -m ""
+  [ -z "$output" ]
+  run complete_words git-splice init -m msg vend
+  [ "$output" = "vendor" ]
+  mkdir -p libs
+  run complete_words git-splice clone --message msg https://example.com/x.git li
+  [ "$output" = "libs" ]
+  run complete_words git-splice init --message = msg vend
+  [ "$output" = "vendor" ]
+  run complete_words git-splice pull --message = ven
+  [ -z "$output" ]
+  run complete_words git-splice pull --upstream = ven
+  [ -z "$output" ]
+}
+
+@test "completion: nothing to offer for the branch after --branch" {
+  run complete_words git-splice pull --branch ""
   [ -z "$output" ]
 }
 
@@ -312,10 +367,30 @@ fish_complete() {
   [[ "$output" == *"--graph"* ]]
 }
 
-@test "zsh completion: pull completes --bump" {
+@test "zsh completion: push completes --branch" {
   require_shell zsh
-  run zsh_complete "git-splice pull --b"
+  run zsh_complete "git-splice push --br"
+  [[ "$output" == *"--branch"* ]]
+}
+
+@test "zsh completion: pull completes --bump, --rebase and --branch" {
+  require_shell zsh
+  run zsh_complete "git-splice pull --bu"
   [[ "$output" == *"--bump"* ]]
+  run zsh_complete "git-splice pull --re"
+  [[ "$output" == *"--rebase"* ]]
+  run zsh_complete "git-splice pull --br"
+  [[ "$output" == *"--branch"* ]]
+}
+
+@test "zsh completion: init completes --message, and the path after its message" {
+  require_shell zsh
+  run zsh_complete "git-splice init --mes"
+  [[ "$output" == *"--message"* ]]
+  run zsh_complete "git-splice init -m msg vend"
+  [[ "$output" == *"vendor/"* ]]
+  run zsh_complete "git-splice pull -m one --mes"
+  [[ "$output" == *"--message"* ]]
 }
 
 @test "fish completion: commands" {
@@ -409,10 +484,28 @@ fish_complete() {
   [ "$output" = "--graph" ]
 }
 
-@test "fish completion: pull completes --bump" {
+@test "fish completion: push completes --branch" {
   require_shell fish
-  run fish_complete "git-splice pull --b"
+  run fish_complete "git-splice push --br"
+  [ "$output" = "--branch" ]
+}
+
+@test "fish completion: pull completes --bump, --rebase and --branch" {
+  require_shell fish
+  run fish_complete "git-splice pull --bu"
   [ "$output" = "--bump" ]
+  run fish_complete "git-splice pull --reb"
+  [ "$output" = "--rebase" ]
+  run fish_complete "git-splice pull --br"
+  [ "$output" = "--branch" ]
+}
+
+@test "fish completion: init completes --message, and the path after its message" {
+  require_shell fish
+  run fish_complete "git-splice init --mes"
+  [ "$output" = "--message" ]
+  run fish_complete "git-splice init -m msg vend"
+  [[ "$output" == *"vendor/"* ]]
 }
 
 @test "interactive bash: Tab completes a splice path" {

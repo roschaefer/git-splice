@@ -2,12 +2,12 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/up-to-date/setup'
-  load 'scenarios/up-to-date/push-ahead/setup'
-  load 'scenarios/up-to-date/shared-remote-url/setup'
-  load 'scenarios/nested-splices/setup'
-  load 'scenarios/up-to-date/feature-branch-unchanged/setup'
-  load 'scenarios/up-to-date/feature-branch-unchanged/feature-branch-changed/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load 'scenarios/04-upstreams/03-shared-remote-url/setup'
+  load 'scenarios/05-nested-splices/01-nested-splices/setup'
+  load 'scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/setup'
+  load 'scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -139,6 +139,29 @@ setup() {
   [ "${PATH_ARGS[*]}" = "--odd-path" ]
 }
 
+@test "parse_args: -m takes its message in each of git's forms, and several join as paragraphs, as in git commit" {
+  usage() { echo usage; }
+  parse_args usage "-m" -m one -mtwo --message three --message=four vendor/a
+  [ "$MESSAGE_ARG" = "one
+
+two
+
+three
+
+four" ]
+  [ "${PATH_ARGS[*]}" = vendor/a ]
+}
+
+@test "parse_args: -m needs a message, and only commands that commit take it" {
+  usage() { echo usage; }
+  run parse_args usage "-m" -m ""
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"-m needs a message"* ]]
+  run parse_args usage "--force" --message=x vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown option: --message"* ]]
+}
+
 @test "state_blob sets and unsets keys of the committed .splice" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
@@ -149,6 +172,15 @@ setup() {
   [ "$(git config --blob "$blob" upstream.origin.url)" = "$upstream" ]
   blob="$(state_blob vendor/a commit=)"
   ! git config --blob "$blob" splice.commit
+}
+
+@test "state_blob fails when it can't write the blob, e.g. on a full disk" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  find .git/objects -type d -exec chmod a-w {} +
+  run state_blob vendor/a commit=abc
+  find .git/objects -type d -exec chmod u+w {} +
+  [ "$status" -ne 0 ]
 }
 
 @test "upstream_branch_for maps only the monorepo's default branch to default-branch" {
@@ -293,7 +325,7 @@ assert_candidates() {
 @test "create_upstream_key: skips a key whose refs are left over" {
   init_monorepo "$monorepo"
   cd "$monorepo"
-  git update-ref refs/splices/lib/main HEAD
+  git update-ref refs/splices/lib/heads/main HEAD
   create_upstream_key https://github.com/x/lib.git
   [ "$UPSTREAM_KEY" = x-lib ]
 }
@@ -309,7 +341,7 @@ assert_candidates() {
 @test "create_upstream_key: refs of a longer key don't take a shorter one" {
   init_monorepo "$monorepo"
   cd "$monorepo"
-  git update-ref refs/splices/libfoo/main HEAD
+  git update-ref refs/splices/libfoo/heads/main HEAD
   create_upstream_key https://github.com/x/lib.git
   [ "$UPSTREAM_KEY" = lib ]
 }

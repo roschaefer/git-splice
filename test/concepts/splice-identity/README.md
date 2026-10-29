@@ -63,12 +63,12 @@ ok   vendor/a: cloned bde4164 from main
 ```
 
 ```scrut
-$ cat vendor/a/.splice | tr '\t' ' '
+$ cat vendor/a/.splice
 [splice]
- id = 224f2c2563d3b6f7
- commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
+	id = 224f2c2563d3b6f7
+	commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 [upstream "origin"]
- url = https://git.example.com/a.git
+	url = https://git.example.com/a.git
 ```
 
 A second clone of the same upstream, at the same commit, is another
@@ -103,15 +103,22 @@ third_party/a/.splice: id = a841bb3c200928e9
 vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
-The rebuild doesn't follow the move yet: it reads the folder's history
-under its current path only, so the move starts it there, and commits
-from before the move that weren't pushed yet reach upstream folded into
-it. Push before moving
-([moved-with-unpushed-commits](../../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md),
-[#4](https://github.com/roschaefer/git-splice/issues/4)). Where a
-`.splice` is new at a path, or has another id, the splice's history
-starts: its mount. That's what keeps two splices that swap paths apart
-([swapped-splices](../../scenarios/swapped-splices/README.md)).
+The rebuild follows a move back to the old path, so the commits from
+before it that weren't pushed yet are kept
+([moved-with-unpushed-commits](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
+The id says where the folder came from: the path whose `.splice` had the
+same id in the commit before, and no longer has it. So two splices that
+swap paths each keep their own history
+([swapped-splices](../../scenarios/07-moved-folders/02-swapped-splices/README.md)). Where a
+`.splice` is new at a path, or has another id, without such a move, the
+splice's history starts: its mount.
+
+The id alone can't say where a splice came from, once two folders have
+it, as in the next section. A commit that adds `c/` and removes both
+`a/` and `b/`, which had the same id, is a move from the one with more
+unchanged files. On a tie, e.g. two mirrors kept alike, `libs/a/` comes
+from `vendor/a/`, the folder with its name; without one, it's no move,
+and the splice's history starts there.
 
 ### A copy shares the id
 
@@ -119,7 +126,9 @@ A plain copy, e.g. to give a second app its own copy of the library,
 copies `.splice` too:
 
 ```scrut
-$ cp -r vendor/a vendor/a-copy && git add vendor/a-copy && git commit -q -m "copy vendor/a"
+$ cp -r vendor/a vendor/a-copy &&
+>   git add vendor/a-copy &&
+>   git commit -q -m "copy vendor/a"
 ```
 
 ```scrut
@@ -167,7 +176,8 @@ ok   vendor/a: pulled 6045a98
 ```
 
 ```scrut
-$ git grep -e 'id = ' -e 'commit = ' -- vendor/a/.splice vendor/a-copy/.splice | tr '\t' ' '
+$ git grep -e 'id = ' -e 'commit = ' -- vendor/a/.splice vendor/a-copy/.splice |
+>   tr '\t' ' '
 vendor/a-copy/.splice: id = 224f2c2563d3b6f7
 vendor/a-copy/.splice: commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 vendor/a/.splice: id = 224f2c2563d3b6f7
@@ -220,15 +230,17 @@ with the same files ([diamond](../nesting/diamond.md)).
 ### Mirrors that swap paths
 
 Mirrors are one splice, so the rebuild can't tell them apart either.
-Two splices that swap paths each start a new history with the swap
-([swapped-splices](../../scenarios/swapped-splices/README.md)); two
-mirrors don't. Each path keeps its own history, whichever mirror's files
-it has now.
+Two splices that swap paths each keep their own history, told apart by
+their ids ([swapped-splices](../../scenarios/07-moved-folders/02-swapped-splices/README.md));
+two mirrors aren't. Each path keeps its own history, whichever mirror's
+files it has now.
 
 A commit in each mirror, not pushed yet:
 
 ```scrut
-$ echo "not for upstream" >vendor/a/secret.txt && git add vendor/a && git commit -q -m "a secret"
+$ echo "not for upstream" >vendor/a/secret.txt &&
+>   git add vendor/a &&
+>   git commit -q -m "a secret"
 ```
 
 ```scrut
@@ -238,7 +250,10 @@ $ echo "copy change" >>vendor/a-copy/file.txt && git commit -q -am "copy change"
 Then they swap paths:
 
 ```scrut
-$ git mv vendor/a tmp && git mv vendor/a-copy vendor/a && git mv tmp vendor/a-copy && git commit -q -m "swap the mirrors"
+$ git mv vendor/a tmp &&
+>   git mv vendor/a-copy vendor/a &&
+>   git mv tmp vendor/a-copy &&
+>   git commit -q -m "swap the mirrors"
 ```
 
 `vendor/a/` has the copy's files now, without the secret. But its history
@@ -253,8 +268,9 @@ $ git splice log vendor/a
 ```
 
 Nothing in the monorepo tells this swap apart from edits to one splice
-that make its files look like the other mirror's. Keeping mirrors alike
-avoids it: push one, and pull the others right away
+that make its files look like the other mirror's
+([#193](https://github.com/roschaefer/git-splice/issues/193)). Keeping
+mirrors alike avoids it: push one, and pull the others right away
 ([mirrors](../../../docs/going-forward/mirrors.md#meanwhile-discipline)).
 
 ### A fork is a splice of its own

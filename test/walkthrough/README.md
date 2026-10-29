@@ -1,8 +1,17 @@
 # Walkthrough
 
-Every command once, in order, with the output it prints. Each command
-has a page of its own with the details. To try them yourself, run
-`just walkthrough`: it opens a shell in a throwaway [sandbox](../../docs/sandbox.md).
+Let's start with an example monorepo and three upstreams. The walkthrough
+uses the same [sandbox](../../docs/sandbox.md) throughout, under
+`$WALKTHROUGH`:
+
+- `monorepo/` is the working repository, on `main`.
+- `upstream/` holds three bare upstreams: `pkg-a.git`, `pkg-b.git` and
+  `lib-c.git`, reached as `https://git.example.com/<name>.git`.
+- `monorepo/vendor/pkg-a/` is already a splice. Its fetched upstream is
+  one commit ahead.
+- `pkg-b.git` has not been spliced in yet.
+- `monorepo/libs/c/` is an ordinary folder whose upstream, `lib-c.git`,
+  is empty.
 
 ## Commands
 
@@ -10,7 +19,7 @@ has a page of its own with the details. To try them yourself, run
 | --- | --- |
 | [`status`](status.md) | Shows each splice's sync state, with how many commits `push` would publish and `pull` would bring in. |
 | [`clone`](clone.md) | Splices an existing repository into a new folder, as one commit. |
-| [`fetch`](fetch.md) | Fetches every branch of each upstream into `refs/splices/<key>/`. |
+| [`fetch`](fetch.md) | Fetches every branch of each upstream into `refs/splices/<key>/heads/`. |
 | [`log`](log.md) | Shows the commits `push` would publish and `pull` would bring in. |
 | [`merge`](merge.md) | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
 | [`pull`](pull.md) | `fetch` + `merge`. |
@@ -26,27 +35,12 @@ has a page of its own with the details. To try them yourself, run
 namesakes do to a repository. `boundary`, `rebuild` and `key` are new:
 their names come from splicing.
 
-`merge`, `pull` and `push` change the monorepo or an upstream, so they
-name their splices, or take `--all`. `clone` and `init` start one splice
-each. `boundary` and `rebuild` look at one, and `key` prints or renames
-one's key. `status`, `diff` and `log` only look, and `fetch` only
-updates the fetched branches in `refs/splices/`; these four cover every
-splice unless you name some. `status`, `diff`, `log` and `merge` only use
-what was last fetched. Run
-`git splice <command> --help` for options.
-
-A splice can have several [upstreams](../concepts/upstreams/README.md),
-e.g. a company fork and the original it follows
-([several-upstreams](../scenarios/several-upstreams/README.md)).
-`--upstream <name>` picks one for `fetch`, `merge`, `pull`, `push`,
-`status`, `diff`, `log` and `key`. Without it, commands use the splice's
-`default-upstream`, which `.splice` needs once it names several; `fetch`
-fetches all of them. A splice that lacks the named upstream stops the
-command before it starts
-([missing upstream names](../scenarios/several-upstreams/missing-upstream-names.md)).
-Each upstream records its own `default-branch`, e.g. for a fork whose
-default branch is named differently
-([fork-default-branch](../scenarios/several-upstreams/fork-default-branch.md)).
+`merge`, `pull` and `push` need paths or `--all`; `status`, `diff`,
+`log` and `fetch` cover every splice unless you name some
+([why](../../docs/design/README.md#how-the-commands-work)). `status`,
+`diff`, `log` and `merge` only use what was last fetched. With several
+[upstreams](../concepts/upstreams/README.md), `--upstream <name>` picks
+one. Run `git splice <command> --help` for options.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -81,7 +75,10 @@ Someone pushes to `pkg-b`'s upstream. `fetch` fetches every splice's
 upstream in parallel and calls out which branch moved ([fetch in detail](fetch.md)):
 
 ```scrut
-$ git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b && echo "pkg-b: add a feature" >>../pkg-b/file.txt && git -C ../pkg-b commit -qam "pkg-b: add a feature" && git -C ../pkg-b push -q
+$ git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b &&
+>   echo "pkg-b: add a feature" >>../pkg-b/file.txt &&
+>   git -C ../pkg-b commit -qam "pkg-b: add a feature" &&
+>   git -C ../pkg-b push -q
 ```
 
 ```scrut
@@ -202,12 +199,3 @@ The short name of `vendor/pkg-a/`'s upstream in `refs/splices/`
 $ git splice key vendor/pkg-a
 pkg-a
 ```
-
-## Next
-
-The [sync model](../concepts/sync-model/README.md) explains what these
-commands compute. The workflows combine them for everyday work:
-[feature branches](feature-branches.md),
-[diverged history](diverged.md) and
-[bumping the sync point](bump.md). The [scenarios](../scenarios/README.md)
-show them in many more situations.

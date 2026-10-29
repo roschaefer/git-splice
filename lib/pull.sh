@@ -2,25 +2,44 @@
 
 usage_pull() {
   cat <<'EOF'
-usage: git splice pull [--upstream <name>] [--bump] (<path>... | --all)
+NAME
+    git-splice-pull - Fetch and splice in upstream changes
 
-'git splice fetch' followed by 'git splice merge': fetches the splices'
-upstreams in parallel, then splices their changes in, as one ordinary
-commit per splice. Also fetches the splices below each: pulling a splice
-can move their synced commits. Top-down: a splice is pulled before the
-ones below it, and a failed fetch stops the splices above and below it.
+SYNOPSIS
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice pull [<option>...] -m <message> <path>
 
-On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
---abort' to give up), then re-run pull for any splices left.
+DESCRIPTION
+    'git splice fetch' followed by 'git splice merge': fetches the splices'
+    upstreams in parallel, then splices their changes in, as one ordinary
+    commit per splice. Also fetches the splices below each: pulling a splice
+    can move their synced commits. Top-down: a splice is pulled before the
+    ones below it, and a failed fetch stops the splices above and below it.
 
---upstream names one of the upstreams a splice's .splice names; without
-it, the splice's default upstream. A splice without the named upstream
-stops the command before it starts. The splices below, selected or not,
-are fetched from every upstream they name: names are only unique within one .splice, and
-any of them may have the synced commit the pull moves to.
+    On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
+    --abort' to give up), then re-run pull for any splices left. With
+    --rebase, it's 'git rebase --continue' (or 'git rebase --abort').
 
---bump also moves the synced commit up to the upstream branch when there's
-nothing to pull, e.g. right after a push; see 'git splice merge --help'.
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts. The splices below, selected or not,
+    are fetched from every upstream they name: names are only unique within one .splice, and
+    any of them may have the synced commit the pull moves to.
+
+    --branch names the upstream branch to pull, for this pull only, and
+    --track tracks it on the current branch; --rebase rebases
+    instead of merging, like 'git pull --rebase'; see 'git splice merge
+    --help' for these.
+
+    --bump also moves the synced commit up to the upstream branch when there's
+    nothing to pull, e.g. right after a push; see 'git splice merge --help'.
+
+    --no-fork-point merges a rewritten upstream branch from Git's merge base,
+    not from where the branch was before the rewrite; see 'git splice merge
+    --help'.
+
+    -m gives the commit this message, for one splice; see 'git splice merge
+    --help'.
 EOF
 }
 
@@ -35,12 +54,21 @@ below_selected() {
 }
 
 cmd_pull() {
-  parse_args usage_pull "--upstream --bump" "$@"
+  parse_args usage_pull "--upstream --branch --track --bump --rebase --no-fork-point -m" "$@"
+  require_one_splice_for_message
+  require_branch_for_track
+  REBUILD_JOINS_REWRITTEN=1
   MERGE_BUMP=""
   has_flag --bump && MERGE_BUMP=1
+  MERGE_NO_FORK_POINT=""
+  has_flag --no-fork-point && MERGE_NO_FORK_POINT=1
+  MERGE_REBASE=""
+  has_flag --rebase && MERGE_REBASE=1
+  [[ -z "$MERGE_BUMP" || -z "$MERGE_REBASE" ]] || die "--bump and --rebase don't go together"
   open_repository
-  select_splices explicit pull
+  # Before select_splices: a rebase in progress has detached HEAD.
   require_no_splice_in_progress
+  select_splices explicit pull
   local branch="$MONOREPO_BRANCH" i path failed fetched=() top=() below=() entries=()
 
   for path in "${SELECTED_PATHS[@]}"; do

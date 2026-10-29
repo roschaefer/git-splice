@@ -2,15 +2,22 @@
 
 usage_init() {
   cat <<'EOF'
-usage: git splice init <path> <url>
+NAME
+    git-splice-init - Make an existing folder a splice of an empty repository
 
-Makes the existing folder <path> a splice, to be published to <url>: an
-empty repository you created for it. Commits <path>/.splice and nothing
-else. Your first 'git splice push <path>' then starts the upstream with
-that commit, the folder as it is now, followed by any commits after it.
-The folder's earlier history stays in the monorepo.
+SYNOPSIS
+    git splice init [-m <message>] <path> <url>
 
-If <url> has commits already, use 'git splice clone --merge <url> <path>'.
+DESCRIPTION
+    Makes the existing folder <path> a splice, to be published to <url>: an
+    empty repository you created for it. Commits <path>/.splice and nothing
+    else. Your first 'git splice push <path>' then starts the upstream with
+    that commit, the folder as it is now, followed by any commits after it.
+    The folder's earlier history stays in the monorepo.
+
+    If <url> has commits already, use 'git splice clone --merge <url> <path>'.
+
+    -m gives the commit this message instead of the default one.
 EOF
 }
 
@@ -28,7 +35,7 @@ empty_upstream_default_branch() {
 }
 
 cmd_init() {
-  parse_args usage_init "" "$@"
+  parse_args usage_init "-m" "$@"
   require_args usage_init init 2 2
   local path="${PATH_ARGS[0]}" url="${PATH_ARGS[1]}"
   if [[ -z "$path" || -z "$url" ]]; then
@@ -73,6 +80,6 @@ cmd_init() {
   # -f: an ignore rule matching .splice mustn't stop it, it's committed
   # by definition.
   git add -f -- "$path/$STATE_FILE"
-  git commit --quiet -m "splice: init $path" -- "$path/$STATE_FILE"
+  git commit --quiet -m "$(commit_message "splice: init $path")" -- "$path/$STATE_FILE"
   log_ok "$path: initialized -- 'git splice push $(shell_quote "$path")' publishes it"
 }

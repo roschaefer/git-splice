@@ -56,11 +56,16 @@ __git_splice_completing_value() {
 }
 
 # Counts the positional arguments before the word being completed, skipping
-# options. $1 is the index of the subcommand in COMP_WORDS.
+# options and the message after -m, also after the "=" bash splits
+# --message=<message> at. $1 is the index of the subcommand in COMP_WORDS.
 __git_splice_positionals() {
   local i count=0
   for ((i = $1 + 1; i < COMP_CWORD; i++)); do
     case "${COMP_WORDS[i]}" in
+      -m | --message)
+        ((i++))
+        [[ "${COMP_WORDS[i]:-}" != = ]] || ((i++))
+        ;;
       -*) ;;
       *) ((count++)) ;;
     esac
@@ -94,23 +99,27 @@ _git_splice() {
   fi
 
   cmd="${COMP_WORDS[start]}"
-  # The word after --upstream is an upstream's name: nothing to offer.
-  [[ "${COMP_WORDS[COMP_CWORD - 1]}" != --upstream ]] || return 0
+  # The word after --upstream, --branch or -m names an upstream, its branch
+  # or a commit message: nothing to offer.
+  local option
+  for option in --upstream --branch -m --message; do
+    ! __git_splice_completing_value "$option" || return 0
+  done
   case "$cmd" in
     fetch)
-      __git_splice_paths_or_options "$cur" --upstream -h --help
+      __git_splice_paths_or_options "$cur" --upstream --branch --track --no-track -h --help
       ;;
     log)
       __git_splice_paths_or_options "$cur" --upstream --graph -h --help
       ;;
     merge | pull)
-      __git_splice_paths_or_options "$cur" --upstream --all --bump -h --help
+      __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point -m --message -h --help
       ;;
     push | status | diff)
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --all --force --rebuilt-commit -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit -h --help
       else
         __git_splice_paths_or_options "$cur" --upstream -h --help
       fi
@@ -123,7 +132,7 @@ _git_splice() {
         [[ "${COMP_WORDS[i]}" != --from-submodule ]] || path_position=0
       done
       if [[ "$cur" == -* ]]; then
-        mapfile -t COMPREPLY < <(compgen -W "--merge --from-submodule --recursive -h --help" -- "$cur")
+        mapfile -t COMPREPLY < <(compgen -W "--merge --from-submodule --recursive -m --message -h --help" -- "$cur")
       elif (($(__git_splice_positionals "$start") == path_position)); then
         # compgen -d only lists matching directories; quote them like the rest.
         __git_splice_reply "" < <(compgen -d -- "$cur")
@@ -131,7 +140,7 @@ _git_splice() {
       ;;
     init)
       if [[ "$cur" == -* ]]; then
-        mapfile -t COMPREPLY < <(compgen -W "-h --help" -- "$cur")
+        mapfile -t COMPREPLY < <(compgen -W "-m --message -h --help" -- "$cur")
       elif (($(__git_splice_positionals "$start") == 0)); then
         __git_splice_reply "" < <(compgen -d -- "$cur")
       fi

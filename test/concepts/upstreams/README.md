@@ -1,121 +1,155 @@
 # Upstreams
 
-What a splice's upstream is, how it relates to the refs under
-`refs/splices/<key>/`, and what it means when two splices of one
-upstream are at different versions.
+An upstream is much like a Git remote: a named repository a splice fetches
+from and pushes to. Its name and URL live inside the splice folder, in
+`.splice`, so they move and branch with it
+([why](../../../docs/design/README.md#principles)):
 
-- **Upstream** (`$UPSTREAM`): `seed`. The monorepo reaches it as
-  `https://git.example.com/s.git`, and as
-  `https://mirror.example.com/s.git` too.
-- **Monorepo**: one commit, no splice yet.
+```text
+[upstream "origin"]
+	url = https://git.example.com/s.git
+```
 
-## What an upstream is
+Unlike a Git remote, it is fetched into private refs without creating an
+entry under `git remote`
+([why](../../../docs/design/README.md#refs-instead-of-remotes)).
 
-A splice's `.splice` names its upstream like a Git remote:
-`[upstream "origin"]` with a `url`. It can name more than one, e.g. a
-company fork and the original; `default-upstream` then says which one
-commands use unless `--upstream` names another
-([several-upstreams](../../scenarios/several-upstreams/README.md)). The
-synced commit U(H) stays one per splice: a sync point is a commit,
-whichever upstream it came from.
+## A fork and the original
 
-The monorepo knows an upstream by its URL. The first command that
-fetches it gives it a *key*, a short name recorded in the repository's
-config, and fetches its branches to `refs/splices/<key>/`. So:
+A common use for several upstreams is working with a company fork while
+still fetching the original:
 
-| | is one per |
-|---|---|
-| `.splice`, `id`, synced commit U(H) | splice |
-| key, `refs/splices/<key>/*`, fetch | upstream URL, shared by every splice that names it |
+```text
+[splice]
+	default-upstream = fork
+[upstream "origin"]
+	url = https://git.example.com/lib.git
+[upstream "fork"]
+	url = https://git.example.com/company/lib.git
+```
 
-[splice-refs](../../scenarios/splice-refs/README.md) shows what each command does to
-those refs, and [splice-identity](../splice-identity/README.md) what
-the `id` names.
+When `.splice` names several upstreams, `default-upstream` says which one
+commands use when `--upstream` is omitted. Without it, commands that need
+one upstream refuse to guess. In the example above, commands use `fork`
+unless `--upstream origin` selects the original; `fetch` fetches both
+([example](../../scenarios/04-upstreams/02-several-upstreams/README.md)).
 
-## Output
+## URLs, keys and refs
+
+Each named upstream in `.splice` has a URL. The monorepo uses that URL as
+the upstream's identity.
+
+A *key* is a short, ref-friendly nickname for one unique upstream URL. The
+mapping is one-to-one within the monorepo: one URL has one key, and one key
+names one URL. For example, `https://github.com/acme/shared-lib.git` gets
+the key `shared-lib`, so its `main` branch is fetched to
+`refs/splices/shared-lib/heads/main`.
+
+The first fetch records the mapping and fetches the upstream's branches to
+`refs/splices/<key>/heads/`. These are ordinary Git refs, so commands such
+as `git log` can read them and `git worktree add` can check them out
+([example](../../walkthrough/fetch.md#looking-at-an-upstream)).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/../../scenarios/readme-setup.sh"
 ```
--->
-
-[`setup.bash`](setup.bash) builds this state:
 
 ```scrut
 $ build_scenario scenario_upstreams
 ```
+-->
 
-### Two splices, one upstream
+## Choosing a key
 
-Two apps each get their own copy of a shared library, s. Each `clone` is
-a splice of its own. (It would be the same if each app were a splice
-with s nested in it, as in
-[nested-splices](../../scenarios/nested-splices/README.md).)
+The generated key comes from the URL, but it can be renamed. Choose a name
+you already associate with the upstream, or one that makes its refs easier
+to recognize and type.
 
-```scrut
-$ git splice clone https://git.example.com/s.git app-a/s
-===  app-a/s: fetching https://git.example.com/s.git
-ok   app-a/s: cloned bde4164 from main
-```
+[`setup.bash`](setup.bash) builds an example whose generated key is `s`.
+Rename it to `shared-lib` through any splice that uses the URL:
 
 ```scrut
-$ git splice clone https://git.example.com/s.git app-b/s
-===  app-b/s: fetching https://git.example.com/s.git
-ok   app-b/s: cloned bde4164 from main
+$ git splice key app-a/s shared-lib
+ok   app-a/s: renamed key 's' to 'shared-lib'
 ```
 
-```scrut
-$ cat app-a/s/.splice | tr '\t' ' '
-[splice]
- id = 45beeb39c3270eb1
- commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
-[upstream "origin"]
- url = https://git.example.com/s.git
-```
-
-The upstream has one key, and one set of refs:
-
-```scrut
-$ git config --get-regexp '^splice\.'
-splice.s.url https://git.example.com/s.git
-```
-
-```scrut
-$ git splice key app-a/s && git splice key app-b/s
-s
-s
-```
+The refs move with the key:
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
-bde4164 refs/splices/s/main
+bde4164 refs/splices/shared-lib/heads/main
 ```
 
-`fetch` fetches each upstream once, and reports for every splice of it:
+Because a key belongs to its URL, the rename applies to every splice that
+names that URL.
 
+## Tracking another upstream branch locally
+
+A splice normally syncs with the upstream branch that corresponds to the
+current monorepo branch. When their names deliberately differ, track the
+upstream branch to use instead, much like setting a Git branch's upstream:
+
+<!--
 ```scrut
-$ seed_bare_repo "$UPSTREAM" "upstream change"
+$ seed_bare_repo "$UPSTREAM" "development change" development >/dev/null
 ```
+-->
 
 ```scrut
-$ git splice fetch
-ok   app-a/s fetched (main moved bde4164..6045a98)
-ok   app-b/s fetched (main moved bde4164..6045a98)
-```
-
-### One library at two versions
-
-Only app a pulls the new version:
-
-```scrut
-$ git splice pull app-a/s
+$ git splice fetch --branch development --track app-a/s
 ok   app-a/s fetched
-ok   app-a/s: pulled 6045a98
+ok   app-a/s: 'main' tracks 'development' from now on
+```
+
+The override is local to this clone and the current monorepo branch. It is
+stored by upstream key, so it applies to every splice using that upstream.
+Plain sync and status commands use it from then on. Stop using it with
+`--no-track`:
+
+```scrut
+$ git splice fetch --no-track app-a/s
+ok   app-a/s fetched
+ok   app-a/s: 'main' no longer tracks 'development'
+```
+
+See the [`fetch` command reference](../../walkthrough/fetch.md) for the other
+ways to set a tracked branch and its exact fallback behavior.
+
+## The same library at different versions
+
+In the same example, `app-a/` and `app-b/` each contain their own splice
+of the library `s`. Both `.splice` files name the same upstream URL:
+
+```scrut
+$ git config --file app-a/s/.splice upstream.origin.url
+https://git.example.com/s.git
 ```
 
 ```scrut
-$ git splice status
+$ git config --file app-b/s/.splice upstream.origin.url
+https://git.example.com/s.git
+```
+
+Both therefore report the key chosen above:
+
+```scrut
+$ git splice key app-a/s
+shared-lib
+```
+
+```scrut
+$ git splice key app-b/s
+shared-lib
+```
+
+They still choose versions independently. Pulling a new upstream commit
+into `app-a/s` leaves `app-b/s` behind:
+
+```scrut
+$ seed_bare_repo "$UPSTREAM" "upstream change" &&
+>   git splice pull app-a/s >/dev/null &&
+>   git splice status
 On branch main
 
   behind 1    app-b/s
@@ -123,56 +157,5 @@ On branch main
   up to date  app-a/s
 ```
 
-```scrut
-$ git grep 'commit = ' -- '*/.splice' | tr '\t' ' '
-app-a/s/.splice: commit = 6045a986b5afb475cd0af0caf6bb622db918a25b
-app-b/s/.splice: commit = bde416459fbcc09c9b585f3b65a94cab3f68bfcd
-```
-
-`app-a/s/` and `app-b/s/` were cloned separately, so they have different
-ids: they're **independent**
-([splice identity](../splice-identity/README.md#what-an-id-is)). That
-they're at different versions is fine, e.g. while `app-a/` tries the new
-one first, and `status` reports the one in `app-b/` only as behind its
-upstream. If both apps should always share one version, the two need to
-be mirrors, with the same id. Then a difference is *drift*, which
-`git-splice` doesn't report yet
-([mirrors](../../../docs/going-forward/mirrors.md)).
-
-Whether two splices differ is a matter of their files, or R in the
-[sync model](../sync-model/README.md), not of their synced commits U(H). A
-push doesn't move U(H), so a splice that pushed a change is at an older U(H)
-than a copy that pulled it, with the same files
-([diamond](../nesting/diamond.md)).
-
-### One repository, two URLs
-
-A URL is what the monorepo compares, not the repository behind it. The
-same repository under another URL, e.g. a mirror, or SSH instead of
-HTTPS, is another upstream to the monorepo, with a key and refs of its
-own:
-
-```scrut
-$ git splice clone https://mirror.example.com/s.git app-c/s
-===  app-c/s: fetching https://mirror.example.com/s.git
-ok   app-c/s: cloned 6045a98 from main
-```
-
-```scrut
-$ git config --get-regexp '^splice\.'
-splice.s.url https://git.example.com/s.git
-splice.mirror.example.com-s.url https://mirror.example.com/s.git
-```
-
-```scrut
-$ git splice key app-c/s
-mirror.example.com-s
-```
-
-So comparing URLs couldn't tell that `app-c/s/` splices the same
-repository as the others. A splice can name both URLs as two upstreams,
-but they stay two upstreams, each with a key of its own: `git-splice`
-doesn't take them for copies of one repository.
-
-How this compares with a package manager's names, versions and lockfile:
-[package managers](../../../docs/going-forward/package-managers.md).
+The two folders are independent splices because they have different
+[`id`s](../splice-identity/README.md).

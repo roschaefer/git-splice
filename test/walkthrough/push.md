@@ -1,13 +1,5 @@
 # push
 
-`git splice push [--upstream <name>] [--force] (<path>… | --all)`  
-`git splice push [--upstream <name>] [--force] --rebuilt-commit <commit> <path>`
-
-Rebuilds the commits that changed each splice since its [boundary](boundary.md),
-without `.splice`, and pushes them to the upstream branch named like
-yours. It writes nothing to the monorepo
-([why](../concepts/sync-model/README.md#why-a-push-isnt-recorded)).
-
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
@@ -15,12 +7,79 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
+$ git splice push -h
+NAME
+    git-splice-push - Publish local splice changes upstream
+
+SYNOPSIS
+    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
+
+DESCRIPTION
+    Publishes each splice's local changes: rebuilds the commits that changed
+    it since its boundary, without its .splice file, and pushes them to its
+    upstream URL. Nothing is written to the monorepo.
+
+    Bottom-up: a splice below another is pushed first, since the push of the
+    one above publishes its .splice, and a failed push stops the splices
+    above it.
+
+    If the upstream has no branch named like the current one, push creates it
+    -- but only if a PR from it to upstream's default branch would show
+    changes, so working on a feature branch doesn't spawn empty branches
+    upstream. Changes the feature branch got from the branch it was cut
+    from count too: when upstream takes changes only through PRs, that's
+    how they get there.
+
+    On the monorepo's default branch, a default-pin names a tag or a commit,
+    which isn't pushed to: push refuses there.
+
+    --force overwrites the upstream branch with the monorepo's side: when the
+    two share no history, or to discard commits only upstream has.
+
+    --rebuilt-commit pushes <commit> instead of the rebuild, e.g. one whose
+    history was edited after 'git splice rebuild <path>' printed it:
+    messages reworded, commits squashed. Only the history: its files must be
+    the folder's, and it must contain the synced commit -- with --force, it
+    may also replace commits the upstream already has. Either way, a pull
+    must be able to record it: a commit of the rebuild's history that isn't
+    newer than the synced commit is refused. push checks only that; the
+    rest of <commit>'s history -- its parents, the files of the commits
+    before it -- is pushed as it is, as with 'git push'. Like every
+    push, it records no sync point: the monorepo keeps rebuilding the
+    original commits, and a later push publishes them too, unless 'git
+    splice pull --bump <path>' records <commit> as the synced commit before
+    the next change, as push reminds you.
+
+    Only committed changes are pushed; push warns about uncommitted ones in a
+    splice's folder.
+
+    --branch names another upstream branch to push to, for this push only,
+    as 'git splice pull --branch' pulls from one: with the same checks, and
+    created like the one named like the current branch. It doesn't change
+    .splice, and the splices below keep theirs. --track also tracks
+    it on the current branch, like 'git push -u'; see 'git splice merge
+    --help'.
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts.
+```
+
+In the [walkthrough's repositories](README.md), `vendor/pkg-a/` starts
+one commit behind. Pull it to start from an up-to-date splice:
+
+```scrut
 $ git splice pull vendor/pkg-a >/dev/null
 ```
+
+Then commit a local change:
 
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
 ```
+
+Push it upstream:
 
 ```scrut
 $ git splice push vendor/pkg-a
@@ -62,7 +121,8 @@ in a worktree of its own, since it has the upstream's layout, and reword
 it there:
 
 ```scrut
-$ git worktree add -q --detach ../edited "$(git splice rebuild vendor/pkg-a)" && git -C ../edited commit -q --amend -m "pkg-a: fix the parser"
+$ git worktree add -q --detach ../edited "$(git splice rebuild vendor/pkg-a)" &&
+>   git -C ../edited commit -q --amend -m "pkg-a: fix the parser"
 ```
 
 `--rebuilt-commit` pushes the edited commit instead of the rebuild. It
@@ -99,7 +159,7 @@ $ git worktree remove ../edited
 ```
 
 Why pull right away, and what `push` checks:
-[edited-before-push](../scenarios/up-to-date/push-ahead/edited-before-push/README.md).
+[edited-before-push](../scenarios/06-rewritten-history/01-edited-before-push/README.md).
 
 ## More
 
@@ -108,8 +168,8 @@ Why pull right away, and what `push` checks:
   ([feature branches](feature-branches.md)).
 - When the upstream moves to a new URL, `.splice` gets the new URL, and
   the next push sends the unpushed commits there
-  ([upstream-moved](../scenarios/up-to-date/push-ahead/upstream-moved/README.md)).
-- Push before you move a splice with `git mv`: the push after the move
-  squashes unpushed commits into it, a known bug
-  ([moved-with-unpushed-commits](../scenarios/up-to-date/push-ahead/moved-with-unpushed-commits/README.md)).
+  ([upstream-moved](../scenarios/04-upstreams/04-upstream-moved/README.md)).
+- A splice moved with `git mv` keeps its unpushed commits: the push
+  after the move sends them as they were
+  ([moved-with-unpushed-commits](../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
 - How the rebuild works: [design](../../docs/design/README.md#splicing-out-push-and-the-rebuild).

@@ -2,14 +2,14 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/up-to-date/setup'
-  load 'scenarios/never-fetched/setup'
-  load 'scenarios/up-to-date/shared-remote-url/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
+  load 'scenarios/01-everyday-sync/04-never-fetched/setup'
+  load 'scenarios/04-upstreams/03-shared-remote-url/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
-@test "fetch: brings every upstream branch into refs/splices/<key>/" {
+@test "fetch: brings every upstream branch into refs/splices/<key>/heads/" {
   scenario_never_fetched "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "on a branch" feature
   cd "$monorepo"
@@ -66,7 +66,7 @@ setup() {
   cd "$monorepo"
   local fetches="$BATS_TEST_TMPDIR/fetches"
   git() {
-    [[ "$1" == fetch && "$*" == *"refs/heads/*:"* ]] && echo x >>"$fetches"
+    [[ " $* " == *" fetch "* && "$*" == *"refs/heads/*:"* ]] && echo x >>"$fetches"
     command git "$@"
   }
   run cmd_fetch
@@ -77,12 +77,12 @@ setup() {
 }
 
 @test "fetch: a splice without a synced commit yet fetches its upstream once" {
-  load 'scenarios/init-new-upstream/setup'
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
   git() {
-    [[ "$1" == fetch ]] && echo fetch >>"$BATS_TEST_TMPDIR/fetches"
+    [[ " $* " == *" fetch "* ]] && echo fetch >>"$BATS_TEST_TMPDIR/fetches"
     command git "$@"
   }
   run cmd_fetch lib/a
@@ -94,7 +94,7 @@ setup() {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
   git() {
-    [[ "$1" == fetch ]] && echo "warning: from the transport" >&2
+    [[ " $* " == *" fetch "* ]] && echo "warning: from the transport" >&2
     command git "$@"
   }
   run cmd_fetch

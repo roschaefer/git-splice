@@ -2,9 +2,9 @@ setup() {
   load 'helpers/fixtures'
   load_lib
   hermetic_git_config
-  load 'scenarios/up-to-date/setup'
-  load 'scenarios/never-fetched/setup'
-  load 'scenarios/up-to-date/shared-remote-url/setup'
+  load 'scenarios/01-everyday-sync/02-up-to-date/setup'
+  load 'scenarios/01-everyday-sync/04-never-fetched/setup'
+  load 'scenarios/04-upstreams/03-shared-remote-url/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -15,7 +15,7 @@ setup() {
   run cmd_key vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = upstream ]
-  git rev-parse --verify --quiet "refs/splices/$output/main"
+  git rev-parse --verify --quiet "refs/splices/$output/heads/main"
 }
 
 @test "key: an upstream never fetched has none yet, and asking doesn't record one" {
@@ -35,7 +35,7 @@ setup() {
   run cmd_key vendor/a lib
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: renamed key 'upstream' to 'lib'" ]
-  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = "refs/splices/lib/feature/x"$'\n'"refs/splices/lib/main" ]
+  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = "refs/splices/lib/heads/feature/x"$'\n'"refs/splices/lib/heads/main" ]
   [ "$(git config --local splice.lib.url)" = "$upstream" ]
   [ -z "$(git config --local splice.upstream.url || true)" ]
   run "$BATS_TEST_DIRNAME/../git-splice" status vendor/a

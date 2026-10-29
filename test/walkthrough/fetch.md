@@ -1,21 +1,45 @@
 # fetch
 
-`git splice fetch [--upstream <name>] [path…]`
-
-Fetches every branch of each splice's upstream, in parallel, into
-`refs/splices/<key>/`, and calls out which branch moved. `status`,
-`diff`, `log` and `merge` only use what was fetched last.
-
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/scrut-setup.sh"
 ```
 -->
 
-Someone pushes to `pkg-a`'s upstream:
+```scrut
+$ git splice fetch -h
+NAME
+    git-splice-fetch - Fetch splice upstreams
+
+SYNOPSIS
+    git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [path...]
+
+DESCRIPTION
+    Fetches every branch of each splice's upstreams into
+    refs/splices/<key>/heads/*, where <key> is the upstream's key in this
+    repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
+    no Git remote; 'git splice key' prints and renames keys. Branches deleted
+    upstream are pruned. Defaults to every splice when no paths are given.
+    Fetches upstreams in parallel, each once, and reports when the branch a
+    splice syncs with has moved.
+
+    A splice whose .splice names several upstreams has each fetched, unless
+    --upstream names one.
+
+    --branch <name> --track also tracks that upstream branch on the current
+    branch, without a pull or push: from then on, every command syncs the
+    splice with it there, and 'git splice status' compares with it.
+    --no-track stops tracking one, so the splice syncs with the branch named
+    like the current one again. See 'git splice merge --help'.
+```
+In the [walkthrough's repositories](README.md), someone pushes another
+commit to `pkg-a`'s upstream:
 
 ```scrut
-$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a && echo "pkg-a: add a feature" >>../pkg-a/file.txt && git -C ../pkg-a commit -qam "pkg-a: add a feature" && git -C ../pkg-a push -q
+$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" ../pkg-a &&
+>   echo "pkg-a: add a feature" >>../pkg-a/file.txt &&
+>   git -C ../pkg-a commit -qam "pkg-a: add a feature" &&
+>   git -C ../pkg-a push -q
 ```
 
 ```scrut
@@ -25,22 +49,18 @@ ok   vendor/pkg-a fetched (main moved 703b936..5099edf)
 
 ## Looking at an upstream
 
-`fetch` keeps each upstream's complete history in the monorepo, under
-`refs/splices/<key>/<branch>`, where the key is the upstream's short name
-in this repository, from its URL: `https://git.example.com/pkg-a.git`
-gets `pkg-a` ([`key`](key.md) renames it).
-Every Git command reads it as `splices/<key>/<branch>`, so there's
-nothing to clone:
+Every Git command can read the fetched history, so there's nothing to
+clone:
 
 ```scrut
-$ git log --oneline splices/pkg-a/main
+$ git log --oneline splices/pkg-a/heads/main
 5099edf pkg-a: add a feature
 703b936 pkg-a: a second commit, after the clone
 9bb866a pkg-a: seed
 ```
 
 ```scrut
-$ git show splices/pkg-a/main:file.txt
+$ git show splices/pkg-a/heads/main:file.txt
 pkg-a: seed
 pkg-a: a second commit, after the clone
 pkg-a: add a feature
@@ -51,7 +71,8 @@ worktree, and remove it when you're done. Commits made there don't reach
 upstream; changes belong in the monorepo, and `push` publishes them.
 
 ```scrut
-$ git worktree add -q --detach ../pkg-a-upstream splices/pkg-a/main && ls ../pkg-a-upstream
+$ git worktree add -q --detach ../pkg-a-upstream splices/pkg-a/heads/main &&
+>   ls ../pkg-a-upstream
 file.txt
 ```
 

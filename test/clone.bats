@@ -4,11 +4,11 @@ setup() {
   hermetic_git_config
   local scenario
   for scenario in \
-    up-to-date \
-    clone-copied-content \
-    clone-differing-content \
-    clone-on-feature-branch \
-    clone-without-commits; do
+    01-everyday-sync/02-up-to-date \
+    02-starting-a-splice/01-clone-copied-content \
+    02-starting-a-splice/02-clone-differing-content \
+    02-starting-a-splice/03-clone-on-feature-branch \
+    02-starting-a-splice/06-clone-without-commits; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -37,6 +37,28 @@ new_upstream() {
   [ -z "$(git status --porcelain)" ]
   classify_splice vendor/a main
   [ "$SPLICE_STATE" = up-to-date ]
+}
+
+@test "clone -m: the commit gets the message, and .splice still records the commit" {
+  new_upstream
+  run cmd_clone -m "a: add the parser" "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "a: add the parser" ]
+  [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
+}
+
+@test "clone --merge -m: on a conflict, git commit keeps the message" {
+  new_upstream
+  mkdir -p vendor/a
+  echo local >vendor/a/file.txt
+  git add vendor/a
+  git commit -q -m "local copy"
+  run cmd_clone --merge -m "b: splice the copy in" "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  echo merged >vendor/a/file.txt
+  git add vendor/a/file.txt
+  git commit -q --no-edit
+  [ "$(git log -1 --format=%s)" = "b: splice the copy in" ]
 }
 
 @test "clone: gives the splice an id, another one than a clone at another path" {

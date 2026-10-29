@@ -13,8 +13,8 @@ also says where it is the better tool.
 - [`git subtree`](git-subtree.md): either the library's whole history
   comes into the monorepo, or `split` walks the monorepo's whole history
   on every push. Either way, the history isn't linear. A splice's sync
-  point survives a [squash merge](../scenarios/up-to-date/squash-merged-pull/README.md),
-  and a [merge in the monorepo](../scenarios/up-to-date/feature-branch-unchanged/merge-in-monorepo/README.md)
+  point survives a [squash merge](../scenarios/03-branches-and-teamwork/03-squash-merged-pull/README.md),
+  and a [merge in the monorepo](../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/02-merge-in-monorepo/README.md)
   reaches the upstream as one commit.
 
 | | `git submodule` | `git subtree` | `git-splice` |
@@ -29,10 +29,6 @@ also says where it is the better tool.
 | Best for | libraries kept apart, with their own access | moving a repository in for good, history included | changing a library in the monorepo and sending the changes back |
 
 [Third-party tools](third-party/README.md) compares git-subrepo,
-Josh, splitsh-lite and Copybara.
-
-## The output is real
-
-As on every page with output, [scrut](../../docs/sandbox.md#the-output-is-real)
-runs the commands. Here [`scrut-setup.sh`](scrut-setup.sh) builds the
-library and the monorepo, and the work directory shows as `$COMPARISON`.
+Josh, splitsh-lite, and the export tools Copybara and Meta's ShipIt.
+[Version control systems](vcs/README.md) compares Sapling and Jujutsu,
+which work in a Git repository, and `git-splice` running next to them.

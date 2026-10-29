@@ -1,0 +1,6 @@
+# Sends the signal the first document waits for
+
+```scrut
+$ echo "from the second document" > "$SIGNAL_FILE" && echo sent
+expected otherwise
+```

@@ -66,14 +66,14 @@ init_monorepo() {
 
 # Prints the prefix of the refs git splice fetches upstream <url>'s
 # branches into in the repository at the current directory, e.g.
-# refs/splices/upstream/, recording the upstream's key first if it has none,
-# as the commands do.
+# refs/splices/upstream/heads/, recording the upstream's key first if it
+# has none, as the commands do.
 upstream_refs() {
   (
     # shellcheck source=../../lib/common.sh
     source "$FIXTURES_DIR/../../lib/common.sh"
     create_upstream_key "$1"
-    printf 'refs/splices/%s/\n' "$UPSTREAM_KEY"
+    printf 'refs/splices/%s/heads/\n' "$UPSTREAM_KEY"
   )
 }
 
@@ -83,14 +83,15 @@ upstream_refs() {
 fetch_splice() {
   local monorepo="$1" url="$2" prefix
   prefix="$(cd "$monorepo" && upstream_refs "$url")"
-  git -C "$monorepo" fetch -q --no-tags --prune -- "$url" "+refs/heads/*:$prefix*"
+  git -C "$monorepo" -c core.logAllRefUpdates=always fetch -q --no-tags --prune -- "$url" "+refs/heads/*:$prefix*"
 }
 
 # Splices branch $4 (default: main) of upstream $2 into $3 inside monorepo
 # $1 via raw git plumbing -- deliberately NOT via cmd_clone, so other
-# commands' tests don't depend on clone's own correctness.
+# commands' tests don't depend on clone's own correctness. The commit's
+# message is $5, default "add <path>".
 add_splice() {
-  local monorepo="$1" url="$2" path="$3" branch="${4:-main}" commit id
+  local monorepo="$1" url="$2" path="$3" branch="${4:-main}" msg="${5:-add $3}" commit id
   fetch_splice "$monorepo" "$url" "$path"
   (
     cd "$monorepo"
@@ -103,7 +104,7 @@ add_splice() {
     git read-tree --prefix="$path/" -u "$commit"
     printf '[splice]\n\tcommit = %s\n\tid = %s\n[upstream "origin"]\n\turl = %s\n' "$commit" "$id" "$url" >"$path/.splice"
     git add "$path"
-    git commit -q -m "add $path"
+    git commit -q -m "$msg"
   )
 }
 

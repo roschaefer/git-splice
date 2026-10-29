@@ -2,29 +2,41 @@
 
 usage_fetch() {
   cat <<'EOF'
-usage: git splice fetch [--upstream <name>] [path...]
+NAME
+    git-splice-fetch - Fetch splice upstreams
 
-Fetches every branch of each splice's upstreams into
-refs/splices/<key>/*, where <key> is the upstream's key in this
-repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
-no Git remote; 'git splice key' prints and renames keys. Branches deleted
-upstream are pruned. Defaults to every splice when no paths are given.
-Fetches upstreams in parallel, each once, and reports when the branch a
-splice syncs with moved.
+SYNOPSIS
+    git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [path...]
 
-A splice whose .splice names several upstreams has each fetched, unless
---upstream names one.
+DESCRIPTION
+    Fetches every branch of each splice's upstreams into
+    refs/splices/<key>/heads/*, where <key> is the upstream's key in this
+    repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
+    no Git remote; 'git splice key' prints and renames keys. Branches deleted
+    upstream are pruned. Defaults to every splice when no paths are given.
+    Fetches upstreams in parallel, each once, and reports when the branch a
+    splice syncs with has moved.
+
+    A splice whose .splice names several upstreams has each fetched, unless
+    --upstream names one.
+
+    --branch <name> --track also tracks that upstream branch on the current
+    branch, without a pull or push: from then on, every command syncs the
+    splice with it there, and 'git splice status' compares with it.
+    --no-track stops tracking one, so the splice syncs with the branch named
+    like the current one again. See 'git splice merge --help'.
 EOF
 }
 
 # Fetches every branch of upstream <url> into <prefix>*, pruning those that
-# are gone. The rebuild starts at a splice's synced commit; any <commit>
-# given that no branch upstream has any more (e.g. after a force push) is
-# fetched by id.
+# are gone, with a reflog for each, as Git keeps for refs/remotes/: merge
+# finds a rewritten branch's fork point in it. The rebuild starts at a
+# splice's synced commit; any <commit> given that no branch upstream has
+# any more (e.g. after a force push) is fetched by id.
 fetch_upstream() {
   local url="$1" prefix="$2" commit
   shift 2
-  git fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
+  git -c core.logAllRefUpdates=always fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head --prune -- "$url" "+refs/heads/*:$prefix*" || return 1
   for commit in "$@"; do
     # A splice made by init has no synced commit until its first pull.
     [[ -n "$commit" ]] || continue
@@ -34,6 +46,21 @@ fetch_upstream() {
   done
 }
 
+# Fetches tag <tag> of upstream <url> into <key-prefix>tags/<tag>, if
+# upstream has it. Git doesn't move a fetched tag that moved upstream, and
+# neither does this: it keeps the commit the tag named, and prints
+# "<old> <new>" then.
+fetch_tag() {
+  local url="$1" ref="$2tags/$3" old new
+  old="$(git rev-parse --verify --quiet "$ref" || true)"
+  git -c core.logAllRefUpdates=always fetch --quiet --no-recurse-submodules --no-tags --no-write-fetch-head -- "$url" "+refs/tags/$3:$ref" 2>/dev/null || return 0
+  new="$(git rev-parse --verify --quiet "$ref")"
+  if [[ -n "$old" && "$new" != "$old" ]]; then
+    git update-ref "$ref" "$old"
+    printf '%s %s\n' "$old" "$new"
+  fi
+}
+
 # Fetches upstream <url>, with key <key>, that the splices of <entry>...
 # share, each "<path>:<name>" of the upstream, and reports for each
 # whether the branch it syncs with moved, while the monorepo is on branch
@@ -41,11 +68,12 @@ fetch_upstream() {
 # $2/<i>.out and $2/<i>.err, and creates $2/<i>.failed if it failed; $3
 # holds those numbers, space-separated.
 fetch_shared_upstream() {
-  local branch="$1" out_dir="$2" indexes=() key="$4" url="$5" i=0 entry path from synced=() labels=() failed_labels=() upstream_branches=() target_refs=() old_shas=() new_sha
+  local branch="$1" out_dir="$2" indexes=() key="$4" url="$5" i=0 entry path from synced=() labels=() failed_labels=() upstream_branches=() target_refs=() old_shas=() new_sha tags=() tag_of=() paths=() pin moved
   read -r -a indexes <<<"$3"
   shift 5
   for entry in "$@"; do
     path="${entry%%:*}"
+    paths[i]="$path"
     from=""
     has_several_upstreams "$path" && from=" from ${entry#*:}"
     labels[i]="$path fetched$from"
@@ -53,13 +81,29 @@ fetch_shared_upstream() {
     # Empty if the upstreams of the splice above disagree on it, and none
     # is its default: the commands that need it refuse then.
     upstream_branches[i]="$(upstream_branch_for "$path" "$branch" "${entry#*:}" 2>/dev/null)" || true
-    target_refs[i]="refs/splices/$key/${upstream_branches[i]}"
+    tag_of[i]=""
+    # Only a default-pin fetches a tag or a commit. Every branch fetches
+    # it: a feature branch compares with it when upstream has no branch
+    # like it (compare_with_default_branch).
+    pin="$(upstream_config "$path" "${entry#*:}" default-pin)"
+    if is_commit_id "$pin"; then
+      synced+=("$pin")
+    else
+      tag_of[i]="$pin"
+    fi
+    [[ -z "${tag_of[i]}" || " ${tags[*]} " == *" ${tag_of[i]} "* ]] || tags+=("${tag_of[i]}")
+    # A splice pinned on this branch has no branch that could move.
+    target_refs[i]=""
+    if [[ -z "$pin" ]] || branch_arg_applies "$path" ||
+      { [[ "${entry#*:}" == "${SPLICE_UPSTREAM_NAMES[$path]:-}" ]] && named_branch "$path" "$branch" >/dev/null; } || [[ "$branch" != "$(monorepo_default_branch)" ]]; then
+      target_refs[i]="refs/splices/$key/heads/${upstream_branches[i]}"
+    fi
     old_shas[i]="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
     synced+=("$(splice_config "$path" commit)")
     i=$((i + 1))
   done
   local error
-  if ! error="$(fetch_upstream "$url" "refs/splices/$key/" "${synced[@]}" 2>&1)"; then
+  if ! error="$(fetch_upstream "$url" "refs/splices/$key/heads/" "${synced[@]}" 2>&1)"; then
     for i in "${!indexes[@]}"; do
       {
         [[ -z "$error" ]] || printf '%s\n' "$error"
@@ -70,6 +114,11 @@ fetch_shared_upstream() {
     done
     return 1
   fi
+  local tag
+  local -A moved_tags=()
+  for tag in "${tags[@]}"; do
+    moved_tags[$tag]="$(fetch_tag "$url" "refs/splices/$key/" "$tag")"
+  done
   for i in "${!indexes[@]}"; do
     new_sha="$(git rev-parse --verify --quiet "${target_refs[i]}" || true)"
     if [[ -n "${old_shas[i]}" && -n "$new_sha" && "${old_shas[i]}" != "$new_sha" ]]; then
@@ -77,10 +126,17 @@ fetch_shared_upstream() {
     else
       log_ok "${labels[i]}"
     fi >"$out_dir/${indexes[i]}.out"
-    # What git printed on success, e.g. an SSH warning, shown once.
-    if ((i == 0)) && [[ -n "$error" ]]; then
-      printf '%s\n' "$error"
-    fi >"$out_dir/${indexes[i]}.err"
+    {
+      # What git printed on success, e.g. an SSH warning, shown once.
+      if ((i == 0)) && [[ -n "$error" ]]; then
+        printf '%s\n' "$error"
+      fi
+      moved="${tag_of[i]:+${moved_tags[${tag_of[i]}]}}"
+      if [[ -n "$moved" ]]; then
+        new_sha="${moved#* }"
+        log_warn "${paths[i]}: the tag '${tag_of[i]}' moved upstream, from ${moved:0:7} to ${new_sha:0:7} -- kept ${moved:0:7}; to take the new one: git update-ref refs/splices/$key/tags/${tag_of[i]} $new_sha"
+      fi
+    } >"$out_dir/${indexes[i]}.err" 2>&1
   done
 }
 
@@ -184,13 +240,15 @@ used_upstream_entry() {
 }
 
 cmd_fetch() {
-  parse_args usage_fetch "--upstream" "$@"
+  parse_args usage_fetch "--upstream --branch --track --no-track" "$@"
+  require_branch_for_track
   open_repository
   select_paths overview fetch
-  local branch i entries=()
+  local branch i path entries=() failures=()
   branch="$(current_branch)"
 
-  if [[ -n "$UPSTREAM_ARG" ]]; then
+  # Tracking is per upstream in use, so only that one is fetched.
+  if [[ -n "$UPSTREAM_ARG" ]] || has_flag --track || has_flag --no-track; then
     use_upstreams "$UPSTREAM_ARG" "${SELECTED_PATHS[@]}"
     mapfile -t entries < <(used_upstream_entry "${SELECTED_PATHS[@]}")
   else
@@ -200,9 +258,24 @@ cmd_fetch() {
   for i in "${!entries[@]}"; do
     print_fetch_output "$i"
   done
+  failures=("${FETCH_FAILURES[@]}")
 
-  if [[ ${#FETCH_FAILURES[@]} -gt 0 ]]; then
-    log_err "Failed: ${FETCH_FAILURES[*]}"
+  for path in "${SELECTED_PATHS[@]}"; do
+    fetch_failed_for_path "$path" && continue
+    if has_flag --track; then
+      if ! git rev-parse --verify --quiet "refs/splices/${SPLICE_KEYS[$path]}/heads/$BRANCH_ARG" >/dev/null; then
+        log_err "$path: upstream has no '$BRANCH_ARG' branch to track"
+        failures+=("$path")
+      else
+        track_branch "$path" "$branch" "$BRANCH_ARG" || failures+=("$path")
+      fi
+    elif has_flag --no-track; then
+      untrack_branch "$path" "$branch" || failures+=("$path")
+    fi
+  done
+
+  if [[ ${#failures[@]} -gt 0 ]]; then
+    log_err "Failed: ${failures[*]}"
     exit 1
   fi
 }

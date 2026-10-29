@@ -19,7 +19,8 @@ check_drawing() {
   shift
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=() lane_label=()
-  local -a errors=() commits=() edges=() boxes=() lanes=() splices=()
+  local -a errors=() commits=() edges=() boxes=() lanes=() splices=() separators=() sides=()
+  local -A lane_id=() side_of=() side_key=() region_name=() region_key=() drawn_on_side=()
   local -A id_of_label=() label_count=() alias=()
   local id k cells term shown named sp p
   local name='([HBTR]|U\([^()]+\)|[^ ]+)'
@@ -53,19 +54,39 @@ check_drawing() {
     -v '@source' -o $'\x1f' -v '@target' -o $'\x1f' -v '@parent' -o $'\x1f' \
     -v 'mxGeometry/@x' -o $'\x1f' -v 'mxGeometry/@y' -o $'\x1f' -v 'mxGeometry/@width' -o $'\x1f' -v 'mxGeometry/@height' -n <<<"$xml")"
   local c_id c_kind c_value c_style c_source c_target c_parent c_x c_y c_w c_h
+  # A legend, a shape styled legend=1, explains the marks a drawing uses:
+  # the shapes inside it are samples, not commits, boxes or texts.
+  local -A is_legend=()
+  local -a legend_samples=()
+  while IFS=$'\x1f' read -r c_id c_kind c_value c_style _; do
+    [[ ";$c_style;" != *";legend=1;"* ]] || is_legend[$c_id]=1
+  done <<<"$cells"
   while IFS=$'\x1f' read -r c_id c_kind c_value c_style c_source c_target c_parent c_x c_y c_w c_h; do
     [[ -n "$c_id" ]] || continue
     value[$c_id]="$c_value" style[$c_id]="$c_style" source[$c_id]="$c_source" target[$c_id]="$c_target"
     parent[$c_id]="$c_parent" gx[$c_id]="${c_x:-0}" gy[$c_id]="${c_y:-0}" gw[$c_id]="${c_w:-0}" gh[$c_id]="${c_h:-0}"
+    [[ -z "${is_legend[$c_id]:-}" ]] || continue
+    if [[ -n "${is_legend[$c_parent]:-}" ]]; then
+      [[ "$c_style" != ellipse* && "$c_style" != *";ellipse"* ]] || legend_samples+=("$c_id")
+      continue
+    fi
     if [[ "$c_kind" == *e1 ]]; then
       kind[$c_id]=edge
       edges+=("$c_id")
     elif [[ "$c_style" == ellipse* || "$c_style" == *";ellipse"* ]]; then
       kind[$c_id]=commit
       commits+=("$c_id")
+    elif [[ "$c_style" == line* || "$c_style" == *";line;"* ]]; then
+      kind[$c_id]=separator
+      separators+=("$c_id")
     elif [[ "$c_value" =~ ^[^\ ]+/$ ]]; then
       kind[$c_id]=lane
       lanes+=("$c_id")
+    elif [[ "$c_style" == text* || "$c_style" == *";text;"* ]]; then
+      # An upstream's name, if it's in a split lane; a box by its label
+      # otherwise.
+      kind[$c_id]=side
+      sides+=("$c_id")
     elif [[ "$c_value" =~ $box_label ]]; then
       kind[$c_id]=box
       boxes+=("$c_id")
@@ -117,15 +138,13 @@ check_drawing() {
   for l in "${lanes[@]}"; do
     if [[ -n "${is_splice[${value[$l]%/}]:-}" ]]; then
       lane_splice[$l]="${value[$l]%/}"
-    elif [[ "${value[$l]}" == path/ && ${#splices[@]} -eq 1 ]]; then
-      lane_splice[$l]="${splices[0]}"
     else
       errors+=("the lane ${value[$l]} isn't a splice of the monorepo")
     fi
   done
   if [[ ${#splices[@]} -eq 1 ]]; then
     default="${splices[0]}"
-  elif [[ ${#lanes[@]} -eq 0 ]]; then
+  elif [[ ${#splices[@]} -gt 1 && ${#lanes[@]} -eq 0 ]]; then
     printf '!!   the monorepo has %d splices: draw a lane for each one the drawing shows, labelled with its folder, e.g. %s/\n' \
       "${#splices[@]}" "${splices[0]:-vendor/a}"
     return 1
@@ -141,29 +160,180 @@ check_drawing() {
         errors+=("the lane ${value[$l]} is a folder inside ${value[$o]}: draw it inside that lane")
     done
   done
-  for id in "${commits[@]}" "${boxes[@]}"; do
-    lane_of[$id]="" lane_label[$id]="" smallest=""
+  for id in "${commits[@]}" "${boxes[@]}" "${separators[@]}" "${sides[@]}"; do
+    lane_of[$id]="" lane_label[$id]="" lane_id[$id]="" smallest=""
     for l in "${lanes[@]}"; do
       if [[ -z "${lane_splice[$l]:-}" ]] || ! contains "$id" "$l"; then
         continue
       fi
       area=$(awk -v w="${gw[$l]}" -v h="${gh[$l]}" 'BEGIN { print w * h }')
       if [[ -z "$smallest" ]] || awk -v a="$area" -v b="$smallest" 'BEGIN { exit !(a < b) }'; then
-        lane_of[$id]="${lane_splice[$l]}" lane_label[$id]="${value[$l]}" smallest="$area"
+        lane_of[$id]="${lane_splice[$l]}" lane_label[$id]="${value[$l]}" lane_id[$id]="$l" smallest="$area"
       fi
     done
+  done
+
+  # Upstreams side by side: a dashed line, a separator, splits a lane, and
+  # a text on each side names the upstream whose commits that side holds.
+  # A shape's side is the number of the lane's separators left of its
+  # center.
+  center_x() {
+    local x y
+    read -r x y < <(absolute "$1")
+    awk -v x="$x" -v w="${gw[$1]}" 'BEGIN { print x + w / 2 }'
+  }
+  region() {
+    local sep n=0 x
+    x="$(center_x "$1")"
+    for sep in "${separators[@]}"; do
+      [[ "${lane_id[$sep]}" == "${lane_id[$1]}" ]] || continue
+      awk -v a="$(center_x "$sep")" -v b="$x" 'BEGIN { exit !(a < b) }' && n=$((n + 1))
+    done
+    printf '%s|%s\n' "${lane_id[$1]}" "$n"
+  }
+  # The names of the upstreams splice $1's .splice names.
+  upstream_names() {
+    git config --blob "HEAD:$1/.splice" --name-only --get-regexp '^upstream\..*\.url$' 2>/dev/null |
+      sed 's/^upstream\.//; s/\.url$//' || true
+  }
+  local -A split_lane=() region_named=() lane_upstream=()
+  local r n names
+  for id in "${separators[@]}"; do
+    if [[ -z "${lane_id[$id]}" ]]; then
+      errors+=("a separator is in no lane: draw it inside the lane of the splice whose upstreams it separates")
+      continue
+    fi
+    if [[ ";${style[$id]};" != *";dashed=1;"* ]]; then
+      errors+=("a line in ${lane_label[$id]} is solid: dash it, a separator is dashed")
+      continue
+    fi
+    if [[ ";${style[$id]};" != *";direction=south;"* && ";${style[$id]};" != *";direction=north;"* ]]; then
+      errors+=("a line in ${lane_label[$id]} isn't vertical: a separator runs from top to bottom, direction=south")
+      continue
+    fi
+    split_lane[${lane_id[$id]}]=$((${split_lane[${lane_id[$id]}]:-0} + 1))
+  done
+  for id in "${sides[@]}"; do
+    if [[ -z "${lane_id[$id]}" || -z "${split_lane[${lane_id[$id]}]:-}" ]]; then
+      if [[ "${value[$id]}" =~ $box_label ]]; then
+        kind[$id]=box
+        boxes+=("$id")
+      fi
+      continue
+    fi
+    r="$(region "$id")"
+    region_named[$r]=1
+    if [[ -n "${region_name[$r]:-}" ]]; then
+      errors+=("${region_name[$r]} and ${value[$id]} name one side of ${lane_label[$id]}: name each side once")
+      continue
+    fi
+    if [[ -n "${lane_upstream["${lane_id[$id]}|${value[$id]}"]:-}" ]]; then
+      errors+=("${value[$id]} names two sides of ${lane_label[$id]}: name each side after another upstream")
+      continue
+    fi
+    lane_upstream["${lane_id[$id]}|${value[$id]}"]=1
+    names=" $(upstream_names "${lane_of[$id]}" | tr '\n' ' ')"
+    if [[ "$names" != *" ${value[$id]} "* ]]; then
+      errors+=("${lane_label[$id]} has no upstream named ${value[$id]}: name a side after one of its upstreams,${names% }")
+      continue
+    fi
+    region_key[$r]="$(git splice key --upstream "${value[$id]}" "${lane_of[$id]}" 2>/dev/null)" || region_key[$r]=""
+    if [[ -z "${region_key[$r]}" ]]; then
+      errors+=("${value[$id]} of ${lane_label[$id]} was never fetched: fetch it before drawing its side")
+      continue
+    fi
+    region_name[$r]="${value[$id]}"
+  done
+  # Every side is named, even one with nothing on it.
+  for l in "${!split_lane[@]}"; do
+    for ((n = 0; n <= split_lane[$l]; n++)); do
+      [[ -n "${region_named["$l|$n"]:-}" ]] ||
+        errors+=("side $((n + 1)) of ${value[$l]}, from the left, names no upstream: label each side with its upstream's name")
+    done
+  done
+  for id in "${commits[@]}" "${boxes[@]}"; do
+    [[ -n "${lane_id[$id]}" && -n "${split_lane[${lane_id[$id]}]:-}" ]] || continue
+    r="$(region "$id")"
+    [[ -n "${region_name[$r]:-}" ]] || continue
+    side_of[$id]="${region_name[$r]}" side_key[$id]="${region_key[$r]}"
   done
 
   # What H names, and B, T, R, U(H) and U(B) of each splice the drawing
   # uses; T through the upstream branch the monorepo's branch maps to.
   truth[H]="$(git rev-parse HEAD)"
+  # The folders splice <path> had on HEAD's first-parent history, as
+  # git-splice's rebuild follows it back through moves (`git mv`): the
+  # mount (nothing if there's none), then each path and the range
+  # (rev-list syntax) of commits it applies to, newest first, each field
+  # ending with a NUL. The last range starts at the mount: before, the
+  # folder was no splice, or another one.
+  lineage_segments() {
+    (
+      # shellcheck source=/dev/null # git-splice's, linted there
+      source "$DRAWING_LIB/common.sh"
+      # shellcheck source=/dev/null
+      source "$DRAWING_LIB/rebuild.sh"
+      local at upper mount i
+      local -a paths=() ranges=()
+      read_lineage 5 paths ranges - - at - upper < <(splice_lineage "$1" HEAD)
+      read_lineage 3 paths ranges mount at upper < <(splice_lineage_to_mount "$at" "$upper")
+      paths+=("$at")
+      if [[ -n "$mount" ]] && git rev-parse --verify --quiet "$mount^1" >/dev/null; then
+        ranges+=("$mount^1..$upper")
+      else
+        ranges+=("$upper")
+      fi
+      printf '%s\0' "$mount"
+      for i in "${!paths[@]}"; do
+        printf '%s\0' "${paths[$i]}" "${ranges[$i]}"
+      done
+    )
+  }
+  # The folder splice <path> had in monorepo commit <commit>: in a commit
+  # after the mount, the one whose .splice has the splice's id there, like
+  # the rebuild tells it, also on a branch that moved the splice on its
+  # own, merged or not. Otherwise, or where no folder or several (mirrors)
+  # have the id, the one HEAD's first-parent history had, at the fork for
+  # a commit on another branch; nothing before the mount, where another
+  # splice may have the id, e.g. the mirror this one was copied from.
+  path_at() {
+    local p="$1" c="$2" path range lower upper id mount
+    local -a found=()
+    {
+      IFS= read -r -d '' mount
+      if [[ -n "$mount" ]] && git merge-base --is-ancestor "$mount" "$c" 2>/dev/null; then
+        id="$(git config --blob "HEAD:$p/.splice" splice.id)"
+        while IFS= read -r -d '' path; do
+          [[ "$(git config --blob "$c:$path" splice.id 2>/dev/null)" != "$id" ]] || found+=("${path%/.splice}")
+        done < <(
+          # shellcheck source=/dev/null # git-splice's, linted there
+          source "$DRAWING_LIB/common.sh"
+          state_files "$c"
+        )
+        if [[ ${#found[@]} -eq 1 ]]; then
+          printf '%s\n' "${found[0]}"
+          return
+        fi
+      fi
+      git merge-base --is-ancestor "$c" HEAD 2>/dev/null || c="$(git merge-base HEAD "$c")" || return 0
+      while IFS= read -r -d '' path && IFS= read -r -d '' range; do
+        upper="${range#*..}" lower=""
+        [[ "$range" != *..* ]] || lower="${range%%..*}"
+        if git merge-base --is-ancestor "$c" "$upper" &&
+          { [[ -z "$lower" ]] || ! git merge-base --is-ancestor "$c" "$lower" 2>/dev/null; }; then
+          printf '%s\n' "$path"
+          return
+        fi
+      done
+    } < <(lineage_segments "$p")
+  }
   load_truth() {
     local p="$1" c
     [[ -z "${truth["$p|loaded"]:-}" ]] || return 0
     truth["$p|loaded"]=1
     truth["$p|B"]="$(git splice boundary "$p")"
     truth["$p|U"]="$(git config --blob "HEAD:$p/.splice" splice.commit)"
-    truth["$p|S"]="$(git config --blob "${truth["$p|B"]}:$p/.splice" splice.commit)"
+    truth["$p|S"]="$(git config --blob "${truth["$p|B"]}:$(path_at "$p" "${truth["$p|B"]}")/.splice" splice.commit)"
     truth["$p|T"]="$(git rev-parse --verify --quiet "$(
       # shellcheck source=/dev/null # git-splice's, linted there
       source "$DRAWING_LIB/common.sh"
@@ -176,9 +346,15 @@ check_drawing() {
       truth["$p|base"]="$(git merge-base "${truth["$p|R"]}" "${truth["$p|T"]}")"
     truth["$p|key"]="$(git splice key "$p")"
     truth["$p|synced"]=""
-    for c in $(git log --first-parent --format=%H HEAD -- "$p/.splice"); do
-      truth["$p|synced"]+=" $(git config --blob "$c:$p/.splice" splice.commit 2>/dev/null)"
-    done
+    local path range
+    {
+      IFS= read -r -d '' _
+      while IFS= read -r -d '' path && IFS= read -r -d '' range; do
+        for c in $(git log --first-parent --format=%H "$range" -- "$path/.splice"); do
+          truth["$p|synced"]+=" $(git config --blob "$c:$path/.splice" splice.commit 2>/dev/null)"
+        done
+      done
+    } < <(lineage_segments "$p")
   }
   for id in "${commits[@]}" "${boxes[@]}"; do
     sp="${lane_of[$id]:-$default}"
@@ -187,33 +363,57 @@ check_drawing() {
   done
 
   # Commits, by label.
-  local label base subject hash upstream_tips
+  # What a copy shares with the commit it copies, read the way the
+  # rebuild's copy_commit reads it: author, committer and the whole
+  # message.
+  copy_key() {
+    git -c i18n.commitEncoding=UTF-8 -c i18n.logOutputEncoding=UTF-8 log -1 --no-show-signature \
+      --pretty=format:'%an%n%ae%n%aD%n%cn%n%ce%n%cD%n%B' "$1" | git hash-object --stdin
+  }
+  local label base subject hash upstream_tips tip
   for id in "${commits[@]}"; do
     label="${value[$id]}"
     base="${label%\'}"
     sp="${splice_of[$id]}"
     hash=""
-    if [[ -n "${rev_of[$base]:-}" ]]; then
+    if [[ -n "${rev_of[$label]:-}" ]]; then
+      # A copy given in full, e.g. b'=<rev>: several copies of b can look
+      # alike, e.g. a pushed one and R's after a 'git rebase'.
+      hash="$(git rev-parse --verify --quiet "${rev_of[$label]}^{commit}")"
+    elif [[ -n "${rev_of[$base]:-}" ]]; then
       hash="$(git rev-parse --verify --quiet "${rev_of[$base]}^{commit}")"
     else
-      hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+      # On a side, its upstream's commit first: the monorepo or another
+      # upstream may have one with the same subject.
+      hash=""
+      [[ -z "${side_key[$id]:-}" || "$label" == *\' ]] ||
+        hash="$(git log --format='%H%x09%s' --glob="refs/splices/${side_key[$id]}/heads/*" | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
+      [[ -n "$hash" ]] ||
+        hash="$(git log --first-parent --format='%H%x09%s' HEAD | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
       upstream_tips=()
       if [[ -n "$sp" ]]; then
         for k in T R U S; do
           [[ -n "${truth["$sp|$k"]}" ]] && upstream_tips+=("${truth["$sp|$k"]}")
         done
       fi
+      [[ -z "${side_key[$id]:-}" ]] || upstream_tips+=(--glob="refs/splices/${side_key[$id]}/heads/*")
       [[ -n "$hash" || "$label" == *\' || ${#upstream_tips[@]} -eq 0 ]] ||
-        hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s { print $1; exit }')"
+        hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
     fi
-    if [[ -n "$hash" && "$label" == *\' ]]; then
+    if [[ -n "$hash" && "$label" == *\' && -z "${rev_of[$label]:-}" ]]; then
       if [[ -z "$sp" ]]; then
         errors+=("$label is in no lane: draw it in the lane of the splice it's rebuilt for")
         continue
       fi
-      subject="$(git log -1 --format='%B%x1f%an%x1f%aD' "$hash")"
-      hash="$(git log --format='%H' "${truth["$sp|R"]}" | while read -r copy; do
-        [[ "$copy" != "$hash" && "$(git log -1 --format='%B%x1f%an%x1f%aD' "$copy")" == "$subject" ]] && {
+      subject="$(copy_key "$hash")"
+      # R's history first: a monorepo commit pushed before a 'git rebase'
+      # has an older copy on an upstream branch too.
+      upstream_tips=(--glob="refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/heads/*")
+      [[ -z "${truth["$sp|R"]}" ]] || upstream_tips=("${truth["$sp|R"]}" "${upstream_tips[@]}")
+      hash="$(for tip in "${upstream_tips[@]}"; do
+        git log --format='%H' "$tip"
+      done | while read -r copy; do
+        [[ "$copy" != "$hash" && "$(copy_key "$copy")" == "$subject" ]] && {
           echo "$copy"
           break
         }
@@ -224,6 +424,20 @@ check_drawing() {
       continue
     fi
     commit_of[$id]="$hash"
+    # A commit on each side of a separator is one commit, drawn once per
+    # side.
+    if [[ -n "${side_of[$id]:-}" ]]; then
+      if [[ -n "${drawn_on_side["$label|${lane_id[$id]}|${side_of[$id]}"]:-}" ]]; then
+        errors+=("$label is drawn twice on the ${side_of[$id]} side of ${lane_label[$id]}: draw it once per side")
+        continue
+      fi
+      drawn_on_side["$label|${lane_id[$id]}|${side_of[$id]}"]=1
+      if [[ -n "${id_of_label[$label]:-}" && -n "${side_of[${id_of_label[$label]}]:-}" ]]; then
+        [[ "${commit_of[${id_of_label[$label]}]:-}" == "$hash" ]] ||
+          errors+=("$label names one commit on the ${side_of[${id_of_label[$label]}]} side and another on the ${side_of[$id]} side: label them apart")
+        continue
+      fi
+    fi
     label_of[$hash]="$label"
     id_of_label[$label]="$id"
     label_count[$label]=$((${label_count[$label]:-0} + 1))
@@ -234,11 +448,19 @@ check_drawing() {
   of_splice() {
     local s
     git merge-base --is-ancestor "$1" "${truth["$2|R"]}" && return 0
-    [[ -n "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/")" ]] && return 0
+    [[ -n "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/heads/")" ]] && return 0
     for s in ${truth["$2|synced"]}; do
       git merge-base --is-ancestor "$1" "$s" 2>/dev/null && return 0
     done
     return 1
+  }
+  # Whether no fetched branch of any upstream splice $2 names has commit $1.
+  not_upstream_of() {
+    local name key
+    while IFS= read -r name; do
+      key="$(git splice key --upstream "$name" "$2" 2>/dev/null)" || continue
+      [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/$key/heads/")" ]] || return 1
+    done < <(upstream_names "$2")
   }
   # A monorepo commit: on HEAD, or on another branch of the monorepo, like
   # a colleague's work on origin/main.
@@ -248,45 +470,211 @@ check_drawing() {
   }
   for id in "${commits[@]}"; do
     [[ -n "${commit_of[$id]:-}" ]] || continue
+    if [[ ${#splices[@]} -eq 0 ]]; then
+      in_monorepo "${commit_of[$id]}" ||
+        errors+=("${value[$id]} isn't a commit of the monorepo, which has no splices")
+      continue
+    fi
     if [[ ${#lanes[@]} -gt 0 && -z "${lane_of[$id]}" ]]; then
       in_monorepo "${commit_of[$id]}" ||
         errors+=("${value[$id]} isn't a monorepo commit, but it's outside every lane: draw it in its splice's lane")
       continue
     fi
     [[ -n "${lane_of[$id]}" ]] || continue
+    if [[ -n "${side_of[$id]:-}" ]]; then
+      [[ -n "$(git for-each-ref --count=1 --contains "${commit_of[$id]}" "refs/splices/${side_key[$id]}/heads/")" ]] && continue
+      if ! not_upstream_of "${commit_of[$id]}" "${lane_of[$id]}"; then
+        errors+=("${value[$id]} is on the ${side_of[$id]} side, but no fetched branch of ${side_of[$id]} has it: draw it on the side of an upstream that has it")
+        continue
+      fi
+    fi
     of_splice "${commit_of[$id]}" "${lane_of[$id]}" ||
       errors+=("${value[$id]} is in the lane ${lane_of[$id]}/, but isn't in that splice's upstream history or R")
   done
 
   # A commit of splice $2 is dashed if it isn't in the upstream's history
-  # yet: no fetched upstream branch has it.
+  # yet: no fetched upstream branch has it. On a side of a separator, the
+  # upstream is that side's, key $3.
   not_upstream() {
     [[ -n "$2" ]] || return 1
     ! in_monorepo "$1" || return 1
-    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${truth["$2|key"]}/")" ]]
+    [[ -z "$(git for-each-ref --count=1 --contains "$1" "refs/splices/${3:-${truth["$2|key"]}}/heads/")" ]]
   }
   dashed() { [[ ";${style[$1]};" == *";dashed=1;"* ]]; }
 
   for id in "${commits[@]}"; do
     [[ -n "${commit_of[$id]:-}" ]] || continue
-    if not_upstream "${commit_of[$id]}" "${splice_of[$id]}"; then
+    if not_upstream "${commit_of[$id]}" "${splice_of[$id]}" "${side_key[$id]:-}"; then
       dashed "$id" || errors+=("${value[$id]} is solid, but no upstream branch has it: dash it")
     else
       dashed "$id" && errors+=("${value[$id]} is dashed, but an upstream branch has it: draw it solid")
     fi
   done
 
-  # What box term $1 of splice $2 names, or nothing.
+  # What the next rebuild does with a commit, if the drawing's legend says
+  # so. A change it carries across is outlined orange, on both ends: a
+  # commit R copies, from the monorepo's first-parent history since B,
+  # and its copy in R. With a grey sample in the legend, each monorepo
+  # commit the rebuild walks, on that history, is filled grey, e.g. to
+  # count them. Every other commit is outlined black and white inside.
+  # Without splices, e.g. in a drawing of git subtree, neither is checked.
+  local carried_outline="#E07000" walked_fill="#E0E0E0" want have c
+  local -A walked=() copied=() walked_label=()
+  for p in "${splices[@]}"; do
+    [[ -n "${truth["$p|loaded"]:-}" && -n "${truth["$p|B"]}" ]] || continue
+    if [[ -n "${truth["$p|R"]}" ]]; then
+      for c in $(git rev-list "${truth["$p|R"]}" ${truth["$p|S"]:+"^${truth["$p|S"]}"}); do
+        copied["$(copy_key "$c")"]=1
+      done
+    fi
+    for c in $(git rev-list --first-parent "${truth["$p|B"]}..HEAD"); do walked[$c]=1; done
+    # Where the splice starts, the rebuild walks B too, and copies it,
+    # e.g. right after init.
+    [[ -z "${copied["$(copy_key "${truth["$p|B"]}")"]:-}" ]] || walked[${truth["$p|B"]}]=1
+  done
+  # The color of style key $2 of shape $1: $3 where it sets no color or
+  # the default, none where it's transparent, white and black by those
+  # names.
+  color_of() {
+    local c
+    c="$(sed -n "s/.*;$2=\([^;]*\);.*/\1/p" <<<";${style[$1]};")"
+    c="${c^^}"
+    case "$c" in
+      "" | DEFAULT) c="$3" ;;
+      NONE) c=none ;;
+      "#FFFFFF" | WHITE) c=white ;;
+      "#000000" | BLACK) c=black ;;
+    esac
+    printf '%s\n' "$c"
+  }
+  local legend_grey="" sample
+  for sample in "${legend_samples[@]}"; do
+    [[ "$(color_of "$sample" fillColor white)" != "$walked_fill" ]] || legend_grey=1
+  done
+  # Each walked monorepo commit's label, by what its copy in R shares
+  # with it: author, dates and message.
+  for id in "${commits[@]}"; do
+    hash="${commit_of[$id]:-}"
+    [[ -n "$hash" && -n "${walked[$hash]:-}" && "${value[$id]}" != *\' ]] || continue
+    walked_label["$(copy_key "$hash")"]="${value[$id]}"
+  done
+  local is_walked is_carried k
+  for id in "${commits[@]}"; do
+    hash="${commit_of[$id]:-}"
+    [[ -n "$hash" && ${#splices[@]} -gt 0 ]] || continue
+    is_walked="" is_carried=""
+    sp="${splice_of[$id]}"
+    # R's copy of a drawn commit is labelled after it, with a '.
+    if [[ "${value[$id]}" != *\' && -n "$sp" && -n "${truth["$sp|R"]:-}" ]] && ! in_monorepo "$hash" &&
+      git merge-base --is-ancestor "$hash" "${truth["$sp|R"]}" 2>/dev/null; then
+      k="$(copy_key "$hash")"
+      if [[ -n "${walked_label[$k]:-}" ]]; then
+        errors+=("${value[$id]} is R's copy of ${walked_label[$k]}: label it ${walked_label[$k]}'")
+        continue
+      fi
+    fi
+    if [[ "${value[$id]}" == *\' ]]; then
+      if [[ -n "$sp" && -n "${truth["$sp|R"]:-}" ]] &&
+        git merge-base --is-ancestor "$hash" "${truth["$sp|R"]}" 2>/dev/null &&
+        ! { [[ -n "${truth["$sp|S"]}" ]] && git merge-base --is-ancestor "$hash" "${truth["$sp|S"]}"; }; then
+        is_carried=1
+      fi
+    elif in_monorepo "$hash" && [[ ${#lanes[@]} -eq 0 || -z "${lane_of[$id]}" ]] && [[ -n "${walked[$hash]:-}" ]]; then
+      is_walked=1
+      [[ -z "${copied["$(copy_key "$hash")"]:-}" ]] || is_carried=1
+    fi
+
+    have="$(color_of "$id" fillColor white)"
+    want=white
+    [[ -z "$is_walked" || -z "$legend_grey" ]] || want="$walked_fill"
+    if [[ "$have" != "$want" ]]; then
+      if [[ -n "$is_walked" && -n "$legend_grey" ]]; then
+        errors+=("${value[$id]} is a commit the rebuild walks: fill it grey, $walked_fill")
+      elif [[ -z "$is_walked" ]]; then
+        errors+=("${value[$id]} is filled, but the rebuild doesn't walk it: leave it white")
+      elif [[ ${#is_legend[@]} -eq 0 ]]; then
+        errors+=("${value[$id]} is filled, but the drawing has no legend to say why: add one, or leave it white")
+      elif [[ "$have" != "$walked_fill" ]]; then
+        errors+=("${value[$id]} is filled $have, a color the legend doesn't explain: leave it white")
+      fi
+    fi
+
+    have="$(color_of "$id" strokeColor black)"
+    want=black
+    [[ -z "$is_carried" || ${#is_legend[@]} -eq 0 ]] || want="$carried_outline"
+    if [[ "$have" != "$want" ]]; then
+      if [[ -n "$is_carried" && ${#is_legend[@]} -gt 0 && "${value[$id]}" == *\' ]]; then
+        errors+=("${value[$id]} is R's copy of a commit since B: outline it orange, $carried_outline")
+      elif [[ -n "$is_carried" && ${#is_legend[@]} -gt 0 ]]; then
+        errors+=("${value[$id]} is a commit R copies: outline it orange, $carried_outline")
+      elif [[ -n "$is_carried" ]]; then
+        errors+=("${value[$id]} is outlined in color, but the drawing has no legend to say why: add one, or outline it black")
+      else
+        errors+=("${value[$id]} is outlined in color, but the rebuild doesn't carry it across: outline it black")
+      fi
+    fi
+  done
+
+  # The legend explains each mark the drawing's commits use, by a sample
+  # commit with that mark next to the words for it, and no other mark.
+  if [[ ${#is_legend[@]} -gt 0 && ${#splices[@]} -gt 0 ]]; then
+    local mark uses explains
+    local -A mark_name=([grey]="a grey fill" [orange]="an orange outline" [dashed]="a dashed outline" [prime]="a ' after a label")
+    has_mark() {
+      case "$2" in
+        grey) [[ "$(color_of "$1" fillColor white)" == "$walked_fill" ]] ;;
+        orange) [[ "$(color_of "$1" strokeColor black)" == "$carried_outline" ]] ;;
+        dashed) dashed "$1" ;;
+        prime) [[ "${value[$1]}" == *\' ]] ;;
+      esac
+    }
+    for mark in grey orange dashed prime; do
+      uses="" explains=""
+      for id in "${commits[@]}"; do has_mark "$id" "$mark" && uses=1; done
+      for sample in "${legend_samples[@]}"; do has_mark "$sample" "$mark" && explains=1; done
+      if [[ -n "$uses" && -z "$explains" ]]; then
+        errors+=("the legend doesn't explain ${mark_name[$mark]}: add a sample commit with it, and what it means")
+      elif [[ -z "$uses" && -n "$explains" ]]; then
+        errors+=("the legend explains ${mark_name[$mark]}, which no commit has: drop that sample")
+      fi
+    done
+  fi
+
+  # Succeeds if box term $1 is a branch name, not H, B, T, R, U(x),
+  # tracked(b) or merge-base(R,T).
+  is_branch_term() {
+    [[ "$1" != H && "$1" != [BTR] && "$1" != "merge-base(R,T)" && "$1" != U\(*\) && "$1" != tracked\(*\) ]]
+  }
+  # Prints the upstream branch tracked for the upstream with key $2 on
+  # monorepo branch $1, as git-splice reads branch.<b>.splice: the last
+  # entry for the key wins.
+  tracked_name() {
+    git config --get-all "branch.$1.splice" 2>/dev/null |
+      awk -v p="$2:" 'index($0, p) == 1 { name = substr($0, length(p) + 1) } END { if (name != "") print name }'
+  }
+  # What box term $1 of splice $2 names, or nothing. A branch name in a box
+  # pointing at monorepo commit $4 names a monorepo branch, e.g. main or
+  # origin/main; otherwise, an upstream branch, as fetched, of the upstream
+  # with key $3, if given.
   resolve_term() {
     local term="$1" sp="$2" k c rel
+    if is_branch_term "$term" && [[ -n "${4:-}" ]] && in_monorepo "$4"; then
+      git rev-parse --verify --quiet "refs/heads/$term^{commit}" ||
+        git rev-parse --verify --quiet "refs/remotes/$term^{commit}"
+      return 0
+    fi
     if [[ "$term" == H ]]; then
       printf '%s\n' "${truth[H]}"
     elif [[ "$term" == [BTR] ]]; then
       printf '%s\n' "${truth["$sp|$term"]}"
     elif [[ "$term" == "merge-base(R,T)" ]]; then
       printf '%s\n' "${truth["$sp|base"]}"
+    elif [[ "$term" == tracked\(*\) ]]; then
+      k="${term#tracked(}" k="${k%)}"
+      k="$(tracked_name "$k" "${3:-${truth["$sp|key"]}}")"
+      [[ -z "$k" ]] || git rev-parse --verify --quiet "refs/splices/${3:-${truth["$sp|key"]}}/heads/$k^{commit}"
     elif [[ "$term" != U\(*\) ]]; then
-      git rev-parse --verify --quiet "refs/splices/${truth["$sp|key"]}/$term^{commit}"
+      git rev-parse --verify --quiet "refs/splices/${3:-${truth["$sp|key"]}}/heads/$term^{commit}"
     else
       k="${term#U(}" k="${k%)}"
       case "$k" in
@@ -294,15 +682,26 @@ check_drawing() {
         B) printf '%s\n' "${truth["$sp|S"]}" ;;
         *)
           c="${id_of_label[$k]}"
-          rel="$sp"
-          [[ -z "${lane_of[$c]}" ]] || rel="${sp#"${lane_of[$c]}/"}"
+          if [[ -n "${lane_of[$c]}" ]]; then
+            rel="${sp#"${lane_of[$c]}/"}"
+          else
+            rel="$(path_at "$sp" "${commit_of[$c]}")"
+          fi
           git config --blob "${commit_of[$c]}:$rel/.splice" splice.commit 2>/dev/null
           ;;
       esac
     fi
   }
 
-  # Arrows: between commits, parent to child; from a box, to its commit.
+  # Arrows: between commits, parent to child; from a box, to its commit;
+  # styled message=1, from a commit to one its message names by hash.
+  names_commit() {
+    local hash
+    for hash in $(git log -1 --format=%B "$1" | grep -oE '\b[0-9a-f]{7,40}\b'); do
+      [[ "$2" != "$hash"* ]] || return 0
+    done
+    return 1
+  }
   local s t drawn_edges=" "
   local -A box_arrows=() branch_tips=()
   for id in "${edges[@]}"; do
@@ -310,6 +709,14 @@ check_drawing() {
     [[ -z "$s" || "${kind[$s]:-}" != box ]] || box_arrows[$s]=$((${box_arrows[$s]:-0} + 1))
     if [[ -z "$s" || -z "$t" ]]; then
       errors+=("an arrow (${id}) isn't attached at both ends: drag its ends onto shapes")
+      continue
+    fi
+    if [[ ";${style[$id]};" == *";message=1;"* ]]; then
+      if [[ "${kind[$s]:-}" != commit || "${kind[$t]:-}" != commit ]]; then
+        errors+=("a message arrow (${id}) doesn't join two commits: draw it from a commit to the one its message names")
+      elif [[ -n "${commit_of[$s]:-}" && -n "${commit_of[$t]:-}" ]] && ! names_commit "${commit_of[$s]}" "${commit_of[$t]}"; then
+        errors+=("${value[$s]}'s message doesn't name ${value[$t]}: point the message arrow at the commit it names")
+      fi
       continue
     fi
     if [[ "${kind[$s]:-}" == box ]]; then
@@ -325,6 +732,10 @@ check_drawing() {
         else
           errors+=("${value[$s]} points at ${value[$t]}, in the lane ${lane_label[$t]}: draw the box in that lane")
         fi
+        continue
+      fi
+      if [[ "${side_of[$s]:-}" != "${side_of[$t]:-}" ]]; then
+        errors+=("${value[$s]} points at ${value[$t]}, on the ${side_of[$t]:-other} side: draw the box on that side")
         continue
       fi
       sp="${splice_of[$s]}"
@@ -350,9 +761,14 @@ check_drawing() {
             continue
           fi
         fi
-        named="$(resolve_term "$term" "$sp")"
-        [[ "$term" == H || "$term" == [BTR] || "$term" == "merge-base(R,T)" || "$term" == U\(*\) || -z "$named" ]] ||
-          branch_tips[$sp]+=" $named"
+        if [[ -n "${rev_of[$shown]:-}" ]]; then
+          named="$(git rev-parse --verify --quiet "${rev_of[$shown]}^{commit}")"
+        else
+          named="$(resolve_term "$term" "$sp" "${side_key[$s]:-}" "${commit_of[$t]:-}")"
+          if { is_branch_term "$term" || [[ "$term" == tracked\(*\) ]]; } && [[ -n "$named" ]] && ! in_monorepo "$named"; then
+            branch_tips["$sp|${side_of[$s]:-}"]+=" $named"
+          fi
+        fi
         if [[ -z "$named" ]]; then
           errors+=("$shown points at ${value[$t]}, but there's no $shown")
         elif [[ "${commit_of[$t]:-}" != "$named" ]]; then
@@ -372,11 +788,15 @@ check_drawing() {
       errors+=("${value[$s]} -> ${value[$t]} crosses lanes: draw a parent and its child in one lane")
       continue
     fi
+    if [[ "${side_of[$s]:-}" != "${side_of[$t]:-}" ]]; then
+      errors+=("${value[$s]} -> ${value[$t]} crosses the separator: draw the parent on ${value[$t]}'s side too")
+      continue
+    fi
     [[ -n "${commit_of[$s]:-}" && -n "${commit_of[$t]:-}" ]] || continue
     drawn_edges+="$s>$t "
     if ! git rev-parse "${commit_of[$t]}^@" | grep -qx "${commit_of[$s]}"; then
       errors+=("${value[$s]} -> ${value[$t]}: ${value[$s]} isn't a parent of ${value[$t]}")
-    elif not_upstream "${commit_of[$t]}" "${splice_of[$t]}"; then
+    elif not_upstream "${commit_of[$t]}" "${splice_of[$t]}" "${side_key[$t]:-}"; then
       dashed "$id" || errors+=("${value[$s]} -> ${value[$t]} is solid, but no upstream branch has ${value[$t]}: dash it")
     else
       dashed "$id" && errors+=("${value[$s]} -> ${value[$t]} is dashed, but an upstream branch has ${value[$t]}: draw it solid")
@@ -389,14 +809,14 @@ check_drawing() {
     sp="${splice_of[$id]}"
     [[ -n "${commit_of[$id]:-}" && -n "$sp" ]] || continue
     ! in_monorepo "${commit_of[$id]}" || continue
-    not_upstream "${commit_of[$id]}" "$sp" && continue
+    not_upstream "${commit_of[$id]}" "$sp" "${side_key[$id]:-}" && continue
     [[ -n "${truth["$sp|T"]}" ]] && git merge-base --is-ancestor "${commit_of[$id]}" "${truth["$sp|T"]}" && continue
     found=""
-    for b in ${branch_tips[$sp]:-}; do
+    for b in ${branch_tips["$sp|${side_of[$id]:-}"]:-}; do
       git merge-base --is-ancestor "${commit_of[$id]}" "$b" && found=1
     done
     [[ -n "$found" ]] || errors+=("${value[$id]} is on an upstream branch, but not T's: draw a box for the branch, e.g. $(
-      git for-each-ref --count=1 --format='%(refname:lstrip=3)' --contains "${commit_of[$id]}" "refs/splices/${truth["$sp|key"]}/"
+      git for-each-ref --count=1 --format='%(refname:lstrip=4)' --contains "${commit_of[$id]}" "refs/splices/${side_key[$id]:-${truth["$sp|key"]}}/heads/"
     )")
   done
   # Every box points at one commit.
@@ -409,7 +829,7 @@ check_drawing() {
     [[ -n "${commit_of[$t]:-}" ]] || continue
     for p in $(git rev-parse "${commit_of[$t]}^@"); do
       for s in "${commits[@]}"; do
-        [[ "${commit_of[$s]:-}" == "$p" && "${lane_of[$s]}" == "${lane_of[$t]}" && "$drawn_edges" != *" $s>$t "* ]] &&
+        [[ "${commit_of[$s]:-}" == "$p" && "${lane_of[$s]}" == "${lane_of[$t]}" && "${side_of[$s]:-}" == "${side_of[$t]:-}" && "$drawn_edges" != *" $s>$t "* ]] &&
           errors+=("no arrow ${value[$s]} -> ${value[$t]}, though ${value[$s]} is a parent of ${value[$t]}")
       done
     done
@@ -419,9 +839,10 @@ check_drawing() {
     printf '!!   %s\n' "${errors[@]}"
     return 1
   fi
-  printf 'ok   %s: %d commits, %d arrows, %d boxes%s\n' \
+  printf 'ok   %s: %d commits, %d arrows, %d boxes%s%s\n' \
     "${drawing##*/}" "${#commits[@]}" "${#edges[@]}" "${#boxes[@]}" \
-    "$([[ ${#lanes[@]} -eq 0 ]] || printf ', %d lanes' "${#lanes[@]}")"
+    "$([[ ${#lanes[@]} -eq 0 ]] || printf ', %d lanes' "${#lanes[@]}")" \
+    "$([[ ${#region_name[@]} -eq 0 ]] || printf ', %d upstreams' "${#region_name[@]}")"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
