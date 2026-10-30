@@ -5,13 +5,6 @@
 //! URL and the upstream commit it last matched. Every splice syncs with the
 //! upstream branch named like the monorepo's current branch. See
 //! docs/design/README.md.
-//!
-//! During the port from bash (#203), commands not ported yet run the bash
-//! entrypoint next to this crate's manifest. Until the last one is ported,
-//! releases ship the bash entrypoint, not this binary.
-
-// Shared code the commands still in bash will use once they're ported.
-#![allow(dead_code)]
 
 mod args;
 mod clone;
@@ -32,11 +25,10 @@ mod util;
 
 use args::parse_args;
 use repo::Repo;
-use std::os::unix::process::CommandExt;
-use std::process::{Command, ExitCode};
+use std::process::ExitCode;
 use util::*;
 
-const BASH_ENTRYPOINT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/git-splice");
+const USAGE: &str = include_str!("usage/top.txt");
 const USAGE_REBUILD: &str = include_str!("usage/rebuild.txt");
 const USAGE_BOUNDARY: &str = include_str!("usage/boundary.txt");
 
@@ -85,10 +77,15 @@ fn run_boundary(argv: &[String]) -> Res<i32> {
 fn dispatch(argv: &[String]) -> Res<i32> {
     require_git_version()?;
     let Some(command) = argv.first() else {
-        return Ok(bash(argv));
+        eprint_text(USAGE);
+        return Ok(1);
     };
     let rest = &argv[1..];
     match command.as_str() {
+        "-h" | "--help" => {
+            say(USAGE.trim_end_matches('\n'));
+            Ok(0)
+        }
         "--version" => {
             say(format!("git splice version {}", env!("CARGO_PKG_VERSION")));
             Ok(0)
@@ -105,14 +102,12 @@ fn dispatch(argv: &[String]) -> Res<i32> {
         "pull" => pull::run(rest),
         "rebuild" => run_rebuild(rest),
         "boundary" => run_boundary(rest),
-        _ => Ok(bash(argv)),
+        _ => {
+            log_err(format!("unknown command: {command}"));
+            eprint_text(USAGE);
+            Ok(1)
+        }
     }
-}
-
-fn bash(argv: &[String]) -> i32 {
-    let error = Command::new(BASH_ENTRYPOINT).args(argv).exec();
-    log_err(format!("can't run {BASH_ENTRYPOINT}: {error}"));
-    1
 }
 
 fn main() -> ExitCode {

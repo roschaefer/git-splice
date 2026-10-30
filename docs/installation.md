@@ -2,25 +2,20 @@
 
 With [Nix](https://nixos.org/download/) and
 [flakes](https://wiki.nixos.org/wiki/Flakes) enabled, which brings its own
-Bash, Git and shell completions:
+Git and shell completions:
 
     nix profile install github:roschaefer/git-splice
     nix run github:roschaefer/git-splice -- status   # or try it first
 
-Otherwise, clone it:
+Otherwise, build it with [Rust](https://rustup.rs):
 
-    git clone https://github.com/roschaefer/git-splice.git
-    mkdir -p ~/.local/bin
-    ln -s "$(pwd)/git-splice/git-splice" ~/.local/bin/git-splice
+    cargo install --git https://github.com/roschaefer/git-splice
 
 Git runs any `git-<name>` executable on your `PATH` as `git <name>`, so make
-sure `~/.local/bin/` is on it. Symlink only the `git-splice` file. The `lib/`
-folder must stay next to it.
+sure `~/.cargo/bin/` is on it.
 
 Requires:
 
-- Bash >= 4.4. macOS ships 3.2, so install a newer one (e.g.
-  `brew install bash`) and put it first on your `PATH`.
 - Git >= 2.40. `git subtree` isn't needed.
 
 ## Shell completions

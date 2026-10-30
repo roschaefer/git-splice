@@ -39,7 +39,7 @@ seed_bare_repo() {
   rm -rf "$tmp"
 }
 
-splice="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/git-splice"
+splice="${GIT_SPLICE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/target/debug}/git-splice"
 
 git init -q --bare --initial-branch=main "$upstream_dir/pkg-a.git"
 seed_bare_repo "$upstream_dir/pkg-a.git" "pkg-a: seed"

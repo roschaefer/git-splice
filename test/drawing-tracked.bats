@@ -7,7 +7,7 @@ setup() {
   load '../check-drawing/check-drawing'
   hermetic_git_config
   load 'scenarios/03-branches-and-teamwork/07-tracked-branch/setup'
-  PATH="$BATS_TEST_DIRNAME/..:$PATH"
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   scenario_tracked_branch "$monorepo" "$BATS_TEST_TMPDIR/upstream.git"
   drawing="$BATS_TEST_TMPDIR/tracked-branch.drawio"
