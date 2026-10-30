@@ -62,6 +62,9 @@ and Git 2.40, and their newer counterparts.
 | Walkthroughs | `test/walkthrough/*.md` | Every command once, in order, then a page per command, each on a fresh sandbox, checked by scrut. |
 | Benchmark | `bench/`, `test/bench.bats` | `status` timings on a synthetic monorepo, reported on PRs out of draft. |
 
+`just test-port` runs the bats tests and the docs against the Rust port in
+`src/`, which runs the bash entrypoint for commands it doesn't have yet (#203).
+
 ### Writing a bats test
 
 ```bash

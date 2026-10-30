@@ -31,6 +31,9 @@ jobs:
       - name: docs-check
         run: nix develop --command just docs-check
 
+      - name: test-port
+        run: nix develop --command just test-port
+
       - name: site-build
         run: nix develop --command just site-build
 

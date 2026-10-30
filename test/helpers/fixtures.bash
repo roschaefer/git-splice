@@ -3,6 +3,8 @@
 # tests exercise -- see each scenario folder's README.md.
 
 FIXTURES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The git-splice under test: GIT_SPLICE_DIR/git-splice, by default the bash one.
+ENTRYPOINT="${GIT_SPLICE_DIR:-$FIXTURES_DIR/../..}/git-splice"
 
 make_bare_repo() {
   git init -q --bare --initial-branch="${2:-main}" "$1"
@@ -151,7 +153,7 @@ commit_local() {
 # Runs the real git-splice entrypoint, for scenarios whose history needs
 # a command's own result (e.g. an earlier push).
 splice() {
-  "$FIXTURES_DIR/../../git-splice" "$@"
+  "$ENTRYPOINT" "$@"
 }
 
 # Ignores the developer's own git config (e.g. a global init.defaultBranch),

@@ -208,6 +208,11 @@
             pkgs.git
             pkgs.bats
             pkgs.util-linux
+            # Build the port from bash, src/.
+            pkgs.cargo
+            pkgs.rustc
+            pkgs.clippy
+            pkgs.rustfmt
             # For `bats --jobs`, which runs the tests in parallel.
             pkgs.parallel
             pkgs.shellcheck

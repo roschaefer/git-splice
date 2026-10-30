@@ -15,7 +15,7 @@ setup() {
   [ "$(git ls-files '*/.splice' | tr '\n' ' ')" = "packages/sub1/.splice packages/sub2/.splice " ]
   [[ "$(git config --file packages/sub1/.splice upstream.origin.url)" == "ext::sh -c sleep% 0;% exec% %S% "* ]]
   [ -z "$(git remote)" ]
-  run "$FIXTURES_DIR/../../git-splice" fetch
+  run "$ENTRYPOINT" fetch
   [ "$status" -eq 0 ]
 }
 
@@ -28,7 +28,7 @@ setup() {
   done
   run git log --format=%s -- packages/sub1
   [[ "$output" == *"sub1: round 4"* ]]
-  run "$FIXTURES_DIR/../../git-splice" status
+  run "$ENTRYPOINT" status
   [[ "${lines[1]}" == "  ahead "* ]]
 }
 

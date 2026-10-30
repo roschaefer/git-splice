@@ -1,12 +1,10 @@
-# Unlike the other *.bats files, these run the real entrypoint as a
-# subprocess (never sourced functions) -- the only layer that would catch
-# wiring bugs such as a lib file the entrypoint forgets to source, or a
+# Wiring of the entrypoint, such as a lib file it forgets to source, or a
 # symlinked install that can't find lib/.
 
 setup() {
   load 'helpers/fixtures'
   hermetic_git_config
-  entrypoint="$BATS_TEST_DIRNAME/../git-splice"
+  entrypoint="$ENTRYPOINT"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -124,16 +122,23 @@ setup() {
   done
 }
 
+@test "cli: Cargo.toml and Cargo.lock have the bash entrypoint's version" {
+  local root="$BATS_TEST_DIRNAME/.." version
+  version="$(sed -n 's/^VERSION=\([^ ]*\).*/\1/p' "$root/git-splice")"
+  grep -qx "version = \"$version\"" "$root/Cargo.toml"
+  grep -A1 -x 'name = "git-splice"' "$root/Cargo.lock" | grep -qx "version = \"$version\""
+}
+
 @test "cli: --version prints VERSION" {
   local version
-  version="$(sed -n 's/^VERSION=\([^ ]*\).*/\1/p' "$entrypoint")"
+  version="$(sed -n 's/^VERSION=\([^ ]*\).*/\1/p' "$BATS_TEST_DIRNAME/../git-splice")"
   run "$entrypoint" --version
   [ "$status" -eq 0 ]
   [ "$output" = "git splice version $version" ]
 }
 
 @test "cli: VERSION carries the marker release-please bumps it by" {
-  grep -qx 'VERSION=[0-9.]* # x-release-please-version' "$entrypoint"
+  grep -qx 'VERSION=[0-9.]* # x-release-please-version' "$BATS_TEST_DIRNAME/../git-splice"
 }
 
 @test "cli: refuses a Git older than 2.40" {

@@ -6,7 +6,7 @@
 # Dates are fixed and the developer's git config is ignored, so commit
 # hashes are the same on every run.
 
-PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd):$PATH"
+PATH="${GIT_SPLICE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}:$PATH"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
 UPSTREAM="$PWD/upstream"
