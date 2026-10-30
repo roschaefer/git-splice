@@ -1,0 +1,39 @@
+NAME
+    git-splice-status - Show each splice's sync state
+
+SYNOPSIS
+    git splice status [--upstream <name>] [path...]
+
+DESCRIPTION
+    Shows the sync state of every splice. Purely local -- run 'git splice
+    fetch' first for up-to-date results. Defaults to every splice when no
+    paths are given.
+
+    Every splice gets a line: the splices that need something come first,
+    most urgent first -- "!!" and "??" mark problems -- and those that are up
+    to date or unchanged come last.
+
+    Like 'git status' against its upstream branch, it counts commits: "ahead"
+    is how many 'git splice push' would publish, "behind" how many 'git
+    splice pull' would bring in. 'git splice diff --stat' shows the files.
+
+    For a splice whose upstream has no branch named like the current one,
+    the comparison is with upstream's default branch, as for a PR: "new"
+    counts the commits the push that creates the branch would publish, and
+    how many the default branch has that this one lacks. "unchanged" means
+    a PR from the branch would show no changes: the default branch has
+    every commit, or the others change no files, e.g. a change and its
+    revert.
+
+    A splice that tracks an upstream branch on the current branch, by
+    'git splice fetch --track' (or push, pull, merge), says so: "tracked on
+    <branch>, local". It's in this repository's config only, so another
+    clone of the monorepo shows the usual branch there.
+
+    Like every command, status reads splices from the last commit. It warns
+    about uncommitted changes in a splice's folder, which push leaves out.
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts. A splice with several upstreams shows its
+    upstream branch as <name>/<branch>.
