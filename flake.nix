@@ -207,6 +207,7 @@
           packages = [
             pkgs.git
             pkgs.bats
+            pkgs.util-linux
             # For `bats --jobs`, which runs the tests in parallel.
             pkgs.parallel
             pkgs.shellcheck

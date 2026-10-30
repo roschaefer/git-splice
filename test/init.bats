@@ -75,7 +75,6 @@ setup() {
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
   mkdir .git/splice-keys.lock
-  UPSTREAM_KEYS_LOCK_TRIES=1
   run splice push lib/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"another git splice is recording an upstream key"* ]]

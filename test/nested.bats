@@ -643,10 +643,12 @@ add_splices_at() {
   cd "$monorepo"
 }
 
-# Prints the paths in the output of `git splice <command> <paths>`, in the
-# order the command first mentions them.
+# Prints the path of each line of `git splice <command> <paths>`'s report,
+# in order. The command may fail: a push reports the splices it refuses too.
 order_of() {
-  splice "$@" 2>&1 | grep -v 'Failed:' | sed -nE 's/^[a-z!?]+ +([^ :]+).*/\1/p' | awk '!seen[$0]++' | paste -sd ' ' -
+  local output
+  output="$(splice "$@" 2>&1)" || true
+  grep -v 'Failed:' <<<"$output" | sed -nE 's/^(ok|!!|\?\?) +([^ :]+).*/\2/p' | paste -sd ' ' -
 }
 
 @test "nested: top-down puts each splice after the ones above it, bottom-up before them, and keeps the order given otherwise" {

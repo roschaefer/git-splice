@@ -193,8 +193,9 @@ content_tree() {
 # up-to-date, push, pull, diverged, unrelated-history, never-fetched,
 # missing-branch, missing-synced or missing-pin.
 splice_state() {
-  local label
-  label="$(splice status "$1" | sed -n '3,$p' | grep -v '^$' | head -n 1 | sed 's/^  //; s/  .*//')"
+  local output label
+  output="$(splice status "$1")" || return
+  label="$(sed -n '3,$p' <<<"$output" | grep -v '^$' | head -n 1 | sed 's/^  //; s/  .*//')"
   case "$label" in
     "up to date") echo up-to-date ;;
     "unchanged, no upstream branch" | "new, ahead "* | "?? no upstream branch") echo missing-branch ;;
@@ -205,7 +206,10 @@ splice_state() {
     "diverged" | "ahead "*", behind "*) echo diverged ;;
     "ahead"*) echo push ;;
     "behind"*) echo pull ;;
-    *) echo "unknown status label: $label" >&2 ;;
+    *)
+      echo "unknown status label: $label" >&2
+      return 1
+      ;;
   esac
 }
 

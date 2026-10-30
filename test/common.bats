@@ -157,13 +157,15 @@ four" ]
 @test "state file: a command stops when it can't write it, e.g. on a full disk" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  local before
+  local before synced
   before="$(git rev-parse HEAD)"
+  synced="$(splice_config vendor/a commit)"
   find .git/objects -type d -exec chmod a-w {} +
   run splice merge --bump vendor/a
   find .git/objects -type d -exec chmod u+w {} +
   [ "$status" -ne 0 ]
   [ "$(git rev-parse HEAD)" = "$before" ]
+  [ "$(git config --file vendor/a/.splice splice.commit)" = "$synced" ]
 }
 
 @test "default branch: only the monorepo's default branch maps to default-branch" {
@@ -216,7 +218,8 @@ record_upstream_key() {
 }
 
 # Checks that upstream URL $1 gets the keys $2..., in order, each once the
-# one before it is taken.
+# one before it is taken. Recording it also checks that each is a valid key:
+# `git splice key` refuses to read others.
 assert_candidates() {
   local url="$1" expected
   shift
@@ -227,20 +230,18 @@ assert_candidates() {
     git update-ref "refs/splices/$UPSTREAM_KEY" HEAD
     git config --local --remove-section "splice.$UPSTREAM_KEY"
   done
+  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
 }
 
 @test "upstream key: the URL's last component first, then more of its path, up to the host" {
   init_monorepo "$monorepo"
   cd "$monorepo"
   assert_candidates https://github.com/x/lib.git lib x-lib github.com-x-lib
-  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
   assert_candidates git@github.com:x/lib.git lib x-lib github.com-x-lib
-  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
   assert_candidates ssh://git@host:2222/x/lib lib x-lib 2222-x-lib host-2222-x-lib
-  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
   assert_candidates host:lib lib host-lib
-  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
   assert_candidates /srv/git/lib/ lib git-lib srv-git-lib
+  assert_candidates ../lib.git lib
 }
 
 @test "upstream key: lower case, with what a key can't hold replaced by -" {
@@ -257,7 +258,6 @@ assert_candidates() {
   cd "$monorepo"
   assert_candidates https://host/%%% host
   assert_candidates / upstream
-  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
   assert_candidates "%%%" upstream
 }
 
