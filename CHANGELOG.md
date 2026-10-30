@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.3](https://github.com/roschaefer/git-splice/compare/v0.16.2...v0.16.3) (2026-10-30)
+
+
+### Bug Fixes
+
+* **clone:** refuse where the monorepo's checkout attributes would apply to a splice ([#304](https://github.com/roschaefer/git-splice/issues/304)) ([161f020](https://github.com/roschaefer/git-splice/commit/161f0200705d6fe668154863bb8a607ad2818cdf))
+
 ## [0.16.2](https://github.com/roschaefer/git-splice/compare/v0.16.1...v0.16.2) (2026-10-29)
 
 
