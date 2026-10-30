@@ -927,6 +927,24 @@ TABLE
   [ "$status" -eq 0 ]
 }
 
+@test "clone --from-submodule: stops, committing nothing, when the submodule's repository can't move to .git/modules/" {
+  git -c protocol.file.allow=always clone -q "$upstream" vendor/a
+  git add vendor/a 2>/dev/null
+  git config --file .gitmodules submodule.vendor/a.path vendor/a
+  git config --file .gitmodules submodule.vendor/a.url "$upstream"
+  git add .gitmodules
+  git commit -q -m "add vendor/a as a submodule, its repository embedded"
+  mkdir -p .git/modules/vendor/a
+  echo taken >.git/modules/vendor/a/file
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice clone --from-submodule vendor/a
+  [ "$status" -ne 0 ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -d vendor/a/.git ]
+  [ "$(git ls-files --stage vendor/a | cut -d' ' -f1)" = 160000 ]
+}
+
 @test "clone --from-submodule: refuses where the monorepo's filter, ident or working-tree-encoding would apply to upstream's files" {
   git config filter.upper.clean "tr a-z A-Z"
   git config filter.upper.smudge cat

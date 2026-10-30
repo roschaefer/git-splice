@@ -283,6 +283,16 @@ fn resolve_submodule_url(url: &str, base: &str) -> Res<String> {
     }
 }
 
+/// Ends the command if a step of a conversion failed: git said why, and what's
+/// left to do would only build on it.
+fn must(code: i32) -> Res<()> {
+    if code == 0 {
+        Ok(())
+    } else {
+        Err(Fail::Hard)
+    }
+}
+
 fn exists_or_link(path: &str) -> bool {
     std::fs::symlink_metadata(path).is_ok()
 }
@@ -769,40 +779,44 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         return Err(Fail::Hard);
     }
     let section = format!("submodule.{name}");
-    git(&[
-        "config",
-        "--file",
-        &edited.str(),
-        "--remove-section",
-        &section,
-    ])
-    .ok();
+    must(
+        git(&[
+            "config",
+            "--file",
+            &edited.str(),
+            "--remove-section",
+            &section,
+        ])
+        .run(),
+    )?;
 
     if gitdir.is_some() && above.is_none() {
         // An embedded repository moves to .git/modules/ first, and so do those
         // of its own submodules: removing a checkout's .git then loses nothing.
-        git(&["submodule", "--quiet", "absorbgitdirs", "--", &path]).run();
+        must(git(&["submodule", "--quiet", "absorbgitdirs", "--", &path]).run())?;
         gitdir = git(&["-C", &path, "rev-parse", "--absolute-git-dir"]).out();
     }
-    if gitdir.is_some() {
-        let _ = std::fs::remove_file(&dot_git);
+    if gitdir.is_some() && std::fs::remove_file(&dot_git).is_err() {
+        return die(format!("{dot_git}: can't remove it"));
     }
     // The monorepo's config names only its own submodules.
     if above.is_none() {
         git(&["config", "--remove-section", &section]).q().ok();
     }
     let spec = format!(":(top,literal){path}");
-    git(&["rm", "-q", "--cached", "--", &spec]).run();
-    git(&["read-tree", &format!("--prefix={path}/"), &commit]).run();
+    must(git(&["rm", "-q", "--cached", "--", &spec]).run())?;
+    must(git(&["read-tree", &format!("--prefix={path}/"), &commit]).run())?;
     // Writes only the files that are missing, as in a submodule that was never
     // checked out. A file the checks above missed, e.g. one hidden by
     // assume-unchanged, keeps its edit and shows as changed afterwards.
     let deleted = git(&["ls-files", "-z", "--deleted", "--", &spec])
         .bytes()
         .unwrap_or_default();
-    git(&["checkout-index", "-z", "--stdin"])
-        .input(deleted)
-        .run();
+    must(
+        git(&["checkout-index", "-z", "--stdin"])
+            .input(deleted)
+            .run(),
+    )?;
     git(&["update-index", "-q", "--refresh"]).q().ok();
     // A commit without files left no folder to write .splice into.
     let _ = std::fs::create_dir_all(&path);
@@ -813,17 +827,17 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     if std::fs::write(&state_file, content).is_err() {
         return die(format!("{state_file}: can't write it"));
     }
-    git(&["add", "-f", "--", &state_file]).run();
+    must(git(&["add", "-f", "--", &state_file]).run())?;
     let left = git(&["config", "--file", &edited.str(), "--list"])
         .out()
         .unwrap_or_default();
     if left.is_empty() {
-        git(&["rm", "-q", "--", &gitmodules]).run();
+        must(git(&["rm", "-q", "--", &gitmodules]).run())?;
     } else {
         if std::fs::copy(&edited.path, &gitmodules).is_err() {
             return die(format!("{gitmodules}: can't write it"));
         }
-        git(&["add", "--", &gitmodules]).run();
+        must(git(&["add", "--", &gitmodules]).run())?;
     }
     let message = repo.commit_message(format!(
         "splice: clone {path} from submodule at {}",
