@@ -2,9 +2,10 @@
 
 Git applies a repository's `.gitattributes` to its own files, never to a
 submodule's. Once the submodule is a folder, the monorepo's attributes
-would apply to its files too, so the conversion unsets those that
-change a checkout for the folder: `text` and `eol` for line endings, as
-here, and `filter`, `ident` and `working-tree-encoding`.
+would apply to its files too. Where they would change a checkout --
+`text` and `eol` for line endings, as here, `filter`, `ident` and
+`working-tree-encoding` -- the conversion refuses, and names the line
+that unsets them for the folder. With that line committed, it converts.
 
 - **Monorepo, on `main`**: `.gitattributes` wants `.bat` files with
   CRLF. `vendor/a/` is a submodule of the upstream, checked out at
@@ -43,22 +44,29 @@ run.bat: text: unspecified
 run.bat: eol: unspecified
 ```
 
-The conversion adds a line to `.gitattributes` that unsets them, and the
-other attributes that change a checkout, for the folder again:
+In the monorepo, the root's would apply. The conversion refuses, and
+nothing changes:
 
 ```scrut
 $ git splice clone --from-submodule vendor/a
 ===  vendor/a: fetching https://git.example.com/a.git
-===  vendor/a: unset text eol filter ident working-tree-encoding for it in .gitattributes -- in upstream, only its own .gitattributes apply to its files
-ok   vendor/a: cloned [0-9a-f]{7} from the submodule (regex)
-===  vendor/a: pinned at [0-9a-f]{7}, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin (regex)
-===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
+!!   vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again
+[1]
+```
+
+The line it names unsets them, and the other attributes that change a
+checkout, for the folder again. Commit it:
+
+```scrut
+$ echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' >>.gitattributes && git commit -q -m "keep the monorepo's line endings off vendor/a" .gitattributes
 ```
 
 ```scrut
-$ cat .gitattributes
-*.bat text eol=crlf
-vendor/a/** !text !eol !filter !ident !working-tree-encoding
+$ git splice clone --from-submodule vendor/a
+===  vendor/a: fetching https://git.example.com/a.git
+ok   vendor/a: cloned f758343 from the submodule
+===  vendor/a: pinned at f758343, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin
+===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
 ```
 
 ```scrut
@@ -97,12 +105,12 @@ $ rm vendor/.gitattributes
 
 ## Without the line
 
-With the `.gitattributes` from before the conversion, Git stores
-`build.bat` with LF the next time it's added, and the next push would
-send that change to the upstream:
+With the `.gitattributes` from before the line, Git stores `build.bat`
+with LF the next time it's added, and the next push would send that
+change to the upstream:
 
 ```scrut
-$ git checkout -q HEAD^ -- .gitattributes && git add --renormalize vendor/a && git status --short
+$ git checkout -q HEAD~2 -- .gitattributes && git add --renormalize vendor/a && git status --short
 M  .gitattributes
 M  vendor/a/build.bat
 ```

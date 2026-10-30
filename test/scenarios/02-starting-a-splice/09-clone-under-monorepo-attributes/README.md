@@ -3,8 +3,10 @@
 A plain `git splice clone` into a monorepo whose `.gitattributes` sets
 line endings the upstream doesn't, next to `git subtree add` of the same
 upstream. In upstream, only its own `.gitattributes` apply to its files.
-`clone` keeps it that way, as [clone --from-submodule](../08-clone-from-submodule/04-monorepo-line-endings/README.md)
-does; `git subtree` doesn't.
+`clone` refuses where the monorepo's would apply too, as
+[clone --from-submodule](../08-clone-from-submodule/04-monorepo-line-endings/README.md)
+does, and names the line that keeps them off; `git subtree` applies
+them.
 
 - **Monorepo, on `main`**: `.gitattributes` wants `.bat` files with
   CRLF.
@@ -31,36 +33,30 @@ $ cat .gitattributes
 *.bat text eol=crlf
 ```
 
+The root's attributes would apply to the splice's files, so `clone`
+refuses:
+
 ```scrut
 $ git splice clone https://git.example.com/a.git vendor/a
 ===  vendor/a: fetching https://git.example.com/a.git
-===  vendor/a: unset text eol filter ident working-tree-encoding for it in .gitattributes -- in upstream, only its own .gitattributes apply to its files
-ok   vendor/a: cloned [0-9a-f]{7} from main (regex)
+!!   vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again
+[1]
 ```
 
-The clone added a line to `.gitattributes` that unsets the root's
-attributes for the splice, in its own commit:
+With the line it names committed, the clone goes through:
 
 ```scrut
-$ git show --stat --format=%s
-splice: clone vendor/a from main at [0-9a-f]{7} (regex)
-
- .gitattributes     | 1 +
- vendor/a/.splice   | 5 +++++
- vendor/a/build.bat | 1 +
- vendor/a/file.txt  | 1 +
- vendor/a/run.bat   | 1 +
- 5 files changed, 9 insertions(+)
+$ echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' >>.gitattributes && git commit -q -m "keep the monorepo's line endings off vendor/a" .gitattributes
 ```
 
 ```scrut
-$ cat .gitattributes
-*.bat text eol=crlf
-vendor/a/** !text !eol !filter !ident !working-tree-encoding
+$ git splice clone https://git.example.com/a.git vendor/a
+===  vendor/a: fetching https://git.example.com/a.git
+ok   vendor/a: cloned 1c04918 from main
 ```
 
-So `build.bat`, committed with CRLF, doesn't show as changed, as Git
-would otherwise store it with LF:
+`build.bat`, committed with CRLF, doesn't show as changed, as Git would
+otherwise store it with LF:
 
 ```scrut
 $ git status --short
@@ -74,11 +70,11 @@ echo run$
 ```
 
 `git subtree add` reads the upstream's files into the monorepo just as
-`clone` does, but leaves the root's attributes on: in another clone of
-the monorepo, at the commit before the splice,
+`clone` does, but applies the root's attributes: in another clone of
+the monorepo, at the commit before the line,
 
 ```scrut
-$ cd .. && git clone -q -c user.name=Test -c user.email=test@example.com monorepo other && cd other && git reset -q --hard HEAD^
+$ cd .. && git clone -q -c user.name=Test -c user.email=test@example.com monorepo other && cd other && git reset -q --hard HEAD~2
 ```
 
 `build.bat` shows as changed right away:

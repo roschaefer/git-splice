@@ -171,21 +171,6 @@ reroot_tree() {
   return "$rc"
 }
 
-# Prints tree <tree> with file <file> replaced by blob <blob>, in the
-# file's mode. Uses a temporary index, as reroot_tree does.
-tree_with_blob() {
-  local tree="$1" file="$2" blob="$3" mode index rc=0
-  mode="$(git ls-tree "$tree" -- "$file" | cut -d' ' -f1)"
-  index="$(mktemp)"
-  {
-    GIT_INDEX_FILE="$index" git read-tree "$tree" &&
-      GIT_INDEX_FILE="$index" git update-index --cacheinfo "${mode:-100644},$blob,$file" &&
-      GIT_INDEX_FILE="$index" git write-tree
-  } || rc=$?
-  rm -f "$index"
-  return "$rc"
-}
-
 # True while a cherry-pick, merge or rebase waits to be concluded. Another one
 # can't start then, so the multi-path loops must stop.
 splice_in_progress() {
@@ -203,18 +188,13 @@ splice_in_progress() {
 #   base   = HEAD, with <path> = <base-folder> + <base-blob>
 #   theirs = HEAD, with <path> = <new-folder>  + <new-blob>, parent: base
 #
-# Only <path> differs between base and theirs, so only the splice can
-# conflict; with <file> and <file-blob>, theirs also has <file> replaced
-# by that blob. Returns 1 on a conflict, leaving it to be resolved like
-# any other.
+# Only <path> differs between base and theirs, so only the splice can conflict.
+# Returns 1 on a conflict, leaving it to be resolved like any other.
 splice_in() {
   local path="$1" base_folder="$2" base_blob="$3" new_folder="$4" new_blob="$5" message="$6"
-  local file="${7:-}" file_blob="${8:-}" base_tree new_tree base theirs output
+  local base_tree new_tree base theirs output
   base_tree="$(reroot_tree "$path" "$base_folder" "$base_blob")" || return 1
   new_tree="$(reroot_tree "$path" "$new_folder" "$new_blob")" || return 1
-  if [[ -n "$file" ]]; then
-    new_tree="$(tree_with_blob "$new_tree" "$file" "$file_blob")" || return 1
-  fi
   base="$(git commit-tree --no-gpg-sign "$base_tree" -m "base for $message")" || return 1
   theirs="$(git commit-tree --no-gpg-sign "$new_tree" -p "$base" -m "$message")" || return 1
 

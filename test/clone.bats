@@ -241,21 +241,25 @@ new_upstream() {
   [ "$status" -eq 0 ]
 }
 
-@test "clone: unsets the monorepo's line ending attributes for the splice, in the clone's commit" {
+@test "clone: refuses where the monorepo's attributes would apply to upstream's files, naming the line; with it committed, clones the files as upstream committed them" {
   scenario_clone_under_monorepo_attributes "$monorepo" "$upstream"
   cd "$monorepo"
   local before
   before="$(git rev-parse HEAD)"
   run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e vendor/a ]
+  echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' >>.gitattributes
+  git commit -q -a -m "keep the monorepo's line endings off vendor/a"
+  run cmd_clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a: unset text eol filter ident working-tree-encoding for it in .gitattributes -- in upstream, only its own .gitattributes apply to its files"* ]]
-  [ "$(git rev-parse HEAD^)" = "$before" ]
-  [ "$(git show HEAD:.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
   [ -z "$(git status --porcelain)" ]
   [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\n' | od -c)" ]
 }
 
-@test "clone: the line unsetting the monorepo's attributes skips a .gitattributes that's a symbolic link, which Git doesn't read" {
+@test "clone: the line it names skips a .gitattributes that's a symbolic link, which Git doesn't read" {
   scenario_clone_under_monorepo_attributes "$monorepo" "$upstream"
   cd "$monorepo"
   mkdir vendor
@@ -264,14 +268,11 @@ new_upstream() {
   git add notes.txt vendor/.gitattributes
   git commit -q -m "notes, and a link to them"
   run cmd_clone "$upstream" vendor/a
-  [ "$status" -eq 0 ]
-  [ "$(git show HEAD:notes.txt)" = notes ]
-  [ "$(git ls-tree HEAD -- vendor/.gitattributes | cut -d' ' -f1)" = 120000 ]
-  [ "$(git show HEAD:.gitattributes)" = "$(printf '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding')" ]
-  [ -z "$(git status --porcelain)" ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes,"* ]]
 }
 
-@test "clone: writes no line where unsetting the monorepo's attributes can't make them upstream's, and says so" {
+@test "clone: refuses without naming a line where unsetting the monorepo's attributes can't make them upstream's" {
   new_upstream
   commit_raw_file "$upstream" .gitattributes '[attr]crlf-text text eol=crlf\n*.bat crlf-text\n'
   commit_raw_file "$upstream" run.bat 'echo run\n'
@@ -279,25 +280,6 @@ new_upstream() {
   git add .gitattributes
   git commit -q -m "binary images"
   run cmd_clone "$upstream" vendor/a
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a: Git applies other text eol filter ident working-tree-encoding attributes to some of its files than in upstream, which unsetting them above it can't change -- e.g. those of a macro its own .gitattributes defines, which Git accepts only at the top"* ]]
-  [ "$(git show HEAD:.gitattributes)" = '*.png binary' ]
-}
-
-@test "clone: into an existing folder, whose files were checked out with the monorepo's attributes, only names the line unsetting them" {
-  new_upstream
-  commit_raw_file "$upstream" run.bat 'echo run\n'
-  printf '*.bat text eol=crlf\n' >.gitattributes
-  mkdir -p vendor/a
-  git --git-dir="$upstream" archive main | tar -x -C vendor/a
-  git add .gitattributes vendor/a
-  git commit -q -m "copy vendor/a by hand"
-  rm vendor/a/run.bat
-  git checkout -- vendor/a
-  run cmd_clone "$upstream" vendor/a
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a: attributes from .gitattributes or above it apply to its files, unlike in upstream, and its files were checked out with them -- 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' in .gitattributes unsets them"* ]]
-  [ "$(git show HEAD:.gitattributes)" = '*.bat text eol=crlf' ]
-  [ -z "$(git status --porcelain)" ]
-  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\r\n' | od -c)" ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"* ]]
 }

@@ -30,12 +30,11 @@ DESCRIPTION
     In upstream, and in a submodule, only upstream's own .gitattributes
     apply to its files. Where text, eol, filter, ident or
     working-tree-encoding set above <path> would change what a checkout
-    writes or what git add stores, clone unsets these for <path> in the
-    deepest .gitattributes above it, in the same commit. Remove that line
-    to apply the monorepo's attributes instead; push then sends the files
-    as these store them. Where <path> already exists, its files were
-    checked out with the monorepo's attributes, and clone only names the
-    line.
+    writes or what git add stores, clone refuses, and names the line that
+    unsets these for <path>: add it to that .gitattributes, commit it, and
+    run clone again. Without that line, the monorepo's attributes would
+    apply to upstream's files, and push would send them as these store
+    them.
 
     With --from-submodule, <path> is a submodule committed in HEAD, and clone
     turns it into a splice of the same upstream, at the same commit: the
@@ -197,21 +196,10 @@ cmd_clone() {
   local blob tree
   blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")" || exit 1
   tree="$(reroot_tree "$path" "$target^{tree}" "$blob")" || exit 1
-  upstream_attributes_line "$path" "$target" "$tree"
-  if [[ -n "$ATTRIBUTES_FILE" && -n "$local_folder" ]]; then
-    # Its files were checked out with the monorepo's attributes, and
-    # whether one can be written again without losing an edit is more
-    # than git status can tell.
-    log_warn "$path: attributes from $ATTRIBUTES_FILE or above it apply to its files, unlike in upstream, and its files were checked out with them -- '$ATTRIBUTES_LINE' in $ATTRIBUTES_FILE unsets them"
-    ATTRIBUTES_FILE="" ATTRIBUTES_BLOB=""
-  elif [[ -n "$ATTRIBUTES_FILE" ]]; then
-    log_attributes_line "$path"
-  fi
-  # The merge base is an empty folder: the two sides share nothing. The
-  # line comes in the same commit, so the files are written with it.
+  refuse_monorepo_attributes "$path" "$target" "$tree"
+  # The merge base is an empty folder: the two sides share nothing.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
-    "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")" \
-    "$ATTRIBUTES_FILE" "$ATTRIBUTES_BLOB"; then
+    "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")"; then
     log_err "$path: clone failed"
     exit 1
   fi
@@ -393,7 +381,7 @@ prefix_paths() {
 # line each, without the path: the same files in another folder compare
 # equal. Reads only <tree>'s .gitattributes, from the top, as checkout
 # and git add do. Git warns about a macro defined below the top each time
-# it reads one; upstream_attributes_line says what that means instead.
+# it reads one; refuse_monorepo_attributes says what that means instead.
 checkout_attributes() (
   set -o pipefail
   local tree="$1" prefix="$2" file attribute value
@@ -404,20 +392,32 @@ checkout_attributes() (
     done
 )
 
-# Sets ATTRIBUTES_FILE, ATTRIBUTES_LINE and ATTRIBUTES_BLOB to a
-# .gitattributes, a line to add to it and its content with the line,
-# for a new splice at <path>, at upstream commit <commit>, in monorepo
-# tree <tree>; to nothing where Git applies the same attributes to its
-# files as in upstream, where only upstream's own .gitattributes count.
-# The line unsets CHECKOUT_ATTRIBUTES for the folder in the deepest
+# Prints tree <tree> with file <file> replaced by blob <blob>, in the
+# file's mode. Uses a temporary index, as reroot_tree does.
+tree_with_blob() {
+  local tree="$1" file="$2" blob="$3" mode index rc=0
+  mode="$(git ls-tree "$tree" -- "$file" | cut -d' ' -f1)"
+  index="$(mktemp)"
+  {
+    GIT_INDEX_FILE="$index" git read-tree "$tree" &&
+      GIT_INDEX_FILE="$index" git update-index --cacheinfo "${mode:-100644},$blob,$file" &&
+      GIT_INDEX_FILE="$index" git write-tree
+  } || rc=$?
+  rm -f "$index"
+  return "$rc"
+}
+
+# Dies where Git would apply other CHECKOUT_ATTRIBUTES to the files of a
+# new splice at <path>, at upstream commit <commit>, in monorepo tree
+# <tree>, than in upstream, where only upstream's own .gitattributes
+# count. Names the line that unsets them for the folder in the deepest
 # .gitattributes above it, which wins over those further up; the
-# splice's own, deeper still, win over it. Where that wouldn't make them
-# match, e.g. for a macro upstream's own .gitattributes defines, which
-# Git accepts only at the top, it says so and sets nothing.
-# log_attributes_line reports a line found.
-upstream_attributes_line() {
-  local path="$1" commit="$2" tree="$3" dir="$1" file="" names upstream monorepo
-  ATTRIBUTES_FILE="" ATTRIBUTES_LINE="" ATTRIBUTES_BLOB=""
+# splice's own, deeper still, win over it. Adding it is the user's
+# decision, and so is anything else, where it wouldn't make them match:
+# e.g. for a macro upstream's own .gitattributes defines, which Git
+# accepts only at the top.
+refuse_monorepo_attributes() {
+  local path="$1" commit="$2" tree="$3" dir="$1" file="" line="" names upstream monorepo
   names="$(mktemp)" upstream="$(mktemp)" monorepo="$(mktemp)"
   if ! { git ls-tree -r -z --name-only "$commit" >"$names" &&
     checkout_attributes "$commit" "" <"$names" >"$upstream" &&
@@ -425,38 +425,34 @@ upstream_attributes_line() {
     rm -f "$names" "$upstream" "$monorepo"
     die "$path: git check-attr failed for its files"
   fi
-  if ! cmp -s "$upstream" "$monorepo"; then
-    while [[ -n "$dir" ]]; do
-      if [[ "$dir" == */* ]]; then dir="${dir%/*}"; else dir=""; fi
-      # Git doesn't read a .gitattributes that's a symbolic link.
-      if [[ "$(git ls-tree "$tree" -- "${dir:+$dir/}.gitattributes")" == 100* ]]; then
-        file="${dir:+$dir/}.gitattributes"
-        break
-      fi
-    done
-    local line blob fixed
-    if [[ -n "$file" ]]; then
-      line="$(attributes_pattern "${path#"${dir:+$dir/}"}")$(printf ' !%s' "${CHECKOUT_ATTRIBUTES[@]}")"
-      # awk 1 ends the last line with a newline, if it has none.
-      blob="$({
-        git cat-file blob "$tree:$file" | awk 1
-        printf '%s\n' "$line"
-      } | git hash-object -w --stdin)"
-      fixed="$(tree_with_blob "$tree" "$file" "$blob")" &&
-        checkout_attributes "$fixed" "$path/" <"$names" >"$monorepo" &&
-        if cmp -s "$upstream" "$monorepo"; then
-          ATTRIBUTES_FILE="$file" ATTRIBUTES_LINE="$line" ATTRIBUTES_BLOB="$blob"
-        fi
+  if cmp -s "$upstream" "$monorepo"; then
+    rm -f "$names" "$upstream" "$monorepo"
+    return 0
+  fi
+  while [[ -n "$dir" ]]; do
+    if [[ "$dir" == */* ]]; then dir="${dir%/*}"; else dir=""; fi
+    # Git doesn't read a .gitattributes that's a symbolic link.
+    if [[ "$(git ls-tree "$tree" -- "${dir:+$dir/}.gitattributes")" == 100* ]]; then
+      file="${dir:+$dir/}.gitattributes"
+      break
     fi
-    [[ -n "$ATTRIBUTES_FILE" ]] ||
-      log_warn "$path: Git applies other ${CHECKOUT_ATTRIBUTES[*]} attributes to some of its files than in upstream, which unsetting them above it can't change -- e.g. those of a macro its own .gitattributes defines, which Git accepts only at the top"
+  done
+  if [[ -n "$file" ]]; then
+    local candidate blob fixed
+    candidate="$(attributes_pattern "${path#"${dir:+$dir/}"}")$(printf ' !%s' "${CHECKOUT_ATTRIBUTES[@]}")"
+    # awk 1 ends the last line with a newline, if it has none.
+    blob="$({
+      git cat-file blob "$tree:$file" | awk 1
+      printf '%s\n' "$candidate"
+    } | git hash-object -w --stdin)"
+    fixed="$(tree_with_blob "$tree" "$file" "$blob")" &&
+      checkout_attributes "$fixed" "$path/" <"$names" >"$monorepo" &&
+      ! cmp -s "$upstream" "$monorepo" || line="$candidate"
   fi
   rm -f "$names" "$upstream" "$monorepo"
-}
-
-# Says that <path> gets the line upstream_attributes_line found.
-log_attributes_line() {
-  log_step "$1: unset ${CHECKOUT_ATTRIBUTES[*]} for it in $ATTRIBUTES_FILE -- in upstream, only its own .gitattributes apply to its files"
+  [[ -z "$line" ]] ||
+    die "$path: attributes in $file or above it would change how Git checks out or stores some of its files, unlike in upstream -- add '$line' to $file, commit it, and run clone again"
+  die "$path: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"
 }
 
 # Turns the submodule at <path> into a splice, as clone --from-submodule
@@ -513,6 +509,9 @@ clone_from_submodule() {
   inner="$(upstream_submodule "$commit")"
   [[ -z "$inner" || -n "$recursive" ]] ||
     die "$path: the submodule has a submodule of its own, $inner -- turn it into a splice in its upstream first, or add --recursive to convert it here too"
+  local tree
+  tree="$(reroot_tree "$path" "$commit^{tree}" "")" || exit 1
+  refuse_monorepo_attributes "$path" "$commit" "$tree"
 
   # Keys are submodule.<name>.<setting>, and <name> may contain dots.
   local key setting
@@ -541,18 +540,6 @@ clone_from_submodule() {
   [[ -n "$above" ]] || git config --remove-section "submodule.$name" 2>/dev/null || true
   git rm -q --cached -- ":(top,literal)$path"
   git read-tree --prefix="$path/" "$commit"
-  # Staged before any file is written, so they're written with it. Those
-  # of the checkout were written without the monorepo's attributes.
-  upstream_attributes_line "$path" "$commit" "$(git write-tree)"
-  if [[ -n "$ATTRIBUTES_FILE" ]]; then
-    log_attributes_line "$path"
-    git update-index --cacheinfo "$(git ls-files -s -- ":(top,literal)$ATTRIBUTES_FILE" | cut -d' ' -f1),$ATTRIBUTES_BLOB,$ATTRIBUTES_FILE"
-    # Edits of the file stay, unstaged.
-    if [[ -f "$ATTRIBUTES_FILE" && ! -L "$ATTRIBUTES_FILE" ]]; then
-      [[ ! -s "$ATTRIBUTES_FILE" || -z "$(tail -c 1 -- "$ATTRIBUTES_FILE")" ]] || echo >>"$ATTRIBUTES_FILE"
-      printf '%s\n' "$ATTRIBUTES_LINE" >>"$ATTRIBUTES_FILE"
-    fi
-  fi
   # Writes only the files that are missing, as in a submodule that was
   # never checked out. A file the checks above missed, e.g. one hidden by
   # assume-unchanged, keeps its edit and shows as changed afterwards.

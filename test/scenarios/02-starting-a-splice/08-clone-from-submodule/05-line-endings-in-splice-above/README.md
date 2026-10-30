@@ -2,7 +2,8 @@
 
 As in [monorepo-line-endings](../04-monorepo-line-endings/README.md),
 but the attributes come from the upstream of the submodule above, whose
-own submodule `--recursive` converts too.
+own submodule `--recursive` converts too. The refusal comes when the
+conversion reaches the nested submodule, with the one above converted.
 
 - **Monorepo, on `main`**: `vendor/a/` is a submodule of the upstream,
   checked out with its own submodules.
@@ -31,27 +32,38 @@ $ cat vendor/a/.gitattributes
 *.h text eol=lf
 ```
 
+The conversion of `vendor/a` goes through. That of `libs/inner` stops
+before it changes anything, as the splice above's attributes would apply
+to its files:
+
 ```scrut
 $ git splice clone --from-submodule --recursive vendor/a
 ===  vendor/a: fetching https://git.example.com/a.git
-ok   vendor/a: cloned [0-9a-f]{7} from the submodule (regex)
-===  vendor/a: pinned at [0-9a-f]{7}, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin (regex)
+ok   vendor/a: cloned 74902fd from the submodule
+===  vendor/a: pinned at 74902fd, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin
 ===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
 ===  vendor/a/libs/inner: fetching https://git.example.com/inner.git
-===  vendor/a/libs/inner: unset text eol filter ident working-tree-encoding for it in vendor/a/.gitattributes -- in upstream, only its own .gitattributes apply to its files
-ok   vendor/a/libs/inner: cloned [0-9a-f]{7} from the submodule (regex)
-===  vendor/a/libs/inner: pinned at [0-9a-f]{7}, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/libs/inner/.splice --unset upstream.origin.default-pin (regex)
-===  vendor/a/libs/inner: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a/modules/libs/inner -- remove it once you don't need it (regex)
-===  vendor/a: upstream still has libs/inner as a submodule -- 'git splice push vendor/a' turns it into a splice there too
+!!   vendor/a/libs/inner: attributes in vendor/a/.gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' to vendor/a/.gitattributes, commit it, and run clone again
+!!   vendor/a/libs/inner: not converted -- vendor/a and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive vendor/a/libs/inner'
+[1]
 ```
 
-The line goes to the `.gitattributes` of the splice above, the deepest
-one above the folder, where it wins over the line it undoes:
+The line it names goes to the `.gitattributes` of the splice above, the
+deepest one above the folder, where it wins over the line it undoes:
 
 ```scrut
-$ cat vendor/a/.gitattributes
-*.h text eol=lf
-libs/inner/** !text !eol !filter !ident !working-tree-encoding
+$ echo 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' >>vendor/a/.gitattributes && git commit -q -m "keep vendor/a's line endings off libs/inner" vendor/a/.gitattributes
+```
+
+and clone on `libs/inner` resumes:
+
+```scrut
+$ git splice clone --from-submodule --recursive vendor/a/libs/inner
+===  vendor/a/libs/inner: fetching https://git.example.com/inner.git
+ok   vendor/a/libs/inner: cloned 59ad078 from the submodule
+===  vendor/a/libs/inner: pinned at 59ad078, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/libs/inner/.splice --unset upstream.origin.default-pin
+===  vendor/a/libs/inner: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a/modules/libs/inner -- remove it once you don't need it (regex)
+===  vendor/a: upstream still has libs/inner as a submodule -- 'git splice push vendor/a' turns it into a splice there too
 ```
 
 ```scrut

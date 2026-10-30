@@ -3,8 +3,10 @@
 Upstream's own `.gitattributes` defines a macro. Git accepts macro
 definitions only in the top-level `.gitattributes`, which upstream's is
 in its own repository and in a submodule, but not in a splice's folder.
-This is a known gap, for a converted submodule and a plain `clone`
-alike ([#311](https://github.com/roschaefer/git-splice/issues/311)).
+A converted submodule and a plain `clone` alike would lose the macro's
+attributes, and no line above the folder can bring them back: both
+refuse, and leave the decision to you. This is a known gap
+([#311](https://github.com/roschaefer/git-splice/issues/311)).
 
 - **Monorepo, on `main`**: no `.gitattributes`. `vendor/a/` is a
   submodule of the upstream, checked out at `add run.bat`.
@@ -42,20 +44,9 @@ run.bat: eol: crlf
 echo run^M$
 ```
 
-```scrut
-$ git splice clone --from-submodule vendor/a
-===  vendor/a: fetching https://git.example.com/a.git
-??   vendor/a: Git applies other text eol filter ident working-tree-encoding attributes to some of its files than in upstream, which unsetting them above it can't change -- e.g. those of a macro its own .gitattributes defines, which Git accepts only at the top
-\[attr\]crlf-text text eol=crlf not allowed: vendor/a/\.gitattributes:1 (regex+)
-ok   vendor/a: cloned [0-9a-f]{7} from the submodule (regex)
-===  vendor/a: pinned at [0-9a-f]{7}, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin (regex)
-===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
-```
-
-Git warns each time it reads the definition. Asked from the top of the
-monorepo, as checkout and `git add` ask, the attributes are gone. The
-conversion says so (`??`) and adds no line to `.gitattributes`: one
-only resets what comes from above, and can't bring the macro back.
+Asked from the top of the monorepo, as checkout and `git add` ask once
+`vendor/a` is a folder, Git rejects the definition, and the attributes
+are gone:
 
 ```scrut
 $ git check-attr text eol -- vendor/a/run.bat
@@ -64,19 +55,20 @@ vendor/a/run.bat: text: unspecified
 vendor/a/run.bat: eol: unspecified
 ```
 
-So the file the submodule checked out with CRLF shows as changed:
+So the conversion refuses, without a line to add:
 
 ```scrut
-$ git status --short
-[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1
- M vendor/a/run.bat
+$ git splice clone --from-submodule vendor/a
+===  vendor/a: fetching https://git.example.com/a.git
+!!   vendor/a: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that
+[1]
 ```
 
-A plain `clone` of the same upstream checks `run.bat` out with LF, unlike
-a clone of the upstream itself:
+And so does a plain `clone` of the same upstream:
 
 ```scrut
-$ git checkout -q -- vendor/a && git splice clone https://git.example.com/a.git vendor/b 2>/dev/null >/dev/null && cat -A vendor/b/run.bat
-[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1
-echo run$
+$ git splice clone https://git.example.com/a.git vendor/b
+===  vendor/b: fetching https://git.example.com/a.git
+!!   vendor/b: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that
+[1]
 ```
