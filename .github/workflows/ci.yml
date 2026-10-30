@@ -141,3 +141,65 @@ jobs:
               git archive --format=tar.gz --prefix=git-splice/ -o "$asset" "$tag"
               gh release upload "$tag" "$asset"
             done
+
+  # Builds a binary on every PR, so a release isn't the first time a target
+  # builds. On main, attaches it to the releases that lack it: a rerun after a
+  # failed upload checks them all again.
+  binaries:
+    needs: [release-please]
+    # release-please runs only on main; skipped there, this still runs.
+    if: ${{ always() && (needs.release-please.result == 'success' || needs.release-please.result == 'skipped') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+          - { os: macos-15-intel, target: x86_64-apple-darwin }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+    permissions:
+      contents: write
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Build and run it
+        shell: bash
+        run: |
+          rustup target add "$TARGET"
+          cargo build --release --locked --target "$TARGET"
+          "target/$TARGET/release/git-splice" --version
+
+      - name: Attach binaries to releases that lack one
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo_url="https://github.com/$GITHUB_REPOSITORY.git"
+          gh release list --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName --jq '.[].tagName' |
+            while read -r tag; do
+              asset="git-splice-$tag-$TARGET.tar.gz"
+              has_asset="$(gh release view "$tag" --json assets --jq "any(.assets[]; .name == \"$asset\")")"
+              if [[ "$has_asset" == true ]]; then
+                continue
+              fi
+              git fetch --depth=1 "$repo_url" "refs/tags/$tag:refs/tags/$tag"
+              # Releases from before the port are bash: their tarball is it.
+              if ! git cat-file -e "$tag:Cargo.toml" 2>/dev/null; then
+                continue
+              fi
+              git -c advice.detachedHead=false checkout --quiet "$tag"
+              cargo build --release --locked --target "$TARGET"
+              package="$(mktemp -d)/git-splice"
+              mkdir -p "$package"
+              cp "target/$TARGET/release/git-splice" LICENSE "$package/"
+              cp -R completions "$package/"
+              tar -czf "$asset" -C "$(dirname "$package")" git-splice
+              gh release upload "$tag" "$asset"
+              rm -f "$asset"
+            done
