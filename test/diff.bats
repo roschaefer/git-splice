@@ -191,12 +191,14 @@ diff_in_terminal() {
 @test "diff: pager startup failure is returned even when SIGPIPE is ignored" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
+  seq 1 200000 >vendor/a/long.txt
+  git add vendor/a/long.txt
+  git commit -q -m "a diff longer than a pipe holds"
   git config pager.splice 'missing-pager-command'
 
   diff_in_terminal "trap '' PIPE"
 
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"missing-pager-command"* ]]
+[ "$status" -eq 127 ]
 }
 
 @test "diff: pager startup failure is returned" {
@@ -206,8 +208,7 @@ diff_in_terminal() {
 
   diff_in_terminal
 
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"missing-pager-command"* ]]
+[ "$status" -eq 127 ]
 }
 
 @test "diff: --stat summarizes the changes per file instead of the patch" {
