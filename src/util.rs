@@ -340,3 +340,18 @@ pub fn normalize_path(path: &str) -> String {
     let path = path.strip_prefix("./").unwrap_or(path);
     path.trim_end_matches('/').to_string()
 }
+
+/// Stdout and stderr of a git command in the order it wrote them, without
+/// trailing newlines, and whether it succeeded.
+pub fn git_merged_output(args: &[&str]) -> (bool, String) {
+    let output = Command::new("sh")
+        .args(["-c", "exec \"$@\" 2>&1", "sh", "git"])
+        .args(args)
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output();
+    match output {
+        Ok(output) => (output.status.success(), text(&output.stdout)),
+        Err(error) => (false, error.to_string()),
+    }
+}

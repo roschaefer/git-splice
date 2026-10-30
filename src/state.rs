@@ -168,3 +168,141 @@ impl Repo {
         ));
     }
 }
+
+/// A blob: splice <path>'s state file as committed in <rev>, or a new one, with
+/// each (key, value) set (an empty value unsets it). A key without a section is
+/// in [splice], e.g. "commit"; others are given in full, e.g.
+/// "upstream.origin.url".
+pub fn state_blob_in(path: &str, rev: &str, settings: &[(&str, &str)]) -> Res<String> {
+    let file = Temp::new();
+    let current = git(&["cat-file", "blob", &format!("{rev}:{path}/{STATE_FILE}")])
+        .q()
+        .bytes()
+        .unwrap_or_default();
+    std::fs::write(&file.path, current).map_err(|_| Fail::Soft)?;
+    let file_name = file.str();
+    let mut failed = false;
+    for (key, value) in settings {
+        let key = if key.contains('.') {
+            key.to_string()
+        } else {
+            format!("splice.{key}")
+        };
+        if value.is_empty() {
+            git(&["config", "--file", &file_name, "--unset", &key])
+                .q()
+                .ok();
+        } else if !git(&["config", "--file", &file_name, &key, value]).ok() {
+            failed = true;
+        }
+    }
+    if failed {
+        return Err(Fail::Soft);
+    }
+    git(&["hash-object", "-w", &file_name])
+        .out()
+        .ok_or(Fail::Soft)
+}
+
+pub fn state_blob(path: &str, settings: &[(&str, &str)]) -> Res<String> {
+    state_blob_in(path, "HEAD", settings)
+}
+
+/// A tree: commit <rev>'s, with folder <path> replaced by <folder> (none: no
+/// folder) plus state file blob <blob> (none: none). Uses a temporary index, so
+/// neither the worktree nor the real index changes.
+pub fn reroot_tree(path: &str, folder: Option<&str>, blob: Option<&str>, rev: &str) -> Res<String> {
+    let index = Temp::new();
+    let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
+    let spec = format!(":(top,literal){path}");
+    let mut ok = indexed(&["read-tree", rev]).ok()
+        && indexed(&[
+            "rm",
+            "-r",
+            "-q",
+            "-f",
+            "--cached",
+            "--ignore-unmatch",
+            "--",
+            &spec,
+        ])
+        .ok();
+    if let (true, Some(folder)) = (ok, folder) {
+        ok = indexed(&["read-tree", &format!("--prefix={path}/"), folder]).ok();
+    }
+    if let (true, Some(blob)) = (ok, blob) {
+        let entry = format!("100644,{blob},{path}/{STATE_FILE}");
+        ok = indexed(&["update-index", "--add", "--cacheinfo", &entry]).ok();
+    }
+    if !ok {
+        return Err(Fail::Soft);
+    }
+    indexed(&["write-tree"]).out().ok_or(Fail::Soft)
+}
+
+/// Splices upstream content into <path> as one ordinary commit: a three-way
+/// merge of HEAD's folder with <new_folder>, using <base_folder> as the merge
+/// base. The state file goes from <base_blob> to <new_blob> in the same commit.
+/// Both sides are re-rooted into the monorepo's layout as two throwaway
+/// commits, and the second is cherry-picked. Only <path> differs between them,
+/// so only the splice can conflict. Fails on a conflict, leaving it to be
+/// resolved like any other.
+pub fn splice_in(
+    path: &str,
+    base_folder: Option<&str>,
+    base_blob: Option<&str>,
+    new_folder: &str,
+    new_blob: &str,
+    message: &str,
+) -> Res<()> {
+    let base_tree = reroot_tree(path, base_folder, base_blob, "HEAD")?;
+    let new_tree = reroot_tree(path, Some(new_folder), Some(new_blob), "HEAD")?;
+    let base = git(&[
+        "commit-tree",
+        "--no-gpg-sign",
+        &base_tree,
+        "-m",
+        &format!("base for {message}"),
+    ])
+    .out()
+    .ok_or(Fail::Soft)?;
+    let theirs = git(&[
+        "commit-tree",
+        "--no-gpg-sign",
+        &new_tree,
+        "-p",
+        &base,
+        "-m",
+        message,
+    ])
+    .out()
+    .ok_or(Fail::Soft)?;
+    // Git's own hints would suggest `cherry-pick --continue` or `--skip`; the
+    // message below says what fits a splice instead.
+    let (ok, output) = git_merged_output(&[
+        "-c",
+        "advice.mergeConflict=false",
+        "-c",
+        "advice.resolveConflict=false",
+        "cherry-pick",
+        &theirs,
+    ]);
+    if ok {
+        return Ok(());
+    }
+    // "could not apply <theirs>" names the throwaway commit: no use to anyone.
+    for line in output.lines() {
+        if !line.starts_with("error: could not apply ") {
+            eprint_text(&format!("{line}\n"));
+        }
+    }
+    if git(&["rev-parse", "--quiet", "--verify", "CHERRY_PICK_HEAD"])
+        .q()
+        .ok()
+    {
+        log_err(format!(
+            "{path}: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)"
+        ));
+    }
+    Err(Fail::Soft)
+}
