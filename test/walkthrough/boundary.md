@@ -27,6 +27,10 @@ DESCRIPTION
 
       git log --first-parent "$(git splice boundary <path>)"..<move>^ -- <old-path> ':!<old-path>/.splice'
 
+    B itself is copied too where the rebuild starts at the commit that made
+    the folder a splice, or where B's folder isn't the upstream commit .splice
+    records and nothing unpushed came before it: then list from B's parent.
+
     Usually B is the last pull, merge, clone or init. After a pull that
     merged commits that were never pushed, it's an earlier one, where the
     folder was the upstream commit .splice recorded.
