@@ -39,8 +39,8 @@ oracle_fixture() {
 # adds it.
 split() {
   local split output
-  split="$(git -c commit.gpgSign=false subtree split -q --prefix=vendor/a HEAD 2>/dev/null)"
-  git branch -f split-oracle "$split"
+  split="$(git -c commit.gpgSign=false subtree split -q --prefix=vendor/a HEAD)" || return 1
+  git branch -f split-oracle "$split" || return 1
   output="$(FILTER_BRANCH_SQUELCH_WARNING=1 git -c commit.gpgSign=false filter-branch -f --prune-empty \
     --index-filter 'git rm -q --cached --ignore-unmatch .splice' split-oracle 2>&1)" || {
     printf '%s\n' "$output" >&2
