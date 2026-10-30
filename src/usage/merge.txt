@@ -1,0 +1,76 @@
+NAME
+    git-splice-merge - Splice in fetched upstream changes
+
+SYNOPSIS
+    git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice merge [<option>...] -m <message> <path>
+
+DESCRIPTION
+    Splices already-fetched upstream changes into each splice, as one ordinary
+    commit per splice. Never touches the network: run 'git splice fetch'
+    first, or 'git splice pull' to do both.
+
+    The upstream branch is the one named like the current branch; on the
+    monorepo's default branch, the upstream's default-branch if it has one,
+    or the tag or commit its default-pin names.
+    --branch names another one for this merge, e.g. the one the default
+    branch follows, on a pull request's branch the upstream has none for.
+    It doesn't change .splice, and the splices below keep theirs.
+
+    --track also tracks that branch on the monorepo's current branch, as
+    'git push -u' does: from then on, every command syncs the splice with
+    it there, until --track names another. It's kept in the repository's
+    config, as branch.<branch>.splice = <key>:<name>, by the upstream's key
+    ('git splice key'), so it stays in this clone, and 'git splice status'
+    marks the splices that track one. 'git splice fetch --branch <name>
+    --track' tracks one without a merge, and 'git splice fetch --no-track'
+    stops tracking it.
+
+    --upstream names one of the upstreams a splice's .splice names; without
+    it, the splice's default upstream. A splice without the named upstream
+    stops the command before it starts.
+
+    Top-down: a splice is merged before the ones below it, since its merge
+    can move their synced commits, and a failure stops them.
+
+    On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
+    --abort' to give up), then re-run merge for any splices left. When the two
+    sides share no history at all, merge doesn't guess: it prints the commands
+    to keep either side.
+
+    When the upstream rewrote its branch, e.g. a fork rebased its patch
+    branch onto a new release, merge starts at the branch's fork point, like
+    'git pull --rebase': the newest commit the fetched branch pointed at, by
+    its reflog, that the folder's history has. Merge then takes the
+    rewritten branch as it is. If the folder has changes that branch lacks,
+    it refuses: the next push would publish the rewritten-away commits
+    again, under them. --rebase redoes them on top instead.
+    --no-fork-point merges from Git's merge base instead.
+
+    --bump also moves the synced commit up to the upstream branch when there's
+    nothing to merge, e.g. right after a push, in a commit that only changes
+    the splice's .splice, like a submodule bump. Later rebuilds then start
+    there, instead of rebuilding every pushed commit again.
+
+    --rebase rebases instead, like 'git pull --rebase': it takes the
+    upstream branch in on top of the newest commit whose folder has exactly
+    the synced commit's files, and rebases the monorepo branch's commits
+    since then onto that, with 'git rebase'. The next push then sends the
+    folder's changes as commits on top of the upstream branch, also after
+    the upstream rewrote it. It rewrites the branch, so it refuses when a
+    remote-tracking branch has any of those commits, and when one of them is
+    a merge, whose own changes a rebase would drop. It also refuses when the
+    upstream branch lacks the synced commit, and its reflog here doesn't
+    show it ever had it: the folder would lose that commit's changes. The
+    branch may never have had it, e.g. after 'git rebase main' on a feature
+    branch, or had it before a rewrite this clone didn't see, e.g. in a
+    fresh clone. rebase.autoStash and
+    rebase.updateRefs don't apply: it neither stashes nor moves other
+    branches. On a conflict, resolve it and run 'git rebase --continue' (or
+    'git rebase --abort' to give up).
+
+    -m gives the commit this message instead of the default one, which
+    names the upstream branch and commit; with --rebase, the commit the
+    rebased ones go on top of. It takes one splice: each gets a commit of
+    its own. Nothing reads the message back: .splice records the synced
+    commit. On a conflict, 'git commit' keeps the message.

@@ -539,9 +539,8 @@ two_splices_ahead() {
   git commit -q -m "reorganize folders"
   git config --file libs/a/.splice splice.commit 1111111111111111111111111111111111111111
   git commit -q -am "a pull of a commit the upstream no longer has"
-  local rebuilt
-  rebuilt="$(REBUILD_WITHOUT_SYNCED=1 splice rebuild libs/a)"
-  [ "$(git log --format=%s "$rebuilt")" = "local change"$'\n'"add vendor/a" ]
+  splice push --force libs/a >/dev/null
+  [ "$(git -C "$upstream" log --format=%s main)" = "local change"$'\n'"add vendor/a" ]
 }
 
 @test "rebuild: without a synced commit, a move that also rewrites .splice keeps the history since init: the id is the same" {
