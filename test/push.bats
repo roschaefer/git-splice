@@ -400,7 +400,12 @@ reworded_rebuild() {
   git reflog expire --expire=now --all && git gc -q --prune=now
   fetch_splice "$monorepo" "$upstream" vendor/a
   local rebuilt
-  rebuilt="$(REBUILD_WITHOUT_SYNCED=1 splice rebuild vendor/a)"
+  local before
+  before="$(git -C "$upstream" rev-parse main)"
+  splice push --force vendor/a >/dev/null
+  rebuilt="$(git -C "$upstream" rev-parse main)"
+  git -C "$upstream" update-ref refs/heads/main "$before"
+  fetch_splice "$monorepo" "$upstream" vendor/a
   run splice push --force --rebuilt-commit "$rebuilt" vendor/a
   [ "$status" -eq 0 ]
   [ "${lines[1]}" = "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${rebuilt:0:7} as the synced commit" ]

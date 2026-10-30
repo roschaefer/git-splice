@@ -74,6 +74,8 @@ status_rank() {
 # creates it would publish anything (see compare_with_default_branch).
 classify_missing_branch() {
   local path="$1"
+  # Outside the 2>/dev/null, so a refusal says why.
+  resolve_default_target "$path"
   if ! compare_with_default_branch "$path" 2>/dev/null; then
     STATUS_KIND=warning STATUS_LABEL="?? no upstream branch"
     if [[ -z "$SPLICE_DEFAULT_BRANCH" ]]; then

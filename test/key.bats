@@ -142,3 +142,14 @@ setup() {
   [ "$output" = "!!   key 'upstream' is gone -- run 'git splice key' again" ]
   [ ! -e .git/splice-keys.lock ]
 }
+
+@test "key: a rename stops, changing nothing, when it can't list the key's refs" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  stub_git 'if [[ "$*" == *"for-each-ref --format=%(refname) %(objectname)"* ]]; then exit 1; fi'
+  run splice key vendor/a lib
+  [ "$status" -eq 1 ]
+  [ "$(splice key vendor/a)" = upstream ]
+  [ -n "$(git for-each-ref refs/splices/upstream/)" ]
+  [ ! -e .git/splice-keys.lock ]
+}
