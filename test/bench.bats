@@ -2,6 +2,7 @@
 # tests pin down the fixture's shape, which the timings depend on.
 
 setup() {
+  load 'helpers/fixtures'
   # A space and a "%" in the path must survive the ext:: upstream URLs.
   fixture="$BATS_TEST_TMPDIR/bench dir 100%"
   BENCH_SPLICES=2 BENCH_COMMITS=4 BENCH_LATENCY=0 \
@@ -14,24 +15,20 @@ setup() {
   [ "$(git ls-files '*/.splice' | tr '\n' ' ')" = "packages/sub1/.splice packages/sub2/.splice " ]
   [[ "$(git config --file packages/sub1/.splice upstream.origin.url)" == "ext::sh -c sleep% 0;% exec% %S% "* ]]
   [ -z "$(git remote)" ]
-  run "$BATS_TEST_DIRNAME/../git-splice" fetch
+  run "$FIXTURES_DIR/../../git-splice" fetch
   [ "$status" -eq 0 ]
 }
 
 @test "bench fixture: each upstream holds the monorepo's push from halfway, and the monorepo changed since" {
   local sub
   for sub in sub1 sub2; do
-    run git log --format=%s "$(
-      source "$BATS_TEST_DIRNAME/../lib/common.sh"
-      upstream_key "$(git config --file "packages/$sub/.splice" upstream.origin.url)"
-      printf 'refs/splices/%s/heads/main' "$UPSTREAM_KEY"
-    )"
+    run git log --format=%s "refs/splices/$(splice key "packages/$sub")/heads/main"
     [[ "$output" == *"$sub: round 2"* ]]
     [[ "$output" != *"$sub: round 3"* ]]
   done
   run git log --format=%s -- packages/sub1
   [[ "$output" == *"sub1: round 4"* ]]
-  run "$BATS_TEST_DIRNAME/../git-splice" status
+  run "$FIXTURES_DIR/../../git-splice" status
   [[ "${lines[1]}" == "  ahead "* ]]
 }
 
