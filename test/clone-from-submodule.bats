@@ -1,6 +1,5 @@
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   # Commits inside the submodule's checkout need an identity too.
   export GIT_AUTHOR_NAME=Test GIT_AUTHOR_EMAIL=test@example.com
@@ -25,7 +24,7 @@ add_submodule() {
   local before pinned
   before="$(git rev-parse HEAD)"
   pinned="$(git rev-parse HEAD:vendor/a)"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok   vendor/a: cloned ${pinned:0:7} from the submodule"* ]]
   [ "$(git rev-parse HEAD^)" = "$before" ]
@@ -37,20 +36,19 @@ add_submodule() {
   [ "$(git config --file vendor/a/.splice upstream.origin.url)" = "$upstream" ]
   [[ "$(splice_config vendor/a id)" =~ ^[0-9a-f]{16}$ ]]
   [ -z "$(git status --porcelain)" ]
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a)" = up-to-date ]
 }
 
 @test "clone --from-submodule -m: the commit gets the message" {
   add_submodule
-  run cmd_clone --from-submodule -m "a: vendor/a as a splice" vendor/a
+  run splice clone --from-submodule -m "a: vendor/a as a splice" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%s)" = "a: vendor/a as a splice" ]
 }
 
 @test "clone --from-submodule: removes .gitmodules once empty, and the submodule's config" {
   add_submodule
-  cmd_clone --from-submodule vendor/a
+  splice clone --from-submodule vendor/a
   ! git cat-file -e HEAD:.gitmodules
   [ ! -e .gitmodules ]
   [ -z "$(git config --get-regexp '^submodule\.' || true)" ]
@@ -60,7 +58,7 @@ add_submodule() {
   add_submodule
   git -c protocol.file.allow=always submodule add -q "$upstream" vendor/b
   git commit -q -m "add vendor/b as a submodule"
-  cmd_clone --from-submodule vendor/a
+  splice clone --from-submodule vendor/a
   [ "$(git config --file .gitmodules --get-regexp '\.path$')" = "submodule.vendor/b.path vendor/b" ]
   [ "$(path_mode HEAD vendor/b)" = 160000 ]
 }
@@ -70,18 +68,16 @@ add_submodule() {
   local pinned
   pinned="$(git rev-parse HEAD:vendor/a)"
   seed_bare_repo "$upstream" "newer"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"===  vendor/a: pinned at ${pinned:0:7}, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin"* ]]
   [ "$(splice_config vendor/a commit)" = "$pinned" ]
   [ "$(upstream_config vendor/a origin default-pin)" = "$pinned" ]
   [ "$(cat vendor/a/file.txt)" = seed ]
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a)" = up-to-date ]
   git config --file vendor/a/.splice --unset upstream.origin.default-pin
   git commit -q -m "vendor/a: follow main" -- vendor/a/.splice
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = pull ]
+  [ "$(splice_state vendor/a)" = pull ]
 }
 
 @test "clone --from-submodule: a commit only a tag has is pinned, and the hint names the tag" {
@@ -95,7 +91,7 @@ add_submodule() {
   git -C vendor/a fetch -q origin tag 1.0
   git -C vendor/a checkout -q 1.0
   git commit -q -a -m "vendor/a: 1.0"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"===  vendor/a: pinned at ${pinned:0:7}, the tag '1.0', as the submodule was"* ]]
   [ "$(upstream_config vendor/a origin default-pin)" = "$pinned" ]
@@ -106,7 +102,7 @@ add_submodule() {
   git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
   cd "$BATS_TEST_TMPDIR/colleague"
   [ -z "$(ls -A vendor/a)" ]
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/file.txt)" = seed ]
   [ -z "$(git status --porcelain)" ]
@@ -118,7 +114,7 @@ add_submodule() {
   echo "build/" >"$BATS_TEST_TMPDIR/exclude"
   git -C vendor/a config core.excludesFile "$BATS_TEST_TMPDIR/exclude"
   mkdir vendor/a/build && echo "output" >vendor/a/build/out.txt
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/build/out.txt)" = output ]
   [ -d .git/modules/vendor/a ]
@@ -131,7 +127,7 @@ add_submodule() {
   git submodule add -q "$upstream" vendor/a
   git commit -q -m "add vendor/a as a submodule"
   [ -d vendor/a/.git ]
-  cmd_clone --from-submodule vendor/a
+  splice clone --from-submodule vendor/a
   [ ! -e vendor/a/.git ]
   git --git-dir=.git/modules/vendor/a rev-parse --verify --quiet local-work
 }
@@ -141,7 +137,7 @@ add_submodule() {
   git config --file .gitmodules submodule.vendor/a.update rebase
   git config --file .gitmodules submodule.vendor/a.shallow true
   git commit -q -a -m "submodule settings"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a: dropping submodule.vendor/a.update from .gitmodules"* ]]
   [[ "$output" == *"vendor/a: dropping submodule.vendor/a.shallow from .gitmodules"* ]]
@@ -151,7 +147,7 @@ add_submodule() {
   add_submodule
   git config --file .gitmodules submodule.vendor/a.branch release
   git commit -q -a -m "follow release"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" != *"dropping submodule.vendor/a.branch"* ]]
   [[ "$output" != *"pinned at"* ]]
@@ -162,12 +158,12 @@ add_submodule() {
   add_submodule
   git config --file .gitmodules submodule.vendor/a.branch .
   git commit -q -a -m "follow the same branch"
-  cmd_clone --from-submodule vendor/a
+  splice clone --from-submodule vendor/a
   [ -z "$(upstream_config vendor/a origin default-branch)$(upstream_config vendor/a origin default-pin)" ]
   git -c protocol.file.allow=always submodule add -q "$upstream" vendor/b
   git config --file .gitmodules submodule.vendor/b.branch main
   git commit -q -a -m "add vendor/b, following main"
-  cmd_clone --from-submodule vendor/b
+  splice clone --from-submodule vendor/b
   [ -z "$(upstream_config vendor/b origin default-branch)$(upstream_config vendor/b origin default-pin)" ]
 }
 
@@ -178,7 +174,7 @@ add_submodule() {
   git add vendor/a && git commit -q -m "bump vendor/a"
   local before
   before="$(git rev-parse HEAD)"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: upstream doesn't serve the submodule's commit"*"push it to a branch or a tag there first"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
@@ -188,19 +184,19 @@ add_submodule() {
 @test "clone --from-submodule: refuses a checkout with changes, or at another commit" {
   add_submodule
   echo "edit" >>vendor/a/file.txt
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: the submodule's checkout has changes"* ]]
 
   git -C vendor/a checkout -q -- file.txt
   echo "new" >vendor/a/untracked.txt
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: the submodule's checkout has changes"* ]]
 
   rm vendor/a/untracked.txt
   git -C vendor/a commit -q --allow-empty -m "moved on"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: the submodule's checkout isn't at"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
@@ -210,7 +206,7 @@ add_submodule() {
   add_submodule
   git -C vendor/a update-index --assume-unchanged file.txt
   echo "local tuning" >vendor/a/file.txt
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/file.txt)" = "local tuning" ]
   [ "$(git show HEAD:vendor/a/file.txt)" = seed ]
@@ -221,7 +217,7 @@ add_submodule() {
   add_submodule
   git -C vendor/a update-index --assume-unchanged file.txt
   rm vendor/a/file.txt
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/file.txt)" = seed ]
 }
@@ -231,7 +227,7 @@ add_submodule() {
   echo ".splice" >"$BATS_TEST_TMPDIR/exclude"
   git -C vendor/a config core.excludesFile "$BATS_TEST_TMPDIR/exclude"
   echo "mine" >vendor/a/.splice
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice exists in the submodule's checkout -- move it away first"* ]]
   [ "$(cat vendor/a/.splice)" = mine ]
@@ -241,13 +237,13 @@ add_submodule() {
 @test "clone --from-submodule: refuses staged changes and uncommitted .gitmodules edits" {
   add_submodule
   echo "app" >app.txt && git add app.txt
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"there are staged changes"* ]]
 
   git rm -q --cached app.txt
   git config --file .gitmodules submodule.vendor/a.branch release
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *".gitmodules has uncommitted changes"* ]]
 }
@@ -286,7 +282,7 @@ add_nested_submodule_with_branch() {
 
 @test "clone --from-submodule: refuses a submodule with submodules of its own, naming --recursive" {
   add_nested_submodule
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: the submodule has a submodule of its own, libs/inner -- turn it into a splice in its upstream first, or add --recursive to convert it here too"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
@@ -294,7 +290,7 @@ add_nested_submodule_with_branch() {
 
 @test "clone --from-submodule --recursive: refuses -m, which names one commit" {
   add_nested_submodule
-  run cmd_clone --from-submodule --recursive -m "a: both" vendor/a
+  run splice clone --from-submodule --recursive -m "a: both" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"-m names one commit, and --recursive makes one per submodule"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
@@ -306,7 +302,7 @@ add_nested_submodule_with_branch() {
   before="$(git rev-parse HEAD)"
   outer_pin="$(git rev-parse HEAD:vendor/a)"
   inner_pin="$(git -C "$upstream" rev-parse main:libs/inner)"
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok   vendor/a: cloned ${outer_pin:0:7} from the submodule"* ]]
   [[ "$output" == *"ok   vendor/a/libs/inner: cloned ${inner_pin:0:7} from the submodule"* ]]
@@ -321,20 +317,18 @@ add_nested_submodule_with_branch() {
   [ "$(splice_config vendor/a commit)" = "$outer_pin" ]
   ! git cat-file -e HEAD:vendor/a/.gitmodules
   [ -z "$(git status --porcelain)" ]
-  classify_splice vendor/a/libs/inner main
-  [ "$SPLICE_STATE" = up-to-date ]
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = push ]
+  [ "$(splice_state vendor/a/libs/inner)" = up-to-date ]
+  [ "$(splice_state vendor/a)" = push ]
 }
 
 @test "clone --from-submodule --recursive: the push turns the submodule into a splice upstream too" {
   add_nested_submodule
   local outer_pin
   outer_pin="$(git rev-parse HEAD:vendor/a)"
-  cmd_clone --from-submodule --recursive vendor/a
+  splice clone --from-submodule --recursive vendor/a
   git config --file vendor/a/.splice --unset upstream.origin.default-pin
   git commit -q -m "vendor/a: follow main" -- vendor/a/.splice
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" rev-parse main^)" = "$outer_pin" ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "splice: clone vendor/a/libs/inner from submodule at $(git -C "$upstream" rev-parse --short=7 "$outer_pin:libs/inner")" ]
@@ -343,9 +337,8 @@ add_nested_submodule_with_branch() {
   ! git -C "$upstream" cat-file -e main:.gitmodules
   ! git -C "$upstream" cat-file -e main:.splice
   [ "$(git -C "$upstream" rev-parse main:libs/inner/.splice)" = "$(git rev-parse HEAD:vendor/a/libs/inner/.splice)" ]
-  cmd_fetch
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = up-to-date ]
+  splice fetch
+  [ "$(splice_state vendor/a)" = up-to-date ]
 }
 
 @test "clone --from-submodule --recursive: a relative URL is relative to the upstream above" {
@@ -355,7 +348,7 @@ add_nested_submodule_with_branch() {
   add_upstream_submodule "$upstream" ../inner.git libs/inner
   git remote add origin https://git.example.com/org/mono.git
   add_submodule
-  cmd_clone --from-submodule --recursive vendor/a
+  splice clone --from-submodule --recursive vendor/a
   [ "$(git config --file vendor/a/libs/inner/.splice upstream.origin.url)" = "$BATS_TEST_TMPDIR/inner.git" ]
 }
 
@@ -369,14 +362,12 @@ add_nested_submodule_with_branch() {
   add_upstream_submodule "$inner" "$deep" deep
   add_upstream_submodule "$upstream" "$inner" libs/inner
   add_submodule
-  cmd_clone --from-submodule --recursive vendor/a
+  splice clone --from-submodule --recursive vendor/a
   [ "$(cat vendor/a/libs/inner/deep/file.txt)" = deep ]
   [ "$(git log -3 --format=%s | cut -d' ' -f3)" = "$(printf '%s\n' vendor/a/libs/inner/deep vendor/a/libs/inner vendor/a)" ]
   [ -z "$(git status --porcelain)" ]
-  classify_splice vendor/a/libs/inner main
-  [ "$SPLICE_STATE" = push ]
-  classify_splice vendor/a/libs/inner/deep main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a/libs/inner)" = push ]
+  [ "$(splice_state vendor/a/libs/inner/deep)" = up-to-date ]
 }
 
 @test "clone --from-submodule --recursive: the same upstream twice makes two splices, each at its own commit" {
@@ -386,14 +377,12 @@ add_nested_submodule_with_branch() {
   seed_bare_repo "$inner" "newer"
   git -C vendor/inner pull -q origin main
   git commit -q -a -m "bump vendor/inner"
-  cmd_clone --from-submodule vendor/inner
-  cmd_clone --from-submodule --recursive vendor/a
+  splice clone --from-submodule vendor/inner
+  splice clone --from-submodule --recursive vendor/a
   [ "$(cat vendor/inner/file.txt)" = "$(printf 'inner\nnewer')" ]
   [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
-  classify_splice vendor/inner main
-  [ "$SPLICE_STATE" = up-to-date ]
-  classify_splice vendor/a/libs/inner main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/inner)" = up-to-date ]
+  [ "$(splice_state vendor/a/libs/inner)" = up-to-date ]
   [ "$(upstream_config vendor/a/libs/inner origin default-pin)" != "$(upstream_config vendor/inner origin default-pin)" ]
 }
 
@@ -401,7 +390,7 @@ add_nested_submodule_with_branch() {
   add_nested_submodule
   # As git clone --recurse-submodules leaves it: every submodule is active.
   git config submodule.active .
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" != *"Could not access submodule"* ]]
 }
@@ -410,7 +399,7 @@ add_nested_submodule_with_branch() {
   add_nested_submodule
   git -c protocol.file.allow=always submodule -q update --init --recursive
   [ -e vendor/a/libs/inner/.git ]
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 0 ]
   [ ! -e vendor/a/.git ]
   [ ! -e vendor/a/libs/inner/.git ]
@@ -430,7 +419,7 @@ add_nested_submodule_with_branch() {
   git -C "$tmp" push -q origin main
   git -C vendor/a pull -q origin main
   git commit -q -a -m "bump vendor/a"
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/libs/inner: upstream doesn't serve the submodule's commit"* ]]
   [[ "$output" == *"vendor/a/libs/inner: not converted -- vendor/a and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive vendor/a/libs/inner'"* ]]
@@ -438,33 +427,33 @@ add_nested_submodule_with_branch() {
   [ "$(path_mode HEAD vendor/a/libs/inner)" = 160000 ]
 
   git -C "$tmp/libs/inner" push -q origin HEAD:main
-  run cmd_clone --from-submodule --recursive vendor/a/libs/inner
+  run splice clone --from-submodule --recursive vendor/a/libs/inner
   [ "$status" -eq 0 ]
   [ "$(path_mode HEAD vendor/a/libs/inner)" = 040000 ]
   [ -z "$(git status --porcelain)" ]
 }
 
 @test "clone: --recursive needs --from-submodule" {
-  run cmd_clone --recursive "$upstream" vendor/a
+  run splice clone --recursive "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"--recursive needs --from-submodule"* ]]
 }
 
 @test "clone --from-submodule: refuses a path that is no submodule, and --merge" {
   mkdir -p vendor/b && echo x >vendor/b/x.txt && git add vendor && git commit -q -m b
-  run cmd_clone --from-submodule vendor/b
+  run splice clone --from-submodule vendor/b
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/b: no submodule committed here"* ]]
 
   add_submodule
-  run cmd_clone --merge --from-submodule vendor/a
+  run splice clone --merge --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"--from-submodule takes no --merge"* ]]
 }
 
 @test "clone: names --from-submodule for a path that is a submodule" {
   add_submodule
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a is a submodule -- 'git splice clone --from-submodule vendor/a' turns it into a splice"* ]]
 }
@@ -475,46 +464,61 @@ add_nested_submodule_with_branch() {
   seed_bare_repo "$other" "seed" master
   git -c protocol.file.allow=always submodule add -q -b master "$other" vendor/a
   git commit -q -m "add vendor/a as a submodule"
-  cmd_clone --from-submodule vendor/a
+  splice clone --from-submodule vendor/a
   [ "$(upstream_config vendor/a origin default-branch)" = master ]
 }
 
-@test "resolve_submodule_url: relative URLs, as git submodule reads them" {
+# Prints the URL `git splice clone --from-submodule` makes of submodule URL
+# $1, which goes into the key it records before it fetches. The fetch fails,
+# as no protocol is allowed: none of these URLs is real.
+resolved_submodule_url() {
+  local url="$1"
+  git config --file .gitmodules submodule.s.path s
+  git config --file .gitmodules submodule.s.url "$url"
+  git add .gitmodules
+  git update-index --add --cacheinfo "160000,$(git rev-parse HEAD),s"
+  git commit -q --allow-empty -m "s at $url"
+  GIT_ALLOW_PROTOCOL=none splice clone --from-submodule s >/dev/null 2>&1 || true
+  git config --local --get-regexp '^splice\..*\.url$' | cut -d' ' -f2-
+  git config --local --remove-section "$(git config --local --name-only --get-regexp '^splice\..*\.url$' | sed 's/\.url$//')"
+}
+
+@test "clone --from-submodule: relative URLs, as git submodule reads them" {
   git remote add origin https://git.example.com/org/mono.git
-  [ "$(resolve_submodule_url https://other.example.com/lib.git)" = https://other.example.com/lib.git ]
-  [ "$(resolve_submodule_url ../lib.git)" = https://git.example.com/org/lib.git ]
-  [ "$(resolve_submodule_url ./lib.git)" = https://git.example.com/org/mono.git/lib.git ]
-  [ "$(resolve_submodule_url ../../other/lib.git)" = https://git.example.com/other/lib.git ]
+  [ "$(resolved_submodule_url https://other.example.com/lib.git)" = https://other.example.com/lib.git ]
+  [ "$(resolved_submodule_url ../lib.git)" = https://git.example.com/org/lib.git ]
+  [ "$(resolved_submodule_url ./lib.git)" = https://git.example.com/org/mono.git/lib.git ]
+  [ "$(resolved_submodule_url ../../other/lib.git)" = https://git.example.com/other/lib.git ]
   git remote set-url origin git@git.example.com:org/mono.git
-  [ "$(resolve_submodule_url ../lib.git)" = git@git.example.com:org/lib.git ]
+  [ "$(resolved_submodule_url ../lib.git)" = git@git.example.com:org/lib.git ]
   git remote set-url origin host:mono.git
-  [ "$(resolve_submodule_url ../lib.git)" = host:lib.git ]
+  [ "$(resolved_submodule_url ../lib.git)" = host:lib.git ]
   git remote set-url origin git@git.example.com:/mono.git
-  [ "$(resolve_submodule_url ../lib.git)" = git@git.example.com:/lib.git ]
+  [ "$(resolved_submodule_url ../lib.git)" = git@git.example.com:/lib.git ]
   git remote set-url origin https://git.example.com
-  [ "$(resolve_submodule_url ../lib.git)" = https://lib.git ]
+  [ "$(resolved_submodule_url ../lib.git)" = https://lib.git ]
 }
 
-@test "resolve_submodule_url: a remote URL that is a relative path is relative to the monorepo" {
+@test "clone --from-submodule: a remote URL that is a relative path is relative to the monorepo" {
   git remote add origin mono.git
-  [ "$(resolve_submodule_url ../lib.git)" = "$monorepo/lib.git" ]
+  [ "$(resolved_submodule_url ../lib.git)" = "$monorepo/lib.git" ]
   git remote set-url origin ../mono.git
-  [ "$(resolve_submodule_url ../lib.git)" = "$monorepo/../lib.git" ]
+  [ "$(resolved_submodule_url ../lib.git)" = "$monorepo/../lib.git" ]
 }
 
-@test "resolve_submodule_url: the current branch's remote first, the monorepo itself without one" {
-  [ "$(resolve_submodule_url ../lib.git)" = "$BATS_TEST_TMPDIR/lib.git" ]
+@test "clone --from-submodule: a relative URL uses the current branch's remote first, the monorepo itself without one" {
+  [ "$(resolved_submodule_url ../lib.git)" = "$BATS_TEST_TMPDIR/lib.git" ]
   git remote add origin https://git.example.com/org/mono.git
   git remote add fork https://git.example.com/me/mono.git
   git config branch.main.remote fork
-  [ "$(resolve_submodule_url ../lib.git)" = https://git.example.com/me/lib.git ]
+  [ "$(resolved_submodule_url ../lib.git)" = https://git.example.com/me/lib.git ]
 }
 
 @test "clone --from-submodule: resolves a relative URL and records it absolute" {
   git remote add origin "$BATS_TEST_TMPDIR/mono.git"
   git -c protocol.file.allow=always submodule add -q ../upstream.git vendor/a
   git commit -q -m "add vendor/a as a submodule"
-  cmd_clone --from-submodule vendor/a
+  splice clone --from-submodule vendor/a
   [ "$(git config --file vendor/a/.splice upstream.origin.url)" = "$BATS_TEST_TMPDIR/upstream.git" ]
 }
 
@@ -523,7 +527,7 @@ add_nested_submodule_with_branch() {
   git checkout -q -b feature
   echo "app" >app.txt && git add app.txt && git commit -q -m "app"
   git checkout -q main
-  cmd_clone --from-submodule vendor/a
+  splice clone --from-submodule vendor/a
   git checkout -q feature
   git merge -q --no-edit main
   [ "$(path_mode HEAD vendor/a)" = 040000 ]
@@ -536,7 +540,7 @@ add_nested_submodule_with_branch() {
   git -c protocol.file.allow=always submodule add -q --name 'lib+x(1).v2' "$upstream" vendor/a
   git config --file .gitmodules 'submodule.lib+x(1).v2.update' rebase
   git commit -q -a -m "add vendor/a as a submodule"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"dropping submodule.lib+x(1).v2.update from .gitmodules"* ]]
   [[ "$output" != *"dropping submodule.lib+x(1).v2.url"* ]]
@@ -547,7 +551,7 @@ add_nested_submodule_with_branch() {
   add_submodule
   git update-index --assume-unchanged .gitmodules
   echo "# my notes" >>.gitmodules
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: .gitmodules has uncommitted changes"* ]]
   [ "$(tail -1 .gitmodules)" = "# my notes" ]
@@ -559,7 +563,7 @@ add_nested_submodule_with_branch() {
   git -c protocol.file.allow=always submodule add -q "$upstream" vendor/b
   git commit -q -m "add vendor/b as a submodule"
   rm .gitmodules
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: .gitmodules has uncommitted changes"* ]]
   [ ! -e .gitmodules ]
@@ -571,13 +575,13 @@ add_nested_submodule_with_branch() {
   git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
   cd "$BATS_TEST_TMPDIR/colleague"
   rmdir vendor/a && echo "notes" >vendor/a
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: a file takes the place of the uninitialized submodule"* ]]
   [ "$(cat vendor/a)" = notes ]
 
   rm vendor/a && mkdir empty && ln -s ../empty vendor/a
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: a symbolic link takes the submodule's place"* ]]
   [ -L vendor/a ]
@@ -591,7 +595,7 @@ add_nested_submodule_with_branch() {
   cd "$BATS_TEST_TMPDIR/colleague"
   mkdir -p "$BATS_TEST_TMPDIR/outside/a"
   rm -r vendor && ln -s "$BATS_TEST_TMPDIR/outside" vendor
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: vendor is a symbolic link -- the submodule's folder must be inside the repository"* ]]
   [ -z "$(ls -A "$BATS_TEST_TMPDIR/outside/a")" ]
@@ -609,7 +613,7 @@ add_nested_submodule_with_branch() {
   git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
   cd "$BATS_TEST_TMPDIR/colleague"
   rmdir vendor/a
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [ "$(ls -A vendor/a)" = .splice ]
   [ -z "$(git status --porcelain)" ]
@@ -617,23 +621,23 @@ add_nested_submodule_with_branch() {
 
 @test "clone --from-submodule --recursive: upstream moving on, its submodule unchanged, pulls and then pushes" {
   add_nested_submodule
-  cmd_clone --from-submodule --recursive vendor/a
+  splice clone --from-submodule --recursive vendor/a
   git config --file vendor/a/.splice --unset upstream.origin.default-pin
   git commit -q -m "vendor/a: follow main" -- vendor/a/.splice
   seed_bare_repo "$upstream" "upstream moved on"
-  cmd_fetch
-  run cmd_pull vendor/a
+  splice fetch
+  run splice pull vendor/a
   [ "$status" -eq 0 ]
   [ "$(path_mode HEAD vendor/a/libs/inner)" = 040000 ]
   [ "$(tail -1 vendor/a/file.txt)" = "upstream moved on" ]
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" ls-tree main libs/inner | cut -c1-6)" = 040000 ]
 }
 
 @test "clone --from-submodule --recursive: upstream moving its submodule before the push is refused on pull" {
   add_nested_submodule
-  cmd_clone --from-submodule --recursive vendor/a
+  splice clone --from-submodule --recursive vendor/a
   git config --file vendor/a/.splice --unset upstream.origin.default-pin
   git commit -q -m "vendor/a: follow main" -- vendor/a/.splice
   seed_bare_repo "$inner" "newer"
@@ -642,10 +646,10 @@ add_nested_submodule_with_branch() {
   git -C "$tmp" -c protocol.file.allow=always submodule -q update --init --remote
   git -C "$tmp" commit -q -a -m "bump libs/inner"
   git -C "$tmp" push -q origin main
-  cmd_fetch
+  splice fetch
   local before
   before="$(git rev-parse HEAD)"
-  run cmd_pull vendor/a
+  run splice pull vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: upstream has a submodule, libs/inner, which nobody could check out in the monorepo"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
@@ -668,7 +672,7 @@ add_nested_submodule_with_branch() {
   git -C "$tmp" push -q origin main
   add_upstream_submodule "$upstream" "$inner" libs/inner
   add_submodule
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/libs/inner/deep: not converted -- vendor/a/libs/inner and what was converted before stay"* ]]
   [[ "$output" != *"vendor/a/libs/inner: not converted"* ]]
@@ -695,7 +699,7 @@ add_nested_submodule_with_branch() {
   add_nested_submodule_with_branch .
   local inner_pin
   inner_pin="$(git -C "$upstream" rev-parse main:libs/inner)"
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"===  vendor/a/libs/inner: pinned at ${inner_pin:0:7}, as vendor/a is -- "* ]]
   [ "$(git config --file vendor/a/libs/inner/.splice upstream.origin.default-pin)" = "$inner_pin" ]
@@ -705,7 +709,7 @@ add_nested_submodule_with_branch() {
 
 @test "clone --from-submodule --recursive: a branch inside a pinned submodule becomes its default-branch" {
   add_nested_submodule_with_branch stable
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" != *"!!"* ]]
   [ "$(git config --file vendor/a/libs/inner/.splice upstream.origin.default-branch)" = stable ]
@@ -714,7 +718,7 @@ add_nested_submodule_with_branch() {
 @test "clone --from-submodule: refuses to pin when the monorepo's default branch can't be determined" {
   git config --unset init.defaultBranch
   add_submodule
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   vendor/a: the submodule stays at "*", and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
@@ -726,7 +730,7 @@ add_nested_submodule_with_branch() {
   add_submodule
   git config --file .gitmodules submodule.vendor/a.branch release
   git commit -q -m "vendor/a follows release" .gitmodules
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   vendor/a: the submodule follows 'release', and a default-branch applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
@@ -738,7 +742,7 @@ add_nested_submodule_with_branch() {
   git -C "$upstream" tag v1 main
   add_submodule
   git -C "$upstream" update-ref -d refs/heads/main
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"===  vendor/a: pinned at ${pinned:0:7}, the tag 'v1', as the submodule was"* ]]
   [ "$(git config --file vendor/a/.splice upstream.origin.default-pin)" = "$pinned" ]
@@ -768,7 +772,7 @@ add_nested_submodule_with_branch() {
   cd "$BATS_TEST_TMPDIR/colleague"
   git -c protocol.file.allow=always submodule -q update --init --recursive
   [ -z "$(ls -A vendor/a)" ]
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: update = none keeps the submodule out of every checkout, and a splice's files are always there -- remove the submodule, or unset submodule.vendor/a.update in .gitmodules and commit to splice it anyway"* ]]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
@@ -799,7 +803,7 @@ add_nested_submodule_update_none() {
 @test "clone --from-submodule --recursive: refuses a nested submodule that update = none keeps out of checkouts, the one above converted" {
   add_nested_submodule_update_none
   [ -z "$(ls -A vendor/a/libs/inner)" ]
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/libs/inner: update = none keeps the submodule out of every checkout, and a splice's files are always there -- remove the submodule, or unset submodule.libs/inner.update in vendor/a/.gitmodules and commit to splice it anyway"* ]]
   [ "$(path_mode HEAD vendor/a)" = 040000 ]
@@ -810,11 +814,11 @@ add_nested_submodule_update_none() {
 
 @test "clone --from-submodule --recursive: a nested submodule with update = none unset and committed is spliced on resume" {
   add_nested_submodule_update_none
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 1 ]
   git config --file vendor/a/.gitmodules --unset submodule.libs/inner.update
   git commit -q -a -m "splice libs/inner anyway"
-  run cmd_clone --from-submodule --recursive vendor/a/libs/inner
+  run splice clone --from-submodule --recursive vendor/a/libs/inner
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
 }
@@ -830,7 +834,7 @@ commit_attributes() {
   commit_raw_file "$upstream" run.bat 'echo hi\r\n'
   commit_attributes '* text=auto\n'
   add_submodule
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
 }
@@ -841,7 +845,7 @@ commit_attributes() {
   add_submodule
   local before
   before="$(git rev-parse HEAD)"
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
@@ -854,7 +858,7 @@ commit_attributes() {
   commit_raw_file "$upstream" run.bat 'echo run\n'
   commit_attributes '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding\n'
   add_submodule
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
   [ -z "$(git status --porcelain)" ]
   git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
@@ -871,14 +875,14 @@ commit_attributes() {
   add_upstream_submodule "$upstream" "$inner" libs/inner
   add_submodule
   git -c protocol.file.allow=always submodule -q update --init --recursive
-  run cmd_clone --from-submodule --recursive vendor/a
+  run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/libs/inner: attributes in vendor/a/.gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' to vendor/a/.gitattributes, commit it, and run clone again"* ]]
   [ "$(path_mode HEAD vendor/a)" = 040000 ]
   [ "$(path_mode HEAD vendor/a/libs/inner)" = 160000 ]
   echo 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' >>vendor/a/.gitattributes
   git commit -q -a -m "keep the splice's line endings off libs/inner"
-  run cmd_clone --from-submodule --recursive vendor/a/libs/inner
+  run splice clone --from-submodule --recursive vendor/a/libs/inner
   [ "$status" -eq 0 ]
   [ -z "$(git status --porcelain)" ]
 }
@@ -888,15 +892,22 @@ commit_attributes() {
   commit_attributes '*.bat text eol=crlf\n'
   git -c protocol.file.allow=always submodule add -q "$upstream" "#a"
   git commit -q -m "add #a"
-  run cmd_clone --from-submodule "#a"
+  run splice clone --from-submodule "#a"
   [ "$status" -eq 1 ]
   [[ "$output" == *"add '\#a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
 }
 
-@test "attributes_pattern: escapes a leading character a .gitattributes line would read otherwise" {
+@test "clone --from-submodule: the line it names escapes a leading character a .gitattributes line would read otherwise" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  commit_attributes '*.bat text eol=crlf\n'
+  local path expected
   while IFS='|' read -r path expected; do
-    [ "$(attributes_pattern "$path")" = "$expected" ] || {
-      echo "$path: $(attributes_pattern "$path"), expected $expected"
+    git -c protocol.file.allow=always submodule add -q "$upstream" "$path"
+    git commit -q -m "add $path"
+    run splice clone --from-submodule "$path"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"add '$expected !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]] || {
+      echo "$path: $output, expected $expected"
       return 1
     }
   done <<'TABLE'
@@ -912,7 +923,7 @@ TABLE
   commit_raw_file "$upstream" run.bat 'echo hi\r\n'
   commit_attributes '*.png binary\n*.c diff=cpp\n'
   add_submodule
-  run cmd_clone --from-submodule vendor/a
+  run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
 }
 
@@ -923,7 +934,7 @@ TABLE
   local attributes
   for attributes in '*.txt filter=upper' '*.txt ident' '*.txt working-tree-encoding=UTF-16LE'; do
     commit_attributes "$attributes\n"
-    run cmd_clone --from-submodule vendor/a
+    run splice clone --from-submodule vendor/a
     [ "$status" -eq 1 ] || {
       echo "$attributes: $output"
       return 1

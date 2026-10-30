@@ -56,7 +56,7 @@ and Git 2.40, and their newer counterparts.
 | Layer | Where | What it checks |
 |---|---|---|
 | Scenarios | `test/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from, or at the top of its chapter when that scenario is in an earlier chapter. Shared by everything below. |
-| Unit and command tests | `test/*.bats` | Functions and commands, called directly after `load_lib`, against a scenario. |
+| Command tests | `test/*.bats` | The `git-splice` CLI, run through the `splice` helper, against a scenario. |
 | Oracle tests | `test/rebuild.bats` | The rebuild against `git subtree split`. |
 | Scenario READMEs | `test/scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
 | Walkthroughs | `test/walkthrough/*.md` | Every command once, in order, then a page per command, each on a fresh sandbox, checked by scrut. |
@@ -67,7 +67,6 @@ and Git 2.40, and their newer counterparts.
 ```bash
 setup() {
   load 'helpers/fixtures'
-  load_lib                  # source lib/*.sh, to call functions directly
   hermetic_git_config       # ignore the developer's git config
   load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -89,7 +88,7 @@ setup() {
   `test/helpers/fixtures.bash`: `make_bare_repo`, `seed_bare_repo`,
   `init_monorepo`, `add_splice`, `commit_local`, `fetch_splice`.
 - **Fixtures don't use the code under test.** `add_splice` splices a
-  folder in with raw plumbing, not `cmd_clone`, so a bug in `clone`
+  folder in with raw plumbing, not `git splice clone`, so a bug in `clone`
   doesn't fail every other test. Use `splice <command>` (the real
   entrypoint) only where a state needs a command's own result, e.g. an
   earlier push.

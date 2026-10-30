@@ -1,6 +1,5 @@
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   load 'scenarios/05-nested-splices/01-nested-splices/setup'
   load 'scenarios/05-nested-splices/01-nested-splices/02-three-levels/setup'
@@ -87,7 +86,7 @@ b_changed_in_upstream_a() {
   cd "$other"
   splice clone "$upstream" vendor/a
   splice fetch
-  [ "$(rebuild_splice vendor/a/b)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ "$(splice rebuild vendor/a/b)" = "$(git -C "$upstream_b" rev-parse main)" ]
 }
 
 @test "nested: a change to b made in a's upstream reaches b's upstream with its own author" {
@@ -96,7 +95,7 @@ b_changed_in_upstream_a() {
   cd "$monorepo"
   splice pull vendor/a
   local rebuilt
-  rebuilt="$(rebuild_splice vendor/a/b)"
+  rebuilt="$(splice rebuild vendor/a/b)"
   [ "$(git log -1 --format='%s (%an)' "$rebuilt")" = "b in a's upstream (Maintainer)" ]
   [ "$(git rev-parse "$rebuilt^")" = "$(git -C "$upstream_b" rev-parse main)" ]
 }
@@ -112,7 +111,7 @@ b_changed_in_upstream_a() {
   cd "$other"
   splice clone "$upstream" vendor/a
   splice fetch
-  [ "$(rebuild_splice vendor/a/b/c)" = "$(git -C "$upstream_c" rev-parse main)" ]
+  [ "$(splice rebuild vendor/a/b/c)" = "$(git -C "$upstream_c" rev-parse main)" ]
 }
 
 @test "nested: b's history isn't taken from a's upstream once that has another splice at b/" {
@@ -132,12 +131,12 @@ b_changed_in_upstream_a() {
   git checkout HEAD -- vendor/a/b
   git commit -q --no-edit
   [ "$(splice_config vendor/a/b id)" != "$(git config --blob "$(splice_config vendor/a commit):b/.splice" splice.id)" ]
-  run rebuild_splice vendor/a/b
+  run splice rebuild vendor/a/b
   [ "$status" -eq 0 ]
   [ "$(git log --format=%s "$output")" = "b local"$'\n'"b seed" ]
   local rebuilt="$output"
   fetch_splice "$monorepo" "$upstream_b2"
-  [ "$(rebuild_splice vendor/a/b)" = "$rebuilt" ]
+  [ "$(splice rebuild vendor/a/b)" = "$rebuilt" ]
 }
 
 @test "nested: b's push stays in b's history when a's upstream gets the same files from someone else" {
@@ -154,7 +153,7 @@ b_changed_in_upstream_a() {
   cd "$monorepo"
   splice pull vendor/a
   local rebuilt
-  rebuilt="$(rebuild_splice vendor/a/b)"
+  rebuilt="$(splice rebuild vendor/a/b)"
   git merge-base --is-ancestor "$(git -C "$upstream_b" rev-parse main)" "$rebuilt"
   commit_local "$monorepo" vendor/a/b "b next"
   splice fetch vendor/a/b
@@ -177,14 +176,14 @@ swap_splice_files() {
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
   local a_before b_before rebuilt
-  a_before="$(rebuild_splice vendor/a)"
-  b_before="$(rebuild_splice vendor/a/b)"
+  a_before="$(splice rebuild vendor/a)"
+  b_before="$(splice rebuild vendor/a/b)"
   swap_splice_files
   # vendor/a has b's id now, vendor/a/b a's.
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   [ "$(git log -1 --format=%s "$rebuilt")" = "swap the .splice files" ]
   [ "$(git rev-parse "$rebuilt^")" = "$b_before" ]
-  rebuilt="$(rebuild_splice vendor/a/b)"
+  rebuilt="$(splice rebuild vendor/a/b)"
   [ "$(git log -1 --format=%s "$rebuilt")" = "swap the .splice files" ]
   [ "$(git rev-parse "$rebuilt^")" = "$a_before" ]
 }
@@ -205,10 +204,10 @@ swap_splice_files() {
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
   local before_move
-  before_move="$(rebuild_splice vendor/a/b)"
+  before_move="$(splice rebuild vendor/a/b)"
   git mv vendor/a/b vendor/a/c
   git commit -q -m "rename b's folder"
-  [ "$(rebuild_splice vendor/a/c)" = "$before_move" ]
+  [ "$(splice rebuild vendor/a/c)" = "$before_move" ]
   [ "$(git log -1 --format=%s "$before_move")" = "b local" ]
 }
 
@@ -218,10 +217,10 @@ swap_splice_files() {
   cd "$monorepo"
   splice pull vendor/a
   local before_move
-  before_move="$(rebuild_splice vendor/a/b)"
+  before_move="$(splice rebuild vendor/a/b)"
   git mv vendor/a/b vendor/a/c
   git commit -q -m "rename b's folder"
-  [ "$(rebuild_splice vendor/a/c)" = "$before_move" ]
+  [ "$(splice rebuild vendor/a/c)" = "$before_move" ]
   [ "$(git log -1 --format='%s (%an)' "$before_move")" = "b in a's upstream (Maintainer)" ]
 }
 
@@ -231,11 +230,11 @@ swap_splice_files() {
   cd "$monorepo"
   splice pull vendor/a
   local before_move
-  before_move="$(rebuild_splice vendor/a/b)"
+  before_move="$(splice rebuild vendor/a/b)"
   mkdir libs
   git mv vendor/a libs/a
   git commit -q -m "move a"
-  [ "$(rebuild_splice libs/a/b)" = "$before_move" ]
+  [ "$(splice rebuild libs/a/b)" = "$before_move" ]
   [ "$(git log -1 --format='%s (%an)' "$before_move")" = "b in a's upstream (Maintainer)" ]
 }
 
@@ -249,7 +248,7 @@ swap_splice_files() {
   cd "$monorepo"
   splice pull libs/a
   local rebuilt
-  rebuilt="$(rebuild_splice libs/a/b)"
+  rebuilt="$(splice rebuild libs/a/b)"
   [ "$(git log -1 --format='%s (%an)' "$rebuilt")" = "b in a's upstream (Maintainer)" ]
   [ "$(git rev-parse "$rebuilt^")" = "$(git -C "$upstream_b" rev-parse main)" ]
 }
@@ -265,7 +264,7 @@ swap_splice_files() {
   cd "$monorepo"
   splice pull libs/a
   local rebuilt
-  rebuilt="$(rebuild_splice libs/a/b)"
+  rebuilt="$(splice rebuild libs/a/b)"
   git log --format='%s (%an)' "$rebuilt" | grep -qx "b local (Test)"
   git log --format='%s (%an)' "$rebuilt" | grep -qx "b in a's upstream (Maintainer)"
   [ "$(git rev-parse "$rebuilt:local.txt")" = "$(git rev-parse HEAD:libs/a/b/local.txt)" ]
@@ -284,7 +283,7 @@ swap_splice_files() {
   mkdir libs
   git mv vendor/a libs/a
   git commit -q -m "move a"
-  [ "$(rebuild_splice libs/a/b)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ "$(splice rebuild libs/a/b)" = "$(git -C "$upstream_b" rev-parse main)" ]
 }
 
 @test "nested: a pull of a that moves b keeps b's unpushed commit, made before the move" {
@@ -292,13 +291,13 @@ swap_splice_files() {
   commit_local "$monorepo" vendor/a/b "b local"
   work_in_upstream_a
   git mv b c
-  git config --file c/.splice splice.default-branch main
+  git config --file c/.splice upstream.origin.default-branch main
   git commit -q -am "move b to c"
   git push -q origin HEAD:main
   cd "$monorepo"
   splice pull vendor/a
   grep -qx "b local" vendor/a/c/file.txt
-  git log --format=%s "$(rebuild_splice vendor/a/c)" | grep -qx "b local"
+  git log --format=%s "$(splice rebuild vendor/a/c)" | grep -qx "b local"
 }
 
 @test "nested: a pull of a that moves b without changing its .splice keeps b's unpushed commit, made before the move" {
@@ -311,7 +310,7 @@ swap_splice_files() {
   cd "$monorepo"
   splice pull vendor/a
   grep -qx "b local" vendor/a/c/file.txt
-  git log --format=%s "$(rebuild_splice vendor/a/c)" | grep -qx "b local"
+  git log --format=%s "$(splice rebuild vendor/a/c)" | grep -qx "b local"
 }
 
 @test "nested: a .splice below without default-branch follows the default branch of the splice above" {
@@ -362,12 +361,12 @@ swap_splice_files() {
   seed_bare_repo "$upstream_main" "main seed" main
   cd "$monorepo"
   splice clone "$upstream" vendor/a
-  cmd_clone "$upstream_b" vendor/a/c
-  cmd_clone "$upstream_main" vendor/a/d
+  splice clone "$upstream_b" vendor/a/c
+  splice clone "$upstream_main" vendor/a/d
   [ -z "$(upstream_config vendor/a/c origin default-branch)" ]
   [ "$(upstream_config vendor/a/d origin default-branch)" = main ]
-  [ "$(upstream_branch_for vendor/a/c main)" = master ]
-  [ "$(upstream_branch_for vendor/a/d main)" = main ]
+  [[ "$(splice status vendor/a/c)" == *"vendor/a/c -> master"* ]]
+  [[ "$(splice status vendor/a/d)" != *"->"* ]]
 }
 
 @test "nested: clone inside a splice refuses when the monorepo's default branch can't be determined, though the splice above's can" {
@@ -375,7 +374,7 @@ swap_splice_files() {
   cd "$monorepo"
   splice clone "$upstream" vendor/a
   git config --unset init.defaultBranch
-  run cmd_clone "$upstream_b" vendor/a/c
+  run splice clone "$upstream_b" vendor/a/c
   [ "$status" -eq 1 ]
   [[ "$output" == *"upstream's default branch is 'master', and the monorepo's can't be determined"* ]]
   [ ! -e vendor/a/c/.splice ]
@@ -390,7 +389,7 @@ swap_splice_files() {
   git -C "$no_head" symbolic-ref HEAD refs/heads/gone
   cd "$monorepo"
   splice clone "$upstream" vendor/a
-  run cmd_clone "$no_head" vendor/a/f
+  run splice clone "$no_head" vendor/a/f
   [ "$status" -eq 1 ]
   [[ "$output" == *"upstream has no 'master' branch and names no default branch"* ]]
   [ ! -e vendor/a/f/.splice ]
@@ -404,7 +403,7 @@ swap_splice_files() {
   splice clone "$upstream" vendor/a
   commit_local "$monorepo" vendor/a/e "e's first version"
   git config --unset init.defaultBranch
-  run cmd_init vendor/a/e "$empty_master"
+  run splice init vendor/a/e "$empty_master"
   [ "$status" -eq 1 ]
   [[ "$output" == *"upstream's default branch is 'master', and the monorepo's can't be determined"* ]]
   [ ! -e vendor/a/e/.splice ]
@@ -417,9 +416,9 @@ swap_splice_files() {
   cd "$monorepo"
   splice clone "$upstream" vendor/a
   commit_local "$monorepo" vendor/a/e "e's first version"
-  cmd_init vendor/a/e "$empty_master"
+  splice init vendor/a/e "$empty_master"
   [ -z "$(upstream_config vendor/a/e origin default-branch)" ]
-  [ "$(upstream_branch_for vendor/a/e main)" = master ]
+  [[ "$(splice status vendor/a/e)" == *"vendor/a/e -> master"* ]]
 }
 
 @test "nested: cloning an upstream that contains a .splice makes its folder a splice" {
@@ -438,8 +437,7 @@ swap_splice_files() {
   seed_bare_repo "$upstream" "$(printf '[splice]\n\tid = 0123456789abcdef\n[upstream "origin"]\n\turl = %s' "$upstream")" main extra/.splice
   cd "$monorepo"
   splice pull vendor/a
-  discover_splices
-  [ "${ALL_PATHS[*]}" = "vendor/a vendor/a/extra" ]
+  [ "$(discovered_splices)" = "vendor/a vendor/a/extra" ]
 }
 
 @test "nested: clone and init make a splice inside an existing one" {
@@ -450,8 +448,7 @@ swap_splice_files() {
   git add vendor/a/d && git commit -q -m "add d"
   make_bare_repo "$BATS_TEST_TMPDIR/d.git"
   splice init vendor/a/d "$BATS_TEST_TMPDIR/d.git"
-  discover_splices
-  [ "${ALL_PATHS[*]}" = "vendor/a vendor/a/b vendor/a/c vendor/a/d" ]
+  [ "$(discovered_splices)" = "vendor/a vendor/a/b vendor/a/c vendor/a/d" ]
 }
 
 @test "nested: init makes a splice around an existing one" {
@@ -634,25 +631,40 @@ b_moved_to_a_commit_upstream_lost() {
   [ "$status" -eq 0 ]
 }
 
+# Adds splices at paths $@ of the same upstream.
+add_splices_at() {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  init_monorepo "$monorepo"
+  local path
+  for path in "$@"; do
+    add_splice "$monorepo" "$upstream" "$path"
+  done
+  cd "$monorepo"
+}
+
+# Prints the paths in the output of `git splice <command> <paths>`, in the
+# order the command first mentions them.
+order_of() {
+  splice "$@" 2>&1 | grep -v 'Failed:' | sed -nE 's/^[a-z!?]+ +([^ :]+).*/\1/p' | awk '!seen[$0]++' | paste -sd ' ' -
+}
+
 @test "nested: top-down puts each splice after the ones above it, bottom-up before them, and keeps the order given otherwise" {
-  run splices_in_order top-down deep/x/y other deep/x z
-  [ "$output" = $'deep/x\ndeep/x/y\nother\nz' ]
-  run splices_in_order bottom-up deep/x/y other deep/x z
-  [ "$output" = $'deep/x/y\ndeep/x\nother\nz' ]
+  add_splices_at deep/x deep/x/y other z
+  [ "$(order_of merge deep/x/y other deep/x z)" = "deep/x deep/x/y other z" ]
+  [ "$(order_of push deep/x/y other deep/x z)" = "deep/x/y deep/x other z" ]
 }
 
 @test "nested: subtrees under the same splice keep the order of their first path too" {
-  run splices_in_order top-down a/b/d a/c a/b a
-  [ "$output" = $'a\na/b\na/b/d\na/c' ]
-  run splices_in_order bottom-up a/b/d a/c a/b a
-  [ "$output" = $'a/b/d\na/b\na/c\na' ]
+  add_splices_at a a/b a/b/d a/c
+  [ "$(order_of merge a/b/d a/c a/b a)" = "a a/b a/b/d a/c" ]
+  [ "$(order_of push a/b/d a/c a/b a)" = "a/b/d a/b a/c a" ]
 }
 
 @test "nested: a splice goes below the nearest splice given above it, also across folders that aren't splices, and a path given twice comes once" {
-  run splices_in_order top-down a/b/c/d x a/b a/b/c/d a
-  [ "$output" = $'a\na/b\na/b/c/d\nx' ]
-  run splices_in_order bottom-up a/b/c/d x a/b a/b/c/d a
-  [ "$output" = $'a/b/c/d\na/b\na\nx' ]
+  add_splices_at a a/b a/b/c/d x
+  [ "$(order_of merge a/b/c/d x a/b a/b/c/d a)" = "a a/b a/b/c/d x" ]
+  [ "$(order_of push a/b/c/d x a/b a/b/c/d a)" = "a/b/c/d a/b a x" ]
 }
 
 @test "nested: pull skips the splice above when the fetch of the one below fails" {

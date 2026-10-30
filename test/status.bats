@@ -1,6 +1,5 @@
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   local scenario
   for scenario in \
@@ -32,99 +31,94 @@ setup() {
 assert_state() {
   "scenario_${1//-/_}" "$monorepo" "$upstream"
   cd "$monorepo"
-  classify_splice vendor/a "$(current_branch)"
-  echo "state: $SPLICE_STATE" >&2
-  [ "$SPLICE_STATE" = "$2" ]
+  local state
+  state="$(splice_state vendor/a)"
+  echo "state: $state" >&2
+  [ "$state" = "$2" ]
 }
 
-@test "classify_splice: up-to-date" { assert_state up-to-date up-to-date; }
-@test "classify_splice: push" { assert_state push-ahead push; }
-@test "classify_splice: pull" { assert_state pull-ahead pull; }
-@test "classify_splice: diverged" { assert_state diverged-common-ancestor diverged; }
-@test "classify_splice: unrelated-history" { assert_state diverged-unrelated-history unrelated-history; }
-@test "classify_splice: never-fetched" { assert_state never-fetched never-fetched; }
-@test "classify_splice: missing-synced after a teammate's pull that wasn't fetched" { assert_state teammate-pulled missing-synced; }
+@test "state: up-to-date" { assert_state up-to-date up-to-date; }
+@test "state: push" { assert_state push-ahead push; }
+@test "state: pull" { assert_state pull-ahead pull; }
+@test "state: diverged" { assert_state diverged-common-ancestor diverged; }
+@test "state: unrelated-history" { assert_state diverged-unrelated-history unrelated-history; }
+@test "state: never-fetched" { assert_state never-fetched never-fetched; }
+@test "state: missing-synced after a teammate's pull that wasn't fetched" { assert_state teammate-pulled missing-synced; }
 
-@test "classify_splice: up-to-date once a teammate's pull is fetched" {
+@test "state: up-to-date once a teammate's pull is fetched" {
   scenario_teammate_pulled "$monorepo" "$upstream"
   cd "$monorepo"
   splice fetch vendor/a >/dev/null 2>&1
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a)" = up-to-date ]
 }
-@test "classify_splice: missing-branch" { assert_state feature-branch-unchanged missing-branch; }
-@test "classify_splice: push after pulling a divergence" { assert_state diverged-then-pulled push; }
-@test "classify_splice: push after our own push and another local change" { assert_state pushed-then-changed push; }
-@test "classify_splice: push after a pull on a squash-merged branch" { assert_state squash-merged-pull push; }
-@test "classify_splice: missing-branch after a merge in the monorepo" { assert_state merge-in-monorepo missing-branch; }
-@test "classify_splice: push on the default branch, synced with upstream's master" { assert_state default-branch push; }
+@test "state: missing-branch" { assert_state feature-branch-unchanged missing-branch; }
+@test "state: push after pulling a divergence" { assert_state diverged-then-pulled push; }
+@test "state: push after our own push and another local change" { assert_state pushed-then-changed push; }
+@test "state: push after a pull on a squash-merged branch" { assert_state squash-merged-pull push; }
+@test "state: missing-branch after a merge in the monorepo" { assert_state merge-in-monorepo missing-branch; }
+@test "state: push on the default branch, synced with upstream's master" { assert_state default-branch push; }
 
-@test "classify_splice: up-to-date after our own push" {
+@test "state: up-to-date after our own push" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   splice push vendor/a >/dev/null 2>&1
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a)" = up-to-date ]
 }
 
-@test "classify_splice: push after our own push and its revert" {
+@test "state: push after our own push and its revert" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   splice push vendor/a >/dev/null 2>&1
   git revert --no-edit HEAD >/dev/null
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = push ]
+  [ "$(splice_state vendor/a)" = push ]
 }
 
-@test "classify_splice: diverged when someone else committed on top of our push" {
+@test "state: diverged when someone else committed on top of our push" {
   scenario_pushed_then_changed "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "someone else"
   fetch_splice "$monorepo" "$upstream" vendor/a
   cd "$monorepo"
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = diverged ]
+  [ "$(splice_state vendor/a)" = diverged ]
 }
 
-@test "classify_splice: someone else's commit with our content isn't taken for our push" {
+@test "state: someone else's commit with our content isn't taken for our push" {
   scenario_push_ahead "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "local change"
   fetch_splice "$monorepo" "$upstream" vendor/a
   cd "$monorepo"
-  classify_splice vendor/a main
   # Equal content: nothing to push or pull.
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a)" = up-to-date ]
 }
 
-@test "classify_splice: missing-branch, not never-fetched, for an init'd splice whose upstream is empty" {
+@test "state: missing-branch, not never-fetched, for an init'd splice whose upstream is empty" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
-  classify_splice lib/a main
-  [ "$SPLICE_STATE" = missing-branch ]
+  [ "$(splice_state lib/a)" = missing-branch ]
 }
 
 @test "status: counts what push would publish and pull would bring in" {
   scenario_push_ahead "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "second local change"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "$output" = "$(printf 'On branch main\n\n  ahead 2  vendor/a')" ]
 
   scenario_pull_ahead "$BATS_TEST_TMPDIR/pull" "$BATS_TEST_TMPDIR/pull.git"
   cd "$BATS_TEST_TMPDIR/pull"
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  behind 1  vendor/a" ]
 
   scenario_diverged_common_ancestor "$BATS_TEST_TMPDIR/diverged" "$BATS_TEST_TMPDIR/diverged.git"
   cd "$BATS_TEST_TMPDIR/diverged"
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  ahead 1, behind 1  vendor/a" ]
 }
 
 @test "status: leaves the file summary to diff --stat" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -eq 2 ]
   [[ "$output" != *"file.txt"* ]]
@@ -133,7 +127,7 @@ assert_state() {
 @test "status: names upstream's branch when it differs" {
   scenario_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "${lines[0]}" = "On branch main" ]
   [ "${lines[1]}" = "  ahead 1  vendor/a -> master" ]
 }
@@ -141,16 +135,16 @@ assert_state() {
 @test "status: covers every splice by default and takes paths" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "${#lines[@]}" -eq 3 ]
-  run cmd_status vendor/b
+  run splice status vendor/b
   [ "${lines[*]:1}" = "  up to date  vendor/b" ]
 }
 
 @test "status: missing branch, unchanged and changed" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "$output" = "$(cat <<'EOF'
 On branch feature
 
@@ -158,7 +152,7 @@ On branch feature
 EOF
   )" ]
   git checkout -q -b other main
-  run cmd_status
+  run splice status
   [ "$output" = "$(cat <<'EOF'
 On branch other
 
@@ -171,7 +165,7 @@ EOF
   load 'scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  new, ahead 1  vendor/a  push creates the branch" ]
 }
 
@@ -180,27 +174,26 @@ EOF
   seed_bare_repo "$upstream" "upstream change"
   fetch_splice "$monorepo" "$upstream" vendor/a
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  new, ahead 1, behind 1  vendor/a  push creates the branch" ]
 }
 
 @test "status: says how to start without splices" {
   init_monorepo "$monorepo"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [[ "$output" == *"no splices"* ]]
 }
 
-@test "classify_splice: missing-branch, not never-fetched, after upstream deleted its last branch" {
+@test "state: missing-branch, not never-fetched, after upstream deleted its last branch" {
   scenario_push_ahead "$monorepo" "$upstream"
   git -C "$upstream" symbolic-ref HEAD refs/heads/gone
   git -C "$upstream" branch -D main >/dev/null
   cd "$monorepo"
   splice fetch vendor/a >/dev/null
   [ -z "$(git for-each-ref refs/splices/)" ]
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = missing-branch ]
-  run cmd_push vendor/a
+  [ "$(splice_state vendor/a)" = missing-branch ]
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
 }
@@ -209,7 +202,7 @@ EOF
 @test "status: warns about uncommitted changes in a splice's folder" {
   scenario_uncommitted_changes "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "$status" -eq 0 ]
   [ "${lines[1]}" = "  ahead 1  vendor/a  uncommitted changes" ]
 }
@@ -219,15 +212,15 @@ EOF
   cd "$monorepo"
   echo staged >>vendor/a/file.txt
   git add vendor/a/file.txt
-  run cmd_status
+  run splice status
   [[ "$output" == *"vendor/a  uncommitted changes"* ]]
   git reset -q --hard
   echo unstaged >>vendor/a/file.txt
-  run cmd_status
+  run splice status
   [[ "$output" == *"vendor/a  uncommitted changes"* ]]
   git reset -q --hard
   echo untracked >vendor/a/new.txt
-  run cmd_status
+  run splice status
   [[ "$output" == *"vendor/a  uncommitted changes"* ]]
 }
 
@@ -238,7 +231,7 @@ EOF
   echo 'vendor/a/build/' >.git/info/exclude
   mkdir vendor/a/build
   echo ignored >vendor/a/build/out.txt
-  run cmd_status
+  run splice status
   [ "${lines[*]:1}" = "  up to date  vendor/a" ]
 }
 
@@ -246,7 +239,7 @@ EOF
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
   echo changed >>vendor/b/file.txt
-  run cmd_status
+  run splice status
   [[ "$output" == *"vendor/b  uncommitted changes"* ]]
   [[ "$output" != *"vendor/a  uncommitted changes"* ]]
 }
@@ -256,7 +249,7 @@ EOF
   cd "$monorepo"
   mkdir vendor/a/b/new
   echo x >vendor/a/b/new/file.txt
-  run cmd_status
+  run splice status
   [[ "$output" == *"vendor/a  "*"uncommitted changes"* ]]
   [[ "$output" == *"vendor/a/b  "*"uncommitted changes"* ]]
 }
@@ -274,11 +267,8 @@ EOF
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
   echo changed >>vendor/b/file.txt
-  git() {
-    [[ "$1" != status ]] || echo status >>"$BATS_TEST_TMPDIR/calls"
-    command git "$@"
-  }
-  run cmd_status
+  stub_git '[[ "$1" != status ]] || echo status >>"$BATS_TEST_TMPDIR/calls"'
+  run splice status
   [ "$status" -eq 0 ]
   [ "$(grep -c status "$BATS_TEST_TMPDIR/calls")" -eq 1 ]
 }
@@ -288,7 +278,7 @@ EOF
   cd "$monorepo"
   # An invalid value that only git status reads makes it fail.
   git config status.relativePaths bogus
-  run cmd_status
+  run splice status
   [ "$status" -eq 0 ]
   [ "${lines[1]}" = "  up to date  vendor/a  could not check for uncommitted changes (git status failed)" ]
 }
@@ -297,7 +287,7 @@ EOF
   scenario_feature_branch_changed "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "another change"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  new, ahead 2  vendor/a  push creates the branch" ]
 }
 
@@ -306,7 +296,7 @@ EOF
   scenario_clone_on_feature_branch "$monorepo" "$upstream"
   cd "$monorepo"
   splice clone "$upstream" vendor/a >/dev/null
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
 }
 
@@ -314,7 +304,7 @@ EOF
   scenario_feature_branch_changed "$monorepo" "$upstream"
   git -C "$monorepo" revert --no-edit HEAD >/dev/null
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
 }
 
@@ -324,15 +314,15 @@ EOF
   seed_bare_repo "$upstream" "upstream change"
   fetch_splice "$monorepo" "$upstream" vendor/a
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
 }
 
 @test "status: a missing branch that can't be rebuilt warns, without the rebuild's error" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  rebuild_splice() { die "vendor/a: synced commit isn't available locally"; }
-  run cmd_status
+  stub_git 'if [[ " $* " == *" commit-tree "* ]]; then echo "cannot rebuild" >&2; exit 1; fi'
+  run splice status
   [ "$status" -eq 0 ]
   [ "${lines[*]:1}" = "  ?? no upstream branch  vendor/a  could not compare with upstream's 'main'" ]
 }
@@ -340,11 +330,8 @@ EOF
 @test "status: shows the state without counts if they can't be counted" {
   scenario_uncommitted_changes "$monorepo" "$upstream"
   cd "$monorepo"
-  git() {
-    [[ "$1 $2" == "rev-list --left-right" ]] && return 1
-    command git "$@"
-  }
-  run cmd_status
+  stub_git '[[ "$1 $2" != "rev-list --left-right" ]] || exit 1'
+  run splice status
   [ "$status" -eq 0 ]
   [ "${lines[1]}" = "  ahead  vendor/a  uncommitted changes" ]
 }
@@ -353,7 +340,7 @@ EOF
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
-  run cmd_status
+  run splice status
   [ "$output" = "$(printf 'On branch main\n\n  new, ahead 1  lib/a  push creates the branch')" ]
 }
 
@@ -361,7 +348,7 @@ EOF
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   mkdir libs && git mv vendor/a libs/a && git commit -q -m "move a"
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  ahead 1  libs/a" ]
 }
 
@@ -377,13 +364,13 @@ EOF
   seed_bare_repo "$other" "colleague's change" release
 
   splice fetch >/dev/null
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  behind 1  vendor/a" ]
 
   git checkout -q main
   splice fetch >/dev/null
   git checkout -q release
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  behind 1  vendor/a" ]
 }
 
@@ -391,7 +378,7 @@ EOF
   load 'scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [ "$output" = "$(cat <<'EOF2'
 On branch main
 
@@ -410,7 +397,7 @@ EOF2
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   echo "work in progress" >>libs/cli/file.txt
-  run cmd_status
+  run splice status
   [ "${lines[4]}" = "  up to date         libs/cli  uncommitted changes" ]
   [ "${lines[5]}" = "  up to date         libs/theme -> master" ]
 }
@@ -420,7 +407,7 @@ EOF2
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q -b feature
-  run cmd_status libs/cli libs/http libs/theme
+  run splice status libs/cli libs/http libs/theme
   [ "$output" = "$(cat <<'EOF2'
 On branch feature
 
@@ -435,10 +422,10 @@ EOF2
   scenario_shared_remote_url "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "local change"
   cd "$monorepo"
-  run cmd_status
+  run splice status
   [[ "$output" != *$'\e['* ]]
   git config color.status always
-  run cmd_status
+  run splice status
   [ "${lines[1]}" = "  ahead 1     vendor/a" ]
   [ "${lines[2]}" = $'\e[2m  up to date  vendor/b\e[m' ]
 }
