@@ -53,7 +53,7 @@ rm -rf "$dir"
 mkdir -p "$dir/upstream"
 dir="$(cd "$dir" && pwd)"
 
-splice="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/git-splice"
+splice="${GIT_SPLICE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/git-splice"
 
 git init -q -b main "$dir/monorepo"
 cd "$dir/monorepo"

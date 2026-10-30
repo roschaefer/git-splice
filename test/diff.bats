@@ -104,7 +104,7 @@ setup() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
 
-  run env GIT_PAGER=false "$BATS_TEST_DIRNAME/../git-splice" diff
+  run env GIT_PAGER=false "$ENTRYPOINT" diff
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"+local change"* ]]
@@ -115,7 +115,7 @@ setup() {
 # shell code $1 run first.
 diff_in_terminal() {
   script --version 2>/dev/null | grep -q util-linux || skip "no util-linux script to run diff in a terminal"
-  TERM=xterm run script -qec "${1:-:}; exec '$BATS_TEST_DIRNAME/../git-splice' diff" /dev/null
+  TERM=xterm run script -qec "${1:-:}; exec '$ENTRYPOINT' diff" /dev/null
 }
 
 @test "diff: output is colored while a pager is active" {

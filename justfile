@@ -1,7 +1,17 @@
 set shell := ["bash", "-c"]
 
-# Run shellcheck
+# Build the port from bash into target/debug
+build:
+    cargo build
+
+# Run the bats tests and the docs against the port, which hands commands it doesn't have yet to bash
+test-port: build
+    GIT_SPLICE_DIR="$PWD/target/debug" bats --recursive --jobs "$(nproc)" test
+    GIT_SPLICE_DIR="$PWD/target/debug" GIT_SPLICE_LIB="$PWD/lib" just docs-check
+
+# Run shellcheck and clippy
 lint:
+    cargo clippy --all-targets -- -D warnings
     shellcheck -x git-splice docs/design/pull-prototype.sh docs/design/rebuild-prototype.sh
     shellcheck test/walkthrough/setup.sh
     shellcheck completions/git-splice.bash
@@ -9,12 +19,14 @@ lint:
     shellcheck -x check-drawing/check-drawing check-drawing/check-export
     shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh
 
-# Format with shfmt
+# Format with shfmt and rustfmt
 fmt:
+    cargo fmt
     shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
-# Check formatting with shfmt
+# Check formatting with shfmt and rustfmt
 fmt-check:
+    cargo fmt --check
     shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Run the bats tests, one job per CPU

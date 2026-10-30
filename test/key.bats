@@ -37,7 +37,7 @@ setup() {
   [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = "refs/splices/lib/heads/feature/x"$'\n'"refs/splices/lib/heads/main" ]
   [ "$(git config --local splice.lib.url)" = "$upstream" ]
   [ -z "$(git config --local splice.upstream.url || true)" ]
-  run "$BATS_TEST_DIRNAME/../git-splice" status vendor/a
+  run "$ENTRYPOINT" status vendor/a
   [ "${lines[*]:1}" = "  up to date  vendor/a" ]
 }
 
