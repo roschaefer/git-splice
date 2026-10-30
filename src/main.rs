@@ -15,9 +15,12 @@
 
 mod args;
 mod diff;
+mod fetch;
 mod key;
 mod log;
+mod merge;
 mod pager;
+mod pull;
 mod rebuild;
 mod repo;
 mod state;
@@ -91,6 +94,9 @@ fn dispatch(argv: &[String]) -> Res<i32> {
         "diff" => diff::run(rest),
         "log" => log::run(rest),
         "key" => key::run(rest),
+        "fetch" => fetch::run(rest),
+        "merge" => merge::run(rest),
+        "pull" => pull::run(rest),
         "rebuild" => run_rebuild(rest),
         "boundary" => run_boundary(rest),
         _ => Ok(bash(argv)),
