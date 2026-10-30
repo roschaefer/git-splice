@@ -153,7 +153,7 @@ jobs:
         shell: bash
         run: |
           rustup target add "$TARGET"
-          cargo build --release --locked --target "$TARGET"
+          cargo build --release --locked --package git-splice --target "$TARGET"
           "target/$TARGET/release/git-splice" --version
 
       - name: Publish it
