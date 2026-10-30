@@ -440,3 +440,25 @@ EOF2
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\e[2m  up to date  vendor/b\e[m'* ]]
 }
+
+@test "status: a default-pin that names a branch says why it stops, on a branch upstream lacks" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  git -C "$upstream" branch rel main
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  git config --file vendor/a/.splice upstream.origin.default-pin rel
+  git commit -q -am "pin a branch by mistake"
+  run splice status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: default-pin names 'rel', a branch upstream, not a tag"* ]]
+}
+
+@test "status: works in a repository whose folder's name isn't valid UTF-8" {
+  monorepo="$BATS_TEST_TMPDIR/"$'repo-\xff'/monorepo
+  mkdir -p "$(dirname "$monorepo")"
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"up to date"*"vendor/a"* ]]
+}

@@ -6,6 +6,8 @@
 
 use crate::repo::*;
 use crate::util::*;
+use std::io::{BufRead, BufReader};
+use std::process::Stdio;
 
 /// For every git command that reads or writes a rebuilt commit: the rebuild
 /// must come out the same for everyone, and i18n.commitEncoding would re-encode
@@ -338,7 +340,9 @@ fn splice_lineage_to_mount(path: &str, upper: &str) -> MountLineage {
             // stops at the first whose parent has another.
             let id = splice_config(&path, "id", &upper);
             let spec = format!(":(top,literal){path}/{STATE_FILE}");
-            let commits = git(&[
+            // Read as it comes: the mount is usually among the newest of them,
+            // and the rest of the history is long.
+            let mut log = git(&[
                 "log",
                 "--first-parent",
                 "--no-show-signature",
@@ -347,23 +351,32 @@ fn splice_lineage_to_mount(path: &str, upper: &str) -> MountLineage {
                 "--",
                 &spec,
             ])
-            .out()
-            .unwrap_or_default();
+            .into_command();
+            let mut child = log.stdin(Stdio::null()).stdout(Stdio::piped()).spawn().ok();
+            let commits = child.as_mut().and_then(|child| child.stdout.take());
             let mut from = String::new();
             let mut at = String::new();
-            for commit in commits.lines() {
-                at = commit.to_string();
+            for commit in commits
+                .into_iter()
+                .flat_map(|out| BufReader::new(out).lines())
+            {
+                let Ok(commit) = commit else { break };
+                at.clone_from(&commit);
                 if !id.is_empty()
-                    && has_parent(commit)
+                    && has_parent(&commit)
                     && splice_config(&path, "id", &format!("{commit}^1")) == id
                 {
                     continue;
                 }
-                from = moved_from(commit, &path).from;
+                from = moved_from(&commit, &path).from;
                 if from.is_empty() {
-                    mount = commit.to_string();
+                    mount = commit;
                 }
                 break;
+            }
+            if let Some(child) = child.as_mut() {
+                let _ = child.kill();
+                let _ = child.wait();
             }
             if from.is_empty() {
                 break;

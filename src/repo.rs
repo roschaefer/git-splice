@@ -142,7 +142,7 @@ pub enum Kind {
 
 /// Holds the lock on the upstream keys while it lives.
 pub struct KeyLock {
-    path: String,
+    path: std::path::PathBuf,
 }
 
 impl Drop for KeyLock {
@@ -463,11 +463,12 @@ impl Repo {
     /// Where every command starts: at the repository root, with HEAD a commit,
     /// and the splices discovered.
     pub fn open(&mut self) -> Res<()> {
-        let Some(toplevel) = git(&["rev-parse", "--show-toplevel"]).q().out() else {
+        let Some(toplevel) = git(&["rev-parse", "--show-toplevel"]).q().bytes() else {
             return die("not inside a git repository");
         };
+        let toplevel = path_from_output(toplevel);
         if std::env::set_current_dir(&toplevel).is_err() {
-            return die(format!("failed to cd to repo root: {toplevel}"));
+            return die(format!("failed to cd to repo root: {}", toplevel.display()));
         }
         if !git(&["rev-parse", "--quiet", "--verify", "HEAD^{commit}"]).ok() {
             let branch = current_branch()?;
@@ -513,6 +514,11 @@ impl Repo {
     pub fn discover_splices(&mut self) -> Res<()> {
         self.all_paths.clear();
         for file in self.state_files("HEAD") {
+            if file.contains(char::REPLACEMENT_CHARACTER) {
+                return die(format!(
+                    "'{file}' isn't supported as a splice path -- rename the folder: its name isn't valid UTF-8"
+                ));
+            }
             if file == STATE_FILE {
                 return die(format!(
                     "a {STATE_FILE} at the repository root isn't supported -- a splice must be a folder"
@@ -1052,9 +1058,9 @@ impl Repo {
     /// Git directory, which mkdir creates or fails on in one step.
     pub fn lock_upstream_keys(&self) -> Res<KeyLock> {
         let dir = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"])
-            .out()
+            .bytes()
             .unwrap_or_default();
-        let lock = format!("{dir}/splice-keys.lock");
+        let lock = path_from_output(dir).join("splice-keys.lock");
         for _ in 0..KEY_LOCK_TRIES {
             if std::fs::create_dir(&lock).is_ok() {
                 return Ok(KeyLock { path: lock });
@@ -1062,7 +1068,8 @@ impl Repo {
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
         die(format!(
-            "another git splice is recording an upstream key -- if none is running, remove {lock}"
+            "another git splice is recording an upstream key -- if none is running, remove {}",
+            lock.display()
         ))
     }
 

@@ -26,13 +26,14 @@ fn rename_upstream_key(repo: &mut Repo, old: &str, new: &str) -> Res<()> {
             "key '{new}' is taken -- 'git config --local --get-regexp ^splice\\.' lists the keys"
         ));
     }
-    let refs = git(&[
+    let Some(refs) = git(&[
         "for-each-ref",
         "--format=%(refname) %(objectname)",
         &format!("refs/splices/{old}/"),
     ])
-    .out()
-    .unwrap_or_default();
+    .out() else {
+        return die(format!("couldn't move the refs of key '{old}'"));
+    };
     let mut moves = String::new();
     for line in refs.lines() {
         if let Some((reference, object)) = line.split_once(' ') {

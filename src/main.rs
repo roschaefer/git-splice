@@ -104,10 +104,14 @@ fn bash(argv: &[String]) -> i32 {
 }
 
 fn main() -> ExitCode {
-    let argv: Vec<String> = std::env::args_os()
+    let Some(argv) = std::env::args_os()
         .skip(1)
-        .map(|arg| arg.to_string_lossy().into_owned())
-        .collect();
+        .map(|arg| arg.into_string().ok())
+        .collect::<Option<Vec<String>>>()
+    else {
+        log_err("arguments must be valid UTF-8");
+        return ExitCode::FAILURE;
+    };
     let code = dispatch(&argv).unwrap_or_else(|fail| match fail {
         Fail::Code(code) => code,
         _ => 1,

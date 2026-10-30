@@ -512,3 +512,25 @@ assert_candidates() {
   GIT_ALLOW_PROTOCOL=none splice fetch vendor/a >/dev/null 2>&1 || true
   [ "$(git config --local "splice.$(splice key vendor/a).url")" = $'/srv/a\nb.git' ]
 }
+
+@test "discovery: refuses a splice path that isn't valid UTF-8, naming the folder to rename" {
+  [[ "$ENTRYPOINT" == */target/* ]] || skip "bash takes any bytes"
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir $'caf\xe9'
+  cp vendor/a/.splice $'caf\xe9/.splice'
+  git add . && git commit -q -m "a folder whose name isn't UTF-8"
+  run splice status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"isn't valid UTF-8"* ]]
+}
+
+@test "state file: a synced commit with multibyte characters is reported, not a crash" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice splice.commit "abcdefäöü"
+  git commit -q -am "a synced commit edited by hand"
+  run splice status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"synced commit abcdefä isn't here"* ]]
+}

@@ -243,6 +243,15 @@ impl Git {
     }
 }
 
+/// A path git printed, byte for byte: a folder's name need not be UTF-8.
+pub fn path_from_output(mut bytes: Vec<u8>) -> PathBuf {
+    use std::os::unix::ffi::OsStringExt;
+    while bytes.last() == Some(&b'\n') {
+        bytes.pop();
+    }
+    PathBuf::from(std::ffi::OsString::from_vec(bytes))
+}
+
 /// `$(...)`: text without trailing newlines.
 pub fn text(bytes: &[u8]) -> String {
     let mut text = String::from_utf8_lossy(bytes).into_owned();
@@ -293,7 +302,7 @@ impl Drop for Temp {
 
 /// The first 7 characters: a short commit id.
 pub fn short(id: &str) -> &str {
-    &id[..id.len().min(7)]
+    id.char_indices().nth(7).map_or(id, |(end, _)| &id[..end])
 }
 
 /// One shell word for a ready-to-run command we print: as it is if it only

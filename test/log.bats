@@ -115,3 +115,22 @@ setup() {
   [ "${lines[1]}" = "!!   Failed: vendor/a" ]
   [ "${#lines[@]}" -eq 2 ]
 }
+
+@test "log --graph: stops at a pager that was quit, without going on to the next splice" {
+  script --version 2>/dev/null | grep -q util-linux || skip "no util-linux script to run log in a terminal"
+  load 'scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null
+  mkdir zz
+  git config --file zz/.splice splice.id 0123456789abcdef
+  git config --file zz/.splice splice.commit 1111111111111111111111111111111111111111
+  git config --file zz/.splice upstream.origin.url "$BATS_TEST_TMPDIR/never-fetched.git"
+  git add zz
+  git commit -q -m "a splice never fetched"
+  # Quits after the header, before the graph's one line is written.
+  git config pager.splice 'head -n 1'
+  TERM=xterm run script -qec "'$ENTRYPOINT' log --graph" /dev/null
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"not fetched"* ]]
+}

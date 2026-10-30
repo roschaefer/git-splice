@@ -57,15 +57,24 @@ fn splice_git_log(
             .map_err(|_| Fail::Soft)?;
         let reader = BufReader::new(child.stdout.take().ok_or(Fail::Soft)?);
         let mut out = std::io::stdout();
+        let mut reader_gone = false;
         for line in reader.split(b'\n') {
             let Ok(line) = line else { break };
             let mut labeled = label_tip(&line, rebuilt, target);
             labeled.push(b'\n');
             if out.write_all(&labeled).and_then(|()| out.flush()).is_err() {
+                reader_gone = true;
                 break;
             }
         }
-        child.wait().map_or(1, status_code)
+        if reader_gone {
+            // What a pager that was quit does to a shell's pipeline.
+            let _ = child.kill();
+            let _ = child.wait();
+            141
+        } else {
+            child.wait().map_or(1, status_code)
+        }
     } else {
         let format = format!("--format={format}");
         let mut args = vec!["log", &format];

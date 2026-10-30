@@ -53,7 +53,10 @@ fn classify_row(repo: &mut Repo, path: &str, branch: &str) -> Res<Row> {
         State::MissingBranch => {
             let compared = quietly(|| repo.compare_with_default_branch(path));
             match compared {
-                Err(Fail::Hard) => return Err(Fail::Hard),
+                // A refusal, which only rebuild errors are quiet for: says why.
+                Err(Fail::Hard) => {
+                    return repo.compare_with_default_branch(path).and(Err(Fail::Hard))
+                }
                 Err(_) => {
                     let hint = if repo.d.default_branch.is_empty() {
                         "upstream's default branch unknown".to_string()
