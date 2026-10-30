@@ -32,6 +32,15 @@ DESCRIPTION
     given: then every file that differs becomes a conflict to resolve, and
     nothing is lost. Resolve it and run 'git commit'.
 
+    In upstream, and in a submodule, only upstream's own .gitattributes
+    apply to its files. Where text, eol, filter, ident or
+    working-tree-encoding set above <path> would change what a checkout
+    writes or what git add stores, clone refuses, and names the line that
+    unsets these for <path>: add it to that .gitattributes, commit it, and
+    run clone again. Without that line, the monorepo's attributes would
+    apply to upstream's files, and push would send them as these store
+    them.
+
     With --from-submodule, <path> is a submodule committed in HEAD, and clone
     turns it into a splice of the same upstream, at the same commit: the
     upstream is the submodule's URL in .gitmodules, and the folder gets the

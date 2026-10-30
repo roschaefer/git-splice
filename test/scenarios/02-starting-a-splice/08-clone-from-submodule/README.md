@@ -18,6 +18,15 @@ it follows from then on depends on the submodule's `branch` in
 | `stable` | follows `stable` | `default-branch stable` | follows `stable` ([submodule-with-branch](02-submodule-with-branch/README.md)) |
 | `.` | follows the branch named like the monorepo's | neither | follows `main` ([submodule-with-branch-dot](03-submodule-with-branch-dot/README.md)) |
 
+Attributes above the submodule that change a checkout, such as line
+endings, never applied to its files. Where they would once it's a
+folder, the conversion refuses, and names the line that keeps them off:
+for those of the monorepo
+([monorepo-line-endings](04-monorepo-line-endings/README.md)), or of a
+splice above it ([line-endings-in-splice-above](05-line-endings-in-splice-above/README.md)).
+A macro upstream's own `.gitattributes` defines would be lost, and no
+such line helps ([upstream-macro](06-upstream-macro/README.md)).
+
 ## Output
 
 <!--

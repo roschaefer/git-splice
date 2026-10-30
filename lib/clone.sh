@@ -27,6 +27,15 @@ DESCRIPTION
     given: then every file that differs becomes a conflict to resolve, and
     nothing is lost. Resolve it and run 'git commit'.
 
+    In upstream, and in a submodule, only upstream's own .gitattributes
+    apply to its files. Where text, eol, filter, ident or
+    working-tree-encoding set above <path> would change what a checkout
+    writes or what git add stores, clone refuses, and names the line that
+    unsets these for <path>: add it to that .gitattributes, commit it, and
+    run clone again. Without that line, the monorepo's attributes would
+    apply to upstream's files, and push would send them as these store
+    them.
+
     With --from-submodule, <path> is a submodule committed in HEAD, and clone
     turns it into a splice of the same upstream, at the same commit: the
     upstream is the submodule's URL in .gitmodules, and the folder gets the
@@ -184,8 +193,10 @@ cmd_clone() {
     die "$path exists and differs from '$upstream_branch' upstream -- '--merge' keeps both, and every file that differs becomes a conflict to resolve"
   fi
 
-  local blob
+  local blob tree
   blob="$(state_blob "$path" "id=$(new_splice_id "$path" "$url" "$target")" "commit=$target" "upstream.$DEFAULT_UPSTREAM.url=$url" "upstream.$DEFAULT_UPSTREAM.default-branch=$default_branch")" || exit 1
+  tree="$(reroot_tree "$path" "$target^{tree}" "$blob")" || exit 1
+  refuse_monorepo_attributes "$path" "$target" "$tree"
   # The merge base is an empty folder: the two sides share nothing.
   if ! splice_in "$path" "" "" "$target^{tree}" "$blob" \
     "$(commit_message "splice: clone $path from $upstream_branch at ${target:0:7}")"; then
@@ -343,6 +354,107 @@ tag_naming() {
     awk -v c="$2" '!found && $1 == c { sub("^refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2; found = 1 }'
 }
 
+# Prints a .gitattributes pattern for everything below folder <path>,
+# a splice path: usable_splice_path leaves out whitespace and glob
+# characters, but a leading #, ! or " would make a comment, a negative
+# pattern or a quoted one.
+attributes_pattern() {
+  local pattern="$1"
+  [[ "$pattern" != [#!\"]* ]] || pattern="\\$pattern"
+  printf '%s/**\n' "$pattern"
+}
+
+# The attributes that change what a checkout writes, or what git add
+# stores.
+CHECKOUT_ATTRIBUTES=(text eol filter ident working-tree-encoding)
+
+# Prints each NUL-terminated path read with <prefix> in front.
+prefix_paths() {
+  local file
+  while IFS= read -r -d '' file; do
+    printf '%s%s\0' "$1" "$file"
+  done
+}
+
+# Prints the CHECKOUT_ATTRIBUTES tree <tree> gives the NUL-terminated
+# paths read, each with <prefix> in front, as one "<attribute> <value>"
+# line each, without the path: the same files in another folder compare
+# equal. Reads only <tree>'s .gitattributes, from the top, as checkout
+# and git add do. Git warns about a macro defined below the top each time
+# it reads one; refuse_monorepo_attributes says what that means instead.
+checkout_attributes() (
+  set -o pipefail
+  local tree="$1" prefix="$2" file attribute value
+  prefix_paths "$prefix" |
+    git check-attr -z --stdin --source="$tree" "${CHECKOUT_ATTRIBUTES[@]}" 2>/dev/null |
+    while IFS= read -r -d '' file && IFS= read -r -d '' attribute && IFS= read -r -d '' value; do
+      printf '%s %s\n' "$attribute" "$value"
+    done
+)
+
+# Prints tree <tree> with file <file> replaced by blob <blob>, in the
+# file's mode. Uses a temporary index, as reroot_tree does.
+tree_with_blob() {
+  local tree="$1" file="$2" blob="$3" mode index rc=0
+  mode="$(git ls-tree "$tree" -- "$file" | cut -d' ' -f1)"
+  index="$(mktemp)"
+  {
+    GIT_INDEX_FILE="$index" git read-tree "$tree" &&
+      GIT_INDEX_FILE="$index" git update-index --cacheinfo "${mode:-100644},$blob,$file" &&
+      GIT_INDEX_FILE="$index" git write-tree
+  } || rc=$?
+  rm -f "$index"
+  return "$rc"
+}
+
+# Dies where Git would apply other CHECKOUT_ATTRIBUTES to the files of a
+# new splice at <path>, at upstream commit <commit>, in monorepo tree
+# <tree>, than in upstream, where only upstream's own .gitattributes
+# count. Names the line that unsets them for the folder in the deepest
+# .gitattributes above it, which wins over those further up; the
+# splice's own, deeper still, win over it. Adding it is the user's
+# decision, and so is anything else, where it wouldn't make them match:
+# e.g. for a macro upstream's own .gitattributes defines, which Git
+# accepts only at the top.
+refuse_monorepo_attributes() {
+  local path="$1" commit="$2" tree="$3" dir="$1" file="" line="" names upstream monorepo
+  names="$(mktemp)" upstream="$(mktemp)" monorepo="$(mktemp)"
+  if ! { git ls-tree -r -z --name-only "$commit" >"$names" &&
+    checkout_attributes "$commit" "" <"$names" >"$upstream" &&
+    checkout_attributes "$tree" "$path/" <"$names" >"$monorepo"; }; then
+    rm -f "$names" "$upstream" "$monorepo"
+    die "$path: git check-attr failed for its files"
+  fi
+  if cmp -s "$upstream" "$monorepo"; then
+    rm -f "$names" "$upstream" "$monorepo"
+    return 0
+  fi
+  while [[ -n "$dir" ]]; do
+    if [[ "$dir" == */* ]]; then dir="${dir%/*}"; else dir=""; fi
+    # Git doesn't read a .gitattributes that's a symbolic link.
+    if [[ "$(git ls-tree "$tree" -- "${dir:+$dir/}.gitattributes")" == 100* ]]; then
+      file="${dir:+$dir/}.gitattributes"
+      break
+    fi
+  done
+  if [[ -n "$file" ]]; then
+    local candidate blob fixed
+    candidate="$(attributes_pattern "${path#"${dir:+$dir/}"}")$(printf ' !%s' "${CHECKOUT_ATTRIBUTES[@]}")"
+    # awk 1 ends the last line with a newline, if it has none.
+    blob="$({
+      git cat-file blob "$tree:$file" | awk 1
+      printf '%s\n' "$candidate"
+    } | git hash-object -w --stdin)"
+    fixed="$(tree_with_blob "$tree" "$file" "$blob")" &&
+      checkout_attributes "$fixed" "$path/" <"$names" >"$monorepo" &&
+      ! cmp -s "$upstream" "$monorepo" || line="$candidate"
+  fi
+  rm -f "$names" "$upstream" "$monorepo"
+  [[ -z "$line" ]] ||
+    die "$path: attributes in $file or above it would change how Git checks out or stores some of its files, unlike in upstream -- add '$line' to $file, commit it, and run clone again"
+  die "$path: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"
+}
+
 # Turns the submodule at <path> into a splice, as clone --from-submodule
 # does; with <recursive> non-empty, its own submodules too, each in a
 # commit of its own after the one above. A submodule inside a splice --
@@ -397,6 +509,9 @@ clone_from_submodule() {
   inner="$(upstream_submodule "$commit")"
   [[ -z "$inner" || -n "$recursive" ]] ||
     die "$path: the submodule has a submodule of its own, $inner -- turn it into a splice in its upstream first, or add --recursive to convert it here too"
+  local tree
+  tree="$(reroot_tree "$path" "$commit^{tree}" "")" || exit 1
+  refuse_monorepo_attributes "$path" "$commit" "$tree"
 
   # Keys are submodule.<name>.<setting>, and <name> may contain dots.
   local key setting

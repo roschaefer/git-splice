@@ -818,3 +818,116 @@ add_nested_submodule_update_none() {
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/libs/inner/file.txt)" = inner ]
 }
+
+# Commits .gitattributes with content $1 to the monorepo.
+commit_attributes() {
+  printf '%b' "$1" >.gitattributes
+  git add .gitattributes
+  git commit -q -m "attributes"
+}
+
+@test "clone --from-submodule: the monorepo's text=auto stops the conversion too, as git add would store a file someone gives CRLF with LF" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  commit_attributes '* text=auto\n'
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
+}
+
+@test "clone --from-submodule: refuses where the monorepo's attributes would apply to upstream's files, naming the line that unsets them" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  commit_attributes '*.bat text eol=crlf\n'
+  add_submodule
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule: with the line it names committed, the conversion keeps files as upstream committed them" {
+  commit_raw_file "$upstream" build.bat 'echo build\r\n'
+  commit_raw_file "$upstream" run.bat 'echo run\n'
+  commit_attributes '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding\n'
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/colleague"
+  [ "$(od -c "$BATS_TEST_TMPDIR/colleague/vendor/a/run.bat")" = "$(printf 'echo run\n' | od -c)" ]
+  [ "$(od -c "$BATS_TEST_TMPDIR/colleague/vendor/a/build.bat")" = "$(printf 'echo build\r\n' | od -c)" ]
+}
+
+@test "clone --from-submodule --recursive: refuses where the splice above's attributes would apply to the nested upstream's files, the one above converted; resumes with the line committed there" {
+  inner="$BATS_TEST_TMPDIR/inner.git"
+  make_bare_repo "$inner"
+  seed_bare_repo "$inner" "inner"
+  commit_raw_file "$inner" settings.h '#define X 1\r\n'
+  commit_raw_file "$upstream" .gitattributes '*.h text eol=lf\n'
+  add_upstream_submodule "$upstream" "$inner" libs/inner
+  add_submodule
+  git -c protocol.file.allow=always submodule -q update --init --recursive
+  run cmd_clone --from-submodule --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/libs/inner: attributes in vendor/a/.gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' to vendor/a/.gitattributes, commit it, and run clone again"* ]]
+  [ "$(path_mode HEAD vendor/a)" = 040000 ]
+  [ "$(path_mode HEAD vendor/a/libs/inner)" = 160000 ]
+  echo 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' >>vendor/a/.gitattributes
+  git commit -q -a -m "keep the splice's line endings off libs/inner"
+  run cmd_clone --from-submodule --recursive vendor/a/libs/inner
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule: the line it names matches only the splice's folder, whatever its name" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  commit_attributes '*.bat text eol=crlf\n'
+  git -c protocol.file.allow=always submodule add -q "$upstream" "#a"
+  git commit -q -m "add #a"
+  run cmd_clone --from-submodule "#a"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"add '\#a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
+}
+
+@test "attributes_pattern: escapes a leading character a .gitattributes line would read otherwise" {
+  while IFS='|' read -r path expected; do
+    [ "$(attributes_pattern "$path")" = "$expected" ] || {
+      echo "$path: $(attributes_pattern "$path"), expected $expected"
+      return 1
+    }
+  done <<'TABLE'
+vendor/a|vendor/a/**
+vendor/#a|vendor/#a/**
+#a|\#a/**
+!a|\!a/**
+"a|\"a/**
+TABLE
+}
+
+@test "clone --from-submodule: attributes above the submodule that only change tools don't stop the conversion" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  commit_attributes '*.png binary\n*.c diff=cpp\n'
+  add_submodule
+  run cmd_clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
+}
+
+@test "clone --from-submodule: refuses where the monorepo's filter, ident or working-tree-encoding would apply to upstream's files" {
+  git config filter.upper.clean "tr a-z A-Z"
+  git config filter.upper.smudge cat
+  add_submodule
+  local attributes
+  for attributes in '*.txt filter=upper' '*.txt ident' '*.txt working-tree-encoding=UTF-16LE'; do
+    commit_attributes "$attributes\n"
+    run cmd_clone --from-submodule vendor/a
+    [ "$status" -eq 1 ] || {
+      echo "$attributes: $output"
+      return 1
+    }
+    [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
+  done
+}

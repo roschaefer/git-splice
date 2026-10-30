@@ -8,7 +8,8 @@ setup() {
     02-starting-a-splice/01-clone-copied-content \
     02-starting-a-splice/02-clone-differing-content \
     02-starting-a-splice/03-clone-on-feature-branch \
-    02-starting-a-splice/06-clone-without-commits; do
+    02-starting-a-splice/06-clone-without-commits \
+    02-starting-a-splice/09-clone-under-monorepo-attributes; do
     load "scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
@@ -238,4 +239,47 @@ new_upstream() {
   git config init.defaultBranch main
   run cmd_clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
+}
+
+@test "clone: refuses where the monorepo's attributes would apply to upstream's files, naming the line; with it committed, clones the files as upstream committed them" {
+  scenario_clone_under_monorepo_attributes "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e vendor/a ]
+  echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' >>.gitattributes
+  git commit -q -a -m "keep the monorepo's line endings off vendor/a"
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+  [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\n' | od -c)" ]
+}
+
+@test "clone: the line it names skips a .gitattributes that's a symbolic link, which Git doesn't read" {
+  scenario_clone_under_monorepo_attributes "$monorepo" "$upstream"
+  cd "$monorepo"
+  mkdir vendor
+  echo "notes" >notes.txt
+  ln -s ../notes.txt vendor/.gitattributes
+  git add notes.txt vendor/.gitattributes
+  git commit -q -m "notes, and a link to them"
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes,"* ]]
+}
+
+@test "clone: refuses without naming a line where unsetting the monorepo's attributes can't make them upstream's" {
+  new_upstream
+  commit_raw_file "$upstream" .gitattributes '[attr]crlf-text text eol=crlf\n*.bat crlf-text\n'
+  commit_raw_file "$upstream" run.bat 'echo run\n'
+  printf '*.png binary\n' >.gitattributes
+  git add .gitattributes
+  git commit -q -m "binary images"
+  run cmd_clone "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"* ]]
 }
