@@ -31,9 +31,6 @@ jobs:
       - name: docs-check
         run: nix develop --command just docs-check
 
-      - name: test-port
-        run: nix develop --command just test-port
-
       - name: site-build
         run: nix develop --command just site-build
 
@@ -61,6 +58,9 @@ jobs:
 
       - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
       - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
+
+      - name: build
+        run: nix develop --command cargo build
 
       # bash and git are pulled independently from separate pinned nixpkgs
       # revisions -- prebuilt binaries from cache.nixos.org, no compiling --

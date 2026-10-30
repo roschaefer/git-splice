@@ -19,17 +19,23 @@ release.
 
 ## Code map
 
-`git-splice` checks the Bash and Git versions, sources `lib/*.sh`, and
-dispatches `git splice <command>` to `cmd_<command>`. The libraries are
-layered, each using only the ones above it:
+`src/main.rs` checks the Git version and dispatches `git splice <command>` to
+the command's `run`. The tool only runs the `git` CLI, so
+`GIT_TRACE=1 git splice <command>` prints every git command it runs.
 
 | File | Responsibility |
 |---|---|
-| `lib/common.sh` | Discovery (`discover_splices`), argument parsing and path selection, reading and writing `.splice` (`splice_config`, `state_blob`), upstream keys (`upstream_key`, `create_upstream_key`), branch mapping. |
-| `lib/rebuild.sh` | The push rebuild: `splice_last_sync`, `rebuild_splice`, `splice_start` (B) and the commit loop `rebuild_walk`. |
-| `lib/state.sh` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone --merge`. |
-| `lib/pager.sh` | Paging for `diff` and `log`. |
-| `lib/<command>.sh` | One command each: usage text, `cmd_<command>`, and its per-splice step. |
+| `src/util.rs` | Logging, failures (`Fail`) and running git. |
+| `src/args.rs` | Argument parsing. |
+| `src/repo.rs` | `Repo`: discovery, path selection, reading `.splice`, upstreams, keys and what a splice syncs with. |
+| `src/rebuild.rs` | The push rebuild: `rebuild_splice`, `splice_start` (B) and the commit loop `rebuild_walk`. |
+| `src/state.rs` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone`. |
+| `src/pager.rs` | Paging for `diff` and `log`. |
+| `src/<command>.rs` | One command each: its `run` and its per-splice step. |
+| `src/usage/<command>.txt` | Each command's help. |
+
+A failure is `Fail::Soft`, which ends one splice's step, or `Fail::Hard`, which
+ends the command.
 
 Each command follows the same shape: `select_paths` picks the splices,
 then a per-splice function (`merge_one`, `push_one`, …) calls
@@ -61,9 +67,6 @@ and Git 2.40, and their newer counterparts.
 | Scenario READMEs | `test/scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
 | Walkthroughs | `test/walkthrough/*.md` | Every command once, in order, then a page per command, each on a fresh sandbox, checked by scrut. |
 | Benchmark | `bench/`, `test/bench.bats` | `status` timings on a synthetic monorepo, reported on PRs out of draft. |
-
-`just test-port` runs the bats tests and the docs against the Rust port in
-`src/`, which runs the bash entrypoint for commands it doesn't have yet (#203).
 
 ### Writing a bats test
 

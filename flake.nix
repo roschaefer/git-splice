@@ -13,42 +13,37 @@
         pkgs = nixpkgs.legacyPackages.${system};
         lib = pkgs.lib;
 
-        git-splice = pkgs.stdenvNoCC.mkDerivation {
+        git-splice = pkgs.rustPlatform.buildRustPackage {
           pname = "git-splice";
-          # release-please bumps VERSION in the entrypoint; read it from there.
-          version = builtins.head
-            (builtins.match ".*\nVERSION=([^ ]+) .*" (builtins.readFile ./git-splice));
+          # release-please bumps it in Cargo.toml; read it from there.
+          version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.version;
 
           src = lib.fileset.toSource {
             root = ./.;
             fileset = lib.fileset.unions [
-              ./git-splice
-              ./lib
+              ./Cargo.toml
+              ./Cargo.lock
+              ./src
               ./completions
               ./LICENSE
             ];
           };
+          cargoLock.lockFile = ./Cargo.lock;
 
           nativeBuildInputs = [ pkgs.makeWrapper pkgs.installShellFiles ];
-          # For patchShebangs: the entrypoint's `#!/usr/bin/env bash`.
-          buildInputs = [ pkgs.bash ];
-          dontBuild = true;
+          # The tests need the docs and fixtures, which the package leaves out;
+          # CI runs them on the checkout.
+          doCheck = false;
 
-          # The entrypoint finds lib/ next to itself, so both go to share/
-          # and bin/ gets a wrapper that puts git and the tools the scripts
-          # call on PATH.
-          installPhase = ''
-            runHook preInstall
-            mkdir -p $out/share/git-splice
-            cp -R git-splice lib $out/share/git-splice/
-            makeWrapper $out/share/git-splice/git-splice $out/bin/git-splice \
-              --prefix PATH : ${lib.makeBinPath [ pkgs.git pkgs.coreutils pkgs.gnused pkgs.gnugrep ]}
+          # It runs the git CLI, and a pager through sh.
+          postInstall = ''
+            wrapProgram $out/bin/git-splice \
+              --prefix PATH : ${lib.makeBinPath [ pkgs.git pkgs.bash ]}
             install -Dm644 LICENSE $out/share/licenses/git-splice/LICENSE
             installShellCompletion --cmd git-splice \
               --bash completions/git-splice.bash \
               --zsh completions/git-splice.zsh \
               --fish completions/git-splice.fish
-            runHook postInstall
           '';
 
           meta = {

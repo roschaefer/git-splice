@@ -7,7 +7,7 @@ setup() {
   load '../check-drawing/check-drawing'
   hermetic_git_config
   load 'scenarios/01-everyday-sync/01-sync-model/01-after-pull/setup'
-  PATH="$BATS_TEST_DIRNAME/..:$PATH"
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   scenario_after_pull "$monorepo" "$upstream"

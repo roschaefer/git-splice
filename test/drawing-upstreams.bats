@@ -8,7 +8,7 @@ setup() {
   load '../check-drawing/check-drawing'
   hermetic_git_config
   load 'scenarios/04-upstreams/02-several-upstreams/setup'
-  PATH="$BATS_TEST_DIRNAME/..:$PATH"
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   fork="$BATS_TEST_TMPDIR/upstream-fork.git"

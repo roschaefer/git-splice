@@ -4,18 +4,16 @@
 # vocabulary and its limits. Runs as a command, or sourced for
 # check_drawing.
 
+# The bash version's lineage functions, kept next to this script: it reads the
+# rebuild's lineage, which git-splice doesn't print. Absolute, since callers
+# change folders between sourcing this and calling check_drawing.
+CHECK_DRAWING_LIB="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib"
+
 # check_drawing <drawing> [--alias <name>=<term>...] [<label>=<rev>...]
 # Prints "ok" and what it checked, or each difference, and fails.
 check_drawing() {
   local drawing="$1" xml default=""
-  # git-splice's lib/, unless given: next to the git-splice on PATH, as in
-  # a checkout, or in share/git-splice/, as installed.
-  local DRAWING_LIB="${GIT_SPLICE_LIB:-}" bin
-  if [[ -z "$DRAWING_LIB" ]]; then
-    bin="$(dirname "$(readlink -f "$(command -v git-splice)")")"
-    DRAWING_LIB="$bin/lib"
-    [[ -d "$DRAWING_LIB" ]] || DRAWING_LIB="$bin/../share/git-splice/lib"
-  fi
+  local DRAWING_LIB="$CHECK_DRAWING_LIB"
   shift
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=() lane_label=()
