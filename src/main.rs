@@ -14,13 +14,16 @@
 #![allow(dead_code)]
 
 mod args;
+mod clone;
 mod diff;
 mod fetch;
+mod init;
 mod key;
 mod log;
 mod merge;
 mod pager;
 mod pull;
+mod push;
 mod rebuild;
 mod repo;
 mod state;
@@ -94,6 +97,9 @@ fn dispatch(argv: &[String]) -> Res<i32> {
         "diff" => diff::run(rest),
         "log" => log::run(rest),
         "key" => key::run(rest),
+        "clone" => clone::run(rest),
+        "init" => init::run(rest),
+        "push" => push::run(rest),
         "fetch" => fetch::run(rest),
         "merge" => merge::run(rest),
         "pull" => pull::run(rest),
