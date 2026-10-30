@@ -97,25 +97,25 @@ struct Moved {
 
 /// A newer path of a splice, and the range of commits it applies to.
 #[derive(Clone)]
-struct Segment {
-    path: String,
-    range: String,
+pub struct Segment {
+    pub path: String,
+    pub range: String,
 }
 
-struct Lineage {
-    last_sync: String,
-    synced: String,
-    path: String,
-    before_path: String,
-    upper: String,
-    moves: Vec<Segment>,
+pub struct Lineage {
+    pub last_sync: String,
+    pub synced: String,
+    pub path: String,
+    pub before_path: String,
+    pub upper: String,
+    pub moves: Vec<Segment>,
 }
 
-struct MountLineage {
-    mount: String,
-    path: String,
-    upper: String,
-    moves: Vec<Segment>,
+pub struct MountLineage {
+    pub mount: String,
+    pub path: String,
+    pub upper: String,
+    pub moves: Vec<Segment>,
 }
 
 fn upper_of(range: &str) -> &str {
@@ -126,7 +126,7 @@ fn lower_of(range: &str) -> &str {
     range.split_once("..").map_or(range, |(lower, _)| lower)
 }
 
-fn has_parent(rev: &str) -> bool {
+pub fn has_parent(rev: &str) -> bool {
     git(&["rev-parse", "--verify", "--quiet", &format!("{rev}^1")])
         .q()
         .ok()
@@ -277,7 +277,7 @@ fn moved_from(rev: &str, path: &str) -> Moved {
 /// Follows splice <path> back from monorepo commit <upper> to its last sync.
 /// Moves of the folder are followed; one that leaves the state file as it is
 /// isn't a last sync.
-fn splice_lineage(path: &str, upper: &str) -> Lineage {
+pub fn splice_lineage(path: &str, upper: &str) -> Lineage {
     let mut path = path.to_string();
     let mut upper = upper.to_string();
     let mut moves = Vec::new();
@@ -324,7 +324,7 @@ fn splice_lineage(path: &str, upper: &str) -> Lineage {
 /// commit whose first parent had no state file at the splice's path then, or
 /// another splice's, and that's no move. Only the history from there on is
 /// this splice's.
-fn splice_lineage_to_mount(path: &str, upper: &str) -> MountLineage {
+pub fn splice_lineage_to_mount(path: &str, upper: &str) -> MountLineage {
     let mut path = path.to_string();
     let mut upper = upper.to_string();
     let mut moves = Vec::new();
