@@ -1,18 +1,13 @@
 set shell := ["bash", "-c"]
 
-# Build the port from bash into target/debug
+# Build git-splice into target/debug, where the tests and docs run it
 build:
     cargo build
-
-# Run the bats tests and the docs against the port, which hands commands it doesn't have yet to bash
-test-port: build
-    GIT_SPLICE_DIR="$PWD/target/debug" bats --recursive --jobs "$(nproc)" test
-    GIT_SPLICE_DIR="$PWD/target/debug" GIT_SPLICE_LIB="$PWD/lib" just docs-check
 
 # Run shellcheck and clippy
 lint:
     cargo clippy --all-targets -- -D warnings
-    shellcheck -x git-splice docs/design/pull-prototype.sh docs/design/rebuild-prototype.sh
+    shellcheck -x docs/design/pull-prototype.sh docs/design/rebuild-prototype.sh
     shellcheck test/walkthrough/setup.sh
     shellcheck completions/git-splice.bash
     shellcheck bench/setup.sh bench/run.sh
@@ -22,29 +17,30 @@ lint:
 # Format with shfmt and rustfmt
 fmt:
     cargo fmt
-    shfmt -w -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
+    shfmt -w -i 2 -ci docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Check formatting with shfmt and rustfmt
 fmt-check:
     cargo fmt --check
-    shfmt -d -i 2 -ci git-splice lib/*.sh docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
+    shfmt -d -i 2 -ci docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Run the bats tests, one job per CPU
-test:
+test: build
     bats --recursive --jobs "$(nproc)" test
 
 # Time commands on a synthetic monorepo; see `just bench --help`
 [positional-arguments]
 bench *args:
+    @cargo build --release --quiet
     @bench/run.sh "$@"
 
 # Open a shell in the state a docs page starts from, the walkthrough by default, e.g. `just sandbox comparisons/git-submodule`; see `just sandbox --help`
 [positional-arguments]
-sandbox *args:
+sandbox *args: build
     @test/sandbox.sh "$@"
 
 # Check the README, walkthroughs, concepts, scenario READMEs and comparisons against real output; --write updates them
-docs-check flag="":
+docs-check flag="": build
     @if [[ "{{flag}}" == --write ]]; then \
       scrut update --replace --assume-yes README.md test/walkthrough test/concepts test/scenarios test/comparisons; \
     elif [[ -n "{{flag}}" ]]; then \

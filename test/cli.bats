@@ -1,5 +1,4 @@
-# Wiring of the entrypoint, such as a lib file it forgets to source, or a
-# symlinked install that can't find lib/.
+# The entrypoint itself: usage, version, and a symlinked install.
 
 setup() {
   load 'helpers/fixtures'
@@ -122,23 +121,13 @@ setup() {
   done
 }
 
-@test "cli: Cargo.toml and Cargo.lock have the bash entrypoint's version" {
-  local root="$BATS_TEST_DIRNAME/.." version
-  version="$(sed -n 's/^VERSION=\([^ ]*\).*/\1/p' "$root/git-splice")"
-  grep -qx "version = \"$version\"" "$root/Cargo.toml"
-  grep -A1 -x 'name = "git-splice"' "$root/Cargo.lock" | grep -qx "version = \"$version\""
-}
-
-@test "cli: --version prints VERSION" {
+@test "cli: --version prints the version in Cargo.toml and Cargo.lock" {
   local version
-  version="$(sed -n 's/^VERSION=\([^ ]*\).*/\1/p' "$BATS_TEST_DIRNAME/../git-splice")"
+  version="$(sed -n 's/^version = "\(.*\)"$/\1/p' "$BATS_TEST_DIRNAME/../Cargo.toml")"
+  grep -A1 -x 'name = "git-splice"' "$BATS_TEST_DIRNAME/../Cargo.lock" | grep -qx "version = \"$version\""
   run "$entrypoint" --version
   [ "$status" -eq 0 ]
   [ "$output" = "git splice version $version" ]
-}
-
-@test "cli: VERSION carries the marker release-please bumps it by" {
-  grep -qx 'VERSION=[0-9.]* # x-release-please-version' "$BATS_TEST_DIRNAME/../git-splice"
 }
 
 @test "cli: refuses a Git older than 2.40" {

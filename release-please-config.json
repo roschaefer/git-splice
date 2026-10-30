@@ -6,7 +6,6 @@
       "package-name": "git-splice",
       "bump-minor-pre-major": true,
       "extra-files": [
-        "git-splice",
         { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.package.version" },
         { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(@.name.value == 'git-splice')].version" }
       ],

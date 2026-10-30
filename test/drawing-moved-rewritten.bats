@@ -8,7 +8,7 @@ setup() {
   load '../check-drawing/check-drawing'
   hermetic_git_config
   load 'scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
-  PATH="$BATS_TEST_DIRNAME/..:$PATH"
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   scenario_upstream_rewritten_equal_tree "$monorepo" "$upstream"

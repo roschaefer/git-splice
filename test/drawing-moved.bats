@@ -7,7 +7,7 @@ setup() {
   load '../check-drawing/check-drawing'
   hermetic_git_config
   load 'scenarios/07-moved-folders/01-moved-with-unpushed-commits/setup'
-  PATH="$BATS_TEST_DIRNAME/..:$PATH"
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   scenario_moved_with_unpushed_commits "$monorepo" "$upstream"
