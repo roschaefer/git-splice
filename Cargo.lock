@@ -3,5 +3,12 @@
 version = 4
 
 [[package]]
+name = "check-drawing"
+version = "0.0.0"
+dependencies = [
+ "git-splice",
+]
+
+[[package]]
 name = "git-splice"
 version = "0.16.3"

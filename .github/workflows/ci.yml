@@ -171,7 +171,7 @@ jobs:
         shell: bash
         run: |
           rustup target add "$TARGET"
-          cargo build --release --locked --target "$TARGET"
+          cargo build --release --locked --package git-splice --target "$TARGET"
           "target/$TARGET/release/git-splice" --version
 
       - name: Attach binaries to releases that lack one
@@ -194,7 +194,7 @@ jobs:
                 continue
               fi
               git -c advice.detachedHead=false checkout --quiet "$tag"
-              cargo build --release --locked --target "$TARGET"
+              cargo build --release --locked --package git-splice --target "$TARGET"
               package="$(mktemp -d)/git-splice"
               mkdir -p "$package"
               cp "target/$TARGET/release/git-splice" LICENSE "$package/"

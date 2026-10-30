@@ -13,7 +13,7 @@ Otherwise, download a binary for Linux or macOS, x86-64 or ARM, from the
 
 Or build it with [Rust](https://rustup.rs):
 
-    cargo install --git https://github.com/roschaefer/git-splice
+    cargo install --git https://github.com/roschaefer/git-splice git-splice
 
 Git runs any `git-<name>` executable on your `PATH` as `git <name>`, so make
 sure `~/.cargo/bin/` is on it.

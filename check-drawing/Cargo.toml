@@ -1,0 +1,10 @@
+[package]
+name = "check-drawing"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+description = "What check-drawing reads from a repository, from git-splice's own code"
+publish = false
+
+[dependencies]
+git-splice = { path = ".." }

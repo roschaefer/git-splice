@@ -252,6 +252,12 @@ pub struct Temp {
     pub path: PathBuf,
 }
 
+impl Default for Temp {
+    fn default() -> Temp {
+        Temp::new()
+    }
+}
+
 impl Temp {
     pub fn new() -> Temp {
         let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
