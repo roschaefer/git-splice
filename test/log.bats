@@ -1,6 +1,5 @@
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor/setup'
@@ -14,7 +13,7 @@ setup() {
 @test "log: marks what push publishes and what pull brings in, with the author" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_log
+  run splice log
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "===  vendor/a (main)" ]
   [[ "$output" == *"< "*" local change  (Test <test@example.com>)"* ]]
@@ -29,7 +28,7 @@ setup() {
   seed_bare_repo "$upstream" "same change" main same.txt
   fetch_splice "$monorepo" "$upstream" vendor/a
   cd "$monorepo"
-  run cmd_log
+  run splice log
   [[ "$output" == *"= "*" same change"* ]]
   [[ "$output" == *"> "*" upstream change"* ]]
 }
@@ -37,7 +36,7 @@ setup() {
 @test "log: a missing upstream branch compares with upstream's default branch, as a PR would" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_log
+  run splice log
   [ "${lines[0]}" = "===  vendor/a (upstream has no 'feature' branch -- compared with 'main')" ]
   [[ "${lines[1]}" == "< "*" local change  (Test <test@example.com>)" ]]
   [ "${#lines[@]}" -eq 2 ]
@@ -46,7 +45,7 @@ setup() {
 @test "log: a merge in the monorepo shows as one commit" {
   scenario_merge_in_monorepo "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_log
+  run splice log
   [[ "$output" == *"Merge branch 'main' into feature"* ]]
   [[ "$output" != *"main work"* ]]
 }
@@ -54,7 +53,7 @@ setup() {
 @test "log: prints nothing but the header when up to date" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_log
+  run splice log
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -62,7 +61,7 @@ setup() {
 @test "log --graph: both sides part at the commit they build on, with R and T labeled, the newer tip first" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_log --graph
+  run splice log --graph
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "===  vendor/a (main)" ]
   local r_line="${lines[1]}" t_line="${lines[2]#| }"
@@ -81,7 +80,7 @@ setup() {
 @test "log --graph: when only upstream moved, R is the commit T builds on" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_log --graph
+  run splice log --graph
   [ "$status" -eq 0 ]
   [[ "${lines[1]}" == "> "*" (T) "* ]]
   [[ "${lines[-1]}" == "o "*" (R) "* ]]
@@ -90,7 +89,7 @@ setup() {
 @test "log --graph: a missing upstream branch draws what push would create on upstream's default branch" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_log --graph
+  run splice log --graph
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "===  vendor/a (upstream has no 'feature' branch -- compared with 'main')" ]
   [[ "${lines[1]}" == "< "*" (R) local change  (Test <test@example.com>)" ]]
@@ -101,7 +100,7 @@ setup() {
 @test "log: labels R and T only with --graph" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_log
+  run splice log
   [[ "$output" != *"(R)"* && "$output" != *"(T)"* ]]
 }
 

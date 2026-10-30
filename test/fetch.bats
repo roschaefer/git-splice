@@ -1,6 +1,5 @@
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   load 'scenarios/01-everyday-sync/04-never-fetched/setup'
@@ -13,7 +12,7 @@ setup() {
   scenario_never_fetched "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "on a branch" feature
   cd "$monorepo"
-  run cmd_fetch
+  run splice fetch
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a fetched" ]
   git rev-parse --verify --quiet "$(upstream_refs "$upstream")main"
@@ -25,7 +24,7 @@ setup() {
   scenario_up_to_date "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "upstream change"
   cd "$monorepo"
-  run cmd_fetch vendor/a
+  run splice fetch vendor/a
   [[ "$output" == "ok   vendor/a fetched (main moved "*..*")" ]]
 }
 
@@ -33,9 +32,9 @@ setup() {
   scenario_up_to_date "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "on a branch" feature
   cd "$monorepo"
-  cmd_fetch
+  splice fetch
   git -C "$upstream" branch -D feature >/dev/null
-  cmd_fetch
+  splice fetch
   ! git rev-parse --verify --quiet "$(upstream_refs "$upstream")feature"
 }
 
@@ -44,7 +43,7 @@ setup() {
   cd "$monorepo"
   git config --file vendor/b/.splice upstream.origin.url "$BATS_TEST_TMPDIR/nowhere.git"
   git commit -q -am "break vendor/b"
-  run cmd_fetch
+  run splice fetch
   [ "$status" -eq 1 ]
   [[ "$output" == *"ok   vendor/a fetched"* ]]
   [[ "$output" == *"Failed: vendor/b"* ]]
@@ -56,7 +55,7 @@ setup() {
   git config --file vendor/a/.splice upstream.origin.url "example:upstream.git"
   git commit -q -am "use a short URL"
   git config "url.$BATS_TEST_TMPDIR/.insteadOf" "example:"
-  run cmd_fetch
+  run splice fetch
   [ "$status" -eq 0 ]
 }
 
@@ -65,11 +64,8 @@ setup() {
   seed_bare_repo "$upstream" "upstream change"
   cd "$monorepo"
   local fetches="$BATS_TEST_TMPDIR/fetches"
-  git() {
-    [[ " $* " == *" fetch "* && "$*" == *"refs/heads/*:"* ]] && echo x >>"$fetches"
-    command git "$@"
-  }
-  run cmd_fetch
+  stub_git 'if [[ " $* " == *" fetch "* && "$*" == *"refs/heads/*:"* ]]; then echo x >>"$BATS_TEST_TMPDIR/fetches"; fi'
+  run splice fetch
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok   vendor/a fetched (main moved"* ]]
   [[ "$output" == *"ok   vendor/b fetched (main moved"* ]]
@@ -81,11 +77,8 @@ setup() {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
-  git() {
-    [[ " $* " == *" fetch "* ]] && echo fetch >>"$BATS_TEST_TMPDIR/fetches"
-    command git "$@"
-  }
-  run cmd_fetch lib/a
+  stub_git 'if [[ " $* " == *" fetch "* ]]; then echo fetch >>"$BATS_TEST_TMPDIR/fetches"; fi'
+  run splice fetch lib/a
   [ "$status" -eq 0 ]
   [ "$(wc -l <"$BATS_TEST_TMPDIR/fetches")" -eq 1 ]
 }
@@ -93,11 +86,8 @@ setup() {
 @test "fetch: shows what git printed on a successful fetch, once per upstream" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
-  git() {
-    [[ " $* " == *" fetch "* ]] && echo "warning: from the transport" >&2
-    command git "$@"
-  }
-  run cmd_fetch
+  stub_git 'if [[ " $* " == *" fetch "* ]]; then echo "warning: from the transport" >&2; fi'
+  run splice fetch
   [ "$status" -eq 0 ]
   [ "$(grep -c "warning: from the transport" <<<"$output")" -eq 1 ]
   [[ "$output" == *"ok   vendor/a fetched"* && "$output" == *"ok   vendor/b fetched"* ]]
@@ -114,7 +104,7 @@ setup() {
   before="$(git -C vendor/sub rev-parse origin/main)"
   seed_bare_repo "$sub" "newer"
   git config fetch.recurseSubmodules true
-  run cmd_fetch vendor/a
+  run splice fetch vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C vendor/sub rev-parse origin/main)" = "$before" ]
 }

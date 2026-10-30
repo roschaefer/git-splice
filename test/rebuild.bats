@@ -5,7 +5,6 @@
 
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
   load 'scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/setup'
@@ -19,20 +18,35 @@ setup() {
 }
 
 # A monorepo whose vendor/a was added by `git subtree add --squash`, which
-# split understands. Sets B (the add's merge, i.e. the boundary) and U (the
-# upstream commit it added). No .splice: split would put it in every tree.
+# split understands, and is a splice from the next commit on.
 oracle_fixture() {
   make_bare_repo "$upstream"
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
   cd "$monorepo"
   git subtree add -q --prefix=vendor/a "$upstream" main --squash >/dev/null 2>&1
-  B="$(git rev-parse HEAD)"
-  U="$(git ls-remote "$upstream" refs/heads/main | cut -f1)"
+  git config --file vendor/a/.splice splice.commit "$(git ls-remote "$upstream" refs/heads/main | cut -f1)"
+  git config --file vendor/a/.splice splice.id 0123456789abcdef
+  git config --file vendor/a/.splice upstream.origin.url "$upstream"
+  git add vendor/a/.splice
+  git commit -q -m "make vendor/a a splice"
+  U="$(splice_config vendor/a commit)"
+  fetch_splice "$monorepo" "$upstream" vendor/a
 }
 
+# What git subtree split makes of vendor/a, less the state file, which it
+# puts in every tree from where the splice starts, and the commit that
+# adds it.
 split() {
-  git -c commit.gpgSign=false subtree split -q --prefix=vendor/a HEAD 2>/dev/null
+  local split output
+  split="$(git -c commit.gpgSign=false subtree split -q --prefix=vendor/a HEAD)" || return 1
+  git branch -f split-oracle "$split" || return 1
+  output="$(FILTER_BRANCH_SQUELCH_WARNING=1 git -c commit.gpgSign=false filter-branch -f --prune-empty \
+    --index-filter 'git rm -q --cached --ignore-unmatch .splice' split-oracle 2>&1)" || {
+    printf '%s\n' "$output" >&2
+    return 1
+  }
+  git rev-parse split-oracle
 }
 
 @test "rebuild: a linear history rebuilds into exactly the commits git subtree split makes" {
@@ -46,7 +60,7 @@ split() {
   )
   commit_local "$monorepo" "vendor/a" "second" sub/dir/file.txt
   local rebuilt
-  rebuilt="$(rebuild_walk vendor/a "$U" "$B..HEAD")"
+  rebuilt="$(splice rebuild vendor/a)"
   [ "$(git rev-list --count "$U..$rebuilt")" -eq 3 ]
   [ "$rebuilt" = "$(split)" ]
 }
@@ -56,7 +70,7 @@ split() {
   git checkout -q -b feature
   commit_local "$monorepo" "vendor/a" "feature work" feature.txt
   local before_merge
-  before_merge="$(rebuild_walk vendor/a "$U" "$B..HEAD")"
+  before_merge="$(splice rebuild vendor/a)"
   git checkout -q main
   commit_local "$monorepo" "vendor/a" "main work" main.txt
   git checkout -q feature
@@ -64,7 +78,7 @@ split() {
   commit_local "$monorepo" "vendor/a" "after the merge" feature.txt
 
   local ours theirs
-  ours="$(rebuild_walk vendor/a "$U" "$B..HEAD")"
+  ours="$(splice rebuild vendor/a)"
   theirs="$(split)"
   # Up to the merge, both are the same commits.
   [ "$(git rev-parse "$theirs~2")" = "$before_merge" ]
@@ -91,7 +105,7 @@ split() {
   git add vendor/a
   git commit -q -m "odd names"
   local rebuilt
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   # The only difference to the monorepo's folder is the state file.
   [ "$(git diff --name-only "$rebuilt" HEAD:vendor/a)" = ".splice" ]
   [ "$(git ls-tree --name-only -z "$rebuilt" | tr -cd '\0' | wc -c)" -eq 5 ]
@@ -102,9 +116,9 @@ split() {
   cd "$monorepo"
   git config commit.gpgSign true
   local first
-  first="$(rebuild_splice vendor/a)"
+  first="$(splice rebuild vendor/a)"
   [ -n "$first" ]
-  [ "$(rebuild_splice vendor/a)" = "$first" ]
+  [ "$(splice rebuild vendor/a)" = "$first" ]
 }
 
 @test "rebuild: is the same whatever i18n.commitEncoding or i18n.logOutputEncoding say, so users with different settings agree on it" {
@@ -112,12 +126,12 @@ split() {
   cd "$monorepo"
   commit_local "$monorepo" "vendor/a" "änderung"
   local plain
-  plain="$(rebuild_splice vendor/a)"
+  plain="$(splice rebuild vendor/a)"
   git config i18n.commitEncoding ISO-8859-1
-  [ "$(rebuild_splice vendor/a)" = "$plain" ]
+  [ "$(splice rebuild vendor/a)" = "$plain" ]
   git config --unset i18n.commitEncoding
   git config i18n.logOutputEncoding ISO-8859-1
-  [ "$(rebuild_splice vendor/a)" = "$plain" ]
+  [ "$(splice rebuild vendor/a)" = "$plain" ]
   [ "$(git cat-file commit "$plain" | tail -1)" = "änderung" ]
 }
 
@@ -125,9 +139,9 @@ split() {
   scenario_diverged_then_pulled "$monorepo" "$upstream"
   cd "$monorepo"
   local plain
-  plain="$(rebuild_splice vendor/a)"
+  plain="$(splice rebuild vendor/a)"
   git config i18n.commitEncoding ISO-8859-1
-  [ "$(rebuild_splice vendor/a)" = "$plain" ]
+  [ "$(splice rebuild vendor/a)" = "$plain" ]
 }
 
 @test "rebuild: log.showSignature doesn't change where a splice's history starts" {
@@ -137,22 +151,21 @@ split() {
   ssh-keygen -q -t ed25519 -N "" -f "$BATS_TEST_TMPDIR/key"
   git config gpg.format ssh
   git config user.signingKey "$BATS_TEST_TMPDIR/key.pub"
-  local before mount
-  before="$(rebuild_splice vendor/a)"
-  mount="$(splice_mount vendor/a)"
+  local before boundary
+  before="$(splice rebuild vendor/a)"
   git config --file vendor/a/.splice upstream.origin.default-branch main
   git commit -q -S -am "a signed commit that changes .splice"
+  boundary="$(splice boundary vendor/a)"
   git config log.showSignature true
-  [ "$(splice_last_sync vendor/a HEAD)" = "$(git rev-parse HEAD)" ]
-  [ "$(splice_mount vendor/a)" = "$mount" ]
-  [ "$(rebuild_splice vendor/a)" = "$before" ]
+  [ "$(splice boundary vendor/a)" = "$boundary" ]
+  [ "$(splice rebuild vendor/a)" = "$before" ]
 }
 
 @test "rebuild: starts at the synced commit and leaves .splice out" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local rebuilt
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   [ "$(git rev-parse "$rebuilt^")" = "$(splice_config vendor/a commit)" ]
   [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
   ! git cat-file -e "$rebuilt:.splice" 2>/dev/null
@@ -161,7 +174,8 @@ split() {
 @test "rebuild: is the synced commit itself when nothing changed locally" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  [ "$(rebuild_splice vendor/a HEAD^)" = "$(splice_config vendor/a commit)" ]
+  git switch -q --detach HEAD^
+  [ "$(splice rebuild vendor/a)" = "$(splice_config vendor/a commit)" ]
 }
 
 @test "rebuild: after init, the history starts at the init commit: earlier commits aren't published" {
@@ -172,7 +186,7 @@ split() {
   git commit -q -m "init lib/a"
   commit_local "$monorepo" lib/a "third version"
   local rebuilt
-  rebuilt="$(rebuild_splice lib/a)"
+  rebuilt="$(splice rebuild lib/a)"
   [ "$(git log --format=%s "$rebuilt")" = "third version"$'\n'"init lib/a" ]
   content_tree "HEAD~1" lib/a
   [ "$(git rev-parse "$rebuilt~1^{tree}")" = "$CONTENT_TREE" ]
@@ -183,7 +197,7 @@ split() {
   scenario_diverged_then_pulled "$monorepo" "$upstream"
   cd "$monorepo"
   local rebuilt synced
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   synced="$(splice_config vendor/a commit)"
   [ "$(git rev-parse "$rebuilt^2")" = "$synced" ]
   [ "$(git log -1 --format=%s "$rebuilt^1")" = "local change" ]
@@ -194,7 +208,7 @@ split() {
   scenario_squash_merged_pull "$monorepo" "$upstream"
   cd "$monorepo"
   local rebuilt feature_tip
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   feature_tip="$(git rev-parse "$(upstream_refs "$upstream")feature")"
   # The squash merge is the boundary: the rebuild starts at the pulled
   # upstream commit itself, then only the local change follows.
@@ -221,7 +235,7 @@ split() {
   git rebase -q main
   [ "$(git rev-parse HEAD^)" != "$pulled" ]
   local rebuilt
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
   [ "$(git rev-parse "$rebuilt^")" = "$(git rev-parse "$(upstream_refs "$upstream")feature")" ]
 }
@@ -244,14 +258,14 @@ two_splices_ahead() {
   two_splices_ahead
   cd "$monorepo"
   local a b
-  a="$(rebuild_splice vendor/a)"
-  b="$(rebuild_splice vendor/b)"
+  a="$(splice rebuild vendor/a)"
+  b="$(splice rebuild vendor/b)"
   git mv vendor/a tmp
   git mv vendor/b vendor/a
   git mv tmp vendor/b
   git commit -q -m "swap a and b"
-  [ "$(rebuild_splice vendor/a)" = "$b" ]
-  [ "$(rebuild_splice vendor/b)" = "$a" ]
+  [ "$(splice rebuild vendor/a)" = "$b" ]
+  [ "$(splice rebuild vendor/b)" = "$a" ]
 }
 
 @test "rebuild: two splices of the same upstream that swap paths each keep their own history" {
@@ -260,14 +274,14 @@ two_splices_ahead() {
   commit_local "$monorepo" vendor/b "unpushed in b" b.txt
   cd "$monorepo"
   local a b
-  a="$(rebuild_splice vendor/a)"
-  b="$(rebuild_splice vendor/b)"
+  a="$(splice rebuild vendor/a)"
+  b="$(splice rebuild vendor/b)"
   git mv vendor/a tmp
   git mv vendor/b vendor/a
   git mv tmp vendor/b
   git commit -q -m "swap a and b"
-  [ "$(rebuild_splice vendor/a)" = "$b" ]
-  [ "$(rebuild_splice vendor/b)" = "$a" ]
+  [ "$(splice rebuild vendor/a)" = "$b" ]
+  [ "$(splice rebuild vendor/b)" = "$a" ]
 }
 
 @test "rebuild: splices of different upstreams cloned at the same path on branches from the same commit don't get each other's history" {
@@ -279,17 +293,17 @@ two_splices_ahead() {
   init_monorepo "$monorepo"
   cd "$monorepo"
   git checkout -q -b one
-  cmd_clone "$upstream" vendor/a >/dev/null 2>&1
+  splice clone "$upstream" vendor/a >/dev/null 2>&1
   commit_local "$monorepo" vendor/a "unpushed in one" one.txt
   git checkout -q -b other main
-  cmd_clone "$other" vendor/a >/dev/null 2>&1
+  splice clone "$other" vendor/a >/dev/null 2>&1
   git checkout -q one
   git merge -q --no-commit -s ours other
   git rm -q -r vendor/a
   git checkout other -- vendor/a
   git commit -q -m "keep the other splice"
-  [ "$(splice_mount vendor/a)" = "$(git rev-parse HEAD)" ]
-  [ "$(rebuild_splice vendor/a)" = "$(splice_config vendor/a commit)" ]
+  [ "$(splice boundary vendor/a)" = "$(git rev-parse HEAD)" ]
+  [ "$(splice rebuild vendor/a)" = "$(splice_config vendor/a commit)" ]
 }
 
 @test "rebuild: a splice swapped with a folder that wasn't one keeps its own history, not that folder's" {
@@ -297,12 +311,12 @@ two_splices_ahead() {
   commit_local "$monorepo" internal "not for any upstream" secret.txt
   cd "$monorepo"
   local before
-  before="$(rebuild_splice vendor/a)"
+  before="$(splice rebuild vendor/a)"
   git mv internal tmp
   git mv vendor/a internal
   git mv tmp vendor/a
   git commit -q -m "swap internal and vendor/a"
-  [ "$(rebuild_splice internal)" = "$before" ]
+  [ "$(splice rebuild internal)" = "$before" ]
 }
 
 @test "rebuild: a splice made by init, then swapped with another, keeps its own history, not the other's" {
@@ -314,22 +328,22 @@ two_splices_ahead() {
   commit_local "$monorepo" vendor/b "b before init" b.txt
   make_bare_repo "$BATS_TEST_TMPDIR/b.git"
   cd "$monorepo"
-  cmd_init vendor/b "$BATS_TEST_TMPDIR/b.git"
+  splice init vendor/b "$BATS_TEST_TMPDIR/b.git"
   local b
-  b="$(rebuild_splice vendor/b)"
+  b="$(splice rebuild vendor/b)"
   [ "$(git log --format=%s "$b")" = "splice: init vendor/b" ]
   git mv vendor/a tmp
   git mv vendor/b vendor/a
   git mv tmp vendor/b
   git commit -q -m "swap a and b"
-  [ "$(rebuild_splice vendor/a)" = "$b" ]
+  [ "$(splice rebuild vendor/a)" = "$b" ]
 }
 
 @test "rebuild: a splice removed and cloned again doesn't get the history from its first time" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
-  cmd_init lib/a "$upstream"
-  cmd_push lib/a
+  splice init lib/a "$upstream"
+  splice push lib/a
   commit_local "$monorepo" lib/a "unpushed, then removed" removed.txt
   git rm -q -r lib/a
   git commit -q -m "remove lib/a"
@@ -339,7 +353,7 @@ two_splices_ahead() {
   git add lib/a/merged.txt
   git commit -q --amend -m "clone lib/a again"
   local rebuilt
-  rebuilt="$(rebuild_splice lib/a)"
+  rebuilt="$(splice rebuild lib/a)"
   [ "$(git log --format=%s "$rebuilt")" = "clone lib/a again"$'\n'"splice: init lib/a" ]
 }
 
@@ -347,12 +361,12 @@ two_splices_ahead() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local before_move
-  before_move="$(rebuild_splice vendor/a)"
+  before_move="$(splice rebuild vendor/a)"
   mkdir -p libs
   git mv vendor/a libs/a
   git commit -q -m "reorganize folders"
   # The move changes nothing upstream sees: the same commits as before it.
-  [ "$(rebuild_splice libs/a)" = "$before_move" ]
+  [ "$(splice rebuild libs/a)" = "$before_move" ]
   [ "$(git log -1 --format=%s "$before_move")" = "local change" ]
 }
 
@@ -360,7 +374,7 @@ two_splices_ahead() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local before_move
-  before_move="$(rebuild_splice vendor/a)"
+  before_move="$(splice rebuild vendor/a)"
   git switch -q -c reorganize
   mkdir -p libs
   git mv vendor/a libs/a
@@ -370,7 +384,7 @@ two_splices_ahead() {
   git add README.md
   git commit -q -m "meanwhile on main"
   git merge -q --no-ff -m "merge reorganize" reorganize
-  [ "$(rebuild_splice libs/a)" = "$before_move" ]
+  [ "$(splice rebuild libs/a)" = "$before_move" ]
 }
 
 @test "rebuild: changes on both sides of a feature branch that moved the folder become one commit for the merge, on top of the commits from before the move" {
@@ -386,7 +400,7 @@ two_splices_ahead() {
   commit_local "$monorepo" vendor/a "on main"
   git merge -q --no-ff -m "merge reorganize" reorganize
   local rebuilt
-  rebuilt="$(rebuild_splice libs/a)"
+  rebuilt="$(splice rebuild libs/a)"
   [ "$(git log --format=%s "$rebuilt")" = $'merge reorganize\non main\nlocal change\nseed' ]
   [ "$(git rev-parse "$rebuilt:branch.txt")" = "$(git rev-parse HEAD:libs/a/branch.txt)" ]
   [ "$(git rev-parse "$rebuilt:file.txt")" = "$(git rev-parse HEAD:libs/a/file.txt)" ]
@@ -405,7 +419,7 @@ two_splices_ahead() {
   git commit -q -m "second move, with an edit"
   commit_local "$monorepo" "pkgs/a" "after the moves"
   local rebuilt
-  rebuilt="$(rebuild_splice pkgs/a)"
+  rebuilt="$(splice rebuild pkgs/a)"
   [ "$(git log --format=%s "$(splice_config pkgs/a commit)..$rebuilt")" = \
     "after the moves"$'\n'"second move, with an edit"$'\n'"between the moves"$'\n'"local change" ]
   content_tree HEAD pkgs/a
@@ -424,7 +438,7 @@ two_splices_ahead() {
   git commit -q -m "init libs/a"
   commit_local "$monorepo" "libs/a" "fourth version"
   local rebuilt
-  rebuilt="$(rebuild_splice libs/a)"
+  rebuilt="$(splice rebuild libs/a)"
   [ "$(git log --format=%s "$rebuilt")" = "fourth version"$'\n'"init libs/a" ]
 }
 
@@ -432,7 +446,7 @@ two_splices_ahead() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local before_move
-  before_move="$(rebuild_splice vendor/a)"
+  before_move="$(splice rebuild vendor/a)"
   mkdir -p libs
   git mv vendor/a libs/a
   # Too different for Git to detect .splice itself as renamed.
@@ -441,7 +455,7 @@ two_splices_ahead() {
   git add libs/a
   git commit -q -m "move, and publish somewhere else"
   [ "$(git log -1 --format=%s -- libs/a/.splice)" = "move, and publish somewhere else" ]
-  [ "$(rebuild_splice libs/a)" = "$before_move" ]
+  [ "$(splice rebuild libs/a)" = "$before_move" ]
 }
 
 @test "rebuild: a move that also deletes, renames and adds files keeps the unpushed commits from before it" {
@@ -457,7 +471,7 @@ two_splices_ahead() {
   git add libs/a
   git commit -q -m "reorganize folders, and tidy up"
   local rebuilt
-  rebuilt="$(rebuild_splice libs/a)"
+  rebuilt="$(splice rebuild libs/a)"
   [ "$(git log --format=%s "$(splice_config libs/a commit)..$rebuilt")" = \
     "reorganize folders, and tidy up"$'\n'"add todo"$'\n'"add notes"$'\n'"local change" ]
   content_tree HEAD libs/a
@@ -472,11 +486,11 @@ two_splices_ahead() {
   commit_local "$monorepo" "vendor/ä" "local change"
   cd "$monorepo"
   local before_move
-  before_move="$(rebuild_splice "vendor/ä")"
+  before_move="$(splice rebuild "vendor/ä")"
   mkdir -p libs
   git mv "vendor/ä" "libs/ä"
   git commit -q -m "reorganize folders"
-  [ "$(rebuild_splice "libs/ä")" = "$before_move" ]
+  [ "$(splice rebuild "libs/ä")" = "$before_move" ]
 }
 
 @test "rebuild: two splices with the same .splice, moved in one commit, each keep their own commits" {
@@ -489,14 +503,14 @@ two_splices_ahead() {
   cd "$monorepo"
   [ "$(git rev-parse HEAD:vendor/a/.splice)" = "$(git rev-parse HEAD:vendor/b/.splice)" ]
   local a b
-  a="$(rebuild_splice vendor/a)"
-  b="$(rebuild_splice vendor/b)"
+  a="$(splice rebuild vendor/a)"
+  b="$(splice rebuild vendor/b)"
   mkdir -p libs
   git mv vendor/a libs/y
   git mv vendor/b libs/x
   git commit -q -m "reorganize folders"
-  [ "$(rebuild_splice libs/x)" = "$b" ]
-  [ "$(rebuild_splice libs/y)" = "$a" ]
+  [ "$(splice rebuild libs/x)" = "$b" ]
+  [ "$(splice rebuild libs/y)" = "$a" ]
 }
 
 @test "rebuild: init on a folder that one file was moved into doesn't publish the folder it came from" {
@@ -512,7 +526,7 @@ two_splices_ahead() {
   git add libs/x/.splice
   git commit -q -m "init libs/x"
   local rebuilt
-  rebuilt="$(rebuild_splice libs/x)"
+  rebuilt="$(splice rebuild libs/x)"
   [ "$(git log --format=%s "$rebuilt")" = "init libs/x" ]
   [ "$(git ls-tree --name-only "$rebuilt")" = "file.txt" ]
 }
@@ -526,7 +540,7 @@ two_splices_ahead() {
   git config --file libs/a/.splice splice.commit 1111111111111111111111111111111111111111
   git commit -q -am "a pull of a commit the upstream no longer has"
   local rebuilt
-  rebuilt="$(REBUILD_WITHOUT_SYNCED=1 rebuild_splice libs/a)"
+  rebuilt="$(REBUILD_WITHOUT_SYNCED=1 splice rebuild libs/a)"
   [ "$(git log --format=%s "$rebuilt")" = "local change"$'\n'"add vendor/a" ]
 }
 
@@ -542,7 +556,7 @@ two_splices_ahead() {
   git add libs/a
   git commit -q -m "move, and publish somewhere else"
   local rebuilt
-  rebuilt="$(rebuild_splice libs/a)"
+  rebuilt="$(splice rebuild libs/a)"
   [ "$(git log --format=%s "$rebuilt")" = "third version"$'\n'"splice: init lib/a" ]
 }
 
@@ -550,14 +564,14 @@ two_splices_ahead() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local before
-  before="$(rebuild_splice vendor/a)"
+  before="$(splice rebuild vendor/a)"
   mkdir -p libs
   git mv vendor/a libs/a
   mkdir vendor/a
   echo "new" >vendor/a/new.txt
   git add vendor/a
   git commit -q -m "move, and a new vendor/a"
-  [ "$(rebuild_splice libs/a)" = "$before" ]
+  [ "$(splice rebuild libs/a)" = "$before" ]
 }
 
 @test "rebuild: mirrors with the same files, moved in one commit, each follow the folder with its own name" {
@@ -569,15 +583,15 @@ two_splices_ahead() {
   commit_local "$monorepo" vendor/a "in both" both.txt
   commit_local "$monorepo" vendor/b "in both" both.txt
   local a b
-  a="$(rebuild_splice vendor/a)"
-  b="$(rebuild_splice vendor/b)"
+  a="$(splice rebuild vendor/a)"
+  b="$(splice rebuild vendor/b)"
   [ "$a" != "$b" ]
   mkdir -p libs
   git mv vendor/a libs/a
   git mv vendor/b libs/b
   git commit -q -m "move both mirrors"
-  [ "$(rebuild_splice libs/a)" = "$a" ]
-  [ "$(rebuild_splice libs/b)" = "$b" ]
+  [ "$(splice rebuild libs/a)" = "$a" ]
+  [ "$(splice rebuild libs/b)" = "$b" ]
 }
 
 @test "rebuild: mirrors with the same files, moved in one commit to other names, are no move: nothing tells them apart" {
@@ -590,7 +604,7 @@ two_splices_ahead() {
   git mv vendor/a libs/x
   git mv vendor/b libs/y
   git commit -q -m "move both mirrors"
-  [ "$(splice_start libs/x)" = "$(git rev-parse HEAD)" ]
+  [ "$(splice boundary libs/x)" = "$(git rev-parse HEAD)" ]
 }
 
 @test "rebuild: a move while another splice with the same files is deleted follows the moved one, by its id" {
@@ -600,12 +614,12 @@ two_splices_ahead() {
   cd "$monorepo"
   [ "$(git rev-parse HEAD:vendor/a/x.txt)" = "$(git rev-parse HEAD:vendor/b/x.txt)" ]
   local before
-  before="$(rebuild_splice vendor/a)"
+  before="$(splice rebuild vendor/a)"
   mkdir -p libs
   git mv vendor/a libs/a
   git rm -q -r vendor/b
   git commit -q -m "move a, remove b"
-  [ "$(rebuild_splice libs/a)" = "$before" ]
+  [ "$(splice rebuild libs/a)" = "$before" ]
 }
 
 @test "rebuild: a move that rewrites every file follows the splice, not a deleted folder that shares a file with it" {
@@ -616,7 +630,7 @@ two_splices_ahead() {
   git add internal
   git commit -q -m "internal"
   local before
-  before="$(rebuild_splice vendor/a)"
+  before="$(splice rebuild vendor/a)"
   mkdir -p libs
   git mv vendor/a libs/a
   echo "rewritten" >libs/a/file.txt
@@ -624,7 +638,7 @@ two_splices_ahead() {
   git add libs/a
   git commit -q -m "move, and rewrite"
   local rebuilt
-  rebuilt="$(rebuild_splice libs/a)"
+  rebuilt="$(splice rebuild libs/a)"
   [ "$(git rev-parse "$rebuilt^")" = "$before" ]
   [ "$(git log -1 --format=%s "$rebuilt")" = "move, and rewrite" ]
 }
@@ -636,11 +650,11 @@ two_splices_ahead() {
   mkdir -p libs
   git mv vendor/a libs/a
   git rm -q -f libs/a/extra.txt
-  git config --file libs/a/.splice splice.default-branch main
+  git config --file libs/a/.splice upstream.origin.default-branch main
   git add libs/a
   git commit -q -m "move, and undo"
   [ "$(git rev-parse HEAD:libs/a/file.txt)" = "$(git rev-parse "$(splice_config libs/a commit):file.txt")" ]
-  [ "$(git log --format=%s "$(rebuild_splice libs/a)")" = "move, and undo"$'\n'"added"$'\n'"seed" ]
+  [ "$(git log --format=%s "$(splice rebuild libs/a)")" = "move, and undo"$'\n'"added"$'\n'"seed" ]
 }
 
 @test "rebuild: log.showSignature doesn't hide a signed move" {
@@ -651,12 +665,12 @@ two_splices_ahead() {
   git config gpg.format ssh
   git config user.signingKey "$BATS_TEST_TMPDIR/key.pub"
   local before
-  before="$(rebuild_splice vendor/a)"
+  before="$(splice rebuild vendor/a)"
   mkdir -p libs
   git mv vendor/a libs/a
   git commit -q -S -m "a signed move"
   git config log.showSignature true
-  [ "$(rebuild_splice libs/a)" = "$before" ]
+  [ "$(splice rebuild libs/a)" = "$before" ]
 }
 
 @test "rebuild: a moved splice without local changes stays at its synced commit" {
@@ -665,7 +679,7 @@ two_splices_ahead() {
   mkdir -p libs
   git mv vendor/a libs/a
   git commit -q -m "reorganize folders"
-  [ "$(rebuild_splice libs/a)" = "$(splice_config libs/a commit)" ]
+  [ "$(splice rebuild libs/a)" = "$(splice_config libs/a commit)" ]
 }
 
 @test "rebuild: a synced commit that isn't available locally is an error" {
@@ -673,7 +687,7 @@ two_splices_ahead() {
   cd "$monorepo"
   git config --file vendor/a/.splice splice.commit 1234567890123456789012345678901234567890
   git commit -q -am "point at a missing commit"
-  run rebuild_splice vendor/a
+  run splice rebuild vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"synced commit 1234567 isn't available locally"* ]]
 }
@@ -682,20 +696,20 @@ two_splices_ahead() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local before
-  before="$(rebuild_splice vendor/a)"
+  before="$(splice rebuild vendor/a)"
   git config --file vendor/a/.splice upstream.origin.default-branch main
   git commit -q -am "name the default branch"
-  [ "$(rebuild_splice vendor/a)" = "$before" ]
+  [ "$(splice rebuild vendor/a)" = "$before" ]
 }
 
 @test "rebuild: a new upstream URL keeps the splice's history: its id is the same" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local before
-  before="$(rebuild_splice vendor/a)"
+  before="$(splice rebuild vendor/a)"
   git config --file vendor/a/.splice upstream.origin.url "$upstream/../moved.git"
   git commit -q -am "the upstream moved"
-  [ "$(rebuild_splice vendor/a)" = "$before" ]
+  [ "$(splice rebuild vendor/a)" = "$before" ]
 }
 
 @test "rebuild: a commit that only changes .splice after a push leaves the state up to date" {
@@ -704,18 +718,17 @@ two_splices_ahead() {
   splice push vendor/a >/dev/null 2>&1
   git config --file vendor/a/.splice upstream.origin.default-branch main
   git commit -q -am "record the default branch"
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a)" = up-to-date ]
 }
 
 @test "rebuild command: prints the commit push sends" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_rebuild vendor/a
+  run splice rebuild vendor/a
   [ "$status" -eq 0 ]
   local rebuilt="$output"
   [ "$(git log -1 --format=%s "$rebuilt")" = "local change" ]
-  cmd_push vendor/a >/dev/null
+  splice push vendor/a >/dev/null
   [ "$(git ls-remote "$upstream" refs/heads/main | cut -f1)" = "$rebuilt" ]
 }
 
@@ -724,7 +737,7 @@ two_splices_ahead() {
   cd "$monorepo"
   local refs
   refs="$(git for-each-ref)"
-  cmd_rebuild vendor/a >/dev/null
+  splice rebuild vendor/a >/dev/null
   [ "$(git for-each-ref)" = "$refs" ]
   [ -z "$(git status --porcelain)" ]
 }
@@ -732,7 +745,7 @@ two_splices_ahead() {
 @test "rebuild command: is the synced commit when nothing changed locally" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_rebuild vendor/a
+  run splice rebuild vendor/a
   [ "$output" = "$(splice_config vendor/a commit)" ]
 }
 
@@ -740,9 +753,9 @@ two_splices_ahead() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local expected
-  expected="$(rebuild_splice vendor/a)"
+  expected="$(splice rebuild vendor/a)"
   git checkout -q --detach
-  run cmd_rebuild vendor/a
+  run splice rebuild vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "$expected" ]
 }
@@ -750,15 +763,15 @@ two_splices_ahead() {
 @test "rebuild command: takes exactly one splice" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_rebuild
+  run splice rebuild
   [ "$status" -eq 1 ]
   [[ "$output" == *$'SYNOPSIS\n    git splice rebuild <path>'* ]]
-  run cmd_rebuild vendor/a vendor/b
+  run splice rebuild vendor/a vendor/b
   [ "$status" -eq 1 ]
   [[ "$output" == *$'SYNOPSIS\n    git splice rebuild <path>'* ]]
-  run cmd_rebuild --all
+  run splice rebuild --all
   [ "$output" = "!!   rebuild takes no --all" ]
-  run cmd_rebuild vendor
+  run splice rebuild vendor
   [ "$output" = "!!   not a splice: vendor" ]
 }
 
@@ -767,10 +780,10 @@ two_splices_ahead() {
   cd "$monorepo"
   git config --file vendor/a/.splice splice.commit 1234567890123456789012345678901234567890
   git commit -q -am "point at a missing commit"
-  run cmd_rebuild vendor/a
+  run splice rebuild vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == "!!   vendor/a: synced commit 1234567 isn't available locally"* ]]
-  stdout_only() { cmd_rebuild vendor/a 2>/dev/null; }
+  stdout_only() { splice rebuild vendor/a 2>/dev/null; }
   run stdout_only
   [ -z "$output" ]
 }
@@ -786,7 +799,7 @@ two_splices_ahead() {
   git mv vendor/a libs/a
   git config --file libs/a/.splice splice.commit "$synced"
   git commit -q -am "move and point back"
-  run cmd_rebuild libs/a
+  run splice rebuild libs/a
   [ "$status" -eq 1 ]
   [[ "$output" == "!!   libs/a: synced commit 1234567 isn't available locally -- run 'git splice fetch libs/a'"* ]]
 }
@@ -797,7 +810,7 @@ two_splices_ahead() {
 squash_merge_rebased_pull() {
   cd "$monorepo"
   git switch -q -c take-the-release
-  (cmd_merge --branch patches vendor/a) >/dev/null
+  (splice merge --branch patches vendor/a) >/dev/null
   [[ -z "${1:-}" ]] || commit_local "$monorepo" vendor/a "$1" local.txt
   git switch -q main
   git merge -q --squash take-the-release >/dev/null
@@ -811,7 +824,7 @@ squash_merge_rebased_pull() {
   squash_merge_rebased_pull "local change"
   local synced
   synced="$(splice_config vendor/a commit)"
-  run rebuild_splice vendor/a
+  run splice rebuild vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a: $(git rev-parse --short=7 HEAD) records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again" ]
 }
@@ -822,7 +835,7 @@ squash_merge_rebased_pull() {
   previous="$(git -C "$monorepo" config --file vendor/a/.splice splice.commit)"
   cd "$monorepo"
   git switch -q -c take-the-release
-  (cmd_merge --branch patches vendor/a) >/dev/null
+  (splice merge --branch patches vendor/a) >/dev/null
   commit_local "$monorepo" vendor/a "local change" local.txt
   mkdir libs
   git mv vendor/a libs/a
@@ -832,7 +845,7 @@ squash_merge_rebased_pull() {
   git commit -q -m "take the release (#1)"
   local synced
   synced="$(splice_config libs/a commit)"
-  run rebuild_splice libs/a
+  run splice rebuild libs/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   libs/a: $(git rev-parse --short=7 HEAD) records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again" ]
 }
@@ -850,7 +863,7 @@ squash_merge_rebased_pull() {
   printf '# moved\n' >>libs/a/.splice
   git add libs/a/.splice
   git commit -q -m "reorganize folders"
-  run rebuild_splice libs/a
+  run splice rebuild libs/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   libs/a: $squash records ${synced:0:7}, which the upstream rewrote from ${previous:0:7}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again" ]
 }
@@ -861,7 +874,7 @@ squash_merge_rebased_pull() {
   previous="$(git -C "$monorepo" config --file vendor/a/.splice splice.commit)"
   squash_merge_rebased_pull "local change"
   git reflog expire --expire=all --all
-  run rebuild_splice vendor/a
+  run splice rebuild vendor/a
   [ "$status" -eq 0 ]
   git merge-base --is-ancestor "$previous" "$output"
 }
@@ -874,7 +887,7 @@ squash_merge_rebased_pull() {
   git -C "$other" update-ref refs/heads/keep "$previous"
   add_splice "$monorepo" "$other" vendor/other keep
   squash_merge_rebased_pull "local change"
-  run rebuild_splice vendor/a
+  run splice rebuild vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == "!!   vendor/a: "*" which the upstream rewrote from ${previous:0:7}, "* ]]
 }
@@ -888,19 +901,19 @@ squash_merge_rebased_pull() {
   fetch_splice "$monorepo" "$upstream" vendor/a
   cd "$monorepo"
   git switch -q -c take-the-release
-  (cmd_merge --branch release vendor/a) >/dev/null
+  (splice merge --branch release vendor/a) >/dev/null
   commit_local "$monorepo" vendor/a "local change" local.txt
   git switch -q main
   git merge -q --squash take-the-release >/dev/null
   git commit -q -m "take the release (#1)"
-  run rebuild_splice vendor/a
+  run splice rebuild vendor/a
   [ "$status" -eq 0 ]
 }
 
 @test "rebuild: a squash merge of only the pull of a rewritten upstream branch starts at that branch" {
   scenario_patch_branch_rebased "$monorepo" "$upstream"
   squash_merge_rebased_pull
-  [ "$(rebuild_splice vendor/a)" = "$(git rev-parse "$(upstream_refs "$upstream")patches")" ]
+  [ "$(splice rebuild vendor/a)" = "$(git rev-parse "$(upstream_refs "$upstream")patches")" ]
 }
 
 @test "rebuild: after the refused squash merge, pushing its change upstream by hand and pulling makes the rebuild that branch" {
@@ -913,8 +926,8 @@ squash_merge_rebased_pull() {
   git -C "$fork" -c user.name=Test -c user.email=test@example.com commit -q -m "local change"
   git -C "$fork" push -q origin HEAD:patches
   fetch_splice "$monorepo" "$upstream" vendor/a
-  (cmd_merge vendor/a) >/dev/null
-  [ "$(rebuild_splice vendor/a)" = "$(git rev-parse "$(upstream_refs "$upstream")patches")" ]
+  (splice merge vendor/a) >/dev/null
+  [ "$(splice rebuild vendor/a)" = "$(git rev-parse "$(upstream_refs "$upstream")patches")" ]
 }
 
 @test "rebuild: a commit the rebuild can't write fails status, push and log, instead of reading as unrelated history" {

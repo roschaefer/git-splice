@@ -1,6 +1,5 @@
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   load 'scenarios/01-everyday-sync/02-up-to-date/setup'
   load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
@@ -15,7 +14,7 @@ setup() {
 @test "diff: shows the patch that would be pushed, with upstream's paths" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_diff
+  run splice diff
   [ "$status" -eq 0 ]
   [[ "$output" == *"===  vendor/a"* ]]
   [[ "$output" == *"--- a/file.txt"* ]]
@@ -26,7 +25,7 @@ setup() {
 @test "diff: prints nothing for a splice with nothing to push" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_diff
+  run splice diff
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -34,7 +33,7 @@ setup() {
 @test "diff: does not show upstream-only changes" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_diff
+  run splice diff
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -42,7 +41,7 @@ setup() {
 @test "diff: a missing upstream branch shows the commits no upstream branch has" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_diff
+  run splice diff
   [ "$status" -eq 0 ]
   [[ "$output" == *"+local change"* ]]
   [[ "$output" != *"+seed"* ]]
@@ -52,7 +51,7 @@ setup() {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   git -C "$monorepo" revert --no-edit HEAD >/dev/null
   cd "$monorepo"
-  run cmd_diff
+  run splice diff
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -66,7 +65,7 @@ setup() {
   fetch_splice "$monorepo" "$upstream" vendor/a
   git -C "$upstream" branch -D main >/dev/null
   fetch_splice "$monorepo" "$upstream" vendor/a
-  run cmd_diff
+  run splice diff
   [ "$status" -eq 0 ]
   [[ "$output" == *"+seed"* ]]
 }
@@ -75,7 +74,7 @@ setup() {
   load 'scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_diff
+  run splice diff
   [ "$status" -eq 0 ]
   [[ "$output" == *"+local change"* ]]
   [[ "$output" != *"+seed"* ]]
@@ -86,7 +85,7 @@ setup() {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
-  run cmd_diff
+  run splice diff
   [ "$status" -eq 0 ]
   [[ "$output" == *"new file mode"* ]]
 }
@@ -96,7 +95,7 @@ setup() {
   cd "$monorepo"
   commit_local "$monorepo" "vendor/a" "change in a"
   commit_local "$monorepo" "vendor/b" "change in b"
-  run cmd_diff vendor/b
+  run splice diff vendor/b
   [[ "$output" == *"===  vendor/b"* ]]
   [[ "$output" != *"vendor/a"* ]]
 }
@@ -112,105 +111,109 @@ setup() {
   [[ "$output" != *$'\033['* ]]
 }
 
+# Runs `git splice diff` in a terminal, the only place it pages, with
+# shell code $1 run first.
+diff_in_terminal() {
+  script --version 2>/dev/null | grep -q util-linux || skip "no util-linux script to run diff in a terminal"
+  TERM=xterm run script -qec "${1:-:}; exec '$BATS_TEST_DIRNAME/../git-splice' diff" /dev/null
+}
+
 @test "diff: output is colored while a pager is active" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
+  git config pager.splice 'sed s/^/paged:/'
 
-  TERM=xterm run pipe_to_pager run_each_splice cat diff_one main vendor/a
+  diff_in_terminal
 
   [ "$status" -eq 0 ]
+  [[ "$output" == *"paged:"* ]]
   [[ "$output" == *$'\033['* ]]
 }
 
 @test "diff: quitting the pager early does not report a splice failure" {
-  diff_one() { return 141; }
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  seq 1 200000 >vendor/a/long.txt
+  git add vendor/a/long.txt
+  git commit -q -m "a diff longer than a pipe holds"
+  git config pager.splice 'head -n 1'
 
-  run run_each_splice diff_one main "" vendor/a
+  diff_in_terminal
 
-  [ "$status" -eq 141 ]
+  [ "$status" -eq 0 ]
   [[ "$output" != *"Failed:"* ]]
 }
 
 @test "diff: pager.splice=false overrides an exported pager" {
-  init_monorepo "$monorepo"
+  scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   git config pager.splice false
 
-  GIT_PAGER='missing-pager' run splice_pager
+  GIT_PAGER='missing-pager' diff_in_terminal
 
   [ "$status" -eq 0 ]
-  [ "$output" = cat ]
+  [[ "$output" == *"file.txt"* ]]
 }
 
 @test "diff: an empty pager.splice value disables paging" {
-  init_monorepo "$monorepo"
+  scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   git config pager.splice ""
 
-  GIT_PAGER='missing-pager' run splice_pager
+  GIT_PAGER='missing-pager' diff_in_terminal
 
   [ "$status" -eq 0 ]
-  [ "$output" = cat ]
+  [[ "$output" == *"file.txt"* ]]
 }
 
 @test "diff: a nonzero integer pager.splice value enables paging" {
-  init_monorepo "$monorepo"
+  scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   git config pager.splice 2
 
-  GIT_PAGER='custom-pager' run splice_pager
+  GIT_PAGER='sed s/^/paged:/' diff_in_terminal
 
   [ "$status" -eq 0 ]
-  [ "$output" = custom-pager ]
+  [[ "$output" == *"paged:"* ]]
 }
 
 @test "diff: git --no-pager overrides pager.splice" {
-  init_monorepo "$monorepo"
+  scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   git config pager.splice 'missing-pager'
 
-  GIT_PAGER=cat run splice_pager
+  GIT_PAGER=cat diff_in_terminal
 
   [ "$status" -eq 0 ]
-  [ "$output" = cat ]
+  [[ "$output" == *"file.txt"* ]]
 }
 
 @test "diff: pager startup failure is returned even when SIGPIPE is ignored" {
-  # With SIGPIPE ignored, the producer doesn't die on the closed pipe but
-  # fails its write (exit 1). The delay makes sure the pager is gone first.
-  produce_diff() {
-    sleep 0.3
-    printf 'patch\n'
-  }
-  missing_pager_fails() {
-    trap '' PIPE
-    local rc=0
-    pipe_to_pager produce_diff 'missing-pager-command' || rc=$?
-    ((rc == 127))
-  }
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config pager.splice 'missing-pager-command'
 
-  run missing_pager_fails
+  diff_in_terminal "trap '' PIPE"
 
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"missing-pager-command"* ]]
 }
 
 @test "diff: pager startup failure is returned" {
-  produce_diff() { printf 'patch\n'; }
-  missing_pager_fails() {
-    local rc=0
-    pipe_to_pager produce_diff 'missing-pager-command' || rc=$?
-    ((rc == 127))
-  }
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config pager.splice 'missing-pager-command'
 
-  run missing_pager_fails
+  diff_in_terminal
 
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"missing-pager-command"* ]]
 }
 
 @test "diff: --stat summarizes the changes per file instead of the patch" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_diff --stat
+  run splice diff --stat
   [ "$status" -eq 0 ]
   [[ "$output" == *"file.txt | 1 +"* ]]
   [[ "$output" != *"+local change"* ]]
@@ -219,7 +222,7 @@ setup() {
 @test "diff: refuses git diff's other options" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_diff --name-only
+  run splice diff --name-only
   [ "$status" -eq 1 ]
   [[ "$output" == *"unknown option: --name-only"* ]]
 }
@@ -227,7 +230,7 @@ setup() {
 @test "diff: a path after -- that looks like an option is still a path" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_diff --stat -- --stat
+  run splice diff --stat -- --stat
   [ "$status" -ne 0 ]
   [[ "$output" == *"not a splice: --stat"* ]]
 }

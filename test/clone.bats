@@ -1,6 +1,5 @@
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   local scenario
   for scenario in \
@@ -27,7 +26,7 @@ new_upstream() {
   new_upstream
   local before
   before="$(git rev-parse HEAD)"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git rev-parse HEAD^)" = "$before" ]
   [ "$(cat vendor/a/file.txt)" = seed ]
@@ -36,13 +35,12 @@ new_upstream() {
   [ -z "$(upstream_config vendor/a origin default-branch)" ]
   [ -z "$(git remote)" ]
   [ -z "$(git status --porcelain)" ]
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a)" = up-to-date ]
 }
 
 @test "clone -m: the commit gets the message, and .splice still records the commit" {
   new_upstream
-  run cmd_clone -m "a: add the parser" "$upstream" vendor/a
+  run splice clone -m "a: add the parser" "$upstream" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%s)" = "a: add the parser" ]
   [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
@@ -54,7 +52,7 @@ new_upstream() {
   echo local >vendor/a/file.txt
   git add vendor/a
   git commit -q -m "local copy"
-  run cmd_clone --merge -m "b: splice the copy in" "$upstream" vendor/a
+  run splice clone --merge -m "b: splice the copy in" "$upstream" vendor/a
   [ "$status" -eq 1 ]
   echo merged >vendor/a/file.txt
   git add vendor/a/file.txt
@@ -64,8 +62,8 @@ new_upstream() {
 
 @test "clone: gives the splice an id, another one than a clone at another path" {
   new_upstream
-  cmd_clone "$upstream" vendor/a
-  cmd_clone "$upstream" vendor/b
+  splice clone "$upstream" vendor/a
+  splice clone "$upstream" vendor/b
   [[ "$(splice_config vendor/a id)" =~ ^[0-9a-f]{16}$ ]]
   [ "$(splice_config vendor/a id)" != "$(splice_config vendor/b id)" ]
 }
@@ -76,21 +74,21 @@ new_upstream() {
   make_bare_repo "$other"
   seed_bare_repo "$other" "other seed"
   git checkout -q -b one
-  cmd_clone "$upstream" vendor/a
+  splice clone "$upstream" vendor/a
   git checkout -q -b other main
-  cmd_clone "$other" vendor/a
+  splice clone "$other" vendor/a
   [ "$(splice_config vendor/a id)" != "$(splice_config vendor/a id one)" ]
 }
 
 @test "clone: names the folder after the repository by default" {
   new_upstream
-  cmd_clone "$upstream"
+  splice clone "$upstream"
   [ -f upstream/.splice ]
 }
 
 @test "clone: records upstream's default branch when it's named differently" {
   new_upstream master
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
   [ "$(upstream_config vendor/a origin default-branch)" = master ]
   [[ "$output" == *"cloned"*"from master"* ]]
@@ -99,17 +97,16 @@ new_upstream() {
 @test "clone: on a branch upstream lacks, uses upstream's default branch" {
   scenario_clone_on_feature_branch "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"upstream has no 'feature' branch -- using 'main'"* ]]
-  classify_splice vendor/a feature
-  [ "$SPLICE_STATE" = missing-branch ]
+  [ "$(splice_state vendor/a)" = missing-branch ]
 }
 
 @test "clone: a folder with exactly upstream's content only gets a .splice" {
   scenario_clone_copied_content "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = "vendor/a/.splice" ]
 }
@@ -119,7 +116,7 @@ new_upstream() {
   cd "$monorepo"
   local before
   before="$(git rev-parse HEAD)"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a exists and differs"*"'--merge' keeps both"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
@@ -128,7 +125,7 @@ new_upstream() {
 @test "clone --merge: every differing file is a conflict, nothing is lost" {
   scenario_clone_differing_content "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_clone --merge "$upstream" vendor/a
+  run splice clone --merge "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"CONFLICT (add/add)"*"vendor/a/file.txt"* ]]
   [ "$(cat vendor/a/local.txt)" = "only local" ]
@@ -138,17 +135,16 @@ new_upstream() {
   git add vendor/a/file.txt
   git commit -q --no-edit
   [ "$(git rev-list --parents -1 HEAD | wc -w)" -eq 2 ]
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = push ]
+  [ "$(splice_state vendor/a)" = push ]
 }
 
 @test "clone: refuses an existing splice and an empty upstream" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [[ "$output" == *"vendor/a is a splice already"* ]]
   make_bare_repo "$BATS_TEST_TMPDIR/empty.git"
-  run cmd_clone "$BATS_TEST_TMPDIR/empty.git" vendor/b
+  run splice clone "$BATS_TEST_TMPDIR/empty.git" vendor/b
   [ "$status" -eq 1 ]
   [[ "$output" == *"has no branches yet -- to publish vendor/b there, use 'git splice init"* ]]
 }
@@ -156,7 +152,7 @@ new_upstream() {
 @test "clone: refuses a monorepo without commits up front" {
   scenario_clone_without_commits "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"has no commits yet"* ]]
 }
@@ -165,7 +161,7 @@ new_upstream() {
   scenario_clone_without_commits "$monorepo" "$upstream"
   cd "$monorepo"
   git commit -q --allow-empty -m "initial commit"
-  run cmd_clone "$upstream" "my lib"
+  run splice clone "$upstream" "my lib"
   [ "$status" -eq 1 ]
   [[ "$output" == *"'my lib' isn't supported as a splice path yet"* ]]
   [ -z "$(git for-each-ref refs/splices/)" ]
@@ -174,7 +170,7 @@ new_upstream() {
 @test "clone: refuses an upstream with a .splice at its root" {
   new_upstream
   seed_bare_repo "$upstream" "[splice]" main .splice
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"upstream has a .splice at its root, which would replace vendor/a/.splice"* ]]
   [ -z "$(git ls-files vendor/a)" ]
@@ -186,7 +182,7 @@ new_upstream() {
   make_bare_repo "$inner"
   seed_bare_repo "$inner" "inner"
   add_upstream_submodule "$upstream" "$inner" libs/inner
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: upstream has a submodule, libs/inner, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"* ]]
   [ -z "$(git ls-files vendor/a)" ]
@@ -196,7 +192,7 @@ new_upstream() {
   new_upstream
   seed_bare_repo "$upstream" "x" main xsplice
   seed_bare_repo "$upstream" "x" main docs/-splice
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/xsplice)" = x ]
 }
@@ -209,7 +205,7 @@ new_upstream() {
   git -C "$tmp" push -q origin HEAD:main
   init_monorepo "$monorepo"
   cd "$monorepo"
-  cmd_clone "$upstream" vendor/a
+  splice clone "$upstream" vendor/a
   local cmd
   for cmd in status diff log "push vendor/a" "merge vendor/a"; do
     # shellcheck disable=SC2086
@@ -224,7 +220,7 @@ new_upstream() {
   new_upstream
   echo x >vendor
   git add vendor && git commit -q -m "a file"
-  run cmd_clone "$upstream" vendor
+  run splice clone "$upstream" vendor
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor is a file, not a folder"* ]]
   ! git rev-parse --quiet --verify CHERRY_PICK_HEAD
@@ -233,11 +229,11 @@ new_upstream() {
 @test "clone: asks for the monorepo's default branch when upstream's is named differently" {
   new_upstream master
   git config --unset init.defaultBranch
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"upstream's default branch is 'master', and the monorepo's can't be determined"* ]]
   git config init.defaultBranch main
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
 }
 
@@ -246,14 +242,14 @@ new_upstream() {
   cd "$monorepo"
   local before
   before="$(git rev-parse HEAD)"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
   [ ! -e vendor/a ]
   echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' >>.gitattributes
   git commit -q -a -m "keep the monorepo's line endings off vendor/a"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
   [ -z "$(git status --porcelain)" ]
   [ "$(od -c vendor/a/run.bat)" = "$(printf 'echo run\n' | od -c)" ]
@@ -267,7 +263,7 @@ new_upstream() {
   ln -s ../notes.txt vendor/.gitattributes
   git add notes.txt vendor/.gitattributes
   git commit -q -m "notes, and a link to them"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes,"* ]]
 }
@@ -279,7 +275,7 @@ new_upstream() {
   printf '*.png binary\n' >.gitattributes
   git add .gitattributes
   git commit -q -m "binary images"
-  run cmd_clone "$upstream" vendor/a
+  run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"* ]]
 }

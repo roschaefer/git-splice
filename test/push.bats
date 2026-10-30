@@ -1,6 +1,5 @@
 setup() {
   load 'helpers/fixtures'
-  load_lib
   hermetic_git_config
   local scenario
   for scenario in \
@@ -29,8 +28,8 @@ setup() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local rebuilt
-  rebuilt="$(rebuild_splice vendor/a)"
-  run cmd_push vendor/a
+  rebuilt="$(splice rebuild vendor/a)"
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a: pushed ${rebuilt:0:7} to main"* ]]
   [ "$(git -C "$upstream" rev-parse main)" = "$rebuilt" ]
@@ -44,7 +43,7 @@ setup() {
   cd "$monorepo"
   local before
   before="$(git rev-parse HEAD)"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [ "$(git rev-parse HEAD)" = "$before" ]
   [ -z "$(git status --porcelain)" ]
@@ -64,16 +63,16 @@ setup() {
 @test "push: then pushing again has nothing to do" {
   scenario_pushed_then_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
-  run cmd_push vendor/a
+  run splice push vendor/a
   [[ "$output" == *"vendor/a: nothing to push"* ]]
 }
 
 @test "push: after pulling a divergence, sends the local commit and a merge" {
   scenario_diverged_then_pulled "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" rev-list --count --merges main)" -eq 1 ]
   git -C "$upstream" log --format=%s main | grep -qx "local change"
@@ -82,7 +81,7 @@ setup() {
 @test "push: refuses when upstream has commits this branch lacks" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   vendor/a: upstream has commits this branch lacks" ]
 }
@@ -91,7 +90,7 @@ setup() {
   scenario_feature_branch_behind_default_branch "$monorepo" "$upstream"
   git -C "$monorepo" rebase -q main
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a: upstream has commits this branch lacks
 !!   Failed: vendor/a" ]
@@ -102,7 +101,7 @@ setup() {
   cd "$monorepo"
   local rewritten
   rewritten="$(git -C "$upstream" rev-parse main)"
-  run cmd_push --force vendor/a
+  run splice push --force vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: nothing to push" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$rewritten" ]
@@ -111,7 +110,7 @@ setup() {
 @test "push: nothing to push when upstream is ahead" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"upstream is ahead"* ]]
 }
@@ -119,11 +118,10 @@ setup() {
 @test "push: --force discards commits only upstream has" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push --force vendor/a
+  run splice push --force vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "seed" ]
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = up-to-date ]
+  [ "$(splice_state vendor/a)" = up-to-date ]
 }
 
 @test "push: --force works after upstream lost the synced commit" {
@@ -138,12 +136,11 @@ setup() {
   git reflog expire --expire=now --all && git gc -q --prune=now
   fetch_splice "$monorepo" "$upstream" vendor/a
   ! git cat-file -e "$(splice_config vendor/a commit)^{commit}" 2>/dev/null
-  classify_splice vendor/a main
-  [ "$SPLICE_STATE" = missing-synced ]
-  run cmd_push vendor/a
+  [ "$(splice_state vendor/a)" = missing-synced ]
+  run splice push vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"synced commit ${SPLICE_SYNCED:0:7} isn't here -- run 'git splice fetch vendor/a', or check that upstream has it"* ]]
-  run cmd_push --force vendor/a
+  [[ "$output" == *"synced commit $(splice_config vendor/a commit | cut -c1-7) isn't here -- run 'git splice fetch vendor/a', or check that upstream has it"* ]]
+  run splice push --force vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
 }
@@ -151,10 +148,10 @@ setup() {
 @test "push: refuses unrelated history, --force overwrites it" {
   scenario_diverged_unrelated_history "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"pick a side"* ]]
-  run cmd_push --force vendor/a
+  run splice push --force vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
 }
@@ -163,7 +160,7 @@ setup() {
   scenario_diverged_unrelated_history "$monorepo" "$upstream"
   cd "$monorepo"
   git switch -q -c feature
-  run cmd_push --branch main vendor/a
+  run splice push --branch main vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"git splice push --branch main --force -- vendor/a"* ]]
 }
@@ -171,7 +168,7 @@ setup() {
 @test "push: asks for a fetch first" {
   scenario_never_fetched "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"not fetched"* ]]
 }
@@ -179,11 +176,11 @@ setup() {
 @test "push: creates a missing upstream branch only if it has commits upstream's default branch lacks" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [[ "$output" == *"nothing to push (upstream has no 'feature' branch, and a PR to 'main' would show no changes)"* ]]
   ! git -C "$upstream" rev-parse --verify --quiet feature
   commit_local "$monorepo" "vendor/a" "local change"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"upstream has no 'feature' branch yet -- this push creates it"* ]]
   [ "$(git -C "$upstream" log -1 --format=%s feature)" = "local change" ]
@@ -194,7 +191,7 @@ setup() {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   git -C "$monorepo" revert --no-edit HEAD >/dev/null
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"nothing to push (upstream has no 'feature' branch, and a PR to 'main' would show no changes)"* ]]
   ! git -C "$upstream" rev-parse --verify --quiet feature
@@ -203,7 +200,7 @@ setup() {
 @test "push: --branch pushes to the named upstream branch, not the one named like the current branch" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push --branch main vendor/a
+  run splice push --branch main vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok   vendor/a: pushed "*" to main"* ]]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
@@ -213,7 +210,7 @@ setup() {
 @test "push: --branch creates the named upstream branch, as a push creates the one named like the current branch" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push --branch development vendor/a
+  run splice push --branch development vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"upstream has no 'development' branch yet -- this push creates it"* ]]
   [ "$(git -C "$upstream" log -1 --format=%s development)" = "local change" ]
@@ -224,7 +221,7 @@ setup() {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   git switch -q -c feature
-  run cmd_push --branch main vendor/a
+  run splice push --branch main vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: nothing to push (upstream is ahead -- 'git splice pull --branch main vendor/a' brings it in)" ]
 }
@@ -232,7 +229,7 @@ setup() {
 @test "push: --branch needs a branch's name" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a --branch
+  run splice push vendor/a --branch
   [ "$status" -eq 1 ]
   [ "$output" = "!!   --branch needs an upstream branch's name" ]
 }
@@ -241,7 +238,7 @@ setup() {
   load 'scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"upstream has no 'feature' branch yet -- this push creates it"* ]]
   [ "$(git -C "$upstream" log -1 --format=%s feature)" = "local change" ]
@@ -261,7 +258,7 @@ setup() {
 @test "push: on the default branch, pushes to upstream's default branch" {
   scenario_default_branch "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"to master"* ]]
   [ "$(git -C "$upstream" log -1 --format=%s master)" = "local change" ]
@@ -271,10 +268,10 @@ setup() {
 @test "push: needs paths or --all, and pushes every changed splice with --all" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push
+  run splice push
   [ "$status" -eq 1 ]
   commit_local "$monorepo" "vendor/b" "change in b"
-  run cmd_push --all
+  run splice push --all
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a: nothing to push"* ]]
   [[ "$output" == *"vendor/b: pushed"* ]]
@@ -283,7 +280,7 @@ setup() {
 @test "push: warns about uncommitted changes and pushes only committed ones" {
   scenario_uncommitted_changes "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "??   vendor/a: uncommitted changes aren't pushed -- commit them first" ]]
   [[ "$output" == *"vendor/a: pushed"* ]]
@@ -295,7 +292,7 @@ setup() {
   cd "$monorepo"
   # An invalid value that only git status reads makes it fail.
   git config status.relativePaths bogus
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "??   vendor/a: could not check for uncommitted changes (git status failed) -- only committed ones are pushed" ]]
   [[ "$output" == *"vendor/a: pushed"* ]]
@@ -305,7 +302,7 @@ setup() {
 # by <message>, as an edit in a separate worktree would make it.
 reworded_rebuild() {
   local rebuilt
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   git commit-tree --no-gpg-sign "$rebuilt^{tree}" -p "$rebuilt^" -m "$1"
 }
 
@@ -314,7 +311,7 @@ reworded_rebuild() {
   cd "$monorepo"
   local edited
   edited="$(reworded_rebuild "fix the parser")"
-  run cmd_push --rebuilt-commit "$edited" vendor/a
+  run splice push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "$(printf '%s\n' "ok   vendor/a: pushed ${edited:0:7} to main" "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${edited:0:7} as the synced commit")" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$edited" ]
@@ -326,9 +323,9 @@ reworded_rebuild() {
   cd "$monorepo"
   local edited
   edited="$(reworded_rebuild "fix the parser")"
-  run cmd_push --rebuilt-commit "$edited" vendor/a
+  run splice push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
-  run cmd_push --rebuilt-commit "$edited" vendor/a
+  run splice push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "$(printf '%s\n' "ok   vendor/a: nothing to push" "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${edited:0:7} as the synced commit")" ]
 }
@@ -337,11 +334,11 @@ reworded_rebuild() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local rebuilt
-  rebuilt="$(rebuild_splice vendor/a)"
-  run cmd_push --rebuilt-commit "$rebuilt" vendor/a
+  rebuilt="$(splice rebuild vendor/a)"
+  run splice push --rebuilt-commit "$rebuilt" vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: pushed ${rebuilt:0:7} to main" ]
-  run cmd_pull vendor/a
+  run splice pull vendor/a
   [ "$output" = "$(printf '%s\n' "ok   vendor/a fetched" "ok   vendor/a: nothing to pull")" ]
 }
 
@@ -351,16 +348,16 @@ reworded_rebuild() {
   commit_local "$monorepo" vendor/a "temporary" tmp.txt
   git rm -q vendor/a/tmp.txt && git commit -q -m "revert temporary"
   local edited
-  edited="$(rebuild_splice vendor/a)~2"
+  edited="$(splice rebuild vendor/a)~2"
   edited="$(git rev-parse "$edited")"
-  run cmd_push --rebuilt-commit "$edited" vendor/a
+  run splice push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
   [ "${lines[1]}" = "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${edited:0:7} as the synced commit" ]
-  run cmd_pull --bump vendor/a
+  run splice pull --bump vendor/a
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a commit)" = "$edited" ]
   commit_local "$monorepo" vendor/a "next change"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" log --format=%s main)" = "$(printf '%s\n' "next change" "local change" "seed")" ]
 }
@@ -375,7 +372,7 @@ reworded_rebuild() {
   echo seed >vendor/a/file.txt && git commit -q -am "revert second"
   local synced
   synced="$(splice_config vendor/a commit)"
-  run cmd_push --force --rebuilt-commit "$synced^" vendor/a
+  run splice push --force --rebuilt-commit "$synced^" vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a: pull can't record $(git rev-parse --short=7 "$synced^") as the synced commit -- it isn't newer than ${synced:0:7}, so the next push would publish the rebuild's commits after it again" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$synced" ]
@@ -388,7 +385,7 @@ reworded_rebuild() {
   git rm -q vendor/a/tmp.txt && git commit -q -m "revert temporary"
   local synced
   synced="$(splice_config vendor/a commit)"
-  run cmd_push --rebuilt-commit "$synced" vendor/a
+  run splice push --rebuilt-commit "$synced" vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a: pull can't record ${synced:0:7} as the synced commit -- it isn't newer than ${synced:0:7}, so the next push would publish the rebuild's commits after it again" ]
 }
@@ -403,8 +400,8 @@ reworded_rebuild() {
   git reflog expire --expire=now --all && git gc -q --prune=now
   fetch_splice "$monorepo" "$upstream" vendor/a
   local rebuilt
-  rebuilt="$(REBUILD_WITHOUT_SYNCED=1 rebuild_splice vendor/a)"
-  run cmd_push --force --rebuilt-commit "$rebuilt" vendor/a
+  rebuilt="$(REBUILD_WITHOUT_SYNCED=1 splice rebuild vendor/a)"
+  run splice push --force --rebuilt-commit "$rebuilt" vendor/a
   [ "$status" -eq 0 ]
   [ "${lines[1]}" = "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${rebuilt:0:7} as the synced commit" ]
 }
@@ -412,19 +409,19 @@ reworded_rebuild() {
 @test "push --rebuilt-commit: replaces a published commit with a reworded one, with --force" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$status" -eq 0 ]
   local published edited
   published="$(git -C "$upstream" rev-parse main)"
   edited="$(reworded_rebuild "fix the parser")"
-  run cmd_push --rebuilt-commit "$edited" vendor/a
+  run splice push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 1 ]
   [ "$(git -C "$upstream" rev-parse main)" = "$published" ]
-  run cmd_push --force --rebuilt-commit "$edited" vendor/a
+  run splice push --force --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$edited" ]
-  run cmd_push --rebuilt-commit "$edited" vendor/a
+  run splice push --rebuilt-commit "$edited" vendor/a
   [ "${lines[0]}" = "ok   vendor/a: nothing to push" ]
 }
 
@@ -433,7 +430,7 @@ reworded_rebuild() {
   cd "$monorepo"
   local edited
   edited="$(reworded_rebuild "fix the parser")"
-  run cmd_push --rebuilt-commit="$edited" vendor/a
+  run splice push --rebuilt-commit="$edited" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" rev-parse feature)" = "$edited" ]
 }
@@ -445,7 +442,7 @@ reworded_rebuild() {
   edited="$(reworded_rebuild "fix the parser")"
   git push -q "$upstream" "$edited:refs/heads/main"
   fetch_splice "$monorepo" "$upstream" vendor/a
-  run cmd_push --rebuilt-commit "$edited" vendor/a
+  run splice push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" rev-parse feature)" = "$edited" ]
   [[ "$output" == *"run 'git splice pull --bump vendor/a' before the next change to it"* ]]
@@ -455,9 +452,9 @@ reworded_rebuild() {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local rebuilt other
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   other="$(git commit-tree --no-gpg-sign "$(git rev-parse "$rebuilt^^{tree}")" -p "$rebuilt" -m "undo")"
-  run cmd_push --rebuilt-commit "$other" vendor/a
+  run splice push --rebuilt-commit "$other" vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a: ${other:0:7} has other files than the folder -- --rebuilt-commit only takes edits to the history; commit changes to files in the monorepo" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$(splice_config vendor/a commit)" ]
@@ -467,9 +464,9 @@ reworded_rebuild() {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
   local root synced
-  root="$(git commit-tree --no-gpg-sign "$(rebuild_splice vendor/a)^{tree}" -m "squashed")"
+  root="$(git commit-tree --no-gpg-sign "$(splice rebuild vendor/a)^{tree}" -m "squashed")"
   synced="$(splice_config vendor/a commit)"
-  run cmd_push --rebuilt-commit "$root" vendor/a
+  run splice push --rebuilt-commit "$root" vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a: ${root:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it, or replace published ones with --force" ]
   ! git -C "$upstream" rev-parse --verify --quiet feature
@@ -491,7 +488,7 @@ scenario_push_ahead_after_two() {
 reworded_synced() {
   local synced rebuilt second
   synced="$(splice_config vendor/a commit)"
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   second="$(git commit-tree --no-gpg-sign "$synced^{tree}" -p "$synced^" -m "$1")"
   git commit-tree --no-gpg-sign "$rebuilt^{tree}" -p "$second" -m "local change"
 }
@@ -502,7 +499,7 @@ reworded_synced() {
   local edited synced
   edited="$(reworded_synced "second, reworded")"
   synced="$(splice_config vendor/a commit)"
-  run cmd_push --rebuilt-commit "$edited" vendor/a
+  run splice push --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a: ${edited:0:7} doesn't contain the synced commit ${synced:0:7} -- edit only the commits after it, or replace published ones with --force" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$synced" ]
@@ -513,14 +510,14 @@ reworded_synced() {
   cd "$monorepo"
   local edited
   edited="$(reworded_synced "second, reworded")"
-  run cmd_push --force --rebuilt-commit "$edited" vendor/a
+  run splice push --force --rebuilt-commit "$edited" vendor/a
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "ok   vendor/a: pushed ${edited:0:7} to main" ]
   [ "$(git -C "$upstream" log --format=%s main)" = "$(printf '%s\n' "local change" "second, reworded" "seed")" ]
-  run cmd_pull vendor/a
+  run splice pull vendor/a
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a commit)" = "$edited" ]
-  run cmd_push vendor/a
+  run splice push vendor/a
   [ "$output" = "ok   vendor/a: nothing to push" ]
 }
 
@@ -528,11 +525,11 @@ reworded_synced() {
   scenario_push_ahead_after_two "$monorepo" "$upstream"
   cd "$monorepo"
   local root
-  root="$(git commit-tree --no-gpg-sign "$(rebuild_splice vendor/a)^{tree}" -m "squashed")"
-  run cmd_push --force --rebuilt-commit "$root" vendor/a
+  root="$(git commit-tree --no-gpg-sign "$(splice rebuild vendor/a)^{tree}" -m "squashed")"
+  run splice push --force --rebuilt-commit "$root" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" rev-parse main)" = "$root" ]
-  run cmd_pull vendor/a
+  run splice pull vendor/a
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a commit)" = "$root" ]
 }
@@ -570,7 +567,7 @@ rebuilt_commit_shape() {
       fetch_splice "$monorepo" "$upstream" vendor/a
       ;;
   esac
-  rebuilt="$(rebuild_splice vendor/a)"
+  rebuilt="$(splice rebuild vendor/a)"
   case "$shape" in
     reworded-after-U) git commit-tree --no-gpg-sign "$rebuilt^{tree}" -p "$rebuilt^" -m "reworded" ;;
     reworded-U) reworded_synced "second, reworded" ;;
@@ -587,14 +584,14 @@ rebuilt_commit_shape() {
   for shape in reworded-after-U reworded-U rebuild root without-cancelling-commits unchanged-since-U U older-than-U; do
     given="$(rebuilt_commit_shape "$BATS_TEST_TMPDIR/$shape/m" "$BATS_TEST_TMPDIR/$shape/u.git" "$shape")"
     cd "$BATS_TEST_TMPDIR/$shape/m"
-    run cmd_push --force --rebuilt-commit "$given" vendor/a
+    run splice push --force --rebuilt-commit "$given" vendor/a
     accepted=$([ "$status" -eq 0 ] && echo yes || echo no)
 
     given="$(rebuilt_commit_shape "$BATS_TEST_TMPDIR/$shape/m2" "$BATS_TEST_TMPDIR/$shape/u2.git" "$shape")"
     cd "$BATS_TEST_TMPDIR/$shape/m2"
     git push -q --force "$BATS_TEST_TMPDIR/$shape/u2.git" "$given:refs/heads/main"
-    run cmd_pull --bump vendor/a
-    rebuilds=$([ "$(rebuild_splice vendor/a)" = "$given" ] && echo yes || echo no)
+    run splice pull --bump vendor/a
+    rebuilds=$([ "$(splice rebuild vendor/a)" = "$given" ] && echo yes || echo no)
 
     echo "$shape: push accepts: $accepted, rebuilt after pull --bump: $rebuilds"
     [ "$accepted" = "$rebuilds" ]
@@ -608,7 +605,7 @@ rebuilt_commit_shape() {
   content_tree HEAD vendor/a
   root="$(git commit-tree --no-gpg-sign "$CONTENT_TREE" -m "squashed")"
   synced="$(splice_config vendor/a commit)"
-  run cmd_push --rebuilt-commit "$root" vendor/a
+  run splice push --rebuilt-commit "$root" vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a: synced commit ${synced:0:7} isn't available locally -- run 'git splice fetch vendor/a'" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$synced" ]
@@ -617,15 +614,15 @@ rebuilt_commit_shape() {
 @test "push --rebuilt-commit: takes a commit and exactly one splice" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
-  run cmd_push --rebuilt-commit nope vendor/a
+  run splice push --rebuilt-commit nope vendor/a
   [ "$output" = "!!   --rebuilt-commit: unknown commit: nope" ]
-  run cmd_push --rebuilt-commit HEAD vendor/a vendor/b
+  run splice push --rebuilt-commit HEAD vendor/a vendor/b
   [ "$output" = "!!   --rebuilt-commit takes exactly one splice" ]
-  run cmd_push --rebuilt-commit HEAD --all
+  run splice push --rebuilt-commit HEAD --all
   [ "$output" = "!!   --rebuilt-commit takes exactly one splice" ]
-  run cmd_push vendor/a --rebuilt-commit
+  run splice push vendor/a --rebuilt-commit
   [ "$output" = "!!   --rebuilt-commit needs a commit" ]
-  run cmd_status --rebuilt-commit HEAD
+  run splice status --rebuilt-commit HEAD
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   unknown option: --rebuilt-commit" ]]
 }
