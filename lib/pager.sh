@@ -33,9 +33,9 @@ pipe_to_pager() {
   local statuses producer_status pager_status
   if {
     # Pager values are shell commands by Git's documented configuration
-    # contract, so evaluate them the same way Git's own shell commands do.
-    # shellcheck disable=SC2294
-    GIT_PAGER_IN_USE=true "$producer" "$@" | eval "$pager"
+    # contract, so run them in a shell, as Git does. Not eval: under set -e
+    # it turns a missing pager's 127 into 1.
+    GIT_PAGER_IN_USE=true "$producer" "$@" | "$BASH" -c "$pager"
     statuses=("${PIPESTATUS[@]}")
     producer_status="${statuses[0]}"
     pager_status="${statuses[1]}"
