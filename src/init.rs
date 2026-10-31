@@ -91,11 +91,21 @@ pub fn run(argv: &[String]) -> Res<i32> {
             "--format=delete %(refname)",
             &format!("refs/splices/{key}/"),
         ])
-        .out()
-        .unwrap_or_default();
-        git(&["update-ref", "--stdin"])
-            .input(format!("{refs}\n"))
-            .ok();
+        .out();
+        let removed = refs.is_some_and(|refs| {
+            refs.is_empty()
+                || git(&["update-ref", "--stdin"])
+                    .input(format!(
+                        "{refs}
+"
+                    ))
+                    .ok()
+        });
+        if !removed {
+            return die(format!(
+                "{path}: couldn't remove the refs fetched from {url} before"
+            ));
+        }
     }
     let id = new_splice_id(&path, &url, "");
     let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");

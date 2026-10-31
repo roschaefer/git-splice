@@ -499,6 +499,16 @@ resolved_submodule_url() {
   [ "$(resolved_submodule_url ../lib.git)" = https://lib.git ]
 }
 
+@test "clone --from-submodule: resolves a relative URL in a SHA-256 monorepo, whatever new repositories default to" {
+  git init -q -b main --object-format=sha256 "$BATS_TEST_TMPDIR/sha256"
+  cd "$BATS_TEST_TMPDIR/sha256"
+  git config user.name Test
+  git config user.email test@example.com
+  git commit -q --allow-empty -m "initial commit"
+  git remote add origin https://git.example.com/org/mono.git
+  [ "$(resolved_submodule_url ../lib.git)" = https://git.example.com/org/lib.git ]
+}
+
 @test "clone --from-submodule: a remote URL that is a relative path is relative to the monorepo" {
   git remote add origin mono.git
   [ "$(resolved_submodule_url ../lib.git)" = "$monorepo/lib.git" ]

@@ -265,10 +265,13 @@ fn resolve_submodule_url(url: &str, base: &str) -> Res<String> {
             all.extend_from_slice(args);
             git(&all)
         };
-        let empty = git(&["hash-object", "-t", "tree", "/dev/null"]).out()?;
+        if !in_dir(&["init", "-q"]).ok() {
+            return None;
+        }
+        // In the probe: it needn't have the monorepo's object format.
+        let empty = in_dir(&["hash-object", "-t", "tree", "/dev/null"]).out()?;
         let entry = format!("160000,{empty},s");
-        (in_dir(&["init", "-q"]).ok()
-            && in_dir(&["config", "remote.origin.url", &base]).ok()
+        (in_dir(&["config", "remote.origin.url", &base]).ok()
             && in_dir(&["config", "--file", ".gitmodules", "submodule.s.path", "s"]).ok()
             && in_dir(&["config", "--file", ".gitmodules", "submodule.s.url", url]).ok()
             && in_dir(&["update-index", "--add", "--cacheinfo", &entry]).ok()

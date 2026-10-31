@@ -179,3 +179,26 @@ setup() {
   [ -z "$(git for-each-ref "$(upstream_refs "$upstream")")" ]
   [ "$(splice_state lib/a)" = missing-branch ]
 }
+
+@test "init: stops, committing nothing, when it can't remove the refs fetched from the upstream before" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --local splice.old.url "$upstream"
+  git update-ref refs/splices/old/heads/gone HEAD
+  local before
+  before="$(git rev-parse HEAD)"
+  stub_git 'if [[ "$1 $2" == "update-ref --stdin" ]]; then exit 1; fi'
+  run splice init lib/a "$upstream"
+  [ "$status" -ne 0 ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e lib/a/.splice ]
+}
+
+@test "init: an upstream with a key but no fetched refs left is fine" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --local splice.old.url "$upstream"
+  run splice init lib/a "$upstream"
+  [ "$status" -eq 0 ]
+  [ -e lib/a/.splice ]
+}
