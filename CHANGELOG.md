@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.17.0](https://github.com/roschaefer/git-splice/compare/v0.16.3...v0.17.0) (2026-10-31)
+
+
+### Features
+
+* **port:** add a Rust entrypoint that hands commands to bash ([#318](https://github.com/roschaefer/git-splice/issues/318)) ([57a7e98](https://github.com/roschaefer/git-splice/commit/57a7e987c6add11d5b4bb942e15c307cfc39dd13))
+* **port:** port fetch, merge and pull to Rust ([#320](https://github.com/roschaefer/git-splice/issues/320)) ([a217245](https://github.com/roschaefer/git-splice/commit/a217245938e3afeba6aa7d275e2496d194591ff9))
+* **port:** port status, diff, log, key, rebuild and boundary to Rust ([#319](https://github.com/roschaefer/git-splice/issues/319)) ([fd6a82b](https://github.com/roschaefer/git-splice/commit/fd6a82be9de4f457e41dd6b9080f7a6d5614b197))
+
+
+### Bug Fixes
+
+* **diff:** exit 127 when the pager can't start ([#317](https://github.com/roschaefer/git-splice/issues/317)) ([75cda17](https://github.com/roschaefer/git-splice/commit/75cda17964b4b898cca82bd171710b56eee74b16))
+
 ## [0.16.3](https://github.com/roschaefer/git-splice/compare/v0.16.2...v0.16.3) (2026-10-30)
 
 
