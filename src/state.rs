@@ -306,3 +306,21 @@ pub fn splice_in(
     }
     Err(Fail::Soft)
 }
+
+/// A new id for a splice that clone or init mounts at <path> from upstream <url>
+/// at <commit> (none for init). The id stays with the splice wherever its
+/// .splice goes, so the rebuild can tell it from another splice at the same
+/// path. It's derived from all of these and HEAD, not random, so the same
+/// command on the same commit writes the same file, and the docs' output is
+/// reproducible. The URL and commit tell apart two splices mounted at the same
+/// path on branches from the same commit.
+pub fn new_splice_id(path: &str, url: &str, commit: &str) -> String {
+    let head = git(&["rev-parse", "--verify", "--quiet", "HEAD"])
+        .out()
+        .unwrap_or_default();
+    let id = git(&["hash-object", "--stdin"])
+        .input(format!("{path}\0{head}\0{url}\0{commit}\0"))
+        .out()
+        .unwrap_or_default();
+    id[..id.len().min(16)].to_string()
+}
