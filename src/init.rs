@@ -95,10 +95,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
         let removed = refs.is_some_and(|refs| {
             refs.is_empty()
                 || git(&["update-ref", "--stdin"])
-                    .input(format!(
-                        "{refs}
-"
-                    ))
+                    .input(format!("{refs}\n"))
                     .ok()
         });
         if !removed {
