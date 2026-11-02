@@ -54,8 +54,7 @@ just docs-check --write   # update them after an intended output change
 just ci                   # lint, fmt-check, test, docs-check
 ```
 
-CI also runs the whole suite on the oldest supported versions, Bash 4.4
-and Git 2.40, and their newer counterparts.
+CI also runs the whole suite on the oldest supported Git, 2.40.
 
 ### The layers
 
