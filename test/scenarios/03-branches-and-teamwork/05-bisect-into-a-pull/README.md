@@ -134,7 +134,7 @@ running 'sh' '../copy-and-check.sh'
 Bisecting: 0 revisions left to test after this (roughly 0 steps)
 [bdc6c706680c6d0250da4aedfed5b65755d11ba0] l: add config.txt
 running 'sh' '../copy-and-check.sh'
-be7ce0647ac80b4fc46a18cd62f417924503bc66 is the first bad commit
+be7ce0647ac80b4fc46a18cd62f417924503bc66 is the first 'bad' commit
 commit be7ce0647ac80b4fc46a18cd62f417924503bc66
 Author: Upstream <upstream@example.com>
 Date:   Thu Jan 1 00:00:00 2026 +0000
@@ -143,7 +143,7 @@ Date:   Thu Jan 1 00:00:00 2026 +0000
 
  config.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-bisect found first bad commit
+bisect found first 'bad' commit
 ```
 
 That's the exact upstream commit. If the bug shows in the upstream

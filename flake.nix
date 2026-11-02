@@ -4,13 +4,17 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-scrut.follows = "nixpkgs";
+    # Only for Git: 26.05 stays on 2.54, whose background repack loses objects
+    # a command right after it needs. Fixed in 2.56.
+    nixpkgs-git.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, nixpkgs-scrut, flake-utils }:
+  outputs = { self, nixpkgs, nixpkgs-scrut, nixpkgs-git, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        git = nixpkgs-git.legacyPackages.${system}.git;
         lib = pkgs.lib;
 
         git-splice = pkgs.rustPlatform.buildRustPackage {
@@ -42,7 +46,7 @@
           # It runs the git CLI, and a pager through sh.
           postInstall = ''
             wrapProgram $out/bin/git-splice \
-              --prefix PATH : ${lib.makeBinPath [ pkgs.git pkgs.bash ]}
+              --prefix PATH : ${lib.makeBinPath [ git pkgs.bash ]}
             install -Dm644 LICENSE $out/share/licenses/git-splice/LICENSE
             installShellCompletion --cmd git-splice \
               --bash completions/git-splice.bash \
@@ -158,7 +162,7 @@
         # Runs the installed package the way users do, through `git splice`,
         # against a splice whose upstream got a new commit.
         checks.default = pkgs.runCommand "git-splice-smoke"
-          { nativeBuildInputs = [ git-splice pkgs.git ]; } ''
+          { nativeBuildInputs = [ git-splice git ]; } ''
           export HOME=$TMPDIR
           git config --global user.name smoke
           git config --global user.email smoke@example.com
@@ -195,7 +199,7 @@
           # bash-completion, from the package's share/.
           XDG_DATA_DIRS=${git-splice}/share ${pkgs.bashInteractive}/bin/bash --norc -i -c '
             source ${pkgs.bash-completion}/share/bash-completion/bash_completion
-            source ${pkgs.git}/share/bash-completion/completions/git
+            source ${git}/share/bash-completion/completions/git
             __git_complete_command splice
             declare -F _git_splice
           '
@@ -204,7 +208,7 @@
 
         devShells.default = pkgs.mkShell {
           packages = [
-            pkgs.git
+            git
             pkgs.bats
             pkgs.util-linux
             # Build the port from bash, src/.
@@ -252,7 +256,7 @@
         devShells.drawings = pkgs.mkShell {
           packages = [
             nixpkgs-scrut.legacyPackages.${system}.drawio-headless
-            pkgs.git
+            git
             # For test/drawing-export.bats.
             pkgs.bats
           ];
