@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.17.0](https://github.com/roschaefer/git-splice/compare/v0.16.3...v0.17.0) (2026-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **nix:** the Nix package needs Git on `PATH`, at least 2.40.
+* **port:** installing from a clone means `cargo install`, not a symlink.
+
+### Features
+
+* **check-drawing:** read lineage from a Rust tool ([#324](https://github.com/roschaefer/git-splice/issues/324)) ([dce40c3](https://github.com/roschaefer/git-splice/commit/dce40c35bf05bd5d36e2646097bef97625e42390))
+* **port:** add a Rust entrypoint that hands commands to bash ([#318](https://github.com/roschaefer/git-splice/issues/318)) ([57a7e98](https://github.com/roschaefer/git-splice/commit/57a7e987c6add11d5b4bb942e15c307cfc39dd13))
+* **port:** port clone, init and push to Rust ([#321](https://github.com/roschaefer/git-splice/issues/321)) ([669fc38](https://github.com/roschaefer/git-splice/commit/669fc382b74c9b955597f3a843fe7be81e5f8e08))
+* **port:** port fetch, merge and pull to Rust ([#320](https://github.com/roschaefer/git-splice/issues/320)) ([a217245](https://github.com/roschaefer/git-splice/commit/a217245938e3afeba6aa7d275e2496d194591ff9))
+* **port:** port status, diff, log, key, rebuild and boundary to Rust ([#319](https://github.com/roschaefer/git-splice/issues/319)) ([fd6a82b](https://github.com/roschaefer/git-splice/commit/fd6a82be9de4f457e41dd6b9080f7a6d5614b197))
+* **port:** replace the bash implementation with the Rust one ([#322](https://github.com/roschaefer/git-splice/issues/322)) ([f721831](https://github.com/roschaefer/git-splice/commit/f721831611891bed9edbda4e570055de5d9b3889))
+* **release:** attach binaries to releases ([#323](https://github.com/roschaefer/git-splice/issues/323)) ([c8c4117](https://github.com/roschaefer/git-splice/commit/c8c411788e42c36d07d7acf0c2e7e0ab4051467e))
+
+
+### Bug Fixes
+
+* **bench:** keep Git's background repack out of the fixture ([#329](https://github.com/roschaefer/git-splice/issues/329)) ([35e185a](https://github.com/roschaefer/git-splice/commit/35e185a21b31719ae14acfd0f4116e78ebf703d7))
+* **diff:** exit 127 when the pager can't start ([#317](https://github.com/roschaefer/git-splice/issues/317)) ([75cda17](https://github.com/roschaefer/git-splice/commit/75cda17964b4b898cca82bd171710b56eee74b16))
+
+
+### Build System
+
+* **nix:** run the user's Git, and take the dev shell's from unstable ([#330](https://github.com/roschaefer/git-splice/issues/330)) ([dacd7a1](https://github.com/roschaefer/git-splice/commit/dacd7a17294357878e8954e739976eb25a832e76))
+
 ## [0.16.3](https://github.com/roschaefer/git-splice/compare/v0.16.2...v0.16.3) (2026-10-30)
 
 
