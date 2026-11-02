@@ -35,6 +35,9 @@ uses the same [sandbox](../../docs/sandbox.md) throughout, under
 namesakes do to a repository. `boundary`, `rebuild` and `key` are new:
 their names come from splicing.
 
+Each of them only runs the `git` command line, and
+[Git can list what it ran](../concepts/git-trace/README.md).
+
 `merge`, `pull` and `push` need paths or `--all`; `status`, `diff`,
 `log` and `fetch` cover every splice unless you name some
 ([why](../../docs/design/README.md#how-the-commands-work)). `status`,

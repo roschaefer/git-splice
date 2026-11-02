@@ -6,8 +6,12 @@ switches the branch every folder syncs with.
 
 ## Principles
 
-- **Let Git do the work.** Bash and Git, nothing to compile. Wherever Git
-  can do a job, the tool calls Git: `git config` parses the state file,
+- **You can check it without reading it.** The state is plain Git: a committed
+  `.splice`, refs under `refs/splices/`, and rebuilt commits that always come
+  out the same. The docs write out the Git commands and run them against real
+  output. And the tool only runs the `git` CLI, not a library, so
+  [`GIT_TRACE` lists all it does](../../test/concepts/git-trace/README.md).
+- **Let Git do the work.** Wherever Git can do a job, the tool calls Git: `git config` parses the state file,
   `cherry-pick` merges, `commit-tree` rebuilds, `log --left-right` compares.
   The tool's own code connects these, and stays small.
 - **Changes cross the splice, commits don't.** The monorepo and each
