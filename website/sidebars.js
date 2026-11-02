@@ -26,7 +26,6 @@ module.exports = {
         {type: 'doc', id: 'test/concepts/upstreams/README', label: 'Upstreams'},
         {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},
         {type: 'doc', id: 'test/concepts/splice-identity/README', label: 'Splice identity'},
-        {type: 'doc', id: 'test/concepts/git-trace/README', label: 'Checking what it runs'},
         {
           type: 'category',
           label: 'Nesting',
@@ -59,7 +58,11 @@ module.exports = {
       type: 'category',
       label: 'Design',
       link: {type: 'doc', id: 'docs/design/README'},
-      items: ['docs/design/name', 'docs/design/accidental-monorepo-push'],
+      items: [
+        'docs/design/name',
+        'docs/design/accidental-monorepo-push',
+        {type: 'doc', id: 'test/concepts/git-trace/README', label: 'Checking what it runs'},
+      ],
     },
     {
       type: 'category',
