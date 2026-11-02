@@ -6,27 +6,11 @@
 //! upstream branch named like the monorepo's current branch. See
 //! docs/design/README.md.
 
-mod args;
-mod clone;
-mod diff;
-mod fetch;
-mod init;
-mod key;
-mod log;
-mod merge;
-mod pager;
-mod pull;
-mod push;
-mod rebuild;
-mod repo;
-mod state;
-mod status;
-mod util;
-
-use args::parse_args;
-use repo::Repo;
+use git_splice::args::parse_args;
+use git_splice::repo::Repo;
+use git_splice::util::*;
+use git_splice::{clone, diff, fetch, init, key, log, merge, pull, push, status};
 use std::process::ExitCode;
-use util::*;
 
 const USAGE: &str = include_str!("usage/top.txt");
 const USAGE_REBUILD: &str = include_str!("usage/rebuild.txt");

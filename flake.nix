@@ -24,11 +24,15 @@
               ./Cargo.toml
               ./Cargo.lock
               ./src
+              # Only so the workspace reads; it isn't built here.
+              ./check-drawing/Cargo.toml
+              ./check-drawing/src
               ./completions
               ./LICENSE
             ];
           };
           cargoLock.lockFile = ./Cargo.lock;
+          cargoBuildFlags = [ "--package" "git-splice" ];
 
           nativeBuildInputs = [ pkgs.makeWrapper pkgs.installShellFiles ];
           # The tests need the docs and fixtures, which the package leaves out;

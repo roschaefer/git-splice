@@ -62,14 +62,13 @@ arguments.
 ## Requirements
 
 - Bash, Git, awk and [xmlstarlet](https://xmlstar.sourceforge.net/)
-- `git-splice` on `PATH`
+- `git-splice` on `PATH`, and `just build` run in this checkout
 
-From `git-splice`, it uses the commands `boundary`, `rebuild` and `key`,
-two functions of the `lib/common.sh` next to this file, a copy of the bash
-version's: the list of splices, `state_files`, and the upstream branch a
-monorepo branch maps to, `upstream_branch_for`, and the folders a splice had
-before it moved, `splice_lineage`, `splice_lineage_to_mount` and `read_lineage`
-of `lib/rebuild.sh`.
+From `git-splice`, it uses the commands `boundary`, `rebuild` and `key`. The
+rest comes from `git-splice`'s own code, through the Rust tool in `src/`, which
+`just build` puts in `target/debug`: the list of splices, the fetched ref a
+splice syncs with, and the folders a splice had before it moved. The script
+still reads the drawings; that moves to Rust next.
 
 ## The drawing's vocabulary
 

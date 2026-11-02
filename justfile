@@ -6,7 +6,7 @@ build:
 
 # Run shellcheck and clippy
 lint:
-    cargo clippy --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets -- -D warnings
     shellcheck -x docs/design/pull-prototype.sh docs/design/rebuild-prototype.sh
     shellcheck test/walkthrough/setup.sh
     shellcheck completions/git-splice.bash
@@ -16,12 +16,12 @@ lint:
 
 # Format with shfmt and rustfmt
 fmt:
-    cargo fmt
+    cargo fmt --all
     shfmt -w -i 2 -ci docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Check formatting with shfmt and rustfmt
 fmt-check:
-    cargo fmt --check
+    cargo fmt --all --check
     shfmt -d -i 2 -ci docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Run the bats tests, one job per CPU

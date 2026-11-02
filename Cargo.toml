@@ -4,3 +4,10 @@ version = "0.16.3"
 edition = "2021"
 license = "MIT"
 description = "Keep folders of a monorepo in sync with their own repositories, in both directions"
+
+# `cargo build` builds both; check-drawing only runs from a checkout. scrut/ is
+# a splice with its own lock file.
+[workspace]
+members = ["check-drawing"]
+default-members = [".", "check-drawing"]
+exclude = ["scrut"]

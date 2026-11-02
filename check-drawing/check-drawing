@@ -4,16 +4,15 @@
 # vocabulary and its limits. Runs as a command, or sourced for
 # check_drawing.
 
-# The bash version's lineage functions, kept next to this script: it reads the
-# rebuild's lineage, which git-splice doesn't print. Absolute, since callers
-# change folders between sourcing this and calling check_drawing.
-CHECK_DRAWING_LIB="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib"
+# What it reads from the repository comes from the Rust tool next to this
+# script: `just build` puts it in target/debug. Absolute, since callers change
+# folders between sourcing this and calling check_drawing.
+CHECK_DRAWING_TOOL="${CHECK_DRAWING_TOOL:-$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")/target/debug/check-drawing}"
 
 # check_drawing <drawing> [--alias <name>=<term>...] [<label>=<rev>...]
 # Prints "ok" and what it checked, or each difference, and fails.
 check_drawing() {
   local drawing="$1" xml default=""
-  local DRAWING_LIB="$CHECK_DRAWING_LIB"
   shift
   local -A rev_of=() commit_of=() label_of=() kind=() value=() style=() source=() target=() parent=()
   local -A gx=() gy=() gw=() gh=() truth=() splice_of=() lane_of=() is_splice=() lane_splice=() lane_label=()
@@ -127,11 +126,7 @@ check_drawing() {
     [[ -n "$p" ]] || continue
     splices+=("$p")
     is_splice[$p]=1
-  done < <(
-    # shellcheck source=/dev/null # git-splice's, linted there
-    source "$DRAWING_LIB/common.sh"
-    state_files HEAD | tr '\0' '\n' | sed -n 's#/\.splice$##p'
-  )
+  done < <("$CHECK_DRAWING_TOOL" state-files HEAD | tr '\0' '\n' | sed -n 's#/\.splice$##p')
   local l
   for l in "${lanes[@]}"; do
     if [[ -n "${is_splice[${value[$l]%/}]:-}" ]]; then
@@ -266,26 +261,7 @@ check_drawing() {
   # ending with a NUL. The last range starts at the mount: before, the
   # folder was no splice, or another one.
   lineage_segments() {
-    (
-      # shellcheck source=/dev/null # git-splice's, linted there
-      source "$DRAWING_LIB/common.sh"
-      # shellcheck source=/dev/null
-      source "$DRAWING_LIB/rebuild.sh"
-      local at upper mount i
-      local -a paths=() ranges=()
-      read_lineage 5 paths ranges - - at - upper < <(splice_lineage "$1" HEAD)
-      read_lineage 3 paths ranges mount at upper < <(splice_lineage_to_mount "$at" "$upper")
-      paths+=("$at")
-      if [[ -n "$mount" ]] && git rev-parse --verify --quiet "$mount^1" >/dev/null; then
-        ranges+=("$mount^1..$upper")
-      else
-        ranges+=("$upper")
-      fi
-      printf '%s\0' "$mount"
-      for i in "${!paths[@]}"; do
-        printf '%s\0' "${paths[$i]}" "${ranges[$i]}"
-      done
-    )
+    "$CHECK_DRAWING_TOOL" lineage "$1"
   }
   # The folder splice <path> had in monorepo commit <commit>: in a commit
   # after the mount, the one whose .splice has the splice's id there, like
@@ -303,11 +279,7 @@ check_drawing() {
         id="$(git config --blob "HEAD:$p/.splice" splice.id)"
         while IFS= read -r -d '' path; do
           [[ "$(git config --blob "$c:$path" splice.id 2>/dev/null)" != "$id" ]] || found+=("${path%/.splice}")
-        done < <(
-          # shellcheck source=/dev/null # git-splice's, linted there
-          source "$DRAWING_LIB/common.sh"
-          state_files "$c"
-        )
+        done < <("$CHECK_DRAWING_TOOL" state-files "$c")
         if [[ ${#found[@]} -eq 1 ]]; then
           printf '%s\n' "${found[0]}"
           return
@@ -332,12 +304,7 @@ check_drawing() {
     truth["$p|B"]="$(git splice boundary "$p")"
     truth["$p|U"]="$(git config --blob "HEAD:$p/.splice" splice.commit)"
     truth["$p|S"]="$(git config --blob "${truth["$p|B"]}:$(path_at "$p" "${truth["$p|B"]}")/.splice" splice.commit)"
-    truth["$p|T"]="$(git rev-parse --verify --quiet "$(
-      # shellcheck source=/dev/null # git-splice's, linted there
-      source "$DRAWING_LIB/common.sh"
-      require_splice_upstream "$p"
-      splice_ref "$p" "$(upstream_branch_for "$p" "$(git branch --show-current)")"
-    )")"
+    truth["$p|T"]="$(git rev-parse --verify --quiet "$("$CHECK_DRAWING_TOOL" target-ref "$p")")"
     truth["$p|R"]="$(git splice rebuild "$p")"
     truth["$p|base"]=""
     [[ -z "${truth["$p|R"]}" || -z "${truth["$p|T"]}" ]] ||
