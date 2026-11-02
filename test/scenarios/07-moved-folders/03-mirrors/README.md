@@ -1,20 +1,24 @@
-# Mirrors
+# Scenario: mirrors
 
-Two paths with the same [id](README.md) are mirrors, meant to have the
-same files. Here `vendor/a/` gets a mirror, and `third_party/a/`, cloned
-from the same upstream, stays independent.
-[What mirrors would need](../../../docs/going-forward/mirrors.md) from
+Two paths with the same [id](../../../concepts/splice-identity/README.md)
+are mirrors, meant to have the same files. Here `vendor/a/` gets a mirror,
+and `third_party/a/`, cloned from the same upstream, stays independent.
+[What mirrors would need](../../../../docs/going-forward/mirrors.md) from
 `git-splice` is a separate page.
+
+## Output
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../scenarios/readme-setup.sh"
-```
-
-```scrut
-$ build_scenario scenario_splice_identity
+$ source "$TESTDIR/../../readme-setup.sh"
 ```
 -->
+
+[`setup.bash`](setup.bash) builds this state:
+
+```scrut
+$ build_scenario scenario_mirrors
+```
 
 ```scrut
 $ git splice clone https://git.example.com/a.git vendor/a
@@ -28,7 +32,7 @@ $ git splice clone https://git.example.com/a.git third_party/a
 ok   third_party/a: cloned bde4164 from main
 ```
 
-## A copy shares the id
+### A copy shares the id
 
 A plain copy takes `.splice` along:
 
@@ -67,9 +71,9 @@ On branch main
 You can also get the same id twice without copying anything: when two
 upstreams contain the same nested splice, both bring its `.splice` into
 the monorepo. Two upstreams that each cloned the library themselves give
-it two ids, as in the [diamond](../nesting/diamond.md).
+it two ids, as in the [diamond](../../../concepts/nesting/diamond.md).
 
-## A mirror drifts
+### A mirror drifts
 
 Nothing keeps mirrors alike. The upstream moves on, and only `vendor/a/`
 is pulled:
@@ -119,12 +123,12 @@ mirrors
 
 Only the files count. A push doesn't move U(H), so a mirror that pushed a
 change has an older U(H) than one that pulled it, with the same files
-([diamond](../nesting/diamond.md)).
+([diamond](../../../concepts/nesting/diamond.md)).
 
-## Mirrors that swap paths
+### Mirrors that swap paths
 
 Mirrors are one splice, so the rebuild can't tell them apart. Unlike
-[independent splices](../../scenarios/07-moved-folders/02-swapped-splices/README.md),
+[independent splices](../02-swapped-splices/README.md),
 each path keeps its own history, whichever mirror's files it has now. A commit in each mirror, not pushed yet:
 
 ```scrut
@@ -160,9 +164,9 @@ Nothing in the monorepo tells this swap apart from edits that make one
 splice look like the other
 ([#193](https://github.com/roschaefer/git-splice/issues/193)). To avoid
 it, keep mirrors alike: push one, and pull the others right away
-([mirrors](../../../docs/going-forward/mirrors.md#meanwhile-discipline)).
+([mirrors](../../../../docs/going-forward/mirrors.md#meanwhile-discipline)).
 
-## Which mirror a move came from
+### Which mirror a move came from
 
 Once two paths have one id, the id alone can't say where a move came
 from. A commit that adds `c/` and removes both `a/` and `b/`, which had

@@ -70,7 +70,7 @@ library at different versions:
 </div>
 
 When mirrors have different files, they have *drifted*, and that's
-something to fix. [Mirrors](mirrors.md) shows how that happens.
+something to fix. [Mirrors](../../scenarios/07-moved-folders/03-mirrors/README.md) shows how that happens.
 
 ## A repeated id exposes a cycle
 
@@ -133,5 +133,5 @@ The two share the upstream's fetched refs
 ## Read more
 
 - Two [splices that swap paths](../../scenarios/07-moved-folders/02-swapped-splices/README.md) each keep their own history.
-- [Mirrors](mirrors.md) can swap paths, or make a move ambiguous.
+- [Mirrors](../../scenarios/07-moved-folders/03-mirrors/README.md) can swap paths, or make a move ambiguous.
 - [How the id is derived](../../../docs/design/README.md#the-splice-file).

@@ -25,12 +25,7 @@ module.exports = {
         {type: 'doc', id: 'test/concepts/splice-file/README', label: 'The .splice file'},
         {type: 'doc', id: 'test/concepts/upstreams/README', label: 'Upstreams'},
         {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},
-        {
-          type: 'category',
-          label: 'Splice identity',
-          link: {type: 'doc', id: 'test/concepts/splice-identity/README'},
-          items: ['test/concepts/splice-identity/mirrors'],
-        },
+        {type: 'doc', id: 'test/concepts/splice-identity/README', label: 'Splice identity'},
         {
           type: 'category',
           label: 'Nesting',

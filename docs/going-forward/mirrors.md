@@ -1,6 +1,6 @@
 # Mirrors
 
-[Mirrors](../../test/concepts/splice-identity/mirrors.md) are folders with
+[Mirrors](../../test/scenarios/07-moved-folders/03-mirrors/README.md) are folders with
 the same splice `id`, meant to have the same files.
 
 `git-splice` doesn't act on that yet: each splice is pulled and pushed on
@@ -29,7 +29,7 @@ because that upstream has an older version of the one at `a/`. The
 monorepo can't change that alone. Refusing duplicate ids would refuse
 diamonds of that shape.
 
-Nor can the rebuild [tell mirrors apart](../../test/concepts/splice-identity/mirrors.md#mirrors-that-swap-paths).
+Nor can the rebuild [tell mirrors apart](../../test/scenarios/07-moved-folders/03-mirrors/README.md#mirrors-that-swap-paths).
 
 ## What would be desired, and what's possible
 
@@ -64,7 +64,7 @@ guess, and make the state explicit
    git diff --quiet HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice'
    ```
 
-   ([splice identity](../../test/concepts/splice-identity/mirrors.md#a-mirror-drifts)
+   ([scenario](../../test/scenarios/07-moved-folders/03-mirrors/README.md#a-mirror-drifts)
    shows it with real output.)
 4. **Clone, don't copy,** a version of its own, so it gets an id of its
-   own ([splice identity](../../test/concepts/splice-identity/mirrors.md#a-copy-shares-the-id)).
+   own ([scenario](../../test/scenarios/07-moved-folders/03-mirrors/README.md#a-copy-shares-the-id)).
