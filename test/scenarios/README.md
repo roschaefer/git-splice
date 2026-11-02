@@ -10,7 +10,7 @@ bugs](08-known-bugs.md) lists them.
 The scenarios are grouped into numbered chapters by topic, from the
 situations every user meets to the edge cases: everyday sync, starting a
 splice, branches and teamwork, upstreams, nested splices, rewritten
-history, and moved folders. Within a chapter, the numbers order the
+history, and moved and copied folders. Within a chapter, the numbers order the
 scenarios the same way. The site drops the numbers from its URLs, and
 takes a chapter's name from its `_category_.json`.
 
@@ -104,6 +104,7 @@ ok 06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit (1 docu
 ok 06-rewritten-history/04-patch-branch-rebased/02-squash-merged (1 document)
 ok 07-moved-folders/01-moved-with-unpushed-commits (2 documents)
 ok 07-moved-folders/02-swapped-splices (1 document)
+ok 07-moved-folders/03-mirrors (1 document)
 ```
 
 ## Scenario output

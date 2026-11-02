@@ -1,11 +1,7 @@
 # Mirrors
 
-Two folders with the same splice `id` are one splice in two places, so
-they're meant to be *mirrors*: the same files, synced with the same
-upstream. Folders with different ids are independent, even of one
-upstream, e.g. a library at two versions
-([splice identity](../../test/concepts/splice-identity/README.md#what-an-id-is)).
-A mirror whose files differ from the others' has *drifted*.
+[Mirrors](../../test/scenarios/07-moved-folders/03-mirrors/README.md) are folders with
+the same splice `id`, meant to have the same files.
 
 `git-splice` doesn't act on that yet: each splice is pulled and pushed on
 its own, and compared only with its own upstream. This page says what
@@ -33,12 +29,7 @@ because that upstream has an older version of the one at `a/`. The
 monorepo can't change that alone. Refusing duplicate ids would refuse
 diamonds of that shape.
 
-Nor can the rebuild tell mirrors apart. A splice's history starts where
-a `.splice` with another id appears at its path, so when two mirrors
-swap paths, each path keeps its own history: a push sends the commits
-made at that path before the swap, though the folder has the other
-mirror's files now, and may not have what those commits added
-([example](../../test/concepts/splice-identity/README.md#mirrors-that-swap-paths)).
+Nor can the rebuild [tell mirrors apart](../../test/scenarios/07-moved-folders/03-mirrors/README.md#mirrors-that-swap-paths).
 
 ## What would be desired, and what's possible
 
@@ -73,8 +64,7 @@ guess, and make the state explicit
    git diff --quiet HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice'
    ```
 
-   ([splice identity](../../test/concepts/splice-identity/README.md#a-mirror-drifts)
+   ([scenario](../../test/scenarios/07-moved-folders/03-mirrors/README.md#a-mirror-drifts)
    shows it with real output.)
-4. **Clone, don't copy,** a fork or a version of its own, so it gets an
-   id of its own
-   ([splice identity](../../test/concepts/splice-identity/README.md#a-fork-is-a-splice-of-its-own)).
+4. **Clone, don't copy,** a version of its own, so it gets an id of its
+   own ([scenario](../../test/scenarios/07-moved-folders/03-mirrors/README.md#a-copy-shares-the-id)).
