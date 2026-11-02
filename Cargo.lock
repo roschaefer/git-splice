@@ -11,4 +11,4 @@ dependencies = [
 
 [[package]]
 name = "git-splice"
-version = "0.16.3"
+version = "0.17.0"
