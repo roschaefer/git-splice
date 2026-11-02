@@ -1,38 +1,49 @@
 # Splice identity
 
-Git has no such thing as a splice id. `git-splice` needs one because of
-what a push does: it sends a folder's history upstream, and that history
-may only contain commits of this splice. Sending anything older could
-publish another splice's unpushed work, or a password someone removed
-from the folder before it became a splice.
+Git has no such thing as a splice id. `git-splice` writes one into each
+`.splice` it creates, because it needs to recognize a splice when the
+folder's path can't identify it. That matters in three situations.
 
-So `git-splice` has to know where a splice's history starts, and the
-obvious candidates can't tell:
+## A move carries the commits along
 
-- **The path.** A `git mv` changes it, and the history before the move
-  still belongs to the splice. A different splice can also take over the
-  path, and then the history before that doesn't belong.
-- **The upstream URL.** It changes when the upstream moves, and the
-  history still belongs to the splice. Two folders can also share a URL
-  and still be separate splices.
-
-An `id` in `.splice` solves this. It moves with the folder and stays when
-the URL changes. Here two splices swap paths, and each history follows
-its id across:
+`git mv` changes a splice's path, and unpushed commits made under the old
+path still belong to the splice. The id moves with the folder, so a push
+follows it back to the old path:
 
 <div align="center">
 
-![Before the swap, vendor/a/ has id 224f and vendor/b/ has id a841. After it, they have traded ids, and an arrow follows each id to its new path](id-follows-the-swap.drawio.svg)
+![After the move m: the monorepo commits a, b and m, where m is H and a is B; in the lane libs/a/, R is b prime on top of k, and m has no copy](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/moved-with-unpushed-commits.drawio.svg)
 
 </div>
 
-A `git log -- vendor/a` would mix the two splices here. A push of
-`vendor/a/` doesn't: it follows id `a841` back to `vendor/b/`, and sends
-nothing from when `vendor/a/` was the other splice
-([scenario](../../scenarios/07-moved-folders/02-swapped-splices/README.md)).
+*b* changed the folder when it was still `vendor/a/`, and its copy *b'* is
+what the push sends
+([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
 Where a `.splice` is new at a path, or has another id, and no move
-explains it, the splice's history starts there. That point is its
-*mount*.
+explains it, the splice's history starts there, at its *mount*. Nothing
+older is published.
+
+## Same id, same directory
+
+Two folders with the same id are one directory in two places, *mirrors*.
+Folders with different ids can move independently, even when they come
+from one upstream:
+
+<div align="center">
+
+![In the monorepo, vendor/a/ and vendor/a-copy/ both have id 224f and are mirrors, meant to stay alike. third_party/a/ has id a841 and is independent, so it may differ](same-id-different-paths.drawio.svg)
+
+</div>
+
+When mirrors have different files, they have *drifted*, and that's
+something to fix. [Mirrors](mirrors.md) shows how that happens.
+
+## A repeated id exposes a cycle
+
+With [nesting](../nesting/README.md), a `.splice` with the same id as one
+above it means a splice contains itself. The id is what makes that
+visible, though nothing refuses it yet
+([cycle](../nesting/cycle.md)).
 
 ## What an id is
 
@@ -44,20 +55,6 @@ An id names a mount. It names neither a folder nor an upstream:
 | `git mv` of the folder | moves along with `.splice` |
 | a new URL, or another upstream | stays |
 | `cp -r` of the folder, or a nested `.splice` reaching the monorepo twice | is copied: now two folders have it |
-
-The last row gives the id a second meaning. Two folders with the same id
-are one splice in two places, *mirrors*, meant to have the same files:
-
-<div align="center">
-
-![In the monorepo, vendor/a/ and vendor/a-copy/ both have id 224f and are mirrors, meant to stay alike. third_party/a/ has id a841 and is independent, so it may differ](same-id-different-paths.drawio.svg)
-
-</div>
-
-Independent splices of one upstream can sit at different versions, for
-example a library in use at two versions. When mirrors have different
-files, they have *drifted*, and that's something to fix.
-[Mirrors](mirrors.md) shows how that happens.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
@@ -115,10 +112,6 @@ third_party/a/.splice: id = a841bb3c200928e9
 vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
-The rebuild follows the id back to the old path, so unpushed commits from
-before the move are kept
-([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
-
 ## A fork is a splice of its own
 
 To vendor a fork next to the original, clone it:
@@ -143,6 +136,6 @@ that from an upstream that moved, and nothing warns about it yet.
 
 ## Rarer cases
 
-- A `.splice` with the id of one above it is a [cycle](../nesting/cycle.md).
+- Two [splices that swap paths](../../scenarios/07-moved-folders/02-swapped-splices/README.md) each keep their own history.
 - [Mirrors](mirrors.md) can swap paths, or make a move ambiguous.
 - [How the id is derived](../../../docs/design/README.md#the-splice-file).

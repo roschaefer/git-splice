@@ -121,8 +121,8 @@ change has an older U(H) than one that pulled it, with the same files
 ## Mirrors that swap paths
 
 Mirrors are one splice, so the rebuild can't tell them apart. Unlike
-[independent splices](README.md), each path keeps its own history, whichever mirror's
-files it has now. A commit in each mirror, not pushed yet:
+[independent splices](../../scenarios/07-moved-folders/02-swapped-splices/README.md),
+each path keeps its own history, whichever mirror's files it has now. A commit in each mirror, not pushed yet:
 
 ```scrut
 $ echo "not for upstream" >vendor/a/secret.txt &&
