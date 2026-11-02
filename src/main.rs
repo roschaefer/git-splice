@@ -19,7 +19,7 @@ const USAGE_BOUNDARY: &str = include_str!("usage/boundary.txt");
 /// Git 2.40 is the oldest version the tests run against.
 fn require_git_version() -> Res<()> {
     let Some(version) = git(&["--version"]).out() else {
-        return die("git-splice needs Git, and found no `git` on PATH");
+        return die("git-splice needs Git, and `git --version` didn't work");
     };
     let numbers = version.strip_prefix("git version ").unwrap_or("");
     let mut numbers = numbers.split('.').map(|n| n.parse::<u32>().unwrap_or(0));

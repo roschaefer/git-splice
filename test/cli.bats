@@ -136,7 +136,17 @@ setup() {
   cp "$entrypoint" "$entrypoint_copy"
   PATH="$(dirname "$entrypoint_copy")" run "$entrypoint_copy" status
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   git-splice needs Git, and found no \`git\` on PATH" ]
+  [ "$output" = "!!   git-splice needs Git, and \`git --version\` didn't work" ]
+}
+
+@test "cli: says so when Git fails" {
+  local bindir="$BATS_TEST_TMPDIR/broken-git"
+  mkdir -p "$bindir"
+  printf '#!/bin/sh\nexit 1\n' >"$bindir/git"
+  chmod +x "$bindir/git"
+  PATH="$bindir:$PATH" run "$entrypoint" status
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   git-splice needs Git, and \`git --version\` didn't work" ]
 }
 
 @test "cli: refuses a Git older than 2.40" {
