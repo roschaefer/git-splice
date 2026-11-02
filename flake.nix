@@ -4,8 +4,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-scrut.follows = "nixpkgs";
-    # Only for Git: 26.05 stays on 2.54, whose background repack loses objects
-    # a command right after it needs. Fixed in 2.56.
+    # Only for the dev shell's Git: 26.05 stays on 2.54, whose background repack
+    # loses objects a command right after it needs. Fixed in 2.56.
     nixpkgs-git.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
@@ -38,15 +38,13 @@
           cargoLock.lockFile = ./Cargo.lock;
           cargoBuildFlags = [ "--package" "git-splice" ];
 
-          nativeBuildInputs = [ pkgs.makeWrapper pkgs.installShellFiles ];
+          nativeBuildInputs = [ pkgs.installShellFiles ];
           # The tests need the docs and fixtures, which the package leaves out;
           # CI runs them on the checkout.
           doCheck = false;
 
-          # It runs the git CLI, and a pager through sh.
+          # It runs the Git you have, as `git splice` does.
           postInstall = ''
-            wrapProgram $out/bin/git-splice \
-              --prefix PATH : ${lib.makeBinPath [ git pkgs.bash ]}
             install -Dm644 LICENSE $out/share/licenses/git-splice/LICENSE
             installShellCompletion --cmd git-splice \
               --bash completions/git-splice.bash \

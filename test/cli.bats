@@ -130,6 +130,15 @@ setup() {
   [ "$output" = "git splice version $version" ]
 }
 
+@test "cli: says so when there's no Git" {
+  local entrypoint_copy="$BATS_TEST_TMPDIR/no-git/git-splice"
+  mkdir -p "$(dirname "$entrypoint_copy")"
+  cp "$entrypoint" "$entrypoint_copy"
+  PATH="$(dirname "$entrypoint_copy")" run "$entrypoint_copy" status
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   git-splice needs Git, and found no \`git\` on PATH" ]
+}
+
 @test "cli: refuses a Git older than 2.40" {
   local bindir="$BATS_TEST_TMPDIR/oldgit"
   mkdir -p "$bindir"
