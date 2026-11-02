@@ -209,25 +209,6 @@ impl Git {
         self.capture_status().map_or(1, status_code)
     }
 
-    /// Stdout and stderr together, and whether it succeeded.
-    pub fn out_and_err(mut self) -> (bool, String) {
-        self.command.stdin(Stdio::null());
-        match self.command.output() {
-            Ok(output) => {
-                let mut all = text(&output.stderr);
-                let out = text(&output.stdout);
-                if !out.is_empty() {
-                    if !all.is_empty() {
-                        all.push('\n');
-                    }
-                    all.push_str(&out);
-                }
-                (output.status.success(), all)
-            }
-            Err(error) => (false, error.to_string()),
-        }
-    }
-
     /// Its stderr without trailing newlines.
     pub fn err_text(mut self) -> String {
         self.command.stdin(Stdio::null()).stdout(Stdio::null());

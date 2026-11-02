@@ -65,13 +65,11 @@ arguments.
 - `git-splice` on `PATH`
 
 From `git-splice`, it uses the commands `boundary`, `rebuild` and `key`,
-two functions of its `lib/common.sh`: the list of splices,
-`state_files`, and the upstream branch a monorepo branch maps to,
-`upstream_branch_for`, and the folders a splice had before it moved,
-`splice_lineage`, `splice_lineage_to_mount` and `read_lineage` of
-`lib/rebuild.sh`. It finds `lib/` next to the `git-splice` on
-`PATH`, as in a checkout of `git-splice`, or in `share/git-splice/`
-beside it, as installed; `$GIT_SPLICE_LIB` overrides both.
+two functions of the `lib/common.sh` next to this file, a copy of the bash
+version's: the list of splices, `state_files`, and the upstream branch a
+monorepo branch maps to, `upstream_branch_for`, and the folders a splice had
+before it moved, `splice_lineage`, `splice_lineage_to_mount` and `read_lineage`
+of `lib/rebuild.sh`.
 
 ## The drawing's vocabulary
 

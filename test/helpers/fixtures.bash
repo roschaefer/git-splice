@@ -3,8 +3,8 @@
 # tests exercise -- see each scenario folder's README.md.
 
 FIXTURES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# The git-splice under test: GIT_SPLICE_DIR/git-splice, by default the bash one.
-ENTRYPOINT="${GIT_SPLICE_DIR:-$FIXTURES_DIR/../..}/git-splice"
+# The git-splice under test: `just build`'s, unless GIT_SPLICE_DIR names another.
+ENTRYPOINT="${GIT_SPLICE_DIR:-$FIXTURES_DIR/../../target/debug}/git-splice"
 
 make_bare_repo() {
   git init -q --bare --initial-branch="${2:-main}" "$1"

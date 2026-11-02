@@ -33,10 +33,12 @@ jobs:
             echo
             echo "\`this\` is this PR merged into its base, \`compared\` is the base alone (${BASE_SHA:0:7})."
             echo
-            # The base predates git-splice until the rewrite has landed.
+            nix develop --command cargo build --release --quiet
+            # A base from before the Rust port has its bash entrypoint.
             if [ -x "$RUNNER_TEMP/base/git-splice" ]; then
               nix develop --command bench/run.sh --compare "$RUNNER_TEMP/base/git-splice"
             else
-              nix develop --command bench/run.sh
+              nix develop --command cargo build --release --quiet --manifest-path "$RUNNER_TEMP/base/Cargo.toml"
+              nix develop --command bench/run.sh --compare "$RUNNER_TEMP/base/target/release/git-splice"
             fi
           } >>"$GITHUB_STEP_SUMMARY"

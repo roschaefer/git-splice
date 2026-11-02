@@ -26,7 +26,8 @@ EOF_USAGE
 }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-head_entrypoint="$here/../git-splice"
+head_entrypoint="$here/../target/release/git-splice"
+export GIT_SPLICE_DIR="$here/../target/release"
 compare_entrypoint=""
 runs=3
 
