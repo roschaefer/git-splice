@@ -66,6 +66,5 @@ guess, and make the state explicit
 
    ([splice identity](../../test/concepts/splice-identity/mirrors.md#a-mirror-drifts)
    shows it with real output.)
-4. **Clone, don't copy,** a fork or a version of its own, so it gets an
-   id of its own
-   ([splice identity](../../test/concepts/splice-identity/README.md#a-fork-is-a-splice-of-its-own)).
+4. **Clone, don't copy,** a version of its own, so it gets an id of its
+   own ([splice identity](../../test/concepts/splice-identity/mirrors.md#a-copy-shares-the-id)).

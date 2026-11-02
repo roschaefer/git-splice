@@ -112,28 +112,6 @@ third_party/a/.splice: id = a841bb3c200928e9
 vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
-## A fork is a splice of its own
-
-To vendor a fork next to the original, clone it:
-
-```scrut
-$ git splice clone https://git.example.com/a-fork.git vendor/a-fork
-===  vendor/a-fork: fetching https://git.example.com/a-fork.git
-ok   vendor/a-fork: cloned c09993d from main
-```
-
-```scrut
-$ git grep -e 'id = ' -e 'url = ' -- vendor/a/.splice vendor/a-fork/.splice | tr '\t' ' '
-vendor/a-fork/.splice: id = d6f171146e73aee0
-vendor/a-fork/.splice: url = https://git.example.com/a-fork.git
-vendor/a/.splice: id = 224f2c2563d3b6f7
-vendor/a/.splice: url = https://git.example.com/a.git
-```
-
-Copying `vendor/a/` and changing the URL to the fork's would keep the id,
-and so declare a mirror of something that isn't one. The id can't tell
-that from an upstream that moved, and nothing warns about it yet.
-
 ## Rarer cases
 
 - Two [splices that swap paths](../../scenarios/07-moved-folders/02-swapped-splices/README.md) each keep their own history.
