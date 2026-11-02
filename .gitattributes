@@ -6,3 +6,7 @@
 # Keep scrut's Rust out of GitHub's language statistics: it isn't
 # git-splice's code.
 /scrut/** linguist-vendored
+
+# Keep the tests out of them too: most of the shell is the bats suite, which
+# would make a Rust tool look like a shell one to someone choosing it.
+/test/** linguist-documentation
