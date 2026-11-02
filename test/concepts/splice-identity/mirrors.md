@@ -49,10 +49,8 @@ That makes `vendor/a-copy/` a mirror of `vendor/a/`. If the copy should go
 its own way, use `git splice clone` instead: same files, same synced
 commit, its own id.
 
-Don't point a copy at a fork by changing its URL. It keeps the id, so it
-still declares a mirror, and nothing warns about it. Instead,
-[add the fork as an upstream](../upstreams/README.md#a-fork-and-the-original)
-of the one splice.
+Mirrors with different upstreams would only fight the tool, so don't change
+a copy's URL.
 
 Commands work on a path and never compare ids across paths, so each
 mirror is pulled and pushed on its own:
