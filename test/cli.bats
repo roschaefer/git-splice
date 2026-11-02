@@ -141,7 +141,6 @@ setup() {
 }
 
 @test "cli: refuses an argument that isn't valid UTF-8, instead of changing it" {
-  [[ "$ENTRYPOINT" == */target/* ]] || skip "bash takes any bytes"
   run "$entrypoint" status $'caf\xe9'
   [ "$status" -eq 1 ]
   [ "$output" = "!!   arguments must be valid UTF-8" ]
