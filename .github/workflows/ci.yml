@@ -108,6 +108,9 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       # A fine-grained token rather than GITHUB_TOKEN, whose pull requests
       # and tags trigger no workflows, so the release PR would get no CI.
@@ -143,8 +146,8 @@ jobs:
             done
 
   # Builds a binary on every PR, so a release isn't the first time a target
-  # builds. On main, attaches it to the releases that lack it: a rerun after a
-  # failed upload checks them all again.
+  # builds, and publishes it when this push created a release. After a failed
+  # upload, re-run the failed jobs: they keep release-please's outputs.
   binaries:
     needs: [release-please]
     # release-please runs only on main; skipped there, this still runs.
@@ -174,32 +177,16 @@ jobs:
           cargo build --release --locked --target "$TARGET"
           "target/$TARGET/release/git-splice" --version
 
-      - name: Attach binaries to releases that lack one
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Publish it
+        if: needs.release-please.outputs.release_created == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
-          repo_url="https://github.com/$GITHUB_REPOSITORY.git"
-          gh release list --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName --jq '.[].tagName' |
-            while read -r tag; do
-              asset="git-splice-$tag-$TARGET.tar.gz"
-              has_asset="$(gh release view "$tag" --json assets --jq "any(.assets[]; .name == \"$asset\")")"
-              if [[ "$has_asset" == true ]]; then
-                continue
-              fi
-              git fetch --depth=1 "$repo_url" "refs/tags/$tag:refs/tags/$tag"
-              # Releases from before the port are bash: their tarball is it.
-              if ! git cat-file -e "$tag:Cargo.toml" 2>/dev/null; then
-                continue
-              fi
-              git -c advice.detachedHead=false checkout --quiet "$tag"
-              cargo build --release --locked --target "$TARGET"
-              package="$(mktemp -d)/git-splice"
-              mkdir -p "$package"
-              cp "target/$TARGET/release/git-splice" LICENSE "$package/"
-              cp -R completions "$package/"
-              tar -czf "$asset" -C "$(dirname "$package")" git-splice
-              gh release upload "$tag" "$asset"
-              rm -f "$asset"
-            done
+          asset="git-splice-$TAG-$TARGET.tar.gz"
+          mkdir git-splice
+          cp "target/$TARGET/release/git-splice" LICENSE git-splice/
+          cp -R completions git-splice/
+          tar -czf "$asset" git-splice
+          gh release upload --clobber "$TAG" "$asset"
