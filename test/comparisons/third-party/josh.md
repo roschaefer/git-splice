@@ -180,7 +180,7 @@ $ git bisect start HEAD HEAD~4 >/dev/null &&
 >   git bisect run sh "$COMPARISON/test-app.sh" >/dev/null &&
 >   git bisect log | tail -1 &&
 >   git bisect reset >/dev/null
-# first bad commit: [092b6b1e37d8035965e55a4856c921988c941e39] parse: rename fix to fixed
+# first 'bad' commit: [092b6b1e37d8035965e55a4856c921988c941e39] parse: rename fix to fixed
 ```
 
 ### `git-splice`: the culprit is the pull
@@ -198,7 +198,7 @@ $ git bisect start HEAD HEAD~1 >/dev/null &&
 >   git bisect run sh "$COMPARISON/test-app.sh" >/dev/null &&
 >   git bisect log | tail -1 &&
 >   git bisect reset >/dev/null
-# first bad commit: [f85ff0501eca7cb3482ec7e84b7da5fd966724d5] splice: pull vendor/lib from main at 612d462
+# first 'bad' commit: [f85ff0501eca7cb3482ec7e84b7da5fd966724d5] splice: pull vendor/lib from main at 612d462
 ```
 
 To go deeper, bisect the library's history between the two synced
@@ -233,7 +233,7 @@ $ cat >"$COMPARISON/bisect-step.sh" <<'EOF'
 ```scrut
 $ git bisect run sh "$COMPARISON/bisect-step.sh" >/dev/null &&
 >   git bisect log | tail -1
-# first bad commit: [9c8481ced0e577e419cebdf1caa1d444e05944f7] parse: rename fix to fixed
+# first 'bad' commit: [9c8481ced0e577e419cebdf1caa1d444e05944f7] parse: rename fix to fixed
 ```
 
 ```scrut

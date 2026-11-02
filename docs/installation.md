@@ -1,8 +1,8 @@
 # Installation
 
 With [Nix](https://nixos.org/download/) and
-[flakes](https://wiki.nixos.org/wiki/Flakes) enabled, which brings its own
-Git and shell completions:
+[flakes](https://wiki.nixos.org/wiki/Flakes) enabled, which brings the shell
+completions:
 
     nix profile install github:roschaefer/git-splice
     nix run github:roschaefer/git-splice -- status   # or try it first
