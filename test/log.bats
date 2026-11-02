@@ -128,8 +128,10 @@ setup() {
   git config --file zz/.splice upstream.origin.url "$BATS_TEST_TMPDIR/never-fetched.git"
   git add zz
   git commit -q -m "a splice never fetched"
-  # Quits after the header, before the graph's one line is written.
+  # Quits after the header. git log waits for that, so the graph's one line
+  # always finds the pager gone.
   git config pager.splice 'head -n 1'
+  stub_git 'if [[ "$1" == log && "$*" == *--graph* ]]; then sleep 1; fi'
   TERM=xterm run script -qec "'$ENTRYPOINT' log --graph" /dev/null
   [ "$status" -eq 0 ]
   [[ "$output" != *"not fetched"* ]]
