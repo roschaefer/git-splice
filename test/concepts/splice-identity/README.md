@@ -1,14 +1,39 @@
 # Splice identity
 
 Git has no such thing as a splice id. `git-splice` writes one into each
-`.splice` it creates, because it needs to recognize a splice when the
-folder's path can't identify it. That matters in three situations.
+`.splice` it creates, because it needs to recognize a splice when its path
+can't identify it. That matters in three situations.
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../../scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/setup.bash" &&
+>   mkdir moved &&
+>   scenario_moved_with_unpushed_commits "$PWD/moved/monorepo" "$PWD/moved/upstream" >/dev/null 2>&1 &&
+>   cd moved/monorepo
+```
+-->
 
 ## A move carries the commits along
 
-`git mv` changes a splice's path, and unpushed commits made under the old
-path still belong to the splice. The id moves with the folder, so a push
-follows it back to the old path:
+`git mv` changes a splice's path. Here commit *m* moves `vendor/a/` to
+`libs/a/`, and `.splice`, with the id in it, moves along:
+
+```scrut
+$ git mv vendor/a libs/a &&
+>   git commit -q -m "m: reorganize folders"
+```
+
+```scrut
+$ git show --summary --format=%s HEAD
+m: reorganize folders
+
+ rename {vendor => libs}/a/.splice (100%)
+ rename {vendor => libs}/a/file.txt (100%)
+```
+
+Commit *b* changed the splice before the move and wasn't pushed yet. It
+still belongs to the splice, so a push follows the id back to the old path:
 
 <div align="center">
 
@@ -16,22 +41,31 @@ follows it back to the old path:
 
 </div>
 
-*b* changed the folder when it was still `vendor/a/`, and its copy *b'* is
-what the push sends
+```scrut
+$ git splice log libs/a
+===  libs/a (main)
+< e859a6b local change  (Test <test@example.com>)
+```
+
+Where a `.splice` is new at a path, or has another id, and no move explains
+it, the splice's history starts there. Nothing older is published
 ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
-Where a `.splice` is new at a path, or has another id, and no move
-explains it, the splice's history starts there, at its *mount*. Nothing
-older is published.
 
-## Same id, same directory
+<!--
+```scrut
+$ cd ../..
+```
+-->
 
-Two folders with the same id are one directory in two places, *mirrors*.
-Folders with different ids can move independently, even when they come
-from one upstream:
+## Same id, same splice
+
+Two paths with the same id are one splice in two places, *mirrors*. Splices
+with different ids can move independently, even when they hold the same
+library at different versions:
 
 <div align="center">
 
-![In the monorepo, vendor/a/ and vendor/a-copy/ both have id 224f and are mirrors, meant to stay alike. third_party/a/ has id a841 and is independent, so it may differ](same-id-different-paths.drawio.svg)
+![In the monorepo, app-1/lib/ and app-2/lib/ both have id 224f and lib v2: they are mirrors, meant to stay alike. old-app/lib/ has id a841 and lib v1: it is independent and may differ](same-id-different-paths.drawio.svg)
 
 </div>
 
@@ -47,20 +81,16 @@ visible, though nothing refuses it yet
 
 ## What an id is
 
-An id names a mount. It names neither a folder nor an upstream:
+An id names a splice. It names neither a path nor an upstream:
 
 | What happens | The id |
 |---|---|
-| `clone` or `init` | is new, even for an upstream another folder already splices |
-| `git mv` of the folder | moves along with `.splice` |
+| `clone` or `init` | is new, even for an upstream another splice already uses |
+| `git mv` of the splice | moves along with `.splice` |
 | a new URL, or another upstream | stays |
-| `cp -r` of the folder, or a nested `.splice` reaching the monorepo twice | is copied: now two folders have it |
+| `cp -r` of the splice, or a nested `.splice` reaching the monorepo twice | is copied: now two paths have it |
 
 <!--
-```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../scenarios/readme-setup.sh"
-```
-
 ```scrut
 $ build_scenario scenario_splice_identity
 ```
@@ -100,19 +130,7 @@ vendor/a/.splice: id = 224f2c2563d3b6f7
 The two share the upstream's fetched refs
 ([upstreams](../upstreams/README.md)), and nothing else.
 
-## A move keeps the id
-
-```scrut
-$ mkdir third_party && git mv libs/a third_party/a && git commit -q -m "move libs/a"
-```
-
-```scrut
-$ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
-third_party/a/.splice: id = a841bb3c200928e9
-vendor/a/.splice: id = 224f2c2563d3b6f7
-```
-
-## Rarer cases
+## Read more
 
 - Two [splices that swap paths](../../scenarios/07-moved-folders/02-swapped-splices/README.md) each keep their own history.
 - [Mirrors](mirrors.md) can swap paths, or make a move ambiguous.

@@ -1,6 +1,6 @@
 # Mirrors
 
-Two folders with the same [id](README.md) are mirrors, meant to have the
+Two paths with the same [id](README.md) are mirrors, meant to have the
 same files. Here `vendor/a/` gets a mirror, and `third_party/a/`, cloned
 from the same upstream, stays independent.
 [What mirrors would need](../../../docs/going-forward/mirrors.md) from
@@ -95,7 +95,7 @@ On branch main
 ```
 
 `status` says `vendor/a-copy/` is behind, the same as for `third_party/a/`,
-which may stay behind. To see drift, compare the folders in `HEAD` without
+which may stay behind. To see drift, compare the two paths in `HEAD` without
 their `.splice`:
 
 ```scrut
@@ -164,8 +164,8 @@ it, keep mirrors alike: push one, and pull the others right away
 
 ## Which mirror a move came from
 
-Once two folders have one id, the id alone can't say where a move came
+Once two paths have one id, the id alone can't say where a move came
 from. A commit that adds `c/` and removes both `a/` and `b/`, which had
 the same id, is a move from the one with more unchanged files. On a tie,
-`libs/a/` comes from `vendor/a/`, the folder with its name. Without one,
+`libs/a/` comes from `vendor/a/`, the path with its name. Without one,
 it's no move, and the splice's history starts there.
