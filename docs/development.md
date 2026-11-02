@@ -21,7 +21,8 @@ release.
 
 `src/main.rs` checks the Git version and dispatches `git splice <command>` to
 the command's `run`. The tool only runs the `git` CLI, so
-`GIT_TRACE=1 git splice <command>` prints every git command it runs.
+`GIT_TRACE=<absolute file> git splice <command>` lists every git command it runs
+([how](../test/concepts/git-trace/README.md)).
 
 | File | Responsibility |
 |---|---|
