@@ -28,15 +28,15 @@ uses the same [sandbox](../../docs/sandbox.md) throughout, under
 | [`init`](init.md) | Makes a folder a splice of a new, empty repository. |
 | [`boundary`](boundary.md) | Prints the monorepo commit a splice's rebuild starts from, usually its last sync. |
 | [`rebuild`](rebuild.md) | Prints the commit `push` would send, without pushing it. |
-
-Each of them only runs the `git` command line, and
-[Git can list what it ran](../concepts/git-trace/README.md).
 | [`key`](key.md) | Prints the key of a splice's upstream, or renames it, refs included. |
 
 `clone`, `init`, `fetch`, `merge`, `pull`, `push`, `status`, `diff` and
 `log` are named after Git's commands, and do to a splice what their
 namesakes do to a repository. `boundary`, `rebuild` and `key` are new:
 their names come from splicing.
+
+Each of them only runs the `git` command line, and
+[Git can list what it ran](../concepts/git-trace/README.md).
 
 `merge`, `pull` and `push` need paths or `--all`; `status`, `diff`,
 `log` and `fetch` cover every splice unless you name some
