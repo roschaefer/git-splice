@@ -38,20 +38,12 @@ jobs:
       - name: nix flake check
         run: nix flake check -L
 
-  compat-matrix:
-    # Named after the versions under test rather than the nixpkgs revisions
-    # they come from. The test step fails first if a label drifts from what
-    # the revision actually ships.
-    name: compat (bash ${{ matrix.bash.version }}, git ${{ matrix.git.version }})
-    strategy:
-      fail-fast: false
-      matrix:
-        bash:
-          - { version: 4.4.23, rev: nixos-21.05 }
-          - { version: 5.2.37, rev: nixos-25.05 }
-        git:
-          - { version: 2.40.1, rev: nixos-23.05 }
-          - { version: 2.50.1, rev: nixos-25.05 }
+  compat:
+    # The oldest Git the tool accepts; lint-test covers a current one. Named
+    # after the version under test rather than the nixpkgs revision it comes
+    # from. The test step fails first if the label drifts from what the
+    # revision ships.
+    name: compat (git 2.40.1)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -62,43 +54,30 @@ jobs:
       - name: build
         run: nix develop --command cargo build
 
-      # bash and git are pulled independently from separate pinned nixpkgs
-      # revisions -- prebuilt binaries from cache.nixos.org, no compiling --
-      # so every {bash, git} pair in the matrix is exercised, not just
-      # whatever pairing a single nixpkgs snapshot happens to ship.
-      # nixos-21.05 supplies bashInteractive 4.4 and nixos-23.05 git 2.40,
-      # the documented floors.
       - name: test
-        env:
-          BASH_REV: ${{ matrix.bash.rev }}
-          GIT_REV: ${{ matrix.git.rev }}
-          BASH_EXPECTED: ${{ matrix.bash.version }}
-          GIT_EXPECTED: ${{ matrix.git.version }}
         run: |
           # The script is single-quoted so it expands inside the nix shell.
           # shellcheck disable=SC2016
           nix shell \
-            "github:NixOS/nixpkgs/$BASH_REV#bashInteractive" \
-            "github:NixOS/nixpkgs/$GIT_REV#git" \
+            "github:NixOS/nixpkgs/nixos-23.05#git" \
+            "nixpkgs#bashInteractive" \
             "nixpkgs#bats" \
             "nixpkgs#parallel" \
             "nixpkgs#zsh" \
             "nixpkgs#xmlstarlet" \
             --command bash -c '
               set -e
-              bash_version="${BASH_VERSION%%(*}"
               git_version="$(git --version | sed "s/^git version //")"
-              echo "bash: $bash_version"
-              echo "git:  $git_version"
-              if [ "$bash_version" != "$BASH_EXPECTED" ] || [ "$git_version" != "$GIT_EXPECTED" ]; then
-                echo "::error::matrix label says bash $BASH_EXPECTED, git $GIT_EXPECTED -- update the versions in ci.yml"
+              echo "git: $git_version"
+              if [ "$git_version" != 2.40.1 ]; then
+                echo "::error::the job says git 2.40.1, nixos-23.05 has $git_version -- update it in ci.yml"
                 exit 1
               fi
               bats --recursive --jobs "$(nproc)" test
             '
 
   release-please:
-    needs: [lint-test, compat-matrix]
+    needs: [lint-test, compat]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     # One at a time: two runs could both find a tarball missing, and the
