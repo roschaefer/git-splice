@@ -57,6 +57,9 @@ splice="${GIT_SPLICE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/targe
 
 git init -q -b main "$dir/monorepo"
 cd "$dir/monorepo"
+# Git's detached maintenance after each commit would race with the next one,
+# and with the commands the bench times.
+git config maintenance.auto false
 git config protocol.ext.allow always
 git config init.defaultBranch main
 git commit -q --allow-empty -m "initial commit"
@@ -64,6 +67,7 @@ git commit -q --allow-empty -m "initial commit"
 for ((i = 1; i <= splices; i++)); do
   upstream="$dir/upstream/sub$i.git"
   git init -q --bare -b main "$upstream"
+  git -C "$upstream" config maintenance.auto false
   seed="$(mktemp -d)"
   git -C "$seed" init -q -b main
   echo "sub$i" >"$seed/README"
