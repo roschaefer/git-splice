@@ -32,6 +32,12 @@ setup() {
   [[ "${lines[1]}" == "  ahead "* ]]
 }
 
+@test "bench fixture: no background maintenance, whose repack loses objects in a commit right after it" {
+  [ "$(git config maintenance.auto)" = false ]
+  [ "$(git -C ../upstream/sub1.git config maintenance.auto)" = false ]
+  git fsck --connectivity-only
+}
+
 @test "bench fixture: marked complete only once setup has finished" {
   [ -e "$fixture/complete" ]
 
