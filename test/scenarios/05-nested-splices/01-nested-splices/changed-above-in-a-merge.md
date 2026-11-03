@@ -5,12 +5,20 @@ maintainer changes `b/` in the outer upstream. The monorepo's pull of
 `vendor/a/` then merges both, and the rebuild of `vendor/a/`, which
 `vendor/a/b/` is [rebuilt from](seen-from-above.md), gets a merge.
 
-A rebuild turns a merge into one commit. So the rebuild of `vendor/a/b/`
-gets the maintainer's change in the pull's commit, under the pull's
-author: the maintainer's own commit isn't in it. A clone of the outer
-upstream, after the monorepo pushed both, rebuilds `b/` the same way,
-so the inner splice is up to date there: it doesn't matter where it
-syncs from.
+A rebuild follows the first parent of each merge only, and turns the
+merge into one commit
+([why](../../../../docs/design/README.md#splicing-out-push-and-the-rebuild)).
+So the rebuild of `vendor/a/b/` gets the maintainer's change in the
+pull's commit, under the pull's author: the maintainer's own commit
+isn't in it. That's a side effect of the first-parent rule, not a goal,
+and a more faithful rebuild could keep the commit some day. A clone of
+the outer upstream, after the monorepo pushed both, rebuilds `b/` the
+same way, so the inner splice is up to date there: it doesn't matter
+where it syncs from.
+
+To keep the commit today, the maintainer pushes `b/` to the inner
+upstream before pushing the outer one:
+[changed above and pushed below](changed-above-and-pushed-below.md).
 
 ## Output
 
@@ -121,7 +129,9 @@ $ git log --graph --format='%s (%an)' "$(git splice rebuild vendor/a)"
 ## The inner splice has one commit for it
 
 The rebuild of `vendor/a/b/` follows the first parents of the rebuild
-of `vendor/a/`, as any rebuild follows the monorepo's. The maintainer's
+of `vendor/a/`, as any rebuild follows the monorepo's. For `vendor/a/b/`,
+*p'* is a merge like any other: its second parent *n* is no commit of
+the inner upstream, so it's no pull of `vendor/a/b/`. The maintainer's
 change comes in with the pull, under its author:
 
 ```scrut
