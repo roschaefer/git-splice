@@ -891,3 +891,11 @@ order_of() {
   [[ "$output" == *"vendor/x: pulled"* ]]
   [[ "$output" == *"Failed: vendor/a/b"* ]]
 }
+
+@test "nested: three levels deep, c's boundary after a pull of c is the monorepo's pull commit" {
+  scenario_three_levels "$monorepo" "$upstream"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c upstream" main other.txt
+  cd "$monorepo"
+  splice pull vendor/a/b/c
+  [ "$(splice boundary vendor/a/b/c)" = "$(git rev-parse HEAD)" ]
+}

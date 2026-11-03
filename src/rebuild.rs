@@ -543,13 +543,23 @@ impl Repo {
             let inner = &path[above.len() + 1..];
             let (rebuilt, start) = self.rebuild_with_start(inner, &above_rebuilt, name)?;
             // The start is a commit of the rebuild above: the monorepo commit
-            // it copies, or, if it's one of the upstream's own, where the
-            // rebuild above starts.
+            // it copies, through every rebuild in between, or, if it's one of
+            // an upstream's own, where the rebuild above starts.
             let start = start.and_then(|start| {
-                self.rebuild_origin
-                    .get(&start)
-                    .cloned()
-                    .or(above_start.clone())
+                let mut origin = &start;
+                let mut copies = 0;
+                while let Some(next) = self.rebuild_origin.get(origin) {
+                    if next == origin || copies > self.rebuild_origin.len() {
+                        break;
+                    }
+                    origin = next;
+                    copies += 1;
+                }
+                if copies > 0 && is_ancestor(origin, rev) {
+                    Some(origin.clone())
+                } else {
+                    above_start.clone()
+                }
             });
             return Ok((rebuilt, start));
         }
