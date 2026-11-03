@@ -4,7 +4,7 @@ Two apps, each in a repository of its own, have the library spliced in at
 `c/`. The monorepo clones both apps, and the library once more at `c/`,
 to work on it directly. So two paths lead from the monorepo to the
 library, one through each app: a
-[diamond](../../../concepts/nesting/README.md#one-library-two-paths-a-diamond).
+[diamond](../../../concepts/nesting/README.md#diamonds-and-cycles).
 
 ```text
    monorepo

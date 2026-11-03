@@ -2,7 +2,7 @@
 
 The upstream of `vendor/a/` splices in the monorepo, so the monorepo
 contains a copy of itself, which contains a copy of itself, and so on: a
-[cycle](../../../concepts/nesting/README.md#a-splice-inside-itself-a-cycle).
+[cycle](../../../concepts/nesting/README.md#diamonds-and-cycles).
 
 ```text
       M ──> A
