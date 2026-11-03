@@ -19,11 +19,10 @@ DESCRIPTION
     history rebuilt without its .splice file, on top of the upstream commit
     it last synced with. If nothing changed since, that's the synced commit
     itself. The rebuild is deterministic, so a later push sees what was
-    pushed of it as already upstream.
+    pushed of it as already upstream. Writes no ref and no monorepo commit.
+    Purely local, but the synced commit must have been fetched.
 
-    Writes no ref and no monorepo commit. Purely local, but the synced
-    commit must have been fetched.
-
+USING THE REBUILD
     Push it to an upstream branch other than the one named like the current
     one, e.g. a release branch:
 
@@ -34,6 +33,8 @@ DESCRIPTION
 
       git worktree add ../rebuild "$(git splice rebuild <path>)"
 ```
+
+## Description
 
 In the [walkthrough's repositories](README.md), pull `vendor/pkg-a/`,
 then add a local commit. The rebuild puts that commit on the upstream's
@@ -54,7 +55,9 @@ $ git log --oneline "$(git splice rebuild vendor/pkg-a)"
 9bb866a pkg-a: seed
 ```
 
-## Editing it before the push
+## Using the rebuild
+
+### Editing it before the push
 
 To reword or squash its commits before they go upstream, edit them in a
 worktree and push the result with
@@ -64,7 +67,7 @@ itself, updates the fetched upstream branch, and checks what it pushes:
 the commit must have the folder's files and contain the synced commit,
 unless `--force` replaces published history.
 
-## Pushing with plain Git
+### Pushing with plain Git
 
 The rebuild is an ordinary commit, so plain Git can push it too, e.g. to
 an upstream branch no monorepo branch is named like:

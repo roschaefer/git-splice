@@ -9,11 +9,10 @@ DESCRIPTION
     history rebuilt without its .splice file, on top of the upstream commit
     it last synced with. If nothing changed since, that's the synced commit
     itself. The rebuild is deterministic, so a later push sees what was
-    pushed of it as already upstream.
+    pushed of it as already upstream. Writes no ref and no monorepo commit.
+    Purely local, but the synced commit must have been fetched.
 
-    Writes no ref and no monorepo commit. Purely local, but the synced
-    commit must have been fetched.
-
+USING THE REBUILD
     Push it to an upstream branch other than the one named like the current
     one, e.g. a release branch:
 
