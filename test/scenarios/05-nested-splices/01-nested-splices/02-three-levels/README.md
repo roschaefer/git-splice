@@ -13,16 +13,13 @@ so the inner one is at `vendor/a/b/c/`.
 
 As in [spliced elsewhere](../spliced-elsewhere.md), the monorepo pushes
 a change in `vendor/a/b/c/`, and another monorepo splices the outer
-upstream in. There, the history of `vendor/a/b/c/` up to the clone comes
-from an upstream above. But not from the middle one:
-`vendor/a/b/.splice` still names the synced commit from before the
-change, since a push writes nothing to the monorepo, and the middle
-upstream at that commit doesn't have it. The outer upstream does. So the
-rebuild takes the inner splice's history from the splice above whose
-last pull is the newest, and on a tie, as here, from the outermost one:
-its upstream has the ones below too, at least as new as their own synced
-commits. Before, it took the middle one's, made the change a new commit,
-and `vendor/a/b/c/` read as diverged after its next change.
+upstream in. There, `vendor/a/b/c/` is rebuilt from the rebuild of `vendor/a/b/`,
+which is rebuilt from the rebuild of `vendor/a/`: each from the
+[view](../seen-from-above.md) of the splice directly above. The outer
+upstream has the change in `c/`, through the push of `vendor/a/`, so
+`vendor/a/b/`'s view has it, and so does `vendor/a/b/c/`'s, though
+`vendor/a/b/.splice` still names the middle upstream's commit from
+before the change: a push writes nothing to the monorepo.
 
 ## Output
 

@@ -11,8 +11,8 @@ from the view, the way a clone of the outer upstream would rebuild its
 `b/`. Each layer only needs to get one level of nesting right, and the
 next level down works the same way from the view of the one above.
 
-This page shows the view, and the rebuild of `vendor/a/b/` made from it,
-after a pull of `vendor/a/` that joins a change from both sides.
+This page shows the view after a pull of `vendor/a/` that brings a
+change to `b/`, and the rebuild of `vendor/a/b/` made from it.
 
 ## Output
 
@@ -30,15 +30,7 @@ the monorepo:
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
-The monorepo changes `vendor/a/b/`, and doesn't push it:
-
-```scrut
-$ echo "b local" >vendor/a/b/local.txt &&
->   git add vendor/a/b/local.txt &&
->   git commit -q -m "b local"
-```
-
-In a clone of the outer upstream, a maintainer changes `b/` too:
+In a clone of the outer upstream, a maintainer changes `b/`:
 
 ```scrut
 $ git clone -q "$UPSTREAM" ../a-work &&
@@ -50,7 +42,7 @@ $ git clone -q "$UPSTREAM" ../a-work &&
 >   cd ../monorepo
 ```
 
-The monorepo pulls `vendor/a/`, which joins both changes:
+The monorepo pulls `vendor/a/`:
 
 ```scrut
 $ git splice pull vendor/a
@@ -61,17 +53,12 @@ ok   vendor/a: pulled * (glob)
 
 ## The view: the rebuild of `vendor/a/`
 
-The rebuild of `vendor/a/` has the monorepo's `b local` on one side, the
-maintainer's commit from the outer upstream on the other, and the pull
-that joins them:
+The monorepo has no changes of its own in `vendor/a/`, so the view is
+the outer upstream's `main`:
 
 ```scrut
 $ git log --graph --format='%s (%an)' "$(git splice rebuild vendor/a)"
-*   splice: pull vendor/a from main at 7228f0e (Test)
-|\  
-| * b in a's upstream (Maintainer)
-* | b local (Test)
-|/  
+* b in a's upstream (Maintainer)
 * add b (Test)
 * a seed (Test)
 ```
@@ -79,22 +66,18 @@ $ git log --graph --format='%s (%an)' "$(git splice rebuild vendor/a)"
 ## The rebuild of `vendor/a/b/`, made from the view
 
 Each commit of the view that changes `b/` becomes a commit of the inner
-splice, as in a clone of the outer upstream. Where the view joins two
-sides, so does the inner splice's rebuild: the maintainer's commit keeps
-its author, and comes after the inner upstream's `b seed`, which the
-outer upstream had at `b/`:
+splice, with its author, on top of the inner upstream's commit the outer
+upstream had at `b/`:
 
 ```scrut
 $ git log --graph --format='%s (%an)' "$(git splice rebuild vendor/a/b)"
-*   splice: pull vendor/a from main at 7228f0e (Test)
-|\  
-| * b in a's upstream (Maintainer)
-* | b local (Test)
-|/  
+* b in a's upstream (Maintainer)
 * b seed (Test)
 ```
 
 The view has the commits the monorepo knows of, also where a push of
 `vendor/a/` alone wouldn't send them: a change pushed to the inner
 upstream that the outer upstream then got from someone else stays in the
-view ([pushed and made above](pushed-and-made-above.md)).
+view ([pushed and made above](pushed-and-made-above.md)). A merge in the
+view becomes one commit of the inner splice, as any merge does
+([changed above, in a merge](changed-above-in-a-merge.md)).

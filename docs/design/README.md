@@ -294,7 +294,10 @@ the splice reads as diverged, or as unrelated history.
   splices. If its upstream moved the synced commit of a splice below, the
   rebuild joins that splice's unpushed commits with the new one, as after
   a pull of a divergence. `pull` fetches the splices below too, so their
-  new synced commit is there.
+  new synced commit is there. After each merge, every splice below the
+  merged one reads its `.splice` again where the merge changed it, as the
+  layer above has it now; a pull fetches the upstreams the new file
+  names.
   - **Top-down:** `merge` and `pull` take a splice before the ones below
     it. Pulling the one below first, to a commit newer than the one the
     upstream above records, would make the pull above conflict. A pull
@@ -357,21 +360,25 @@ splices swap paths, or a new folder takes the old one.
 A new upstream URL keeps the history: the `id` stays
 ([example](../../test/scenarios/04-upstreams/04-upstream-moved/README.md)).
 
-**A nested splice's history up to the splice above's last sync** comes
-from that splice's upstream, at its synced commit
-([nesting](../../test/concepts/nesting/README.md),
-[example](../../test/scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
-Of the splices above, it takes the one with the newest last sync, and on
-a tie the outermost: a push writes nothing to the monorepo, so the
-`.splice` of the splice in between may name a commit from before the
-change, while the outermost upstream has it
+**A nested splice is rebuilt from the splice directly above it**: from
+the rebuild of that splice, its *view* of the monorepo, the way a clone
+of its upstream would rebuild the folder
+([seen from the splice above](../../test/scenarios/05-nested-splices/01-nested-splices/seen-from-above.md)).
+Deeper levels follow the same way, each from the view of the one above
 ([three levels](../../test/scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
-Only if the upstream above has the same splice there, by its `id`
-([replaced above](../../test/scenarios/05-nested-splices/01-nested-splices/replaced-above.md)).
-And the monorepo's own commits before the last sync are joined in even if
-the folder's files equal that rebuild, so a commit pushed straight to
-the splice's upstream stays in its history
+So the history before the last sync of the splice above comes from its
+upstream, which has it
+([spliced elsewhere](../../test/scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)),
+and a merge in the view becomes one commit, as any merge does
+([changed above, in a merge](../../test/scenarios/05-nested-splices/01-nested-splices/changed-above-in-a-merge.md)).
+The view differs from a push of the splice above in one way: it keeps
+the monorepo's commits before the last sync even where the upstream
+above has the same files, so a commit pushed straight to the nested
+splice's upstream stays in its history
 ([pushed and made above](../../test/scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
+A splice whose `.splice` moves across the folder of the splice above,
+e.g. two nested splices that swap theirs, starts there at the move, as
+the splice above sees it.
 
 **Costs** O(commits since B), not O(all history). The commit loop
 reads all commit metadata with one `git log` and all folder trees with one

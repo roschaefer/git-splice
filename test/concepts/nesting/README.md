@@ -36,15 +36,23 @@ On branch main
 `a/c/` is a splice now. `clone` fetched only the app's upstream, so the
 library's upstream waits for a [`fetch`](../../walkthrough/fetch.md).
 
-## Each splice syncs with the monorepo
+## Each splice syncs with the splice above
 
-A nested splice syncs like any other: `merge` and `pull` merge its
-upstream straight into the monorepo, and `push` sends its own commits.
-The library's folder ends up with the same files as if you pulled the
-library in a clone of the app, and then the app into the monorepo. But no commit of the
-app with the pulled library is made on the way, and each `.splice` is
-read once, when the command starts
-([#336](https://github.com/roschaefer/git-splice/issues/336)).
+A nested splice sees the monorepo as a clone of the app would see it:
+through the splice above. Its history is rebuilt from the rebuild of
+the app, the commits the app's upstream would get from a push, and not
+from the monorepo directly
+([seen from the splice above](../../scenarios/05-nested-splices/01-nested-splices/seen-from-above.md)).
+So the library syncs the same from the monorepo as from a clone of the
+app. With three levels, each one works the same way from the view of
+the one above
+([scenario](../../scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
+
+`merge` and `pull` still merge the library's upstream straight into the
+monorepo's folder: no commit of the app with the pulled library is made
+on the way. After each merge, the splices below the merged one read
+their `.splice` again, so a pull of the app that moves or renames the
+library's upstream fetches and merges the new one.
 
 <div align="center">
 
@@ -64,9 +72,11 @@ together in three ways:
   `.splice`, which must not name a commit its own upstream doesn't have
   yet ([why](../../../docs/design/README.md#splicing-in-merge-and-pull--fetch--merge)).
 - **History from above.** The splice above came in squashed, so the
-  monorepo lacks the older history of the splice below. A push takes it
-  from the upstream above
+  monorepo lacks the older history of the splice below. The rebuild of
+  the splice above has it, from its upstream
   ([scenario](../../scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
+  A merge in that rebuild becomes one commit below, as any merge does
+  ([changed above, in a merge](../../scenarios/05-nested-splices/01-nested-splices/changed-above-in-a-merge.md)).
 
 ## Settings come from the splice above
 

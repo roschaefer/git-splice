@@ -264,7 +264,7 @@ swap_splice_files() {
   [ "$(git rev-parse "$rebuilt^")" = "$(git -C "$upstream_b" rev-parse main)" ]
 }
 
-@test "nested: b's unpushed commit from before a moved is kept when a pull of a after the move brings a change to b" {
+@test "nested: b's unpushed commit from before a moved is kept when a pull of a after the move brings a change to b, which comes in with the pull" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local" local.txt
   cd "$monorepo"
@@ -276,9 +276,9 @@ swap_splice_files() {
   splice pull libs/a
   local rebuilt
   rebuilt="$(splice rebuild libs/a/b)"
-  git log --format='%s (%an)' "$rebuilt" | grep -qx "b local (Test)"
-  git log --format='%s (%an)' "$rebuilt" | grep -qx "b in a's upstream (Maintainer)"
-  [ "$(git rev-parse "$rebuilt:local.txt")" = "$(git rev-parse HEAD:libs/a/b/local.txt)" ]
+  [ "$(git log --format=%s "$rebuilt")" = "splice: pull libs/a from main at $(git rev-parse --short "$(splice_config libs/a commit)")"$'\n'"b local"$'\n'"b seed" ]
+  content_tree HEAD libs/a/b
+  [ "$(git rev-parse "$rebuilt^{tree}")" = "$CONTENT_TREE" ]
 }
 
 @test "nested: after a moves, b's history from before a's clone still comes from a's upstream, so another monorepo's push of b isn't made again" {
