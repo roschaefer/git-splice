@@ -19,7 +19,7 @@ meanwhile.
 
 Not from separate clones: if the monorepo and two of its upstreams each
 clone the same library, the three copies have three ids, and are
-independent ([diamond](../../test/concepts/nesting/diamond.md)). To
+independent ([diamond](../../test/scenarios/05-nested-splices/03-diamond/README.md)). To
 declare them mirrors, a clone would need to take over the id of an
 existing splice. There's no command for that yet.
 
@@ -35,7 +35,7 @@ Nor can the rebuild [tell mirrors apart](../../test/scenarios/07-moved-folders/0
 
 | Desired | Status |
 |---|---|
-| Mirrors are stored once | **Already so.** Git stores identical files as one object, and identical folders as one tree ([diamond](../../test/concepts/nesting/diamond.md)). |
+| Mirrors are stored once | **Already so.** Git stores identical files as one object, and identical folders as one tree ([diamond](../../test/scenarios/05-nested-splices/03-diamond/README.md)). |
 | A report of mirrors that drifted, with how to resolve it | **Possible**, not implemented: compare the folders of splices with the same id, without `.splice`. |
 | A fork or a new version made from a copy is pointed out | **Possible** in part, not implemented: a copy that names another upstream than its mirrors. A new URL also keeps the id when the upstream moved, so it's a warning, not an error. |
 | A pull of one mirror pulls the others | **Possible** for copies in the monorepo, not implemented. Not for a nested copy that another upstream owns. |
@@ -54,7 +54,7 @@ guess, and make the state explicit
 ([design](../design/README.md#principles)).
 
 1. **Edit one copy**, e.g. the top-level `s/` in the
-   [diamond](../../test/concepts/nesting/diamond.md).
+   [diamond](../../test/scenarios/05-nested-splices/03-diamond/README.md).
 2. **Push it, and pull every mirror right away**, as the diamond's round
    trip does.
 3. **Compare mirrors** before merging, e.g. in CI. Their folders,

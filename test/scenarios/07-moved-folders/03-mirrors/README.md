@@ -71,7 +71,7 @@ On branch main
 You can also get the same id twice without copying anything: when two
 upstreams contain the same nested splice, both bring its `.splice` into
 the monorepo. Two upstreams that each cloned the library themselves give
-it two ids, as in the [diamond](../../../concepts/nesting/diamond.md).
+it two ids, as in the [diamond](../../05-nested-splices/03-diamond/README.md).
 
 ### A mirror drifts
 
@@ -123,7 +123,7 @@ mirrors
 
 Only the files count. A push doesn't move U(H), so a mirror that pushed a
 change has an older U(H) than one that pulled it, with the same files
-([diamond](../../../concepts/nesting/diamond.md)).
+([diamond](../../05-nested-splices/03-diamond/README.md)).
 
 ### Mirrors that swap paths
 

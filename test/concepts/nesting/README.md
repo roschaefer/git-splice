@@ -1,14 +1,50 @@
 # Nesting
 
-A splice can be inside another one: its upstream may use `git-splice`
-itself. Then the splice below is *nested* in the splice above.
+An upstream can use `git-splice` itself, e.g. an app with its library
+spliced in. Clone the app into the monorepo, and the library comes along
+as a splice of its own, *nested* in the app's. Nothing has to be cloned
+recursively, as with `git clone --recurse-submodules`: the library's
+`.splice` is an ordinary file of the app.
 
-The nested `.splice` is part of the files of the splice above, like any
-other file there. So it travels with them: a clone or pull of the splice
-above brings it into the monorepo, and a push of the splice above sends
-it to that upstream, where it is a splice again
-([nested-splices](../../scenarios/05-nested-splices/01-nested-splices/README.md)). A splice's
-own push leaves its own `.splice` out.
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../../scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/../../scenarios/05-nested-splices/03-diamond/setup.bash" &&
+>   scenario_diamond "$PWD/monorepo" "$UPSTREAM" >/dev/null 2>&1 &&
+>   cd monorepo
+```
+-->
+
+The app's upstream has its library at `c/`, with a `c/.splice`. One
+`clone` gives the monorepo both:
+
+```scrut
+$ git splice clone https://git.example.com/a.git a
+===  a: fetching https://git.example.com/a.git
+ok   a: cloned 6962bd0 from main
+```
+
+```scrut
+$ git splice status
+On branch main
+
+  ?? never fetched  a/c  run 'git splice fetch a/c'
+
+  up to date        a
+```
+
+`a/c/` is a splice now. `clone` fetched only the app's upstream, so the
+library's upstream waits for a [`fetch`](../../walkthrough/fetch.md).
+
+## Each splice syncs with the monorepo
+
+A nested splice syncs like any other: `merge` and `pull` merge its
+upstream straight into the monorepo, and `push` sends its own commits.
+The library's folder ends up with the same files as if you pulled the
+library in a clone of the app, and then the app into the monorepo. But no commit of the
+app with the pulled library is made on the way, and each `.splice` is
+read once, when the command starts
+([#336](https://github.com/roschaefer/git-splice/issues/336)).
 
 <div align="center">
 
@@ -16,33 +52,39 @@ own push leaves its own `.splice` out.
 
 </div>
 
-Each splice has a lane, labelled with its folder, and the lanes nest as
-the folders do. The commit *l* of the upstream above has the splice
-below's `.splice`, which records *m*: U(l) = *m*.
+The nested `.splice` is a file of the splice above, so it travels with
+it. In the drawing, commit *l* of the upstream above has the `.splice` of
+the splice below, which records *m*: U(l) = *m*. That ties the splices
+together in three ways:
 
-Because the splice below is contained in the files above, not referred
-to, some rules follow:
+- **Pull top-down.** Pulling the splice above brings in the nested
+  `.splice` as its upstream has it, which can move the synced commit of
+  the splice below. So `merge` and `pull` take the splice above first.
+- **Push bottom-up.** Pushing the splice above sends the nested
+  `.splice`, which must not name a commit its own upstream doesn't have
+  yet ([why](../../../docs/design/README.md#splicing-in-merge-and-pull--fetch--merge)).
+- **History from above.** The splice above came in squashed, so the
+  monorepo lacks the older history of the splice below. A push takes it
+  from the upstream above
+  ([scenario](../../scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
 
-- **Order.** `merge` and `pull` go top-down: pulling the splice above can
-  move the synced commit of the one below. `push` goes bottom-up: the
-  push above sends the `.splice` below, which must not name content its
-  upstream doesn't have
-  ([design](../../../docs/design/README.md#splicing-in-merge-and-pull--fetch--merge)).
-- **History.** The splice above was squashed into one commit when it was
-  cloned or pulled. So the history of the splice below, up to that
-  point, is taken from the upstream above, which has it
-  ([spliced-elsewhere](../../scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
-- **Default branch.** A nested `.splice` without `default-branch` follows
-  the branch of the splice above, so it means the same in the monorepo
-  and in the upstream above
-  ([nested-default-branch](../../scenarios/05-nested-splices/02-nested-default-branch/README.md)).
+## Settings come from the splice above
 
-Two shapes need a closer look, as in a package manager's dependency
-graph:
+You could run `git-splice` in a clone of the app, with the app as the
+monorepo. A nested `.splice` has to mean the same there as here. So a
+nested `.splice` without `default-branch` follows the default branch of
+the splice above, which follows its own splice above, up to the
+monorepo
+([scenario](../../scenarios/05-nested-splices/02-nested-default-branch/README.md)).
+If a splice above is pinned with `default-pin` instead, the splice below
+refuses until it records a `default-branch` of its own.
 
-- [**Diamond**](diamond.md): two paths lead to one library. Allowed:
-  the monorepo has a copy per path, each cloned on its own: one library,
-  at possibly different versions.
-- [**Cycle**](cycle.md): a splice contains itself. Not supported, since
-  the copies would never end, and not prevented yet
-  ([#86](https://github.com/roschaefer/git-splice/issues/86)).
+## Read more
+
+- [Nested splices](../../scenarios/05-nested-splices/01-nested-splices/README.md)
+  that are dropped, replaced or pushed from above, and [three
+  levels](../../scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md).
+- A [diamond](../../scenarios/05-nested-splices/03-diamond/README.md):
+  two apps that splice in the same library.
+- A [cycle](../../scenarios/05-nested-splices/04-cycle/README.md): a
+  splice that contains itself.

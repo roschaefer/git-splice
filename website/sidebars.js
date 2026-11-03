@@ -26,12 +26,7 @@ module.exports = {
         {type: 'doc', id: 'test/concepts/upstreams/README', label: 'Upstreams'},
         {type: 'doc', id: 'test/concepts/sync-model/README', label: 'Sync model'},
         {type: 'doc', id: 'test/concepts/splice-identity/README', label: 'Splice identity'},
-        {
-          type: 'category',
-          label: 'Nesting',
-          link: {type: 'doc', id: 'test/concepts/nesting/README'},
-          items: ['test/concepts/nesting/diamond', 'test/concepts/nesting/cycle'],
-        },
+        {type: 'doc', id: 'test/concepts/nesting/README', label: 'Nesting'},
       ],
     },
     {
