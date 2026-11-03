@@ -721,3 +721,55 @@ order_of() {
   [[ "$output" == *"vendor/a/b:"*"vendor/a: not pushed, since vendor/a/b below it failed"* ]]
   [ "$(git -C "$upstream" log -1 --format=%s main)" != "b local" ]
 }
+
+@test "nested: pull of a fetches b from the URL a's pull brings in, not from the one b had before" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  upstream_b2="$BATS_TEST_TMPDIR/upstream-b2.git"
+  git clone -q --bare "$upstream_b" "$upstream_b2"
+  seed_bare_repo "$upstream_b2" "b moved" main other.txt
+  work_in_upstream_a
+  git config --file b/.splice upstream.origin.url "$upstream_b2"
+  git commit -q -m "b moved" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  splice pull vendor/a
+  [ "$(splice_state vendor/a/b)" = "pull" ]
+}
+
+@test "nested: pull of a and c follows the default branch b's new .splice names, after a's pull renames b's upstream" {
+  scenario_three_levels "$monorepo" "$upstream"
+  upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  seed_bare_repo "$upstream_c" "c dev" dev other.txt
+  work_in_upstream_a
+  git config --file b/.splice --rename-section upstream.origin upstream.fork
+  git config --file b/.splice upstream.fork.default-branch dev
+  git commit -q -m "b: fork, on dev" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  splice pull vendor/a vendor/a/b/c
+  [ "$(git show HEAD:vendor/a/b/c/other.txt)" = "c dev" ]
+}
+
+@test "nested: b pushed from a clone of a's upstream, after a push of a alone, is up to date in the monorepo" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice push vendor/a
+  work_in_upstream_a
+  splice fetch b
+  splice push b
+  cd "$monorepo"
+  splice fetch vendor/a/b
+  [ "$(splice_state vendor/a/b)" = "up-to-date" ]
+}
+
+@test "nested: a pull of b that conflicts leaves the conflict in the monorepo's working tree, at b's file" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  run splice pull vendor/a/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/b: conflict -- resolve it, then 'git commit'"* ]]
+  [ "$(git diff --name-only --diff-filter=U)" = "vendor/a/b/file.txt" ]
+}
