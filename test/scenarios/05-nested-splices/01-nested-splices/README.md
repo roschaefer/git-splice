@@ -167,6 +167,10 @@ If the monorepo had pulled `vendor/a/b/` as well, to a different commit,
 the pull of `vendor/a/` would have conflicted: see
 [Limits](../../../../docs/design/README.md#limits).
 
+The monorepo rebuilds `vendor/a/b/` from the rebuild of `vendor/a/`, as
+a clone of the outer upstream would rebuild `b/`:
+[seen from the splice above](seen-from-above.md).
+
 Once the monorepo has pushed a change in `vendor/a/b/`, another monorepo
 that splices the outer upstream in rebuilds the inner splice's history up
 to the clone from the outer upstream, so the inner splice's first change
