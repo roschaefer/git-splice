@@ -9,8 +9,9 @@ DESCRIPTION
     empty repository you created for it. Commits <path>/.splice and nothing
     else. Your first 'git splice push <path>' then starts the upstream with
     that commit, the folder as it is now, followed by any commits after it.
-    The folder's earlier history stays in the monorepo.
+    The folder's earlier history stays in the monorepo. If <url> has commits
+    already, use 'git splice clone --merge <url> <path>'.
 
-    If <url> has commits already, use 'git splice clone --merge <url> <path>'.
-
-    -m gives the commit this message instead of the default one.
+OPTIONS
+    -m <message>
+        Gives the commit this message instead of the default one.

@@ -19,12 +19,15 @@ DESCRIPTION
     empty repository you created for it. Commits <path>/.splice and nothing
     else. Your first 'git splice push <path>' then starts the upstream with
     that commit, the folder as it is now, followed by any commits after it.
-    The folder's earlier history stays in the monorepo.
+    The folder's earlier history stays in the monorepo. If <url> has commits
+    already, use 'git splice clone --merge <url> <path>'.
 
-    If <url> has commits already, use 'git splice clone --merge <url> <path>'.
-
-    -m gives the commit this message instead of the default one.
+OPTIONS
+    -m <message>
+        Gives the commit this message instead of the default one.
 ```
+## Description
+
 In the [walkthrough's repositories](README.md), `libs/c/` grew inside the monorepo, and
 `lib-c.git` is empty:
 
@@ -44,10 +47,14 @@ $ git -C "$WALKTHROUGH/upstream/lib-c.git" log --format=%s main
 splice: init libs/c
 ```
 
-## More
+Why the folder's history before `init` stays in the monorepo:
+[init-new-upstream](../scenarios/02-starting-a-splice/04-init-new-upstream/README.md).
+In a fresh clone of the monorepo, commands treat the upstream as empty
+until the first `fetch`, a known bug
+([init-then-cloned](../scenarios/02-starting-a-splice/05-init-then-cloned/README.md)).
 
-- Why the folder's history before `init` stays in the monorepo:
-  [init-new-upstream](../scenarios/02-starting-a-splice/04-init-new-upstream/README.md).
-- In a fresh clone of the monorepo, commands treat the upstream as empty
-  until the first `fetch`, a known bug
-  ([init-then-cloned](../scenarios/02-starting-a-splice/05-init-then-cloned/README.md)).
+## Options
+
+### `-m`
+
+It works as for [`merge`](merge.md#-m).
