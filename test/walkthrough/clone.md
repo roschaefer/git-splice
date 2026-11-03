@@ -18,20 +18,51 @@ SYNOPSIS
 DESCRIPTION
     Splices an existing upstream repository into <path> (default: the
     repository's name), as one ordinary commit with a new <path>/.splice.
+    With --from-submodule, it turns a submodule into a splice instead.
 
+OPTIONS
+    --merge
+        If <path> already exists with exactly the upstream's content, clone
+        only adds .splice. If its content differs, clone refuses, unless
+        --merge is given: then every file that differs becomes a conflict to
+        resolve, and nothing is lost. Resolve it and run 'git commit'.
+
+    --from-submodule
+        <path> is a submodule committed in HEAD, and clone turns it into a
+        splice of the same upstream, at the same commit: the upstream is
+        the submodule's URL in .gitmodules, and the folder gets the files of
+        the commit the submodule points to. One commit replaces the
+        submodule with the folder, and removes it from .gitmodules (the file
+        too, once empty). See SUBMODULES.
+
+    --recursive
+        With --from-submodule, converts a submodule whose commit has
+        submodules of its own, which is refused without it: clone converts
+        those too, one commit each, top-down. Their URLs and settings come
+        from the .gitmodules in the folder above, and a relative URL is
+        relative to that folder's upstream. The upstream above still has the
+        submodule, so the folder differs from it by that commit: the next
+        push of the folder above sends it, which turns the submodule into a
+        splice there too. Push it before that upstream moves its submodule
+        to another commit: pulling such a change is refused. If a nested
+        submodule is refused, the ones above stay converted; fix what the
+        message says, then run clone on that path.
+
+    -m <message>
+        Gives the commit this message instead of the default one, which
+        names the upstream branch and commit. Nothing reads the message
+        back: .splice records them.
+
+UPSTREAM BRANCH
     The upstream branch is the one named like the current branch, else the
     upstream's default branch; your first push then creates the missing
     branch. If the upstream's default branch is named differently from the
-    monorepo's, .splice records it as the upstream's default-branch. Inside another splice,
-    it's compared with that splice's default branch instead, and on the
-    monorepo's default branch, that's the upstream branch: the monorepo's
-    branch name isn't tried.
+    monorepo's, .splice records it as the upstream's default-branch. Inside
+    another splice, it's compared with that splice's default branch
+    instead, and on the monorepo's default branch, that's the upstream
+    branch: the monorepo's branch name isn't tried.
 
-    If <path> already exists with exactly the upstream's content, clone only
-    adds .splice. If its content differs, clone refuses, unless --merge is
-    given: then every file that differs becomes a conflict to resolve, and
-    nothing is lost. Resolve it and run 'git commit'.
-
+ATTRIBUTES
     In upstream, and in a submodule, only upstream's own .gitattributes
     apply to its files. Where text, eol, filter, ident or
     working-tree-encoding set above <path> would change what a checkout
@@ -41,12 +72,8 @@ DESCRIPTION
     apply to upstream's files, and push would send them as these store
     them.
 
-    With --from-submodule, <path> is a submodule committed in HEAD, and clone
-    turns it into a splice of the same upstream, at the same commit: the
-    upstream is the submodule's URL in .gitmodules, and the folder gets the
-    files of the commit the submodule points to. One commit replaces the
-    submodule with the folder, and removes it from .gitmodules (the file too,
-    once empty). Upstream must serve the commit, on a branch, a tag or by
+SUBMODULES
+    Upstream must serve the submodule's commit, on a branch, a tag or by
     id, and a checkout of the submodule must be at that commit without
     changes; clone refuses otherwise. It asks git status for those changes,
     so it can't see the ones hidden by 'git update-index --assume-unchanged'
@@ -63,24 +90,11 @@ DESCRIPTION
     monorepo's default branch, pull brings in nothing and push refuses until
     default-pin is removed. Other settings in .gitmodules are dropped.
 
-    A submodule whose commit has submodules of its own is refused, unless
-    --recursive is given: then clone converts those too, one commit each,
-    top-down. Their URLs and settings come from the .gitmodules in the
-    folder above, and a relative URL is relative to that folder's upstream.
-    The upstream above still has the submodule, so the folder differs from
-    it by that commit: the next push of the folder above sends it, which
-    turns the submodule into a splice there too. Push it before that
-    upstream moves its submodule to another commit: pulling such a change
-    is refused. If a nested submodule is refused, the ones above stay
-    converted; fix what the message says, then run clone on that path.
-
     A submodule with update = none is refused: no checkout contains it,
     and a splice's files are in every checkout.
-
-    -m gives the commit this message instead of the default one, which
-    names the upstream branch and commit. Nothing reads the message back:
-    .splice records them.
 ```
+## Description
+
 In the [walkthrough's repositories](README.md), `pkg-b.git` isn't spliced in yet:
 
 ```scrut
@@ -111,7 +125,24 @@ $ cat vendor/pkg-b/.splice
 	url = https://git.example.com/pkg-b.git
 ```
 
-## From a submodule
+A clone is a commit on top of `HEAD`, so a monorepo without commits
+needs a first one
+([clone-without-commits](../scenarios/02-starting-a-splice/06-clone-without-commits/README.md)). To
+publish a folder of the monorepo to a new, empty repository, use
+[`init`](init.md) instead.
+
+## Options
+
+### `--merge`
+
+If the folder already exists and differs, `clone` refuses. With
+`--merge`, every file that differs becomes a conflict to resolve
+([clone-differing-content](../scenarios/02-starting-a-splice/02-clone-differing-content/README.md)).
+A folder with exactly the upstream's files needs no `--merge`
+([clone-copied-content](../scenarios/02-starting-a-splice/01-clone-copied-content/README.md)).
+
+### `--from-submodule`
+
 
 Here `vendor/pkg-b/` is a submodule of the same repository instead, and
 its checkout is at the upstream's `main`:
@@ -155,6 +186,30 @@ splice: clone vendor/pkg-b from submodule at 9b3cb02
  4 files changed, 7 insertions(+), 4 deletions(-)
 ```
 
+### `--recursive`
+
+A submodule's own submodules are converted too, one commit each. Their
+upstream still has them, so the next push of the folder above turns them
+into splices there. If that upstream's owners keep their submodules,
+convert it in a fork of yours instead
+([#153](https://github.com/roschaefer/git-splice/issues/153)).
+
+## Upstream branch
+
+On a branch the upstream doesn't have, `clone` takes the upstream's
+default branch. The first push creates the branch upstream, if the
+splice changed by then
+([clone-on-feature-branch](../scenarios/02-starting-a-splice/03-clone-on-feature-branch/README.md)).
+
+## Attributes
+
+The monorepo's `.gitattributes` mustn't change how the upstream's files
+are checked out or stored, or `clone` refuses and names the line that
+fixes it
+([clone-under-monorepo-attributes](../scenarios/02-starting-a-splice/09-clone-under-monorepo-attributes/README.md)).
+
+## Submodules
+
 The splice keeps what the submodule followed, its `branch` in
 `.gitmodules`
 ([clone-from-submodule](../scenarios/02-starting-a-splice/08-clone-from-submodule/README.md)):
@@ -195,31 +250,7 @@ push them before.
 > submodules: their support "is incomplete"
 > ([`git worktree`, BUGS](https://git-scm.com/docs/git-worktree#_bugs)).
 
-## More
-
-- If the folder already exists and differs, `clone` refuses. With
-  `--merge`, every file that differs becomes a conflict to resolve, and
-  nothing is lost
-  ([clone-differing-content](../scenarios/02-starting-a-splice/02-clone-differing-content/README.md)).
-  If the folder already has exactly the upstream's files, `clone` only
-  adds `.splice` ([clone-copied-content](../scenarios/02-starting-a-splice/01-clone-copied-content/README.md)).
-- On a branch the upstream doesn't have, `clone` takes the upstream's
-  default branch. The first push creates the branch upstream, if the
-  splice changed by then
-  ([clone-on-feature-branch](../scenarios/02-starting-a-splice/03-clone-on-feature-branch/README.md)).
-- A clone is a commit on top of `HEAD`, so a monorepo without commits
-  needs a first one
-  ([clone-without-commits](../scenarios/02-starting-a-splice/06-clone-without-commits/README.md)).
-- An upstream with a submodule is refused, by `clone` and later by
-  `merge` and `pull`: its `.gitmodules` would sit in the folder, where Git
-  doesn't read it, so nobody could check the submodule out. Turn it into a
-  splice in the upstream first.
-- `clone --from-submodule --recursive` converts a submodule's own
-  submodules too, one commit each. Its upstream still has them, so the
-  next push of the folder sends that commit: it turns them into splices
-  upstream too. Until then, `pull` brings in the upstream's other changes,
-  but refuses one that moves such a submodule to another commit. If that
-  upstream's owners keep their submodules, convert it in a fork of yours
-  instead ([#153](https://github.com/roschaefer/git-splice/issues/153)).
-- To publish a folder of the monorepo to a new, empty repository, use
-  [`init`](init.md).
+An upstream with a submodule is refused, by `clone` and later by
+`merge` and `pull`: its `.gitmodules` would sit in the folder, where Git
+doesn't read it, so nobody could check the submodule out. Turn it into a
+splice in the upstream first.
