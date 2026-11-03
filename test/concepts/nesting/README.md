@@ -49,9 +49,13 @@ app.
 `merge` and `pull` merge the library's upstream straight into the
 monorepo's folder, so a conflict lands in your working tree. The app's
 commit with the pulled library comes from the rebuild: it copies the
-monorepo's pull commit, and a push of the app sends it. After each merge, the splices below the merged one read
-their `.splice` again, so a pull of the app that moves or renames the
-library's upstream fetches and merges the new one.
+monorepo's pull commit, and a push of the app sends it.
+
+After each merge, the splices below the merged one read their `.splice`
+again. So when a pull of the app moves or renames the library's
+upstream, the pull fetches from the new one. The library's files come
+with the app's; a pull of the library, in the same command or later,
+merges from its new upstream.
 
 <div align="center">
 
