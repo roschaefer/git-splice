@@ -559,6 +559,11 @@ impl Repo {
                 skipped.push(path.clone());
                 continue;
             }
+            // Reading its .splice again after a merge above failed, e.g. the
+            // fetch of the upstream it names now.
+            if failures.contains(path) {
+                continue;
+            }
             if let Some(failed) = first_above(path, &failures) {
                 log_err(format!(
                     "{path}: not {}, since {failed} above it failed",

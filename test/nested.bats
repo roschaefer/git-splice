@@ -773,3 +773,30 @@ order_of() {
   [[ "$output" == *"vendor/a/b: conflict -- resolve it, then 'git commit'"* ]]
   [ "$(git diff --name-only --diff-filter=U)" = "vendor/a/b/file.txt" ]
 }
+
+@test "nested: pull of a and b doesn't merge b from an upstream fetched before, when a's pull names it and fetching it fails" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  upstream_b2="$BATS_TEST_TMPDIR/upstream-b2.git"
+  git clone -q --bare "$upstream_b" "$upstream_b2"
+  seed_bare_repo "$upstream_b2" "b moved" main other.txt
+  work_in_upstream_a
+  git config --file b/.splice upstream.origin.url "$upstream_b2"
+  git commit -q -m "b moved" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  splice pull vendor/a
+  cd "$a_work"
+  git revert --no-edit HEAD >/dev/null
+  git push -q origin main
+  cd "$monorepo"
+  splice pull vendor/a
+  cd "$a_work"
+  git revert --no-edit HEAD >/dev/null
+  git push -q origin main
+  mv "$upstream_b2" "$upstream_b2.gone"
+  cd "$monorepo"
+  run splice pull vendor/a vendor/a/b
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Failed: vendor/a/b"* ]]
+  ! git cat-file -e HEAD:vendor/a/b/other.txt
+}
