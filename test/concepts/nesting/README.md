@@ -80,36 +80,12 @@ monorepo
 If a splice above is pinned with `default-pin` instead, the splice below
 refuses until it records a `default-branch` of its own.
 
-## Diamonds and cycles
-
-Two apps that both splice in one library give the monorepo two paths to
-it, a *diamond*:
-
-```text
-   monorepo
-    /  |  \
-  a/   |   b/
-    \  |  /
-      c/
-```
-
-Each path has a real copy with its own [id](../splice-identity/README.md),
-so each app's repository still works on its own, and the copies can be at
-different versions. They share one fetch of the library's upstream, Git
-stores their identical files once, and a change in one copy reaches the
-others by a push and their pulls
-([scenario](../../scenarios/05-nested-splices/03-diamond/README.md)).
-
-An upstream that splices in, directly or not, something that contains it
-makes a *cycle*: an endless tree of folders, one level deeper on every
-pull. The repeated id shows it, but nothing refuses it yet
-([#86](https://github.com/roschaefer/git-splice/issues/86),
-[scenario](../../scenarios/05-nested-splices/04-cycle/README.md)).
-
 ## Read more
 
 - [Nested splices](../../scenarios/05-nested-splices/01-nested-splices/README.md)
   that are dropped, replaced or pushed from above, and [three
   levels](../../scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md).
-- How a change [goes around a diamond](../../scenarios/05-nested-splices/03-diamond/README.md).
-- Why a cycle is caught [one level late](../../scenarios/05-nested-splices/04-cycle/README.md).
+- A [diamond](../../scenarios/05-nested-splices/03-diamond/README.md):
+  two apps that splice in the same library.
+- A [cycle](../../scenarios/05-nested-splices/04-cycle/README.md): a
+  splice that contains itself.

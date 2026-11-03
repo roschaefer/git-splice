@@ -2,7 +2,11 @@
 
 The upstream of `vendor/a/` splices in the monorepo, so the monorepo
 contains a copy of itself, which contains a copy of itself, and so on: a
-[cycle](../../../concepts/nesting/README.md#diamonds-and-cycles).
+*cycle*. A package manager can allow cycles, since it installs each
+package once. A splice contains its files, though, and a
+[nested](../../../concepts/nesting/README.md) `.splice` is one of them, so
+a cycle is an endless tree of folders. The repeated
+[id](../../../concepts/splice-identity/README.md) shows it.
 
 ```text
       M ──> A

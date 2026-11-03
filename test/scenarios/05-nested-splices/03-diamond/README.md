@@ -3,8 +3,9 @@
 Two apps, each in a repository of its own, have the library spliced in at
 `c/`. The monorepo clones both apps, and the library once more at `c/`,
 to work on it directly. So two paths lead from the monorepo to the
-library, one through each app: a
-[diamond](../../../concepts/nesting/README.md#diamonds-and-cycles).
+library, one through each app, a *diamond*, as in a package manager's
+dependency graph. The library is [nested](../../../concepts/nesting/README.md)
+in each app.
 
 ```text
    monorepo
@@ -14,8 +15,11 @@ library, one through each app: a
       c/
 ```
 
-Here a change to the library is made once, in the monorepo's `c/`, and
-then reaches every copy.
+Each path has a real copy, so each app's repository still works on its
+own. Each copy has its own [id](../../../concepts/splice-identity/README.md),
+since each repository ran `clone` itself, so the copies are independent
+and can be at different versions. Here a change to the library is made
+once, in the monorepo's `c/`, and then reaches every copy.
 
 - **Library** (`$UPSTREAM`, reached as `https://git.example.com/c.git`):
   `c seed`.
