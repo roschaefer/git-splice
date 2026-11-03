@@ -13,11 +13,11 @@ so the inner one is at `vendor/a/b/c/`.
 
 As in [spliced elsewhere](../spliced-elsewhere.md), the monorepo pushes
 a change in `vendor/a/b/c/`, and another monorepo splices the outer
-upstream in. There, `vendor/a/b/c/` is rebuilt from the rebuild of `vendor/a/b/`,
-which is rebuilt from the rebuild of `vendor/a/`: each from the
-[view](../seen-from-above.md) of the splice directly above. The outer
+upstream in. There, the rebuild recurses twice: `vendor/a/b/c/` from
+the rebuild of `vendor/a/b/`, which comes from the rebuild of
+`vendor/a/` ([seen from above](../seen-from-above.md)). The outer
 upstream has the change in `c/`, through the push of `vendor/a/`, so
-`vendor/a/b/`'s view has it, and so does `vendor/a/b/c/`'s, though
+both rebuilds above `vendor/a/b/c/` have it, though
 `vendor/a/b/.splice` still names the middle upstream's commit from
 before the change: a push writes nothing to the monorepo.
 

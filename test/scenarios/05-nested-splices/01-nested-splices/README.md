@@ -175,8 +175,8 @@ Once the monorepo has pushed a change in `vendor/a/b/`, another monorepo
 that splices the outer upstream in rebuilds the inner splice's history up
 to the clone from the outer upstream, so the inner splice's first change
 there goes on top of the pushed one:
-[spliced into another monorepo](spliced-elsewhere.md). That history comes
-from the view of the splice above, also two levels down
+[spliced into another monorepo](spliced-elsewhere.md). The rebuild is
+recursive, so this holds two levels down too
 ([three levels](02-three-levels/README.md)); not where the outer upstream has
 another splice at `b/` ([replaced above](replaced-above.md)); and it
 doesn't drop what the inner upstream got from the monorepo directly

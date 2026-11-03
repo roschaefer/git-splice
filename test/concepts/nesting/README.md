@@ -38,15 +38,13 @@ library's upstream waits for a [`fetch`](../../walkthrough/fetch.md).
 
 ## Each splice syncs with the splice above
 
-A nested splice sees the monorepo as a clone of the app would see it:
-through the splice above. Its history is rebuilt from the rebuild of
-the app, the commits the app's upstream would get from a push, and not
-from the monorepo directly
-([seen from the splice above](../../scenarios/05-nested-splices/01-nested-splices/seen-from-above.md)).
+A nested splice is rebuilt recursively: from the rebuild of the app,
+the commits the app's upstream would get from a push, not from the
+monorepo directly
+([seen from the splice above](../../scenarios/05-nested-splices/01-nested-splices/seen-from-above.md),
+[three levels](../../scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
 So the library syncs the same from the monorepo as from a clone of the
-app. With three levels, each one works the same way from the view of
-the one above
-([scenario](../../scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
+app.
 
 `merge` and `pull` still merge the library's upstream straight into the
 monorepo's folder: no commit of the app with the pulled library is made

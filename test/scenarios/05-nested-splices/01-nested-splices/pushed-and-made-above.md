@@ -5,10 +5,10 @@ not `vendor/a/`. Meanwhile, someone makes the same change to `b/` in the
 outer upstream, as a commit of their own, along with a change to the
 outer upstream's own files. Then the monorepo pulls `vendor/a/`.
 
-The rebuild of `vendor/a/b/` is made from the rebuild of `vendor/a/`,
-its [view](seen-from-above.md). A push of `vendor/a/` would leave out the
-monorepo's commit, since the outer upstream has the same files. The view
-keeps it: the inner upstream got it from the push. So the pushed commit
+The rebuild of `vendor/a/b/` is made from the rebuild of `vendor/a/`
+([seen from above](seen-from-above.md)). A push of `vendor/a/` would
+leave out the monorepo's commit, since the outer upstream has the same
+files. The rebuild keeps it: the inner upstream got it from the push. So the pushed commit
 stays in the inner splice's history, the next push goes on top of it,
 and the other commit, which only has the same files, doesn't come in.
 

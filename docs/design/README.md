@@ -360,18 +360,17 @@ splices swap paths, or a new folder takes the old one.
 A new upstream URL keeps the history: the `id` stays
 ([example](../../test/scenarios/04-upstreams/04-upstream-moved/README.md)).
 
-**A nested splice is rebuilt from the splice directly above it**: from
-the rebuild of that splice, its *view* of the monorepo, the way a clone
-of its upstream would rebuild the folder
-([seen from the splice above](../../test/scenarios/05-nested-splices/01-nested-splices/seen-from-above.md)).
-Deeper levels follow the same way, each from the view of the one above
-([three levels](../../test/scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
+**A nested splice is rebuilt recursively**: from the rebuild of the
+splice directly above it, the way a clone of that splice's upstream
+would rebuild the folder
+([seen from the splice above](../../test/scenarios/05-nested-splices/01-nested-splices/seen-from-above.md),
+[three levels](../../test/scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
 So the history before the last sync of the splice above comes from its
 upstream, which has it
 ([spliced elsewhere](../../test/scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)),
-and a merge in the view becomes one commit, as any merge does
+and a merge in the rebuild above becomes one commit, as any merge does
 ([changed above, in a merge](../../test/scenarios/05-nested-splices/01-nested-splices/changed-above-in-a-merge.md)).
-The view differs from a push of the splice above in one way: it keeps
+That rebuild differs from a push of the splice above in one way: it keeps
 the monorepo's commits before the last sync even where the upstream
 above has the same files, so a commit pushed straight to the nested
 splice's upstream stays in its history

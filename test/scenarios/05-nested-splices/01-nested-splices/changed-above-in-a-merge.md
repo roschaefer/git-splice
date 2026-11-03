@@ -2,8 +2,8 @@
 
 The monorepo changes `vendor/a/b/` and doesn't push it. Meanwhile, a
 maintainer changes `b/` in the outer upstream. The monorepo's pull of
-`vendor/a/` then merges both, and the rebuild of `vendor/a/`, the
-[view](seen-from-above.md) of `vendor/a/b/`, gets a merge.
+`vendor/a/` then merges both, and the rebuild of `vendor/a/`, which
+`vendor/a/b/` is [rebuilt from](seen-from-above.md), gets a merge.
 
 A rebuild turns a merge into one commit. So the rebuild of `vendor/a/b/`
 gets the maintainer's change in the pull's commit, under the pull's
@@ -64,7 +64,7 @@ ok   vendor/a: pulled * (glob)
 </div>
 
 *c* (`b local`) is the monorepo's change, *n* (`b in a's upstream`) the
-maintainer's, and *p* the pull. In `vendor/a/`, the view R is *p'*, a
+maintainer's, and *p* the pull. In `vendor/a/`, R is *p'*, a
 merge of *c'* and *n*. In `vendor/a/b/`, R is *p'* too, but with one
 parent: *n* has no copy there, its change is in *p'*.
 
@@ -78,7 +78,7 @@ ok   changed-above-in-a-merge.drawio.svg: 11 commits, 14 arrows, 5 boxes, 2 lane
 ```
 -->
 
-## The view has the merge
+## The rebuild of `vendor/a/` has the merge
 
 The rebuild of `vendor/a/` has `b local` on one side, the maintainer's
 commit on the other, and the pull that joins them:
@@ -96,7 +96,7 @@ $ git log --graph --format='%s (%an)' "$(git splice rebuild vendor/a)"
 
 ## The inner splice has one commit for it
 
-The rebuild of `vendor/a/b/` follows the view's first parents, as any
+The rebuild of `vendor/a/b/` follows the first parents of the rebuild of `vendor/a/`, as any
 rebuild follows the monorepo's. The maintainer's change comes in with the
 pull, under its author:
 
