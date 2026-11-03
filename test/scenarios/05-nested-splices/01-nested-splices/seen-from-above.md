@@ -51,6 +51,27 @@ ok   vendor/a/b fetched
 ok   vendor/a: pulled * (glob)
 ```
 
+<div align="center">
+
+![The monorepo commits a and p; in the lane vendor/a/, the upstream commits k, l and n, where n is T and R; in the lane vendor/a/b/, the upstream commit m and the dashed n prime on top of it, which is R](seen-from-above.drawio.svg)
+
+</div>
+
+The monorepo's pull is *p*. In `vendor/a/`, the maintainer's commit is
+*n* (`b in a's upstream`), and R, the view, is *n* itself. In
+`vendor/a/b/`, R is *n'*: the copy of *n*, on top of *m*, which *n*'s
+`b/.splice` still records.
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/seen-from-above.drawio.svg" \
+>   a=HEAD^ p=HEAD k=refs/splices/upstream/heads/main~2 \
+>   l=refs/splices/upstream/heads/main~1 n=refs/splices/upstream/heads/main \
+>   m=refs/splices/b/heads/main
+ok   seen-from-above.drawio.svg: 7 commits, 8 arrows, 4 boxes, 2 lanes
+```
+-->
+
 ## The view: the rebuild of `vendor/a/`
 
 The monorepo has no changes of its own in `vendor/a/`, so the view is

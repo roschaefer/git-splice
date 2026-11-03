@@ -57,6 +57,27 @@ ok   vendor/a/b fetched
 ok   vendor/a: pulled * (glob)
 ```
 
+<div align="center">
+
+![The monorepo commits a, c and p; in the lane vendor/a/, the upstream commits k, l and n, and the dashed c prime and p prime, where p prime merges c prime and n and is R; in the lane vendor/a/b/, the upstream commit m, and the dashed c prime and p prime on top of it, where p prime has one parent and is R](changed-above-in-a-merge.drawio.svg)
+
+</div>
+
+*c* (`b local`) is the monorepo's change, *n* (`b in a's upstream`) the
+maintainer's, and *p* the pull. In `vendor/a/`, the view R is *p'*, a
+merge of *c'* and *n*. In `vendor/a/b/`, R is *p'* too, but with one
+parent: *n* has no copy there, its change is in *p'*.
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/changed-above-in-a-merge.drawio.svg" \
+>   a=HEAD~2 c=HEAD~1 p=HEAD k=refs/splices/upstream/heads/main~2 \
+>   l=refs/splices/upstream/heads/main~1 n=refs/splices/upstream/heads/main \
+>   m=refs/splices/b/heads/main
+ok   changed-above-in-a-merge.drawio.svg: 11 commits, 14 arrows, 5 boxes, 2 lanes
+```
+-->
+
 ## The view has the merge
 
 The rebuild of `vendor/a/` has `b local` on one side, the maintainer's
