@@ -170,22 +170,33 @@ swap_splice_files() {
   git commit -q -m "swap the .splice files"
 }
 
-@test "nested: after a and b swap their .splice, each follows its id and keeps its own unpushed commits, nothing of the other's" {
+@test "nested: after a and b swap their .splice, the outer folder keeps b's unpushed commits, which the monorepo sees" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "a local" a.txt
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
-  local a_before b_before rebuilt
-  a_before="$(splice rebuild vendor/a)"
+  local b_before rebuilt
   b_before="$(splice rebuild vendor/a/b)"
   swap_splice_files
-  # vendor/a has b's id now, vendor/a/b a's.
+  # vendor/a has b's id now.
   rebuilt="$(splice rebuild vendor/a)"
   [ "$(git log -1 --format=%s "$rebuilt")" = "swap the .splice files" ]
   [ "$(git rev-parse "$rebuilt^")" = "$b_before" ]
+}
+
+@test "nested: after a and b swap their .splice, the inner folder starts at a's synced commit, in the swap, as the splice above sees it" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "a local" a.txt
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  swap_splice_files
+  # vendor/a/b has a's id now. The splice above, b, never had a below it
+  # before the swap: there, a appears in the swap, on its synced commit.
+  local rebuilt
   rebuilt="$(splice rebuild vendor/a/b)"
   [ "$(git log -1 --format=%s "$rebuilt")" = "swap the .splice files" ]
-  [ "$(git rev-parse "$rebuilt^")" = "$a_before" ]
+  [ "$(git rev-parse "$rebuilt^")" = "$(splice_config vendor/a/b commit)" ]
+  [ "$(git show "$rebuilt:file.txt")" = "$(git show HEAD:vendor/a/b/file.txt)" ]
 }
 
 @test "nested: after a and b swap their .splice, a pull of the folder below doesn't nest a in it again" {

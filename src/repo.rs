@@ -95,6 +95,13 @@ pub struct Compared {
     pub no_changes: bool,
 }
 
+/// A rebuild and its start, as rebuild_with_start returns them.
+pub type RebuildAndStart = (Option<String>, Option<String>);
+
+/// What a rebuild depends on: the splice's path, the commit, the name messages
+/// use, and whether it goes without the synced commit or joins rewritten ones.
+pub type RebuildKey = (String, String, String, bool, bool, bool);
+
 #[derive(Default)]
 pub struct Repo {
     pub args: Args,
@@ -116,9 +123,14 @@ pub struct Repo {
     empty_tree: OnceCell<String>,
     pub uncommitted: HashMap<String, Uncommitted>,
     pub content_tree_cache: HashMap<String, String>,
+    /// Each rebuilt commit's source: the commit it copies.
+    pub rebuild_origin: HashMap<String, String>,
+    /// Rebuilds already made in this command.
+    pub rebuild_cache: HashMap<RebuildKey, RebuildAndStart>,
     pub rebuild_given: HashMap<String, String>,
     pub rebuild_without_synced: bool,
     pub joins_rewritten: bool,
+    pub rebuild_as_view: bool,
     pub merge_bump: bool,
     pub merge_rebase: bool,
     pub merge_no_fork_point: bool,

@@ -54,6 +54,7 @@ git ls-tree -z f51c3c7fe316a0dfa76abc5dd3e5a37ad1398f0d
 git mktree -z
 git rev-parse 'refs/splices/lib/heads/main^{tree}'
 git cat-file -e 'bde416459fbcc09c9b585f3b65a94cab3f68bfcd^{commit}'
+git rev-parse --verify --quiet HEAD
 git log --first-parent -1 --no-show-signature '--format=%H' HEAD -- ':(top,literal)lib/.splice'
 git config --blob 5c3c4b4c1ec3c4915436f727f9c0f2e6bcb24a71:lib/.splice --get splice.id
 git config --blob 5c3c4b4c1ec3c4915436f727f9c0f2e6bcb24a71^1:lib/.splice --get splice.id

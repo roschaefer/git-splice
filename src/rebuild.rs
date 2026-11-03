@@ -90,6 +90,39 @@ fn copy_commit(source: &str, tree: &str, parents: &[String]) -> Res<String> {
     )
 }
 
+/// A commit as the rebuild copies it: its hash, then the fields of
+/// COPY_FORMAT.
+struct Logged {
+    hash: String,
+    fields: Vec<Vec<u8>>,
+}
+
+/// The commits `git log --reverse [--first-parent] <args>` lists, oldest
+/// first.
+fn walk_log(first_parent: bool, args: &[&str]) -> Res<Vec<Logged>> {
+    // Every field ends with a NUL; tformat adds a newline after each commit,
+    // which then starts the next hash.
+    let format = format!("--pretty=tformat:%H%x00{COPY_FORMAT}%x00");
+    let mut all = vec!["log", "--reverse"];
+    if first_parent {
+        all.push("--first-parent");
+    }
+    all.extend(["--no-show-signature", &format]);
+    all.extend_from_slice(args);
+    let output = encoded_git(&all).bytes().ok_or(Fail::Soft)?;
+    let fields: Vec<&[u8]> = output.split(|&byte| byte == 0).collect();
+    Ok(fields
+        .chunks_exact(8)
+        .map(|commit| {
+            let hash = commit[0].strip_prefix(b"\n").unwrap_or(commit[0]);
+            Logged {
+                hash: String::from_utf8_lossy(hash).into_owned(),
+                fields: commit[1..].iter().map(|field| field.to_vec()).collect(),
+            }
+        })
+        .collect())
+}
+
 /// Where a splice came from, read off a commit that moved it.
 #[derive(Default)]
 struct Moved {
@@ -118,14 +151,6 @@ pub struct MountLineage {
     pub path: String,
     pub upper: String,
     pub moves: Vec<Segment>,
-}
-
-fn upper_of(range: &str) -> &str {
-    range.split_once("..").map_or(range, |(_, upper)| upper)
-}
-
-fn lower_of(range: &str) -> &str {
-    range.split_once("..").map_or(range, |(lower, _)| lower)
 }
 
 pub fn has_parent(rev: &str) -> bool {
@@ -515,110 +540,61 @@ impl Repo {
     ///
     /// <name> is the splice's path in HEAD, for its upstreams and messages,
     /// where step 2 rebuilds it at the path it had before a move.
-    fn rebuild_with_start(
-        &mut self,
-        path: &str,
-        rev: &str,
-        name: &str,
-    ) -> Res<(Option<String>, Option<String>)> {
+    fn rebuild_with_start(&mut self, path: &str, rev: &str, name: &str) -> Res<RebuildAndStart> {
+        let resolved = git(&["rev-parse", "--verify", "--quiet", rev])
+            .out()
+            .unwrap_or_else(|| rev.to_string());
+        let key = (
+            path.to_string(),
+            resolved,
+            name.to_string(),
+            self.rebuild_without_synced,
+            self.joins_rewritten,
+            self.rebuild_as_view,
+        );
+        if let Some(cached) = self.rebuild_cache.get(&key) {
+            return Ok(cached.clone());
+        }
+        let result = self.rebuild_uncached(path, rev, name)?;
+        self.rebuild_cache.insert(key, result.clone());
+        Ok(result)
+    }
+
+    /// rebuild_with_start, without the cache. A nested splice is rebuilt from
+    /// the rebuild of the splice directly above it, as it would be in a clone
+    /// of that splice's upstream: each splice only sees the one it's in.
+    fn rebuild_uncached(&mut self, path: &str, rev: &str, name: &str) -> Res<RebuildAndStart> {
+        if let Some(above_path) = splice_above_in(rev, path) {
+            let as_view = std::mem::replace(&mut self.rebuild_as_view, true);
+            let above = self.rebuild_with_start(&above_path, rev, &above_path);
+            self.rebuild_as_view = as_view;
+            let (above_rebuilt, above_start) = above?;
+            let above = above_path;
+            let Some(above_rebuilt) = above_rebuilt else {
+                return Ok((None, None));
+            };
+            let inner = &path[above.len() + 1..];
+            let (rebuilt, start) = self.rebuild_with_start(inner, &above_rebuilt, name)?;
+            // The start is a commit of the rebuild above: the monorepo commit
+            // it copies, or, if it's one of the upstream's own, where the
+            // rebuild above starts.
+            let start = start.and_then(|start| {
+                self.rebuild_origin
+                    .get(&start)
+                    .cloned()
+                    .or(above_start.clone())
+            });
+            return Ok((rebuilt, start));
+        }
         let lineage = splice_lineage(path, rev);
-        let mut last_sync = lineage.last_sync;
+        let last_sync = lineage.last_sync;
         let mut synced = lineage.synced;
         let mut at = lineage.path;
-        let mut before_path = lineage.before_path;
+        let before_path = lineage.before_path;
         let mut upper = lineage.upper;
         let mut moves = lineage.moves;
         if !last_sync.is_empty() {
             refuse_shallow_start(name, &last_sync)?;
-        }
-
-        // A nested splice's history up to the last sync of a splice above it
-        // is in that splice's upstream: a clone or pull of the splice above
-        // squashed it into one commit here. So up to there, it's rebuilt from
-        // the upstream's history, at the synced commit of the splice above,
-        // and that rebuild stands in for the synced commit. Of the splices
-        // above, the one with the newest last sync covers the most history; on
-        // a tie, the outermost. Only where the upstream above has the same
-        // splice at the path: it may have replaced it with another.
-        let mut seg_paths: Vec<String> = moves.iter().map(|m| m.path.clone()).collect();
-        seg_paths.push(at.clone());
-        let mut seg_uppers: Vec<String> = moves
-            .iter()
-            .map(|m| upper_of(&m.range).to_string())
-            .collect();
-        seg_uppers.push(upper.clone());
-        let mut seg_lowers: Vec<String> = moves
-            .iter()
-            .map(|m| lower_of(&m.range).to_string())
-            .collect();
-        seg_lowers.push(String::new());
-        let mut best: Option<(String, String, String, usize)> = None;
-        if !last_sync.is_empty() {
-            for k in 0..seg_paths.len() {
-                let mut dir = seg_paths[k].clone();
-                while let Some(above) = splice_above_in(&seg_uppers[k], &dir) {
-                    dir = above.clone();
-                    let above_lineage = splice_lineage(&above, &seg_uppers[k]);
-                    let (above_last, above_synced) =
-                        (above_lineage.last_sync, above_lineage.synced);
-                    if above_last.is_empty()
-                        || above_synced.is_empty()
-                        || !commit_here(&above_synced)
-                        || !is_ancestor(&last_sync, &above_last)
-                    {
-                        continue;
-                    }
-                    // On a newer path, only a last sync since the move to it.
-                    if !seg_lowers[k].is_empty() && is_ancestor(&above_last, &seg_lowers[k]) {
-                        continue;
-                    }
-                    if let Some((_, best_last, _, _)) = &best {
-                        if !is_ancestor(best_last, &above_last) {
-                            continue;
-                        }
-                    }
-                    let inner = seg_paths[k]
-                        .strip_prefix(&format!("{above}/"))
-                        .unwrap_or(&seg_paths[k]);
-                    if splice_config(inner, "id", &above_synced)
-                        != splice_config(&seg_paths[k], "id", &seg_uppers[k])
-                    {
-                        continue;
-                    }
-                    best = Some((above, above_last, above_synced, k));
-                }
-                if best.is_some() {
-                    break;
-                }
-            }
-        }
-        let mut from_above = false;
-        if let Some((best_above, best_last, best_synced, k)) = best {
-            let inner = seg_paths[k]
-                .strip_prefix(&format!("{best_above}/"))
-                .unwrap_or(&seg_paths[k])
-                .to_string();
-            if let Some(rebuilt) = self.rebuild_splice(&inner, &best_synced)? {
-                from_above = true;
-                // A newer last sync above: the splice had this path in its
-                // first parent, or the one before, if the last sync is the move
-                // to it.
-                if best_last != last_sync {
-                    before_path = seg_paths[k].clone();
-                    if !seg_lowers[k].is_empty()
-                        && git(&["rev-parse", &format!("{best_last}^1")]).out()
-                            == git(&["rev-parse", &seg_lowers[k]]).out()
-                    {
-                        before_path = seg_paths[k + 1].clone();
-                    }
-                }
-                last_sync = best_last;
-                synced = rebuilt;
-                // The walk starts on that path; only the moves after it are left.
-                at = seg_paths[k].clone();
-                upper = seg_uppers[k].clone();
-                moves.truncate(k);
-            }
         }
 
         if !synced.is_empty() && !commit_here(&synced) {
@@ -641,11 +617,10 @@ impl Repo {
             prev = Some(synced.clone());
             let prev_tree = tree_of(&synced).ok_or(Fail::Soft)?;
             let tree = self.content_tree(&last_sync, &at)?;
-            // With the history from above, L's folder may equal it while the
-            // monorepo's history before L has commits it lacks. They're joined
-            // all the same. So is a move that changed the state file.
+            // A move that changed the state file is joined even where L's
+            // folder equals U(L).
             if let Some(tree) =
-                tree.filter(|tree| *tree != prev_tree || from_above || before_path != at)
+                tree.filter(|tree| *tree != prev_tree || before_path != at || self.rebuild_as_view)
             {
                 let mut before = None;
                 let mut before_start = None;
@@ -709,7 +684,9 @@ impl Repo {
                 {
                     Some(parents[0].clone())
                 } else {
-                    Some(copy_commit(&last_sync, &tree, &parents)?)
+                    let copy = copy_commit(&last_sync, &tree, &parents)?;
+                    self.rebuild_origin.insert(copy.clone(), last_sync.clone());
+                    Some(copy)
                 };
             }
             range = format!("{last_sync}..{upper}");
@@ -731,9 +708,9 @@ impl Repo {
             start = Some(mount.mount);
         }
 
-        let mut prev = self.rebuild_walk(&at, prev, &range)?;
+        let mut prev = self.rebuild_walk(&at, prev, &range, name)?;
         for segment in moves.iter().rev() {
-            prev = self.rebuild_walk(&segment.path, prev, &segment.range)?;
+            prev = self.rebuild_walk(&segment.path, prev, &segment.range, name)?;
         }
         Ok((prev, start))
     }
@@ -741,46 +718,29 @@ impl Repo {
     /// The rebuild of the splice along <range>, on top of upstream commit
     /// <start> (nothing: a new root): one commit per first-parent commit whose
     /// folder differs from the one before. A merge in the monorepo becomes one
-    /// ordinary commit.
+    /// ordinary commit. A join in the rebuild above stays a join: see
+    /// joined_side.
     fn rebuild_walk(
         &mut self,
         path: &str,
         start: Option<String>,
         range: &str,
+        name: &str,
     ) -> Res<Option<String>> {
         let mut prev = start;
         let mut prev_tree = match &prev {
             Some(commit) => Some(tree_of(commit).ok_or(Fail::Soft)?),
             None => None,
         };
-        // Every field ends with a NUL; tformat adds a newline after each
-        // commit, which then starts the next hash.
-        let format = format!("--pretty=tformat:%H%x00{COPY_FORMAT}%x00");
         let spec = format!(":(top,literal){path}");
-        let output = encoded_git(&[
-            "log",
-            "--reverse",
-            "--first-parent",
-            "--no-show-signature",
-            &format,
-            range,
-            "--",
-            &spec,
-        ])
-        .bytes()
-        .ok_or(Fail::Soft)?;
-        let fields: Vec<&[u8]> = output.split(|&byte| byte == 0).collect();
-        let commits: Vec<&[&[u8]]> = fields.chunks_exact(8).collect();
+        let mut commits = walk_log(true, &[range, "--", &spec])?;
+        self.add_joins(&mut commits, range)?;
         if commits.is_empty() {
             return Ok(prev);
         }
-        let hash_of = |commit: &[&[u8]]| {
-            let hash = commit[0].strip_prefix(b"\n").unwrap_or(commit[0]);
-            String::from_utf8_lossy(hash).into_owned()
-        };
         let queries: String = commits
             .iter()
-            .map(|commit| format!("{}:{path}\n", hash_of(commit)))
+            .map(|commit| format!("{}:{path}\n", commit.hash))
             .collect();
         let objects = git(&["cat-file", "--batch-check=%(objectname) %(objecttype)"])
             .input(queries)
@@ -792,26 +752,101 @@ impl Repo {
                 continue;
             };
             let tree = self.strip_state_tree(folder)?;
-            if Some(&tree) == prev_tree.as_ref() {
+            let mut parents: Vec<String> = prev.iter().cloned().collect();
+            if let Some(side) = self.joined_side(&commit.hash, path, name)? {
+                if prev.as_ref().is_none_or(|prev| !is_ancestor(&side, prev)) {
+                    parents.push(side);
+                }
+            }
+            if parents.len() < 2 {
+                if Some(&tree) == prev_tree.as_ref() {
+                    continue;
+                }
+            } else if parents
+                .iter()
+                .all(|parent| is_ancestor(parent, &parents[1]))
+                && tree_of(&parents[1]).as_ref() == Some(&tree)
+            {
+                // Nothing of its own on this side: the other side is all.
+                prev = Some(parents[1].clone());
+                prev_tree = Some(tree);
                 continue;
             }
-            let parents: Vec<String> = prev.iter().cloned().collect();
+            let f = &commit.fields;
             let copy = write_copy(
                 &Copied {
-                    author: commit[1],
-                    email: commit[2],
-                    date: commit[3],
-                    committer: commit[4],
-                    committer_email: commit[5],
-                    committer_date: commit[6],
-                    message: commit[7],
+                    author: &f[0],
+                    email: &f[1],
+                    date: &f[2],
+                    committer: &f[3],
+                    committer_email: &f[4],
+                    committer_date: &f[5],
+                    message: &f[6],
                 },
                 &tree,
                 &parents,
             )?;
+            self.rebuild_origin
+                .insert(copy.clone(), commit.hash.clone());
             prev = Some(copy);
             prev_tree = Some(tree);
         }
         Ok(prev)
+    }
+
+    /// Adds the joins of the rebuild above along <range> that <commits> lacks,
+    /// in their place: a join that leaves the splice as its first parent has
+    /// it is no change to it, and the log leaves it out. Only when <range>
+    /// walks a rebuild: the monorepo's own merges are no joins.
+    fn add_joins(&self, commits: &mut Vec<Logged>, range: &str) -> Res<()> {
+        let upper = range.split_once("..").map_or(range, |(_, upper)| upper);
+        if !self.rebuild_origin.contains_key(upper) {
+            return Ok(());
+        }
+        let merges = git(&["rev-list", "--first-parent", "--min-parents=2", range])
+            .out()
+            .unwrap_or_default();
+        let joins: Vec<&str> = merges
+            .lines()
+            .filter(|merge| {
+                self.rebuild_origin.contains_key(*merge)
+                    && !commits.iter().any(|commit| commit.hash == *merge)
+            })
+            .collect();
+        if joins.is_empty() {
+            return Ok(());
+        }
+        let mut args = vec!["--no-walk"];
+        args.extend(&joins);
+        for join in walk_log(false, &args)? {
+            let at = commits
+                .iter()
+                .position(|commit| is_ancestor(&join.hash, &commit.hash))
+                .unwrap_or(commits.len());
+            commits.insert(at, join);
+        }
+        Ok(())
+    }
+
+    /// For a commit of the rebuild above that joins two sides, as at a pull
+    /// that merged local changes: the splice's rebuild along the side that
+    /// isn't the first parent, if the same splice is there. Without it, a change
+    /// to the splice made on that side, e.g. in the upstream above, would come
+    /// in as part of the join commit, under the join's author.
+    fn joined_side(&mut self, commit: &str, path: &str, name: &str) -> Res<Option<String>> {
+        if !self.rebuild_origin.contains_key(commit) {
+            return Ok(None);
+        }
+        let Some(side) = git(&["rev-parse", "--verify", "--quiet", &format!("{commit}^2")])
+            .q()
+            .out()
+        else {
+            return Ok(None);
+        };
+        // The other side may have another splice at the path.
+        if !same_splice(path, &side, commit, path) {
+            return Ok(None);
+        }
+        Ok(self.rebuild_with_start(path, &side, name)?.0)
     }
 }
