@@ -17,21 +17,28 @@ SYNOPSIS
 DESCRIPTION
     Prints the key splice <path>'s upstream has in this repository: its
     fetched branches are refs/splices/<key>/heads/<branch>, e.g. for
-    'git log splices/<key>/heads/main'. With <new-key>, renames the key and
-    moves its refs along.
+    'git log splices/<key>/heads/main'.
 
-    --upstream names the upstream, as <path>/.splice does in
-    [upstream "<name>"]. Without it, the splice's default upstream.
+OPTIONS
+    <new-key>
+        Renames the key and moves its refs along. Renaming it also renames
+        it in the tracked upstream branches, branch.<branch>.splice =
+        <key>:<name>.
 
+    --upstream <name>
+        Names the upstream, as <path>/.splice does in [upstream "<name>"].
+        Without it, the splice's default upstream.
+
+KEYS
     A key belongs to an upstream URL, so splices with the same URL share it.
-    Renaming it also renames it in the tracked upstream branches,
-    branch.<branch>.splice = <key>:<name>.
-    The first fetch of an upstream records its key in the repository's config,
-    as splice.<key>.url, from the end of its URL: lib for
+    The first fetch of an upstream records its key in the repository's
+    config, as splice.<key>.url, from the end of its URL: lib for
     https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
     taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
     long.
 ```
+
+## Description
 
 In the [walkthrough's repositories](README.md), `vendor/pkg-a/` has
 already been fetched, so its upstream has the key `pkg-a`:
@@ -40,6 +47,10 @@ already been fetched, so its upstream has the key `pkg-a`:
 $ git splice key vendor/pkg-a
 pkg-a
 ```
+
+## Options
+
+### `<new-key>`
 
 Rename it to `a`:
 
@@ -55,5 +66,10 @@ $ git log --oneline -1 splices/a/heads/main
 703b936 pkg-a: a second commit, after the clone
 ```
 
+## Keys
+
+A key belongs to an upstream URL, so every splice of that URL shares it
+([URLs, keys and refs](../concepts/upstreams/README.md#urls-keys-and-refs),
+[choosing a key](../concepts/upstreams/README.md#choosing-a-key)).
 How the commands change these refs, and what they cost:
 [splice refs](../scenarios/04-upstreams/05-splice-refs/README.md).
