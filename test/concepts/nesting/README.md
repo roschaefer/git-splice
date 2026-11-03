@@ -46,9 +46,10 @@ monorepo directly
 So the library syncs the same from the monorepo as from a clone of the
 app.
 
-`merge` and `pull` still merge the library's upstream straight into the
-monorepo's folder: no commit of the app with the pulled library is made
-on the way. After each merge, the splices below the merged one read
+`merge` and `pull` merge the library's upstream straight into the
+monorepo's folder, so a conflict lands in your working tree. The app's
+commit with the pulled library comes from the rebuild: it copies the
+monorepo's pull commit, and a push of the app sends it. After each merge, the splices below the merged one read
 their `.splice` again, so a pull of the app that moves or renames the
 library's upstream fetches and merges the new one.
 
