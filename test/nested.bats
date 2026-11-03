@@ -899,3 +899,18 @@ order_of() {
   splice pull vendor/a/b/c
   [ "$(splice boundary vendor/a/b/c)" = "$(git rev-parse HEAD)" ]
 }
+
+@test "nested: b's rebuild after a clean pull of a's rewritten upstream starts at the pull, as a's does" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  work_in_upstream_a
+  echo "a rewritten" >file.txt
+  git commit -q -a --amend -m "add b, rewritten"
+  git push -q --force origin HEAD:main
+  cd "$monorepo"
+  splice pull vendor/a
+  commit_local "$monorepo" vendor/a/b "b local"
+  run splice rebuild vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "$(git log --format=%s -1 "$output")" = "b local" ]
+  [ "$(git rev-parse "$output^")" = "$(git -C "$upstream_b" rev-parse main)" ]
+}

@@ -627,22 +627,29 @@ impl Repo {
                             // merge and pull only compare with the rebuild, and
                             // their pull is the way out.
                             let previous = splice_config(&before_path, "commit", &first_parent);
-                            if !self.joins_rewritten
+                            let rewritten = !self.joins_rewritten
                                 && !previous.is_empty()
                                 && commit_here(&previous)
                                 && !is_ancestor(&previous, &synced)
-                                && self.rewritten_away(name, &previous, &synced)?
-                            {
+                                && self.rewritten_away(name, &previous, &synced)?;
+                            // Only the rebuild for the splice below joins a
+                            // pull whose folder is U(L): a clean pull of a
+                            // rewritten upstream starts there, as without it.
+                            let clean = tree == prev_tree && before_path == at;
+                            if rewritten && clean {
+                                parents = vec![synced.clone()];
+                            } else if rewritten {
                                 return fail(format!(
                                     "{name}: {} records {}, which the upstream rewrote from {}, and has changes of its own -- commit the folder's changes on top of the upstream branch yourself, push them there, then pull: the rebuild would publish the rewritten-away commits again",
                                     short(&last_sync),
                                     short(&synced),
                                     short(&previous)
                                 ));
+                            } else {
+                                // A pull merged a divergence: join both sides.
+                                parents = vec![earlier.clone(), synced.clone()];
+                                rebuild_start = before_start;
                             }
-                            // A pull merged a divergence: join both sides.
-                            parents = vec![earlier.clone(), synced.clone()];
-                            rebuild_start = before_start;
                         }
                     }
                     _ => {
