@@ -15,23 +15,37 @@ SYNOPSIS
     git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [path...]
 
 DESCRIPTION
-    Fetches every branch of each splice's upstreams into
-    refs/splices/<key>/heads/*, where <key> is the upstream's key in this
-    repository, e.g. lib for https://github.com/x/lib.git -- by URL, there is
-    no Git remote; 'git splice key' prints and renames keys. Branches deleted
-    upstream are pruned. Defaults to every splice when no paths are given.
-    Fetches upstreams in parallel, each once, and reports when the branch a
-    splice syncs with has moved.
+    Fetches every branch of each splice's upstreams, in parallel and each
+    upstream once, and reports when the branch a splice syncs with has
+    moved. Branches deleted upstream are pruned.
 
-    A splice whose .splice names several upstreams has each fetched, unless
-    --upstream names one.
+OPTIONS
+    <path>...
+        Fetches only the upstreams of these splices, by their folders.
+        Without paths, every splice's.
 
-    --branch <name> --track also tracks that upstream branch on the current
-    branch, without a pull or push: from then on, every command syncs the
-    splice with it there, and 'git splice status' compares with it.
-    --no-track stops tracking one, so the splice syncs with the branch named
-    like the current one again. See 'git splice merge --help'.
+    --upstream <name>
+        Fetches only this one of the upstreams the splice's .splice names.
+        Without it, a splice with several upstreams has each fetched.
+
+    --branch <name> --track
+        Also tracks that upstream branch on the current branch, without a
+        pull or push: from then on, every command syncs the splice with it
+        there, and 'git splice status' compares with it. See 'git splice
+        merge --help'.
+
+    --no-track
+        Stops tracking one, so the splice syncs with the branch named like
+        the current one again.
+
+REFS
+    The branches go to refs/splices/<key>/heads/*, where <key> is the
+    upstream's key in this repository, e.g. lib for
+    https://github.com/x/lib.git -- by URL, there is no Git remote; 'git
+    splice key' prints and renames keys.
 ```
+## Description
+
 In the [walkthrough's repositories](README.md), someone pushes another
 commit to `pkg-a`'s upstream:
 
@@ -47,7 +61,27 @@ $ git splice fetch
 ok   vendor/pkg-a fetched (main moved 703b936..5099edf)
 ```
 
-## Looking at an upstream
+## Options
+
+### `--upstream`
+
+A splice with a fork and the original as upstreams fetches both, unless
+`--upstream` names one
+([scenario](../scenarios/04-upstreams/02-several-upstreams/README.md)).
+
+### `--branch`, `--track` and `--no-track`
+
+Tracking a branch only changes this clone's config, so it needs no pull
+or push ([tracking another upstream branch
+locally](../concepts/upstreams/README.md#tracking-another-upstream-branch-locally),
+[scenario](../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md)).
+
+## Refs
+
+Fetched branches are ordinary Git refs under `refs/splices/<key>/heads/`
+([URLs, keys and refs](../concepts/upstreams/README.md#urls-keys-and-refs)).
+
+### Looking at an upstream
 
 Every Git command can read the fetched history, so there's nothing to
 clone:
