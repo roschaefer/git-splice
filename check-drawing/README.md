@@ -75,7 +75,9 @@ still reads the drawings; that moves to Rust next.
 - **Commit**: a circle (ellipse). Its label is the commit's subject,
   or the subject's start before `: `, looked up on the monorepo's first-parent history, then upstream. A
   label with a trailing `'` (*b'* for *b*) is the rebuild's copy of the
-  commit without it, and a copy of a drawn commit is labelled so: the same message, author and dates, in R's history
+  commit without it, and a copy of a drawn commit is labelled so. A
+  nested splice's R copies the copy in R of the splice above: two `'`
+  (*p''* for *p*). Copies are labelled so: the same message, author and dates, in R's history
   or on a fetched upstream branch, where a push put it. Where several
   copies look alike, e.g. a pushed *b'* and R's *c'* after `git rebase`
   copied *b* to *c*, give the copy in full: `b'=<rev>`.

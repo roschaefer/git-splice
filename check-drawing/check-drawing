@@ -338,7 +338,9 @@ check_drawing() {
   local label base subject hash upstream_tips tip
   for id in "${commits[@]}"; do
     label="${value[$id]}"
-    base="${label%\'}"
+    # One ' per copy: a nested splice's R copies R's copy of the splice
+    # above, e.g. p'' for p. Copies keep message, author and dates.
+    base="${label%%\'*}"
     sp="${splice_of[$id]}"
     hash=""
     if [[ -n "${rev_of[$label]:-}" ]]; then

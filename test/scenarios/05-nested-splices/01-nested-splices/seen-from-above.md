@@ -31,7 +31,7 @@ $ git clone -q "$UPSTREAM" ../a-work &&
 >   cd ../a-work &&
 >   echo "b in a's upstream" >>b/file.txt &&
 >   git -c user.name=Maintainer -c user.email=maintainer@example.com \
->     commit -q -am "b in a's upstream" &&
+>     commit -q -am "n: b in a's upstream" &&
 >   git push -q origin HEAD:main &&
 >   cd ../monorepo
 ```
@@ -47,12 +47,12 @@ ok   vendor/a: pulled * (glob)
 
 <div align="center">
 
-![The monorepo commits a and p; in the lane vendor/a/, the upstream commits k, l and n, where n is T and R; in the lane vendor/a/b/, the upstream commit m and the dashed n prime on top of it, which is R](seen-from-above.drawio.svg)
+![The monorepo commits a and p, where H and main point at p; in the lane vendor/a/, the upstream commits k, l and n, where main, T and R point at n; in the lane vendor/a/b/, the upstream commit m, where main points at m, and the dashed n prime on top of it, which is R](seen-from-above.drawio.svg)
 
 </div>
 
 The monorepo's pull is *p*. In `vendor/a/`, the maintainer's commit is
-*n* (`b in a's upstream`), and R is *n* itself. In
+*n*, and R is *n* itself: the rebuild has nothing to copy. In
 `vendor/a/b/`, R is *n'*: the copy of *n*, on top of *m*, which *n*'s
 `b/.splice` still records.
 
@@ -73,7 +73,7 @@ is the outer upstream's `main`:
 
 ```scrut
 $ git log --graph --format='%s (%an)' "$(git splice rebuild vendor/a)"
-* b in a's upstream (Maintainer)
+* n: b in a's upstream (Maintainer)
 * add b (Test)
 * a seed (Test)
 ```
@@ -86,7 +86,7 @@ upstream had at `b/`:
 
 ```scrut
 $ git log --graph --format='%s (%an)' "$(git splice rebuild vendor/a/b)"
-* b in a's upstream (Maintainer)
+* n: b in a's upstream (Maintainer)
 * b seed (Test)
 ```
 
