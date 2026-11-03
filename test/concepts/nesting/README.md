@@ -34,8 +34,7 @@ On branch main
 ```
 
 `a/c/` is a splice now. `clone` fetched only the app's upstream, so the
-library's waits for a
-[`fetch`](../../walkthrough/fetch.md).
+library's upstream waits for a [`fetch`](../../walkthrough/fetch.md).
 
 ## Each splice syncs with the monorepo
 
