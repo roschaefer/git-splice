@@ -1,22 +1,14 @@
-# Cycle
+# Scenario: cycle
 
-A splice whose upstream, directly or through other splices, splices in
-the monorepo. Then the monorepo contains a copy of itself, which
-contains a copy of itself, and so on.
+The upstream of `vendor/a/` splices in the monorepo, so the monorepo
+contains a copy of itself, which contains a copy of itself, and so on: a
+[cycle](../../../concepts/nesting/README.md#a-splice-inside-itself-a-cycle).
 
 ```text
       M ──> A
       ^     │
       └─────┘   A's upstream splices M in at i/
 ```
-
-A package manager can allow cycles, since it refers to packages and
-installs each once. A splice contains its files, though, and a nested
-splice is part of the files of the one above it
-([nesting](README.md)). So a cycle is an endless tree of folders. It's
-forbidden, and the [splice identity](../splice-identity/README.md)
-shows it: a splice inside itself has the same `id` as a splice above
-it. Two folders side by side with one id are fine, e.g. a copy.
 
 **Not prevented yet.** Nothing refuses a cycle
 ([#86](https://github.com/roschaefer/git-splice/issues/86)). The plan:
@@ -36,7 +28,7 @@ monorepo's own remotes would show it one level earlier.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../scenarios/readme-setup.sh"
+$ source "$TESTDIR/../../readme-setup.sh"
 ```
 -->
 
@@ -93,7 +85,7 @@ Once the monorepo is pushed, the `i/` splices sync with a version that
 has every level so far, so a pull nests them all once more. The copies
 of the nested `.splice` files then conflict, as both sides pulled them
 to different commits (the first of the
-[design's limits](../../../docs/design/README.md#limits)).
+[design's limits](../../../../docs/design/README.md#limits)).
 
 ### The monorepo pushes to itself
 

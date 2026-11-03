@@ -1,9 +1,10 @@
-# Diamond
+# Scenario: diamond
 
-Two apps, each in a repository of its own, share a library. Each app has
-the library spliced in at `c/`. A monorepo brings all of them together:
-the apps at `a/` and `b/`, and the library once more at `c/`, to work on
-it directly.
+Two apps, each in a repository of its own, have the library spliced in at
+`c/`. The monorepo clones both apps, and the library once more at `c/`,
+to work on it directly. So two paths lead from the monorepo to the
+library, one through each app: a
+[diamond](../../../concepts/nesting/README.md#one-library-two-paths-a-diamond).
 
 ```text
    monorepo
@@ -13,14 +14,8 @@ it directly.
       c/
 ```
 
-That's a *diamond*: two paths lead from the monorepo to the library, one
-through each app. A monorepo without splices would keep the library once
-and let `a/c/` and `b/c/` be symlinks to `../c/`. But then the app on
-its own, cloned from its own repository, has a link that points outside
-of it. With splices, each copy is real: the app's repository has the
-library's files, and `c/.splice` says where they come from. The monorepo
-has the library three times, and keeps the copies in sync by pulling and
-pushing, as below.
+Here a change to the library is made once, in the monorepo's `c/`, and
+then reaches every copy.
 
 - **Library** (`$UPSTREAM`, reached as `https://git.example.com/c.git`):
   `c seed`.
@@ -33,7 +28,7 @@ pushing, as below.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../scenarios/readme-setup.sh"
+$ source "$TESTDIR/../../readme-setup.sh"
 ```
 -->
 
@@ -79,9 +74,9 @@ On branch main
 
 Each is a splice of its own, with its own id: each app ran `clone` for
 the library, and so did the monorepo
-([splice identity](../splice-identity/README.md)). All three share the
+([splice identity](../../../concepts/splice-identity/README.md)). All three share the
 library's upstream, and with it one key and one fetch
-([upstreams](../upstreams/README.md)):
+([upstreams](../../../concepts/upstreams/README.md)):
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
@@ -93,7 +88,7 @@ c/.splice: id = 27a7630097a94256
 ```
 
 By their ids, the three copies of the library are independent splices
-([splice identity](../splice-identity/README.md#what-an-id-is)): each
+([splice identity](../../../concepts/splice-identity/README.md#what-an-id-is)): each
 repository cloned the library itself. They're one library, at possibly
 different versions, as in a package manager's diamond: one app may still
 use an older version than the other. Keeping them at the same version is
@@ -159,7 +154,7 @@ On branch main
   up to date  c
 ```
 
-In terms of the [sync model](../sync-model/README.md): R of `c/`, the
+In terms of the [sync model](../../../concepts/sync-model/README.md): R of `c/`, the
 commit its push sent, is the library's upstream branch T now. `a/c/` and
 `b/c/` still have the old content, so their R is the old commit.
 `log --graph` leaves out `c/`, which is up to date:
@@ -252,5 +247,5 @@ the same files
 
 `git-splice` compares each copy only with its own upstream, not the
 copies with each other. Copies with one id,
-[mirrors](../../../docs/going-forward/mirrors.md), are meant to stay
+[mirrors](../../../../docs/going-forward/mirrors.md), are meant to stay
 alike; these three aren't.

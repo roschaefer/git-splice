@@ -137,6 +137,21 @@ add_splice() {
   )
 }
 
+# Clones bare repository $1, splices $2 in at $4 there, and pushes, as an
+# upstream that uses git-splice itself would. $1's users reach $2 through
+# url.$3.insteadOf.
+splice_into_upstream() {
+  local upstream="$1" url="$2" url_base="$3" path="$4" work
+  work="$(mktemp -d)"
+  git clone -q "$upstream" "$work"
+  git -C "$work" config user.name "Test"
+  git -C "$work" config user.email "test@example.com"
+  git -C "$work" config "url.$url_base.insteadOf" "$url"
+  add_splice "$work" "$url" "$path"
+  git -C "$work" push -q origin HEAD:main
+  rm -rf "$work"
+}
+
 # Appends line $3 to <path>/file.txt in monorepo $1 (path $2) and commits
 # it with message $3.
 commit_local() {

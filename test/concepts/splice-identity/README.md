@@ -77,7 +77,7 @@ something to fix. [Mirrors](../../scenarios/07-moved-folders/03-mirrors/README.m
 With [nesting](../nesting/README.md), a `.splice` with the same id as one
 above it means a splice contains itself. The id is what makes that
 visible, though nothing refuses it yet
-([cycle](../nesting/cycle.md)).
+([cycle](../../scenarios/05-nested-splices/04-cycle/README.md)).
 
 ## What an id is
 
