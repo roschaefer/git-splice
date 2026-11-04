@@ -31,6 +31,8 @@
               # Only so the workspace reads; it isn't built here.
               ./check-drawing/Cargo.toml
               ./check-drawing/src
+              ./check-help/Cargo.toml
+              ./check-help/src
               ./completions
               ./LICENSE
             ];
