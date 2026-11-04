@@ -700,7 +700,10 @@ impl Repo {
             } else {
                 None
             };
-            match self.reload_splice_upstream(&path, branch, verb, upstream.as_deref()) {
+            let reloaded = self.reload_splice_upstream(&path, branch, verb, upstream.as_deref());
+            // A fetch moved refs/splices/, which rebuilds read.
+            self.rebuild_cache.clear();
+            match reloaded {
                 Err(Fail::Hard) => return Err(Fail::Hard),
                 Err(_) => failures.push(path),
                 Ok(()) => {}
