@@ -51,6 +51,13 @@ Where a `.splice` is new at a path, or has another id, and no move explains
 it, the splice's history starts there. Nothing older is published
 ([scenario](../../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
 
+A splice moved out of a [nested](../nesting/README.md) folder keeps the
+history it had there, as the splice above rebuilds it. Known limit: after
+several moves, out of one splice, into another, pushed from there, and out
+again, the history comes from the first folder, not the last. It misses
+what the push from inside the other splice sent, so the next push is
+refused as diverged.
+
 <!--
 ```scrut
 $ cd ../..
