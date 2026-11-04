@@ -584,6 +584,21 @@ b_moved_to_a_commit_no_branch_has() {
   [[ "$output" != *"no common"* && "$output" != *"unrelated"* ]]
 }
 
+@test "nested: pull of a fetches the synced commit it moves b to from b's upstream, also when it adds a second upstream to b that lacks it" {
+  b_moved_to_a_commit_no_branch_has
+  upstream_fork="$BATS_TEST_TMPDIR/upstream-fork.git"
+  git clone -q --bare --no-local "$upstream_b" "$upstream_fork"
+  cd "$a_work"
+  git config --file b/.splice upstream.fork.url "$upstream_fork"
+  git commit -q -m "b: a fork" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  synced="$(splice_config vendor/a/b commit)"
+  git cat-file -e "$synced^{commit}"
+}
+
 @test "nested: pull --all fetches the tag the pull of a pins b at" {
   scenario_nested_splices "$monorepo" "$upstream"
   git -C "$upstream_b" tag v1 main
@@ -797,7 +812,7 @@ order_of() {
   cd "$monorepo"
   run splice pull vendor/a vendor/a/b
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a/b: not pulled, since loading the upstream its new .splice names failed"* ]]
+  [[ "$output" == *"vendor/a/b: not pulled, since its .splice from a merge above failed to load"* ]]
   [[ "$output" == *"Failed: vendor/a/b"* ]]
   ! git cat-file -e HEAD:vendor/a/b/other.txt
 }
@@ -846,4 +861,22 @@ order_of() {
   [ "$(git config --file vendor/a/b/.splice upstream.fork.url)" = "$upstream_fork" ]
   key="$(splice key --upstream fork vendor/a/b)"
   [ "$(git rev-parse "refs/splices/$key/heads/main")" = "$(git -C "$upstream_fork" rev-parse main)" ]
+}
+
+@test "nested: pull of a and x skips only b when a's pull brings a .splice for b that can't be loaded, and pulls x" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  upstream_x="$BATS_TEST_TMPDIR/upstream-x.git"
+  make_bare_repo "$upstream_x"
+  seed_bare_repo "$upstream_x" "x seed"
+  add_splice "$monorepo" "$upstream_x" vendor/x
+  seed_bare_repo "$upstream_x" "x change" main other.txt
+  work_in_upstream_a
+  git config --file b/.splice --unset upstream.origin.url
+  git commit -q -m "b: no URL" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull vendor/a vendor/x
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/x: pulled"* ]]
+  [[ "$output" == *"Failed: vendor/a/b"* ]]
 }

@@ -499,7 +499,7 @@ impl Repo {
             .iter()
             .map(|name| self.url_of(path, name))
             .collect();
-        self.load_splice_upstream(path)?;
+        contained(self.load_splice_upstream(path))?;
         if let Some(upstream) = upstream {
             contained(self.use_upstreams(upstream, &[path.to_string()]))?;
         }
@@ -513,12 +513,18 @@ impl Repo {
                 entries.push((path.to_string(), name));
             }
         }
-        if entries.is_empty() && (!synced_commit_here(path) || !self.pin_here(path)) {
-            if upstream.is_some() {
-                entries.push((path.to_string(), self.name_of(path)));
+        // A new upstream may lack them, and the one in use have them.
+        if !synced_commit_here(path) || !self.pin_here(path) {
+            let more = if upstream.is_some() {
                 used_is_new = true;
+                vec![(path.to_string(), self.name_of(path))]
             } else {
-                entries = self.every_upstream_entry(&[path.to_string()])?;
+                self.every_upstream_entry(&[path.to_string()])?
+            };
+            for entry in more {
+                if !entries.contains(&entry) {
+                    entries.push(entry);
+                }
             }
         }
         if entries.is_empty() {
@@ -572,10 +578,10 @@ impl Repo {
                 continue;
             }
             // Reading its .splice again after a merge above failed, e.g. the
-            // fetch of the upstream it names now.
+            // fetch of the upstream it names now; the reason came then.
             if failures.contains(path) {
                 log_err(format!(
-                    "{path}: not {}, since loading the upstream its new {STATE_FILE} names failed",
+                    "{path}: not {}, since its {STATE_FILE} from a merge above failed to load",
                     past_tense(verb)
                 ));
                 continue;
@@ -618,7 +624,8 @@ impl Repo {
                     }
                 }
             }
-            if !splice_in_progress() {
+            // The splices below a failed one are skipped anyway.
+            if !splice_in_progress() && !failures.contains(path) {
                 self.read_below_again(
                     path,
                     branch,
@@ -686,7 +693,9 @@ impl Repo {
             } else if verb == "merge" {
                 // Nothing to fetch, and nothing of its own to merge: only the
                 // upstreams the splices below it follow.
-                self.load_splice_upstream(&path)?;
+                if contained(self.load_splice_upstream(&path)).is_err() {
+                    failures.push(path);
+                }
                 continue;
             } else {
                 None
