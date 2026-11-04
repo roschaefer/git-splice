@@ -677,7 +677,8 @@ impl Repo {
             match self.reload_splice_upstream(&path, branch, verb, &upstream) {
                 Err(Fail::Hard) => return Err(Fail::Hard),
                 Err(_) => failures.push(path),
-                Ok(()) => {}
+                // An earlier load of an older .splice may have failed.
+                Ok(()) => failures.retain(|failed| *failed != path),
             }
         }
         Ok(())

@@ -801,3 +801,30 @@ order_of() {
   [[ "$output" == *"Failed: vendor/a/b"* ]]
   ! git cat-file -e HEAD:vendor/a/b/other.txt
 }
+
+@test "nested: pull --all merges c, whose upstream from a's pull failed to load, when b's pull then names one that loads" {
+  scenario_three_levels "$monorepo" "$upstream"
+  upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  upstream_c2="$BATS_TEST_TMPDIR/upstream-c2.git"
+  git clone -q --bare "$upstream_c" "$upstream_c2"
+  b_work="$BATS_TEST_TMPDIR/b-work"
+  git clone -q "$upstream_b" "$b_work"
+  cd "$b_work"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  git config --file c/.splice upstream.origin.url "$upstream_c2"
+  git commit -q -m "c moved" -- c/.splice
+  git push -q origin main
+  work_in_upstream_a
+  splice pull b
+  git push -q origin main
+  cd "$b_work"
+  git revert --no-edit HEAD >/dev/null
+  git push -q origin main
+  mv "$upstream_c2" "$upstream_c2.gone"
+  seed_bare_repo "$upstream_c" "c change" main other.txt
+  cd "$monorepo"
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  git cat-file -e HEAD:vendor/a/b/c/other.txt
+}
