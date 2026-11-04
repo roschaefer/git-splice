@@ -477,18 +477,19 @@ impl Repo {
     }
 
     /// Reads the splice's upstreams again after a merge above changed its
-    /// .splice, and uses the one the command chose. A pull fetches the upstreams
+    /// .splice, and uses the one the command chose, if it merges the splice:
+    /// <upstream> is None for one it only fetches. A pull fetches the upstreams
     /// it names now, but didn't before: the synced commit the merge above moved
-    /// it to may be in any of them. It also fetches the one it uses if that
-    /// synced commit or the pin isn't here. Fails, saying why, if one can't be
-    /// fetched, if the synced commit is on none of them, or if a merge would use
-    /// one that wasn't.
+    /// it to may be in any of them. It also fetches the one it uses, or all of
+    /// them for one it doesn't merge, if that synced commit or the pin isn't
+    /// here. Fails, saying why, if one can't be fetched, if the synced commit is
+    /// on none of them, or if a merge would use one that wasn't.
     fn reload_splice_upstream(
         &mut self,
         path: &str,
         branch: &str,
         verb: &str,
-        upstream: &str,
+        upstream: Option<&str>,
     ) -> Res<()> {
         let old_urls: Vec<String> = self
             .upstream_lists
@@ -499,7 +500,9 @@ impl Repo {
             .map(|name| self.url_of(path, name))
             .collect();
         self.load_splice_upstream(path)?;
-        self.use_upstreams(upstream, &[path.to_string()])?;
+        if let Some(upstream) = upstream {
+            self.use_upstreams(upstream, &[path.to_string()])?;
+        }
         let mut entries = Vec::new();
         let mut used_is_new = false;
         for name in self.upstream_lists[path].clone() {
@@ -511,8 +514,12 @@ impl Repo {
             }
         }
         if entries.is_empty() && (!synced_commit_here(path) || !self.pin_here(path)) {
-            entries.push((path.to_string(), self.name_of(path)));
-            used_is_new = true;
+            if upstream.is_some() {
+                entries.push((path.to_string(), self.name_of(path)));
+                used_is_new = true;
+            } else {
+                entries = self.every_upstream_entry(&[path.to_string()])?;
+            }
         }
         if entries.is_empty() {
             return Ok(());
@@ -665,16 +672,16 @@ impl Repo {
             loaded.insert(path.clone(), blob);
             // --upstream names one of the selected splice's upstreams.
             let upstream = if selected.contains(&path) {
-                self.args.upstream.clone()
+                Some(self.args.upstream.clone())
             } else if verb == "merge" {
                 // Nothing to fetch, and nothing of its own to merge: only the
                 // upstreams the splices below it follow.
                 self.load_splice_upstream(&path)?;
                 continue;
             } else {
-                String::new()
+                None
             };
-            match self.reload_splice_upstream(&path, branch, verb, &upstream) {
+            match self.reload_splice_upstream(&path, branch, verb, upstream.as_deref()) {
                 Err(Fail::Hard) => return Err(Fail::Hard),
                 Err(_) => failures.push(path),
                 // An earlier load of an older .splice may have failed.

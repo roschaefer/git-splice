@@ -828,3 +828,18 @@ order_of() {
   [ "$status" -eq 0 ]
   git cat-file -e HEAD:vendor/a/b/c/other.txt
 }
+
+@test "nested: pull of a fetches every upstream of b when a's pull gives b a second one and no default, as b isn't merged" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  upstream_fork="$BATS_TEST_TMPDIR/upstream-fork.git"
+  git clone -q --bare "$upstream_b" "$upstream_fork"
+  work_in_upstream_a
+  git config --file b/.splice upstream.fork.url "$upstream_fork"
+  git commit -q -m "b: a fork" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  git cat-file -e HEAD:vendor/a/b/.splice
+  [ "$(git config --file vendor/a/b/.splice upstream.fork.url)" = "$upstream_fork" ]
+}
