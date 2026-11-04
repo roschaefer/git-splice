@@ -6,8 +6,11 @@ is pulled.
 
 A pull of the outer splice can change the `.splice` of the inner one,
 and `pull` reads it again right after that merge. If the inner upstream
-is named `fork` at that point, the command stops there, though the
-middle splice's pull, still to come, would name it `origin` again.
+is named `fork` at that point, the inner splice fails, and so does the
+middle one, whose pull could change the inner `.splice` again, as
+[a fetch that fails after a merge above](fetch-fails-after-a-merge-above.md)
+does. Here, the middle splice's pull would have named it `origin` again.
+The other splices are still pulled.
 
 ## Output
 
@@ -64,7 +67,8 @@ the pull of `vendor/a/`, none after it, and one again after the pull of
 ## `pull --all --upstream origin`
 
 Right after the pull of `vendor/a/`, `pull` reads `vendor/a/b/c/.splice`
-again, finds no `origin`, and stops. `vendor/a/b/` isn't pulled:
+again and finds no `origin`. Neither `vendor/a/b/` nor `vendor/a/b/c/`
+is pulled:
 
 ```scrut
 $ git splice pull --all --upstream origin
@@ -73,6 +77,9 @@ ok   vendor/a/b fetched (main moved 8333d5f..ecb9e0e)
 ok   vendor/a/b/c fetched
 ok   vendor/a: pulled 217112c
 !!   vendor/a/b/c has no upstream 'origin' -- its upstream is 'fork'
+!!   vendor/a/b: not pulled, since vendor/a/b/c below it failed
+!!   vendor/a/b/c: not pulled, since loading the upstream its new .splice names failed
+!!   Failed: vendor/a/b/c vendor/a/b
 [1]
 ```
 

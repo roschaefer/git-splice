@@ -1,16 +1,31 @@
-# Scenario: nested-splices, three levels: a failed fetch, cleared by the next merge
+# Scenario: nested-splices, three levels: a fetch fails after a merge above
 
-A pull of the outer splice can change the `.splice` of the inner one,
-and the pull fetches the upstream the new file names. If that fetch
-fails, the inner splice isn't merged in this command: what an earlier
-fetch of that upstream left could be stale.
+`pull` goes top-down, and after each merge it reads the `.splice` files
+below the merged splice again: the merge may have changed them. A pull
+fetches the upstream a changed file names. If that fetch fails, the
+splice isn't pulled, and neither is any splice between it and the merge,
+in either direction: a failed fetch stops the splices above and below
+it, as it does for the fetches before the first merge.
 
-The middle splice's pull, in the same command, can change the inner
-`.splice` again. Then `pull` reads it once more, and if that works, it
-forgets the failure. Here that's wrong: the middle splice changes another
-line, the second read finds the URL it already read, and fetches nothing. So the inner
-splice is merged from the upstream that failed to fetch, from what an
-earlier fetch left.
+Stopping the ones above matters here. Only their merges can change the
+failed splice's `.splice` again, so with them skipped, the failure stays
+true until the command ends. Before, the middle splice's pull changed
+the inner `.splice` again, the next read found the URL it had read a
+moment ago and fetched nothing, and that read's success cleared the
+failure. The inner splice was then pulled from refs of an upstream that
+was gone.
+
+What `pull --all` does below, step by step:
+
+| Step | URL in `vendor/a/b/c/.splice` | Fetch | `vendor/a/b/c/` failed? |
+| --- | --- | --- | --- |
+| Before | `c.git` | | no |
+| Pull of `vendor/a/` | `c2.git`, new | fails: `c2.git` is gone | yes |
+| Pull of `vendor/a/b/` | | skipped: a splice below it failed | yes |
+| Pull of `vendor/a/b/c/` | | skipped: its fetch failed | yes |
+
+The setup takes several steps, because the monorepo must have fetched
+`c2.git` once before, so that refs from it are there to be misused.
 
 ## Output
 
@@ -100,10 +115,8 @@ $ git clone -q https://git.example.com/b.git ../b-work &&
 ## `pull --all`
 
 The pull of `vendor/a/` points `vendor/a/b/c/` at `c2.git`, and its
-fetch fails. The pull of `vendor/a/b/` changes `c/.splice` again, and
-the second read finds `c2.git`, which it read before, so it doesn't
-fetch. That clears the failure, and `vendor/a/b/c/` is pulled from the
-refs left from before:
+fetch fails. So neither `vendor/a/b/`, whose pull would change
+`c/.splice` again, nor `vendor/a/b/c/` is pulled:
 
 ```scrut
 $ git splice pull --all
@@ -117,17 +130,18 @@ fatal: Could not read from remote repository.
 Please make sure you have the correct access rights
 and the repository exists.
 !!   vendor/a/b/c fetch failed
-ok   vendor/a/b: pulled c17585f
-ok   vendor/a/b/c: pulled f8b34aa
+!!   vendor/a/b: not pulled, since vendor/a/b/c below it failed
+!!   vendor/a/b/c: not pulled, since loading the upstream its new .splice names failed
+!!   Failed: vendor/a/b/c vendor/a/b
+[1]
 ```
 
 ```scrut
 $ git log -1 --format=%s
-splice: pull vendor/a/b/c from main at f8b34aa
+splice: pull vendor/a from main at 684386f
 ```
 
 ```scrut
 $ cat vendor/a/b/c/file.txt
 c seed
-c in c2
 ```
