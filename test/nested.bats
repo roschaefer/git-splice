@@ -460,6 +460,55 @@ swap_splice_files() {
   [ "$(git -C "$BATS_TEST_TMPDIR/vendor.git" ls-tree -r --name-only main)" = $'a/.splice\na/b/.splice\na/b/file.txt\na/file.txt' ]
 }
 
+@test "nested: init around a splice records the default branch it followed in its .splice, where the new splice's differs, and the ones below keep theirs" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
+  run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: records default-branch 'main' for origin, which it followed before"* ]]
+  [ "$(git config --file vendor/.splice upstream.origin.default-branch)" = "master" ]
+  [ "$(git config --file vendor/a/.splice upstream.origin.default-branch)" = "main" ]
+  [ -z "$(git config --file vendor/a/b/.splice upstream.origin.default-branch)" ]
+  [ "$(git show --name-only --format= HEAD)" = $'vendor/.splice\nvendor/a/.splice' ]
+  run splice status vendor/a vendor/a/b
+  [[ "$output" == *"up to date  vendor/a"* ]]
+  [[ "$output" == *"up to date  vendor/a/b"* ]]
+}
+
+@test "nested: init around a splice records nothing in its .splice when the new splice's default branch is the one it followed" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  git init -q --bare -b main "$BATS_TEST_TMPDIR/vendor.git"
+  run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"records default-branch"* ]]
+  [ "$(git show --name-only --format= HEAD)" = "vendor/.splice" ]
+}
+
+@test "nested: init around a splice leaves a default-branch it records already" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.origin.default-branch main
+  git commit -q -am "a: on main"
+  git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
+  run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"records default-branch"* ]]
+  [ "$(git show --name-only --format= HEAD)" = "vendor/.splice" ]
+}
+
+@test "nested: init around a splice refuses when the .splice it would record the default branch in has uncommitted changes" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "# a comment" >>vendor/a/.splice
+  git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
+  run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/.splice has uncommitted changes"* ]]
+  [ ! -e vendor/.splice ]
+}
+
 @test "nested: a pull of a keeps a .splice below it that a's upstream doesn't have" {
   scenario_up_to_date "$monorepo" "$upstream"
   make_bare_repo "$upstream_b"
