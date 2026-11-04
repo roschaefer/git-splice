@@ -9,11 +9,10 @@ it, as it does for the fetches before the first merge.
 
 Stopping the ones above matters here. Only their merges can change the
 failed splice's `.splice` again, so with them skipped, the failure stays
-true until the command ends. Before, the middle splice's pull changed
-the inner `.splice` again, the next read found the URL it had read a
-moment ago and fetched nothing, and that read's success cleared the
-failure. The inner splice was then pulled from refs of an upstream that
-was gone.
+true until the command ends. Here, the middle splice's pull would change
+the inner `.splice` again, and the monorepo has refs of the failed
+upstream from an earlier fetch: the inner splice must not be pulled from
+them.
 
 What `pull --all` does below, step by step:
 
@@ -24,8 +23,8 @@ What `pull --all` does below, step by step:
 | Pull of `vendor/a/b/` | | skipped: a splice below it failed | yes |
 | Pull of `vendor/a/b/c/` | | skipped: its fetch failed | yes |
 
-The setup takes several steps, because the monorepo must have fetched
-`c2.git` once before, so that refs from it are there to be misused.
+The setup takes several steps: the monorepo fetches `c2.git` once, and
+the middle upstream changes `c/.splice` too.
 
 ## Output
 
@@ -131,7 +130,7 @@ Please make sure you have the correct access rights
 and the repository exists.
 !!   vendor/a/b/c fetch failed
 !!   vendor/a/b: not pulled, since vendor/a/b/c below it failed
-!!   vendor/a/b/c: not pulled, since loading the upstream its new .splice names failed
+!!   vendor/a/b/c: not pulled, since its .splice from a merge above failed to load
 !!   Failed: vendor/a/b/c vendor/a/b
 [1]
 ```

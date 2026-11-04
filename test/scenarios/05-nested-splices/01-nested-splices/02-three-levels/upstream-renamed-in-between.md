@@ -78,7 +78,7 @@ ok   vendor/a/b/c fetched
 ok   vendor/a: pulled 217112c
 !!   vendor/a/b/c has no upstream 'origin' -- its upstream is 'fork'
 !!   vendor/a/b: not pulled, since vendor/a/b/c below it failed
-!!   vendor/a/b/c: not pulled, since loading the upstream its new .splice names failed
+!!   vendor/a/b/c: not pulled, since its .splice from a merge above failed to load
 !!   Failed: vendor/a/b/c vendor/a/b
 [1]
 ```
