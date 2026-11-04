@@ -914,3 +914,21 @@ order_of() {
   [ "$(git log --format=%s -1 "$output")" = "b local" ]
   [ "$(git rev-parse "$output^")" = "$(git -C "$upstream_b" rev-parse main)" ]
 }
+
+@test "nested: b moved out of a goes on top of what its push from inside a sent" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  work_in_upstream_a
+  echo "b in a's upstream" >>b/file.txt
+  git -c user.name=Maintainer -c user.email=maintainer@example.com commit -q -am "b in a's upstream"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  splice pull vendor/a
+  splice push vendor/a/b
+  mkdir libs
+  git mv vendor/a/b libs/b
+  git commit -q -m "move b out of a"
+  commit_local "$monorepo" libs/b "b next"
+  [ "$(splice_state libs/b)" = "push" ]
+  splice push libs/b
+  [ "$(git -C "$upstream_b" log --format=%s main)" = "$(printf '%s\n' "b next" "b in a's upstream" "b seed")" ]
+}

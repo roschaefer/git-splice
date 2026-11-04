@@ -570,6 +570,16 @@ impl Repo {
         let before_path = lineage.before_path;
         let mut upper = lineage.upper;
         let mut moves = lineage.moves;
+        // A splice that moved out of another one: before the move, its
+        // history is the rebuild there, from the splice it was in, as its
+        // pushes from then had it.
+        if !moves.is_empty() && splice_above_in(&upper, &at).is_some() {
+            let (mut prev, start) = self.rebuild_with_start(&at, &upper, name)?;
+            for segment in moves.iter().rev() {
+                prev = self.rebuild_walk(&segment.path, prev, &segment.range)?;
+            }
+            return Ok((prev, start));
+        }
         if !last_sync.is_empty() {
             refuse_shallow_start(name, &last_sync)?;
         }
