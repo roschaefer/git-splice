@@ -7,34 +7,25 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice rebuild -h
+$ git splice rebuild -h | check-help preamble
 NAME
     git-splice-rebuild - Print the commit push would send
 
 SYNOPSIS
     git splice rebuild <path>
+```
 
-DESCRIPTION
+## Description
+
+```scrut
+$ git splice rebuild -h | check-help section description
     Prints the commit 'git splice push <path>' would send: the splice's
     history rebuilt without its .splice file, on top of the upstream commit
     it last synced with. If nothing changed since, that's the synced commit
     itself. The rebuild is deterministic, so a later push sees what was
     pushed of it as already upstream. Writes no ref and no monorepo commit.
     Purely local, but the synced commit must have been fetched.
-
-USING THE REBUILD
-    Push it to an upstream branch other than the one named like the current
-    one, e.g. a release branch:
-
-      git push <url> "$(git splice rebuild <path>)":refs/heads/<branch>
-
-    or check it out in a separate worktree, since it has the upstream's
-    layout, not the monorepo's:
-
-      git worktree add ../rebuild "$(git splice rebuild <path>)"
 ```
-
-## Description
 
 In the [walkthrough's repositories](README.md), pull `vendor/pkg-a/`,
 then add a local commit. The rebuild puts that commit on the upstream's
@@ -56,6 +47,19 @@ $ git log --oneline "$(git splice rebuild vendor/pkg-a)"
 ```
 
 ## Using the rebuild
+
+```scrut
+$ git splice rebuild -h | check-help section using-the-rebuild
+    Push it to an upstream branch other than the one named like the current
+    one, e.g. a release branch:
+
+      git push <url> "$(git splice rebuild <path>)":refs/heads/<branch>
+
+    or check it out in a separate worktree, since it has the upstream's
+    layout, not the monorepo's:
+
+      git worktree add ../rebuild "$(git splice rebuild <path>)"
+```
 
 ### Editing it before the push
 
@@ -88,3 +92,9 @@ Then you pick the URL and the branch, nothing checks the commit, and the
 monorepo learns about the push only with the next `fetch`: until then,
 `status` still shows what was pushed as ahead. Prefer [`push`](push.md)
 where it can do the job.
+
+<!-- Checks that every linked help section appears above, in order.
+```scrut
+$ git splice rebuild -h | check-help document "$TESTDIR/$TESTFILE"
+```
+-->

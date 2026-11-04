@@ -12,6 +12,8 @@ DESCRIPTION
     pushed of it as already upstream. Writes no ref and no monorepo commit.
     Purely local, but the synced commit must have been fetched.
 
+    See also: https://roschaefer.github.io/git-splice/rebuild/#description
+
 USING THE REBUILD
     Push it to an upstream branch other than the one named like the current
     one, e.g. a release branch:
@@ -22,3 +24,5 @@ USING THE REBUILD
     layout, not the monorepo's:
 
       git worktree add ../rebuild "$(git splice rebuild <path>)"
+
+    See also: https://roschaefer.github.io/git-splice/rebuild/#using-the-rebuild
