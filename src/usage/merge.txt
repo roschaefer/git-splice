@@ -4,6 +4,7 @@ NAME
 SYNOPSIS
     git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
+    git splice merge [-m <message>] --rebuilt-commit <commit> <path>
 
 DESCRIPTION
     Splices already-fetched upstream changes into each splice, as one ordinary
@@ -81,6 +82,20 @@ OPTIONS
         REWRITTEN UPSTREAM BRANCHES).
 
         See also: https://roschaefer.github.io/git-splice/test/walkthrough/merge/#--no-fork-point
+
+    --rebuilt-commit <commit>
+        Merges <commit> instead of an upstream branch: one made on top of
+        'git splice rebuild <path>', e.g. in a worktree of it, where the
+        splice is the whole repository and a splice inside it is one level
+        down. It's a three-way merge of the folder from where <commit> left
+        the rebuild, so changes the monorepo made since then are kept, and a
+        conflict lands in the working tree. The synced commit stays: <commit>
+        is local work, not the upstream's, and 'git splice push <path>'
+        sends it. The commit takes <commit>'s message if it's one commit on
+        top of the rebuild. It's the way back for 'git splice push
+        --rebuilt-commit', which sends an edited rebuild the other way.
+
+        See also: https://roschaefer.github.io/git-splice/test/walkthrough/merge/#--rebuilt-commit
 
     -m <message>
         Gives the commit this message instead of the default one, which

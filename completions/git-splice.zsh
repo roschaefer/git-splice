@@ -76,7 +76,10 @@ _git-splice() {
     log)
       _arguments '--upstream=[upstream named in .splice]:upstream name:' '--graph[draw both sides as a graph]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
-    merge | pull)
+    merge)
+      _arguments '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch, for this command only]:upstream branch:' '--track[track --branch on the current branch]' '--all[every splice]' '(--rebase)--bump[move the synced commit up to the upstream branch]' '(--bump)--rebase[rebase onto the upstream branch instead of merging]' '--no-fork-point[merge a rewritten upstream branch from the merge base]' '--rebuilt-commit=[merge this commit, made on top of the rebuild]:commit:__git_splice_branches' '*'{-m+,--message=}'[commit message, instead of the default one]:message:' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      ;;
+    pull)
       _arguments '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch, for this command only]:upstream branch:' '--track[track --branch on the current branch]' '--all[every splice]' '(--rebase)--bump[move the synced commit up to the upstream branch]' '(--bump)--rebase[rebase onto the upstream branch instead of merging]' '--no-fork-point[merge a rewritten upstream branch from the merge base]' '*'{-m+,--message=}'[commit message, instead of the default one]:message:' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     status | diff)
