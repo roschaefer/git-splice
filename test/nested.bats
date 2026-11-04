@@ -708,6 +708,18 @@ order_of() {
   [ "$(git log -1 --format=%s)" = "break vendor/a/b" ]
 }
 
+@test "nested: in a fresh clone, pull of b alone fetches a above it, whose synced commit b's rebuild starts from" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b change" main other.txt
+  git clone -q --no-local "$monorepo" "$BATS_TEST_TMPDIR/fresh"
+  cd "$BATS_TEST_TMPDIR/fresh"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  run splice pull vendor/a/b
+  [ "$status" -eq 0 ]
+  git cat-file -e HEAD:vendor/a/b/other.txt
+}
+
 @test "nested: pull skips the splice below when the fetch of the one above fails" {
   scenario_nested_splices "$monorepo" "$upstream"
   seed_bare_repo "$upstream_b" "b change" main other.txt
