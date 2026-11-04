@@ -23,7 +23,13 @@ fn linked_sections(help: &str) -> Result<Vec<Section<'_>>, String> {
             && !line.starts_with(char::is_whitespace)
             && heading.chars().all(|ch| !ch.is_ascii_lowercase())
         {
-            section_start = Some(offset);
+            if let Some(start) = section_start {
+                return Err(format!(
+                    "help section has no See also link: {}",
+                    help[start..].lines().next().unwrap_or_default()
+                ));
+            }
+            section_start = (!matches!(heading, "NAME" | "SYNOPSIS")).then_some(offset);
         }
         let Some(url_start) = line
             .strip_prefix("    See also: ")
@@ -45,6 +51,12 @@ fn linked_sections(help: &str) -> Result<Vec<Section<'_>>, String> {
         });
         section_start = None;
         offset = end;
+    }
+    if let Some(start) = section_start {
+        return Err(format!(
+            "help section has no See also link: {}",
+            help[start..].lines().next().unwrap_or_default()
+        ));
     }
     if sections.is_empty() {
         return Err("help has no See also links".into());
@@ -367,6 +379,15 @@ mod tests {
     #[test]
     fn heading_slug_matches_the_help_anchors() {
         assert_eq!(slug("No upstream branch"), "no-upstream-branch");
+    }
+
+    #[test]
+    fn every_help_topic_requires_a_link_including_the_last_one() {
+        assert!(linked_sections(HELP).is_ok());
+        let last = format!("{HELP}\nEXTRA\n    More help.\n");
+        assert!(linked_sections(&last).unwrap_err().contains("EXTRA"));
+        let middle = HELP.replace("OPTIONS\n", "EXTRA\n    More help.\n\nOPTIONS\n");
+        assert!(linked_sections(&middle).unwrap_err().contains("EXTRA"));
     }
 
     #[test]
