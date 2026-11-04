@@ -36,8 +36,14 @@ pub enum EqualTree {
     Keep,
 }
 
-fn state_file_blob(path: &str) -> Option<String> {
-    git(&["rev-parse", &format!("HEAD:{path}/{STATE_FILE}")]).out()
+fn state_file_blob(rev: &str, path: &str) -> Option<String> {
+    git(&[
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        &format!("{rev}:{path}/{STATE_FILE}"),
+    ])
+    .out()
 }
 
 impl Repo {
@@ -152,7 +158,7 @@ impl Repo {
         };
         refuse_changed_submodule(path, &merge_base, &target)?;
         let base_folder = tree_of(&merge_base).ok_or(Fail::Soft)?;
-        let base_blob = state_file_blob(path).ok_or(Fail::Soft)?;
+        let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message = self.commit_message(format!(
             "splice: {verb} {path} from {label} at {}",
@@ -379,7 +385,7 @@ impl Repo {
             return Ok(());
         }
         let folder = tree_of(&target).ok_or(Fail::Soft)?;
-        let base_blob = state_file_blob(path).ok_or(Fail::Soft)?;
+        let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message = self.commit_message(format!(
             "splice: {verb} {path} from {} at {}",
@@ -427,7 +433,7 @@ impl Repo {
         let folder = git(&["rev-parse", &format!("HEAD:{path}")])
             .out()
             .ok_or(Fail::Soft)?;
-        let base_blob = state_file_blob(path).ok_or(Fail::Soft)?;
+        let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message = self.commit_message(format!(
             "splice: bump {path} from {} at {}",
@@ -547,11 +553,10 @@ impl Repo {
         };
         let track = self.args.has_flag("--track");
         let wanted = self.args.branch.clone();
-        let mut loaded: HashMap<String, Option<String>> = self
-            .all_paths
-            .iter()
-            .map(|path| (path.clone(), state_file_blob(path)))
-            .collect();
+        // Each .splice below a merged splice, as last loaded: as in HEAD
+        // before the first merge, until a merge above changes it.
+        let before = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
+        let mut loaded: HashMap<String, Option<String>> = HashMap::new();
         let mut failures: Vec<String> = Vec::new();
         let mut skipped: Vec<String> = Vec::new();
         for path in &paths {
@@ -562,6 +567,10 @@ impl Repo {
             // Reading its .splice again after a merge above failed, e.g. the
             // fetch of the upstream it names now.
             if failures.contains(path) {
+                log_err(format!(
+                    "{path}: not {}, since loading the upstream its new {STATE_FILE} names failed",
+                    past_tense(verb)
+                ));
                 continue;
             }
             if let Some(failed) = first_above(path, &failures) {
@@ -593,7 +602,14 @@ impl Repo {
                 }
             }
             if !splice_in_progress() {
-                self.read_below_again(path, branch, verb, &paths, &mut loaded, &mut failures)?;
+                self.read_below_again(
+                    path,
+                    branch,
+                    verb,
+                    &paths,
+                    (&before, &mut loaded),
+                    &mut failures,
+                )?;
             }
         }
         if !skipped.is_empty() {
@@ -631,7 +647,7 @@ impl Repo {
         branch: &str,
         verb: &str,
         selected: &[String],
-        loaded: &mut HashMap<String, Option<String>>,
+        (before, loaded): (&str, &mut HashMap<String, Option<String>>),
         failures: &mut Vec<String>,
     ) -> Res<()> {
         let prefix = format!("{merged}/");
@@ -639,8 +655,11 @@ impl Repo {
             if !path.starts_with(&prefix) || first_above(&path, failures).is_some() {
                 continue;
             }
-            let blob = state_file_blob(&path);
-            if blob.is_none() || loaded.get(&path) == Some(&blob) {
+            let blob = state_file_blob("HEAD", &path);
+            let last = loaded
+                .entry(path.clone())
+                .or_insert_with(|| state_file_blob(before, &path));
+            if blob.is_none() || *last == blob {
                 continue;
             }
             loaded.insert(path.clone(), blob);

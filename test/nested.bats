@@ -797,6 +797,7 @@ order_of() {
   cd "$monorepo"
   run splice pull vendor/a vendor/a/b
   [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/b: not pulled, since loading the upstream its new .splice names failed"* ]]
   [[ "$output" == *"Failed: vendor/a/b"* ]]
   ! git cat-file -e HEAD:vendor/a/b/other.txt
 }
