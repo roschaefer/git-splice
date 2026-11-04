@@ -802,7 +802,7 @@ order_of() {
   ! git cat-file -e HEAD:vendor/a/b/other.txt
 }
 
-@test "nested: pull --all merges c, whose upstream from a's pull failed to load, when b's pull then names one that loads" {
+@test "nested: pull --all skips b and c when c's upstream from a's pull fails to load, though b's pull would name one that loads" {
   scenario_three_levels "$monorepo" "$upstream"
   upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
   upstream_c2="$BATS_TEST_TMPDIR/upstream-c2.git"
@@ -825,8 +825,10 @@ order_of() {
   seed_bare_repo "$upstream_c" "c change" main other.txt
   cd "$monorepo"
   run splice pull --all
-  [ "$status" -eq 0 ]
-  git cat-file -e HEAD:vendor/a/b/c/other.txt
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/b: not pulled, since vendor/a/b/c below it failed"* ]]
+  [[ "$output" == *"Failed: vendor/a/b/c vendor/a/b"* ]]
+  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from main at $(git -C "$upstream" rev-parse --short main)" ]
 }
 
 @test "nested: pull of a fetches every upstream of b when a's pull gives b a second one and no default, as b isn't merged" {
@@ -842,4 +844,6 @@ order_of() {
   [ "$status" -eq 0 ]
   git cat-file -e HEAD:vendor/a/b/.splice
   [ "$(git config --file vendor/a/b/.splice upstream.fork.url)" = "$upstream_fork" ]
+  key="$(splice key --upstream fork vendor/a/b)"
+  [ "$(git rev-parse "refs/splices/$key/heads/main")" = "$(git -C "$upstream_fork" rev-parse main)" ]
 }
