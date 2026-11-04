@@ -9,6 +9,35 @@ use crate::repo::*;
 use crate::util::*;
 use std::process::Command;
 
+/// Set for a command run in a worktree of a level: the monorepo branch it
+/// stands in for, which picks the upstream branches as in the monorepo.
+pub const BRANCH_VARIABLE: &str = "GIT_SPLICE_BRANCH";
+
+/// Set with BRANCH_VARIABLE: the default branch of the splice the worktree
+/// stands in for, which the splices in it follow as in a clone of it.
+pub const DEFAULT_VARIABLE: &str = "GIT_SPLICE_DEFAULT_BRANCH";
+
+/// Set for the innermost level's command: "<head> <commit> <path>", the
+/// monorepo's rebuild <commit> of the splice at <path>, as the level has it,
+/// while its HEAD is <head>. A level's history starts where its splice was
+/// made, and may lack what the monorepo's has; the monorepo's rebuild has it.
+pub const REBUILD_VARIABLE: &str = "GIT_SPLICE_REBUILD";
+
+/// The rebuild REBUILD_VARIABLE gives for the splice at <path>, while HEAD
+/// is still the one it was given for.
+pub fn given_rebuild(path: &str) -> Option<String> {
+    let value = std::env::var(REBUILD_VARIABLE).ok()?;
+    let mut parts = value.splitn(3, ' ');
+    let (head, commit, given_path) = (parts.next()?, parts.next()?, parts.next()?);
+    if given_path != path || git(&["rev-parse", "HEAD"]).out().as_deref() != Some(head) {
+        return None;
+    }
+    Some(commit.to_string())
+}
+
+/// The branch and the default branch a level's worktree stands in for.
+type Stand = (String, String);
+
 const PREFIX: &str = "splice-layer";
 
 /// The monorepo branch as part of a ref name: one level, so the splice's path
@@ -45,6 +74,11 @@ fn layer_dir(monorepo_branch: &str, path: &str) -> Res<String> {
 /// The splices with a worktree left on <monorepo_branch>, outermost first: a
 /// merge through them is in progress.
 pub fn pending_levels(monorepo_branch: &str) -> Vec<String> {
+    // One level down, the merge through the levels is the caller's: the
+    // worktree's command is one step of it, and goes no further down.
+    if std::env::var_os(BRANCH_VARIABLE).is_some() {
+        return Vec::new();
+    }
     let prefix = format!("refs/heads/{PREFIX}/{}/", branch_part(monorepo_branch));
     let mut paths: Vec<String> = git(&["for-each-ref", "--format=%(refname)", &prefix])
         .out()
@@ -93,14 +127,58 @@ pub fn refuse_pending(monorepo_branch: &str, paths: &[String]) -> Res<()> {
     Ok(())
 }
 
-/// Runs this program in <dir> with <args>; its output, with "ok   <inner>"
-/// and the like reading <outer> instead, minus Git's advice for a conflict,
-/// which the caller gives in its own words.
-fn splice_in_dir(dir: &str, args: &[&str], inner: &str, outer: &str, verb: &str) -> (bool, String) {
+/// <line> with each mention of the splice at <inner>, as a word of its own,
+/// reading <outer>: the inner command names paths as its level has them.
+fn outer_paths(line: &str, inner: &str, outer: &str) -> String {
+    let mut out = String::new();
+    let mut rest = line;
+    while let Some(at) = rest.find(inner) {
+        let before = rest[..at].chars().last();
+        let after = rest[at + inner.len()..].chars().next();
+        let starts = before.is_none_or(|c| matches!(c, ' ' | '\'' | '"' | '('));
+        let ends = after.is_none_or(|c| matches!(c, ' ' | ':' | '/' | '\'' | '"' | ')' | ','));
+        out.push_str(&rest[..at]);
+        out.push_str(if starts && ends { outer } else { inner });
+        rest = &rest[at + inner.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Runs this program in <dir> with <args>, standing in for monorepo branch
+/// <branch>; its output, with <inner> reading <outer>, minus Git's advice
+/// for a conflict and the summary of failures, which the caller gives.
+fn splice_in_dir(
+    dir: &str,
+    (branch, default): &Stand,
+    args: &[&str],
+    inner: &str,
+    outer: &str,
+) -> (bool, String) {
+    splice_in_dir_with(dir, (branch, default), args, inner, outer, None)
+}
+
+fn splice_in_dir_with(
+    dir: &str,
+    (branch, default): (&String, &String),
+    args: &[&str],
+    inner: &str,
+    outer: &str,
+    rebuild: Option<String>,
+) -> (bool, String) {
     let Ok(exe) = std::env::current_exe() else {
         return (false, "can't find git-splice itself".to_string());
     };
-    let Ok(output) = Command::new(exe).args(args).current_dir(dir).output() else {
+    let mut command = Command::new(exe);
+    command
+        .args(args)
+        .current_dir(dir)
+        .env(BRANCH_VARIABLE, branch)
+        .env(DEFAULT_VARIABLE, default);
+    if let Some(rebuild) = rebuild {
+        command.env(REBUILD_VARIABLE, rebuild);
+    }
+    let Ok(output) = command.output() else {
         return (false, "can't run git-splice".to_string());
     };
     let mut text = String::from_utf8_lossy(&output.stdout).to_string();
@@ -108,28 +186,21 @@ fn splice_in_dir(dir: &str, args: &[&str], inner: &str, outer: &str, verb: &str)
     let shown: Vec<String> = text
         .lines()
         .filter(|line| !line.contains("-- resolve it, then 'git commit'"))
-        .filter(|line| !line.contains("Failed: ") && !line.ends_with(": merge failed"))
+        .filter(|line| !line.contains("Failed: ") && !line.ends_with(" failed"))
+        // git-splice's own lines, not Git's, whose paths are the
+        // worktree's, where a conflict waits.
         .map(|line| {
-            let (mark, rest) = line.split_at(line.len().min(5));
-            match rest.strip_prefix(inner) {
-                Some(after) if after.starts_with([':', ' ']) => {
-                    // The inner command merges; the outer one may pull.
-                    let after = after.replacen(": merged ", &format!(": {} ", past(verb)), 1);
-                    format!("{mark}{outer}{after}")
-                }
-                _ => line.to_string(),
+            if ["ok   ", "!!   ", "??   ", "===  ", "  "]
+                .iter()
+                .any(|mark| line.starts_with(mark))
+            {
+                outer_paths(line, inner, outer)
+            } else {
+                line.to_string()
             }
         })
         .collect();
     (output.status.success(), shown.join("\n"))
-}
-
-fn past(verb: &str) -> String {
-    if verb == "pull" {
-        "pulled".to_string()
-    } else {
-        "merged".to_string()
-    }
 }
 
 fn print_lines(text: &str) {
@@ -158,6 +229,13 @@ fn remove_level(monorepo_branch: &str, path: &str) -> Res<()> {
         git(&["worktree", "remove", "--force", &dir]).q().run();
     }
     git(&["worktree", "prune"]).q().run();
+    git(&[
+        "config",
+        "--remove-section",
+        &stand_section(monorepo_branch, path),
+    ])
+    .q()
+    .out();
     git(&["branch", "-D", &layer_branch(monorepo_branch, path)])
         .q()
         .out();
@@ -180,6 +258,48 @@ pub fn abort(monorepo_branch: &str) -> Res<()> {
     Ok(())
 }
 
+/// The commit the worktree of the splice at <path> started at: the rebuild
+/// it checked out.
+fn level_start(monorepo_branch: &str, path: &str) -> Option<String> {
+    git(&[
+        "log",
+        "-g",
+        "--format=%H",
+        &layer_branch(monorepo_branch, path),
+    ])
+    .out()?
+    .lines()
+    .last()
+    .map(str::to_string)
+}
+
+/// Where the branch and default branch a level stands in for are kept, for
+/// --continue in a later command: in the branch's config.
+fn stand_section(monorepo_branch: &str, path: &str) -> String {
+    format!("branch.{}", layer_branch(monorepo_branch, path))
+}
+
+fn record_stand(monorepo_branch: &str, level: &str, (branch, default): &Stand) {
+    let section = stand_section(monorepo_branch, level);
+    git(&["config", &format!("{section}.spliceStandsFor"), branch])
+        .q()
+        .run();
+    git(&["config", &format!("{section}.spliceDefault"), default])
+        .q()
+        .run();
+}
+
+fn recorded_stand(monorepo_branch: &str, path: &str) -> Stand {
+    let section = stand_section(monorepo_branch, path);
+    let get = |key: &str| {
+        git(&["config", "--get", &format!("{section}.{key}")])
+            .q()
+            .out()
+            .unwrap_or_default()
+    };
+    (get("spliceStandsFor"), get("spliceDefault"))
+}
+
 /// The splices above <path>, outermost first.
 fn levels_above(path: &str) -> Vec<String> {
     let mut levels = Vec::new();
@@ -199,15 +319,29 @@ fn relative(path: &str, above: &str) -> String {
 }
 
 impl Repo {
-    /// Merges nested splice <path> from <upstream_branch> one level at a time.
-    pub fn merge_through_levels(
-        &mut self,
-        path: &str,
-        branch: &str,
-        verb: &str,
-        upstream_branch: &str,
-        message: &str,
-    ) -> Res<()> {
+    /// The message of <commit>, from the worktree of the splice at <level>,
+    /// for the level above: a pull's default message names the splice as
+    /// its level has it, and the monorepo's commit names its own path.
+    fn outer_message(&self, level: &str, commit: &str) -> String {
+        let message = git(&["log", "-1", "--format=%B", commit])
+            .out()
+            .unwrap_or_default();
+        for verb in ["pull", "merge"] {
+            let prefix = format!("splice: {verb} ");
+            if let Some(rest) = message.strip_prefix(&prefix) {
+                let token = rest.split(' ').next().unwrap_or_default();
+                let full = format!("{level}/{token}");
+                if self.all_paths.contains(&full) {
+                    return format!("{prefix}{full}{}", &rest[token.len()..]);
+                }
+            }
+        }
+        message
+    }
+
+    /// Merges or pulls nested splice <path> one level at a time: the same
+    /// command, one level down from the innermost splice above it, then up.
+    pub fn merge_through_levels(&mut self, path: &str, branch: &str, verb: &str) -> Res<()> {
         let levels = levels_above(path);
         let Some(outermost) = levels.first().cloned() else {
             return die(format!("{path}: no splice above it"));
@@ -219,9 +353,41 @@ impl Repo {
         }
         refuse_pending(branch, &[path.to_string()])?;
 
+        // What each level's worktree stands in for, as a clone of its
+        // upstream would be: on the branch the monorepo's branch maps to,
+        // with the splice's default branch as its own.
+        // As the merges above left them, not as the command started.
+        for level in levels.iter().chain([&path.to_string()]) {
+            quietly(|| contained(self.load_splice_upstream(level))).ok();
+        }
+        let stands: Vec<Stand> = levels
+            .iter()
+            .map(|level| {
+                (
+                    quietly(|| self.upstream_branch_for(level, branch, None))
+                        .unwrap_or_else(|_| branch.to_string()),
+                    quietly(|| self.splice_default_branch(level, None))
+                        .unwrap_or_else(|_| self.monorepo_default_branch()),
+                )
+            })
+            .collect();
+
+        // The splice's history as the monorepo has it, for the merge one
+        // level down: its level's may lack some, e.g. after an init around it.
+        // Not before its synced commit is here: a pull fetches that one level
+        // down, e.g. after a pull above moved it.
+        let own_rebuild = if crate::merge::synced_commit_here(path) {
+            quietly(|| contained(self.rebuild_splice(path, "HEAD")))
+                .ok()
+                .flatten()
+        } else {
+            None
+        };
+
         // Each level: the rebuild of the splice, checked out, from inside
         // the level above it.
         let mut made: Vec<String> = Vec::new();
+        let mut above_stand: Stand = Default::default();
         let mut above_dir = String::new();
         let mut above_path = String::new();
         for level in &levels {
@@ -229,8 +395,13 @@ impl Repo {
                 self.rebuild_splice(level, "HEAD")?
             } else {
                 let inner = relative(level, &above_path);
-                let (ok, out) =
-                    splice_in_dir(&above_dir, &["rebuild", &inner], &inner, level, "merge");
+                let (ok, out) = splice_in_dir(
+                    &above_dir,
+                    &above_stand,
+                    &["rebuild", &inner],
+                    &inner,
+                    level,
+                );
                 if ok {
                     out.lines().last().map(str::to_string)
                 } else {
@@ -261,13 +432,30 @@ impl Repo {
             made.push(level.clone());
             above_dir = dir;
             above_path = level.clone();
+            above_stand = stands[made.len() - 1].clone();
+            record_stand(branch, level, &above_stand);
         }
 
         // The merge itself, one level down from the innermost splice above.
         let inner = relative(path, &above_path);
-        let mut args = vec!["merge", "--branch", upstream_branch, "-m", message];
-        if !self.args.upstream.is_empty() {
-            args.extend(["--upstream", self.args.upstream.as_str()]);
+        let mut args = vec![verb];
+        // --branch, or the branch the monorepo tracks for the splice: the
+        // worktree's branch has no tracked ones.
+        let user_branch = if self.args.branch.is_empty() {
+            self.tracked_branch(path, branch)
+        } else {
+            self.args.branch.clone()
+        };
+        let upstream = self.args.upstream.clone();
+        let message = self.args.message.clone();
+        if !user_branch.is_empty() {
+            args.extend(["--branch", user_branch.as_str()]);
+        }
+        if !upstream.is_empty() {
+            args.extend(["--upstream", upstream.as_str()]);
+        }
+        if !message.is_empty() {
+            args.extend(["-m", message.as_str()]);
         }
         if self.merge_bump {
             args.push("--bump");
@@ -276,7 +464,18 @@ impl Repo {
             args.push("--no-fork-point");
         }
         args.push(&inner);
-        let (ok, out) = splice_in_dir(&above_dir, &args, &inner, path, verb);
+        let rebuild = own_rebuild.and_then(|commit| {
+            let head = git(&["-C", &above_dir, "rev-parse", "HEAD"]).out()?;
+            Some(format!("{head} {commit} {inner}"))
+        });
+        let (ok, out) = splice_in_dir_with(
+            &above_dir,
+            (&above_stand.0, &above_stand.1),
+            &args,
+            &inner,
+            path,
+            rebuild,
+        );
         print_lines(&out);
         if !ok {
             if merge_in_progress(&above_dir) {
@@ -286,7 +485,7 @@ impl Repo {
             for done in made.iter().rev() {
                 remove_level(branch, done)?;
             }
-            return fail(format!("{path}: {verb} failed"));
+            return Err(Fail::Soft);
         }
         self.continue_levels(branch)
     }
@@ -318,6 +517,14 @@ impl Repo {
             let Some(commit) = git(&["-C", &dir, "rev-parse", "HEAD"]).out() else {
                 return die(format!("{deepest}: {dir} has no commit"));
             };
+            // Nothing came in at the innermost level: nothing to take up.
+            if Some(&commit) == level_start(branch, &deepest).as_ref() {
+                for level in pending_levels(branch).iter().rev() {
+                    remove_level(branch, level)?;
+                }
+                return Ok(());
+            }
+            let message = self.outer_message(&deepest, &commit);
             remove_level(branch, &deepest)?;
             match pending.last() {
                 Some(above) => {
@@ -325,10 +532,10 @@ impl Repo {
                     let inner = relative(&deepest, above);
                     let (ok, out) = splice_in_dir(
                         &above_dir,
-                        &["merge", "--rebuilt-commit", &commit, &inner],
+                        &recorded_stand(branch, above),
+                        &["merge", "--rebuilt-commit", &commit, "-m", &message, &inner],
                         &inner,
                         &deepest,
-                        "merge",
                     );
                     if !ok {
                         print_lines(&out);
@@ -343,9 +550,6 @@ impl Repo {
                 }
                 None => {
                     // Into the monorepo: a conflict here is one like any other.
-                    let message = git(&["log", "-1", "--format=%B", &commit])
-                        .out()
-                        .unwrap_or_default();
                     let given = std::mem::replace(&mut self.args.message, message);
                     let result = self.merge_rebuilt_commit_quietly(&deepest, &commit);
                     self.args.message = given;

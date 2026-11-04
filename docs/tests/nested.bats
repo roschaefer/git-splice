@@ -730,23 +730,23 @@ b_moved_to_a_commit_upstream_lost() {
   b_moved_to_a_commit_upstream_lost
   run splice pull vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b: its synced commit ${synced_after:0:7}, from a pull above, isn't on its upstream any more"* ]]
+  [[ "$output" == *"!!   vendor/a/b: its synced commit ${synced_after:0:7}, from the pull above, isn't on its upstream any more"* ]]
 }
 
-@test "nested: pull --all says so when the synced commit a moves b to is gone from b's upstream, rather than that b shares no history" {
+@test "nested: pull --all says so when the synced commit a moves b to is gone from b's upstream, before the ways out" {
   b_moved_to_a_commit_upstream_lost
   run splice pull --all
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b: its synced commit ${synced_after:0:7}, from a pull above, isn't on its upstream any more"* ]]
-  [[ "$output" != *"no common"* ]]
+  [[ "$output" == *"!!   vendor/a/b: its synced commit ${synced_after:0:7} isn't on its upstream any more"*"pick a side"* ]]
 }
 
-@test "nested: merge --all says b's synced commit, from the merge of a, isn't fetched yet, rather than that b shares no history" {
+@test "nested: merge --all says b's synced commit, from the merge of a, isn't here yet, rather than that b shares no history" {
   b_moved_to_a_commit_no_branch_has
   splice fetch >/dev/null
   run splice merge --all
   [ "$status" -eq 1 ]
-  [[ "$output" == *"??   vendor/a/b: not fetched yet -- run 'git splice fetch vendor/a/b' first"* ]]
+  [[ "$output" == *"??   vendor/a/b: synced commit "*" isn't here -- run 'git splice fetch vendor/a/b', or check that upstream has it"* ]]
+  [[ "$output" != *"share no history"* ]]
   run splice pull vendor/a/b
   [ "$status" -eq 0 ]
 }
@@ -1040,12 +1040,12 @@ pull_of_b_conflicts() {
   cd "$monorepo"
   run splice pull vendor/a vendor/a/b
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a/b: not pulled, since its .splice from a merge above failed to load"* ]]
+  [[ "$output" == *"Not fetched: vendor/a/b"* ]]
   [[ "$output" == *"Failed: vendor/a/b"* ]]
   ! git cat-file -e HEAD:vendor/a/b/other.txt
 }
 
-@test "nested: pull --all skips b and c when c's upstream from a's pull fails to load, though b's pull would name one that loads" {
+@test "nested: pull --all skips b and c when c's upstream from a's pull can't be fetched, though b's pull would name one that can" {
   scenario_three_levels "$monorepo" "$upstream"
   upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
   upstream_c2="$BATS_TEST_TMPDIR/upstream-c2.git"
@@ -1069,8 +1069,9 @@ pull_of_b_conflicts() {
   cd "$monorepo"
   run splice pull --all
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a/b: not pulled, since vendor/a/b/c below it failed"* ]]
-  [[ "$output" == *"Failed: vendor/a/b/c vendor/a/b"* ]]
+  [[ "$output" == *"vendor/a/b: not pulled, since vendor/a/b/c below it wasn't fetched"* ]]
+  [[ "$output" == *"vendor/a/b/c: not pulled, since vendor/a/b above it failed"* ]]
+  [[ "$output" == *"Failed: vendor/a/b vendor/a/b/c"* ]]
   [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from main at $(git -C "$upstream" rev-parse --short main)" ]
 }
 
@@ -1106,7 +1107,8 @@ pull_of_b_conflicts() {
   run splice pull vendor/a vendor/x
   [ "$status" -ne 0 ]
   [[ "$output" == *"vendor/x: pulled"* ]]
-  [[ "$output" == *"Failed: vendor/a/b"* ]]
+  [[ "$output" == *"vendor/a/b/.splice names no upstream"* ]]
+  [[ "$output" == *"Not fetched: vendor/a/b"* ]]
 }
 
 @test "nested: a pull of b made in a worktree of a's rebuild, merged back with merge --rebuilt-commit, is a pull of b in the monorepo" {
@@ -1124,4 +1126,51 @@ pull_of_b_conflicts() {
   [ "$(splice_state vendor/a/b)" = "push" ]
   splice push vendor/a/b
   [ "$(git -C "$upstream_b" log --format=%s -1 main^2)" = "b upstream" ]
+}
+
+@test "nested: a pull of b pinned at a tag goes through the levels, to the tag its .splice names" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  git -C "$upstream_b" tag v1 main
+  seed_bare_repo "$upstream_b" "b two" main other.txt
+  git -C "$upstream_b" tag v2 main
+  cd "$monorepo"
+  git config --file vendor/a/b/.splice upstream.origin.default-pin v2
+  git commit -q -m "b: pin v2" -- vendor/a/b/.splice
+  run splice pull vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "$(git show HEAD:vendor/a/b/other.txt)" = "b two" ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse v2)" ]
+}
+
+@test "nested: a pull of b after init made a splice around a merges from b's history as the monorepo has it, not as vendor's starts at the init" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice push vendor/a/b
+  git init -q --bare -b main "$BATS_TEST_TMPDIR/vendor.git"
+  splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  seed_bare_repo "$upstream_b" "b upstream" main other.txt
+  commit_local "$monorepo" vendor/a/b "b next"
+  run splice pull vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "$(git show HEAD:vendor/a/b/other.txt)" = "b upstream" ]
+  splice push vendor/a/b
+  [ "$(git -C "$upstream_b" log --format=%s -1 main^1)" = "b next" ]
+}
+
+@test "nested: pull --continue into a monorepo that changed b's file meanwhile leaves that conflict in the monorepo's working tree" {
+  pull_of_b_conflicts
+  echo "b meanwhile" >>vendor/a/b/file.txt
+  git commit -q -am "b meanwhile"
+  printf 'b seed\nb local\nb upstream\n' >"$layer_a/b/file.txt"
+  git -C "$layer_a" add b/file.txt
+  run splice pull --continue
+  [ "$status" -ne 0 ]
+  [ "$(git diff --name-only --diff-filter=U)" = "vendor/a/b/file.txt" ]
+  [ ! -e "$layer_a" ]
+  printf 'b seed\nb local\nb meanwhile\nb upstream\n' >vendor/a/b/file.txt
+  git add vendor/a/b/file.txt
+  git commit -q --no-edit
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  splice push vendor/a/b
 }

@@ -1,27 +1,26 @@
 # Scenario: nested-splices, three levels: a fetch fails after a merge above
 
-`pull` goes top-down, and after each merge it reads the `.splice` files
-below the merged splice again: the merge may have changed them. A pull
-fetches the upstream a changed file names. If that fetch fails, the
-splice isn't pulled, and neither is any splice between it and the merge,
-in either direction: a failed fetch stops the splices above and below
-it, as it does for the fetches before the first merge.
+`pull` goes top-down, and a nested splice is pulled one level down, in
+a worktree of the rebuild of the splice above it, as the merges above
+left it ([pulled through the levels](../pulled-through-the-levels.md)).
+That pull fetches first: the splice, and the ones below it, from the
+upstreams their `.splice` files name there. A fetch that fails stops the
+splices above and below it, as in any pull.
 
-Stopping the ones above matters here. Only their merges can change the
-failed splice's `.splice` again, so with them skipped, the failure stays
-true until the command ends. Here, the middle splice's pull would change
-the inner `.splice` again, and the monorepo has refs of the failed
-upstream from an earlier fetch: the inner splice must not be pulled from
-them.
+Here, the pull of the outer splice points the inner one at an upstream
+that's gone, though the monorepo has refs of it from an earlier fetch.
+The pull of the middle splice would change the inner `.splice` again.
+But its fetch of the inner splice fails, so neither is pulled, and the
+refs from before aren't used.
 
-What `pull --all` does below, step by step:
+What `pull --all` does, step by step:
 
-| Step | URL in `vendor/a/b/c/.splice` | Fetch | `vendor/a/b/c/` failed? |
-| --- | --- | --- | --- |
-| Before | `c.git` | | no |
-| Pull of `vendor/a/` | `c2.git`, new | fails: `c2.git` is gone | yes |
-| Pull of `vendor/a/b/` | | skipped: a splice below it failed | yes |
-| Pull of `vendor/a/b/c/` | | skipped: its fetch failed | yes |
+| Step | URL in `c/.splice` | What happens |
+| --- | --- | --- |
+| Before | `c.git` | |
+| Pull of `vendor/a/` | `c2.git`, new | `vendor/a/` pulled |
+| Pull of `vendor/a/b/`, in `vendor/a/`'s worktree | `c2.git` | fetching `c` fails: `c2.git` is gone, so `b` isn't pulled |
+| Pull of `vendor/a/b/c/` | | skipped: `vendor/a/b/` above it failed |
 
 The setup takes several steps: the monorepo fetches `c2.git` once, and
 the middle upstream changes `c/.splice` too.
@@ -113,25 +112,25 @@ $ git clone -q https://git.example.com/b.git ../b-work &&
 
 ## `pull --all`
 
-The pull of `vendor/a/` points `vendor/a/b/c/` at `c2.git`, and its
-fetch fails. So neither `vendor/a/b/`, whose pull would change
-`c/.splice` again, nor `vendor/a/b/c/` is pulled:
+The pull of `vendor/a/` points `vendor/a/b/c/` at `c2.git`. The pull of
+`vendor/a/b/`, one level down, fetches it first, and fails. So neither
+`vendor/a/b/`, whose pull would change `c/.splice` again, nor
+`vendor/a/b/c/` is pulled:
 
 ```scrut
 $ git splice pull --all
 ok   vendor/a fetched (main moved 7d63d77..684386f)
-ok   vendor/a/b fetched (main moved 8333d5f..c17585f)
-ok   vendor/a/b/c fetched
 ok   vendor/a: pulled 684386f
+ok   vendor/a/b fetched (main moved 8333d5f..c17585f)
 fatal: '$UPSTREAM-c2.git' does not appear to be a git repository
 fatal: Could not read from remote repository.
 
 Please make sure you have the correct access rights
 and the repository exists.
-!!   vendor/a/b/c fetch failed
-!!   vendor/a/b: not pulled, since vendor/a/b/c below it failed
-!!   vendor/a/b/c: not pulled, since its .splice from a merge above failed to load
-!!   Failed: vendor/a/b/c vendor/a/b
+!!   vendor/a/b: not pulled, since vendor/a/b/c below it wasn't fetched -- 'git splice merge vendor/a/b' merges what was fetched anyway
+!!   Not fetched: vendor/a/b/c
+!!   vendor/a/b/c: not pulled, since vendor/a/b above it failed
+!!   Failed: vendor/a/b vendor/a/b/c
 [1]
 ```
 

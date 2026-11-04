@@ -310,7 +310,7 @@ add_upstream() {
   cd "$monorepo"
   run splice pull --all
   [ "$status" -eq 0 ]
-  [ "${lines[3]}" = "ok   vendor/a/b fetched from fork" ]
+  [ "${lines[2]}" = "ok   vendor/a/b fetched from fork" ]
   [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse main)" ]
 }
 

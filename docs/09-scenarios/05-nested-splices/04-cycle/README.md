@@ -69,10 +69,11 @@ the next run. But each run finds a deeper one:
 ```scrut
 $ git splice pull --all
 ok   vendor/a fetched
+ok   vendor/a: nothing to pull
 ok   vendor/a/i fetched
 ok   vendor/a/i/vendor/a fetched
-ok   vendor/a: nothing to pull
 ok   vendor/a/i: nothing to pull
+ok   vendor/a/i/vendor/a fetched
 ok   vendor/a/i/vendor/a: pulled 885fc31
 ```
 

@@ -5,7 +5,6 @@ use crate::levels::*;
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
-use std::collections::HashMap;
 
 pub const USAGE: &str = include_str!("usage/merge.txt");
 
@@ -483,100 +482,6 @@ impl Repo {
         Ok(())
     }
 
-    /// The tag or commit the default-pin of the splice's upstream in use names
-    /// is here, or it has none.
-    fn pin_here(&self, path: &str) -> bool {
-        let pin = upstream_config(path, &self.name_of(path), "default-pin");
-        if pin.is_empty() {
-            true
-        } else if is_commit_id(&pin) {
-            commit_here(&pin)
-        } else {
-            let key = self.key_of(path);
-            ref_exists(&format!(
-                "refs/splices/{}/tags/{pin}",
-                if key.is_empty() { "." } else { &key }
-            ))
-        }
-    }
-
-    /// Reads the splice's upstreams again after a merge above changed its
-    /// .splice, and uses the one the command chose, if it merges the splice:
-    /// <upstream> is None for one it only fetches. A pull fetches the upstreams
-    /// it names now, but didn't before: the synced commit the merge above moved
-    /// it to may be in any of them. It also fetches the one it uses, or all of
-    /// them for one it doesn't merge, if that synced commit or the pin isn't
-    /// here. Fails, saying why, if one can't be fetched, if the synced commit is
-    /// on none of them, or if a merge would use one that wasn't.
-    fn reload_splice_upstream(
-        &mut self,
-        path: &str,
-        branch: &str,
-        verb: &str,
-        upstream: Option<&str>,
-    ) -> Res<()> {
-        let old_urls: Vec<String> = self
-            .upstream_lists
-            .get(path)
-            .cloned()
-            .unwrap_or_default()
-            .iter()
-            .map(|name| self.url_of(path, name))
-            .collect();
-        contained(self.load_splice_upstream(path))?;
-        if let Some(upstream) = upstream {
-            contained(self.use_upstreams(upstream, &[path.to_string()]))?;
-        }
-        let mut entries = Vec::new();
-        let mut used_is_new = false;
-        for name in self.upstream_lists[path].clone() {
-            if !old_urls.contains(&self.url_of(path, &name)) {
-                if name == self.name_of(path) {
-                    used_is_new = true;
-                }
-                entries.push((path.to_string(), name));
-            }
-        }
-        // A new upstream may lack them, and the one in use have them.
-        if !synced_commit_here(path) || !self.pin_here(path) {
-            let more = if upstream.is_some() {
-                used_is_new = true;
-                vec![(path.to_string(), self.name_of(path))]
-            } else {
-                self.every_upstream_entry(&[path.to_string()])?
-            };
-            for entry in more {
-                if !entries.contains(&entry) {
-                    entries.push(entry);
-                }
-            }
-        }
-        if entries.is_empty() {
-            return Ok(());
-        }
-        if verb == "pull" {
-            if !self.fetch_all(branch, &entries)?.is_empty() {
-                return Err(Fail::Soft);
-            }
-            // A fetch by hash fails quietly when no upstream has the commit
-            // any more, e.g. after a gc.
-            if !synced_commit_here(path) {
-                let synced = splice_config(path, "commit", "HEAD");
-                return fail(format!(
-                    "{path}: its synced commit {}, from a pull above, isn't on its upstream any more",
-                    short(&synced)
-                ));
-            }
-        } else if used_is_new && (!self.splice_fetched(path) || !synced_commit_here(path)) {
-            log_warn(format!(
-                "{path}: not fetched yet -- run 'git splice fetch {}{path}' first",
-                self.upstream_option(path)
-            ));
-            return Err(Fail::Soft);
-        }
-        Ok(())
-    }
-
     /// Merges every given path, stopping at the first one that leaves a
     /// conflict: another cherry-pick can't start before it's resolved. Top-down:
     /// a splice goes before the ones below it, whose .splice its merge may
@@ -590,10 +495,6 @@ impl Repo {
         };
         let track = self.args.has_flag("--track");
         let wanted = self.args.branch.clone();
-        // Each .splice below a merged splice, as last loaded: as in HEAD
-        // before the first merge, until a merge above changes it.
-        let before = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
-        let mut loaded: HashMap<String, Option<String>> = HashMap::new();
         let mut failures: Vec<String> = Vec::new();
         let mut skipped: Vec<String> = Vec::new();
         for path in &paths {
@@ -601,28 +502,9 @@ impl Repo {
                 skipped.push(path.clone());
                 continue;
             }
-            // Reading its .splice again after a merge above failed, e.g. the
-            // fetch of the upstream it names now; the reason came then.
-            if failures.contains(path) {
-                log_err(format!(
-                    "{path}: not {}, since its {STATE_FILE} from a merge above failed to load",
-                    past_tense(verb)
-                ));
-                continue;
-            }
             if let Some(failed) = first_above(path, &failures) {
                 log_err(format!(
                     "{path}: not {}, since {failed} above it failed",
-                    past_tense(verb)
-                ));
-                failures.push(path.clone());
-                continue;
-            }
-            // Its merge could change the .splice of the failed one again: then
-            // that one's failure would be about a file that's gone.
-            if let Some(failed) = first_below(path, &failures) {
-                log_err(format!(
-                    "{path}: not {}, since {failed} below it failed",
                     past_tense(verb)
                 ));
                 failures.push(path.clone());
@@ -635,11 +517,13 @@ impl Repo {
                 ));
                 continue;
             }
-            let merged = match self.level_target(path, branch, verb)? {
-                Some((upstream_branch, message)) => {
-                    self.merge_through_levels(path, branch, verb, &upstream_branch, &message)
-                }
-                None => self.merge_one(path, branch, verb),
+            // A nested splice is merged one level down, where its .splice is
+            // read as the merges above left it; --rebase rewrites the
+            // monorepo's own commits, which only the monorepo can.
+            let merged = if !self.merge_rebase && splice_above_in("HEAD", path).is_some() {
+                self.merge_through_levels(path, branch, verb)
+            } else {
+                self.merge_one(path, branch, verb)
             };
             match merged {
                 Err(Fail::Hard) => return Err(Fail::Hard),
@@ -655,17 +539,6 @@ impl Repo {
                         }
                     }
                 }
-            }
-            // The splices below a failed one are skipped anyway.
-            if !splice_in_progress() && !failures.contains(path) {
-                self.read_below_again(
-                    path,
-                    branch,
-                    verb,
-                    &paths,
-                    (&before, &mut loaded),
-                    &mut failures,
-                )?;
             }
         }
         if !skipped.is_empty() && !pending_levels(branch).is_empty() {
@@ -694,57 +567,6 @@ impl Repo {
         } else {
             Err(Fail::Hard)
         }
-    }
-
-    /// After a merge of <merged>: each splice below it reads its .splice again
-    /// where the merge changed it, as in the commit of the splice above, the
-    /// layer it syncs with. Selected or not: a splice further down follows the
-    /// upstreams of the ones above it. A pull fetches what the new .splice
-    /// names; see reload_splice_upstream. A splice that fails that fails the
-    /// command, and stops the ones below it. A merge only reads the .splice of
-    /// one it doesn't merge itself.
-    fn read_below_again(
-        &mut self,
-        merged: &str,
-        branch: &str,
-        verb: &str,
-        selected: &[String],
-        (before, loaded): (&str, &mut HashMap<String, Option<String>>),
-        failures: &mut Vec<String>,
-    ) -> Res<()> {
-        let prefix = format!("{merged}/");
-        for path in splices_in_order(false, &self.all_paths.clone()) {
-            if !path.starts_with(&prefix) || first_above(&path, failures).is_some() {
-                continue;
-            }
-            let blob = state_file_blob("HEAD", &path);
-            let last = loaded
-                .entry(path.clone())
-                .or_insert_with(|| state_file_blob(before, &path));
-            if blob.is_none() || *last == blob {
-                continue;
-            }
-            loaded.insert(path.clone(), blob);
-            // --upstream names one of the selected splice's upstreams.
-            let upstream = if selected.contains(&path) {
-                Some(self.args.upstream.clone())
-            } else if verb == "merge" {
-                // Nothing to fetch, and nothing of its own to merge: only the
-                // upstreams the splices below it follow.
-                if contained(self.load_splice_upstream(&path)).is_err() {
-                    failures.push(path);
-                }
-                continue;
-            } else {
-                None
-            };
-            match self.reload_splice_upstream(&path, branch, verb, upstream.as_deref()) {
-                Err(Fail::Hard) => return Err(Fail::Hard),
-                Err(_) => failures.push(path),
-                Ok(()) => {}
-            }
-        }
-        Ok(())
     }
 }
 
@@ -785,35 +607,6 @@ pub fn apply_merge_options(repo: &mut Repo) -> Res<()> {
     Ok(())
 }
 
-impl Repo {
-    /// For a nested splice with something to merge from an upstream branch:
-    /// that branch, and the message for the commit, for a merge through the
-    /// levels. None for the others, which merge_one merges, or explains.
-    fn level_target(
-        &mut self,
-        path: &str,
-        branch: &str,
-        verb: &str,
-    ) -> Res<Option<(String, String)>> {
-        if self.merge_rebase || splice_above_in("HEAD", path).is_none() {
-            return Ok(None);
-        }
-        self.classify_splice(path, branch)?;
-        if !matches!(self.c.state, State::Pull | State::Diverged)
-            || self.c.target.kind != TargetKind::Branch
-        {
-            return Ok(None);
-        }
-        let target = commit_of(&self.c.target_ref).unwrap_or_default();
-        let message = self.commit_message(format!(
-            "splice: {verb} {path} from {} at {}",
-            self.c.upstream_label,
-            short(&target)
-        ));
-        Ok(Some((self.c.target.name.clone(), message)))
-    }
-}
-
 pub const MERGE_OPTIONS: &str = "--upstream --branch --track --bump --rebase --no-fork-point -m";
 
 impl Repo {
@@ -831,7 +624,11 @@ impl Repo {
     /// merge_rebuilt_commit without its report, for the last step of a merge
     /// through the levels, whose innermost merge reported already.
     pub fn merge_rebuilt_commit_quietly(&mut self, path: &str, commit: &str) -> Res<()> {
-        self.take_rebuilt_commit(path, commit).map(|_| ())
+        // A conflict said so already: it's one like any other.
+        match self.take_rebuilt_commit(path, commit) {
+            Err(_) if splice_in_progress() => Err(Fail::Soft),
+            result => result.map(|_| ()),
+        }
     }
 
     /// The merge of merge_rebuilt_commit: the commit merged, or none if there
@@ -889,7 +686,12 @@ impl Repo {
             &blob,
             &message,
         ) {
-            Err(_) => return die(format!("{path}: merge failed")),
+            Err(_) => {
+                if splice_in_progress() {
+                    return Err(Fail::Hard);
+                }
+                return die(format!("{path}: merge failed"));
+            }
             Ok(false) => {
                 log_ok(format!(
                     "{path}: {}'s changes are in the folder already -- nothing to merge",

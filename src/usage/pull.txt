@@ -80,8 +80,11 @@ ORDER
     the splices above and below it.
 
     A nested splice is pulled one level at a time, as 'git splice merge
-    --help' describes under NESTED SPLICES; a conflict waits in a worktree,
-    for --continue or --abort.
+    --help' describes under NESTED SPLICES, and fetched there, from what
+    its .splice names after the pulls above it; a conflict waits in a
+    worktree, for --continue or --abort. A splice below one pulled here,
+    whose .splice the pull changed, is fetched from the upstreams it names
+    now, at the end.
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#order
 

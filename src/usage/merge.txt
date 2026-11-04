@@ -147,11 +147,15 @@ ORDER
 NESTED SPLICES
     A nested splice is merged one level at a time: the rebuild of each
     splice above it is checked out in a worktree, inside the repository's
-    Git directory, as the repository that splice comes from. The merge runs
-    one level down, in the innermost one, as in a clone of that upstream,
-    and 'merge --rebuilt-commit' takes the result up level by level, into
-    the monorepo last. A splice pinned with default-pin, and --rebase, still
-    merge straight into the monorepo's folder. The folder of the outermost
+    Git directory, as the repository that splice comes from, on the branch
+    the monorepo's branch maps to there. The command runs one level down,
+    in the innermost one, as in a clone of that upstream: it reads the
+    splice's .splice there, as the merges above left it, and a pull fetches
+    there. The splice's history, which decides what's new on each side,
+    still comes from the monorepo. 'merge --rebuilt-commit' takes the
+    result up level by level, into the monorepo last. With --rebase, a
+    nested splice merges straight into the monorepo's folder, since only
+    the monorepo can rebase its own commits. The folder of the outermost
     splice must have no uncommitted changes, which the worktrees wouldn't
     see.
 

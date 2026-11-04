@@ -61,7 +61,6 @@ $ git -C "$UPSTREAM-b.git" update-ref refs/heads/main refs/heads/main^
 ```scrut
 $ git splice pull --all
 ok   vendor/a fetched (main moved *..*) (glob)
-ok   vendor/a/b fetched
 ok   vendor/a: pulled * (glob)
 ok   vendor/a/b fetched
 ok   vendor/a/b: nothing to pull
