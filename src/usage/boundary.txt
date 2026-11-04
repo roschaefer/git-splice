@@ -11,6 +11,8 @@ DESCRIPTION
     was the upstream commit .splice recorded. Purely local, but the synced
     commit must have been fetched. Writes no ref and no monorepo commit.
 
+    See also: https://roschaefer.github.io/git-splice/boundary/#description
+
 THE REBUILT COMMITS
     The rebuild copies the commits after B on the current branch's
     first-parent history that change the folder's files:
@@ -27,6 +29,8 @@ THE REBUILT COMMITS
     the folder a splice, or where B's folder isn't the upstream commit .splice
     records and nothing unpushed came before it: then list from B's parent.
 
+    See also: https://roschaefer.github.io/git-splice/boundary/#the-rebuilt-commits
+
 NESTED SPLICES
     For a nested splice, run it in a worktree of a fetched commit of the
     upstream above, with the path there, to get where that upstream's
@@ -34,3 +38,5 @@ NESTED SPLICES
 
       git worktree add --detach ../a refs/splices/a/heads/main
       git -C ../a splice boundary b
+
+    See also: https://roschaefer.github.io/git-splice/boundary/#nested-splices
