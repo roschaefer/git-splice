@@ -508,9 +508,13 @@ impl Repo {
     /// <name> is the splice's path in HEAD, for its upstreams and messages,
     /// where step 2 rebuilds it at the path it had before a move.
     fn rebuild_with_start(&mut self, path: &str, rev: &str, name: &str) -> Res<RebuildAndStart> {
-        let resolved = git(&["rev-parse", "--verify", "--quiet", rev])
-            .out()
-            .unwrap_or_else(|| rev.to_string());
+        let resolved = if is_commit_id(rev) {
+            rev.to_string()
+        } else {
+            git(&["rev-parse", "--verify", "--quiet", rev])
+                .out()
+                .unwrap_or_else(|| rev.to_string())
+        };
         let key = (
             path.to_string(),
             resolved,
