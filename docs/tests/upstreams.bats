@@ -399,3 +399,20 @@ add_upstream() {
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a/.splice has no id" ]
 }
+
+@test "upstreams: in a fresh clone, pull fetches a synced commit only the other upstream has from that one too" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "origin only" main other.txt
+  cd "$monorepo"
+  splice pull vendor/a
+  add_upstream vendor/a fork "$fork" fork
+  git clone -q --no-local "$monorepo" "$BATS_TEST_TMPDIR/fresh"
+  cd "$BATS_TEST_TMPDIR/fresh"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a fetched from origin"* ]]
+  [[ "$output" == *"vendor/a fetched from fork"* ]]
+  [ "$(splice_config vendor/a commit)" = "$(git -C "$fork" rev-parse main)" ]
+}
