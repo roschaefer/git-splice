@@ -127,6 +127,17 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: --continue and --abort only for merge and pull" {
+  for cmd in merge pull; do
+    run complete_words git-splice "$cmd" --cont
+    [ "$output" = "--continue" ]
+    run complete_words git-splice "$cmd" --abo
+    [ "$output" = "--abort" ]
+  done
+  run complete_words git-splice push --cont
+  [ -z "$output" ]
+}
+
 @test "completion: nothing to offer for the branch after --branch" {
   run complete_words git-splice pull --branch ""
   [ -z "$output" ]

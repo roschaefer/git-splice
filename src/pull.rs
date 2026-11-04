@@ -1,24 +1,29 @@
 //! git splice pull.
 
 use crate::args::parse_args;
-use crate::merge::{apply_merge_options, MERGE_OPTIONS};
+use crate::levels::{conclude, refuse_pending};
+use crate::merge::{apply_merge_options, synced_commit_here, MERGE_OPTIONS};
 use crate::repo::*;
 use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/pull.txt");
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, MERGE_OPTIONS, argv)?;
+    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --continue --abort"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let mut repo = Repo::new(args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
+    if let Some(concluded) = conclude(&mut repo) {
+        return concluded;
+    }
     // Before select_splices: a rebase in progress has detached HEAD.
     require_no_splice_in_progress()?;
     repo.select_splices(Kind::Explicit, "pull")?;
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
+    refuse_pending(&branch, &selected)?;
 
     // A splice below one selected, selected itself or not: a pull above can
     // move its synced commit.
@@ -38,7 +43,22 @@ pub fn run(argv: &[String]) -> Res<i32> {
         .filter(|path| below_selected(path))
         .cloned()
         .collect();
-    let mut entries = repo.used_upstream_entry(&top);
+    // A splice above one selected whose synced commit isn't here, e.g. in a
+    // fresh clone: a nested pull checks its rebuild out, to pull one level
+    // down from there.
+    let above: Vec<String> = repo
+        .all_paths
+        .iter()
+        .filter(|path| !selected.contains(path) && !below_selected(path))
+        .filter(|path| {
+            top.iter()
+                .any(|below| below.starts_with(&format!("{path}/")))
+        })
+        .filter(|path| !synced_commit_here(path))
+        .cloned()
+        .collect();
+    let mut entries = repo.used_upstream_entry(&above);
+    entries.extend(repo.used_upstream_entry(&top));
     entries.extend(repo.every_upstream_entry(&below)?);
     let failures = repo.fetch_all(&branch, &entries)?;
 

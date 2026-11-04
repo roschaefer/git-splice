@@ -195,8 +195,9 @@ swap_splice_files() {
   seed_bare_repo "$upstream" "a moves on"
   run splice pull vendor/a/b
   [ "$status" -ne 0 ]
-  [ "$(git diff --name-only --diff-filter=U)" = "vendor/a/b/file.txt" ]
-  [ -z "$(git ls-files vendor/a/b/b)" ]
+  layer="$(git rev-parse --git-common-dir)/splice-layers/main/vendor%a"
+  [ "$(git -C "$layer" diff --name-only --diff-filter=U)" = "b/file.txt" ]
+  [ -z "$(git -C "$layer" ls-files b/b)" ]
 }
 
 @test "nested: b moved inside a keeps its unpushed commits" {
@@ -882,15 +883,138 @@ order_of() {
   [ "$(splice_state vendor/a/b)" = "up-to-date" ]
 }
 
-@test "nested: a pull of b that conflicts leaves the conflict in the monorepo's working tree, at b's file" {
+# b's upstream and the monorepo change b's file, and the pull of b
+# conflicts, one level down: in the worktree of a's rebuild, $layer_a.
+pull_of_b_conflicts() {
   scenario_nested_splices "$monorepo" "$upstream"
   seed_bare_repo "$upstream_b" "b upstream"
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
+  layer_a="$(git rev-parse --git-common-dir)/splice-layers/main/vendor%a"
   run splice pull vendor/a/b
+}
+
+@test "nested: a pull of b that conflicts leaves the conflict in a worktree of a's rebuild, and the monorepo's working tree as it was" {
+  pull_of_b_conflicts
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a/b: conflict -- resolve it, then 'git commit'"* ]]
-  [ "$(git diff --name-only --diff-filter=U)" = "vendor/a/b/file.txt" ]
+  [[ "$output" == *"a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')"* ]]
+  [ "$(git -C "$layer_a" diff --name-only --diff-filter=U)" = "b/file.txt" ]
+  [ -z "$(git status --short)" ]
+  [ "$(git log -1 --format=%s)" = "b local" ]
+}
+
+@test "nested: pull --continue takes the resolved pull of b into the monorepo, as a pull of b, and removes the worktree and its branch" {
+  pull_of_b_conflicts
+  printf 'b seed\nb local\nb upstream\n' >"$layer_a/b/file.txt"
+  git -C "$layer_a" add b/file.txt
+  run splice pull --continue
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: took the merge through the levels into the monorepo"* ]]
+  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a/b from main at $(git -C "$upstream_b" rev-parse --short main)" ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ ! -e "$layer_a" ]
+  [ -z "$(git branch --list 'splice-layer/*')" ]
+  splice push vendor/a/b
+  [ "$(git -C "$upstream_b" log --format=%s -1 main^2)" = "b upstream" ]
+}
+
+@test "nested: pull --continue keeps a commit to a made in the monorepo while the conflict waited" {
+  pull_of_b_conflicts
+  echo "a meanwhile" >vendor/a/other.txt
+  git add vendor/a/other.txt
+  git commit -q -m "a meanwhile"
+  printf 'b seed\nb local\nb upstream\n' >"$layer_a/b/file.txt"
+  git -C "$layer_a" add b/file.txt
+  splice pull --continue
+  [ "$(cat vendor/a/other.txt)" = "a meanwhile" ]
+  [ "$(git log --format=%s -2 | tail -1)" = "a meanwhile" ]
+}
+
+@test "nested: pull --continue refuses while the conflict isn't resolved, and --continue or --abort with nothing in progress" {
+  pull_of_b_conflicts
+  run splice pull --continue
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"still has conflicts"* ]]
+  splice pull --abort
+  run splice pull --continue
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"no merge through the levels in progress"* ]]
+  run splice pull --abort
+  [ "$status" -ne 0 ]
+}
+
+@test "nested: pull --abort removes the worktree and its branch, and nothing reaches the monorepo" {
+  pull_of_b_conflicts
+  run splice pull --abort
+  [ "$status" -eq 0 ]
+  [ ! -e "$layer_a" ]
+  [ -z "$(git branch --list 'splice-layer/*')" ]
+  [ "$(git log -1 --format=%s)" = "b local" ]
+}
+
+@test "nested: while a merge through the levels waits, status says so, and pull, merge and push of a and b refuse" {
+  pull_of_b_conflicts
+  run splice status
+  [[ "$output" == *"a merge through the levels waits in the worktree of vendor/a"* ]]
+  for command in pull merge push; do
+    for path in vendor/a vendor/a/b; do
+      run splice "$command" "$path"
+      [ "$status" -ne 0 ]
+      [[ "$output" == *"a merge through the levels waits"* ]]
+    done
+  done
+}
+
+@test "nested: a pull of b without a conflict goes through the levels, leaves no worktree, and names b in its commit" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b upstream" main other.txt
+  cd "$monorepo"
+  run splice pull vendor/a/b
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/b: pulled $(git -C "$upstream_b" rev-parse --short main)"* ]]
+  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a/b from main at $(git -C "$upstream_b" rev-parse --short main)" ]
+  [ "$(git show HEAD:vendor/a/b/other.txt)" = "b upstream" ]
+  [ "$(git worktree list | wc -l)" -eq 1 ]
+}
+
+@test "nested: a pull of b refuses when a has uncommitted changes, which the worktree wouldn't see" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b upstream" main other.txt
+  cd "$monorepo"
+  echo "uncommitted" >>vendor/a/file.txt
+  run splice pull vendor/a/b
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a has uncommitted changes, which a pull through the levels wouldn't see -- commit or stash them first"* ]]
+}
+
+@test "nested: three levels, a pull of c conflicts in the worktree of b, and --continue takes it up into a and the monorepo" {
+  scenario_three_levels "$monorepo" "$upstream"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c upstream"
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  cd "$monorepo"
+  run splice pull vendor/a/b/c
+  [ "$status" -eq 1 ]
+  layer_b="$(git rev-parse --git-common-dir)/splice-layers/main/vendor%a%b"
+  [ "$(git -C "$layer_b" diff --name-only --diff-filter=U)" = "c/file.txt" ]
+  printf 'c seed\nc local\nc upstream\n' >"$layer_b/c/file.txt"
+  git -C "$layer_b" add c/file.txt
+  splice pull --continue
+  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a/b/c from main at $(git -C "$BATS_TEST_TMPDIR/upstream-c.git" rev-parse --short main)" ]
+  [ "$(git worktree list | wc -l)" -eq 1 ]
+  splice push vendor/a/b/c vendor/a/b vendor/a
+  [ "$(git -C "$BATS_TEST_TMPDIR/upstream-c.git" log --format=%s -1 main^2)" = "c upstream" ]
+}
+
+@test "nested: in a fresh clone, pull of b alone fetches a above it, whose rebuild it goes through" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b change" main other.txt
+  git clone -q --no-local "$monorepo" "$BATS_TEST_TMPDIR/fresh"
+  cd "$BATS_TEST_TMPDIR/fresh"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  run splice pull vendor/a/b
+  [ "$status" -eq 0 ]
+  git cat-file -e HEAD:vendor/a/b/other.txt
 }
 
 @test "nested: pull of a and b doesn't merge b from an upstream fetched before, when a's pull names it and fetching it fails" {

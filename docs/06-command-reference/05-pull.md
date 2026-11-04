@@ -14,6 +14,7 @@ NAME
 SYNOPSIS
     git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
+    git splice pull (--continue | --abort)
 ```
 
 ## Description
@@ -69,6 +70,10 @@ $ git splice pull -h | check-help section options
 
     --all
         Pulls every splice.
+
+    --continue, --abort
+        Go on with, or give up, a nested pull whose conflict waits in a
+        worktree; see 'git splice merge --help'.
 
     --upstream <name>
         Pulls from this one of the upstreams the splice's .splice names,
@@ -142,8 +147,14 @@ take pkg-b's fix for the release
 ```scrut
 $ git splice pull -h | check-help section order
     Also fetches the splices below each: pulling a splice can move their
-    synced commits. Top-down: a splice is pulled before the ones below it,
-    and a failed fetch stops the splices above and below it.
+    synced commits. And a splice above whose synced commit isn't here, e.g.
+    in a fresh clone: a nested splice is pulled from its rebuild. Top-down:
+    a splice is pulled before the ones below it, and a failed fetch stops
+    the splices above and below it.
+
+    A nested splice is pulled one level at a time, as 'git splice merge
+    --help' describes under NESTED SPLICES; a conflict waits in a worktree,
+    for --continue or --abort.
 ```
 
 `pull` also fetches the splices below the ones it pulls, since pulling

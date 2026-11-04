@@ -1,6 +1,7 @@
 //! git splice merge.
 
 use crate::args::parse_args;
+use crate::levels::*;
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -596,7 +597,7 @@ impl Repo {
         let mut failures: Vec<String> = Vec::new();
         let mut skipped: Vec<String> = Vec::new();
         for path in &paths {
-            if splice_in_progress() {
+            if splice_in_progress() || !pending_levels(branch).is_empty() {
                 skipped.push(path.clone());
                 continue;
             }
@@ -634,8 +635,16 @@ impl Repo {
                 ));
                 continue;
             }
-            match self.merge_one(path, branch, verb) {
+            let merged = match self.level_target(path, branch, verb)? {
+                Some((upstream_branch, message)) => {
+                    self.merge_through_levels(path, branch, verb, &upstream_branch, &message)
+                }
+                None => self.merge_one(path, branch, verb),
+            };
+            match merged {
                 Err(Fail::Hard) => return Err(Fail::Hard),
+                // Its conflict waits in a worktree; the hint came then.
+                Err(_) if !pending_levels(branch).is_empty() => {}
                 Err(_) => failures.push(path.clone()),
                 Ok(()) => {
                     if track && !splice_in_progress() {
@@ -659,7 +668,13 @@ impl Repo {
                 )?;
             }
         }
-        if !skipped.is_empty() {
+        if !skipped.is_empty() && !pending_levels(branch).is_empty() {
+            log_err(format!(
+                "Not {} yet: {} -- conclude the merge through the levels, then re-run {verb}",
+                past_tense(verb),
+                skipped.join(" ")
+            ));
+        } else if !skipped.is_empty() {
             let conclude = if rebase_in_progress() {
                 "git rebase --continue"
             } else {
@@ -674,7 +689,7 @@ impl Repo {
         if !failures.is_empty() {
             log_err(format!("Failed: {}", failures.join(" ")));
         }
-        if skipped.is_empty() && failures.is_empty() {
+        if skipped.is_empty() && failures.is_empty() && pending_levels(branch).is_empty() {
             Ok(())
         } else {
             Err(Fail::Hard)
@@ -770,6 +785,35 @@ pub fn apply_merge_options(repo: &mut Repo) -> Res<()> {
     Ok(())
 }
 
+impl Repo {
+    /// For a nested splice with something to merge from an upstream branch:
+    /// that branch, and the message for the commit, for a merge through the
+    /// levels. None for the others, which merge_one merges, or explains.
+    fn level_target(
+        &mut self,
+        path: &str,
+        branch: &str,
+        verb: &str,
+    ) -> Res<Option<(String, String)>> {
+        if self.merge_rebase || splice_above_in("HEAD", path).is_none() {
+            return Ok(None);
+        }
+        self.classify_splice(path, branch)?;
+        if !matches!(self.c.state, State::Pull | State::Diverged)
+            || self.c.target.kind != TargetKind::Branch
+        {
+            return Ok(None);
+        }
+        let target = commit_of(&self.c.target_ref).unwrap_or_default();
+        let message = self.commit_message(format!(
+            "splice: {verb} {path} from {} at {}",
+            self.c.upstream_label,
+            short(&target)
+        ));
+        Ok(Some((self.c.target.name.clone(), message)))
+    }
+}
+
 pub const MERGE_OPTIONS: &str = "--upstream --branch --track --bump --rebase --no-fork-point -m";
 
 impl Repo {
@@ -778,6 +822,21 @@ impl Repo {
     /// A three-way merge from where <commit> left the rebuild, as one
     /// ordinary commit. The synced commit stays: <commit> isn't upstream's.
     fn merge_rebuilt_commit(&mut self, path: &str, commit: &str) -> Res<()> {
+        if let Some(given) = self.take_rebuilt_commit(path, commit)? {
+            log_ok(format!("{path}: merged {}", short(&given)));
+        }
+        Ok(())
+    }
+
+    /// merge_rebuilt_commit without its report, for the last step of a merge
+    /// through the levels, whose innermost merge reported already.
+    pub fn merge_rebuilt_commit_quietly(&mut self, path: &str, commit: &str) -> Res<()> {
+        self.take_rebuilt_commit(path, commit).map(|_| ())
+    }
+
+    /// The merge of merge_rebuilt_commit: the commit merged, or none if there
+    /// was nothing to merge.
+    fn take_rebuilt_commit(&mut self, path: &str, commit: &str) -> Res<Option<String>> {
         let Some(given) = commit_of(commit) else {
             return die(format!("--rebuilt-commit: unknown commit: {commit}"));
         };
@@ -799,7 +858,7 @@ impl Repo {
                 "{path}: {} is part of the rebuild already -- nothing to merge",
                 short(&given)
             ));
-            return Ok(());
+            return Ok(None);
         }
         if upstream_has_state_file(&given) {
             return die(format!(
@@ -836,12 +895,11 @@ impl Repo {
                     "{path}: {}'s changes are in the folder already -- nothing to merge",
                     short(&given)
                 ));
-                return Ok(());
+                return Ok(None);
             }
             Ok(true) => {}
         }
-        log_ok(format!("{path}: merged {}", short(&given)));
-        Ok(())
+        Ok(Some(given))
     }
 }
 
@@ -891,7 +949,11 @@ impl Repo {
 }
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --rebuilt-commit"), argv)?;
+    let args = parse_args(
+        USAGE,
+        &format!("{MERGE_OPTIONS} --rebuilt-commit --continue --abort"),
+        argv,
+    )?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let rebuilt_commit = args.rebuilt_commit.clone();
@@ -913,12 +975,16 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let mut repo = Repo::new(args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
+    if let Some(concluded) = conclude(&mut repo) {
+        return concluded;
+    }
     // Before select_splices: a rebase in progress has detached HEAD.
     require_no_splice_in_progress()?;
     if !rebuilt_commit.is_empty() {
         // No upstream to choose: the commit is given, and the check for
         // upstream commits in it reads every upstream the splice names.
         repo.select_paths(Kind::Explicit, "merge")?;
+        refuse_pending(&repo.monorepo_branch.clone(), &repo.selected.clone())?;
         if repo.args.all || repo.selected.len() != 1 {
             return die("--rebuilt-commit takes exactly one splice");
         }
@@ -929,6 +995,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
     repo.select_splices(Kind::Explicit, "merge")?;
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
+    refuse_pending(&branch, &selected)?;
     repo.merge_paths(&branch, "merge", &selected)?;
     Ok(0)
 }

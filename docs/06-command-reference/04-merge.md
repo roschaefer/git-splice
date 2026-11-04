@@ -15,6 +15,7 @@ SYNOPSIS
     git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
     git splice merge [-m <message>] --rebuilt-commit <commit> <path>
+    git splice merge (--continue | --abort)
 ```
 
 ## Description
@@ -64,6 +65,14 @@ $ git splice merge -h | check-help section options
 
     --all
         Merges every splice.
+
+    --continue
+        Takes a nested merge whose conflict was resolved in its worktree the
+        rest of the way up; see NESTED SPLICES.
+
+    --abort
+        Removes a nested merge's worktrees, and nothing reaches the
+        monorepo; see NESTED SPLICES.
 ```
 
 ### `--upstream`
@@ -276,6 +285,31 @@ $ git splice merge -h | check-help section order
 
 Pulling `vendor/a/` can move the synced commit of `vendor/a/b/`, nested
 in it, so `vendor/a/` goes first ([nesting](../03-concepts/04-nesting.md)).
+
+## Nested splices
+
+```scrut
+$ git splice merge -h | check-help section nested-splices
+    A nested splice is merged one level at a time: the rebuild of each
+    splice above it is checked out in a worktree, inside the repository's
+    Git directory, as the repository that splice comes from. The merge runs
+    one level down, in the innermost one, as in a clone of that upstream,
+    and 'merge --rebuilt-commit' takes the result up level by level, into
+    the monorepo last. A splice pinned with default-pin, and --rebase, still
+    merge straight into the monorepo's folder. The folder of the outermost
+    splice must have no uncommitted changes, which the worktrees wouldn't
+    see.
+
+    A conflict waits in the worktree it came up in, which 'git splice
+    status' names; the monorepo is free meanwhile. Resolve it there, 'git
+    add' it, then --continue takes the result the rest of the way up; one
+    level up, a change the monorepo made meanwhile can conflict again.
+    --abort removes the worktrees instead, and nothing reaches the
+    monorepo. Until then, pull, merge and push refuse the splices the
+    worktrees are for, and the ones below them.
+```
+
+How the levels fit together: [nesting](../concepts/nesting/README.md).
 
 ## Conflicts
 

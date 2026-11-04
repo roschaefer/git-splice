@@ -219,6 +219,9 @@ pub fn run(argv: &[String]) -> Res<i32> {
         rows.push(classify_row(&mut repo, path, &branch)?);
     }
     say(format!("On branch {branch}\n"));
+    if let Some(hint) = crate::levels::pending_hint(&branch) {
+        say(format!("  {hint}"));
+    }
     print_rows(&rows);
     Ok(0)
 }
