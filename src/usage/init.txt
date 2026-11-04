@@ -12,6 +12,12 @@ DESCRIPTION
     The folder's earlier history stays in the monorepo. If <url> has commits
     already, use 'git splice clone --merge <url> <path>'.
 
+    See also: https://roschaefer.github.io/git-splice/init/#description
+
 OPTIONS
     -m <message>
         Gives the commit this message instead of the default one.
+
+        See also: https://roschaefer.github.io/git-splice/init/#-m
+
+    See also: https://roschaefer.github.io/git-splice/init/#options

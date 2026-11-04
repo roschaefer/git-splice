@@ -7,26 +7,24 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice init -h
+$ git splice init -h | check-help preamble
 NAME
     git-splice-init - Make an existing folder a splice of an empty repository
 
 SYNOPSIS
     git splice init [-m <message>] <path> <url>
+```
+## Description
 
-DESCRIPTION
+```scrut
+$ git splice init -h | check-help section description
     Makes the existing folder <path> a splice, to be published to <url>: an
     empty repository you created for it. Commits <path>/.splice and nothing
     else. Your first 'git splice push <path>' then starts the upstream with
     that commit, the folder as it is now, followed by any commits after it.
     The folder's earlier history stays in the monorepo. If <url> has commits
     already, use 'git splice clone --merge <url> <path>'.
-
-OPTIONS
-    -m <message>
-        Gives the commit this message instead of the default one.
 ```
-## Description
 
 In the [walkthrough's repositories](README.md), `libs/c/` grew inside the monorepo, and
 `lib-c.git` is empty:
@@ -57,4 +55,15 @@ until the first `fetch`, a known bug
 
 ### `-m`
 
+```scrut
+$ git splice init -h | check-help option -m
+        Gives the commit this message instead of the default one.
+```
+
 It works as for [`merge`](merge.md#-m).
+
+<!-- Checks that every linked help section appears above, in order.
+```scrut
+$ git splice init -h | check-help document "$TESTDIR/$TESTFILE"
+```
+-->
