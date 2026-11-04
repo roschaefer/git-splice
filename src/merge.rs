@@ -501,7 +501,7 @@ impl Repo {
             .collect();
         self.load_splice_upstream(path)?;
         if let Some(upstream) = upstream {
-            self.use_upstreams(upstream, &[path.to_string()])?;
+            contained(self.use_upstreams(upstream, &[path.to_string()]))?;
         }
         let mut entries = Vec::new();
         let mut used_is_new = false;
@@ -583,6 +583,16 @@ impl Repo {
             if let Some(failed) = first_above(path, &failures) {
                 log_err(format!(
                     "{path}: not {}, since {failed} above it failed",
+                    past_tense(verb)
+                ));
+                failures.push(path.clone());
+                continue;
+            }
+            // Its merge could change the .splice of the failed one again: then
+            // that one's failure would be about a file that's gone.
+            if let Some(failed) = first_below(path, &failures) {
+                log_err(format!(
+                    "{path}: not {}, since {failed} below it failed",
                     past_tense(verb)
                 ));
                 failures.push(path.clone());
@@ -684,8 +694,7 @@ impl Repo {
             match self.reload_splice_upstream(&path, branch, verb, upstream.as_deref()) {
                 Err(Fail::Hard) => return Err(Fail::Hard),
                 Err(_) => failures.push(path),
-                // An earlier load of an older .splice may have failed.
-                Ok(()) => failures.retain(|failed| *failed != path),
+                Ok(()) => {}
             }
         }
         Ok(())
