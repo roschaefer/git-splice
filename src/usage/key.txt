@@ -9,15 +9,21 @@ DESCRIPTION
     fetched branches are refs/splices/<key>/heads/<branch>, e.g. for
     'git log splices/<key>/heads/main'.
 
+    See also: https://roschaefer.github.io/git-splice/key/#description
+
 OPTIONS
     <new-key>
         Renames the key and moves its refs along. Renaming it also renames
         it in the tracked upstream branches, branch.<branch>.splice =
         <key>:<name>.
 
+        See also: https://roschaefer.github.io/git-splice/key/#new-key
+
     --upstream <name>
         Names the upstream, as <path>/.splice does in [upstream "<name>"].
         Without it, the splice's default upstream.
+
+    See also: https://roschaefer.github.io/git-splice/key/#options
 
 KEYS
     A key belongs to an upstream URL, so splices with the same URL share it.
@@ -26,3 +32,5 @@ KEYS
     https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
     taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
     long.
+
+    See also: https://roschaefer.github.io/git-splice/key/#keys
