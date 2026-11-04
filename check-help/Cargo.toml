@@ -1,0 +1,9 @@
+[package]
+name = "check-help"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+description = "Keep git-splice's help sections and command-reference pages aligned"
+publish = false
+
+[dependencies]
