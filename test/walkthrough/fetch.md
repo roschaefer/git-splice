@@ -7,44 +7,21 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice fetch -h
+$ git splice fetch -h | check-help preamble
 NAME
     git-splice-fetch - Fetch splice upstreams
 
 SYNOPSIS
     git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [path...]
+```
+## Description
 
-DESCRIPTION
+```scrut
+$ git splice fetch -h | check-help section description
     Fetches every branch of each splice's upstreams, in parallel and each
     upstream once, and reports when the branch a splice syncs with has
     moved. Branches deleted upstream are pruned.
-
-OPTIONS
-    <path>...
-        Fetches only the upstreams of these splices, by their folders.
-        Without paths, every splice's.
-
-    --upstream <name>
-        Fetches only this one of the upstreams the splice's .splice names.
-        Without it, a splice with several upstreams has each fetched.
-
-    --branch <name> --track
-        Also tracks that upstream branch on the current branch, without a
-        pull or push: from then on, every command syncs the splice with it
-        there, and 'git splice status' compares with it. See 'git splice
-        merge --help'.
-
-    --no-track
-        Stops tracking one, so the splice syncs with the branch named like
-        the current one again.
-
-REFS
-    The branches go to refs/splices/<key>/heads/*, where <key> is the
-    upstream's key in this repository, e.g. lib for
-    https://github.com/x/lib.git -- by URL, there is no Git remote; 'git
-    splice key' prints and renames keys.
 ```
-## Description
 
 In the [walkthrough's repositories](README.md), someone pushes another
 commit to `pkg-a`'s upstream:
@@ -63,13 +40,39 @@ ok   vendor/pkg-a fetched (main moved 703b936..5099edf)
 
 ## Options
 
+```scrut
+$ git splice fetch -h | check-help section options
+    <path>...
+        Fetches only the upstreams of these splices, by their folders.
+        Without paths, every splice's.
+```
+
 ### `--upstream`
+
+```scrut
+$ git splice fetch -h | check-help option --upstream
+        Fetches only this one of the upstreams the splice's .splice names.
+        Without it, a splice with several upstreams has each fetched.
+```
 
 A splice with a fork and the original as upstreams fetches both, unless
 `--upstream` names one
 ([scenario](../scenarios/04-upstreams/02-several-upstreams/README.md)).
 
-### `--branch`, `--track` and `--no-track`
+### Branch tracking
+
+```scrut
+$ git splice fetch -h | check-help option branch-tracking
+    --branch <name> --track
+        Also tracks that upstream branch on the current branch, without a
+        pull or push: from then on, every command syncs the splice with it
+        there, and 'git splice status' compares with it. See 'git splice
+        merge --help'.
+
+    --no-track
+        Stops tracking one, so the splice syncs with the branch named like
+        the current one again.
+```
 
 Tracking a branch only changes this clone's config, so it needs no pull
 or push ([tracking another upstream branch
@@ -77,6 +80,14 @@ locally](../concepts/upstreams/README.md#tracking-another-upstream-branch-locall
 [scenario](../scenarios/03-branches-and-teamwork/07-tracked-branch/README.md)).
 
 ## Refs
+
+```scrut
+$ git splice fetch -h | check-help section refs
+    The branches go to refs/splices/<key>/heads/*, where <key> is the
+    upstream's key in this repository, e.g. lib for
+    https://github.com/x/lib.git -- by URL, there is no Git remote; 'git
+    splice key' prints and renames keys.
+```
 
 Fetched branches are ordinary Git refs under `refs/splices/<key>/heads/`
 ([URLs, keys and refs](../concepts/upstreams/README.md#urls-keys-and-refs)).
@@ -120,3 +131,9 @@ $ git worktree remove ../pkg-a-upstream
 Upstreams are fetched and pushed by URL, with no Git remote, so a plain
 `git push` can't send the whole monorepo to one by mistake
 ([refs instead of remotes](../../docs/design/README.md#refs-instead-of-remotes)).
+
+<!-- Checks that every linked help section appears above, in order.
+```scrut
+$ git splice fetch -h | check-help document "$TESTDIR/$TESTFILE"
+```
+-->
