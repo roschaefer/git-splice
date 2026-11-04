@@ -7,111 +7,23 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice merge -h
+$ git splice merge -h | check-help preamble
 NAME
     git-splice-merge - Splice in fetched upstream changes
 
 SYNOPSIS
     git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
-
-DESCRIPTION
-    Splices already-fetched upstream changes into each splice, as one ordinary
-    commit per splice. Never touches the network: run 'git splice fetch'
-    first, or 'git splice pull' to do both.
-
-OPTIONS
-    <path>...
-        The splices to merge, by their folders.
-
-    --all
-        Merges every splice.
-
-    --upstream <name>
-        Merges from this one of the upstreams the splice's .splice names,
-        instead of its default upstream. A splice without the named upstream
-        stops the command before it starts.
-
-    --branch <name>
-        Merges this upstream branch instead of the usual one (see UPSTREAM
-        BRANCH), e.g. the one the default branch follows, on a pull
-        request's branch the upstream has none for. It doesn't change
-        .splice, and the splices below keep theirs.
-
-    --track
-        With --branch, also tracks that branch on the monorepo's current
-        branch, as 'git push -u' does: from then on, every command syncs the
-        splice with it there, until --track names another. It's kept in the
-        repository's config, as branch.<branch>.splice = <key>:<name>, by
-        the upstream's key ('git splice key'), so it stays in this clone, and
-        'git splice status' marks the splices that track one. 'git splice
-        fetch --branch <name> --track' tracks one without a merge, and 'git
-        splice fetch --no-track' stops tracking it.
-
-    --bump
-        Also moves the synced commit up to the upstream branch when there's
-        nothing to merge, e.g. right after a push, in a commit that only
-        changes the splice's .splice, like a submodule bump. Later rebuilds
-        then start there, instead of rebuilding every pushed commit again.
-
-    --rebase
-        Rebases instead, like 'git pull --rebase': takes the upstream branch
-        in on top of the newest commit whose folder has exactly the synced
-        commit's files, and rebases the monorepo branch's commits since then
-        onto that, with 'git rebase'. The next push then sends the folder's
-        changes as commits on top of the upstream branch, also after the
-        upstream rewrote it.
-
-        It rewrites the branch, so it refuses when a remote-tracking branch
-        has any of those commits, and when one of them is a merge, whose own
-        changes a rebase would drop. It also refuses when the upstream branch
-        lacks the synced commit, and its reflog here doesn't show it ever had
-        it: the folder would lose that commit's changes. The branch may never
-        have had it, e.g. after 'git rebase main' on a feature branch, or had
-        it before a rewrite this clone didn't see, e.g. in a fresh clone.
-
-        rebase.autoStash and rebase.updateRefs don't apply: it neither
-        stashes nor moves other branches. On a conflict, resolve it and run
-        'git rebase --continue' (or 'git rebase --abort' to give up).
-
-    --no-fork-point
-        Merges from Git's merge base instead of the fork point (see
-        REWRITTEN UPSTREAM BRANCHES).
-
-    -m <message>
-        Gives the commit this message instead of the default one, which
-        names the upstream branch and commit; with --rebase, the commit the
-        rebased ones go on top of. It takes one splice: each gets a commit
-        of its own. Nothing reads the message back: .splice records the
-        synced commit. On a conflict, 'git commit' keeps the message.
-
-UPSTREAM BRANCH
-    The upstream branch is the one named like the current branch; on the
-    monorepo's default branch, the upstream's default-branch if it has one,
-    or the tag or commit its default-pin names. On a branch the upstream
-    doesn't have, there's nothing to merge. --branch names another.
-
-ORDER
-    Top-down: a splice is merged before the ones below it, since its merge
-    can move their synced commits, and a failure stops them.
-
-CONFLICTS
-    On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
-    --abort' to give up), then re-run merge for any splices left. When the
-    two sides share no history at all, merge doesn't guess: it prints the
-    commands to keep either side.
-
-REWRITTEN UPSTREAM BRANCHES
-    When the upstream rewrote its branch, e.g. a fork rebased its patch
-    branch onto a new release, merge starts at the branch's fork point, like
-    'git pull --rebase': the newest commit the fetched branch pointed at, by
-    its reflog, that the folder's history has. Merge then takes the
-    rewritten branch as it is. If the folder has changes that branch lacks,
-    it refuses: the next push would publish the rewritten-away commits
-    again, under them. --rebase redoes them on top instead.
 ```
 
 ## Description
+
+```scrut
+$ git splice merge -h | check-help section description
+    Splices already-fetched upstream changes into each splice, as one ordinary
+    commit per splice. Never touches the network: run 'git splice fetch'
+    first, or 'git splice pull' to do both.
+```
 
 In the [walkthrough's repositories](README.md), `vendor/pkg-a/`'s upstream
 has a commit the monorepo doesn't have yet, and it's already fetched:
@@ -144,14 +56,49 @@ monorepo's history stays linear.
 
 ## Options
 
+```scrut
+$ git splice merge -h | check-help section options
+    <path>...
+        The splices to merge, by their folders.
+
+    --all
+        Merges every splice.
+```
+
 ### `--upstream`
+
+```scrut
+$ git splice merge -h | check-help option --upstream
+        Merges from this one of the upstreams the splice's .splice names,
+        instead of its default upstream. A splice without the named upstream
+        stops the command before it starts.
+```
 
 For a splice with a fork and the original as upstreams: merge the
 original's fix without switching the default
 ([upstreams](../concepts/upstreams/README.md#a-fork-and-the-original),
 [scenario](../scenarios/04-upstreams/02-several-upstreams/README.md)).
 
-### `--branch` and `--track`
+### Branch tracking
+
+```scrut
+$ git splice merge -h | check-help option branch-tracking
+    --branch <name>
+        Merges this upstream branch instead of the usual one (see UPSTREAM
+        BRANCH), e.g. the one the default branch follows, on a pull
+        request's branch the upstream has none for. It doesn't change
+        .splice, and the splices below keep theirs.
+
+    --track
+        With --branch, also tracks that branch on the monorepo's current
+        branch, as 'git push -u' does: from then on, every command syncs the
+        splice with it there, until --track names another. It's kept in the
+        repository's config, as branch.<branch>.splice = <key>:<name>, by
+        the upstream's key ('git splice key'), so it stays in this clone, and
+        'git splice status' marks the splices that track one. 'git splice
+        fetch --branch <name> --track' tracks one without a merge, and 'git
+        splice fetch --no-track' stops tracking it.
+```
 
 `vendor/a/` syncs with `development` on the monorepo's `feature`, because
 `--track` recorded it; `vendor/b/` follows `review` the same way:
@@ -168,6 +115,14 @@ sets and unsets one.
 
 ### `--bump`
 
+```scrut
+$ git splice merge -h | check-help option --bump
+        Also moves the synced commit up to the upstream branch when there's
+        nothing to merge, e.g. right after a push, in a commit that only
+        changes the splice's .splice, like a submodule bump. Later rebuilds
+        then start there, instead of rebuilding every pushed commit again.
+```
+
 Right after a push, the upstream branch has the pushed commits and the
 folder has their files, so there's nothing to merge. `--bump` records the
 upstream branch anyway:
@@ -183,6 +138,28 @@ Use it sparingly: on a feature branch, a bump can conflict
 
 ### `--rebase`
 
+```scrut
+$ git splice merge -h | check-help option --rebase
+        Rebases instead, like 'git pull --rebase': takes the upstream branch
+        in on top of the newest commit whose folder has exactly the synced
+        commit's files, and rebases the monorepo branch's commits since then
+        onto that, with 'git rebase'. The next push then sends the folder's
+        changes as commits on top of the upstream branch, also after the
+        upstream rewrote it.
+
+        It rewrites the branch, so it refuses when a remote-tracking branch
+        has any of those commits, and when one of them is a merge, whose own
+        changes a rebase would drop. It also refuses when the upstream branch
+        lacks the synced commit, and its reflog here doesn't show it ever had
+        it: the folder would lose that commit's changes. The branch may never
+        have had it, e.g. after 'git rebase main' on a feature branch, or had
+        it before a rewrite this clone didn't see, e.g. in a fresh clone.
+
+        rebase.autoStash and rebase.updateRefs don't apply: it neither
+        stashes nor moves other branches. On a conflict, resolve it and run
+        'git rebase --continue' (or 'git rebase --abort' to give up).
+```
+
 The local commit *c* is redone on top of the upstream's rebased patches,
 instead of being merged with them:
 
@@ -197,9 +174,24 @@ with the other ways to get there.
 
 ### `--no-fork-point`
 
+```scrut
+$ git splice merge -h | check-help option --no-fork-point
+        Merges from Git's merge base instead of the fork point (see
+        REWRITTEN UPSTREAM BRANCHES).
+```
+
 See [rewritten upstream branches](#rewritten-upstream-branches).
 
 ### `-m`
+
+```scrut
+$ git splice merge -h | check-help option -m
+        Gives the commit this message instead of the default one, which
+        names the upstream branch and commit; with --rebase, the commit the
+        rebased ones go on top of. It takes one splice: each gets a commit
+        of its own. Nothing reads the message back: .splice records the
+        synced commit. On a conflict, 'git commit' keeps the message.
+```
 
 <!--
 ```scrut
@@ -219,6 +211,14 @@ pkg-a: take the second commit
 
 ## Upstream branch
 
+```scrut
+$ git splice merge -h | check-help section upstream-branch
+    The upstream branch is the one named like the current branch; on the
+    monorepo's default branch, the upstream's default-branch if it has one,
+    or the tag or commit its default-pin names. On a branch the upstream
+    doesn't have, there's nothing to merge. --branch names another.
+```
+
 On a feature branch the upstream doesn't have, there's nothing to merge:
 
 ```scrut
@@ -233,10 +233,24 @@ request ([feature branches](feature-branches.md)).
 
 ## Order
 
+```scrut
+$ git splice merge -h | check-help section order
+    Top-down: a splice is merged before the ones below it, since its merge
+    can move their synced commits, and a failure stops them.
+```
+
 Pulling `vendor/a/` can move the synced commit of `vendor/a/b/`, nested
 in it, so `vendor/a/` goes first ([nesting](../concepts/nesting/README.md)).
 
 ## Conflicts
+
+```scrut
+$ git splice merge -h | check-help section conflicts
+    On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
+    --abort' to give up), then re-run merge for any splices left. When the
+    two sides share no history at all, merge doesn't guess: it prints the
+    commands to keep either side.
+```
 
 When the upstream branch no longer has anything the folder's history
 has, `merge` stops and prints the commands to keep either side:
@@ -252,6 +266,17 @@ shows the message.
 
 ## Rewritten upstream branches
 
+```scrut
+$ git splice merge -h | check-help section rewritten-upstream-branches
+    When the upstream rewrote its branch, e.g. a fork rebased its patch
+    branch onto a new release, merge starts at the branch's fork point, like
+    'git pull --rebase': the newest commit the fetched branch pointed at, by
+    its reflog, that the folder's history has. Merge then takes the
+    rewritten branch as it is. If the folder has changes that branch lacks,
+    it refuses: the next push would publish the rewritten-away commits
+    again, under them. --rebase redoes them on top instead.
+```
+
 A fork rebased its patches onto a new release. The monorepo still
 records the old patches, *q*, while T is the rebased one, *n*:
 
@@ -263,3 +288,9 @@ records the old patches, *q*, while T is the rebased one, *n*:
 
 `merge` starts at the fork point and takes the rebased branch as it is
 ([scenario](../scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)).
+
+<!-- Checks that every linked help section appears above, in order.
+```scrut
+$ git splice merge -h | check-help document "$TESTDIR/$TESTFILE"
+```
+-->
