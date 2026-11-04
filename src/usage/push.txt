@@ -11,6 +11,8 @@ DESCRIPTION
     upstream URL. Nothing is written to the monorepo. Only committed changes
     are pushed; push warns about uncommitted ones in a splice's folder.
 
+    See also: https://roschaefer.github.io/git-splice/push/#description
+
 OPTIONS
     <path>...
         The splices to push, by their folders.
@@ -29,13 +31,19 @@ OPTIONS
         like the one named like the current branch. It doesn't change
         .splice, and the splices below keep theirs.
 
+        See also: https://roschaefer.github.io/git-splice/push/#branch-tracking
+
     --track
         With --branch, also tracks it on the current branch, like 'git push
         -u'; see 'git splice merge --help'.
 
+        See also: https://roschaefer.github.io/git-splice/push/#branch-tracking
+
     --force
         Overwrites the upstream branch with the monorepo's side: when the
         two share no history, or to discard commits only upstream has.
+
+        See also: https://roschaefer.github.io/git-splice/push/#--force
 
     --rebuilt-commit <commit>
         Pushes <commit> instead of the rebuild, e.g. one whose history was
@@ -53,6 +61,10 @@ OPTIONS
         too, unless 'git splice pull --bump <path>' records <commit> as the
         synced commit before the next change, as push reminds you.
 
+        See also: https://roschaefer.github.io/git-splice/push/#--rebuilt-commit
+
+    See also: https://roschaefer.github.io/git-splice/push/#options
+
 UPSTREAM BRANCH
     If the upstream has no branch named like the current one, push creates
     it -- but only if a PR from it to upstream's default branch would show
@@ -64,7 +76,14 @@ UPSTREAM BRANCH
     On the monorepo's default branch, a default-pin names a tag or a commit,
     which isn't pushed to: push refuses there.
 
+    See also: https://roschaefer.github.io/git-splice/push/#upstream-branch
+
 ORDER
     Bottom-up: a splice below another is pushed first, since the push of the
     one above publishes its .splice, and a failed push stops the splices
     above it.
+
+    See also: https://roschaefer.github.io/git-splice/push/#order
+
+READ MORE
+    See also: https://roschaefer.github.io/git-splice/push/#read-more

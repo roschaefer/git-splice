@@ -7,80 +7,24 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice push -h
+$ git splice push -h | check-help preamble
 NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
     git splice push [--upstream <name>] [--branch <name> [--track]] [--force] (<path>... | --all)
     git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
+```
 
-DESCRIPTION
+## Description
+
+```scrut
+$ git splice push -h | check-help section description
     Publishes each splice's local changes: rebuilds the commits that changed
     it since its boundary, without its .splice file, and pushes them to its
     upstream URL. Nothing is written to the monorepo. Only committed changes
     are pushed; push warns about uncommitted ones in a splice's folder.
-
-OPTIONS
-    <path>...
-        The splices to push, by their folders.
-
-    --all
-        Pushes every splice.
-
-    --upstream <name>
-        Pushes to this one of the upstreams the splice's .splice names,
-        instead of its default upstream. A splice without the named
-        upstream stops the command before it starts.
-
-    --branch <name>
-        Pushes to this upstream branch, for this push only, as 'git splice
-        pull --branch' pulls from one: with the same checks, and created
-        like the one named like the current branch. It doesn't change
-        .splice, and the splices below keep theirs.
-
-    --track
-        With --branch, also tracks it on the current branch, like 'git push
-        -u'; see 'git splice merge --help'.
-
-    --force
-        Overwrites the upstream branch with the monorepo's side: when the
-        two share no history, or to discard commits only upstream has.
-
-    --rebuilt-commit <commit>
-        Pushes <commit> instead of the rebuild, e.g. one whose history was
-        edited after 'git splice rebuild <path>' printed it: messages
-        reworded, commits squashed. Only the history: its files must be the
-        folder's, and it must contain the synced commit -- with --force, it
-        may also replace commits the upstream already has. Either way, a
-        pull must be able to record it: a commit of the rebuild's history
-        that isn't newer than the synced commit is refused. push checks only
-        that; the rest of <commit>'s history -- its parents, the files of
-        the commits before it -- is pushed as it is, as with 'git push'.
-
-        Like every push, it records no sync point: the monorepo keeps
-        rebuilding the original commits, and a later push publishes them
-        too, unless 'git splice pull --bump <path>' records <commit> as the
-        synced commit before the next change, as push reminds you.
-
-UPSTREAM BRANCH
-    If the upstream has no branch named like the current one, push creates
-    it -- but only if a PR from it to upstream's default branch would show
-    changes, so working on a feature branch doesn't spawn empty branches
-    upstream. Changes the feature branch got from the branch it was cut
-    from count too: when upstream takes changes only through PRs, that's
-    how they get there.
-
-    On the monorepo's default branch, a default-pin names a tag or a commit,
-    which isn't pushed to: push refuses there.
-
-ORDER
-    Bottom-up: a splice below another is pushed first, since the push of the
-    one above publishes its .splice, and a failed push stops the splices
-    above it.
 ```
-
-## Description
 
 In the [walkthrough's repositories](README.md), `vendor/pkg-a/` starts
 one commit behind. Pull it to start from an up-to-date splice:
@@ -125,12 +69,45 @@ On branch main
 
 ## Options
 
-### `--branch` and `--track`
+```scrut
+$ git splice push -h | check-help section options
+    <path>...
+        The splices to push, by their folders.
 
-They work as for [`merge`](merge.md#--branch-and---track): the push goes
+    --all
+        Pushes every splice.
+
+    --upstream <name>
+        Pushes to this one of the upstreams the splice's .splice names,
+        instead of its default upstream. A splice without the named
+        upstream stops the command before it starts.
+```
+
+### Branch tracking
+
+```scrut
+$ git splice push -h | check-help option branch-tracking
+    --branch <name>
+        Pushes to this upstream branch, for this push only, as 'git splice
+        pull --branch' pulls from one: with the same checks, and created
+        like the one named like the current branch. It doesn't change
+        .splice, and the splices below keep theirs.
+
+    --track
+        With --branch, also tracks it on the current branch, like 'git push
+        -u'; see 'git splice merge --help'.
+```
+
+They work as for [`merge`](merge.md#branch-tracking): the push goes
 to that upstream branch instead.
 
 ### `--force`
+
+```scrut
+$ git splice push -h | check-help option --force
+        Overwrites the upstream branch with the monorepo's side: when the
+        two share no history, or to discard commits only upstream has.
+```
 
 When the upstream was rebuilt from scratch, and the two sides share no
 history, `push` refuses and prints the ways to pick a side; `--force`
@@ -138,6 +115,24 @@ keeps the monorepo's
 ([unrelated-history](../scenarios/06-rewritten-history/03-diverged-unrelated-history/README.md)).
 
 ### `--rebuilt-commit`
+
+```scrut
+$ git splice push -h | check-help option --rebuilt-commit
+        Pushes <commit> instead of the rebuild, e.g. one whose history was
+        edited after 'git splice rebuild <path>' printed it: messages
+        reworded, commits squashed. Only the history: its files must be the
+        folder's, and it must contain the synced commit -- with --force, it
+        may also replace commits the upstream already has. Either way, a
+        pull must be able to record it: a commit of the rebuild's history
+        that isn't newer than the synced commit is refused. push checks only
+        that; the rest of <commit>'s history -- its parents, the files of
+        the commits before it -- is pushed as it is, as with 'git push'.
+
+        Like every push, it records no sync point: the monorepo keeps
+        rebuilding the original commits, and a later push publishes them
+        too, unless 'git splice pull --bump <path>' records <commit> as the
+        synced commit before the next change, as push reminds you.
+```
 
 The next change names an internal ticket in its message, which shouldn't
 go upstream:
@@ -193,16 +188,41 @@ Why pull right away, and what `push` checks:
 
 ## Upstream branch
 
+```scrut
+$ git splice push -h | check-help section upstream-branch
+    If the upstream has no branch named like the current one, push creates
+    it -- but only if a PR from it to upstream's default branch would show
+    changes, so working on a feature branch doesn't spawn empty branches
+    upstream. Changes the feature branch got from the branch it was cut
+    from count too: when upstream takes changes only through PRs, that's
+    how they get there.
+
+    On the monorepo's default branch, a default-pin names a tag or a commit,
+    which isn't pushed to: push refuses there.
+```
+
 On a feature branch, `push` creates the upstream branch of that name,
 but only for the splices that changed on it
 ([feature branches](feature-branches.md)).
 
 ## Order
 
+```scrut
+$ git splice push -h | check-help section order
+    Bottom-up: a splice below another is pushed first, since the push of the
+    one above publishes its .splice, and a failed push stops the splices
+    above it.
+```
+
 Pushing the splice above sends the `.splice` of the one below, so the
 one below goes first ([nesting](../concepts/nesting/README.md)).
 
 ## Read more
+
+```scrut
+$ git splice push -h | check-help section read-more
+
+```
 
 - When the upstream moves to a new URL, `.splice` gets the new URL, and
   the next push sends the unpushed commits there
@@ -211,3 +231,9 @@ one below goes first ([nesting](../concepts/nesting/README.md)).
   after the move sends them as they were
   ([moved-with-unpushed-commits](../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
 - How the rebuild works: [design](../../docs/design/README.md#splicing-out-push-and-the-rebuild).
+
+<!-- Checks that every linked help section appears above, in order.
+```scrut
+$ git splice push -h | check-help document "$TESTDIR/$TESTFILE"
+```
+-->
