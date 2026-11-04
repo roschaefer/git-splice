@@ -9,6 +9,8 @@ DESCRIPTION
     upstream, with paths as the upstream sees them. Purely local -- run
     'git splice fetch' first for up-to-date results.
 
+    See also: https://roschaefer.github.io/git-splice/diff/#description
+
 OPTIONS
     <path>...
         Shows only these splices, by their folders. Without paths, every
@@ -22,8 +24,14 @@ OPTIONS
     --stat
         Summarizes the changes per file instead, like 'git diff --stat'.
 
+        See also: https://roschaefer.github.io/git-splice/diff/#--stat
+
+    See also: https://roschaefer.github.io/git-splice/diff/#options
+
 NO UPSTREAM BRANCH
     For a splice whose upstream has no branch named like the current one, the
     diff is against upstream's default branch, from where the two meet, as a
     PR from the new branch would show it. Without a default branch upstream,
     the whole splice is new.
+
+    See also: https://roschaefer.github.io/git-splice/diff/#no-upstream-branch

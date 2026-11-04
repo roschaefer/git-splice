@@ -7,39 +7,22 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice diff -h
+$ git splice diff -h | check-help preamble
 NAME
     git-splice-diff - Show the changes push would send
 
 SYNOPSIS
     git splice diff [--upstream <name>] [--stat] [path...]
-
-DESCRIPTION
-    Shows the file changes 'git splice push' would send to each splice's
-    upstream, with paths as the upstream sees them. Purely local -- run
-    'git splice fetch' first for up-to-date results.
-
-OPTIONS
-    <path>...
-        Shows only these splices, by their folders. Without paths, every
-        splice.
-
-    --upstream <name>
-        Compares with this one of the upstreams the splice's .splice names,
-        instead of its default upstream. A splice without the named
-        upstream stops the command before it starts.
-
-    --stat
-        Summarizes the changes per file instead, like 'git diff --stat'.
-
-NO UPSTREAM BRANCH
-    For a splice whose upstream has no branch named like the current one, the
-    diff is against upstream's default branch, from where the two meet, as a
-    PR from the new branch would show it. Without a default branch upstream,
-    the whole splice is new.
 ```
 
 ## Description
+
+```scrut
+$ git splice diff -h | check-help section description
+    Shows the file changes 'git splice push' would send to each splice's
+    upstream, with paths as the upstream sees them. Purely local -- run
+    'git splice fetch' first for up-to-date results.
+```
 
 In the [walkthrough's repositories](README.md), `vendor/pkg-a/` starts
 one commit behind. Pull it first, so the example compares a local change
@@ -70,7 +53,24 @@ index 1b6c064..15c0cbd 100644
 
 ## Options
 
+```scrut
+$ git splice diff -h | check-help section options
+    <path>...
+        Shows only these splices, by their folders. Without paths, every
+        splice.
+
+    --upstream <name>
+        Compares with this one of the upstreams the splice's .splice names,
+        instead of its default upstream. A splice without the named
+        upstream stops the command before it starts.
+```
+
 ### `--stat`
+
+```scrut
+$ git splice diff -h | check-help option --stat
+        Summarizes the changes per file instead, like 'git diff --stat'.
+```
 
 It summarizes the changes per file:
 
@@ -83,6 +83,20 @@ $ git splice diff --stat
 
 ## No upstream branch
 
+```scrut
+$ git splice diff -h | check-help section no-upstream-branch
+    For a splice whose upstream has no branch named like the current one, the
+    diff is against upstream's default branch, from where the two meet, as a
+    PR from the new branch would show it. Without a default branch upstream,
+    the whole splice is new.
+```
+
 On a feature branch the upstream doesn't have, the diff is what a PR
 into the upstream's default branch would show
 ([feature branches](feature-branches.md)).
+
+<!-- Checks that every linked help section appears above, in order.
+```scrut
+$ git splice diff -h | check-help document "$TESTDIR/$TESTFILE"
+```
+-->
