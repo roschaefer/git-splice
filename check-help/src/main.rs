@@ -134,18 +134,81 @@ fn slug(heading: &str) -> String {
     result.trim_matches('-').to_string()
 }
 
+#[derive(Default)]
+struct Markdown {
+    headings: Vec<String>,
+    options: Vec<String>,
+    commands: Vec<(String, String)>,
+}
+
+fn scan_markdown(markdown: &str) -> Markdown {
+    let mut result = Markdown::default();
+    let mut comment = false;
+    let mut fence: Option<(char, usize, bool)> = None;
+    let mut heading = String::new();
+    for line in markdown.lines() {
+        if fence.is_none() {
+            let mut visible = line;
+            loop {
+                if comment {
+                    let Some(end) = visible.find("-->") else {
+                        break;
+                    };
+                    comment = false;
+                    visible = &visible[end + 3..];
+                } else if let Some(start) = visible.find("<!--") {
+                    comment = true;
+                    visible = &visible[start + 4..];
+                } else {
+                    break;
+                }
+            }
+            if comment || visible != line {
+                continue;
+            }
+        }
+        let trimmed = line.trim_start();
+        let marker = trimmed.chars().next().unwrap_or(' ');
+        let length = trimmed.chars().take_while(|ch| *ch == marker).count();
+        if let Some((opening, count, scrut)) = fence {
+            if marker == opening && length >= count && trimmed[length..].trim().is_empty() {
+                fence = None;
+            } else if scrut && line.starts_with("$ ") {
+                result.commands.push((heading.clone(), line.to_string()));
+            }
+            continue;
+        }
+        if matches!(marker, '`' | '~') && length >= 3 {
+            let language = trimmed[length..].trim();
+            let scrut = language == "scrut" || language.starts_with("scrut ");
+            fence = Some((marker, length, scrut));
+        } else if let Some(title) = line.strip_prefix("## ") {
+            heading = slug(title);
+            result.headings.push(heading.clone());
+        } else if let Some(title) = line.strip_prefix("### ") {
+            heading = slug(title);
+            result.options.push(heading.clone());
+        } else if line.starts_with("# ") || line.starts_with("#### ") {
+            heading.clear();
+        }
+    }
+    result
+}
+
 fn document(help: &str, path: &str) -> Result<(), String> {
     let markdown = fs::read_to_string(path).map_err(|error| format!("{path}: {error}"))?;
+    validate_document(help, path, &markdown)
+}
+
+fn validate_document(help: &str, path: &str, markdown: &str) -> Result<(), String> {
     let command = path
         .rsplit_once('/')
         .map_or(path, |(_, name)| name)
         .strip_suffix(".md")
         .ok_or_else(|| format!("not a Markdown file: {path}"))?;
     let expected_page = format!("{URL_PREFIX}{command}/");
-    let headings: Vec<_> = markdown
-        .lines()
-        .filter_map(|line| line.strip_prefix("## ").map(slug))
-        .collect();
+    let parsed = scan_markdown(markdown);
+    let headings = &parsed.headings;
     let sections = linked_sections(help)?;
     let linked_anchors: Vec<_> = sections.iter().map(|section| section.anchor).collect();
     let document_anchors: Vec<_> = headings.iter().map(String::as_str).collect();
@@ -163,16 +226,18 @@ fn document(help: &str, path: &str) -> Result<(), String> {
             section.anchor
         );
         if !section_body(help, &section)?.is_empty()
-            && !markdown.lines().any(|line| line == command_line)
+            && !parsed
+                .commands
+                .contains(&(section.anchor.to_string(), command_line.clone()))
         {
             return Err(format!("missing command: {command_line}"));
         }
     }
-    let option_headings: Vec<_> = markdown
-        .lines()
-        .filter_map(|line| line.strip_prefix("### ").map(slug))
-        .collect();
+    let option_headings = &parsed.options;
     for option in linked_options(help)? {
+        if !option.url.starts_with(&expected_page) {
+            return Err(format!("{} links outside {expected_page}", option.url));
+        }
         if !option_headings.iter().any(|anchor| anchor == option.anchor) {
             return Err(format!("{} has no ### heading", option.url));
         }
@@ -180,12 +245,18 @@ fn document(help: &str, path: &str) -> Result<(), String> {
             "$ git splice {command} -h | check-help option {}",
             option.anchor
         );
-        if !markdown.lines().any(|line| line == command_line) {
+        if !parsed
+            .commands
+            .contains(&(option.anchor.to_string(), command_line.clone()))
+        {
             return Err(format!("missing command: {command_line}"));
         }
     }
     let preamble_command = format!("$ git splice {command} -h | check-help preamble");
-    if !markdown.lines().any(|line| line == preamble_command) {
+    if !parsed
+        .commands
+        .contains(&(String::new(), preamble_command.clone()))
+    {
         return Err(format!("missing command: {preamble_command}"));
     }
     Ok(())
@@ -261,6 +332,37 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const HELP: &str = "NAME\n    x\n\nDESCRIPTION\n    Explain x.\n\n    See also: https://roschaefer.github.io/git-splice/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/x/#options\n";
+    const PAGE: &str = "# x\n```scrut\n$ git splice x -h | check-help preamble\n```\n## Description\n```scrut\n$ git splice x -h | check-help section description\n```\n## Options\n### `--one`\n```scrut\n$ git splice x -h | check-help option --one\n```\n";
+
+    #[test]
+    fn option_links_must_point_to_the_current_page() {
+        let help = HELP.replace("x/#--one", "other/#--one");
+        assert!(validate_document(&help, "x.md", PAGE)
+            .unwrap_err()
+            .contains("links outside"));
+    }
+
+    #[test]
+    fn hidden_or_misplaced_extraction_commands_do_not_satisfy_the_page() {
+        assert!(validate_document(HELP, "x.md", PAGE).is_ok());
+        let block = "```scrut\n$ git splice x -h | check-help section description\n```";
+        let hidden = PAGE.replace(block, &format!("<!--\n{block}\n-->"));
+        assert!(validate_document(HELP, "x.md", &hidden).is_err());
+        let misplaced = PAGE
+            .replace(block, "")
+            .replace("## Options", &format!("## Options\n{block}"));
+        assert!(validate_document(HELP, "x.md", &misplaced).is_err());
+    }
+
+    #[test]
+    fn fenced_examples_do_not_supply_headings() {
+        let page = format!("{PAGE}\n````markdown\n## Example\n### Fake option\n```text\noutput\n```\n````\n~~~text\n## Another example\n~~~\n");
+        assert!(validate_document(HELP, "x.md", &page).is_ok());
+        let fake_option = PAGE.replace("### `--one`", "```text\n### `--one`\n```");
+        assert!(validate_document(HELP, "x.md", &fake_option).is_err());
+    }
 
     #[test]
     fn heading_slug_matches_the_help_anchors() {
