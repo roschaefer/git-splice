@@ -11,6 +11,7 @@ setup() {
   load '../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/setup'
   load '../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-then-changed/setup'
   load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load '../09-scenarios/02-starting-a-splice/05-init-then-cloned/setup'
   load '../09-scenarios/06-rewritten-history/01-edited-before-push/setup'
   load '../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
   load '../09-scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/setup'
@@ -1007,4 +1008,15 @@ layer_with_a_commit() {
   run splice merge --rebuilt-commit layer --all
   [ "$status" -ne 0 ]
   [[ "$output" == *"--rebuilt-commit takes exactly one splice"* ]]
+}
+
+@test "merge says an upstream not fetched in this clone isn't fetched yet, rather than that it has no branch" {
+  scenario_init_then_cloned "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice merge lib/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"??   lib/a: not fetched yet -- run 'git splice fetch lib/a' first"* ]]
+  splice fetch lib/a
+  run splice merge lib/a
+  [ "$status" -eq 0 ]
 }

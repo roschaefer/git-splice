@@ -83,6 +83,15 @@ impl Repo {
                 ));
             }
             State::MissingBranch => {
+                // Its URL was never fetched here, e.g. in a fresh clone, or one
+                // a merge above just named: merge can't tell whether upstream
+                // has the branch.
+                if self.key_of(path).is_empty() {
+                    log_warn(format!(
+                        "{path}: not fetched yet -- run 'git splice fetch {option}{path}' first"
+                    ));
+                    return Err(Fail::Soft);
+                }
                 if self.branch_arg_applies(path) {
                     return fail(format!(
                         "{path}: upstream has no '{label}' branch, which --branch names"
