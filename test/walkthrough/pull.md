@@ -19,8 +19,10 @@ DESCRIPTION
     'git splice fetch' followed by 'git splice merge': fetches the splices'
     upstreams in parallel, then splices their changes in, as one ordinary
     commit per splice. Also fetches the splices below each: pulling a splice
-    can move their synced commits. Top-down: a splice is pulled before the
-    ones below it, and a failed fetch stops the splices above and below it.
+    can move their synced commits. And a splice above whose synced commit
+    isn't here, e.g. in a fresh clone: a nested splice is rebuilt from the
+    splice above it. Top-down: a splice is pulled before the ones below it,
+    and a failed fetch stops the splices above and below it.
 
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
     --abort' to give up), then re-run pull for any splices left. With

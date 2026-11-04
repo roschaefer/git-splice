@@ -1,7 +1,7 @@
 //! git splice pull.
 
 use crate::args::parse_args;
-use crate::merge::{apply_merge_options, MERGE_OPTIONS};
+use crate::merge::{apply_merge_options, synced_commit_here, MERGE_OPTIONS};
 use crate::repo::*;
 use crate::util::*;
 
@@ -38,7 +38,21 @@ pub fn run(argv: &[String]) -> Res<i32> {
         .filter(|path| below_selected(path))
         .cloned()
         .collect();
-    let mut entries = repo.used_upstream_entry(&top);
+    // A splice above one selected whose synced commit isn't here, e.g. in a
+    // fresh clone: the rebuild of the one below starts from it.
+    let above: Vec<String> = repo
+        .all_paths
+        .iter()
+        .filter(|path| !selected.contains(path) && !below_selected(path))
+        .filter(|path| {
+            top.iter()
+                .any(|below| below.starts_with(&format!("{path}/")))
+        })
+        .filter(|path| !synced_commit_here(path))
+        .cloned()
+        .collect();
+    let mut entries = repo.used_upstream_entry(&above);
+    entries.extend(repo.used_upstream_entry(&top));
     entries.extend(repo.every_upstream_entry(&below)?);
     let failures = repo.fetch_all(&branch, &entries)?;
 
