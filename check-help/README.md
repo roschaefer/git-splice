@@ -19,7 +19,7 @@ continues it with examples, drawings and links:
 
 ```text
 $ git splice push -h | check-help section description
-...
+    Short explanation for the terminal.
 ```
 ````
 
