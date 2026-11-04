@@ -3,7 +3,7 @@ use std::fs;
 use std::io::{self, Read};
 use std::process::ExitCode;
 
-const URL_PREFIX: &str = "https://roschaefer.github.io/git-splice/";
+const URL_PREFIX: &str = "https://roschaefer.github.io/git-splice/test/walkthrough/";
 
 #[derive(Debug)]
 struct Section<'a> {
@@ -19,10 +19,7 @@ fn linked_sections(help: &str) -> Result<Vec<Section<'_>>, String> {
     for line in help.split_inclusive('\n') {
         let end = offset + line.len();
         let heading = line.trim_end();
-        if !heading.is_empty()
-            && !line.starts_with(char::is_whitespace)
-            && heading.chars().all(|ch| !ch.is_ascii_lowercase())
-        {
+        if is_heading(line) {
             if let Some(start) = section_start {
                 return Err(format!(
                     "help section has no See also link: {}",
@@ -101,9 +98,22 @@ fn linked_options(help: &str) -> Result<Vec<Section<'_>>, String> {
     Ok(options)
 }
 
+fn is_heading(line: &str) -> bool {
+    let heading = line.trim_end();
+    !heading.is_empty()
+        && !line.starts_with(char::is_whitespace)
+        && heading.chars().all(|ch| !ch.is_ascii_lowercase())
+}
+
 fn preamble(help: &str) -> &str {
-    let description = help.find("\nDESCRIPTION\n").unwrap_or(help.len());
-    help[..description].trim_end()
+    let mut offset = 0;
+    for line in help.split_inclusive('\n') {
+        if is_heading(line) && !matches!(line.trim_end(), "NAME" | "SYNOPSIS") {
+            return help[..offset].trim_end();
+        }
+        offset += line.len();
+    }
+    help.trim_end()
 }
 
 fn section_body(help: &str, section: &Section<'_>) -> Result<String, String> {
@@ -345,7 +355,7 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    const HELP: &str = "NAME\n    x\n\nDESCRIPTION\n    Explain x.\n\n    See also: https://roschaefer.github.io/git-splice/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/x/#options\n";
+    const HELP: &str = "NAME\n    x\n\nDESCRIPTION\n    Explain x.\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#options\n";
     const PAGE: &str = "# x\n```scrut\n$ git splice x -h | check-help preamble\n```\n## Description\n```scrut\n$ git splice x -h | check-help section description\n```\n## Options\n### `--one`\n```scrut\n$ git splice x -h | check-help option --one\n```\n";
 
     #[test]
@@ -382,6 +392,22 @@ mod tests {
     }
 
     #[test]
+    fn preamble_stops_at_the_first_topic_whatever_its_name() {
+        let intro = "NAME\n    x\n\nSYNOPSIS\n    x [options]";
+        for topic in ["DESCRIPTION", "OPTIONS", "OUTPUT"] {
+            let help = format!("{intro}\n\n{topic}\n    Details.\n");
+            assert_eq!(preamble(&help), intro);
+        }
+    }
+
+    #[test]
+    fn reference_links_use_the_published_walkthrough_route() {
+        assert!(validate_document(HELP, "test/walkthrough/x.md", PAGE).is_ok());
+        let shortened = HELP.replace("/test/walkthrough/", "/");
+        assert!(validate_document(&shortened, "test/walkthrough/x.md", PAGE).is_err());
+    }
+
+    #[test]
     fn every_help_topic_requires_a_link_including_the_last_one() {
         assert!(linked_sections(HELP).is_ok());
         let last = format!("{HELP}\nEXTRA\n    More help.\n");
@@ -392,13 +418,13 @@ mod tests {
 
     #[test]
     fn linked_sections_are_the_complete_top_level_sections() {
-        let help = "NAME\n    x\n\nSYNOPSIS\n    x\n\nDESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/x/#options\n";
+        let help = "NAME\n    x\n\nSYNOPSIS\n    x\n\nDESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#options\n";
         let sections = linked_sections(help).unwrap();
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].anchor, "description");
         assert_eq!(
             sections[0].text,
-            "DESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/x/#description\n"
+            "DESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#description\n"
         );
         assert_eq!(sections[1].anchor, "options");
         let options = linked_options(help).unwrap();
