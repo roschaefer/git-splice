@@ -16,10 +16,12 @@ fn linked_sections(help: &str) -> Result<Vec<Section<'_>>, String> {
     let mut sections = Vec::new();
     let mut offset = 0;
     let mut section_start = None;
+    let mut after_link = false;
     for line in help.split_inclusive('\n') {
         let end = offset + line.len();
         let heading = line.trim_end();
         if is_heading(line) {
+            after_link = false;
             if let Some(start) = section_start {
                 return Err(format!(
                     "help section has no See also link: {}",
@@ -27,6 +29,10 @@ fn linked_sections(help: &str) -> Result<Vec<Section<'_>>, String> {
                 ));
             }
             section_start = (!matches!(heading, "NAME" | "SYNOPSIS")).then_some(offset);
+        } else if after_link && !heading.is_empty() {
+            return Err(format!(
+                "help text follows a section's final link: {heading}"
+            ));
         }
         let Some(url_start) = line
             .strip_prefix("    See also: ")
@@ -47,6 +53,7 @@ fn linked_sections(help: &str) -> Result<Vec<Section<'_>>, String> {
             url,
         });
         section_start = None;
+        after_link = true;
         offset = end;
     }
     if let Some(start) = section_start {
@@ -202,7 +209,7 @@ fn scan_markdown(markdown: &str) -> Markdown {
         }
         if matches!(marker, '`' | '~') && length >= 3 {
             let language = trimmed[length..].trim();
-            let scrut = language == "scrut" || language.starts_with("scrut ");
+            let scrut = marker == '`' && (language == "scrut" || language.starts_with("scrut "));
             fence = Some((marker, length, scrut));
         } else if let Some(title) = line.strip_prefix("## ") {
             heading = slug(title);
@@ -389,6 +396,25 @@ mod tests {
     #[test]
     fn heading_slug_matches_the_help_anchors() {
         assert_eq!(slug("No upstream branch"), "no-upstream-branch");
+    }
+
+    #[test]
+    fn section_links_must_be_the_last_content_in_their_topic() {
+        let trailing = format!("{HELP}    A warning after the link.\n");
+        assert!(linked_sections(&trailing)
+            .unwrap_err()
+            .contains("final link"));
+        let middle = HELP.replace(
+            "\nOPTIONS\n",
+            "\n    A warning after the link.\n\nOPTIONS\n",
+        );
+        assert!(linked_sections(&middle).unwrap_err().contains("final link"));
+    }
+
+    #[test]
+    fn tilde_fences_do_not_supply_executable_extractions() {
+        let page = PAGE.replace("```scrut", "~~~scrut").replace("```", "~~~");
+        assert!(validate_document(HELP, "x.md", &page).is_err());
     }
 
     #[test]
