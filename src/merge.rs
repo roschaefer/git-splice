@@ -122,6 +122,10 @@ impl Repo {
                     log_warn(format!("{path}: {}", self.missing_synced_message(path)));
                     return Err(Fail::Soft);
                 }
+                log_err(format!(
+                    "{path}: its synced commit {} isn't on its upstream any more",
+                    short(&self.c.synced)
+                ));
                 self.print_unrelated_history_guidance(path);
                 return Err(Fail::Soft);
             }

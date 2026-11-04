@@ -1020,3 +1020,21 @@ layer_with_a_commit() {
   run splice merge lib/a
   [ "$status" -eq 0 ]
 }
+
+@test "pull says the synced commit is gone from its upstream before the ways out of a history it no longer shares" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  git clone -q --no-local "$monorepo" "$BATS_TEST_TMPDIR/fresh"
+  local work="$BATS_TEST_TMPDIR/work"
+  git clone -q "$upstream" "$work"
+  echo "rewritten" >"$work/file.txt"
+  git -C "$work" -c user.name=Test -c user.email=test@example.com commit -q -a --amend -m "seed, rewritten"
+  git -C "$work" push -q --force origin HEAD:main
+  git -C "$upstream" reflog expire --expire=now --all
+  git -C "$upstream" gc -q --prune=now
+  cd "$BATS_TEST_TMPDIR/fresh"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"!!   vendor/a: its synced commit $(git config --file vendor/a/.splice splice.commit | cut -c1-7) isn't on its upstream any more"*"pick a side"* ]]
+}
