@@ -75,7 +75,8 @@ $ git splice log
 ```
 
 `merge` doesn't: it never fetches, so it can't tell an empty upstream
-from one it hasn't fetched, and says so:
+from one it hasn't fetched, and says so, even after a
+[failed first fetch](first-fetch-failed.md):
 
 ```scrut
 $ git splice merge lib/a
