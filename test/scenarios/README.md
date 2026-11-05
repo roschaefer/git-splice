@@ -3,7 +3,7 @@
 Each folder here is one reusable test setup: a state a splice and its
 upstream can be in, or a situation a command has to handle. A folder may
 contain several Markdown documents, but each document explains and executes
-one problem. `status`'s [sync states](../walkthrough/status.md#sync-states)
+one problem. `status`'s [sync states](../walkthrough/status.md#output)
 link to them as examples. Some show a bug as it is today; [Known
 bugs](08-known-bugs.md) lists them.
 
@@ -49,7 +49,7 @@ ok 01-everyday-sync/01-sync-model/01-after-pull/02-pulled-again (1 document)
 ok 01-everyday-sync/02-up-to-date (1 document)
 ok 01-everyday-sync/02-up-to-date/01-pull-ahead (1 document)
 ok 01-everyday-sync/02-up-to-date/02-push-ahead (1 document)
-ok 01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled (2 documents)
+ok 01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled (3 documents)
 ok 01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-then-changed (1 document)
 ok 01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes (1 document)
 ok 01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor (1 document)
