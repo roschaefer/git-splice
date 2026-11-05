@@ -111,3 +111,17 @@ check() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   main-work is a branch of the monorepo, which the upstream doesn't have: dash the box"* ]]
 }
+
+@test "drawing local branch: a commit of its own is found by its subject, like other commits" {
+  echo x >>"$BATS_TEST_TMPDIR/a-work/file.txt"
+  git -C "$BATS_TEST_TMPDIR/a-work" commit -q -am "x: worktree change"
+  sed -i 's|<mxCell id="e7"|<mxCell id="x" parent="1" vertex="1" style="ellipse;dashed=1;" value="x"><mxGeometry x="300" y="-50" width="54" height="54" as="geometry" /></mxCell>\n<mxCell id="e8" parent="1" edge="1" source="w" target="x" style="dashed=1;"><mxGeometry relative="1" as="geometry" /></mxCell>\n<mxCell id="e7"|; s|source="refW" target="w"|source="refW" target="x"|' "$drawing"
+  run check_drawing "$drawing" a=HEAD~1 k="$(git config --file vendor/a/.splice splice.commit)" w=work-on-a~1
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing local branch: a dashed box's name can be an alias" {
+  WORK_BOX=work worktree_drawing
+  run check_drawing "$drawing" --alias work=work-on-a a=HEAD~1 k="$(git config --file vendor/a/.splice splice.commit)" w=work-on-a
+  [ "$status" -eq 0 ]
+}

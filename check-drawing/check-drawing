@@ -333,6 +333,38 @@ check_drawing() {
     [[ -z "$sp" ]] || load_truth "$sp"
   done
 
+  # A dashed box in a lane names a branch of the monorepo whose commits
+  # belong to that splice, but no upstream has, e.g. one checked out in a
+  # worktree of the rebuild: its commits are drawn in the lane, dashed.
+  local -A local_tips=()
+  local tip_hash
+  for id in "${boxes[@]}"; do
+    [[ ";${style[$id]};" == *";dashed=1;"* ]] || continue
+    if [[ -z "${lane_of[$id]}" ]]; then
+      errors+=("${value[$id]} is dashed, but outside every lane: a dashed box names a branch of the monorepo with a splice's commits, so draw it in that splice's lane")
+      continue
+    fi
+    term="${alias[${value[$id]}]:-${value[$id]}}"
+    if [[ "${value[$id]}" == *" = "* ]] || ! is_branch_term "$term"; then
+      errors+=("${value[$id]} is dashed, but only a branch of the monorepo is: draw it solid")
+      continue
+    fi
+    tip_hash="$(git rev-parse --verify --quiet "refs/heads/$term^{commit}")"
+    if [[ -z "$tip_hash" ]]; then
+      errors+=("${value[$id]} is dashed, but the monorepo has no branch $term: a dashed box names a branch of the monorepo")
+      continue
+    fi
+    local_tips[${lane_of[$id]}]+=" $tip_hash"
+  done
+  # Whether commit $1 is on the branch of a dashed box in splice $2's lane.
+  on_local_branch() {
+    local tip
+    for tip in ${local_tips[$2]:-}; do
+      git merge-base --is-ancestor "$1" "$tip" && return 0
+    done
+    return 1
+  }
+
   # Commits, by label.
   # What a copy shares with the commit it copies, read the way the
   # rebuild's copy_commit reads it: author, committer and the whole
@@ -368,6 +400,7 @@ check_drawing() {
         done
       fi
       [[ -z "${side_key[$id]:-}" ]] || upstream_tips+=(--glob="refs/splices/${side_key[$id]}/heads/*")
+      [[ -z "$sp" ]] || for tip in ${local_tips[$sp]:-}; do upstream_tips+=("$tip"); done
       [[ -n "$hash" || "$label" == *\' || ${#upstream_tips[@]} -eq 0 ]] ||
         hash="$(git log --format='%H%x09%s' "${upstream_tips[@]}" | awk -F'\t' -v s="$base" '$2 == s || index($2, s ": ") == 1 { print $1; exit }')"
     fi
@@ -413,37 +446,6 @@ check_drawing() {
     id_of_label[$label]="$id"
     label_count[$label]=$((${label_count[$label]:-0} + 1))
   done
-
-  # A dashed box in a lane names a branch of the monorepo whose commits
-  # belong to that splice, but no upstream has, e.g. one checked out in a
-  # worktree of the rebuild: its commits are drawn in the lane, dashed.
-  local -A local_tips=()
-  local tip_hash
-  for id in "${boxes[@]}"; do
-    [[ ";${style[$id]};" == *";dashed=1;"* ]] || continue
-    if [[ -z "${lane_of[$id]}" ]]; then
-      errors+=("${value[$id]} is dashed, but outside every lane: a dashed box names a branch of the monorepo with a splice's commits, so draw it in that splice's lane")
-      continue
-    fi
-    if [[ "${value[$id]}" == *" = "* ]] || ! is_branch_term "${value[$id]}"; then
-      errors+=("${value[$id]} is dashed, but only a branch of the monorepo is: draw it solid")
-      continue
-    fi
-    tip_hash="$(git rev-parse --verify --quiet "refs/heads/${value[$id]}^{commit}")"
-    if [[ -z "$tip_hash" ]]; then
-      errors+=("${value[$id]} is dashed, but the monorepo has no branch ${value[$id]}: a dashed box names a branch of the monorepo")
-      continue
-    fi
-    local_tips[${lane_of[$id]}]+=" $tip_hash"
-  done
-  # Whether commit $1 is on the branch of a dashed box in splice $2's lane.
-  on_local_branch() {
-    local tip
-    for tip in ${local_tips[$2]:-}; do
-      git merge-base --is-ancestor "$1" "$tip" && return 0
-    done
-    return 1
-  }
 
   # A commit in a lane is in that splice's upstream history: on R, on a
   # fetched upstream branch, in a recorded commit's history, or on the
