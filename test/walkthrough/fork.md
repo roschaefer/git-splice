@@ -112,8 +112,10 @@ it, and its pull conflicts.
 
 ## In practice
 
-This repository works this way with
-[scrut](https://github.com/facebookincubator/scrut), its test runner:
+This repository
+[dogfoods](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) the
+workflow with [scrut](https://github.com/facebookincubator/scrut), its
+test runner:
 `scrut/` is a splice that follows a fork,
 [roschaefer/scrut](https://github.com/roschaefer/scrut). The fork's
 [pull requests](https://github.com/roschaefer/scrut/pulls?q=is%3Apr)
