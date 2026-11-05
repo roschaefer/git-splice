@@ -4,7 +4,7 @@
 //! A splice is a folder with a committed .splice file that names its upstream
 //! URL and the upstream commit it last matched. Every splice syncs with the
 //! upstream branch named like the monorepo's current branch. See
-//! docs/design/README.md.
+//! docs/07-design/README.md.
 
 use git_splice::args::parse_args;
 use git_splice::repo::Repo;

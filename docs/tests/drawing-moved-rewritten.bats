@@ -7,7 +7,7 @@ setup() {
   load 'helpers/fixtures'
   load '../../check-drawing/check-drawing'
   hermetic_git_config
-  load '../scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
+  load '../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -20,7 +20,7 @@ setup() {
   git commit -q -m "reorganize folders"
   drawing="$BATS_TEST_TMPDIR/upstream-rewritten-equal-tree.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/../scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/upstream-rewritten-equal-tree.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/upstream-rewritten-equal-tree.drawio.svg" >"$drawing" 2>/dev/null
   # The boxes on a no longer hold after the merge and the move.
   xmlstarlet ed -L -d '//mxCell[@id="box0" or @id="box1" or @source="box0" or @source="box1"]' \
     -u '//mxCell[@id="lane"]/@value' -v libs/a/ "$drawing"

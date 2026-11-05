@@ -49,7 +49,7 @@ module.exports = {
           sidebarItemsGenerator: async ({defaultSidebarItemsGenerator, ...args}) =>
             indexFirst(
               (await defaultSidebarItemsGenerator(args)).filter(
-                (item) => item.type !== 'doc' || item.id !== `${args.item.dirName}/README`,
+                (item) => item.type !== 'doc' || item.id !== `${args.item.dirName.replace(/(^|\/)\d+-/g, '$1')}/README`,
               ),
             ),
           // docPath is relative to the repository root (path above); the

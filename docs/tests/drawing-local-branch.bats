@@ -6,7 +6,7 @@ setup() {
   load 'helpers/fixtures'
   load '../../check-drawing/check-drawing'
   hermetic_git_config
-  load '../scenarios/01-everyday-sync/02-up-to-date/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"

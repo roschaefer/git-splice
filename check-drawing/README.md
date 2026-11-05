@@ -11,7 +11,7 @@ repositories, and names every difference.
 
 It's made for drawings of [`git-splice`](../README.md) histories: a
 monorepo, the upstreams of its splices, and the names of
-`git-splice`'s [sync model](../docs/concepts/sync-model/README.md),
+`git-splice`'s [sync model](../docs/03-concepts/sync-model/README.md),
 H, B, T, R, U(x) and tracked(x).
 
 ## Usage
@@ -207,6 +207,6 @@ In `git-splice`, [`docs/tests/drawing.bats`](../docs/tests/drawing.bats) and
 [`docs/tests/drawing-upstreams.bats`](../docs/tests/drawing-upstreams.bats) and
 [`docs/tests/drawing-tracked.bats`](../docs/tests/drawing-tracked.bats) and
 [`docs/tests/drawing-local-branch.bats`](../docs/tests/drawing-local-branch.bats) run it against
-`git-splice`'s test scenarios, and each [scenario](../docs/scenarios/)
+`git-splice`'s test scenarios, and each [scenario](../docs/09-scenarios/)
 with a drawing checks it in its README. [`docs/tests/drawing-export.bats`](../docs/tests/drawing-export.bats)
 tests `check-export`, with draw.io.
