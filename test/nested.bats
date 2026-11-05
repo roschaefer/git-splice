@@ -498,15 +498,18 @@ swap_splice_files() {
   [ "$(git show --name-only --format= HEAD)" = "vendor/.splice" ]
 }
 
-@test "nested: init around a splice refuses when the .splice it would record the default branch in has uncommitted changes" {
+@test "nested: init around a splice refuses, keeping the edit, when the .splice it would record the default branch in has uncommitted changes" {
   scenario_nested_splices "$monorepo" "$upstream"
   cd "$monorepo"
   echo "# a comment" >>vendor/a/.splice
   git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
+  head=$(git rev-parse HEAD)
   run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a/.splice has uncommitted changes"* ]]
+  [[ "$output" == *"vendor/a/.splice"*"vendor: init failed"* ]]
+  [ "$(git rev-parse HEAD)" = "$head" ]
   [ ! -e vendor/.splice ]
+  [ "$(tail -n 1 vendor/a/.splice)" = "# a comment" ]
 }
 
 @test "nested: init around a splice refuses when the .splice it would record the default branch in has staged changes its working tree undid" {
@@ -515,12 +518,50 @@ swap_splice_files() {
   echo "# a comment" >>vendor/a/.splice
   git add vendor/a/.splice
   git show HEAD:vendor/a/.splice >vendor/a/.splice
-  [ -n "$(git diff --cached --name-only)" ]
   git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
   run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a/.splice has uncommitted changes"* ]]
-  [ ! -e vendor/.splice ]
+  [[ "$output" == *"vendor/a/.splice"*"vendor: init failed"* ]]
+  [[ "$(git show :vendor/a/.splice)" == *"# a comment" ]]
+}
+
+@test "nested: init around a splice refuses when the .splice it would record the default branch in has changes hidden by assume-unchanged" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  git update-index --assume-unchanged vendor/a/.splice
+  echo "# a comment" >>vendor/a/.splice
+  git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
+  run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/.splice"*"vendor: init failed"* ]]
+  [ "$(tail -n 1 vendor/a/.splice)" = "# a comment" ]
+}
+
+@test "nested: init around a splice writes the .splice it records the default branch in with its checkout attributes" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "/.splice working-tree-encoding=UTF-16LE" >vendor/a/.gitattributes
+  git add vendor/a/.gitattributes
+  rm vendor/a/.splice
+  git checkout -- vendor/a/.splice
+  git commit -q -m "a: .splice in UTF-16LE"
+  git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
+  run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  [ "$status" -eq 0 ]
+  [ -z "$(git status --porcelain)" ]
+  [ "$(git config --file <(iconv -f UTF-16LE -t UTF-8 vendor/a/.splice) upstream.origin.default-branch)" = "main" ]
+}
+
+@test "nested: init around a splice leaves other staged changes staged and out of its commit" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo staged >vendor/a/file.txt
+  git add vendor/a/file.txt
+  git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
+  run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-only --format= HEAD)" = $'vendor/.splice\nvendor/a/.splice' ]
+  [ "$(git diff --cached --name-only)" = "vendor/a/file.txt" ]
 }
 
 @test "nested: a pull of a keeps a .splice below it that a's upstream doesn't have" {

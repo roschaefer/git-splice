@@ -115,19 +115,6 @@ pub fn run(argv: &[String]) -> Res<i32> {
             }
         }
     }
-    for (inner, _, _) in &kept {
-        let file = format!("{inner}/{STATE_FILE}");
-        if !git(&["diff", "--quiet", "HEAD", "--", &file]).q().ok()
-            || !git(&["diff", "--quiet", "--cached", "HEAD", "--", &file])
-                .q()
-                .ok()
-        {
-            return die(format!(
-                "{file} has uncommitted changes, and init would record the default branch it follows there -- commit or discard them first"
-            ));
-        }
-    }
-
     // The upstream is empty, so refs fetched from it before name branches it
     // no longer has.
     let key = repo.upstream_key(&url)?;
@@ -162,18 +149,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
         ],
     )
     .map_err(|_| Fail::Hard)?;
-    let content = git(&["cat-file", "blob", &blob])
-        .bytes()
-        .ok_or(Fail::Hard)?;
-    if std::fs::write(&state_file, content).is_err() {
-        return die(format!("{state_file}: can't write it"));
-    }
-    // -f: an ignore rule matching .splice mustn't stop it, it's committed by
-    // definition.
-    if git(&["add", "-f", "--", &state_file]).run() != 0 {
-        return Err(Fail::Hard);
-    }
-    let mut files = vec![state_file.clone()];
+    let mut files = vec![(state_file.clone(), blob)];
     for inner in &inside {
         let keys: Vec<(String, &str)> = kept
             .iter()
@@ -187,21 +163,12 @@ pub fn run(argv: &[String]) -> Res<i32> {
             .iter()
             .map(|(key, branch)| (key.as_str(), *branch))
             .collect();
-        let file = format!("{inner}/{STATE_FILE}");
         let blob = state_blob_in(inner, "HEAD", &settings).map_err(|_| Fail::Hard)?;
-        let content = git(&["cat-file", "blob", &blob])
-            .bytes()
-            .ok_or(Fail::Hard)?;
-        if std::fs::write(&file, content).is_err() || git(&["add", "-f", "--", &file]).run() != 0 {
-            return die(format!("{file}: can't write it"));
-        }
-        files.push(file);
+        files.push((format!("{inner}/{STATE_FILE}"), blob));
     }
     let message = repo.commit_message(format!("splice: init {path}"));
-    let mut commit = vec!["commit", "--quiet", "-m", &message, "--"];
-    commit.extend(files.iter().map(String::as_str));
-    if git(&commit).run() != 0 {
-        return Err(Fail::Hard);
+    if commit_state_files(&files, &message).is_err() {
+        return fail(format!("{path}: init failed"));
     }
     log_ok(format!(
         "{path}: initialized -- 'git splice push {}' publishes it",
