@@ -12,15 +12,16 @@ $ export SIGNAL_FILE="$TMPDIR/signal"
 ## Without --jobs, documents run one after another
 
 The first document waits in vain, because the second one starts only after it.
+A second is enough to show that.
 
 ```scrut
-$ "$SCRUT_BIN" test --match-markdown "*.mdtest" "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest"
+$ WAIT_SECONDS=1 "$SCRUT_BIN" test --match-markdown "*.mdtest" "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest"
 // =============================================================================
 // @ *first.mdtest:4 (glob)
 // -----------------------------------------------------------------------------
-// # Waits up to two seconds for the second document
+// # Waits up to $WAIT_SECONDS seconds for the second document
 // -----------------------------------------------------------------------------
-// $ for i in $(seq 20); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
+// $ for i in $(seq "$((WAIT_SECONDS * 10))"); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
 // =============================================================================
 
 1     | - signal: expected otherwise
@@ -45,14 +46,17 @@ Result: 2 document(s) with 2 testcase(s): 0 succeeded, 2 failed and 0 skipped
 
 ## With --jobs, documents run at the same time, reported in their order
 
+The first document stops waiting as soon as the second one has written the
+file, so the long limit only matters on a slow machine.
+
 ```scrut
-$ rm -f "$SIGNAL_FILE"; "$SCRUT_BIN" test --jobs 2 --match-markdown "*.mdtest" "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest"
+$ rm -f "$SIGNAL_FILE"; WAIT_SECONDS=30 "$SCRUT_BIN" test --jobs 2 --match-markdown "*.mdtest" "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest"
 // =============================================================================
 // @ *first.mdtest:4 (glob)
 // -----------------------------------------------------------------------------
-// # Waits up to two seconds for the second document
+// # Waits up to $WAIT_SECONDS seconds for the second document
 // -----------------------------------------------------------------------------
-// $ for i in $(seq 20); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
+// $ for i in $(seq "$((WAIT_SECONDS * 10))"); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
 // =============================================================================
 
 1     | - signal: expected otherwise
