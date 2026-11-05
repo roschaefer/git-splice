@@ -24,8 +24,9 @@ fmt-check:
     cargo fmt --all --check
     shfmt -d -i 2 -ci docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
-# Run the bats tests, one job per CPU
+# Run the Rust unit tests, then the bats tests, one job per CPU
 test: build
+    cargo test --workspace --quiet
     bats --recursive --jobs "$(nproc)" test
 
 # Time commands on a synthetic monorepo; see `just bench --help`
