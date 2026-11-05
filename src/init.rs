@@ -82,6 +82,39 @@ pub fn run(argv: &[String]) -> Res<i32> {
         }
     }
 
+    // The splices directly inside follow the new splice's default branch from
+    // now on. Each upstream of theirs that followed another one records it, so
+    // it keeps following that.
+    let new_default = if default_branch.is_empty() {
+        container_default.clone()
+    } else {
+        default_branch.clone()
+    };
+    let prefix = format!("{path}/");
+    let inside: Vec<String> = repo
+        .all_paths
+        .iter()
+        .filter(|inner| {
+            inner.starts_with(&prefix)
+                && splice_above_in("HEAD", inner).is_none_or(|above| !above.starts_with(&prefix))
+        })
+        .cloned()
+        .collect();
+    let mut kept: Vec<(String, String, String)> = Vec::new();
+    for inner in &inside {
+        repo.require_upstream_list(inner)?;
+        let followed = repo.container_default_branch(inner)?;
+        if followed.is_empty() || followed == new_default {
+            continue;
+        }
+        for name in repo.upstream_lists[inner].clone() {
+            if upstream_config(inner, &name, "default-branch").is_empty()
+                && upstream_config(inner, &name, "default-pin").is_empty()
+            {
+                kept.push((inner.clone(), name, followed.clone()));
+            }
+        }
+    }
     // The upstream is empty, so refs fetched from it before name branches it
     // no longer has.
     let key = repo.upstream_key(&url)?;
@@ -116,24 +149,35 @@ pub fn run(argv: &[String]) -> Res<i32> {
         ],
     )
     .map_err(|_| Fail::Hard)?;
-    let content = git(&["cat-file", "blob", &blob])
-        .bytes()
-        .ok_or(Fail::Hard)?;
-    if std::fs::write(&state_file, content).is_err() {
-        return die(format!("{state_file}: can't write it"));
-    }
-    // -f: an ignore rule matching .splice mustn't stop it, it's committed by
-    // definition.
-    if git(&["add", "-f", "--", &state_file]).run() != 0 {
-        return Err(Fail::Hard);
+    let mut files = vec![(state_file.clone(), blob)];
+    for inner in &inside {
+        let keys: Vec<(String, &str)> = kept
+            .iter()
+            .filter(|(path, _, _)| path == inner)
+            .map(|(_, name, branch)| (format!("upstream.{name}.default-branch"), branch.as_str()))
+            .collect();
+        if keys.is_empty() {
+            continue;
+        }
+        let settings: Vec<(&str, &str)> = keys
+            .iter()
+            .map(|(key, branch)| (key.as_str(), *branch))
+            .collect();
+        let blob = state_blob_in(inner, "HEAD", &settings).map_err(|_| Fail::Hard)?;
+        files.push((format!("{inner}/{STATE_FILE}"), blob));
     }
     let message = repo.commit_message(format!("splice: init {path}"));
-    if git(&["commit", "--quiet", "-m", &message, "--", &state_file]).run() != 0 {
-        return Err(Fail::Hard);
+    if commit_state_files(&files, &message).is_err() {
+        return fail(format!("{path}: init failed"));
     }
     log_ok(format!(
         "{path}: initialized -- 'git splice push {}' publishes it",
         shell_quote(&path)
     ));
+    for (inner, name, branch) in &kept {
+        log_ok(format!(
+            "{inner}: records default-branch '{branch}' for {name}, which it followed before"
+        ));
+    }
     Ok(0)
 }

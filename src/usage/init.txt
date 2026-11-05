@@ -12,6 +12,11 @@ DESCRIPTION
     The folder's earlier history stays in the monorepo. If <url> has commits
     already, use 'git splice clone --merge <url> <path>'.
 
+    Splices directly inside <path> follow its default branch from then on.
+    Where that differs from the one they followed, init records theirs as
+    default-branch in their .splice, in the same commit, so they keep
+    syncing with it.
+
     See also: https://roschaefer.github.io/git-splice/test/walkthrough/init/#description
 
 OPTIONS
