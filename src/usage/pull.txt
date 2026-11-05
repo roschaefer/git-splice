@@ -10,7 +10,7 @@ DESCRIPTION
     upstreams in parallel, then splices their changes in, as one ordinary
     commit per splice.
 
-    See also: https://roschaefer.github.io/git-splice/pull/#description
+    See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#description
 
 OPTIONS
     <path>...
@@ -31,55 +31,55 @@ OPTIONS
         Pulls this upstream branch, for this pull only; see 'git splice
         merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/pull/#merge-options
+        See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#merge-options
 
     --track
         With --branch, also tracks it on the current branch; see 'git splice
         merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/pull/#merge-options
+        See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#merge-options
 
     --bump
         Also moves the synced commit up to the upstream branch when there's
         nothing to pull, e.g. right after a push; see 'git splice merge
         --help'.
 
-        See also: https://roschaefer.github.io/git-splice/pull/#merge-options
+        See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#merge-options
 
     --rebase
         Rebases instead of merging, like 'git pull --rebase'; see 'git
         splice merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/pull/#merge-options
+        See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#merge-options
 
     --no-fork-point
         Merges a rewritten upstream branch from Git's merge base, not from
         where the branch was before the rewrite; see 'git splice merge
         --help'.
 
-        See also: https://roschaefer.github.io/git-splice/pull/#merge-options
+        See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#merge-options
 
     -m <message>
         Gives the commit this message, for one splice; see 'git splice merge
         --help'.
 
-        See also: https://roschaefer.github.io/git-splice/pull/#-m
+        See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#-m
 
-    See also: https://roschaefer.github.io/git-splice/pull/#options
+    See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#options
 
 ORDER
     Also fetches the splices below each: pulling a splice can move their
     synced commits. Top-down: a splice is pulled before the ones below it,
     and a failed fetch stops the splices above and below it.
 
-    See also: https://roschaefer.github.io/git-splice/pull/#order
+    See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#order
 
 CONFLICTS
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
     --abort' to give up), then re-run pull for any splices left. With
     --rebase, it's 'git rebase --continue' (or 'git rebase --abort').
 
-    See also: https://roschaefer.github.io/git-splice/pull/#conflicts
+    See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#conflicts
 
 READ MORE
-    See also: https://roschaefer.github.io/git-splice/pull/#read-more
+    See also: https://roschaefer.github.io/git-splice/test/walkthrough/pull/#read-more
