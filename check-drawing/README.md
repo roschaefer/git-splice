@@ -126,6 +126,11 @@ still reads the drawings; that moves to Rust next.
   history yet: no upstream branch has them, like R's copies of monorepo
   commits, or commits a rewrite of the upstream removed. A solid commit
   that T lacks needs a box for an upstream branch that has it.
+  - A dashed box in a lane names a branch of the monorepo, not the
+    upstream's, e.g. one checked out in a worktree of the rebuild. The
+    commits it has that no upstream branch has belong to the lane, and
+    are dashed. Only a branch's box can be dashed, and a box in a lane
+    naming a branch only the monorepo has is dashed.
 
 - **Legend**: a shape styled `legend=1`, with a sample commit inside
   for each mark the drawing's commits use, and the words for it next to
@@ -201,7 +206,8 @@ What no drawing has needed yet, it doesn't handle:
 In `git-splice`, [`test/drawing.bats`](../test/drawing.bats) and
 [`test/drawing-lanes.bats`](../test/drawing-lanes.bats) and
 [`test/drawing-upstreams.bats`](../test/drawing-upstreams.bats) and
-[`test/drawing-tracked.bats`](../test/drawing-tracked.bats) run it against
+[`test/drawing-tracked.bats`](../test/drawing-tracked.bats) and
+[`test/drawing-local-branch.bats`](../test/drawing-local-branch.bats) run it against
 `git-splice`'s test scenarios, and each [scenario](../test/scenarios/)
 with a drawing checks it in its README. [`test/drawing-export.bats`](../test/drawing-export.bats)
 tests `check-export`, with draw.io.
