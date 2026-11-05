@@ -3,7 +3,7 @@
 Each folder here is one reusable test setup: a state a splice and its
 upstream can be in, or a situation a command has to handle. A folder may
 contain several Markdown documents, but each document explains and executes
-one problem. `status`'s [sync states](../walkthrough/status.md#sync-states)
+one problem. `status`'s [sync states](../walkthrough/status.md#output)
 link to them as examples. Some show a bug as it is today; [Known
 bugs](08-known-bugs.md) lists them.
 
@@ -94,7 +94,7 @@ ok 04-upstreams/05-splice-refs (1 document)
 ok 04-upstreams/06-default-pin (1 document)
 ok 05-nested-splices/01-nested-splices (6 documents)
 ok 05-nested-splices/01-nested-splices/01-outer-fork (3 documents)
-ok 05-nested-splices/01-nested-splices/02-three-levels (1 document)
+ok 05-nested-splices/01-nested-splices/02-three-levels (3 documents)
 ok 05-nested-splices/02-nested-default-branch (1 document)
 ok 05-nested-splices/03-diamond (1 document)
 ok 05-nested-splices/04-cycle (1 document)

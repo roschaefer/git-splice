@@ -71,7 +71,7 @@ previous and new sync points. A push between them is the exception
 ## How R and T determine the status
 
 R and T are two histories of the same folder, as upstream commits. How
-they relate is the [sync state](../../walkthrough/status.md#sync-states):
+they relate is the [sync state](../../walkthrough/status.md#output):
 
 | R and T | `status` shows |
 |---|---|

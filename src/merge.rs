@@ -4,6 +4,7 @@ use crate::args::parse_args;
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
+use std::collections::HashMap;
 
 pub const USAGE: &str = include_str!("usage/merge.txt");
 
@@ -35,8 +36,14 @@ pub enum EqualTree {
     Keep,
 }
 
-fn state_file_blob(path: &str) -> Option<String> {
-    git(&["rev-parse", &format!("HEAD:{path}/{STATE_FILE}")]).out()
+fn state_file_blob(rev: &str, path: &str) -> Option<String> {
+    git(&[
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        &format!("{rev}:{path}/{STATE_FILE}"),
+    ])
+    .out()
 }
 
 impl Repo {
@@ -151,7 +158,7 @@ impl Repo {
         };
         refuse_changed_submodule(path, &merge_base, &target)?;
         let base_folder = tree_of(&merge_base).ok_or(Fail::Soft)?;
-        let base_blob = state_file_blob(path).ok_or(Fail::Soft)?;
+        let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message = self.commit_message(format!(
             "splice: {verb} {path} from {label} at {}",
@@ -378,7 +385,7 @@ impl Repo {
             return Ok(());
         }
         let folder = tree_of(&target).ok_or(Fail::Soft)?;
-        let base_blob = state_file_blob(path).ok_or(Fail::Soft)?;
+        let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message = self.commit_message(format!(
             "splice: {verb} {path} from {} at {}",
@@ -426,7 +433,7 @@ impl Repo {
         let folder = git(&["rev-parse", &format!("HEAD:{path}")])
             .out()
             .ok_or(Fail::Soft)?;
-        let base_blob = state_file_blob(path).ok_or(Fail::Soft)?;
+        let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message = self.commit_message(format!(
             "splice: bump {path} from {} at {}",
@@ -470,18 +477,19 @@ impl Repo {
     }
 
     /// Reads the splice's upstreams again after a merge above changed its
-    /// .splice, and uses the one the command chose. A pull fetches the upstreams
+    /// .splice, and uses the one the command chose, if it merges the splice:
+    /// <upstream> is None for one it only fetches. A pull fetches the upstreams
     /// it names now, but didn't before: the synced commit the merge above moved
-    /// it to may be in any of them. It also fetches the one it uses if that
-    /// synced commit or the pin isn't here. Fails, saying why, if one can't be
-    /// fetched, if the synced commit is on none of them, or if a merge would use
-    /// one that wasn't.
+    /// it to may be in any of them. It also fetches the one it uses, or all of
+    /// them for one it doesn't merge, if that synced commit or the pin isn't
+    /// here. Fails, saying why, if one can't be fetched, if the synced commit is
+    /// on none of them, or if a merge would use one that wasn't.
     fn reload_splice_upstream(
         &mut self,
         path: &str,
         branch: &str,
         verb: &str,
-        upstream: &str,
+        upstream: Option<&str>,
     ) -> Res<()> {
         let old_urls: Vec<String> = self
             .upstream_lists
@@ -491,8 +499,10 @@ impl Repo {
             .iter()
             .map(|name| self.url_of(path, name))
             .collect();
-        self.load_splice_upstream(path)?;
-        self.use_upstreams(upstream, &[path.to_string()])?;
+        contained(self.load_splice_upstream(path))?;
+        if let Some(upstream) = upstream {
+            contained(self.use_upstreams(upstream, &[path.to_string()]))?;
+        }
         let mut entries = Vec::new();
         let mut used_is_new = false;
         for name in self.upstream_lists[path].clone() {
@@ -503,9 +513,19 @@ impl Repo {
                 entries.push((path.to_string(), name));
             }
         }
-        if entries.is_empty() && (!synced_commit_here(path) || !self.pin_here(path)) {
-            entries.push((path.to_string(), self.name_of(path)));
-            used_is_new = true;
+        // A new upstream may lack them, and the one in use have them.
+        if !synced_commit_here(path) || !self.pin_here(path) {
+            let more = if upstream.is_some() {
+                used_is_new = true;
+                vec![(path.to_string(), self.name_of(path))]
+            } else {
+                self.every_upstream_entry(&[path.to_string()])?
+            };
+            for entry in more {
+                if !entries.contains(&entry) {
+                    entries.push(entry);
+                }
+            }
         }
         if entries.is_empty() {
             return Ok(());
@@ -535,15 +555,10 @@ impl Repo {
 
     /// Merges every given path, stopping at the first one that leaves a
     /// conflict: another cherry-pick can't start before it's resolved. Top-down:
-    /// a splice goes before the ones below it, whose synced commit its pull may
-    /// move, and a failure stops them. Fails if anything was skipped or failed.
+    /// a splice goes before the ones below it, whose .splice its merge may
+    /// change, and a failure stops them. Fails if anything was skipped or failed.
     pub fn merge_paths(&mut self, branch: &str, verb: &str, given: &[String]) -> Res<()> {
         let paths = splices_in_order(false, given);
-        let loaded = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
-        let unchanged_since_loaded = |path: &str| {
-            let spec = format!("{path}/{STATE_FILE}");
-            git(&["diff", "--quiet", &loaded, "HEAD", "--", &spec]).ok()
-        };
         let state_file_here = |path: &str| {
             git(&["cat-file", "-e", &format!("HEAD:{path}/{STATE_FILE}")])
                 .q()
@@ -551,7 +566,10 @@ impl Repo {
         };
         let track = self.args.has_flag("--track");
         let wanted = self.args.branch.clone();
-        let upstream = self.args.upstream.clone();
+        // Each .splice below a merged splice, as last loaded: as in HEAD
+        // before the first merge, until a merge above changes it.
+        let before = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
+        let mut loaded: HashMap<String, Option<String>> = HashMap::new();
         let mut failures: Vec<String> = Vec::new();
         let mut skipped: Vec<String> = Vec::new();
         for path in &paths {
@@ -559,9 +577,28 @@ impl Repo {
                 skipped.push(path.clone());
                 continue;
             }
+            // Reading its .splice again after a merge above failed, e.g. the
+            // fetch of the upstream it names now; the reason came then.
+            if failures.contains(path) {
+                log_err(format!(
+                    "{path}: not {}, since its {STATE_FILE} from a merge above failed to load",
+                    past_tense(verb)
+                ));
+                continue;
+            }
             if let Some(failed) = first_above(path, &failures) {
                 log_err(format!(
                     "{path}: not {}, since {failed} above it failed",
+                    past_tense(verb)
+                ));
+                failures.push(path.clone());
+                continue;
+            }
+            // Its merge could change the .splice of the failed one again: then
+            // that one's failure would be about a file that's gone.
+            if let Some(failed) = first_below(path, &failures) {
+                log_err(format!(
+                    "{path}: not {}, since {failed} below it failed",
                     past_tense(verb)
                 ));
                 failures.push(path.clone());
@@ -573,17 +610,6 @@ impl Repo {
                     "{path}: not a splice any more -- nothing to {verb}"
                 ));
                 continue;
-            }
-            // ... or changed its upstreams, read before it merged.
-            if !unchanged_since_loaded(path) {
-                match self.reload_splice_upstream(path, branch, verb, &upstream) {
-                    Err(Fail::Hard) => return Err(Fail::Hard),
-                    Err(_) => {
-                        failures.push(path.clone());
-                        continue;
-                    }
-                    Ok(()) => {}
-                }
             }
             match self.merge_one(path, branch, verb) {
                 Err(Fail::Hard) => return Err(Fail::Hard),
@@ -598,26 +624,16 @@ impl Repo {
                     }
                 }
             }
-        }
-        // A pull above may also move the synced commit of a splice below it
-        // that isn't pulled itself: fetch that commit too, or the splice would
-        // look like it shares no history with its upstream. --upstream names
-        // one of the pulled splice's upstreams, so this uses the default one.
-        if verb == "pull" && !splice_in_progress() {
-            for path in self.all_paths.clone() {
-                if paths.contains(&path)
-                    || first_above(&path, &paths).is_none()
-                    || !state_file_here(&path)
-                    || unchanged_since_loaded(&path)
-                    || synced_commit_here(&path)
-                {
-                    continue;
-                }
-                match self.reload_splice_upstream(&path, branch, "pull", "") {
-                    Err(Fail::Hard) => return Err(Fail::Hard),
-                    Err(_) => failures.push(path),
-                    Ok(()) => {}
-                }
+            // The splices below a failed one are skipped anyway.
+            if !splice_in_progress() && !failures.contains(path) {
+                self.read_below_again(
+                    path,
+                    branch,
+                    verb,
+                    &paths,
+                    (&before, &mut loaded),
+                    &mut failures,
+                )?;
             }
         }
         if !skipped.is_empty() {
@@ -640,6 +656,57 @@ impl Repo {
         } else {
             Err(Fail::Hard)
         }
+    }
+
+    /// After a merge of <merged>: each splice below it reads its .splice again
+    /// where the merge changed it, as in the commit of the splice above, the
+    /// layer it syncs with. Selected or not: a splice further down follows the
+    /// upstreams of the ones above it. A pull fetches what the new .splice
+    /// names; see reload_splice_upstream. A splice that fails that fails the
+    /// command, and stops the ones below it. A merge only reads the .splice of
+    /// one it doesn't merge itself.
+    fn read_below_again(
+        &mut self,
+        merged: &str,
+        branch: &str,
+        verb: &str,
+        selected: &[String],
+        (before, loaded): (&str, &mut HashMap<String, Option<String>>),
+        failures: &mut Vec<String>,
+    ) -> Res<()> {
+        let prefix = format!("{merged}/");
+        for path in splices_in_order(false, &self.all_paths.clone()) {
+            if !path.starts_with(&prefix) || first_above(&path, failures).is_some() {
+                continue;
+            }
+            let blob = state_file_blob("HEAD", &path);
+            let last = loaded
+                .entry(path.clone())
+                .or_insert_with(|| state_file_blob(before, &path));
+            if blob.is_none() || *last == blob {
+                continue;
+            }
+            loaded.insert(path.clone(), blob);
+            // --upstream names one of the selected splice's upstreams.
+            let upstream = if selected.contains(&path) {
+                Some(self.args.upstream.clone())
+            } else if verb == "merge" {
+                // Nothing to fetch, and nothing of its own to merge: only the
+                // upstreams the splices below it follow.
+                if contained(self.load_splice_upstream(&path)).is_err() {
+                    failures.push(path);
+                }
+                continue;
+            } else {
+                None
+            };
+            match self.reload_splice_upstream(&path, branch, verb, upstream.as_deref()) {
+                Err(Fail::Hard) => return Err(Fail::Hard),
+                Err(_) => failures.push(path),
+                Ok(()) => {}
+            }
+        }
+        Ok(())
     }
 }
 

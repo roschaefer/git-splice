@@ -5,6 +5,7 @@ name: Drawings
 # large, and nothing else can make a picture stale.
 on:
   push:
+    branches: [main]
     paths:
       - "**.drawio.svg"
       - check-drawing/check-export
@@ -20,6 +21,12 @@ on:
       - flake.nix
       - flake.lock
       - .github/workflows/drawings.yml
+
+# A new push to a PR cancels the run for the push before it. Other runs get
+# a group of their own (run_id), so every commit on main is checked.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
