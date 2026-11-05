@@ -959,6 +959,17 @@ layer_with_a_commit() {
   [ "$(git log -1 --format=%s)" = "local change" ]
 }
 
+@test "merge --rebuilt-commit needs no default upstream, as it merges no upstream branch" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.fork.url "$upstream"
+  git commit -q -m "vendor/a: add fork" -- vendor/a/.splice
+  layer_with_a_commit
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/other.txt)" = "from the layer" ]
+}
+
 @test "merge --rebuilt-commit refuses a commit that shares no history with the rebuild" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

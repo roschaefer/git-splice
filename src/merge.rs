@@ -829,6 +829,7 @@ impl Repo {
     /// as local work too, and the next push would publish its changes again,
     /// in a commit of its own. A pull records it as the synced commit instead.
     fn refuse_upstream_commits(&mut self, path: &str, rebuilt: &str, given: &str) -> Res<()> {
+        self.require_upstream_list(path)?;
         let names = self.upstream_lists.get(path).cloned().unwrap_or_default();
         let mut prefixes = Vec::new();
         for name in names {
@@ -891,8 +892,10 @@ pub fn run(argv: &[String]) -> Res<i32> {
     repo.open()?;
     // Before select_splices: a rebase in progress has detached HEAD.
     require_no_splice_in_progress()?;
-    repo.select_splices(Kind::Explicit, "merge")?;
     if !rebuilt_commit.is_empty() {
+        // No upstream to choose: the commit is given, and the check for
+        // upstream commits in it reads every upstream the splice names.
+        repo.select_paths(Kind::Explicit, "merge")?;
         if repo.args.all || repo.selected.len() != 1 {
             return die("--rebuilt-commit takes exactly one splice");
         }
@@ -900,6 +903,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
         repo.merge_rebuilt_commit(&path, &rebuilt_commit)?;
         return Ok(0);
     }
+    repo.select_splices(Kind::Explicit, "merge")?;
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
     repo.merge_paths(&branch, "merge", &selected)?;

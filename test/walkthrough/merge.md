@@ -198,10 +198,12 @@ $ git splice merge -h | check-help option --rebuilt-commit
         top of the rebuild. It's the way back for 'git splice push
         --rebuilt-commit', which sends an edited rebuild the other way.
 
-        It refuses a <commit> with a commit of the splice's upstream that
-        the rebuild lacks, e.g. from a pull in the worktree: that would come
-        in as a local change, and the next push would publish it again.
-        'git splice pull <path>' takes the upstream's commits in instead.
+        It refuses a <commit> with a commit of the splice's upstream, as
+        fetched, that the rebuild lacks, e.g. from a pull in the worktree:
+        that would come in as a local change, and the next push would
+        publish it again. 'git splice pull <path>' takes the upstream's
+        commits in instead. Upstream commits this clone hasn't fetched yet
+        look like local work to it.
 ```
 
 The [scenario](../scenarios/01-everyday-sync/02-up-to-date/worked-on-in-a-worktree.md)
