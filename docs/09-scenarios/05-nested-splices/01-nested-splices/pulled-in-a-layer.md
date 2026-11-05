@@ -2,10 +2,16 @@
 
 `git splice pull vendor/a/b` merges the inner upstream straight into the
 monorepo's folder, and a conflict lands in the monorepo's working tree.
-This page does the same pull one level down, by hand: the outer splice's
-rebuild checked out in a worktree, as the repository `vendor/a/` is
-spliced from, where `b/` is a splice like any other, with no nesting.
-The conflict comes up there, and its resolution is a commit of that
+This page does the same pull one level down, by hand:
+
+<div align="center">
+
+![The monorepo, with the splice vendor/a/ and inside it vendor/a/b/; next to it a worktree of vendor/a/ rebuilt, with the splice b/; 1: rebuild vendor/a and add the worktree; 2: pull b from the upstream of b into the worktree, where the conflict is resolved; 3: copy the worktree back into vendor/a/ with git archive; 4: push vendor/a/b from the monorepo to the upstream of b](pulled-in-a-layer.drawio.svg)
+
+</div>
+
+In the worktree, `b/` is a splice like any other, with no nesting. The
+conflict comes up there, and its resolution is a commit of that
 repository. Copied back into `vendor/a/`, it's a pull of `vendor/a/b/`
 to the monorepo too: the rebuild and the push are the same as after a
 pull in the monorepo.
