@@ -128,14 +128,16 @@ rebuilt as their merge with *n*.
 The [comparisons](test/comparisons/README.md) run each of these next to
 `git-splice`.
 
-- [`git submodule`](test/comparisons/git-submodule.md): the monorepo
-  doesn't see the library's files, and a fix takes two commits and two
-  pushes.
-- [`git subtree`](test/comparisons/git-subtree.md): the library's history
-  comes into the monorepo, or every push walks the monorepo's.
+- [`git submodule`](test/comparisons/git-submodule.md): `git status`
+  doesn't see the library's files, every clone needs
+  `--recurse-submodules`, and a fix takes two commits and two pushes,
+  library first.
+- [`git subtree`](test/comparisons/git-subtree.md): merges pile up in your
+  history, one per pull and one per push, or every push walks the whole
+  monorepo history again.
 - [git-subrepo](test/comparisons/third-party/git-subrepo.md): every push
-  commits to the monorepo, and a rebase or a squash merge breaks what it
-  records.
+  adds a commit to your monorepo, and after a squash merge or a rebase,
+  the next push stops until you fix `.gitrepo` by hand.
 - [Josh](test/comparisons/third-party/josh.md): a different use case, one
   monorepo as the source of truth, served to others in parts.
 
