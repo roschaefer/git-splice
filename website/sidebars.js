@@ -44,13 +44,6 @@ module.exports = {
     },
     {
       type: 'category',
-      label: 'Command reference',
-      items: [
-        'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key',
-      ].map((command) => `test/walkthrough/${command}`),
-    },
-    {
-      type: 'category',
       label: 'Comparisons',
       link: {type: 'doc', id: 'test/comparisons/README'},
       items: [
@@ -69,6 +62,13 @@ module.exports = {
           items: ['sapling', 'jj'].map((vcs) => `test/comparisons/vcs/${vcs}`),
         },
       ],
+    },
+    {
+      type: 'category',
+      label: 'Command reference',
+      items: [
+        'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key',
+      ].map((command) => `test/walkthrough/${command}`),
     },
     {
       type: 'category',
