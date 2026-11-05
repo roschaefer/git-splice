@@ -48,7 +48,12 @@ module.exports = {
       link: {type: 'doc', id: 'test/comparisons/README'},
       items: [
         'test/comparisons/git-submodule',
-        'test/comparisons/git-subtree',
+        {
+          type: 'category',
+          label: 'git subtree',
+          link: {type: 'doc', id: 'test/comparisons/git-subtree'},
+          items: ['rejoin', 'several-subtrees', 'sync-points-in-messages'].map((page) => `test/comparisons/git-subtree/${page}`),
+        },
         {
           type: 'category',
           label: 'Third-party tools',
