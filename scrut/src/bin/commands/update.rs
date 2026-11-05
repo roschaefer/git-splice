@@ -178,7 +178,7 @@ impl Args {
             }
 
             // TODO(config): Add support for updating prepended and appended files (or reason why not)
-            if !config.prepend.is_empty() || !config.prepend.is_empty() {
+            if !config.prepend.is_empty() || !config.append.is_empty() {
                 count_skipped += 1;
                 pw.println(format!(
                     "⏩ {}: skipped, because 'prepend' or 'append' are currently not supported in update",
@@ -289,12 +289,7 @@ impl Args {
 
                     // determine new location
                     let output_path = if is_conversion {
-                        let stripped_path = test
-                            .path
-                            .file_stem()
-                            .map_or(&test.path as &Path, Path::new)
-                            .to_path_buf();
-                        stripped_path.with_extension(output_type.file_extension())
+                        test.path.with_extension(output_type.file_extension())
                     } else if self.replace {
                         test.path.clone()
                     } else {
