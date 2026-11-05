@@ -5,6 +5,7 @@ name: Drawings
 # large, and nothing else can make a picture stale.
 on:
   push:
+    branches: [main]
     paths:
       - "**.drawio.svg"
       - check-drawing/check-export
