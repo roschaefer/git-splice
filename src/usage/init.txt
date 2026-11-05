@@ -17,12 +17,12 @@ DESCRIPTION
     default-branch in their .splice, in the same commit, so they keep
     syncing with it.
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/init/#description
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/init/#description
 
 OPTIONS
     -m <message>
         Gives the commit this message instead of the default one.
 
-        See also: https://roschaefer.github.io/git-splice/test/walkthrough/init/#-m
+        See also: https://roschaefer.github.io/git-splice/docs/walkthrough/init/#-m
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/init/#options
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/init/#options

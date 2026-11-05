@@ -9,7 +9,7 @@ DESCRIPTION
     fetched branches are refs/splices/<key>/heads/<branch>, e.g. for
     'git log splices/<key>/heads/main'.
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/key/#description
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/key/#description
 
 OPTIONS
     <new-key>
@@ -17,13 +17,13 @@ OPTIONS
         it in the tracked upstream branches, branch.<branch>.splice =
         <key>:<name>.
 
-        See also: https://roschaefer.github.io/git-splice/test/walkthrough/key/#new-key
+        See also: https://roschaefer.github.io/git-splice/docs/walkthrough/key/#new-key
 
     --upstream <name>
         Names the upstream, as <path>/.splice does in [upstream "<name>"].
         Without it, the splice's default upstream.
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/key/#options
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/key/#options
 
 KEYS
     A key belongs to an upstream URL, so splices with the same URL share it.
@@ -33,4 +33,4 @@ KEYS
     taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
     long.
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/key/#keys
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/key/#keys

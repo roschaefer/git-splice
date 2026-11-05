@@ -98,7 +98,7 @@ jobs:
                 echo "::error::the job says git 2.40.1, nixos-23.05 has $git_version -- update it in ci.yml"
                 exit 1
               fi
-              bats --recursive --jobs "$(nproc)" test
+              bats --jobs "$(nproc)" docs/tests
             '
 
   # Builds and packages a binary on every PR, so a release isn't the first

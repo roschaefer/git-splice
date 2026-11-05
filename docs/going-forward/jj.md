@@ -5,7 +5,7 @@ system that can share a repository with Git: in a *colocated* repository,
 `.jj/` and `.git/` live side by side, and plain Git commands still work.
 `git-splice` doesn't work there yet
 ([#41](https://github.com/roschaefer/git-splice/issues/41)), except by
-hand ([comparison](../../test/comparisons/vcs/jj.md)). This page says
+hand ([comparison](../comparisons/vcs/jj.md)). This page says
 what it needs.
 
 ## `git-splice` in a colocated repository

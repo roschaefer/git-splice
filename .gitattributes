@@ -9,4 +9,4 @@
 
 # Keep the tests out of them too: most of the shell is the bats suite, which
 # would make a Rust tool look like a shell one to someone choosing it.
-/test/** linguist-documentation
+/docs/** linguist-documentation

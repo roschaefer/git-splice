@@ -81,7 +81,7 @@
             # The sandbox has no /bin/bash, scrut's default shell.
             preCheck = "export SCRUT_DEFAULT_SHELL=${pkgs-scrut.bash}/bin/bash";
           };
-        # Runs in the Sapling comparison, test/comparisons/vcs/. nixpkgs
+        # Runs in the Sapling comparison, docs/comparisons/vcs/. nixpkgs
         # has 0.2.20250521, which can't merge from an external repository
         # (`sl subtree merge --url`); the release binary can. Linux only.
         sapling =
@@ -128,7 +128,7 @@
               ln -s $out/libexec/sapling/sl $out/bin/sl
             '';
           };
-        # Runs in the Jujutsu comparison, test/comparisons/vcs/. nixos-25.05
+        # Runs in the Jujutsu comparison, docs/comparisons/vcs/. nixos-25.05
         # has 0.29; the release binary is static.
         jujutsu =
           let
@@ -227,14 +227,14 @@
             pkgs.bashInteractive
             pkgs.just
             pkgs.hyperfine
-            # Edits the diagrams embedded in the .drawio.svg drawings, in test/drawing*.bats.
+            # Edits the diagrams embedded in the .drawio.svg drawings, in docs/tests/drawing*.bats.
             pkgs.xmlstarlet
             # Renders the walkthrough chapters in the walkthrough shell.
             pkgs.glow
             scrut
-            # Runs in the git-subrepo comparison, test/comparisons/third-party/.
+            # Runs in the git-subrepo comparison, docs/comparisons/third-party/.
             pkgs.git-subrepo
-            # Runs in the Josh comparison, test/comparisons/third-party/.
+            # Runs in the Josh comparison, docs/comparisons/third-party/.
             pkgs.josh
             jujutsu
           ] ++ lib.optionals pkgs.stdenv.isLinux [
@@ -243,14 +243,14 @@
             # Builds the documentation site in website/.
             pkgs.nodejs
             pkgs.pnpm
-            # Only for test/completions.bats: the zsh and fish completions.
+            # Only for docs/tests/completions.bats: the zsh and fish completions.
             pkgs.zsh
             pkgs.fish
           ];
 
           shellHook = ''
             repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            export PATH="$repo_root/target/debug:$repo_root/test/walkthrough:$PATH"
+            export PATH="$repo_root/target/debug:$repo_root/docs/walkthrough:$PATH"
           '';
         };
 
@@ -261,7 +261,7 @@
           packages = [
             nixpkgs-scrut.legacyPackages.${system}.drawio-headless
             git
-            # For test/drawing-export.bats.
+            # For docs/tests/drawing-export.bats.
             pkgs.bats
           ];
           # The fonts draw.io measures labels with, e.g. for a label's
