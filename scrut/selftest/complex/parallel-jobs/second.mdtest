@@ -1,6 +1,6 @@
 # Sends the signal the first document waits for
 
 ```scrut
-$ echo "from the second document" > "$SIGNAL_FILE" && echo sent
+$ echo "from the second document" > "$SIGNAL_FILE.tmp" && mv "$SIGNAL_FILE.tmp" "$SIGNAL_FILE" && echo sent
 expected otherwise
 ```
