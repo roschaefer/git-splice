@@ -1,4 +1,4 @@
-# What you don't want: the old commits back on the PR
+# Don't mix the strategies
 
 In the [same state](README.md), `feature` is rebased in the monorepo,
 and then the PR, which was never rebased, is pulled. That mixes the two
