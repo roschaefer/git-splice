@@ -9,9 +9,17 @@ repository, to work in as if it were a clone: build it on its own, or run
 `git splice merge --rebuilt-commit` brings what was committed there back
 into `vendor/a/`. It's a three-way merge from where the commit left the
 rebuild, so the monorepo's own changes since then stay. The synced commit
-doesn't move: the commit is local work, and the next push sends it. Like
-`git merge --squash`, it takes the commit's changes, not the commit: a
-branch that goes on is rebased onto the new rebuild first.
+doesn't move: the commit is local work, and the next push sends it.
+
+It brings back the worktree's file changes, and nothing else:
+
+- Its history stays behind, as with `git merge --squash`: a branch that
+  goes on is rebased onto the new rebuild first.
+- A commit without file changes, e.g. one reworded, has nothing to bring
+  back.
+- Commits of the splice's upstream, e.g. from a pull in the worktree,
+  aren't the monorepo's own changes: the merge refuses them
+  ([the upstream pulled in a worktree](upstream-pulled-in-a-worktree.md)).
 
 ## Output
 
