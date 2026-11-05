@@ -217,19 +217,40 @@ monorepo's own addition, and stay.
 
 ## Nothing to merge
 
-A commit in the worktree that changes no files, here the same commit
-reworded, has nothing to bring back:
+`merge --rebuilt-commit` brings back files, not messages. A commit in the
+worktree that changes no files has nothing to bring back, like *e*, *d*
+reworded:
 
 ```scrut
 $ git -C ../a-work commit -q --amend -m "remove other.txt, reworded"
 ```
 
+*e* has the files of *d*, which the monorepo merged as *r*. The rebuild's
+copy of *r*, *r'*, is *d* itself here: the same files, parent, message
+and date make the same commit.
+
+<div align="center">
+
+![The monorepo's a, c, m and r, B at a and H at r; upstream k, U(H), c prime and m prime, T; on top of m prime, dashed, r prime, which is d, R, and e, work-on-a, a dashed box](worked-on-reworded.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/worked-on-reworded.drawio.svg" \
+>   a=HEAD~3 c=HEAD~2 m=HEAD~1 r=HEAD k="$k" \
+>   e=work-on-a
+ok   worked-on-reworded.drawio.svg: 9 commits, 13 arrows, 6 boxes, 1 lanes
+```
+-->
+
+So the merge leaves the monorepo as it is, *r* and its message too, and
+no cherry-pick in progress:
+
 ```scrut
 $ git splice merge --rebuilt-commit work-on-a vendor/a
 ok   vendor/a: dbb456a's changes are in the folder already -- nothing to merge
 ```
-
-No commit, and no cherry-pick left in progress:
 
 ```scrut
 $ git log --format=%s -1
@@ -239,3 +260,7 @@ remove other.txt
 ```scrut
 $ git status --short
 ```
+
+A reworded message goes upstream with `git splice push
+--rebuilt-commit` instead ([edited before
+push](../../06-rewritten-history/01-edited-before-push/README.md)).
