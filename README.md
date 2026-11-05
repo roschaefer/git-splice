@@ -123,6 +123,23 @@ On branch main
 commit. Then `git splice push lib` sends *b'* and *d'*, and the pull,
 rebuilt as their merge with *n*.
 
+## Why not X?
+
+The [comparisons](test/comparisons/README.md) run each of these next to
+`git-splice`.
+
+- [`git submodule`](test/comparisons/git-submodule.md): a checkout of the
+  monorepo is incomplete. The library stays a repository of its own inside
+  it, which every clone, `git status` and fix has to handle separately.
+- [`git subtree`](test/comparisons/git-subtree.md): syncing pollutes your
+  history with merges, and can bring the library's whole history along.
+- [git-subrepo](test/comparisons/third-party/git-subrepo.md): it records
+  each push in a commit of your monorepo, a redundant commit that a squash
+  merge or rebase makes invalid.
+- [Josh](test/comparisons/third-party/josh.md): the library has to share
+  its history with the monorepo, so it fits repositories that are meant
+  to be one, not ones with histories of their own.
+
 ## Getting started
 
 Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/installation/)
