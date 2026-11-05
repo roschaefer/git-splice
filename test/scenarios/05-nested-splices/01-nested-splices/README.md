@@ -181,4 +181,5 @@ doesn't drop what the inner upstream got from the monorepo directly
 A pull of `vendor/a/` can move `vendor/a/b/` to a synced commit the inner
 upstream has dropped from its branches; the pull of `vendor/a/b/` then
 fetches it by its hash
-([dropped below](dropped-below.md)).
+([dropped below](dropped-below.md)). If the inner upstream deleted it, the pull
+fails, and a retry wrongly succeeds ([gone below](gone-below.md)).
