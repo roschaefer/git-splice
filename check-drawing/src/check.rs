@@ -360,7 +360,7 @@ impl<'a> Checker<'a> {
                 }
                 let (lv, ov) = (self.value(l), self.value(o));
                 let below = lv.len() > ov.len() && lv.starts_with(ov);
-                if self.d.inside(l, o) && !below {
+                if self.d.contains(l, o) && !below {
                     self.errors.push(format!(
                         "the lane {lv} is drawn inside {ov}, but its folder isn't inside that one"
                     ));

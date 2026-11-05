@@ -98,6 +98,13 @@ edit_drawing() {
   [ "${lines[0]}" = "!!   k -> m crosses lanes: draw a parent and its child in one lane" ]
 }
 
+@test "drawing lanes: a nested splice's lane may cover the middle of its parent's" {
+  edit_drawing -u '//mxCell[@id="lane_b"]/mxGeometry/@x' -v 400 -u '//mxCell[@id="lane_b"]/mxGeometry/@width' -v 490
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   nested-splices.drawio: 4 commits, 5 arrows, 4 boxes, 2 lanes" ]
+}
+
 @test "drawing lanes: a nested splice's lane is drawn inside its parent's" {
   edit_drawing -u '//mxCell[@id="lane_b"]/mxGeometry/@x' -v 1000 -u '//mxCell[@id="m"]/mxGeometry/@x' -v 1050
   run check_drawing "$drawing" "${revs[@]}"
