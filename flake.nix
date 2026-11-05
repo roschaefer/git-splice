@@ -64,7 +64,7 @@
         };
         # Runs the walkthroughs and scenario READMEs (`just docs-check`). Built
         # from scrut/, our fork spliced in, so changes there are used without a
-        # release. CI caches the build, see .github/actions/scrut-cache.
+        # release. CI caches the build, see .github/actions/nix-cache.
         scrut =
           let
             pkgs-scrut = nixpkgs-scrut.legacyPackages.${system};
@@ -100,6 +100,7 @@
               }.${arch};
             };
             sourceRoot = ".";
+            meta.mainProgram = "sl";
             nativeBuildInputs = [ pkgs.autoPatchelfHook ];
             # The bundled Python's extension modules link these.
             buildInputs = with pkgs; [
@@ -152,12 +153,15 @@
               }.${target};
             };
             sourceRoot = ".";
+            meta.mainProgram = "jj";
             installPhase = "install -Dm755 jj $out/bin/jj";
           };
       in
       {
-        packages.default = git-splice;
-        packages.scrut = scrut;
+        packages = {
+          default = git-splice;
+          inherit scrut jujutsu;
+        } // lib.optionalAttrs pkgs.stdenv.isLinux { inherit sapling; };
 
         # Runs the installed package the way users do, through `git splice`,
         # against a splice whose upstream got a new commit.

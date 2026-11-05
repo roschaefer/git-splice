@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
-      - uses: ./.github/actions/scrut-cache
+      - uses: ./.github/actions/nix-cache
 
       - name: benchmark this PR, merged into its base, against the base
         env:

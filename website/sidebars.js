@@ -31,33 +31,23 @@ module.exports = {
     },
     {
       type: 'category',
-      label: 'Command reference',
-      items: [
-        'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key',
-      ].map((command) => `test/walkthrough/${command}`),
-    },
-    {
-      type: 'category',
       label: 'Advanced workflows',
       items: [
-        ...['bump', 'fork'].map((workflow) => `test/walkthrough/${workflow}`),
         {
           type: 'category',
           label: 'Rebasing a feature branch',
           link: {type: 'doc', id: 'test/walkthrough/rebase-feature-branch/README'},
           items: ['rebase-via-upstream', 'rebase-via-monorepo', 'dont-pull-the-old-commits'].map((page) => `test/walkthrough/rebase-feature-branch/${page}`),
         },
+        ...['fork', 'bump'].map((workflow) => `test/walkthrough/${workflow}`),
       ],
     },
     {
       type: 'category',
-      label: 'Design',
-      link: {type: 'doc', id: 'docs/design/README'},
+      label: 'Command reference',
       items: [
-        'docs/design/name',
-        'docs/design/accidental-monorepo-push',
-        {type: 'doc', id: 'test/concepts/git-trace/README', label: 'Checking what it runs'},
-      ],
+        'status', 'clone', 'fetch', 'log', 'merge', 'pull', 'diff', 'push', 'init', 'boundary', 'rebuild', 'key',
+      ].map((command) => `test/walkthrough/${command}`),
     },
     {
       type: 'category',
@@ -78,6 +68,16 @@ module.exports = {
           link: {type: 'doc', id: 'test/comparisons/vcs/README'},
           items: ['sapling', 'jj'].map((vcs) => `test/comparisons/vcs/${vcs}`),
         },
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Design',
+      link: {type: 'doc', id: 'docs/design/README'},
+      items: [
+        'docs/design/name',
+        'docs/design/accidental-monorepo-push',
+        {type: 'doc', id: 'test/concepts/git-trace/README', label: 'Checking what it runs'},
       ],
     },
     {
