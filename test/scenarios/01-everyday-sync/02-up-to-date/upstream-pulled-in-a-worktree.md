@@ -6,12 +6,15 @@ rebuild of `vendor/a/` in a worktree, and `git splice merge
 synced commit where it was: whatever the worktree adds counts as the
 monorepo's own work, to push.
 
-Here, the worktree pulls `vendor/a/`'s own upstream instead, as one would
-in a clone, while the monorepo has a change of its own. That pull isn't
-the monorepo's own work: brought back that way, the upstream's changes
-would count as local ones, and the next push would publish them a second
-time. So the merge refuses it, and `git splice pull vendor/a` in the
-monorepo takes the upstream's commits in, as the synced commit.
+The worktree looks and works like a clone of the upstream, and in a
+clone, `git pull` when the upstream moved is a reflex: to stay current
+while working there, to test against the upstream's latest, or while
+resolving a conflict in it. Here, the worktree pulls `vendor/a/`'s own
+upstream that way, while the monorepo has a change of its own. That pull
+isn't the monorepo's own work: brought back that way, the upstream's
+changes would count as local ones, and the next push would publish them
+a second time. So the merge refuses it, and `git splice pull vendor/a`
+in the monorepo takes the upstream's commits in, as the synced commit.
 
 ## Output
 
