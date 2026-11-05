@@ -1,12 +1,12 @@
 setup() {
   load 'helpers/fixtures'
   hermetic_git_config
-  load '../scenarios/01-everyday-sync/02-up-to-date/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
-  load '../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/setup'
-  load '../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
-  load '../scenarios/04-upstreams/03-shared-remote-url/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
+  load '../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/setup'
+  load '../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
+  load '../09-scenarios/04-upstreams/03-shared-remote-url/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -71,7 +71,7 @@ setup() {
 }
 
 @test "diff: a missing upstream branch shows commits from the branch it was cut from that upstream lacks" {
-  load '../scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
+  load '../09-scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
   run splice diff
@@ -81,7 +81,7 @@ setup() {
 }
 
 @test "diff: a missing upstream branch shows everything when upstream has none of its commits" {
-  load '../scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null

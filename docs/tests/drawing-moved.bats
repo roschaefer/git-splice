@@ -6,7 +6,7 @@ setup() {
   load 'helpers/fixtures'
   load '../../check-drawing/check-drawing'
   hermetic_git_config
-  load '../scenarios/07-moved-folders/01-moved-with-unpushed-commits/setup'
+  load '../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -16,7 +16,7 @@ setup() {
   git commit -q -m "reorganize folders"
   drawing="$BATS_TEST_TMPDIR/moved-with-unpushed-commits.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/../scenarios/07-moved-folders/01-moved-with-unpushed-commits/moved-with-unpushed-commits.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/moved-with-unpushed-commits.drawio.svg" >"$drawing" 2>/dev/null
   revs=(a=HEAD~2 b=HEAD~1 m=HEAD k=refs/splices/upstream/heads/main)
 }
 

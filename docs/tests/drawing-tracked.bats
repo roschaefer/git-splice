@@ -6,13 +6,13 @@ setup() {
   load 'helpers/fixtures'
   load '../../check-drawing/check-drawing'
   hermetic_git_config
-  load '../scenarios/03-branches-and-teamwork/07-tracked-branch/setup'
+  load '../09-scenarios/03-branches-and-teamwork/07-tracked-branch/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   scenario_tracked_branch "$monorepo" "$BATS_TEST_TMPDIR/upstream.git"
   drawing="$BATS_TEST_TMPDIR/tracked-branch.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/../scenarios/03-branches-and-teamwork/07-tracked-branch/tracked-branch.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/../09-scenarios/03-branches-and-teamwork/07-tracked-branch/tracked-branch.drawio.svg" >"$drawing" 2>/dev/null
   cd "$monorepo"
   git splice fetch --branch development --track vendor/a >/dev/null 2>&1
   git splice fetch --branch review --track vendor/b >/dev/null 2>&1

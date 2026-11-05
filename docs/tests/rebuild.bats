@@ -1,18 +1,18 @@
 # The push rebuild, checked against `git subtree split` as the test oracle:
 # where both apply, the rebuild must make byte-identical commits. Where it
 # deliberately differs, the test says so and asserts exactly how ("approved
-# divergence"). See docs/design/README.md.
+# divergence"). See docs/07-design/README.md.
 
 setup() {
   load 'helpers/fixtures'
   hermetic_git_config
-  load '../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/setup'
-  load '../scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
-  load '../scenarios/02-starting-a-splice/04-init-new-upstream/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/setup'
-  load '../scenarios/04-upstreams/03-shared-remote-url/setup'
-  load '../scenarios/06-rewritten-history/04-patch-branch-rebased/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/setup'
+  load '../09-scenarios/03-branches-and-teamwork/03-squash-merged-pull/setup'
+  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
+  load '../09-scenarios/04-upstreams/03-shared-remote-url/setup'
+  load '../09-scenarios/06-rewritten-history/04-patch-branch-rebased/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

@@ -81,7 +81,7 @@
             # The sandbox has no /bin/bash, scrut's default shell.
             preCheck = "export SCRUT_DEFAULT_SHELL=${pkgs-scrut.bash}/bin/bash";
           };
-        # Runs in the Sapling comparison, docs/comparisons/vcs/. nixpkgs
+        # Runs in the Sapling comparison, docs/05-comparisons/vcs/. nixpkgs
         # has 0.2.20250521, which can't merge from an external repository
         # (`sl subtree merge --url`); the release binary can. Linux only.
         sapling =
@@ -128,7 +128,7 @@
               ln -s $out/libexec/sapling/sl $out/bin/sl
             '';
           };
-        # Runs in the Jujutsu comparison, docs/comparisons/vcs/. nixos-25.05
+        # Runs in the Jujutsu comparison, docs/05-comparisons/vcs/. nixos-25.05
         # has 0.29; the release binary is static.
         jujutsu =
           let
@@ -232,9 +232,9 @@
             # Renders the walkthrough chapters in the walkthrough shell.
             pkgs.glow
             scrut
-            # Runs in the git-subrepo comparison, docs/comparisons/third-party/.
+            # Runs in the git-subrepo comparison, docs/05-comparisons/third-party/.
             pkgs.git-subrepo
-            # Runs in the Josh comparison, docs/comparisons/third-party/.
+            # Runs in the Josh comparison, docs/05-comparisons/third-party/.
             pkgs.josh
             jujutsu
           ] ++ lib.optionals pkgs.stdenv.isLinux [
@@ -250,7 +250,7 @@
 
           shellHook = ''
             repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            export PATH="$repo_root/target/debug:$repo_root/docs/walkthrough:$PATH"
+            export PATH="$repo_root/target/debug:$repo_root/docs/tests/walkthrough:$PATH"
           '';
         };
 

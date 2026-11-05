@@ -21,7 +21,7 @@ setup() {
     01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
     05-nested-splices/01-nested-splices \
     03-branches-and-teamwork/06-teammate-pulled; do
-    load "../scenarios/$scenario/setup"
+    load "../09-scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -162,7 +162,7 @@ EOF
 }
 
 @test "status: a missing branch is new with commits from the branch it was cut from that upstream lacks" {
-  load '../scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
+  load '../09-scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
   run splice status
@@ -292,7 +292,7 @@ EOF
 }
 
 @test "status: a missing branch is unchanged right after cloning on a feature branch: upstream has every commit" {
-  load '../scenarios/02-starting-a-splice/03-clone-on-feature-branch/setup'
+  load '../09-scenarios/02-starting-a-splice/03-clone-on-feature-branch/setup'
   scenario_clone_on_feature_branch "$monorepo" "$upstream"
   cd "$monorepo"
   splice clone "$upstream" vendor/a >/dev/null
@@ -375,7 +375,7 @@ EOF
 }
 
 @test "status: lists the splices that need something first, most urgent first, then the quiet ones" {
-  load '../scenarios/01-everyday-sync/03-many-splices/setup'
+  load '../09-scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   run splice status
@@ -393,7 +393,7 @@ EOF2
 }
 
 @test "status: a quiet splice with uncommitted changes moves up" {
-  load '../scenarios/01-everyday-sync/03-many-splices/setup'
+  load '../09-scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   echo "work in progress" >>libs/cli/file.txt
@@ -403,7 +403,7 @@ EOF2
 }
 
 @test "status: without a splice that needs something, prints no blank line between groups" {
-  load '../scenarios/01-everyday-sync/03-many-splices/setup'
+  load '../09-scenarios/01-everyday-sync/03-many-splices/setup'
   scenario_many_splices "$monorepo" "$upstream"
   cd "$monorepo"
   git checkout -q -b feature
