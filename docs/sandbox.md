@@ -6,15 +6,15 @@ clone of `git-splice`:
     nix develop -c just sandbox
 
 It opens a shell in a throwaway monorepo, the one the
-[walkthrough](../test/walkthrough/README.md) starts from: run the
+[walkthrough](walkthrough/README.md) starts from: run the
 walkthrough's commands there, and they print what it shows. Without
-Nix, run `test/sandbox.sh`; it needs Bash and Git.
+Nix, run `docs/sandbox.sh`; it needs Bash and Git.
 
 ## Any page, in a sandbox
 
 The sandbox builds any page of these docs that runs commands, a
 walkthrough chapter, a concept, a scenario or a comparison, by its path
-under `test/`:
+under `docs/`:
 
     nix develop -c just sandbox comparisons/git-submodule
 

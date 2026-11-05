@@ -10,7 +10,7 @@ switches the branch every folder syncs with.
   `.splice`, refs under `refs/splices/`, and rebuilt commits that always come
   out the same. The docs write out the Git commands and run them against real
   output. And the tool only runs the `git` CLI, not a library, so
-  [`GIT_TRACE` lists all it does](../../test/concepts/git-trace/README.md).
+  [`GIT_TRACE` lists all it does](../concepts/git-trace/README.md).
 - **Let Git do the work.** Wherever Git can do a job, the tool calls Git: `git config` parses the state file,
   `cherry-pick` merges, `commit-tree` rebuilds, `log --left-right` compares.
   The tool's own code connects these, and stays small.
@@ -52,7 +52,7 @@ submodule, the monorepo records an upstream commit. But a gitlink says
 which revision to check out; a splice's commit is a sync point, the
 upstream revision the folder last matched. Later commits can change
 the folder and leave the sync point where it is
-([sync model](../../test/concepts/sync-model/README.md)).
+([sync model](../concepts/sync-model/README.md)).
 
 ## Vocabulary
 
@@ -62,7 +62,7 @@ the folder and leave the sync point where it is
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a/`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
-| **synced commit**, **boundary**, **rebuild**, **upstream branch** | U(H), B, R and T of the [sync model](../../test/concepts/sync-model/README.md). |
+| **synced commit**, **boundary**, **rebuild**, **upstream branch** | U(H), B, R and T of the [sync model](../concepts/sync-model/README.md). |
 | **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U(H). |
 | **mount** | Where a splice's history starts: its first `.splice`, or a `git mv`. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
@@ -70,7 +70,7 @@ the folder and leave the sync point where it is
 | **splice out** | Publish the monorepo's changes upstream: `push`. |
 | **sync state** | How R and T relate: `up to date`, `push`, `pull`, `diverged` and so on. |
 | **default branch** | A repository's main branch (`HEAD` on the remote). The monorepo's default branch corresponds to upstream's. |
-| **nested splice** | A splice below another one's folder ([nesting](../../test/concepts/nesting/README.md)). |
+| **nested splice** | A splice below another one's folder ([nesting](../concepts/nesting/README.md)). |
 
 "Default branch" belongs to a repository and is stored in `.splice` when
 needed. It isn't called "fallback", which would describe only one of its
@@ -106,7 +106,7 @@ the monorepo's history each time a command runs.
 
 ## The `.splice` file
 
-[The `.splice` file](../../test/concepts/splice-file/README.md) shows
+[The `.splice` file](../concepts/splice-file/README.md) shows
 what it holds and which commands write it, and why it has no path and no
 monorepo commit. The other choices:
 
@@ -188,11 +188,11 @@ folder:
   needed.
 - Every Git command can read an upstream as `splices/<key>/heads/<branch>`,
   as of the last fetch, so no separate clone is needed
-  ([looking at an upstream](../../test/walkthrough/fetch.md#looking-at-an-upstream)).
+  ([looking at an upstream](../walkthrough/fetch.md#looking-at-an-upstream)).
 
 Two rules follow from the layout:
 
-- **Both sides of a [nested splice](../../test/concepts/nesting/README.md)
+- **Both sides of a [nested splice](../concepts/nesting/README.md)
   find the same state.** The `.splice` holds nothing specific to the
   monorepo, and fetched refs are keyed by URL, so the monorepo and the
   upstream above find the same synced commit under the same refs. An
@@ -243,7 +243,7 @@ does. An overview such as `status` is only useful if it's complete.
   published: it was written
   for the monorepo, and may hold what was removed before anyone decided
   to publish the folder
-  ([example](../../test/scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)).
+  ([example](../scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)).
 - The name `add` is avoided on purpose: it suggests `git add`.
 
 ### Splicing in: `merge`, and `pull` = `fetch` + `merge`
@@ -269,15 +269,15 @@ explicitly:
    the work, including rename detection.
 
 The merge base is `git merge-base R T`
-([why](../../test/concepts/sync-model/README.md#how-r-and-t-determine-the-status)).
+([why](../concepts/sync-model/README.md#how-r-and-t-determine-the-status)).
 
 **The same files, another history:** if the folder already has T's
 files, there's nothing to merge. But if T isn't part of R's history,
 `merge` still records T as U(H), in a commit that only changes `.splice`.
 That happens when the upstream rewrote its history to the same files
-([example](../../test/scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/README.md)),
+([example](../scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/README.md)),
 squash-merged what was pushed, or got R edited before the push
-([example](../../test/scenarios/06-rewritten-history/01-edited-before-push/README.md)).
+([example](../scenarios/06-rewritten-history/01-edited-before-push/README.md)).
 Without the record, R would keep the monorepo's original commits, and
 the next push would publish them. Right after an ordinary push, R is T,
 and nothing is recorded. Once the folder changes again, it's too late:
@@ -321,9 +321,9 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
    tree, *L* is B, and the rebuild continues from U(L). Otherwise a pull
    merged a divergence, or a squash merge mixed local edits into *L*, and
    *L* is rebuilt too, on the parents the
-   [sync model](../../test/concepts/sync-model/README.md#parents-of-rebuilt-commits)
-   picks, back to [B](../../test/concepts/sync-model/README.md#where-b-is)
-   ([scenario](../../test/scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)).
+   [sync model](../concepts/sync-model/README.md#parents-of-rebuilt-commits)
+   picks, back to [B](../concepts/sync-model/README.md#where-b-is)
+   ([scenario](../scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)).
    Without U(L), e.g. after `init`, the rebuild starts at the mount, as a
    root commit.
 3. **Copy each commit.** For each commit in
@@ -346,39 +346,39 @@ parent-mapping problems `split` spent years fixing.
 mount, the folder was no splice, or another one, so nothing from there is
 published, with or without a synced commit. That covers a folder's
 history from before `init`
-([example](../../test/scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)),
+([example](../scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)),
 two splices that swap paths
-([example](../../test/scenarios/07-moved-folders/02-swapped-splices/README.md)), and a splice
+([example](../scenarios/07-moved-folders/02-swapped-splices/README.md)), and a splice
 removed and spliced in again
-([example](../../test/scenarios/02-starting-a-splice/04-init-new-upstream/02-unspliced-then-cloned-again/README.md)).
+([example](../scenarios/02-starting-a-splice/04-init-new-upstream/02-unspliced-then-cloned-again/README.md)).
 A `git mv` keeps it too: the rebuild follows the folder back to the path
 whose `.splice` had the same `id` in the commit before, also when two
 splices swap paths, or a new folder takes the old one.
 A new upstream URL keeps the history: the `id` stays
-([example](../../test/scenarios/04-upstreams/04-upstream-moved/README.md)).
+([example](../scenarios/04-upstreams/04-upstream-moved/README.md)).
 
 **A nested splice's history up to the splice above's last sync** comes
 from that splice's upstream, at its synced commit
-([nesting](../../test/concepts/nesting/README.md),
-[example](../../test/scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
+([nesting](../concepts/nesting/README.md),
+[example](../scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
 Of the splices above, it takes the one with the newest last sync, and on
 a tie the outermost: a push writes nothing to the monorepo, so the
 `.splice` of the splice in between may name a commit from before the
 change, while the outermost upstream has it
-([three levels](../../test/scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
+([three levels](../scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
 Only if the upstream above has the same splice there, by its `id`
-([replaced above](../../test/scenarios/05-nested-splices/01-nested-splices/replaced-above.md)).
+([replaced above](../scenarios/05-nested-splices/01-nested-splices/replaced-above.md)).
 And the monorepo's own commits before the last sync are joined in even if
 the folder's files equal that rebuild, so a commit pushed straight to
 the splice's upstream stays in its history
-([pushed and made above](../../test/scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
+([pushed and made above](../scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
 
 **Costs** O(commits since B), not O(all history). The commit loop
 reads all commit metadata with one `git log` and all folder trees with one
 `git cat-file --batch-check`, so it spawns about one process per commit.
 
 **Never writes to the monorepo**
-([why](../../test/concepts/sync-model/README.md#r-is-computed-not-stored)).
+([why](../concepts/sync-model/README.md#r-is-computed-not-stored)).
 
 **A new upstream branch** is created only if R has commits that
 upstream's default branch lacks, which a PR from the new branch would
@@ -389,12 +389,12 @@ push of a splice made by `init`, which has no upstream branch at all.
 Whether the folder changed on this branch doesn't matter. A branch
 stacked on one upstream has already gets its own branch upstream too,
 with nothing new
-([scenario](../../test/scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/01-stacked-branch/README.md)).
+([scenario](../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/01-stacked-branch/README.md)).
 
 ### `status`: the sync state
 
 `classify_splice` works the state out each time, from R and T, as the
-[sync model](../../test/concepts/sync-model/README.md#how-r-and-t-determine-the-status)
+[sync model](../concepts/sync-model/README.md#how-r-and-t-determine-the-status)
 describes. It compares the files first: when they're equal, nothing
 needs rebuilding. Before that, it checks there's something to compare:
 without `refs/splices/<key>/*`, and with U(H) recorded but not available
@@ -450,7 +450,7 @@ These are known and accepted, each to keep the design simple:
 - **An upstream that keeps its submodules:** after
   `clone --from-submodule --recursive`, `pull` refuses every commit of
   theirs that moves one
-  ([`clone`](../../test/walkthrough/clone.md#--recursive),
+  ([`clone`](../walkthrough/clone.md#--recursive),
   [#153](https://github.com/roschaefer/git-splice/issues/153)).
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
 - **Upstream URLs that differ only in letter case**, e.g.

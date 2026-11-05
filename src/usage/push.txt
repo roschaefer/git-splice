@@ -11,7 +11,7 @@ DESCRIPTION
     upstream URL. Nothing is written to the monorepo. Only committed changes
     are pushed; push warns about uncommitted ones in a splice's folder.
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#description
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#description
 
 OPTIONS
     <path>...
@@ -31,19 +31,19 @@ OPTIONS
         like the one named like the current branch. It doesn't change
         .splice, and the splices below keep theirs.
 
-        See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#branch-tracking
+        See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#branch-tracking
 
     --track
         With --branch, also tracks it on the current branch, like 'git push
         -u'; see 'git splice merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#branch-tracking
+        See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#branch-tracking
 
     --force
         Overwrites the upstream branch with the monorepo's side: when the
         two share no history, or to discard commits only upstream has.
 
-        See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#--force
+        See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#--force
 
     --rebuilt-commit <commit>
         Pushes <commit> instead of the rebuild, e.g. one whose history was
@@ -61,9 +61,9 @@ OPTIONS
         too, unless 'git splice pull --bump <path>' records <commit> as the
         synced commit before the next change, as push reminds you.
 
-        See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#--rebuilt-commit
+        See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#--rebuilt-commit
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#options
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#options
 
 UPSTREAM BRANCH
     If the upstream has no branch named like the current one, push creates
@@ -76,14 +76,14 @@ UPSTREAM BRANCH
     On the monorepo's default branch, a default-pin names a tag or a commit,
     which isn't pushed to: push refuses there.
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#upstream-branch
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#upstream-branch
 
 ORDER
     Bottom-up: a splice below another is pushed first, since the push of the
     one above publishes its .splice, and a failed push stops the splices
     above it.
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#order
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#order
 
 READ MORE
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/push/#read-more
+    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/push/#read-more

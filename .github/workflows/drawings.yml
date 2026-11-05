@@ -9,7 +9,7 @@ on:
     paths:
       - "**.drawio.svg"
       - check-drawing/check-export
-      - test/drawing-export.bats
+      - docs/tests/drawing-export.bats
       - flake.nix
       - flake.lock
       - .github/workflows/drawings.yml
@@ -17,7 +17,7 @@ on:
     paths:
       - "**.drawio.svg"
       - check-drawing/check-export
-      - test/drawing-export.bats
+      - docs/tests/drawing-export.bats
       - flake.nix
       - flake.lock
       - .github/workflows/drawings.yml
@@ -51,4 +51,4 @@ jobs:
         run: nix develop .#drawings --command check-drawing/check-export
 
       - name: test
-        run: nix develop .#drawings --command bats test/drawing-export.bats
+        run: nix develop .#drawings --command bats docs/tests/drawing-export.bats
