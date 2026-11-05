@@ -1,59 +1,52 @@
 # Bumping the sync point
 
-After a push, the upstream has your commits, but the monorepo's `.splice`
-still names the upstream commit from before: a push
-[never writes to the monorepo](../concepts/sync-model/README.md#r-is-computed-not-stored).
-The next push still works, since it sends only what isn't upstream yet.
-`git splice pull --bump` records the pushed commit anyway, in a
-commit that only changes `.splice`, much like a submodule bump. Here the
-monorepo pushed *b*, *d* and *e* as *b'*, *d'* and *e'*, then bumped in *f*
+With Git submodules, you bump the submodule after each change upstream:
+you commit the new upstream commit in the monorepo. With `git-splice`,
+you don't have to. `.splice` names the upstream commit the folder was
+last synced with, and it doesn't need to be up to date: pulls and pushes
+work without it. A push doesn't even change it
+([why](../concepts/sync-model/README.md#r-is-computed-not-stored)).
+
+But if you want to, you can: after a push, `git splice pull --bump`
+commits the pushed commit in `.splice`, and changes nothing else.
+
+Here the monorepo pushed *b*, *d* and *e*, which upstream now has as
+*b'*, *d'* and *e'*. Before the bump, `.splice` still names *n*, from the
+last pull. The bump *f* changes it to *e'*
 ([scenario](../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed/README.md)):
 
 | After the push | After the bump |
 |---|---|
 | ![After the push: e is H, U(H) = n, B is a, U(B) = k, and T and R point at e prime](../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed/pushed.drawio.svg) | ![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e prime, and T and R point at e prime too](../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed/pushed-and-bumped.drawio.svg) |
 
-Before the bump, `.splice` still names *n*, from the last pull, so B
-stays at *a*. After it, `.splice` names *e'*, and *f* is the new B.
-
 ## When to bump
 
-Rebuilds, bisects and the history of a new splice id start from the
-commit `.splice` names. Until a bump, that's the one from before the push:
-
-- **Speed:** every rebuild copies the pushed commits again
-  ([scenario](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md)).
-- **Bisect:** bisecting into the next pull also searches the pushed
-  commits, though that pull didn't bring them in
+- **To make rebuilds faster.** A rebuild starts at the commit `.splice`
+  names. Without a bump, every rebuild copies the commits you pushed
+  again ([scenario](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md)).
+- **To bisect a pull.** Without a bump, the pull after a push seems to
+  bring in the pushed commits too, so a bisect of that pull goes through
+  them as well
   ([scenario](../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
-- **A new [splice id](../concepts/splice-identity/README.md):** required.
-  Without a bump first, the next push is refused
+- **Before you change a splice's [id](../concepts/splice-identity/README.md).**
+  Here a bump is required: without it, the next push is refused
   ([scenario](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/new-id-after-push.md)).
 
 ## When not to bump
 
-On a feature branch. Two branches that record different commits in
-`.splice` conflict when they're merged, even where the files would merge
-cleanly. Without a bump,
-a feature branch leaves `.splice` alone, and a merge takes `main`'s. So
-when the library squash-merges its pull requests, a bump on the
-monorepo's `feature` causes trouble either way:
+- **On a feature branch, when the library squash-merges its pull
+  requests.** The bump commits the pull request's commit in `.splice`,
+  but the library's `main` gets another commit, the squashed one. Then:
+  - If the monorepo merges `feature` into `main` after that, `.splice`
+    conflicts. Rebase the library's `feature` onto its `main` and pull
+    on `feature`, then merge. For a library you don't maintain, that
+    branch is in your company's fork of it
+    ([contributing through a fork](fork.md)).
+  - If the monorepo merges `feature` before that, `main`'s `.splice`
+    names the pull request's commit. Once the library deletes the
+    branch, a new clone of the monorepo can't fetch that commit.
 
-| The monorepo merges `feature`… | Then | Way out |
-|---|---|---|
-| after the library squash-merged | `.splice` conflicts: `main` names the squashed *s*, `feature` the pull request's *b'*. | Rebase the library's `feature` onto its `main`, then pull on `feature`. |
-| before the library squash-merged | `main`'s `.splice` names the pull request's commit. Once the library deletes the branch, a fresh clone can't fetch it. | Don't bump on `feature`. |
-
-<div align="center">
-
-![The monorepo commits a and d on main, and b and c on feature, both from a; in the lane vendor/a/, s on main and b prime on feature, both on top of k; U(d) is s and U(c) is b prime](../scenarios/03-branches-and-teamwork/08-bumped-on-a-feature-branch/bump-conflict.drawio.svg)
-
-</div>
-
-The rebase needs a library branch you can force-push. For a library you
-don't maintain, that's a branch in your company's fork of it
-([contributing through a fork](fork.md)). A
-[scenario](../scenarios/03-branches-and-teamwork/08-bumped-on-a-feature-branch/README.md) runs both cases and the way out.
+  A [scenario](../scenarios/03-branches-and-teamwork/08-bumped-on-a-feature-branch/README.md) shows both.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
