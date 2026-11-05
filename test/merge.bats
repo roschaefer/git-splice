@@ -944,6 +944,21 @@ layer_with_a_commit() {
   ! git rev-parse --quiet --verify CHERRY_PICK_HEAD
 }
 
+@test "merge --rebuilt-commit refuses a commit with an upstream commit the rebuild lacks, e.g. from a pull in the worktree, and merges nothing" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  splice fetch vendor/a
+  commit_local "$monorepo" vendor/a "local change" local.txt
+  git worktree add -q -b layer "$BATS_TEST_TMPDIR/layer" "$(splice rebuild vendor/a)"
+  git -C "$BATS_TEST_TMPDIR/layer" -c user.name=Test -c user.email=test@example.com \
+    pull -q --no-rebase --no-edit "$upstream" main
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: $(git rev-parse --short layer) has $(git rev-parse --short layer^2), a commit of its upstream that the rebuild lacks"*"'git splice pull vendor/a'"* ]]
+  [ "$(git log -1 --format=%s)" = "local change" ]
+}
+
 @test "merge --rebuilt-commit refuses a commit that shares no history with the rebuild" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

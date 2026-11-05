@@ -785,6 +785,7 @@ impl Repo {
             ));
         }
         refuse_changed_submodule(path, &base, &given)?;
+        self.refuse_upstream_commits(path, &rebuilt, &given)?;
         let count = git(&["rev-list", "--count", &format!("{base}..{given}")])
             .out()
             .unwrap_or_default();
@@ -817,6 +818,50 @@ impl Repo {
             Ok(true) => {}
         }
         log_ok(format!("{path}: merged {}", short(&given)));
+        Ok(())
+    }
+}
+
+impl Repo {
+    /// --rebuilt-commit merges <commit> as the monorepo's own work and keeps
+    /// the synced commit. A commit of the splice's upstream in <commit> that
+    /// the rebuild lacks, e.g. from a pull in a worktree of it, would come in
+    /// as local work too, and the next push would publish its changes again,
+    /// in a commit of its own. A pull records it as the synced commit instead.
+    fn refuse_upstream_commits(&mut self, path: &str, rebuilt: &str, given: &str) -> Res<()> {
+        let names = self.upstream_lists.get(path).cloned().unwrap_or_default();
+        let mut prefixes = Vec::new();
+        for name in names {
+            let url = self.url_of(path, &name);
+            let key = self.upstream_key(&url)?;
+            if !key.is_empty() {
+                prefixes.push(format!("refs/splices/{key}/"));
+            }
+        }
+        if prefixes.is_empty() {
+            return Ok(());
+        }
+        let local = git(&["rev-list", given, "--not", rebuilt])
+            .out()
+            .unwrap_or_default();
+        for commit in local.lines() {
+            let mut args = vec![
+                "for-each-ref",
+                "--count=1",
+                "--format=%(refname)",
+                "--contains",
+                commit,
+            ];
+            args.extend(prefixes.iter().map(String::as_str));
+            if git(&args).out().is_some_and(|found| !found.is_empty()) {
+                return die(format!(
+                    "{path}: {} has {}, a commit of its upstream that the rebuild lacks, which would come in as a local change -- 'git splice pull {}' takes the upstream's commits in instead",
+                    short(given),
+                    short(commit),
+                    shell_quote(path)
+                ));
+            }
+        }
         Ok(())
     }
 }
