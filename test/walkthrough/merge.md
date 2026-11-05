@@ -14,6 +14,7 @@ NAME
 SYNOPSIS
     git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
+    git splice merge [-m <message>] --rebuilt-commit <commit> <path>
 ```
 
 ## Description
@@ -181,6 +182,40 @@ $ git splice merge -h | check-help option --no-fork-point
 ```
 
 See [rewritten upstream branches](#rewritten-upstream-branches).
+
+### `--rebuilt-commit`
+
+```scrut
+$ git splice merge -h | check-help option --rebuilt-commit
+        Merges <commit> instead of an upstream branch: one made on top of
+        'git splice rebuild <path>', e.g. in a worktree of it, where the
+        splice is the whole repository and a splice inside it is one level
+        down. It's a three-way merge of the folder from where <commit> left
+        the rebuild, so changes the monorepo made since then are kept, and a
+        conflict lands in the working tree. The synced commit stays: <commit>
+        is local work, not the upstream's, and 'git splice push <path>'
+        sends it. The commit takes <commit>'s message if it's one commit on
+        top of the rebuild. It's the way back for 'git splice push
+        --rebuilt-commit', which sends an edited rebuild the other way.
+
+        Like 'git merge --squash', it takes <commit>'s changes, not the
+        commit, and records nothing: before a branch merged that way goes
+        on, rebase it onto the new 'git splice rebuild <path>', or the next
+        merge starts from the old one, and keeps what the branch deleted
+        since.
+
+        It refuses a <commit> with a commit of the splice's upstream, as
+        fetched, that the rebuild lacks, e.g. from a pull in the worktree:
+        that would come in as a local change, and the next push would
+        publish it again. 'git splice pull <path>' takes the upstream's
+        commits in instead. Upstream commits no fetched branch has, not
+        fetched yet or rewritten away since, look like local work to it.
+```
+
+The [scenario](../scenarios/01-everyday-sync/02-up-to-date/worked-on-in-a-worktree.md)
+works on `vendor/a/` in a worktree of its rebuild and merges the result
+back, and [another](../scenarios/01-everyday-sync/02-up-to-date/upstream-pulled-in-a-worktree.md)
+shows the refusal of a pull made there.
 
 ### `-m`
 
