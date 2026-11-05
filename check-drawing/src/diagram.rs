@@ -205,10 +205,11 @@ pub fn is_lane_label(value: &str) -> bool {
 }
 
 /// The lengths a box's name at the start of <text> can have: a word without
-/// spaces, or `U(x)`, where x is a label, which may have spaces.
+/// spaces, or `U(x)`, where x is a label, which may have spaces. A shorter
+/// word would leave no ` = ` after it.
 fn name_lengths(text: &str) -> Vec<usize> {
     let word = text.find(' ').unwrap_or(text.len());
-    let mut lengths: Vec<usize> = (1..=word).collect();
+    let mut lengths: Vec<usize> = if word > 0 { vec![word] } else { vec![] };
     if let Some(inner) = text.strip_prefix("U(") {
         let end = inner.find(['(', ')']).unwrap_or(inner.len());
         if end > 0 && inner[end..].starts_with(')') {
@@ -250,6 +251,8 @@ mod tests {
             "merge-base(R,T)",
             "U(a note)",
             "T = U(a note) = main",
+            "U(café)",
+            "größe = H",
         ] {
             assert!(is_box_label(label), "{label}");
         }
@@ -261,6 +264,7 @@ mod tests {
             " = H",
             "U(a (b))",
             "U(a note) x",
+            "größe ändern",
         ] {
             assert!(!is_box_label(label), "{label}");
         }

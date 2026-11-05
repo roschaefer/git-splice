@@ -1280,7 +1280,10 @@ impl<'a> Checker<'a> {
             } else if target != named {
                 let label = match self.label_of.get(&named) {
                     Some(label) => label.clone(),
-                    None => format!("{}, which isn't drawn", &named[..named.len().min(7)]),
+                    None => format!(
+                        "{}, which isn't drawn",
+                        named.chars().take(7).collect::<String>()
+                    ),
                 };
                 self.errors
                     .push(format!("{shown} points at {vt}, the code says {label}"));
