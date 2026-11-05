@@ -1,0 +1,23 @@
+name: Cache cleanup
+
+# Deletes a PR's caches once it is closed. Nothing can use them any more,
+# but they count toward the repository's 10 GB cache limit: magic-nix-cache
+# saves hundreds of entries per PR, and over the limit GitHub evicts entries
+# main still needs, like the scrut build.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write
+
+jobs:
+  delete-caches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the PR's caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: gh cache delete --all --ref "$REF" --succeed-on-no-caches
