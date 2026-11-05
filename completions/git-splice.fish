@@ -76,6 +76,7 @@ complete -c git-splice -n "__fish_seen_subcommand_from fetch merge pull push" -l
 complete -c git-splice -n "__fish_seen_subcommand_from fetch" -l no-track -d 'stop tracking an upstream branch on the current branch'
 complete -c git-splice -n "__fish_seen_subcommand_from clone init merge pull" -s m -l message -x -d 'commit message, instead of the default one'
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l rebuilt-commit -x -a $branches -d 'push this commit instead of the rebuild'
+complete -c git-splice -n "__fish_seen_subcommand_from merge" -l rebuilt-commit -x -a $branches -d 'merge this commit, made on top of the rebuild'
 complete -c git-splice -n "__fish_seen_subcommand_from log" -l graph -d 'draw both sides as a graph'
 complete -c git-splice -n "__fish_seen_subcommand_from clone" -l merge -d 'merge with an existing folder'
 complete -c git-splice -n "__fish_seen_subcommand_from clone" -l from-submodule -d 'turn a submodule into a splice'

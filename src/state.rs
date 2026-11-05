@@ -284,7 +284,7 @@ pub fn splice_in(
     new_folder: &str,
     new_blob: &str,
     message: &str,
-) -> Res<()> {
+) -> Res<bool> {
     let base_tree = reroot_tree(path, base_folder, base_blob, "HEAD")?;
     let new_tree = reroot_tree(path, Some(new_folder), Some(new_blob), "HEAD")?;
     let base = git(&[
@@ -318,7 +318,11 @@ pub fn splice_in(
         &theirs,
     ]);
     if ok {
-        return Ok(());
+        return Ok(true);
+    }
+    if picked_nothing() {
+        git(&["cherry-pick", "--quit"]).q().ok();
+        return Ok(false);
     }
     // "could not apply <theirs>" names the throwaway commit: no use to anyone.
     for line in output.lines() {
@@ -335,6 +339,19 @@ pub fn splice_in(
         ));
     }
     Err(Fail::Soft)
+}
+
+/// A cherry-pick that stopped without a conflict, because its changes are
+/// already in HEAD: nothing is unmerged, and the index is HEAD's.
+fn picked_nothing() -> bool {
+    git(&["rev-parse", "--quiet", "--verify", "CHERRY_PICK_HEAD"])
+        .q()
+        .ok()
+        && git(&["ls-files", "--unmerged"])
+            .out()
+            .unwrap_or_default()
+            .is_empty()
+        && git(&["diff", "--cached", "--quiet", "HEAD"]).q().ok()
 }
 
 /// A new id for a splice that clone or init mounts at <path> from upstream <url>

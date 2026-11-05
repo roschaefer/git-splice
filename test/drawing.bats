@@ -304,6 +304,13 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   [ "$output" = "!!   U(z) points at n, but no commit z is drawn" ]
 }
 
+@test "drawing: a box U(X) names a commit whose label has spaces" {
+  edit_drawing -u '//mxCell[@id="refT"]/@value' -v 'U(a note)'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(a note) points at n, but no commit a note is drawn" ]
+}
+
 @test "drawing: an arrow from a commit into a box is to be reversed" {
   edit_drawing -u '//mxCell[@source="refR"]/@source' -v e_ -u '//mxCell[@source="e_" and @target="e_"]/@target' -v refR
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
