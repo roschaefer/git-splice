@@ -7,10 +7,11 @@ whole or squashed into one commit. `split` and `push` turn the monorepo's
 commits that touched the folder back into library commits.
 
 `git-splice` started as a wrapper around `git subtree`, and stopped
-because of two problems this page shows: without `--squash`, the
+because of the problems this page shows: without `--squash`, the
 library's whole history comes into the monorepo; with it, `split` walks
-the monorepo's whole history on every push. After them, the same with
-`git-splice`, and where `git subtree` is the better tool.
+the monorepo's whole history on every push; and the sync points that
+`--rejoin` adds against that are lines in commit messages. After them,
+the same with `git-splice`, and where `git subtree` is the better tool.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits by
 three developers, and a monorepo with an app and 40 commits.
@@ -58,17 +59,12 @@ $ git log --graph --format=%s -4
 ```
 
 The monorepo doesn't need those 30 commits: it uses the library, it
-doesn't develop it. What it does need, the changes that fit the library
-into the app, are its own commits anyway.
+doesn't develop it.
 
-That's the price for `split` to scale: it can start at the newest
-library commit the monorepo has, and walks only the commits since. It
-finds where in the commit messages: every commit `add`, `pull` and
-`split --rejoin` make names the folder in a `git-subtree-dir:` line,
-and `split` looks for those. The merge's message also names a monorepo
-commit, its first parent *a* (`app commit 40`), as
-`git-subtree-mainline:`, and the library commit that commit's history
-maps to, as `git-subtree-split:`:
+They're the price for a fast `split`. The merge's message names the
+folder, the monorepo commit before it, *a* (`app commit 40`), and the
+library commit that matches it. `split` finds these lines, and walks
+only the commits after *a*:
 
 ```scrut
 $ git log -1 --format=%B | grep '^git-subtree-'
@@ -76,9 +72,6 @@ git-subtree-dir: vendor/lib
 git-subtree-mainline: 7de219808bfd601897cdad67aa5c90b5a2e9bce8
 git-subtree-split: bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
-
-From there on, `split` knows the monorepo's history already, and walks
-only what came after.
 
 ## Problem 2: with `--squash`, `split` walks everything
 
@@ -98,11 +91,10 @@ $ git rev-list --count HEAD
 42
 ```
 
-It's still a merge, so the history isn't linear. `add` makes two
-commits: *q* (`Squashed 'vendor/lib/' content from commit bafd496`),
-the library's files without parents, and the merge *s*, with *a* (`app
-commit 40`) and *q* as its parents. *a* is drawn as a stack: it stands
-for the 40 app commits in a line, which the drawings leave out:
+It's still a merge: *q* (`Squashed 'vendor/lib/' content from commit
+bafd496`) has the library's files and no parents, and the merge *s*
+puts them into `vendor/lib/`. *a* is drawn as a stack: it stands for
+the 40 app commits:
 
 <div align="center">
 
@@ -118,15 +110,7 @@ ok   git-subtree-squash-add.drawio.svg: 3 commits, 3 arrows, 1 boxes
 ```
 -->
 
-*q* has the library's files at its root, as the library has them. The
-merge *s* is what puts them into `vendor/lib/`:
-
-```scrut
-$ git ls-tree --name-only HEAD^2
-src
-```
-
-Two fixes to the library, between app commits:
+Two fixes to the library, *c* and *e*, between app commits *b* and *d*:
 
 ```scrut
 $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
@@ -134,10 +118,6 @@ $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
 >   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
 >   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
-
-The monorepo's history now, with the four new commits after *s*: *b*
-(`app commit 41`), *c* (`lib fix 1`), *d* (`app commit 42`) and *e*
-(`lib fix 2`):
 
 <div align="center">
 
@@ -153,10 +133,8 @@ ok   git-subtree-squashed.drawio.svg: 7 commits, 7 arrows, 1 boxes
 ```
 -->
 
-Now `split` knows no library commit in the monorepo's history to start
-from. *q*'s message names the library commit it squashes, but no
-`git-subtree-mainline:`, no monorepo commit up to which the history is
-known:
+*q*'s message names the library commit, but no monorepo commit, no
+`git-subtree-mainline:`:
 
 ```scrut
 $ git log -1 --format=%B HEAD~4^2 | grep '^git-subtree-'
@@ -164,21 +142,13 @@ git-subtree-dir: vendor/lib
 git-subtree-split: bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
-So `split` walks all of it, every time, though only *c* and *e* touched
-the library:
+So `split` has nowhere to start, and walks all 46 commits, every time,
+to find *c* and *e*:
 
 ```scrut
 $ subtree_split_walks vendor/lib
 46
 ```
-
-```scrut
-$ git rev-list --count HEAD
-46
-```
-
-The ones `split` finds are those that changed `vendor/lib/`. The stack
-*a* is all 40 app commits:
 
 <div align="center">
 
@@ -194,11 +164,10 @@ ok   git-subtree-split-walks.drawio.svg: 7 commits, 7 arrows, 1 boxes
 ```
 -->
 
-### With `--rejoin`, a merge for every push, which a squash merge drops
+### `--rejoin`: a merge for every push
 
 `split --rejoin` merges the split result back into the monorepo, as a
-starting point for the next `split`. With `--squash`, the result comes
-in as a single commit too:
+starting point for the next `split`:
 
 ```scrut
 $ git subtree split --rejoin --squash --prefix=vendor/lib
@@ -207,11 +176,9 @@ Merge made by the 'ort' strategy.
 ```
 
 `48108da` is the library commit with the two fixes, the same one
-`git splice push` makes [below](#how-git-splice-avoids-both). The merge
-*j* (`Split 'vendor/lib/' into commit
-'48108daa0f798109c3e672ed47a7de6204cf4e02'`) has *r* (`Squashed
-'vendor/lib/' changes from bafd496..48108da`) as its second parent, on
-top of *q*:
+`git splice push` makes [below](#how-git-splice-avoids-them). It comes
+in squashed, as *r* on top of *q*, and the merge *j* names *e*, its
+first parent:
 
 <div align="center">
 
@@ -228,9 +195,6 @@ ok   git-subtree-rejoin.drawio.svg: 9 commits, 10 arrows, 1 boxes
 ```
 -->
 
-*j*'s message has what *q*'s lacks, a `git-subtree-mainline:`, here
-*e*:
-
 ```scrut
 $ git log -1 --format=%B | grep '^git-subtree-'
 git-subtree-dir: vendor/lib
@@ -238,15 +202,8 @@ git-subtree-mainline: 9d3cc6061455cb38432ce9846218e1227e4771be
 git-subtree-split: 48108daa0f798109c3e672ed47a7de6204cf4e02
 ```
 
-The next `split` starts there, and walks only the few commits since:
-
-```scrut
-$ subtree_split_walks vendor/lib
-3
-```
-
 After two more commits, *g* (`app commit 43`) and *h* (`lib fix 3`),
-it walks only these, from *e*, the merge's first parent, on:
+`split` starts at *e* and walks only the few commits since:
 
 ```scrut
 $ git switch -q -c rejoined &&
@@ -281,15 +238,23 @@ $ git switch -q squashed
 ```
 -->
 
-That's one more merge commit for every push. And where a pull request is
-squash-merged, *j* never reaches the branch it's merged into.
-Squash-merged on top of *s*, that branch gets one commit *p* (`lib fixes
-(#1)`) with the fixes, and neither *j* nor *r*:
+### A squash merge drops the rejoin
+
+Where pull requests are squash-merged, *j* never reaches the target
+branch. It gets one commit *p* (`lib fixes (#1)`), on top of *s*:
 
 ```scrut
 $ git switch -q -c squash-merged "HEAD^~4" &&
 >   git merge -q --squash squashed >/dev/null &&
 >   git commit -q -m "lib fixes (#1)"
+```
+
+*p*'s message has none of the lines `split` looks for, so the next
+`split` walks everything again:
+
+```scrut
+$ subtree_split_walks vendor/lib
+43
 ```
 
 <div align="center">
@@ -306,27 +271,11 @@ ok   git-subtree-squash-merged.drawio.svg: 4 commits, 4 arrows, 1 boxes
 ```
 -->
 
-*p*'s message is the pull request's, so it has none of the lines
-`split` looks for:
+### Several subtrees braid the history
 
-```scrut
-$ git log -1 --format=%B | grep -c '^git-subtree-'
-0
-[1]
-```
-
-So the next `split` from there walks all of the monorepo's history
-again, to find *p*:
-
-```scrut
-$ subtree_split_walks vendor/lib
-43
-```
-
-### With several subtrees, the merges braid
-
-Each subtree rejoins on its own. Here three more sub-repositories, `x`,
-`y` and `z`, with a commit each:
+Each subtree rejoins on its own. Three sub-repositories, `x`, `y` and
+`z`, then two rounds of work, each a commit that fixes all three and a
+`split --rejoin` for each:
 
 <!--
 ```scrut
@@ -347,9 +296,6 @@ $ git switch -q -c three before-lib &&
 >   done
 ```
 
-Two rounds of work, each a commit that fixes all three, then a `split
---rejoin` for each of them, always in the same order:
-
 ```scrut
 $ for round in 1 2; do
 >   for r in x y z; do echo "fix $round" >>"vendor/$r/README"; done &&
@@ -360,57 +306,8 @@ $ for round in 1 2; do
 > done
 ```
 
-```scrut
-$ git log --graph --format=%s before-lib..
-*   Split 'vendor/z/' into commit 'a23fe6cee22c6fdbc440a11fc2ce954826b2deb1'
-|\  
-| * Squashed 'vendor/z/' changes from a524acb..a23fe6c
-* |   Split 'vendor/y/' into commit '52d3a5cb51b6fa042700f2dba609afc8c255abe9'
-|\ \  
-| * | Squashed 'vendor/y/' changes from a9a463c..52d3a5c
-* | |   Split 'vendor/x/' into commit '938ea9da1c9567fce25d56be0faae7e490e6c8ce'
-|\ \ \  
-| * | | Squashed 'vendor/x/' changes from 35e1621..938ea9d
-* | | | fix 2 in x, y and z
-* | | |   Split 'vendor/z/' into commit 'a524acb25444b320bfc62258031115aa4d659ca9'
-|\ \ \ \  
-| | |_|/  
-| |/| |   
-| * | | Squashed 'vendor/z/' changes from edb382f..a524acb
-* | | |   Split 'vendor/y/' into commit 'a9a463c55f67c27b6b2e94303251381fe5d91686'
-|\ \ \ \  
-| | |_|/  
-| |/| |   
-| * | | Squashed 'vendor/y/' changes from 0e92a20..a9a463c
-* | | |   Split 'vendor/x/' into commit '35e16213fcec3efdea8588461c9eb3e989c03050'
-|\ \ \ \  
-| | |_|/  
-| |/| |   
-| * | | Squashed 'vendor/x/' changes from f12e751..35e1621
-* | | | fix 1 in x, y and z
-* | | |   Merge commit '23b17e1f3d39bf541f3660542d0c615ab841d018' as 'vendor/z'
-|\ \ \ \  
-| | |_|/  
-| |/| |   
-| * | | Squashed 'vendor/z/' content from commit edb382f
-|  / /  
-* | |   Merge commit 'f854e45c340a9b97ba671c849e70eac63f2186b5' as 'vendor/y'
-|\ \ \  
-| | |/  
-| |/|   
-| * | Squashed 'vendor/y/' content from commit 0e92a20
-|  /  
-* / Merge commit '70c4706aabccfd407af9602c403f367906a9fbb6' as 'vendor/x'
-|/  
-* Squashed 'vendor/x/' content from commit f12e751
-```
-
-Each `Squashed` commit has the one before it, of the same
-sub-repository, as its parent, below the other two sub-repositories'
-rejoins. So its line crosses theirs, and the same braid, `| |_|/` over
-`| |/| |`, repeats for every rejoin, for as long as the order stays the
-same. Each sub-repository keeps a line of its own, open for the whole
-history:
+Each sub-repository keeps a line of its own, open for the whole
+history, and crossing the others at every rejoin:
 
 <div align="center">
 
@@ -432,7 +329,81 @@ ok   git-subtree-rejoin-three.drawio.svg: 21 commits, 27 arrows, 1 boxes
 None of these merges says anything about the app. They're there so that
 `split` stays fast.
 
-## How `git-splice` avoids both
+## Problem 3: the sync points are in commit messages
+
+`git subtree` keeps no file of its own. `pull --squash` and `split` find
+the newest sync point with `git log --grep="^git-subtree-dir:
+vendor/lib/*$"`. So a sync point belongs to whatever folder name a
+message has, and to whichever commit carries the message.
+
+### A squash merge copies them into another commit
+
+Hosts can fill a squash merge's message with the messages of the pull
+request's commits. Then *p* carries the lines of *j* and *r*:
+
+```scrut
+$ git switch -q squash-merged &&
+>   git commit -q --amend -m "lib fixes (#1)" \
+>     -m "$(git log --format='* %s%n%n%b' HEAD~1..squashed)"
+```
+
+```scrut
+$ git log -1 --format=%B | grep '^git-subtree-'
+git-subtree-dir: vendor/lib
+git-subtree-mainline: 9d3cc6061455cb38432ce9846218e1227e4771be
+git-subtree-split: 48108daa0f798109c3e672ed47a7de6204cf4e02
+git-subtree-dir: vendor/lib
+git-subtree-split: 48108daa0f798109c3e672ed47a7de6204cf4e02
+```
+
+`pull --squash` takes *p* for a `--rejoin` merge, and asks for its
+second parent, which *p* doesn't have:
+
+```scrut
+$ git subtree pull -q --squash --prefix=vendor/lib https://git.example.com/lib.git main
+From $COMPARISON/upstream/lib
+ * branch            main       -> FETCH_HEAD
+fatal: Needed a single revision
+
+[1]
+```
+
+### A moved folder loses them
+
+Back on the branch with the rejoin, the library moves to
+`vendor/parser/`:
+
+```scrut
+$ git switch -q squashed &&
+>   git mv vendor/lib vendor/parser && git commit -q -m "move vendor/lib to vendor/parser"
+```
+
+The messages still say `vendor/lib`, so under the new name there's no
+sync point:
+
+```scrut
+$ git subtree pull -q --squash --prefix=vendor/parser https://git.example.com/lib.git main
+From $COMPARISON/upstream/lib
+ * branch            main       -> FETCH_HEAD
+fatal: can't squash-merge: 'vendor/parser' was never added.
+[1]
+```
+
+`split` builds a history that starts at the move, without the
+library's, so `push` is refused:
+
+```scrut
+$ git subtree split --prefix=vendor/parser --branch=parser-split >/dev/null &&
+>   git log --format=%s parser-split
+move vendor/lib to vendor/parser
+```
+
+```scrut
+$ git subtree push --prefix=vendor/parser https://git.example.com/lib.git main | grep -F '[rejected]'
+ ! [rejected]        c7121590d05f5a17f3adebbbd88ff15816a537d2 -> main (non-fast-forward)
+```
+
+## How `git-splice` avoids them
 
 In a copy of the monorepo from before the library, `clone` adds one
 ordinary commit, and the history stays linear. It also adds
@@ -443,11 +414,6 @@ to the library.
 $ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
 ===  vendor/lib: fetching https://git.example.com/lib.git
 ok   vendor/lib: cloned bafd496 from main
-```
-
-```scrut
-$ git rev-list --count HEAD
-41
 ```
 
 ```scrut
@@ -466,10 +432,8 @@ $ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
 >   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
 ```
 
-`push` only looks at the commits since the boundary, usually the newest
-commit that changed `.splice`: the last `clone` or `pull`. It doesn't need the
-library's history in the monorepo, nor the monorepo's history before that
-commit. These are the commits it walks, following first parents:
+`push` walks only the commits since the boundary, the newest commit
+that changed `.splice`, here the `clone` commit:
 
 ```scrut
 $ boundary="$(git log -1 --format=%H -- vendor/lib/.splice)" &&
@@ -490,8 +454,7 @@ ok   vendor/lib: pushed 48108da to main
 
 The monorepo's history stays a line, with the `clone` commit *s* in
 place of the merge. The library's `main` gets *c'* and *e'*, rebuilt
-from *c* and *e*, on top of the library's last commits *k* and *l*
-(`lib commit 29` and `lib commit 30`):
+from *c* and *e*, on top of its last commits *k* and *l*:
 
 <div align="center">
 
@@ -508,8 +471,8 @@ ok   git-subtree-splice.drawio.svg: 10 commits, 10 arrows, 2 boxes
 ```
 -->
 
-Like `--squash`, a splice keeps the library's history out of the
-monorepo's. It's still at hand, fetched under `refs/splices/lib/heads/`:
+The library's history stays out of the monorepo's, but at hand, fetched
+under `refs/splices/lib/heads/`:
 
 ```scrut
 $ git log --oneline -4 refs/splices/lib/heads/main
@@ -522,9 +485,8 @@ eacfd66 lib commit 29
 ### The same sync point, kept in a file
 
 `git subtree` and `git-splice` remember the same thing: which monorepo
-commit matches which library commit, so that neither has to walk the
-history before it. In the [sync model](../concepts/sync-model/README.md)'s
-terms:
+commit matches which library commit. In the
+[sync model](../concepts/sync-model/README.md)'s terms:
 
 | `git subtree` | `git-splice` |
 | --- | --- |
@@ -533,22 +495,24 @@ terms:
 | `git-subtree-mainline:`, the monorepo commit the walk goes back to | B, the boundary, where the rebuild starts |
 | `git-subtree-split:`, the library commit it matches | U(B), the upstream commit B's `.splice` records |
 
-`git subtree` writes the pair into the message of one commit, the merge
-*j*, which names its first parent *e*: the commit that carries the pair
-and the one it names are two. `git-splice` writes U into
-`vendor/lib/.splice`, a file in the monorepo, so U(x) is what *x*'s
-`.splice` records, for any commit *x*:
+`git subtree` writes the pair into the message of *j*, which names *e*:
+carrier and named commit are two. `git-splice` writes U into
+`vendor/lib/.splice`, and B is the newest commit that changed it:
+carrier and boundary in one.
 
 ```scrut
 $ git config -f vendor/lib/.splice splice.commit
 bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
-B is the newest commit that changed it, here the `clone` commit *s*:
-carrier and boundary in one. A squash merge drops *j*'s message, and
-with it the pair. It keeps `.splice`'s content: the squash commit
-changes the file, and so becomes B itself
+A squash merge keeps the file's content, where it drops *j*'s message.
+Squash-merged, *c* and *e* leave `.splice` as it was, and B stays the
+`clone` commit; a pull request with a pull in it changes `.splice`, and
+its squash commit becomes B
 ([scenario](../scenarios/03-branches-and-teamwork/03-squash-merged-pull/README.md)).
+`git mv` moves the file along, and a change to it shows in the diff like
+any other. Moving a splice has gaps of its own, shown in the
+[moved folders scenarios](../scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md).
 
 ## Where `git subtree` is the better tool
 
