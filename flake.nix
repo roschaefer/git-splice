@@ -100,6 +100,7 @@
               }.${arch};
             };
             sourceRoot = ".";
+            meta.mainProgram = "sl";
             nativeBuildInputs = [ pkgs.autoPatchelfHook ];
             # The bundled Python's extension modules link these.
             buildInputs = with pkgs; [
@@ -152,6 +153,7 @@
               }.${target};
             };
             sourceRoot = ".";
+            meta.mainProgram = "jj";
             installPhase = "install -Dm755 jj $out/bin/jj";
           };
       in

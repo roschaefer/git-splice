@@ -19,7 +19,7 @@ runs:
         outs=()
         drvs=()
         for package in scrut jujutsu sapling; do
-          drvs+=("$(basename "$(nix eval --raw ".#$package.drvPath")" .drv)")
+          drvs+=("$(nix eval --raw ".#$package.drvPath")")
           outs+=("$(nix eval --raw ".#$package.outPath")")
         done
         echo "hash=$(printf '%s\n' "${drvs[@]}" | sha256sum | cut -c1-32)" >>"$GITHUB_OUTPUT"
