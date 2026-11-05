@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.18.0](https://github.com/roschaefer/git-splice/compare/v0.17.1...v0.18.0) (2026-11-05)
+
+
+### Features
+
+* **check-drawing:** draw a branch of the monorepo with a splice's commits as a dashed box ([#372](https://github.com/roschaefer/git-splice/issues/372)) ([8f493b3](https://github.com/roschaefer/git-splice/commit/8f493b30935fee5dc74617557f39820491de8392))
+* **docs:** add a help structure checker ([#357](https://github.com/roschaefer/git-splice/issues/357)) ([75b4d39](https://github.com/roschaefer/git-splice/commit/75b4d3946558840a10bbd72c3d8500c18cdc5f98))
+
+
+### Bug Fixes
+
+* **check-help:** enforce executable fragment boundaries ([#369](https://github.com/roschaefer/git-splice/issues/369)) ([f2635f1](https://github.com/roschaefer/git-splice/commit/f2635f14deb5bcb07ab4042b0fc75fec92dd0997))
+
 ## [0.17.1](https://github.com/roschaefer/git-splice/compare/v0.17.0...v0.17.1) (2026-11-04)
 
 
