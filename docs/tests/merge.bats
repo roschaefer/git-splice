@@ -1021,6 +1021,18 @@ layer_with_a_commit() {
   [ "$status" -eq 0 ]
 }
 
+@test "merge still says an upstream isn't fetched yet after its first fetch failed" {
+  scenario_init_then_cloned "$monorepo" "$upstream"
+  cd "$monorepo"
+  mv "$upstream" "$upstream.away"
+  run splice fetch lib/a
+  [ "$status" -ne 0 ]
+  mv "$upstream.away" "$upstream"
+  run splice merge lib/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"??   lib/a: not fetched yet -- run 'git splice fetch lib/a' first"* ]]
+}
+
 @test "pull says the synced commit is gone from its upstream before the ways out of a history it no longer shares" {
   scenario_up_to_date "$monorepo" "$upstream"
   git clone -q --no-local "$monorepo" "$BATS_TEST_TMPDIR/fresh"

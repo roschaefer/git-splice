@@ -201,10 +201,15 @@ impl Repo {
     pub fn fetch_all(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchFailures> {
         // Before the fetches start in parallel, which would race to record keys.
         let mut groups: Vec<(String, String, Vec<usize>)> = Vec::new();
+        let mut new_keys = Vec::new();
         for (i, (path, name)) in entries.iter().enumerate() {
             self.require_upstream_list(path)?;
             let url = self.url_of(path, name);
+            let recorded = !self.upstream_key(&url)?.is_empty();
             let key = self.create_upstream_key(&url)?;
+            if !recorded {
+                new_keys.push(key.clone());
+            }
             match groups.iter_mut().find(|(k, _, _)| *k == key) {
                 Some((_, _, indexes)) => indexes.push(i),
                 None => groups.push((key, url, vec![i])),
@@ -299,6 +304,11 @@ impl Repo {
             }
             if report.failed && !failures.contains(path) {
                 failures.push(path.clone());
+            }
+        }
+        for (key, _, _, members) in &jobs {
+            if new_keys.contains(key) && members.iter().all(|m| reports[m.index].failed) {
+                self.forget_upstream_key(key)?;
             }
         }
         Ok(failures)
