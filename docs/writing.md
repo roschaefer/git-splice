@@ -83,6 +83,11 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   `url.<path>.insteadOf` maps to `$UPSTREAM`, so the URL and the splice
   id stay the same on every run. `scrut update` writes the file's tabs
   as `\t… (escaped)`: turn them back into tabs.
+- A command-reference page gets its structure from `--help`: each help
+  section ends in the page section's `See also` link, and that section
+  starts by extracting it with [`check-help`](../check-help/). The hidden
+  final check keeps the linked sections and the page's level-two headings
+  equal and in order.
 - A drawing's [`check_drawing`](../check-drawing/) goes in a hidden
   block (`<!--` … `-->`): it keeps the drawing true, but a reader
   learns nothing from it. Only a page that explains the check itself,
