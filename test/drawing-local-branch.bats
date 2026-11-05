@@ -94,3 +94,20 @@ check() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   T is dashed, but only a branch of the monorepo is: draw it solid"* ]]
 }
+
+@test "drawing local branch: its commits stay in the lane, not outside every lane like the monorepo's" {
+  sed -i 's|id="b_" parent="1" vertex="1" style="ellipse;dashed=1;" value="b'"'"'"><mxGeometry x="350"|id="b_" parent="1" vertex="1" style="ellipse;dashed=1;" value="b'"'"'"><mxGeometry x="-200"|' "$drawing"
+  check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   b' is on the dashed branch of the lane vendor/a/, but outside every lane: draw it in that lane"* ]]
+}
+
+@test "drawing local branch: a solid box at a commit only the monorepo's branch has is to be dashed, also where the upstream has a branch of that name" {
+  git worktree remove "$BATS_TEST_TMPDIR/a-work"
+  git branch -q -m work-on-a main-work
+  git update-ref "refs/splices/$(git splice key vendor/a)/heads/main-work" "refs/splices/$(git splice key vendor/a)/heads/main"
+  WORK_BOX=main-work WORK_BOX_STYLE="rounded=1;" worktree_drawing
+  run check_drawing "$drawing" a=HEAD~1 k="$(git config --file vendor/a/.splice splice.commit)" w=main-work
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   main-work is a branch of the monorepo, which the upstream doesn't have: dash the box"* ]]
+}

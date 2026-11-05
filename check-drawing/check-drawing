@@ -480,8 +480,16 @@ check_drawing() {
       continue
     fi
     if [[ ${#lanes[@]} -gt 0 && -z "${lane_of[$id]}" ]]; then
-      in_monorepo "${commit_of[$id]}" ||
+      if ! in_monorepo "${commit_of[$id]}"; then
         errors+=("${value[$id]} isn't a monorepo commit, but it's outside every lane: draw it in its splice's lane")
+      elif ! git merge-base --is-ancestor "${commit_of[$id]}" HEAD 2>/dev/null; then
+        for sp in "${!local_tips[@]}"; do
+          if on_local_branch "${commit_of[$id]}" "$sp" && not_upstream_of "${commit_of[$id]}" "$sp"; then
+            errors+=("${value[$id]} is on the dashed branch of the lane $sp/, but outside every lane: draw it in that lane")
+            break
+          fi
+        done
+      fi
       continue
     fi
     [[ -n "${lane_of[$id]}" ]] || continue
@@ -768,7 +776,6 @@ check_drawing() {
           [[ -n "$named" ]] || continue
         elif [[ -n "${lane_of[$s]}" ]] && is_branch_term "$term" &&
           git rev-parse --verify --quiet "refs/heads/$term" >/dev/null &&
-          ! git rev-parse --verify --quiet "refs/splices/${side_key[$s]:-${truth["$sp|key"]}}/heads/$term" >/dev/null &&
           [[ -n "${commit_of[$t]:-}" ]] && git merge-base --is-ancestor "${commit_of[$t]}" "refs/heads/$term" &&
           not_upstream_of "${commit_of[$t]}" "$sp"; then
           errors+=("$shown is a branch of the monorepo, which the upstream doesn't have: dash the box")
