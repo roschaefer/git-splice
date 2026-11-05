@@ -125,20 +125,19 @@ rebuilt as their merge with *n*.
 
 ## Why not X?
 
-Each of these is the better tool somewhere; the
-[comparisons](test/comparisons/README.md) say where.
+The [comparisons](test/comparisons/README.md) run each of these next to
+`git-splice`.
 
 - [`git submodule`](test/comparisons/git-submodule.md): the monorepo
   doesn't see the library's files, and a fix takes two commits and two
   pushes.
 - [`git subtree`](test/comparisons/git-subtree.md): the library's history
   comes into the monorepo, or every push walks the monorepo's.
-- [git-subrepo](test/comparisons/third-party/git-subrepo.md): a rebase or
-  a squash merge can break what it records.
-- [Josh](test/comparisons/third-party/josh.md): the monorepo holds a copy
-  of the library's whole history.
-- [Copybara, ShipIt](test/comparisons/third-party/export-tools.md):
-  changes flow one way; syncing back is a separate workflow.
+- [git-subrepo](test/comparisons/third-party/git-subrepo.md): every push
+  commits to the monorepo, and a rebase or a squash merge breaks what it
+  records.
+- [Josh](test/comparisons/third-party/josh.md): a different use case, one
+  monorepo as the source of truth, served to others in parts.
 
 ## Getting started
 
