@@ -198,6 +198,10 @@ $ git splice merge -h | check-help option --rebuilt-commit
         top of the rebuild. It's the way back for 'git splice push
         --rebuilt-commit', which sends an edited rebuild the other way.
 
+        It records what it merged, so a branch merged before and continued
+        merges from there, as long as the monorepo's history still has that
+        merge: the rebuild has the merge's own commit, not <commit>'s.
+
         It refuses a <commit> with a commit of the splice's upstream, as
         fetched, that the rebuild lacks, e.g. from a pull in the worktree:
         that would come in as a local change, and the next push would

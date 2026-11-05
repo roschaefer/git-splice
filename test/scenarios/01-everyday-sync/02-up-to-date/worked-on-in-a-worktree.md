@@ -9,7 +9,9 @@ repository, to work in as if it were a clone: build it on its own, or run
 `git splice merge --rebuilt-commit` brings what was committed there back
 into `vendor/a/`. It's a three-way merge from where the commit left the
 rebuild, so the monorepo's own changes since then stay. The synced commit
-doesn't move: the commit is local work, and the next push sends it.
+doesn't move: the commit is local work, and the next push sends it. A
+branch merged that way can go on, and merge again from where the last
+merge took it.
 
 ## Output
 
@@ -101,25 +103,54 @@ monorepo change
 seed
 ```
 
+## Continued, and merged again
+
+The worktree's branch goes on, and removes the file again:
+
+```scrut
+$ git -C ../a-work rm -q other.txt &&
+>   git -C ../a-work commit -q -m "remove other.txt"
+```
+
+The rebuild doesn't have the worktree's first commit, only a copy of the
+merge's own commit. So the merge starts where the last merge took the
+branch, at that commit, which it recorded. From the rebuild's start,
+`other.txt` would look like the monorepo's own addition, and stay:
+
+```scrut
+$ git splice merge --rebuilt-commit work-on-a vendor/a
+ok   vendor/a: merged 04ee00c
+```
+
+```scrut
+$ git log --format=%s -1
+remove other.txt
+```
+
+```scrut
+$ ls vendor/a
+file.txt
+```
+
 ## Nothing to merge
 
 A commit in the worktree that changes no files, here the same commit
 reworded, has nothing to bring back:
 
 ```scrut
-$ git -C ../a-work commit -q --amend -m "add other.txt, reworded"
+$ git -C ../a-work commit -q --amend -m "remove other.txt, reworded"
 ```
 
 ```scrut
 $ git splice merge --rebuilt-commit work-on-a vendor/a
-ok   vendor/a: a5e4a9e's changes are in the folder already -- nothing to merge
+ok   vendor/a: dc67f6f's changes are in the folder already -- nothing to merge
 ```
 
 No commit, and no cherry-pick left in progress:
 
 ```scrut
 $ git log --format=%s -1
-add other.txt
+remove other.txt
 ```
 
 ```scrut

@@ -771,6 +771,9 @@ impl Repo {
                 shell_quote(path)
             ));
         };
+        // A branch merged before and continued: from the commit merged last,
+        // which the rebuild has only as the copy of the merge's own commit.
+        let base = self.merged_before(path, &base, &given).unwrap_or(base);
         if base == given {
             log_ok(format!(
                 "{path}: {} is part of the rebuild already -- nothing to merge",
@@ -807,7 +810,12 @@ impl Repo {
             &blob,
             &message,
         ) {
-            Err(_) => return die(format!("{path}: merge failed")),
+            Err(_) => {
+                if let Some(pick) = commit_of("CHERRY_PICK_HEAD") {
+                    self.record_merged(path, &pick, &given);
+                }
+                return die(format!("{path}: merge failed"));
+            }
             Ok(false) => {
                 log_ok(format!(
                     "{path}: {}'s changes are in the folder already -- nothing to merge",
@@ -817,8 +825,87 @@ impl Repo {
             }
             Ok(true) => {}
         }
+        if let Some(head) = commit_of("HEAD") {
+            self.record_merged(path, &head, &given);
+        }
         log_ok(format!("{path}: merged {}", short(&given)));
         Ok(())
+    }
+
+    /// Where --rebuilt-commit records what it merged: per splice id, a ref
+    /// named after the commit the merge made, or the one a conflict left to
+    /// commit, pointing at the commit it took in.
+    fn merged_prefix(&self, path: &str) -> Option<String> {
+        let id = git(&[
+            "config",
+            "--blob",
+            &format!("HEAD:{path}/{STATE_FILE}"),
+            "splice.id",
+        ])
+        .out()?;
+        Some(format!("refs/splices/rebuilt/{id}/"))
+    }
+
+    fn record_merged(&self, path: &str, made: &str, given: &str) {
+        if let Some(prefix) = self.merged_prefix(path) {
+            git(&["update-ref", &format!("{prefix}{made}"), given])
+                .q()
+                .ok();
+        }
+    }
+
+    /// The newest commit an earlier --rebuilt-commit took in from <given>'s
+    /// history since <base>, if HEAD's history still has that merge: found
+    /// by who made it, when, and its subject, which a cherry-pick keeps and
+    /// a rebase too, so an undone merge doesn't count.
+    fn merged_before(&self, path: &str, base: &str, given: &str) -> Option<String> {
+        let prefix = self.merged_prefix(path)?;
+        let records = git(&[
+            "for-each-ref",
+            "--format=%(refname:lstrip=-1) %(objectname)",
+            &prefix,
+        ])
+        .out()?;
+        let is_ancestor = |a: &str, b: &str| git(&["merge-base", "--is-ancestor", a, b]).q().ok();
+        let candidates: Vec<(String, String)> = records
+            .lines()
+            .filter_map(|line| line.split_once(' '))
+            .map(|(made, merged)| (made.to_string(), merged.to_string()))
+            .filter(|(_, merged)| {
+                merged != base && is_ancestor(base, merged) && is_ancestor(merged, given)
+            })
+            .collect();
+        if candidates.is_empty() {
+            return None;
+        }
+        let identity_format = "--format=%an%x1f%ae%x1f%ad%x1f%s";
+        let history = git(&[
+            "log",
+            "-z",
+            "--date=raw",
+            identity_format,
+            "HEAD",
+            "--",
+            path,
+        ])
+        .out()
+        .unwrap_or_default();
+        let made_here: std::collections::HashSet<&str> =
+            history.split('\0').map(str::trim_end).collect();
+        let mut newest: Option<String> = None;
+        for (made, merged) in candidates {
+            let Some(identity) = git(&["log", "-1", "--date=raw", identity_format, &made]).out()
+            else {
+                continue;
+            };
+            if !made_here.contains(identity.trim_end()) {
+                continue;
+            }
+            if newest.as_deref().is_none_or(|n| is_ancestor(n, &merged)) {
+                newest = Some(merged);
+            }
+        }
+        newest
     }
 }
 

@@ -970,6 +970,62 @@ layer_with_a_commit() {
   [ "$(cat vendor/a/other.txt)" = "from the layer" ]
 }
 
+# Commits file $1 with content $2 in the worktree "layer", or deletes it
+# without $2.
+layer_commit() {
+  if [[ $# -eq 2 ]]; then
+    echo "$2" >"$BATS_TEST_TMPDIR/layer/$1"
+    git -C "$BATS_TEST_TMPDIR/layer" add "$1"
+  else
+    git -C "$BATS_TEST_TMPDIR/layer" rm -q "$1"
+  fi
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q -m "layer: $1"
+}
+
+@test "merge --rebuilt-commit continues a branch it merged before from what it merged then, so a deletion since then stays deleted" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  layer_commit second.txt "second"
+  splice merge --rebuilt-commit layer vendor/a >/dev/null
+  layer_commit second.txt
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: merged $(git rev-parse --short layer)"* ]]
+  [ ! -e vendor/a/second.txt ]
+  [ "$(cat vendor/a/other.txt)" = "from the layer" ]
+  [ "$(git log -1 --format=%s)" = "layer: second.txt" ]
+}
+
+@test "merge --rebuilt-commit takes a merge undone since then in again" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  splice merge --rebuilt-commit layer vendor/a >/dev/null
+  git reset -q --hard HEAD^
+  layer_commit second.txt "second"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/other.txt)" = "from the layer" ]
+  [ "$(cat vendor/a/second.txt)" = "second" ]
+}
+
+@test "merge --rebuilt-commit continues from a merge that conflicted and was committed" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  echo "layer line" >>"$BATS_TEST_TMPDIR/layer/file.txt"
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q -am "layer line"
+  commit_local "$monorepo" vendor/a "monorepo line"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -ne 0 ]
+  printf 'seed\nmonorepo line\nlayer line\n' >vendor/a/file.txt
+  git add vendor/a/file.txt
+  git commit -q --no-edit
+  layer_commit other.txt
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ ! -e vendor/a/other.txt ]
+  [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\nmonorepo line\nlayer line')" ]
+}
+
 @test "merge --rebuilt-commit refuses a commit that shares no history with the rebuild" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
