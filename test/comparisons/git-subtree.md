@@ -466,8 +466,9 @@ request's commits. On the squash-merged branch from above, *p* then
 carries the lines of *j* and *r*:
 
 ```scrut
-$ git commit -q --amend -m "lib fixes (#1)" \
->   -m "$(git log --format='* %s%n%n%b' HEAD~1..squashed)"
+$ git switch -q squash-merged &&
+>   git commit -q --amend -m "lib fixes (#1)" \
+>     -m "$(git log --format='* %s%n%n%b' HEAD~1..squashed)"
 ```
 
 ```scrut
