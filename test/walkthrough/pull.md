@@ -7,45 +7,22 @@ $ source "$TESTDIR/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice pull -h
+$ git splice pull -h | check-help preamble
 NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
     git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
+```
 
-DESCRIPTION
+## Description
+
+```scrut
+$ git splice pull -h | check-help section description
     'git splice fetch' followed by 'git splice merge': fetches the splices'
     upstreams in parallel, then splices their changes in, as one ordinary
-    commit per splice. Also fetches the splices below each: pulling a splice
-    can move their synced commits. Top-down: a splice is pulled before the
-    ones below it, and a failed fetch stops the splices above and below it.
-
-    On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
-    --abort' to give up), then re-run pull for any splices left. With
-    --rebase, it's 'git rebase --continue' (or 'git rebase --abort').
-
-    --upstream names one of the upstreams a splice's .splice names; without
-    it, the splice's default upstream. A splice without the named upstream
-    stops the command before it starts. The splices below, selected or not,
-    are fetched from every upstream they name: names are only unique within one .splice, and
-    any of them may have the synced commit the pull moves to.
-
-    --branch names the upstream branch to pull, for this pull only, and
-    --track tracks it on the current branch; --rebase rebases
-    instead of merging, like 'git pull --rebase'; see 'git splice merge
-    --help' for these.
-
-    --bump also moves the synced commit up to the upstream branch when there's
-    nothing to pull, e.g. right after a push; see 'git splice merge --help'.
-
-    --no-fork-point merges a rewritten upstream branch from Git's merge base,
-    not from where the branch was before the rewrite; see 'git splice merge
-    --help'.
-
-    -m gives the commit this message, for one splice; see 'git splice merge
-    --help'.
+    commit per splice.
 ```
 
 In the [walkthrough's repositories](README.md), `vendor/pkg-a/` is
@@ -83,7 +60,63 @@ d2867e9 lib-c: first version
 ebe3b2b initial commit
 ```
 
-`-m` gives the commit your message instead, e.g. to say why you pull. It
+## Options
+
+```scrut
+$ git splice pull -h | check-help section options
+    <path>...
+        The splices to pull, by their folders.
+
+    --all
+        Pulls every splice.
+
+    --upstream <name>
+        Pulls from this one of the upstreams the splice's .splice names,
+        instead of its default upstream. A splice without the named
+        upstream stops the command before it starts. The splices below,
+        selected or not, are fetched from every upstream they name: names
+        are only unique within one .splice, and any of them may have the
+        synced commit the pull moves to.
+```
+
+### Merge options
+
+```scrut
+$ git splice pull -h | check-help option merge-options
+    --branch <name>
+        Pulls this upstream branch, for this pull only; see 'git splice
+        merge --help'.
+
+    --track
+        With --branch, also tracks it on the current branch; see 'git splice
+        merge --help'.
+
+    --bump
+        Also moves the synced commit up to the upstream branch when there's
+        nothing to pull, e.g. right after a push; see 'git splice merge
+        --help'.
+
+    --rebase
+        Rebases instead of merging, like 'git pull --rebase'; see 'git
+        splice merge --help'.
+
+    --no-fork-point
+        Merges a rewritten upstream branch from Git's merge base, not from
+        where the branch was before the rewrite; see 'git splice merge
+        --help'.
+```
+
+They work as for [`merge`](merge.md#options), after the fetch.
+
+### `-m`
+
+```scrut
+$ git splice pull -h | check-help option -m
+        Gives the commit this message, for one splice; see 'git splice merge
+        --help'.
+```
+
+It gives the commit your message instead, e.g. to say why you pull. It
 takes one splice: each gets a commit of its own. `.splice` records the
 upstream commit, so nothing needs to stay in the message:
 
@@ -104,16 +137,51 @@ $ git log -1 --format=%s
 take pkg-b's fix for the release
 ```
 
-## More
+## Order
 
-- When both sides changed the same lines, the pull stops at a conflict;
-  resolve it and `git commit` ([diverged history](diverged.md)).
-- Two developers who pull the same splice at different times get
-  conflicts in `.splice` when one merges the other's work. Pull the
-  monorepo before you pull a splice
-  ([concurrent-pulls](../scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).
+```scrut
+$ git splice pull -h | check-help section order
+    Also fetches the splices below each: pulling a splice can move their
+    synced commits. Top-down: a splice is pulled before the ones below it,
+    and a failed fetch stops the splices above and below it.
+```
+
+`pull` also fetches the splices below the ones it pulls, since pulling
+the splice above can move their synced commits
+([nesting](../concepts/nesting/README.md)).
+
+## Conflicts
+
+```scrut
+$ git splice pull -h | check-help section conflicts
+    On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
+    --abort' to give up), then re-run pull for any splices left. With
+    --rebase, it's 'git rebase --continue' (or 'git rebase --abort').
+```
+
+When both sides changed the same lines, the pull stops at a conflict;
+resolve it and `git commit` ([diverged history](diverged.md)).
+
+Two developers who pull the same splice at different times get conflicts
+in `.splice` when one merges the other's work. Pull the monorepo before
+you pull a splice
+([concurrent-pulls](../scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).
+
+## Read more
+
+```scrut
+$ git splice pull -h | check-help section read-more
+
+```
+
 - A squash merge of the pull's branch keeps the sync point
   ([squash-merged-pull](../scenarios/03-branches-and-teamwork/03-squash-merged-pull/README.md)).
 - When `git bisect` ends at a pull, the upstream commits squashed into
   it can be tested inside the monorepo, to find the one that broke it
   ([bisect-into-a-pull](../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/README.md)).
+
+<!-- Checks that every linked help section appears above, in order.
+```scrut
+$ git splice pull -h | check-help document "$TESTDIR/$TESTFILE"
+```
+-->
