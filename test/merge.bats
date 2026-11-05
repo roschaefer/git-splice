@@ -1026,6 +1026,48 @@ layer_commit() {
   [ "$(cat vendor/a/file.txt)" = "$(printf 'seed\nmonorepo line\nlayer line')" ]
 }
 
+@test "merge --rebuilt-commit continues a branch it merged before into a splice moved since then" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  layer_commit second.txt "second"
+  splice merge --rebuilt-commit layer vendor/a >/dev/null
+  mkdir -p libs
+  git mv vendor/a libs/a
+  git commit -q -m "move vendor/a"
+  layer_commit second.txt
+  run splice merge --rebuilt-commit layer libs/a
+  [ "$status" -eq 0 ]
+  [ ! -e libs/a/second.txt ]
+}
+
+@test "merge --rebuilt-commit tells an undone merge from one with the same author, date and subject" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  export GIT_AUTHOR_DATE=2026-01-02T00:00:00Z GIT_COMMITTER_DATE=2026-01-02T00:00:00Z
+  splice merge --rebuilt-commit layer -m "from the layer" vendor/a >/dev/null
+  layer_commit second.txt "second"
+  splice merge --rebuilt-commit layer -m "from the layer" vendor/a >/dev/null
+  [ "$(git log -2 --format='%an %ad %s' | sort -u | wc -l)" -eq 1 ]
+  git reset -q --hard HEAD^
+  layer_commit third.txt "third"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/second.txt)" = "second" ]
+  [ "$(cat vendor/a/third.txt)" = "third" ]
+}
+
+@test "merge --rebuilt-commit keeps its records apart from an upstream's fetched refs, also one whose key is rebuilt" {
+  upstream="$BATS_TEST_TMPDIR/rebuilt.git"
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  [ "$(splice key vendor/a)" = rebuilt ]
+  splice merge --rebuilt-commit layer -m "from the layer" vendor/a >/dev/null
+  layer_commit second.txt "second"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/second.txt)" = "second" ]
+}
+
 @test "merge --rebuilt-commit refuses a commit that shares no history with the rebuild" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

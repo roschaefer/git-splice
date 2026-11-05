@@ -811,8 +811,8 @@ impl Repo {
             &message,
         ) {
             Err(_) => {
-                if let Some(pick) = commit_of("CHERRY_PICK_HEAD") {
-                    self.record_merged(path, &pick, &given);
+                if let (Some(pick), Some(on)) = (commit_of("CHERRY_PICK_HEAD"), commit_of("HEAD")) {
+                    self.record_merged(path, &format!("{pick}-on-{on}"), &given);
                 }
                 return die(format!("{path}: merge failed"));
             }
@@ -832,9 +832,10 @@ impl Repo {
         Ok(())
     }
 
-    /// Where --rebuilt-commit records what it merged: per splice id, a ref
-    /// named after the commit the merge made, or the one a conflict left to
-    /// commit, pointing at the commit it took in.
+    /// Where --rebuilt-commit records what it merged, per splice id, apart
+    /// from the fetched refs: a ref pointing at the commit it took in, named
+    /// after the commit the merge made, or after the one a conflict left to
+    /// commit and the commit it's to go on.
     fn merged_prefix(&self, path: &str) -> Option<String> {
         let id = git(&[
             "config",
@@ -843,21 +844,23 @@ impl Repo {
             "splice.id",
         ])
         .out()?;
-        Some(format!("refs/splices/rebuilt/{id}/"))
+        Some(format!("refs/splice-merges/{id}/"))
     }
 
-    fn record_merged(&self, path: &str, made: &str, given: &str) {
+    fn record_merged(&self, path: &str, name: &str, given: &str) {
         if let Some(prefix) = self.merged_prefix(path) {
-            git(&["update-ref", &format!("{prefix}{made}"), given])
+            git(&["update-ref", &format!("{prefix}{name}"), given])
                 .q()
                 .ok();
         }
     }
 
     /// The newest commit an earlier --rebuilt-commit took in from <given>'s
-    /// history since <base>, if HEAD's history still has that merge: found
-    /// by who made it, when, and its subject, which a cherry-pick keeps and
-    /// a rebase too, so an undone merge doesn't count.
+    /// history since <base>, if HEAD's history still has that merge, so an
+    /// undone merge doesn't count: the commit it made, or, after a rebase,
+    /// one with its author, date, subject and changes; for a merge that
+    /// conflicted, the commit with the conflicted one's author, date and
+    /// subject on the commit the conflict happened on.
     fn merged_before(&self, path: &str, base: &str, given: &str) -> Option<String> {
         let prefix = self.merged_prefix(path)?;
         let records = git(&[
@@ -879,26 +882,66 @@ impl Repo {
             return None;
         }
         let identity_format = "--format=%an%x1f%ae%x1f%ad%x1f%s";
+        let identity = |commit: &str| {
+            git(&["log", "-1", "--date=raw", identity_format, commit])
+                .out()
+                .map(|line| line.trim_end().to_string())
+        };
+        // HEAD's history by identity: each commit with its first parent.
         let history = git(&[
             "log",
             "-z",
             "--date=raw",
-            identity_format,
+            "--format=%H %P%x1f%an%x1f%ae%x1f%ad%x1f%s",
             "HEAD",
-            "--",
-            path,
         ])
         .out()
         .unwrap_or_default();
-        let made_here: std::collections::HashSet<&str> =
-            history.split('\0').map(str::trim_end).collect();
-        let mut newest: Option<String> = None;
-        for (made, merged) in candidates {
-            let Some(identity) = git(&["log", "-1", "--date=raw", identity_format, &made]).out()
-            else {
+        let mut by_identity: std::collections::HashMap<&str, Vec<(&str, &str)>> =
+            std::collections::HashMap::new();
+        for record in history.split('\0') {
+            let record = record.trim();
+            let Some((ids, rest)) = record.split_once('\x1f') else {
                 continue;
             };
-            if !made_here.contains(identity.trim_end()) {
+            let mut ids = ids.split(' ');
+            let hash = ids.next().unwrap_or_default();
+            let parent = ids.next().unwrap_or_default();
+            by_identity.entry(rest).or_default().push((hash, parent));
+        }
+        let patch_id = |commit: &str| {
+            let diff = git(&["show", "--format=", commit])
+                .out()
+                .unwrap_or_default();
+            git(&["patch-id", "--stable"])
+                .input(diff)
+                .out()
+                .and_then(|line| line.split(' ').next().map(str::to_string))
+        };
+        let still_here = |made: &str| -> bool {
+            if let Some((picked, on)) = made.split_once("-on-") {
+                let Some(identity) = identity(picked) else {
+                    return false;
+                };
+                return by_identity
+                    .get(identity.as_str())
+                    .is_some_and(|found| found.iter().any(|(_, parent)| *parent == on));
+            }
+            if is_ancestor(made, "HEAD") {
+                return true;
+            }
+            let Some(identity) = identity(made) else {
+                return false;
+            };
+            let Some(found) = by_identity.get(identity.as_str()) else {
+                return false;
+            };
+            let wanted = patch_id(made);
+            wanted.is_some() && found.iter().any(|(hash, _)| patch_id(hash) == wanted)
+        };
+        let mut newest: Option<String> = None;
+        for (made, merged) in candidates {
+            if !still_here(&made) {
                 continue;
             }
             if newest.as_deref().is_none_or(|n| is_ancestor(n, &merged)) {
@@ -923,7 +966,7 @@ impl Repo {
             let url = self.url_of(path, &name);
             let key = self.upstream_key(&url)?;
             if !key.is_empty() {
-                prefixes.push(format!("refs/splices/{key}/"));
+                prefixes.push(format!("refs/splices/{key}/heads/"));
             }
         }
         if prefixes.is_empty() {
