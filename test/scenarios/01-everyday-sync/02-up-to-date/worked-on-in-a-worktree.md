@@ -172,16 +172,29 @@ ok   worked-on-rebased.drawio.svg: 6 commits, 9 arrows, 5 boxes, 1 lanes
 ```
 -->
 
-It goes on, and removes the file again:
+It goes on, and removes the file again, in *d*:
 
 ```scrut
 $ git -C ../a-work rm -q other.txt &&
 >   git -C ../a-work commit -q -m "remove other.txt"
 ```
 
-The merge starts at the rebuild, which has `other.txt`. Without the
-rebase, it would start at *k*, where `other.txt` would look like the
-monorepo's own addition, and stay:
+<div align="center">
+
+![The monorepo's a, c and m, B at a and H at m; upstream k, U(H), c prime and m prime, T and R; d on top of m prime, dashed, work-on-a, a dashed box](worked-on-continued.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/worked-on-continued.drawio.svg" \
+>   a=HEAD~2 c=HEAD~1 m=HEAD k="$k" d=work-on-a
+ok   worked-on-continued.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
+```
+-->
+
+The branch starts at *m'* now, so the merge starts there too. The only
+change since is *d*, which removes `other.txt`, and so does the merge:
 
 ```scrut
 $ git splice merge --rebuilt-commit work-on-a vendor/a
@@ -197,6 +210,10 @@ remove other.txt
 $ ls vendor/a
 file.txt
 ```
+
+Without the rebase, the branch would still start at *k*, and so would
+the merge. `other.txt` didn't exist there, so it would look like the
+monorepo's own addition, and stay.
 
 ## Nothing to merge
 
