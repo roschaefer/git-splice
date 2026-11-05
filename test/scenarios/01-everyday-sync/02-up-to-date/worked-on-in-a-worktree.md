@@ -155,6 +155,23 @@ monorepo change
 seed
 ```
 
+The push sent *c'* and *m'* upstream, and the worktree's branch is the
+rebuild now:
+
+<div align="center">
+
+![The monorepo's a, c and m, B at a and H at m; upstream k, U(H), and on top of it c prime and m prime, pushed, which T, R and work-on-a, a dashed box, point at](worked-on-rebased.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/worked-on-rebased.drawio.svg" \
+>   a=HEAD~2 c=HEAD~1 m=HEAD k="$k"
+ok   worked-on-rebased.drawio.svg: 6 commits, 9 arrows, 5 boxes, 1 lanes
+```
+-->
+
 It goes on, and removes the file again:
 
 ```scrut
