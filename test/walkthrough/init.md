@@ -24,6 +24,11 @@ $ git splice init -h | check-help section description
     that commit, the folder as it is now, followed by any commits after it.
     The folder's earlier history stays in the monorepo. If <url> has commits
     already, use 'git splice clone --merge <url> <path>'.
+
+    Splices directly inside <path> follow its default branch from then on.
+    Where that differs from the one they followed, init records theirs as
+    default-branch in their .splice, in the same commit, so they keep
+    syncing with it.
 ```
 
 In the [walkthrough's repositories](README.md), `libs/c/` grew inside the monorepo, and
