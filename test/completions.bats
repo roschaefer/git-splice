@@ -95,9 +95,9 @@ complete_words() {
 @test "completion: --bump and --rebase only for merge and pull" {
   local option
   for option in --bump --rebase; do
-    run complete_words git-splice merge "${option:0:4}"
+    run complete_words git-splice merge "${option:0:6}"
     [ "$output" = "$option" ]
-    run complete_words git-splice pull "${option:0:4}"
+    run complete_words git-splice pull "${option:0:6}"
     [ "$output" = "$option" ]
     run complete_words git-splice push "$option"
     [ -z "$output" ]
@@ -197,14 +197,18 @@ complete_words() {
   [ -z "$output" ]
 }
 
-@test "completion: push completes branches for --rebuilt-commit, e.g. one with an edited rebuild" {
+@test "completion: push and merge complete branches for --rebuilt-commit, e.g. one with an edited rebuild, and pull doesn't offer it" {
   git branch edited
-  run complete_words git-splice push --reb
-  [ "$output" = "--rebuilt-commit" ]
-  run complete_words git-splice push --rebuilt-commit edi
-  [ "$output" = "edited" ]
-  run complete_words git-splice push --rebuilt-commit edited vend
-  [ "$output" = "vendor/a" ]
+  for cmd in push merge; do
+    run complete_words git-splice "$cmd" --rebu
+    [ "$output" = "--rebuilt-commit" ]
+    run complete_words git-splice "$cmd" --rebuilt-commit edi
+    [ "$output" = "edited" ]
+    run complete_words git-splice "$cmd" --rebuilt-commit edited vend
+    [ "$output" = "vendor/a" ]
+  done
+  run complete_words git-splice pull --rebu
+  [ -z "$output" ]
 }
 
 @test "completion: rebuild completes one splice path" {
@@ -324,11 +328,13 @@ fish_complete() {
   [ -z "$output" ]
 }
 
-@test "zsh completion: push completes branches for --rebuilt-commit" {
+@test "zsh completion: push and merge complete branches for --rebuilt-commit" {
   require_shell zsh
   git branch edited
-  run zsh_complete "git-splice push --rebuilt-commit=edi"
-  [[ "$output" == *"edited"* ]]
+  for cmd in push merge; do
+    run zsh_complete "git-splice $cmd --rebuilt-commit=edi"
+    [[ "$output" == *"edited"* ]]
+  done
 }
 
 @test "zsh completion: rebuild completes one splice path" {
@@ -439,11 +445,13 @@ fish_complete() {
   [ -z "$output" ]
 }
 
-@test "fish completion: push completes branches for --rebuilt-commit" {
+@test "fish completion: push and merge complete branches for --rebuilt-commit" {
   require_shell fish
   git branch edited
-  run fish_complete "git-splice push --rebuilt-commit edi"
-  [[ "$output" == *"edited"* ]]
+  for cmd in push merge; do
+    run fish_complete "git-splice $cmd --rebuilt-commit edi"
+    [[ "$output" == *"edited"* ]]
+  done
 }
 
 @test "fish completion: rebuild completes one splice path" {

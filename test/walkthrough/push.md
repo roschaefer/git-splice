@@ -186,6 +186,9 @@ $ git worktree remove ../edited
 Why pull right away, and what `push` checks:
 [edited-before-push](../scenarios/06-rewritten-history/01-edited-before-push/README.md).
 
+The other way round, [`merge --rebuilt-commit`](merge.md#--rebuilt-commit)
+brings work committed in such a worktree into the monorepo.
+
 ## Upstream branch
 
 ```scrut
