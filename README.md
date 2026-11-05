@@ -128,19 +128,17 @@ rebuilt as their merge with *n*.
 The [comparisons](test/comparisons/README.md) run each of these next to
 `git-splice`.
 
-- [`git submodule`](test/comparisons/git-submodule.md): **incomplete
-  checkouts.** A clone without `--recurse-submodules` has no library
-  files, `git status` never sees them, and a fix takes two commits and two
-  pushes, library first.
-- [`git subtree`](test/comparisons/git-subtree.md): **polluted history.**
-  Merges pile up, one per pull and one per push, or every push walks the
-  whole monorepo history again.
-- [git-subrepo](test/comparisons/third-party/git-subrepo.md): **redundant
-  commits.** Every push adds a commit to your monorepo. A squash merge or
-  a rebase makes it invalid, and two branches that pushed conflict on it.
-- [Josh](test/comparisons/third-party/josh.md): **shared history.** The
-  library is a filtered view of the monorepo, so its commits must be the
-  monorepo's too. Repositories with histories of their own don't compose.
+- [`git submodule`](test/comparisons/git-submodule.md): a checkout of the
+  monorepo is incomplete. The library stays a repository of its own inside
+  it, which every clone, `git status` and fix has to handle separately.
+- [`git subtree`](test/comparisons/git-subtree.md): syncing pollutes your
+  history with merges, and can bring the library's whole history along.
+- [git-subrepo](test/comparisons/third-party/git-subrepo.md): it records
+  each push in a commit of your monorepo, a redundant commit that a squash
+  merge or rebase makes invalid.
+- [Josh](test/comparisons/third-party/josh.md): the library has to share
+  its history with the monorepo, so it fits repositories that are meant
+  to be one, not ones with histories of their own.
 
 ## Getting started
 
