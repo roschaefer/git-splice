@@ -2,7 +2,7 @@
 //! its upstream gets. The rebuild is deterministic -- the same history always
 //! rebuilds into the same commits -- so status can compare it with the upstream
 //! branch without remembering anything about earlier pushes. See
-//! docs/design/README.md.
+//! docs/07-design/README.md.
 
 use crate::repo::*;
 use crate::util::*;

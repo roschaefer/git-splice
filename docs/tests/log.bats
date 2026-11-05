@@ -1,11 +1,11 @@
 setup() {
   load 'helpers/fixtures'
   hermetic_git_config
-  load '../scenarios/01-everyday-sync/02-up-to-date/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor/setup'
-  load '../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
-  load '../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/02-merge-in-monorepo/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor/setup'
+  load '../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
+  load '../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/02-merge-in-monorepo/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -118,7 +118,7 @@ setup() {
 
 @test "log --graph: stops at a pager that was quit, without going on to the next splice" {
   script --version 2>/dev/null | grep -q util-linux || skip "no util-linux script to run log in a terminal"
-  load '../scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null

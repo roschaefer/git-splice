@@ -6,14 +6,14 @@ setup() {
   load 'helpers/fixtures'
   load '../../check-drawing/check-drawing'
   hermetic_git_config
-  load '../scenarios/05-nested-splices/01-nested-splices/setup'
+  load '../09-scenarios/05-nested-splices/01-nested-splices/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   scenario_nested_splices "$monorepo" "$upstream"
   drawing="$BATS_TEST_TMPDIR/nested-splices.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/../scenarios/05-nested-splices/01-nested-splices/nested-splices.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/../09-scenarios/05-nested-splices/01-nested-splices/nested-splices.drawio.svg" >"$drawing" 2>/dev/null
   revs=(a=HEAD k=refs/splices/upstream/heads/main~1 l=refs/splices/upstream/heads/main m=refs/splices/upstream-b/heads/main)
   cd "$monorepo"
 }

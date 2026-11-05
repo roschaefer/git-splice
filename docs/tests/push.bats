@@ -17,9 +17,9 @@ setup() {
     04-upstreams/01-default-branch \
     01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
     06-rewritten-history/02-upstream-rewritten-equal-tree; do
-    load "../scenarios/$scenario/setup"
+    load "../09-scenarios/$scenario/setup"
   done
-  load '../walkthrough/rebase-feature-branch/setup'
+  load '../04-advanced-workflows/rebase-feature-branch/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -235,7 +235,7 @@ setup() {
 }
 
 @test "push: creates a missing upstream branch for commits from the branch it was cut from that upstream lacks" {
-  load '../scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
+  load '../09-scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
   cd "$monorepo"
   run splice push vendor/a

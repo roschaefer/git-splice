@@ -5,7 +5,7 @@
 setup() {
   command -v drawio >/dev/null || skip "needs draw.io: nix develop .#drawings --command bats docs/tests/drawing-export.bats"
   drawing="$BATS_TEST_TMPDIR/fork.drawio.svg"
-  cp "$BATS_TEST_DIRNAME/../scenarios/04-upstreams/07-contributing-through-a-fork/fork.drawio.svg" "$drawing"
+  cp "$BATS_TEST_DIRNAME/../09-scenarios/04-upstreams/07-contributing-through-a-fork/fork.drawio.svg" "$drawing"
 }
 
 # Renames the box fix/parser in the diagram only, as an edit without

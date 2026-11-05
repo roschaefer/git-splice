@@ -1,10 +1,10 @@
 setup() {
   load 'helpers/fixtures'
   hermetic_git_config
-  load '../scenarios/05-nested-splices/01-nested-splices/setup'
-  load '../scenarios/05-nested-splices/01-nested-splices/02-three-levels/setup'
-  load '../scenarios/05-nested-splices/02-nested-default-branch/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/setup'
+  load '../09-scenarios/05-nested-splices/01-nested-splices/setup'
+  load '../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/setup'
+  load '../09-scenarios/05-nested-splices/02-nested-default-branch/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   upstream_b="$BATS_TEST_TMPDIR/upstream-b.git"

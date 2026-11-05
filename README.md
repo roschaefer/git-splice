@@ -103,7 +103,7 @@ $ source "$TESTDIR/docs/readme/both-sides-move-on.sh"
 
 <div align="center">
 
-![Monorepo commits a to d, with HEAD at d and boundary at a, the clone of k; library commits k to n, theirs at n; ours is d prime, the rebuilt b prime and d prime on top of k, which is U(boundary) and base](docs/scenarios/01-everyday-sync/01-sync-model/before-pull-git-names.drawio.svg)
+![Monorepo commits a to d, with HEAD at d and boundary at a, the clone of k; library commits k to n, theirs at n; ours is d prime, the rebuilt b prime and d prime on top of k, which is U(boundary) and base](docs/09-scenarios/01-everyday-sync/01-sync-model/before-pull-git-names.drawio.svg)
 
 </div>
 
@@ -125,24 +125,24 @@ rebuilt as their merge with *n*.
 
 ## Why not X?
 
-The [comparisons](docs/comparisons/README.md) run each of these next to
+The [comparisons](docs/05-comparisons/README.md) run each of these next to
 `git-splice`.
 
-- [`git submodule`](docs/comparisons/git-submodule.md): a checkout of the
+- [`git submodule`](docs/05-comparisons/git-submodule.md): a checkout of the
   monorepo is incomplete. The library stays a repository of its own inside
   it, which every clone, `git status` and fix has to handle separately.
-- [`git subtree`](docs/comparisons/git-subtree.md): syncing pollutes your
+- [`git subtree`](docs/05-comparisons/git-subtree.md): syncing pollutes your
   history with merges, and can bring the library's whole history along.
-- [git-subrepo](docs/comparisons/third-party/git-subrepo.md): it records
+- [git-subrepo](docs/05-comparisons/third-party/git-subrepo.md): it records
   each push in a commit of your monorepo, a redundant commit that a squash
   merge or rebase makes invalid.
-- [Josh](docs/comparisons/third-party/josh.md): the library has to share
+- [Josh](docs/05-comparisons/third-party/josh.md): the library has to share
   its history with the monorepo, so it fits repositories that are meant
   to be one, not ones with histories of their own.
 
 ## Getting started
 
-Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/installation/)
+Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/getting-started/installation/)
 to install `git-splice`, try it in a sandbox, and walk through every
 command.
 

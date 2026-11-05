@@ -1,14 +1,14 @@
 setup() {
   load 'helpers/fixtures'
   hermetic_git_config
-  load '../scenarios/01-everyday-sync/02-up-to-date/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
-  load '../scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
-  load '../scenarios/06-rewritten-history/03-diverged-unrelated-history/setup'
-  load '../scenarios/04-upstreams/03-shared-remote-url/setup'
-  load '../scenarios/05-nested-splices/01-nested-splices/setup'
-  load '../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/setup'
-  load '../scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/01-pull-ahead/setup'
+  load '../09-scenarios/06-rewritten-history/03-diverged-unrelated-history/setup'
+  load '../09-scenarios/04-upstreams/03-shared-remote-url/setup'
+  load '../09-scenarios/05-nested-splices/01-nested-splices/setup'
+  load '../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/setup'
+  load '../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

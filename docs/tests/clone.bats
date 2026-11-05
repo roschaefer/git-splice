@@ -9,7 +9,7 @@ setup() {
     02-starting-a-splice/03-clone-on-feature-branch \
     02-starting-a-splice/06-clone-without-commits \
     02-starting-a-splice/09-clone-under-monorepo-attributes; do
-    load "../scenarios/$scenario/setup"
+    load "../09-scenarios/$scenario/setup"
   done
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
