@@ -100,6 +100,48 @@ jobs:
               bats --recursive --jobs "$(nproc)" test
             '
 
+  # Builds and packages a binary on every PR, so a release isn't the first
+  # time a target builds. Needs no tests: release-please attaches the
+  # binaries once the tests pass.
+  binaries:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+          - { os: macos-15-intel, target: x86_64-apple-darwin }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Build and run it
+        shell: bash
+        run: |
+          rustup target add "$TARGET"
+          cargo build --release --locked --package git-splice --target "$TARGET"
+          "target/$TARGET/release/git-splice" --version
+
+      # A tarball, because artifacts lose the executable bit.
+      - name: Package it
+        shell: bash
+        run: |
+          mkdir git-splice
+          cp "target/$TARGET/release/git-splice" LICENSE git-splice/
+          cp -R completions git-splice/
+          tar -czf "git-splice-$TARGET.tar.gz" git-splice
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: git-splice-${{ matrix.target }}
+          path: git-splice-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
   release-please:
     # Needs the binaries too, so a release gets all of them or none: with a
     # target that doesn't build, release-please makes no release yet.
@@ -177,45 +219,3 @@ jobs:
             mv "$tarball" "$asset"
             gh release upload "$tag" "$asset"
           done
-
-  # Builds and packages a binary on every PR, so a release isn't the first
-  # time a target builds. Needs no tests: release-please attaches the
-  # binaries once the tests pass.
-  binaries:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
-          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
-          - { os: macos-15-intel, target: x86_64-apple-darwin }
-          - { os: macos-latest, target: aarch64-apple-darwin }
-    env:
-      TARGET: ${{ matrix.target }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      - name: Build and run it
-        shell: bash
-        run: |
-          rustup target add "$TARGET"
-          cargo build --release --locked --package git-splice --target "$TARGET"
-          "target/$TARGET/release/git-splice" --version
-
-      # A tarball, because artifacts lose the executable bit.
-      - name: Package it
-        shell: bash
-        run: |
-          mkdir git-splice
-          cp "target/$TARGET/release/git-splice" LICENSE git-splice/
-          cp -R completions git-splice/
-          tar -czf "git-splice-$TARGET.tar.gz" git-splice
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: git-splice-${{ matrix.target }}
-          path: git-splice-${{ matrix.target }}.tar.gz
-          if-no-files-found: error
