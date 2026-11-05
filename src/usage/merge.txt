@@ -95,9 +95,11 @@ OPTIONS
         top of the rebuild. It's the way back for 'git splice push
         --rebuilt-commit', which sends an edited rebuild the other way.
 
-        It records what it merged, so a branch merged before and continued
-        merges from there, as long as the monorepo's history still has that
-        merge: the rebuild has the merge's own commit, not <commit>'s.
+        Like 'git merge --squash', it takes <commit>'s changes, not the
+        commit, and records nothing: before a branch merged that way goes
+        on, rebase it onto the new 'git splice rebuild <path>', or the next
+        merge starts from the old one, and keeps what the branch deleted
+        since.
 
         It refuses a <commit> with a commit of the splice's upstream, as
         fetched, that the rebuild lacks, e.g. from a pull in the worktree:

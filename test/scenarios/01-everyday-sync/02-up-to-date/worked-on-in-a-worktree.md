@@ -9,9 +9,9 @@ repository, to work in as if it were a clone: build it on its own, or run
 `git splice merge --rebuilt-commit` brings what was committed there back
 into `vendor/a/`. It's a three-way merge from where the commit left the
 rebuild, so the monorepo's own changes since then stay. The synced commit
-doesn't move: the commit is local work, and the next push sends it. A
-branch merged that way can go on, and merge again from where the last
-merge took it.
+doesn't move: the commit is local work, and the next push sends it. Like
+`git merge --squash`, it takes the commit's changes, not the commit: a
+branch that goes on is rebased onto the new rebuild first.
 
 ## Output
 
@@ -141,20 +141,34 @@ seed
 
 ## Continued, and merged again
 
-The worktree's branch goes on, and removes the file again:
+The rebuild doesn't have *o*, only *m'*, so the worktree's branch is
+rebased onto it before it goes on, as a branch after a squash merge is.
+The rebase leaves *o* out, since *m'* has its changes:
+
+```scrut
+$ git -C ../a-work rebase -q "$(git splice rebuild vendor/a)" &&
+>   git -C ../a-work log --format=%s
+hint: use --reapply-cherry-picks to include skipped commits
+hint: Disable this message with "git config set advice.skippedCherryPicks false"
+add other.txt
+monorepo change
+seed
+```
+
+It goes on, and removes the file again:
 
 ```scrut
 $ git -C ../a-work rm -q other.txt &&
 >   git -C ../a-work commit -q -m "remove other.txt"
 ```
 
-The rebuild doesn't have *o*, only *m'*. So the merge starts where the
-last merge took the branch, at *o*, which it recorded. From *k*,
-`other.txt` would look like the monorepo's own addition, and stay:
+The merge starts at the rebuild, which has `other.txt`. Without the
+rebase, it would start at *k*, where `other.txt` would look like the
+monorepo's own addition, and stay:
 
 ```scrut
 $ git splice merge --rebuilt-commit work-on-a vendor/a
-ok   vendor/a: merged 04ee00c
+ok   vendor/a: merged 179d029
 ```
 
 ```scrut
@@ -178,7 +192,7 @@ $ git -C ../a-work commit -q --amend -m "remove other.txt, reworded"
 
 ```scrut
 $ git splice merge --rebuilt-commit work-on-a vendor/a
-ok   vendor/a: dc67f6f's changes are in the folder already -- nothing to merge
+ok   vendor/a: dbb456a's changes are in the folder already -- nothing to merge
 ```
 
 No commit, and no cherry-pick left in progress:
