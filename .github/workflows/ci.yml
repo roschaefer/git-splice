@@ -17,7 +17,9 @@ permissions:
   contents: read
 
 jobs:
-  lint-test:
+  # The bats tests take longer than the other checks together, so they get a
+  # job of their own and the two run side by side.
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -26,6 +28,22 @@ jobs:
 
       - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
       - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
+      # The dev shell has scrut, so every job that enters it needs it.
+      - uses: ./.github/actions/scrut-cache
+
+      - name: test
+        run: nix develop --command just test
+
+  lint-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
+      - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
+      # The dev shell has scrut, so every job that enters it needs it.
       - uses: ./.github/actions/scrut-cache
 
       - name: lint
@@ -33,9 +51,6 @@ jobs:
 
       - name: fmt-check
         run: nix develop --command just fmt-check
-
-      - name: test
-        run: nix develop --command just test
 
       - name: docs-check
         run: nix develop --command just docs-check
@@ -48,7 +63,7 @@ jobs:
         run: nix flake check -L
 
   compat:
-    # The oldest Git the tool accepts; lint-test covers a current one. Named
+    # The oldest Git the tool accepts; test covers a current one. Named
     # after the version under test rather than the nixpkgs revision it comes
     # from. The test step fails first if the label drifts from what the
     # revision ships.
@@ -86,7 +101,7 @@ jobs:
             '
 
   release-please:
-    needs: [lint-test, compat]
+    needs: [test, lint-docs, compat]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     # One at a time: two runs could both find a tarball missing, and the
