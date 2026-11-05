@@ -170,13 +170,24 @@ impl Runner for SubprocessRunner {
     }
 }
 
-/// Starts the process of `exec`. Where there is no `pipe2()`, subprocess
-/// creates its pipes with `pipe()` and marks them close-on-exec only
-/// afterwards, so a process another thread starts in between (see `--jobs`)
-/// would inherit them, and could keep this process's STDIN open. Starting
-/// one process at a time there closes that gap.
+/// Starts the process of `exec`. On some platforms, a process another thread
+/// starts at the same time (see `--jobs`) can inherit this process's pipes,
+/// and keep its STDIN open:
+///
+/// - Where there is no `pipe2()`, subprocess creates its pipes with `pipe()`
+///   and marks them close-on-exec only afterwards.
+/// - On Windows, subprocess marks the child's ends of the pipes inheritable
+///   before `CreateProcess()`, which hands every inheritable handle to the
+///   new process.
+///
+/// Starting one process at a time there closes that gap.
 fn start(exec: Exec) -> std::io::Result<Job> {
-    #[cfg(any(target_os = "aix", target_vendor = "apple", target_os = "haiku"))]
+    #[cfg(any(
+        target_os = "aix",
+        target_vendor = "apple",
+        target_os = "haiku",
+        windows
+    ))]
     let _one_at_a_time = {
         static STARTING: std::sync::Mutex<()> = std::sync::Mutex::new(());
         STARTING

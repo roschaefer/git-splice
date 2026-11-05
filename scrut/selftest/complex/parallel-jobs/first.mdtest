@@ -1,6 +1,6 @@
-# Waits up to two seconds for the second document
+# Waits up to $WAIT_SECONDS seconds for the second document
 
 ```scrut
-$ for i in $(seq 20); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
+$ for i in $(seq "$((WAIT_SECONDS * 10))"); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
 signal: expected otherwise
 ```
