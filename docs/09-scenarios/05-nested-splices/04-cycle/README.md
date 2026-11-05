@@ -4,9 +4,9 @@ The upstream of `vendor/a/` splices in the monorepo, so the monorepo
 contains a copy of itself, which contains a copy of itself, and so on: a
 *cycle*. A package manager can allow cycles, since it installs each
 package once. A splice contains its files, though, and a
-[nested](../../../03-concepts/nesting/README.md) `.splice` is one of them, so
+[nested](../../../03-concepts/05-nesting/README.md) `.splice` is one of them, so
 a cycle is an endless tree of folders. The repeated
-[id](../../../03-concepts/splice-identity/README.md) shows it.
+[id](../../../03-concepts/04-splice-identity/README.md) shows it.
 
 ```text
       M ──> A

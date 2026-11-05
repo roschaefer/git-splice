@@ -229,12 +229,25 @@ fn document(help: &str, path: &str) -> Result<(), String> {
     validate_document(help, path, &markdown)
 }
 
+/// The sidebar order prefix, `01-`, which the site leaves out of its URLs.
+fn without_order_prefix(name: &str) -> &str {
+    match name.split_once('-') {
+        Some((digits, rest))
+            if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            rest
+        }
+        _ => name,
+    }
+}
+
 fn validate_document(help: &str, path: &str, markdown: &str) -> Result<(), String> {
     let command = path
         .rsplit_once('/')
         .map_or(path, |(_, name)| name)
         .strip_suffix(".md")
         .ok_or_else(|| format!("not a Markdown file: {path}"))?;
+    let command = without_order_prefix(command);
     let expected_page = format!("{URL_PREFIX}{command}/");
     let parsed = scan_markdown(markdown);
     let headings = &parsed.headings;
@@ -428,9 +441,9 @@ mod tests {
 
     #[test]
     fn reference_links_use_the_published_command_reference_route() {
-        assert!(validate_document(HELP, "docs/06-command-reference/x.md", PAGE).is_ok());
+        assert!(validate_document(HELP, "docs/06-command-reference/01-x.md", PAGE).is_ok());
         let shortened = HELP.replace("/docs/command-reference/", "/");
-        assert!(validate_document(&shortened, "docs/06-command-reference/x.md", PAGE).is_err());
+        assert!(validate_document(&shortened, "docs/06-command-reference/01-x.md", PAGE).is_err());
     }
 
     #[test]

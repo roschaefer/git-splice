@@ -128,15 +128,15 @@ rebuilt as their merge with *n*.
 The [comparisons](docs/05-comparisons/README.md) run each of these next to
 `git-splice`.
 
-- [`git submodule`](docs/05-comparisons/git-submodule.md): a checkout of the
+- [`git submodule`](docs/05-comparisons/01-git-submodule.md): a checkout of the
   monorepo is incomplete. The library stays a repository of its own inside
   it, which every clone, `git status` and fix has to handle separately.
-- [`git subtree`](docs/05-comparisons/git-subtree.md): syncing pollutes your
+- [`git subtree`](docs/05-comparisons/02-git-subtree.md): syncing pollutes your
   history with merges, and can bring the library's whole history along.
-- [git-subrepo](docs/05-comparisons/third-party/git-subrepo.md): it records
+- [git-subrepo](docs/05-comparisons/03-third-party/01-git-subrepo.md): it records
   each push in a commit of your monorepo, a redundant commit that a squash
   merge or rebase makes invalid.
-- [Josh](docs/05-comparisons/third-party/josh.md): the library has to share
+- [Josh](docs/05-comparisons/03-third-party/02-josh.md): the library has to share
   its history with the monorepo, so it fits repositories that are meant
   to be one, not ones with histories of their own.
 

@@ -15,7 +15,7 @@ setup() {
   load '../09-scenarios/06-rewritten-history/01-edited-before-push/setup'
   load '../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/setup'
   load '../09-scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/setup'
-  load '../04-advanced-workflows/rebase-feature-branch/setup'
+  load '../04-advanced-workflows/01-rebase-feature-branch/setup'
   load '../09-scenarios/03-branches-and-teamwork/06-teammate-pulled/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"

@@ -6,11 +6,11 @@ same library and monorepo, and show where each one's model gets in the way
 of fixing a library together with your app and sending the fix back. Each
 also says where it is the better tool.
 
-- [`git submodule`](git-submodule.md): the monorepo doesn't see the
+- [`git submodule`](01-git-submodule.md): the monorepo doesn't see the
   library's files, every fix takes two commits and two pushes in the
   right order, and a second worktree has its own submodule clones but
   shares the monorepo's `submodule.*` settings for them.
-- [`git subtree`](git-subtree.md): either the library's whole history
+- [`git subtree`](02-git-subtree.md): either the library's whole history
   comes into the monorepo, or `split` walks the monorepo's whole history
   on every push. Either way, the history isn't linear. A splice's sync
   point survives a [squash merge](../09-scenarios/03-branches-and-teamwork/03-squash-merged-pull/README.md),
@@ -28,7 +28,7 @@ also says where it is the better tool.
 | Second worktree | initialize again, `submodule.*` settings shared, can't be moved | works | works |
 | Best for | libraries kept apart, with their own access | moving a repository in for good, history included | changing a library in the monorepo and sending the changes back |
 
-[Third-party tools](third-party/README.md) compares git-subrepo,
+[Third-party tools](03-third-party/README.md) compares git-subrepo,
 Josh, splitsh-lite, and the export tools Copybara and Meta's ShipIt.
-[Version control systems](vcs/README.md) compares Sapling and Jujutsu,
+[Version control systems](04-vcs/README.md) compares Sapling and Jujutsu,
 which work in a Git repository, and `git-splice` running next to them.
