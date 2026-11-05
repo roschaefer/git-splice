@@ -58,7 +58,7 @@ $ git log --oneline "$(git splice rebuild vendor/pkg-a)"
 
 To reword or squash its commits before they go upstream, edit them in a
 worktree and push the result with
-[`push --rebuilt-commit`](push.md#an-edited-history---rebuilt-commit).
+[`push --rebuilt-commit`](push.md#--rebuilt-commit).
 Like every `git splice push`, it finds the upstream's URL and branch
 itself, updates the fetched upstream branch, and checks what it pushes:
 the commit must have the folder's files and contain the synced commit,
