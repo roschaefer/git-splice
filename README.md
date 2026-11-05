@@ -148,7 +148,7 @@ command.
 
 ## Contribute
 
-- [Contributing](CONTRIBUTING.md)
+- [Contributing](docs/10-contributing/README.md)
 
 ## License
 

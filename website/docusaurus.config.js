@@ -38,7 +38,6 @@ module.exports = {
           path: '..',
           include: [
             'README.md',
-            'CONTRIBUTING.md',
             'docs/**/*.md',
           ],
           routeBasePath: '/',

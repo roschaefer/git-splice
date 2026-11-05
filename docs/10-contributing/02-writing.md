@@ -115,6 +115,6 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
 ## The sidebar
 
 The folders in `docs/` are the sidebar. The numbers in their names set
-its order, and the site leaves them out of the URLs. A folder's
-`README.md` is its sidebar entry's page and gives the entry its name. A
-folder without one names its entry in `_category_.json`.
+its order, and the site leaves them out of the URLs. Every folder of pages has a
+`README.md`: its sidebar entry's page, which gives the entry its name
+and links the pages in the folder.

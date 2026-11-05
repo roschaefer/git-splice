@@ -1,4 +1,4 @@
-# git-splice: design
+# Design
 
 `git-splice` keeps folders of a monorepo in sync with their own upstream
 repositories, in both directions. Switching branches in the monorepo

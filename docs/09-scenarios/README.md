@@ -12,7 +12,7 @@ situations every user meets to the edge cases: everyday sync, starting a
 splice, branches and teamwork, upstreams, nested splices, rewritten
 history, and moved and copied folders. Within a chapter, the numbers order the
 scenarios the same way. The site drops the numbers from its URLs, and
-takes a chapter's name from its `_category_.json`.
+takes a chapter's name from its README.
 
 A scenario folder has:
 
