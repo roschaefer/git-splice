@@ -12,7 +12,8 @@ they are handled later, not in the pull request that found them.
 ## Pull requests
 
 1. Set up the [development environment](docs/development.md).
-2. Change behaviour together with a test whose name states it. If the
+2. Change behaviour together with a test whose name states it:
+   [which test to write](docs/development.md#which-test-to-write). If the
    output changes, `just docs-check --write` updates the scenarios and
    walkthroughs, and the diff shows readers what changed.
 3. Write documentation by the rules in [writing the docs](docs/writing.md):
