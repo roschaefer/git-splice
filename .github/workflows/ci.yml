@@ -27,8 +27,9 @@ jobs:
           persist-credentials: false
 
       - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
-      # The dev shell has scrut, so every job that enters it needs it.
-      - uses: ./.github/actions/scrut-cache
+      # The dev shell has packages cache.nixos.org lacks, so every job that
+      # enters it needs them.
+      - uses: ./.github/actions/nix-cache
 
       - name: test
         run: nix develop --command just test
@@ -41,8 +42,9 @@ jobs:
           persist-credentials: false
 
       - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
-      # The dev shell has scrut, so every job that enters it needs it.
-      - uses: ./.github/actions/scrut-cache
+      # The dev shell has packages cache.nixos.org lacks, so every job that
+      # enters it needs them.
+      - uses: ./.github/actions/nix-cache
 
       - name: lint
         run: nix develop --command just lint
@@ -71,8 +73,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
-      # The build runs in the dev shell, which has scrut.
-      - uses: ./.github/actions/scrut-cache
+      # The build runs in the dev shell, which needs them too.
+      - uses: ./.github/actions/nix-cache
 
       - name: build
         run: nix develop --command cargo build
