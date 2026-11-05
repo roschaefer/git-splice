@@ -54,6 +54,38 @@ ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched (main moved 0bfc154..68ea527)
 ```
 
+<!--
+```scrut
+$ monorepo="$PWD" s="$(git rev-parse HEAD~1)" c="$(git rev-parse HEAD)" &&
+>   k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   l="$(git config --file vendor/a/b/.splice splice.commit)" &&
+>   n="$(git config --file vendor/a/b/c/.splice splice.commit)" &&
+>   u="$(git rev-parse refs/splices/c/heads/main)" &&
+>   levels() {
+>     (cd "$monorepo" && check_drawing "$TESTDIR/levels-$1.drawio.svg" \
+>       s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" "${@:2}")
+>   }
+```
+-->
+
+Each lane is one level, drawn inside the one above it. The monorepo's
+*c* changes the innermost folder, so each level's rebuild, R, has a copy
+of it, *c'*, on top of the synced commit. Only the innermost upstream
+moved on, to *u*:
+
+<div align="center">
+
+![The monorepo's s and c, H at c; in vendor/a/, k, T and U(H), and on top of it, dashed, c prime, R; in vendor/a/b/ the same with l; in vendor/a/b/c/, n, U(H), u on top of it, T, and c prime on top of n, dashed, R](levels-before.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ levels before
+ok   levels-before.drawio.svg: 9 commits, 13 arrows, 8 boxes, 3 lanes
+```
+-->
+
 ## 1. The outer upstream's repository
 
 ```scrut
@@ -73,6 +105,24 @@ $ ls
 c
 file.txt
 ```
+
+The two worktrees' branches are rebuilds, unchanged: `layer/a` is R of
+`vendor/a/`, and `layer/b`, rebuilt from `layer/a`'s commits, is the
+same commit as the monorepo's R of `vendor/a/b/`. They're branches of
+the monorepo that no upstream has, so their boxes are dashed:
+
+<div align="center">
+
+![As before, and the dashed boxes layer/a at the c prime of vendor/a/, and layer/b at the c prime of vendor/a/b/](levels-worktrees.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ levels worktrees
+ok   levels-worktrees.drawio.svg: 9 commits, 15 arrows, 10 boxes, 3 lanes
+```
+-->
 
 ## 3. The pull, one level down
 
@@ -101,6 +151,23 @@ $ git log --format=%s -1
 splice: pull c from main at 68ea527
 ```
 
+The pull's commit, *p*, on top of `layer/b`, is a commit of the middle
+upstream's repository: its `c/.splice` records *u*. The monorepo hasn't
+changed:
+
+<div align="center">
+
+![As before, and in vendor/a/b/, p on top of c prime, dashed, layer/b; in vendor/a/b/c/, u is T and U(p)](levels-pulled-below.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ levels pulled-below p=layer/b
+ok   levels-pulled-below.drawio.svg: 10 commits, 16 arrows, 10 boxes, 3 lanes
+```
+-->
+
 ## 4. Into the outer upstream's repository
 
 ```scrut
@@ -114,6 +181,22 @@ $ git log --format=%s -1
 splice: pull c from main at 68ea527
 ```
 
+*q*, on top of `layer/a`, takes *p*'s changes into `b/`, and with them
+`b/c/.splice`, which records *u* too:
+
+<div align="center">
+
+![As before, and in vendor/a/, q on top of c prime, dashed, layer/a; in vendor/a/b/c/, u is T, U(p) and U(q)](levels-merged-into-a.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ levels merged-into-a p=layer/b q=layer/a
+ok   levels-merged-into-a.drawio.svg: 11 commits, 17 arrows, 10 boxes, 3 lanes
+```
+-->
+
 ## 5. Into the monorepo
 
 Meanwhile, the monorepo changes `vendor/a/`:
@@ -124,6 +207,23 @@ $ cd ../monorepo &&
 >   git add vendor/a/other.txt &&
 >   git commit -q -m "a local"
 ```
+
+Its rebuild has *a'* on top of *c'*, beside *q*, as when [a worktree's
+commit](../../../01-everyday-sync/02-up-to-date/worked-on-in-a-worktree.md)
+and the monorepo both go on from the rebuild:
+
+<div align="center">
+
+![The monorepo's s, c and a, H at a; in vendor/a/, c prime has two children, dashed: q, layer/a, and a prime, R; vendor/a/b/ and vendor/a/b/c/ as before](levels-monorepo-moved-on.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ levels monorepo-moved-on a="$(git rev-parse HEAD)" p=layer/b q=layer/a
+ok   levels-monorepo-moved-on.drawio.svg: 13 commits, 19 arrows, 10 boxes, 3 lanes
+```
+-->
 
 ```scrut
 $ git splice merge --rebuilt-commit layer/a vendor/a
@@ -136,6 +236,24 @@ splice: pull c from main at 68ea527
 a local
 c local
 ```
+
+*m* has *q*'s changes, on top of *a*. Each level's rebuild takes it in:
+`vendor/a/`'s as *m'*, on top of *a'*; `vendor/a/b/`'s as *p* itself, the
+commit the pull made in the worktree; and `vendor/a/b/c/`'s as *m'*, a
+merge of *c'* and *u*, which `.splice` records now:
+
+<div align="center">
+
+![The monorepo's s, c, a and m, H at m; in vendor/a/, m prime on top of a prime, R, and q, layer/a; in vendor/a/b/, p is R and layer/b; in vendor/a/b/c/, m prime, a merge of c prime and u, R, and u is T and U(H)](levels-merged-into-monorepo.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ levels merged-into-monorepo a="$(git rev-parse HEAD~1)" m="$(git rev-parse HEAD)" p=layer/b q=layer/a
+ok   levels-merged-into-monorepo.drawio.svg: 16 commits, 22 arrows, 9 boxes, 3 lanes
+```
+-->
 
 `vendor/a/b/c/` is pulled: `.splice` names the inner upstream's commit,
 and the rebuild joins the local change and the upstream's, as after a
@@ -181,3 +299,19 @@ $ git -C "$UPSTREAM-c.git" log --graph --format=%s main
 |/  
 * c seed
 ```
+
+Each upstream has its level's R now. *q* stays on `layer/a` only: the
+merge took its changes, not the commit:
+
+<div align="center">
+
+![As before, all solid but q: T and R at m prime in vendor/a/, at p in vendor/a/b/, and at m prime in vendor/a/b/c/; U(H) stays at k, l and u](levels-pushed.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ levels pushed a="$(git rev-parse HEAD~1)" m="$(git rev-parse HEAD)" p=layer/b q=layer/a
+ok   levels-pushed.drawio.svg: 16 commits, 22 arrows, 9 boxes, 3 lanes
+```
+-->
