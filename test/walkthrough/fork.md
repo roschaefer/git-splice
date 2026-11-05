@@ -105,10 +105,12 @@ fork's version of what the monorepo already has
 A change you didn't push in time needs
 [`pull --rebase`](../scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/README.md).
 
-The pull knows where `patches` was before the rebase from the fetched
-branch's reflog, like `git pull --rebase`. That reflog is local: a fresh
-clone of the monorepo that first fetches after the rebase doesn't have
-it, and its pull conflicts.
+To see where `patches` was before the rebase, the pull reads the
+fetched branch's reflog, like `git pull --rebase`. That reflog exists
+only on your machine. A colleague who fetches `patches` for the first
+time after the rebase has none, and gets a conflict where your pull went
+through
+([a clone that fetched after the rebase](../scenarios/06-rewritten-history/04-patch-branch-rebased/fetched-after-the-rebase.md)).
 
 ## In practice
 

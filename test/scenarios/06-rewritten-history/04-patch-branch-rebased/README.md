@@ -30,7 +30,9 @@ isn't rewritten away: the original's fetched branch never pointed at it
 
 The reflog is local, as in Git: a clone of the monorepo that first
 fetched after the rebase has no *q* in it, and its pull conflicts as
-`git merge` would. So does `git splice pull --no-fork-point`.
+`git merge` would
+([fetched after the rebase](fetched-after-the-rebase.md)). So does
+`git splice pull --no-fork-point`.
 
 That's only safe as long as everything the monorepo changed in the
 folder is pushed, so the rebased branch has it. An [unpushed local
