@@ -3,8 +3,8 @@
 After a push, the upstream has your commits, but the monorepo's `.splice`
 still names the upstream commit from before: a push
 [never writes to the monorepo](../../concepts/sync-model/README.md#r-is-computed-not-stored).
-Nothing breaks, since the next push still sends only what isn't upstream
-yet. `git splice pull --bump` records the pushed commit anyway, in a
+The next push still works, since it sends only what isn't upstream yet.
+`git splice pull --bump` records the pushed commit anyway, in a
 commit that only changes `.splice`, much like a submodule bump:
 
 <div align="center">
@@ -13,13 +13,19 @@ commit that only changes `.splice`, much like a submodule bump:
 
 </div>
 
-## When a bump pays off
+## Why bump
 
-| Without a bump | Read more |
-|---|---|
-| Every rebuild starts at the last pull, and copies the pushed commits again. | [bump after the push](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md) |
-| The synced commits of the pulls before and after the push span the pushed commits, which misleads a bisect between them. | [bisect into a pull](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md) |
-| A new id for the splice starts its history before the push, so the pushed change comes again, and the next push is refused. | [a new id after the push](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/new-id-after-push.md) |
+Rebuilds, bisects and the history of a new splice id start from the
+commit `.splice` names. Until a bump, that's the one from before the push:
+
+- **Speed:** every rebuild copies the pushed commits again
+  ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md)).
+- **Bisect:** bisecting into the next pull also searches the pushed
+  commits, though that pull didn't bring them in
+  ([scenario](../../scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
+- **A new [splice id](../../concepts/splice-identity/README.md):** required.
+  Without a bump first, the next push is refused
+  ([scenario](../../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/new-id-after-push.md)).
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
