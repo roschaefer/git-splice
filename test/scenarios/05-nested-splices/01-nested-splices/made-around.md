@@ -67,12 +67,15 @@ $ git config --file vendor/a/.splice upstream.origin.default-branch
 main
 ```
 
-So both still sync with `main`:
+So `vendor/` follows `master`, which its first push creates, and
+`vendor/a/` and `vendor/a/b/` still sync with `main`:
 
 ```scrut
-$ git splice status vendor/a vendor/a/b
+$ git splice status
 On branch main
 
-  up to date  vendor/a
-  up to date  vendor/a/b
+  new, ahead 1  vendor -> master  push creates the branch
+
+  up to date    vendor/a
+  up to date    vendor/a/b
 ```
