@@ -204,12 +204,26 @@ pub fn is_lane_label(value: &str) -> bool {
     value.len() > 1 && value.ends_with('/') && !value.contains(' ')
 }
 
+/// The lengths a box's name at the start of <text> can have: a word without
+/// spaces, or `U(x)`, where x is a label, which may have spaces.
+fn name_lengths(text: &str) -> Vec<usize> {
+    let word = text.find(' ').unwrap_or(text.len());
+    let mut lengths: Vec<usize> = (1..=word).collect();
+    if let Some(inner) = text.strip_prefix("U(") {
+        let end = inner.find(['(', ')']).unwrap_or(inner.len());
+        if end > 0 && inner[end..].starts_with(')') {
+            lengths.push(end + 3);
+        }
+    }
+    lengths
+}
+
 /// A box's label: names joined by ` = `, e.g. `U(H) = U(B)`.
 pub fn is_box_label(value: &str) -> bool {
-    !value.is_empty()
-        && value
-            .split(" = ")
-            .all(|name| !name.is_empty() && !name.contains(' '))
+    name_lengths(value).into_iter().any(|length| {
+        let rest = &value[length..];
+        rest.is_empty() || rest.strip_prefix(" = ").is_some_and(is_box_label)
+    })
 }
 
 #[cfg(test)]
@@ -229,10 +243,25 @@ mod tests {
 
     #[test]
     fn a_box_label_is_names_joined_by_equals_signs() {
-        for label in ["H", "U(H) = U(B)", "origin/main", "merge-base(R,T)"] {
+        for label in [
+            "H",
+            "U(H) = U(B)",
+            "origin/main",
+            "merge-base(R,T)",
+            "U(a note)",
+            "T = U(a note) = main",
+        ] {
             assert!(is_box_label(label), "{label}");
         }
-        for label in ["", "a note", "H =", "H = ", " = H"] {
+        for label in [
+            "",
+            "a note",
+            "H =",
+            "H = ",
+            " = H",
+            "U(a (b))",
+            "U(a note) x",
+        ] {
             assert!(!is_box_label(label), "{label}");
         }
     }
