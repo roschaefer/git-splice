@@ -1,80 +1,25 @@
-# Bumping the sync point
+# Bumping on a feature branch
 
-A push [never writes to the monorepo](../concepts/sync-model/README.md#r-is-computed-not-stored),
-so after one, `.splice` still names the upstream commit from before it.
-`git splice pull --bump` records the upstream branch anyway, in a
-commit that only changes `.splice`, like a submodule bump. Later rebuilds then start at the pushed commit, instead
-of rebuilding every commit pushed since the last pull.
+[Bumping the sync point](README.md) says to bump on `main` only. This
+page shows why, when the library squash-merges its pull requests: a bump
+on a feature branch that's merged after the library's merge conflicts,
+and one merged before leaves `main` naming a commit that disappears.
 
-Don't bump too often. A bump only saves work: without it, a push still
-sends only what isn't upstream yet. But each bump is one more commit
-that changes `.splice`, and two branches that record different commits
-there conflict when they're merged, even where the files would merge
-cleanly.
-
-Bump on `main`. If the library squash-merges its pull requests, a bump
-on a feature branch makes `.splice` conflict when the branch is merged
-after the library's. Merged before, it leaves `main`'s `.splice` naming
-the pull request's commit, which the library may delete. This workflow
-shows a bump on `main`, both cases on a feature branch, and how to get
-out of the conflict.
+It starts where the [bump on `main`](README.md#bump-on-main-after-a-push)
+ends: `pkg-a` pushed *k*, and `main` bumped to it.
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/scrut-setup.sh"
+$ source "$TESTDIR/../scrut-setup.sh" &&
+>   git splice pull vendor/pkg-a >/dev/null &&
+>   echo "a faster parser" >>vendor/pkg-a/file.txt &&
+>   git commit -qam "k: a faster parser" &&
+>   git splice push vendor/pkg-a >/dev/null &&
+>   git splice pull --bump -m "a: bump pkg-a to the faster parser" vendor/pkg-a >/dev/null
 ```
 -->
 
-## On main, after a push
-
-Bring `pkg-a` up to date, as in the [main walkthrough](README.md#pull),
-then change it and push:
-
-```scrut
-$ git splice pull vendor/pkg-a >/dev/null
-```
-
-```scrut
-$ echo "a faster parser" >>vendor/pkg-a/file.txt &&
->   git commit -qam "k: a faster parser"
-```
-
-```scrut
-$ git splice push vendor/pkg-a
-ok   vendor/pkg-a: pushed dd60ba4 to main
-```
-
-A pull right after the push has nothing to bring in, and leaves `.splice`
-as it was:
-
-```scrut
-$ git splice pull vendor/pkg-a
-ok   vendor/pkg-a fetched
-ok   vendor/pkg-a: nothing to pull
-```
-
-```scrut
-$ git log -1 --format=%s "$(git config --file vendor/pkg-a/.splice splice.commit)"
-pkg-a: a second commit, after the clone
-```
-
-With `--bump`, it records the pushed commit:
-
-```scrut
-$ git splice pull --bump -m "a: bump pkg-a to the faster parser" vendor/pkg-a
-ok   vendor/pkg-a fetched
-ok   vendor/pkg-a: bumped the synced commit to dd60ba4
-```
-
-```scrut
-$ git log -1 --format=%s "$(git config --file vendor/pkg-a/.splice splice.commit)"
-k: a faster parser
-```
-
-[bump-after-push](../scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/bump-after-push.md)
-shows what that changes for the rebuild.
-
-## On a feature branch: a conflict
+## Merged after the library: a conflict
 
 A feature that changes the library and the monorepo's code that uses it:
 
@@ -145,7 +90,7 @@ ok   vendor/pkg-a: pulled 7faf4fd
 
 <!--
 ```scrut
-$ source "$TESTDIR/../../check-drawing/check-drawing" &&
+$ source "$TESTDIR/../../../check-drawing/check-drawing" &&
 >   check_drawing "$TESTDIR/bump-conflict.drawio.svg" \
 >   b=feature~1 c=feature k=splices/pkg-a/heads/main~1
 ok   bump-conflict.drawio.svg: 7 commits, 9 arrows, 4 boxes, 1 lanes
@@ -214,7 +159,7 @@ ok   vendor/pkg-a: recorded 7faf4fd as the synced commit -- the folder already h
 
 <!--
 ```scrut
-$ source "$TESTDIR/../../check-drawing/check-drawing" &&
+$ source "$TESTDIR/../../../check-drawing/check-drawing" &&
 >   check_drawing "$TESTDIR/bump-way-out.drawio.svg" \
 >   d=main b=feature~2 c=feature~1 e=feature k=splices/pkg-a/heads/main~1
 ok   bump-way-out.drawio.svg: 7 commits, 8 arrows, 3 boxes, 1 lanes
@@ -246,7 +191,7 @@ If the library deleted its `feature` branch after the merge, there's
 nothing to pull. Merge `main` into the monorepo's `feature` instead, and
 resolve `.splice` to `main`'s version.
 
-## Merged first: a commit that disappears
+## Merged before the library: a commit that disappears
 
 Another feature, with a bump on its branch. This time, `main` merges it
 before the library merges its pull request:
@@ -332,11 +277,3 @@ On branch main
 Without the bump, `main`'s `.splice` would name a commit on the
 library's `main`, which it keeps, and a pull would bring in
 `a third option`.
-
-## A company fork
-
-The rebase needs a library branch you can force-push. For a library you
-don't maintain, that's a branch in your company's fork of it: push the
-feature there, open the pull request from the fork, and rebase the fork's
-branch once the original squash-merged it
-([contributing through a fork](fork.md)).

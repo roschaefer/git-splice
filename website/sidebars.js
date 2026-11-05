@@ -40,7 +40,13 @@ module.exports = {
       type: 'category',
       label: 'Advanced workflows',
       items: [
-        ...['bump', 'fork'].map((workflow) => `test/walkthrough/${workflow}`),
+        {
+          type: 'category',
+          label: 'Bumping the sync point',
+          link: {type: 'doc', id: 'test/walkthrough/bump/README'},
+          items: ['test/walkthrough/bump/on-a-feature-branch'],
+        },
+        'test/walkthrough/fork',
         {
           type: 'category',
           label: 'Rebasing a feature branch',

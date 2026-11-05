@@ -120,7 +120,7 @@ branch that never saw the bump pushes the same commits.
 
 A bump merged the other way, from a feature branch into `main`, can
 leave `main`'s `.splice` naming a commit the upstream deleted
-([merged first](../../../../../walkthrough/bump.md#merged-first-a-commit-that-disappears)).
+([merged before the library](../../../../../walkthrough/bump/on-a-feature-branch.md#merged-before-the-library-a-commit-that-disappears)).
 
 ## A bump while ahead
 

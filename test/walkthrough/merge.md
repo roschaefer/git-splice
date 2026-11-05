@@ -134,7 +134,7 @@ upstream branch anyway:
 </div>
 
 Use it sparingly: on a feature branch, a bump can conflict
-([bumping the sync point](bump.md)).
+([bumping the sync point](bump/README.md#not-on-a-feature-branch)).
 
 ### `--rebase`
 
