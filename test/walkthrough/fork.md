@@ -1,358 +1,120 @@
 # Contributing through a fork
 
-A library you don't maintain takes changes only as pull requests, and
-may take its time with them. Meanwhile, the monorepo needs the changes
-now. A fork of the library holds them in the meantime:
+You fixed a library you don't maintain. It takes changes only as pull
+requests, and may take weeks to merge yours. Your monorepo needs the fix
+now. So keep the fix in a fork of the library, and let the monorepo
+follow the fork until the library has taken it.
 
-- **The fork's `main`** mirrors the original's `main`, and nothing else.
-- **`patches`** holds the monorepo's changes on top of the fork's
-  `main`. The monorepo's `main` follows it: the splice gets every
-  change, including those the original hasn't taken yet.
-- **One branch per change**, on top of the fork's `main`, once there
-  are several changes the original should review one by one. Each
-  becomes a pull request to the original, on its own, so it can be
-  reviewed and taken on its own. A pull request against the fork's own
-  `main` shows what's still to send, and runs the library's CI. With a
-  single change, `patches` itself can be the pull request's branch.
+The fork has three kinds of branches:
 
-When the original moves on, the fork's `main` catches up, and the
-branches are rebased onto it. A change the original took drops out of
-`patches` in that rebase.
+- **`main`**: a copy of the library's `main`. Nobody commits on it.
+- **`patches`**: your changes on top of `main`. The monorepo follows
+  this branch, so it has every fix, merged upstream or not.
+- **One branch per pull request**: each with one change on top of
+  `main`, so the library can review and take each on its own. With a
+  single change, `patches` can be the pull request's branch.
 
-This repository dogfoods the workflow with
-[scrut](https://github.com/facebookincubator/scrut), its test runner:
-`scrut/` is a splice that follows a fork of it,
-[roschaefer/scrut](https://github.com/roschaefer/scrut). The fork's
-[pull requests](https://github.com/roschaefer/scrut/pulls?q=is%3Apr)
-show each change on its way back to Meta.
+<div align="center">
 
-<!-- Builds a fresh sandbox; see `just docs-check`.
-```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/scrut-setup.sh"
-```
--->
+![The monorepo's x, y and p, which is H and B; the lane vendor/a/ split in two: origin with k, m and n, its main; fork with the same k, m and n, its main, q on top of n on fix/parser, e on top of n on docs/parser, and d on top of q, which is T, R, U(H), U(B) and patches](../scenarios/04-upstreams/07-contributing-through-a-fork/fork.drawio.svg)
 
-First, bring `pkg-a` up to date, as in the
-[main walkthrough](README.md#pull):
+</div>
 
-```scrut
-$ git splice pull vendor/pkg-a >/dev/null
-```
+Here the monorepo made two changes, *x* and *y*. In the fork, each has a
+branch of its own, *q* on `fix/parser` and *e* on `docs/parser`, and
+`patches` has both. A [scenario](../scenarios/04-upstreams/07-contributing-through-a-fork/README.md)
+runs the whole workflow.
 
-## Fork the library
+## Follow the fork
 
-A host's "Fork" button copies the repository. Here, a bare clone next to
-the original does:
+Fork the library on its host. Then add the fork to the splice's
+`.splice` as a second [upstream](../concepts/upstreams/README.md), make
+it the default, and follow its `patches`:
 
-```scrut
-$ git clone -q --bare "$WALKTHROUGH/upstream/pkg-a.git" "$WALKTHROUGH/upstream/pkg-a-fork.git"
+```sh
+git config --file vendor/a/.splice upstream.fork.url 'https://github.com/<you>/lib.git'
+git config --file vendor/a/.splice upstream.fork.default-branch patches
+git config --file vendor/a/.splice splice.default-upstream fork
+git commit -m "follow the fork's patches" -- vendor/a/.splice
 ```
 
-The splice gets the fork as a second upstream, and uses it by default.
-Its `default-branch` makes the monorepo's `main` follow `patches`
-instead of the fork's `main`
-([upstreams](../concepts/upstreams/README.md)):
-
-```scrut
-$ git config --file vendor/pkg-a/.splice upstream.fork.url https://git.example.com/pkg-a-fork.git &&
->   git config --file vendor/pkg-a/.splice upstream.fork.default-branch patches &&
->   git config --file vendor/pkg-a/.splice splice.default-upstream fork &&
->   git commit -q -m "pkg-a: follow the fork's patches" -- vendor/pkg-a/.splice
-```
-
-```scrut
-$ cat vendor/pkg-a/.splice
+```text
 [splice]
-	id = 679c78b9916de804
-	commit = 703b9360f7ac335a1134e9b5771a90a7c09ba39a
+	id = …
+	commit = …
 	default-upstream = fork
 [upstream "origin"]
-	url = https://git.example.com/pkg-a.git
+	url = https://github.com/<them>/lib.git
 [upstream "fork"]
-	url = https://git.example.com/pkg-a-fork.git
+	url = https://github.com/<you>/lib.git
 	default-branch = patches
 ```
 
-## Changes in the monorepo
+From then on, `git splice push vendor/a` sends your changes to the
+fork's `patches`, and `git splice pull vendor/a` brings that branch in.
 
-The monorepo fixes the library where it uses it, and documents the fix:
+## Open a pull request per change
 
-```scrut
-$ echo "a parser fix" >>vendor/pkg-a/file.txt &&
->   git commit -qam "pkg-a: fix the parser"
+In a clone of the fork, give each change a branch that starts at `main`,
+and push it:
+
+```sh
+git switch -c fix/parser origin/main
+git cherry-pick <the change's commit on patches>
+git push origin fix/parser
 ```
 
-```scrut
-$ echo "how the parser works" >vendor/pkg-a/parser.md &&
->   git add vendor/pkg-a/parser.md &&
->   git commit -q -m "pkg-a: document the parser"
+Open the pull request against the library. One against the fork's own
+`main` runs the library's CI on it first.
+
+## When the library moves on
+
+Bring the fork's `main` up to date. It has no commits of its own, so
+that's a fast-forward. Then rebase `patches` and the pull request
+branches onto it, and force-push them:
+
+```sh
+git fetch original
+git push origin original/main:main
+git rebase origin/main patches
+git push --force-with-lease origin patches
 ```
 
-The fork has no `patches` yet, so the first push creates it:
-
-```scrut
-$ git splice push vendor/pkg-a
-??   vendor/pkg-a: upstream has no 'fork/patches' branch yet -- this push creates it
-ok   vendor/pkg-a: pushed 0091412 to fork/patches
-```
-
-## One branch per change
-
-The two changes are independent, and the original should review them one
-by one, so each pull request to the original gets a branch of its own,
-with only its change on the fork's `main`. In a clone of the fork, with
-the original as a second remote:
-
-```scrut
-$ git clone -q "$WALKTHROUGH/upstream/pkg-a-fork.git" "$WALKTHROUGH/pkg-a-fork" &&
->   cd "$WALKTHROUGH/pkg-a-fork" &&
->   git remote add original "$WALKTHROUGH/upstream/pkg-a.git"
-```
-
-```scrut
-$ git switch -q -c fix/parser origin/main &&
->   git cherry-pick origin/patches~1
-[fix/parser 7edd872] pkg-a: fix the parser
- Date: Thu Jan 1 00:00:00 2026 +0000
- 1 file changed, 1 insertion(+)
-```
-
-```scrut
-$ git switch -q -c docs/parser origin/main &&
->   git cherry-pick origin/patches
-[docs/parser 16d516f] pkg-a: document the parser
- Date: Thu Jan 1 00:00:00 2026 +0000
- 1 file changed, 1 insertion(+)
- create mode 100644 parser.md
-```
-
-```scrut
-$ git push -q origin fix/parser docs/parser
-```
-
-```scrut
-$ git log --format=%s origin/main..docs/parser
-pkg-a: document the parser
-```
-
-From each branch, open a pull request against the fork's `main` to run
-the library's CI, and one against the original. A change that needs
-another one carries that one's commit too, and its pull request waits
-for the other's.
-
-## The original moves on
-
-The original's maintainer commits something else:
-
-```scrut
-$ git clone -q "$WALKTHROUGH/upstream/pkg-a.git" "$WALKTHROUGH/pkg-a" &&
->   cd "$WALKTHROUGH/pkg-a" &&
->   git config user.name "Maintainer" &&
->   git config user.email "maintainer@example.com"
-```
-
-```scrut
-$ echo "a new feature" >feature.txt &&
->   git add feature.txt &&
->   git commit -q -m "n: add a feature" &&
->   git push -q origin main
-```
-
-The fork's `main` catches up. It never has commits of its own, so that's
-a fast-forward:
-
-```scrut
-$ cd "$WALKTHROUGH/pkg-a-fork" &&
->   git fetch -q original &&
->   git push -q origin original/main:main
-```
-
-Then the branches are rebased onto it and force-pushed, each with a
-lease on where it was:
-
-```scrut
-$ git fetch -q origin &&
->   git rebase -q origin/main fix/parser &&
->   git rebase -q origin/main docs/parser &&
->   git switch -q -c patches origin/patches &&
->   git rebase -q origin/main &&
->   git push -q --force-with-lease origin fix/parser docs/parser patches
-```
-
-```scrut
-$ git log --format=%s origin/patches
-pkg-a: document the parser
-pkg-a: fix the parser
-n: add a feature
-pkg-a: a second commit, after the clone
-pkg-a: seed
-```
-
-The monorepo pulls the rebased `patches`. The commit it synced last is
-still in its history, so this is an ordinary pull:
-
-```scrut
-$ cd "$WALKTHROUGH/monorepo" && git splice pull -m "p: pull the rebased patches" vendor/pkg-a
-ok   vendor/pkg-a fetched from fork (patches moved 0091412..d4bba3a)
-ok   vendor/pkg-a: pulled d4bba3a
-```
-
-```scrut
-$ git splice status
-On branch main
-
-  up to date  vendor/pkg-a -> fork/patches
-```
-
-`pull` fetched the fork only. `fetch` fetches both upstreams:
-
-```scrut
-$ git splice fetch vendor/pkg-a
-ok   vendor/pkg-a fetched from origin (main moved 703b936..3f31d3d)
-ok   vendor/pkg-a fetched from fork
-```
-
-The splice's two upstreams side by side. The original, `origin`, has
-*k* (`pkg-a: seed`), *m* (`pkg-a: a second commit, after the clone`)
-and *n* on `main`. The fork has the same `main`, and
-on top of it a branch for each pull request: *q* (`pkg-a: fix the
-parser`) on `fix/parser`, and *e* (`pkg-a: document the parser`) on
-`docs/parser`. `patches` stacks both, with *d*, the same change as *e*,
-on top of *q*. The monorepo made the changes as *x* and *y*:
+Then pull in the monorepo, as always. When the library has taken one of
+your pull requests, the rebase drops that change from `patches`, since
+`main` has it now. The monorepo already has the change, so its pull
+only records the new `patches`. Here the library took `fix/parser` as
+*f*. `patches` is now just *g*, the documentation change, on top of *f*,
+and the monorepo's *r* records it:
 
 <div align="center">
 
-![The monorepo's x, y and p, which is H and B; the lane vendor/pkg-a/ split in two: origin with k, m and n, its main; fork with the same k, m and n, its main, q on top of n on fix/parser, e on top of n on docs/parser, and d on top of q, which is T, R, U(H), U(B) and patches](fork.drawio.svg)
+![The monorepo's p and r, which is H and B; the lane vendor/a/ split in two: origin with k, m, n and f, its main; fork with the same k, m, n and f, its main, and g on top of f, which is T, R, U(H), U(B), patches and docs/parser](../scenarios/04-upstreams/07-contributing-through-a-fork/fork-merged.drawio.svg)
 
 </div>
 
-<!--
-```scrut
-$ source "$TESTDIR/../../check-drawing/check-drawing" &&
->   check_drawing "$TESTDIR/fork.drawio.svg" \
->     x=HEAD~2 y=HEAD~1 \
->     k=refs/splices/pkg-a/heads/main~2 m=refs/splices/pkg-a/heads/main~1 \
->     q=refs/splices/pkg-a-fork/heads/fix/parser e=refs/splices/pkg-a-fork/heads/docs/parser \
->     d=refs/splices/pkg-a-fork/heads/patches
-ok   fork.drawio.svg: 12 commits, 15 arrows, 6 boxes, 1 lanes, 2 upstreams
-```
--->
-
-## The original merges a pull request
-
-The original takes `fix/parser`, but not `docs/parser` yet.
-
-### In the original
-
-The maintainer merges the pull request as a new commit on `main`: same
-change, new message, new parent, as a squash merge would.
-
-```scrut
-$ cd "$WALKTHROUGH/pkg-a" &&
->   git fetch -q "$WALKTHROUGH/upstream/pkg-a-fork.git" fix/parser &&
->   git cherry-pick --no-commit FETCH_HEAD &&
->   git commit -q -m "f: Fix the parser (#1)" &&
->   git push -q origin main
-```
-
-### In the fork
-
-The fork's `main` catches up again, and `docs/parser` and `patches`
-are rebased onto it. This time, the rebase finds the fix already on
-`main` and drops it from `patches`, which keeps only the documentation
-on top. `fix/parser` has done its job, and goes:
-
-```scrut
-$ cd "$WALKTHROUGH/pkg-a-fork" &&
->   git fetch -q original &&
->   git push -q origin original/main:main &&
->   git fetch -q origin &&
->   git rebase -q origin/main docs/parser &&
->   git -c advice.skippedCherryPicks=false rebase -q origin/main patches &&
->   git push -q --force-with-lease origin docs/parser patches :fix/parser
-```
-
-```scrut
-$ git log --format=%s origin/patches
-pkg-a: document the parser
-f: Fix the parser (#1)
-n: add a feature
-pkg-a: a second commit, after the clone
-pkg-a: seed
-```
-
-### In the monorepo
-
-The rebase rewrote the monorepo's last synced commit, *d*, away. But
-the folder already has the files of the new `patches`, so the pull only
-records it:
-
-```scrut
-$ cd "$WALKTHROUGH/monorepo" && git splice pull -m "r: record the merged fix" vendor/pkg-a
-ok   vendor/pkg-a fetched from fork (patches moved d4bba3a..bea4f85)
-ok   vendor/pkg-a: recorded bea4f85 as the synced commit -- the folder already has its files
-```
-
-```scrut
-$ git splice status
-On branch main
-
-  up to date  vendor/pkg-a -> fork/patches
-```
-
-To see the original too, fetch both upstreams again:
-
-```scrut
-$ git splice fetch vendor/pkg-a
-ok   vendor/pkg-a fetched from origin (main moved 3f31d3d..d159ec6)
-ok   vendor/pkg-a fetched from fork
-```
-
-The original's `main` has the fix as a new commit, *f*, on top of *n*,
-and so has the fork's.
-`patches` and `docs/parser` are now one commit, *g*
-(`pkg-a: document the parser`) on top of *f*: rebased onto the same
-`main`, the documentation came out the same in both. *r* recorded *g*:
-
-<div align="center">
-
-![The monorepo's p and r, which is H and B; the lane vendor/pkg-a/ split in two: origin with k, m, n and f, its main; fork with the same k, m, n and f, its main, and g on top of f, which is T, R, U(H), U(B), patches and docs/parser](fork-merged.drawio.svg)
-
-</div>
-
-<!--
-```scrut
-$ check_drawing "$TESTDIR/fork-merged.drawio.svg" \
->     k=refs/splices/pkg-a/heads/main~3 m=refs/splices/pkg-a/heads/main~2 \
->     g=refs/splices/pkg-a-fork/heads/patches
-ok   fork-merged.drawio.svg: 11 commits, 12 arrows, 4 boxes, 1 lanes, 2 upstreams
-```
--->
-
-The folder has both changes, the fix now as the original's:
-
-```scrut
-$ cat vendor/pkg-a/file.txt vendor/pkg-a/parser.md
-pkg-a: seed
-pkg-a: a second commit, after the clone
-a parser fix
-how the parser works
-```
-
-If the maintainer edited the change on the way, the rebase conflicts in
-the fork instead. Resolve it with the original's version, and the
-monorepo pulls that.
+If the maintainer changed your fix on the way, the rebase conflicts in
+the fork. Keep the library's version, and the monorepo pulls that.
 
 ## Push before the fork rebases
 
-Push the monorepo's changes to `patches` before the fork rebases it, so
-the rebased `patches` has them. Then a pull only ever brings in the
-fork's version of what the monorepo already has, even where the rebase
-rewrote the synced commit away: like `git pull --rebase`, `pull` merges
-from where `patches` was before, its fork point in the fetched branch's
-reflog ([patch-branch-rebased](../scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)).
-That reflog is local, as in Git: it needs a fetch of `patches` from
-before the rebase. A clone of the monorepo that first fetches after the
-rebase has no fork point, and its pull conflicts as `git merge` would.
-A change that wasn't pushed in time needs
+Push your changes from the monorepo to `patches` before anyone rebases
+it. Then the rebased `patches` has them, and a pull only brings in the
+fork's version of what the monorepo already has
+([patch-branch-rebased](../scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)).
+A change you didn't push in time needs
 [`pull --rebase`](../scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/README.md).
+
+The pull knows where `patches` was before the rebase from the fetched
+branch's reflog, like `git pull --rebase`. That reflog is local: a fresh
+clone of the monorepo that first fetches after the rebase doesn't have
+it, and its pull conflicts.
+
+## In practice
+
+This repository works this way with
+[scrut](https://github.com/facebookincubator/scrut), its test runner:
+`scrut/` is a splice that follows a fork,
+[roschaefer/scrut](https://github.com/roschaefer/scrut). The fork's
+[pull requests](https://github.com/roschaefer/scrut/pulls?q=is%3Apr)
+show each change on its way back to Meta.
