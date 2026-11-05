@@ -505,8 +505,10 @@ $ git config -f vendor/lib/.splice splice.commit
 bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
-A squash merge keeps the file's content, and the squash commit, which
-changes it, becomes B
+A squash merge keeps the file's content, where it drops *j*'s message.
+Squash-merged, *c* and *e* leave `.splice` as it was, and B stays the
+`clone` commit; a pull request with a pull in it changes `.splice`, and
+its squash commit becomes B
 ([scenario](../scenarios/03-branches-and-teamwork/03-squash-merged-pull/README.md)).
 `git mv` moves the file along, and a change to it shows in the diff like
 any other. Moving a splice has gaps of its own, shown in the
