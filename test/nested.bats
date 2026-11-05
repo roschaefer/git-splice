@@ -509,6 +509,20 @@ swap_splice_files() {
   [ ! -e vendor/.splice ]
 }
 
+@test "nested: init around a splice refuses when the .splice it would record the default branch in has staged changes its working tree undid" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "# a comment" >>vendor/a/.splice
+  git add vendor/a/.splice
+  git show HEAD:vendor/a/.splice >vendor/a/.splice
+  [ -n "$(git diff --cached --name-only)" ]
+  git init -q --bare -b master "$BATS_TEST_TMPDIR/vendor.git"
+  run splice init vendor "$BATS_TEST_TMPDIR/vendor.git"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/.splice has uncommitted changes"* ]]
+  [ ! -e vendor/.splice ]
+}
+
 @test "nested: a pull of a keeps a .splice below it that a's upstream doesn't have" {
   scenario_up_to_date "$monorepo" "$upstream"
   make_bare_repo "$upstream_b"

@@ -117,7 +117,11 @@ pub fn run(argv: &[String]) -> Res<i32> {
     }
     for (inner, _, _) in &kept {
         let file = format!("{inner}/{STATE_FILE}");
-        if !git(&["diff", "--quiet", "HEAD", "--", &file]).q().ok() {
+        if !git(&["diff", "--quiet", "HEAD", "--", &file]).q().ok()
+            || !git(&["diff", "--quiet", "--cached", "HEAD", "--", &file])
+                .q()
+                .ok()
+        {
             return die(format!(
                 "{file} has uncommitted changes, and init would record the default branch it follows there -- commit or discard them first"
             ));
