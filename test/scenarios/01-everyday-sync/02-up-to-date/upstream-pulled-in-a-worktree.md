@@ -7,30 +7,10 @@ synced commit where it was: whatever the worktree adds counts as the
 monorepo's own work, to push.
 
 Here, the worktree pulls `vendor/a/`'s own upstream instead, as one would
-in a clone, while the monorepo has a change of its own, *b*. The merge
-brings that pull back as *m*, a local commit with the upstream's changes
-in it. `.splice` still names *k*, so the rebuild has them in *m'*, beside
-*l* and *n*, the upstream's commits with the same changes:
-
-<div align="center">
-
-![The monorepo's a, b and m, H at m and B at a; upstream k, l and n, T at n, U(H) at k; the rebuild b prime and m prime on top of k, dashed, R at m prime](upstream-merged-back.drawio.svg)
-
-</div>
-
-The push refuses, as the upstream has *l* and *n*. A pull then records
-*n*, and the next push publishes the upstream's changes a second time,
-in *m'*:
-
-<div align="center">
-
-![The monorepo's a, b, m and the pull p, H at p; upstream k, l and n, U(H) at n; b prime and m prime on top of k, and p prime, a merge of m prime and n, T and R](upstream-pushed-twice.drawio.svg)
-
-</div>
-
-`git splice pull vendor/a` in the monorepo would have merged *n* as the
-synced commit right away, and the push would have sent *b'* and a merge
-with *n*, without *m'*.
+in a clone, while the monorepo has a change of its own. That pull's
+changes come back as the monorepo's own work too, and the next push
+publishes them a second time. `git splice pull vendor/a` in the monorepo
+would have recorded the upstream's commit as the synced one instead.
 
 ## Output
 
@@ -81,6 +61,9 @@ $ git worktree add -q -b work-on-a ../a-work "$(git splice rebuild vendor/a)"
 $ git -C ../a-work pull -q --no-rebase --no-edit "$UPSTREAM" main
 ```
 
+The pull merges *n* and the rebuild's copy of *b*, *b'*, in a merge
+commit of its own, *w*:
+
 ```scrut
 $ git -C ../a-work log --graph --format=%s
 *   Merge branch 'main' of $UPSTREAM into work-on-a
@@ -114,8 +97,21 @@ ok   upstream-merged-back.drawio.svg: 8 commits, 11 arrows, 5 boxes, 1 lanes
 ```
 -->
 
-`.splice` still names *k*, so the upstream's changes count as local ones,
-and its commits as missing:
+The monorepo has one commit, *m*, with *w*'s changes to *b*: the
+upstream's two. *w* is gone with the worktree, and with it that *n* is
+its parent: `merge --rebuilt-commit` takes the files of a commit, not its
+history.
+`.splice` still names *k*, so the rebuild has *m'*, a commit with the
+upstream's changes, beside *l* and *n*, the upstream's commits with the
+same changes:
+
+<div align="center">
+
+![The monorepo's a, b and m, H at m and B at a; upstream k, l and n, T at n, U(H) at k; the rebuild b prime and m prime on top of k, dashed, R at m prime](upstream-merged-back.drawio.svg)
+
+</div>
+
+The upstream's changes count as local ones, and its commits as missing:
 
 ```scrut
 $ git log -1 --format=%s "$(git config --file vendor/a/.splice splice.commit)"
@@ -151,6 +147,12 @@ ok   vendor/a: pushed bdb6adf to main
 
 The upstream has *l* and *n*'s changes twice now: in *l* and *n*, and in
 *m'*:
+
+<div align="center">
+
+![The monorepo's a, b, m and the pull p, H at p; upstream k, l and n, U(H) at n; b prime and m prime on top of k, and p prime, a merge of m prime and n, T and R](upstream-pushed-twice.drawio.svg)
+
+</div>
 
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s main
