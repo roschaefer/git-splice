@@ -240,6 +240,36 @@ pub fn reroot_tree(path: &str, folder: Option<&str>, blob: Option<&str>, rev: &s
     indexed(&["write-tree"]).out().ok_or(Fail::Soft)
 }
 
+/// Commits the state files <files>, each a (path, blob) pair, on top of HEAD.
+/// Git moves the index and worktree to them as a checkout does: it refuses to
+/// overwrite local changes and applies checkout attributes. Then 'git commit'
+/// commits just these files, as for any commit of the user's.
+pub fn commit_state_files(files: &[(String, String)], message: &str) -> Res<()> {
+    let index = Temp::new();
+    let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
+    let mut ok = indexed(&["read-tree", "HEAD"]).ok();
+    for (file, blob) in files {
+        let entry = format!("100644,{blob},{file}");
+        ok = ok && indexed(&["update-index", "--add", "--cacheinfo", &entry]).ok();
+    }
+    if !ok {
+        return Err(Fail::Soft);
+    }
+    let tree = indexed(&["write-tree"]).out().ok_or(Fail::Soft)?;
+    git(&["update-index", "-q", "--refresh"]).q().ok();
+    let (ok, output) = git_merged_output(&["read-tree", "-m", "-u", "HEAD", &tree]);
+    if !ok {
+        eprint_text(&format!("{}\n", output.trim_end()));
+        return Err(Fail::Soft);
+    }
+    let mut commit = vec!["commit", "--quiet", "-m", message, "--"];
+    commit.extend(files.iter().map(|(file, _)| file.as_str()));
+    if git(&commit).run() != 0 {
+        return Err(Fail::Soft);
+    }
+    Ok(())
+}
+
 /// Splices upstream content into <path> as one ordinary commit: a three-way
 /// merge of HEAD's folder with <new_folder>, using <base_folder> as the merge
 /// base. The state file goes from <base_blob> to <new_blob> in the same commit.
