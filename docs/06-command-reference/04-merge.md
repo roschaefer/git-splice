@@ -313,7 +313,7 @@ $ git splice merge -h | check-help section nested-splices
     worktrees are for, and the ones below them.
 ```
 
-How the levels fit together: [nesting](../concepts/nesting/README.md).
+How the levels fit together: [nesting](../03-concepts/04-nesting.md).
 
 ## Conflicts
 

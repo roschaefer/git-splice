@@ -167,7 +167,7 @@ NESTED SPLICES
     monorepo. Until then, pull, merge and push refuse the splices the
     worktrees are for, and the ones below them.
 
-    See also: https://roschaefer.github.io/git-splice/test/walkthrough/merge/#nested-splices
+    See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#nested-splices
 
 CONFLICTS
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
