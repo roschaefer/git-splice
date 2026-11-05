@@ -21,7 +21,13 @@ $ build_scenario scenario_diverged_unrelated_history
 ```
 
 ```scrut
-$ git clone -q --no-local . ../fresh && cd ../fresh && git config user.name Test && git config user.email test@example.com
+$ git clone -q --no-local . ../fresh
+```
+
+```scrut
+$ cd ../fresh &&
+>   git config user.name Test &&
+>   git config user.email test@example.com
 ```
 
 ```scrut

@@ -11,7 +11,10 @@ merge.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.$UPSTREAM.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/a.git
+$ source "$TESTDIR/../../readme-setup.sh" &&
+>   export GIT_CONFIG_COUNT=1 \
+>     GIT_CONFIG_KEY_0="url.$UPSTREAM.insteadOf" \
+>     GIT_CONFIG_VALUE_0=https://git.example.com/a.git
 ```
 -->
 
