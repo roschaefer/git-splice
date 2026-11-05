@@ -22,7 +22,9 @@ monorepo's default branch, `main`, which the inner upstream doesn't have
 `clone` and `init` inside a splice follow the same rule: they record
 `default-branch` only if the new upstream's default branch differs from
 the one of the splice above. So the file means the same in both
-directions.
+directions. `init` around a splice records the branch the splices inside
+followed, where the new one's differs
+([made around](../01-nested-splices/made-around.md)).
 
 ## Output
 
