@@ -1,8 +1,17 @@
 name: CI
 
+# Branches other than main are checked by their PR's run: a push trigger
+# for them would run everything twice.
 on:
   push:
+    branches: [main]
   pull_request:
+
+# A new push to a PR cancels the run for the push before it. Other runs get
+# a group of their own (run_id), so every commit on main is checked.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
