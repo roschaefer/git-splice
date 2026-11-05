@@ -177,13 +177,13 @@ ok   lib: bumped the synced commit to 8430dba
 
 <div align="center">
 
-![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e', and T and R point at e' too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/pushed-and-bumped.drawio.svg)
+![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e', and T and R point at e' too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed/pushed-and-bumped.drawio.svg)
 
 </div>
 
 *f*'s folder is *e'*, so *f* is the new B, and the rebuild has nothing to add:
 R = T = U(H) = U(B) = *e'*
-([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/README.md)).
+([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed/README.md)).
 
 ### Parents of rebuilt commits
 
