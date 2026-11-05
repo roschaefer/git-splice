@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.19.0](https://github.com/roschaefer/git-splice/compare/v0.18.0...v0.19.0) (2026-11-05)
+
+
+### Features
+
+* **merge:** merge a commit made on top of the rebuild with --rebuilt-commit ([#362](https://github.com/roschaefer/git-splice/issues/362)) ([4644e7e](https://github.com/roschaefer/git-splice/commit/4644e7e29e54a72f1281fce76730fe6b731ab593))
+
+
+### Bug Fixes
+
+* **check-drawing:** judge a lane inside another by its whole shape ([#391](https://github.com/roschaefer/git-splice/issues/391)) ([c4e3398](https://github.com/roschaefer/git-splice/commit/c4e3398e970adaf1a7a95b4831af0bbd95810710))
+* **init:** keep the default branch of the splices inside a new splice ([#361](https://github.com/roschaefer/git-splice/issues/361)) ([14ea635](https://github.com/roschaefer/git-splice/commit/14ea635363e03bb0d6dc60166fb52f411c810f77))
+
 ## [0.18.0](https://github.com/roschaefer/git-splice/compare/v0.17.1...v0.18.0) (2026-11-05)
 
 
