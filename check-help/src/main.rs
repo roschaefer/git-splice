@@ -3,7 +3,7 @@ use std::fs;
 use std::io::{self, Read};
 use std::process::ExitCode;
 
-const URL_PREFIX: &str = "https://roschaefer.github.io/git-splice/test/walkthrough/";
+const URL_PREFIX: &str = "https://roschaefer.github.io/git-splice/docs/walkthrough/";
 
 #[derive(Debug)]
 struct Section<'a> {
@@ -362,7 +362,7 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    const HELP: &str = "NAME\n    x\n\nDESCRIPTION\n    Explain x.\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#options\n";
+    const HELP: &str = "NAME\n    x\n\nDESCRIPTION\n    Explain x.\n\n    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/docs/walkthrough/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/x/#options\n";
     const PAGE: &str = "# x\n```scrut\n$ git splice x -h | check-help preamble\n```\n## Description\n```scrut\n$ git splice x -h | check-help section description\n```\n## Options\n### `--one`\n```scrut\n$ git splice x -h | check-help option --one\n```\n";
 
     #[test]
@@ -428,9 +428,9 @@ mod tests {
 
     #[test]
     fn reference_links_use_the_published_walkthrough_route() {
-        assert!(validate_document(HELP, "test/walkthrough/x.md", PAGE).is_ok());
-        let shortened = HELP.replace("/test/walkthrough/", "/");
-        assert!(validate_document(&shortened, "test/walkthrough/x.md", PAGE).is_err());
+        assert!(validate_document(HELP, "docs/walkthrough/x.md", PAGE).is_ok());
+        let shortened = HELP.replace("/docs/walkthrough/", "/");
+        assert!(validate_document(&shortened, "docs/walkthrough/x.md", PAGE).is_err());
     }
 
     #[test]
@@ -444,13 +444,13 @@ mod tests {
 
     #[test]
     fn linked_sections_are_the_complete_top_level_sections() {
-        let help = "NAME\n    x\n\nSYNOPSIS\n    x\n\nDESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#options\n";
+        let help = "NAME\n    x\n\nSYNOPSIS\n    x\n\nDESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/docs/walkthrough/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/x/#options\n";
         let sections = linked_sections(help).unwrap();
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].anchor, "description");
         assert_eq!(
             sections[0].text,
-            "DESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/test/walkthrough/x/#description\n"
+            "DESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/docs/walkthrough/x/#description\n"
         );
         assert_eq!(sections[1].anchor, "options");
         let options = linked_options(help).unwrap();

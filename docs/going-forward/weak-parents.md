@@ -7,12 +7,12 @@ here changes how `git-splice` works.
 ## The sync point is a parent, written into the tree
 
 A pull, the commit that wrote U(H) into `lib/.splice`
-([sync model](../../test/concepts/sync-model/README.md)), could have
+([sync model](../concepts/sync-model/README.md)), could have
 been a merge instead, with two parents: the monorepo's previous commit,
 and U(H). Its tree would be the same as the pull's: U(H)'s files in `lib/`, merged
 with the folder's changes since the last sync, if there are any. That's
 the commit `git subtree add` and `git subtree pull` create without
-`--squash` ([`git subtree` compared](../../test/comparisons/git-subtree.md)).
+`--squash` ([`git subtree` compared](../comparisons/git-subtree.md)).
 With `--squash`, the second parent is a new commit with U(H)'s files, and
 U(H) isn't in the history at all.
 
@@ -116,12 +116,12 @@ repositories use them today:
 
 - **Sapling** records each `sl subtree` import and merge in a header,
   `test_subtree`, with the library's URL, its commit and the folder
-  ([Sapling compared](../../test/comparisons/vcs/sapling.md#import-the-library)).
+  ([Sapling compared](../comparisons/vcs/sapling.md#import-the-library)).
   That's all three facts a splice needs ([below](#what-a-splice-would-need)).
 - **jj** writes a `change-id` header in every commit, the identity a
   change keeps across rewrites. A `jj graft` prototype, discussed on jj's
   Discord, records a folder's sync point in a header too
-  ([Jujutsu compared](../../test/comparisons/vcs/jj.md#what-jj-plans)).
+  ([Jujutsu compared](../comparisons/vcs/jj.md#what-jj-plans)).
 
 A header is half a weak parent: it's in the commit, and `log`,
 `merge-base` and `fetch` don't follow it, since Git doesn't know it points
@@ -141,7 +141,7 @@ commands, which copy the header along: `sl fold` keeps Sapling's record,
 and jj keeps the change id. Rewrites with Git, or a squash merge on a
 forge, lose it. Then Sapling's next merge starts from an older record,
 and a file the library removed
-[comes back](../../test/comparisons/vcs/sapling.md#a-squash-merge-drops-the-record).
+[comes back](../comparisons/vcs/sapling.md#a-squash-merge-drops-the-record).
 `git-splice` works with plain Git and squash-merged pull requests, where
 only the files survive every rewrite. So the sync point is in a file.
 

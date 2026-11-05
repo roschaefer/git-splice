@@ -8,26 +8,26 @@ build:
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
     shellcheck -x docs/design/pull-prototype.sh docs/design/rebuild-prototype.sh
-    shellcheck test/walkthrough/setup.sh
+    shellcheck docs/walkthrough/setup.sh
     shellcheck completions/git-splice.bash
     shellcheck bench/setup.sh bench/run.sh
     shellcheck -x check-drawing/check-drawing check-drawing/check-export
-    shellcheck -x test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh
+    shellcheck -x docs/walkthrough/scrut-setup.sh docs/scenarios/readme-setup.sh docs/readme/scrut-setup.sh docs/readme/both-sides-move-on.sh docs/comparisons/scrut-setup.sh docs/sandbox.sh
 
 # Format with shfmt and rustfmt
 fmt:
     cargo fmt --all
-    shfmt -w -i 2 -ci docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
+    shfmt -w -i 2 -ci docs/design/*.sh docs/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh docs/walkthrough/scrut-setup.sh docs/scenarios/readme-setup.sh docs/readme/scrut-setup.sh docs/readme/both-sides-move-on.sh docs/comparisons/scrut-setup.sh docs/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Check formatting with shfmt and rustfmt
 fmt-check:
     cargo fmt --all --check
-    shfmt -d -i 2 -ci docs/design/*.sh test/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh test/walkthrough/scrut-setup.sh test/scenarios/readme-setup.sh test/readme/scrut-setup.sh test/readme/both-sides-move-on.sh test/comparisons/scrut-setup.sh test/sandbox.sh check-drawing/check-drawing check-drawing/check-export
+    shfmt -d -i 2 -ci docs/design/*.sh docs/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh docs/walkthrough/scrut-setup.sh docs/scenarios/readme-setup.sh docs/readme/scrut-setup.sh docs/readme/both-sides-move-on.sh docs/comparisons/scrut-setup.sh docs/sandbox.sh check-drawing/check-drawing check-drawing/check-export
 
 # Run the Rust unit tests, then the bats tests, one job per CPU
 test: build
     cargo test --workspace --quiet
-    bats --recursive --jobs "$(nproc)" test
+    bats --jobs "$(nproc)" docs/tests
 
 # Time commands on a synthetic monorepo; see `just bench --help`
 [positional-arguments]
@@ -38,15 +38,15 @@ bench *args:
 # Open a shell in the state a docs page starts from, the walkthrough by default, e.g. `just sandbox comparisons/git-submodule`; see `just sandbox --help`
 [positional-arguments]
 sandbox *args: build
-    @test/sandbox.sh "$@"
+    @docs/sandbox.sh "$@"
 
 # Check the README, walkthroughs, concepts, scenario READMEs and comparisons against real output; --write updates them
 docs-check flag="": build
     @if [[ "{{flag}}" == --write ]]; then \
-      scrut update --replace --assume-yes README.md test/walkthrough test/concepts test/scenarios test/comparisons; \
+      scrut update --replace --assume-yes README.md docs/walkthrough docs/concepts docs/scenarios docs/comparisons; \
     elif [[ -n "{{flag}}" ]]; then \
       echo "usage: just docs-check [--write]" >&2; exit 1; \
-    elif ! scrut test --jobs "$(nproc)" README.md test/walkthrough test/concepts test/scenarios test/comparisons; then \
+    elif ! scrut test --jobs "$(nproc)" README.md docs/walkthrough docs/concepts docs/scenarios docs/comparisons; then \
       echo "The README, walkthroughs, concepts, scenario READMEs or comparisons don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
     fi
 

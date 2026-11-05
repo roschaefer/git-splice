@@ -78,7 +78,7 @@ Splice your fork of the library in once:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/test/readme/scrut-setup.sh"
+$ source "$TESTDIR/docs/readme/scrut-setup.sh"
 ```
 -->
 
@@ -97,13 +97,13 @@ on the app, and the fork takes in a release of the original meanwhile:
 
 <!--
 ```scrut
-$ source "$TESTDIR/test/readme/both-sides-move-on.sh"
+$ source "$TESTDIR/docs/readme/both-sides-move-on.sh"
 ```
 -->
 
 <div align="center">
 
-![Monorepo commits a to d, with HEAD at d and boundary at a, the clone of k; library commits k to n, theirs at n; ours is d prime, the rebuilt b prime and d prime on top of k, which is U(boundary) and base](test/scenarios/01-everyday-sync/01-sync-model/before-pull-git-names.drawio.svg)
+![Monorepo commits a to d, with HEAD at d and boundary at a, the clone of k; library commits k to n, theirs at n; ours is d prime, the rebuilt b prime and d prime on top of k, which is U(boundary) and base](docs/scenarios/01-everyday-sync/01-sync-model/before-pull-git-names.drawio.svg)
 
 </div>
 
@@ -125,18 +125,18 @@ rebuilt as their merge with *n*.
 
 ## Why not X?
 
-The [comparisons](test/comparisons/README.md) run each of these next to
+The [comparisons](docs/comparisons/README.md) run each of these next to
 `git-splice`.
 
-- [`git submodule`](test/comparisons/git-submodule.md): a checkout of the
+- [`git submodule`](docs/comparisons/git-submodule.md): a checkout of the
   monorepo is incomplete. The library stays a repository of its own inside
   it, which every clone, `git status` and fix has to handle separately.
-- [`git subtree`](test/comparisons/git-subtree.md): syncing pollutes your
+- [`git subtree`](docs/comparisons/git-subtree.md): syncing pollutes your
   history with merges, and can bring the library's whole history along.
-- [git-subrepo](test/comparisons/third-party/git-subrepo.md): it records
+- [git-subrepo](docs/comparisons/third-party/git-subrepo.md): it records
   each push in a commit of your monorepo, a redundant commit that a squash
   merge or rebase makes invalid.
-- [Josh](test/comparisons/third-party/josh.md): the library has to share
+- [Josh](docs/comparisons/third-party/josh.md): the library has to share
   its history with the monorepo, so it fits repositories that are meant
   to be one, not ones with histories of their own.
 

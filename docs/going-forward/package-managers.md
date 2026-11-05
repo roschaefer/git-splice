@@ -9,19 +9,19 @@ maps, and what doesn't.
 
 | Package manager | `git-splice` |
 |---|---|
-| package name | upstream ([upstreams](../../test/concepts/upstreams/README.md)) |
+| package name | upstream ([upstreams](../concepts/upstreams/README.md)) |
 | what you ask for: a version range or tag, e.g. `^1.2` (a *descriptor* in Yarn) | the upstream branch a splice syncs with |
 | what you got: the exact version in the lockfile (a *locator* in Yarn) | the synced commit U(H) |
-| a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../../test/concepts/nesting/README.md)) |
-| registries and mirror servers | several upstreams per splice ([several-upstreams](../../test/scenarios/04-upstreams/02-several-upstreams/README.md)) |
-| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../../test/concepts/upstreams/README.md#the-same-library-at-different-versions)) |
+| a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../concepts/nesting/README.md)) |
+| registries and mirror servers | several upstreams per splice ([several-upstreams](../scenarios/04-upstreams/02-several-upstreams/README.md)) |
+| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../concepts/upstreams/README.md#the-same-library-at-different-versions)) |
 | one package, deduplicated | mirrors: splices with the same `id` ([mirrors](mirrors.md)) |
 | `yarn dedupe --check` | a report of mirrors that drifted, not yet |
-| — | the [`id`](../../test/concepts/splice-identity/README.md): which copies are one splice, history included. A package can't be edited in place, so its name and version say that already |
+| — | the [`id`](../concepts/splice-identity/README.md): which copies are one splice, history included. A package can't be edited in place, so its name and version say that already |
 
 A package name is one identity in a registry. A URL is only a location:
 two URLs of one repository are two upstreams to the monorepo
-([upstreams](../../test/concepts/upstreams/README.md#urls-keys-and-refs)).
+([upstreams](../concepts/upstreams/README.md#urls-keys-and-refs)).
 
 ## What doesn't: reference versus containment
 
@@ -38,9 +38,9 @@ A splice **contains** its files, and a nested splice is part of the
 files of the splice above. So:
 
 - **Diamonds** get a copy per path, which can be at different versions
-  ([diamond](../../test/scenarios/05-nested-splices/03-diamond/README.md)).
+  ([diamond](../scenarios/05-nested-splices/03-diamond/README.md)).
 - **Cycles** never end, and aren't supported, though not prevented yet
-  ([cycle](../../test/scenarios/05-nested-splices/04-cycle/README.md)).
+  ([cycle](../scenarios/05-nested-splices/04-cycle/README.md)).
 
 Containment is the point of `git-splice`, not an accident: a splice's
 upstream is complete on its own, and anyone can clone it without git
@@ -62,7 +62,7 @@ with `push`. A package manager can only patch a package (`yarn patch`,
 Yarn's *zero installs* commit the package cache, so a fresh clone runs
 without an install step. A splice has that already: its files are
 committed in the monorepo, and a clone of the monorepo has them, with no
-fetch ([splice-refs](../../test/scenarios/04-upstreams/05-splice-refs/README.md#a-clone-of-the-monorepo-has-no-splice-refs)).
+fetch ([splice-refs](../scenarios/04-upstreams/05-splice-refs/README.md#a-clone-of-the-monorepo-has-no-splice-refs)).
 
 The difference is what's committed. Yarn commits one compressed archive
 per package version, deduplicated across the graph, plus a map of where

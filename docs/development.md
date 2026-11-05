@@ -22,7 +22,7 @@ release.
 `src/main.rs` checks the Git version and dispatches `git splice <command>` to
 the command's `run`. The tool only runs the `git` CLI, so
 `GIT_TRACE=<absolute file> git splice <command>` lists every git command it runs
-([how](../test/concepts/git-trace/README.md)).
+([how](concepts/git-trace/README.md)).
 
 | File | Responsibility |
 |---|---|
@@ -77,12 +77,12 @@ microseconds, so an edge case that fits one should not cost a repository.
 | Layer | Where | What it checks |
 |---|---|---|
 | Unit tests | `src/**/*.rs`, `check-*/src/*.rs` | Functions that need no repository, run by `cargo test`. |
-| Scenarios | `test/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from, or at the top of its chapter when that scenario is in an earlier chapter. Shared by everything below. |
-| Command tests | `test/*.bats` | The `git-splice` CLI, run through the `splice` helper, against a scenario. |
-| Oracle tests | `test/rebuild.bats` | The rebuild against `git subtree split`. |
-| Scenario READMEs | `test/scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
-| Walkthroughs | `test/walkthrough/*.md` | Every command once, in order, then a page per command, each on a fresh sandbox, checked by scrut. |
-| Benchmark | `bench/`, `test/bench.bats` | `status` timings on a synthetic monorepo, reported on PRs out of draft. |
+| Scenarios | `docs/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from, or at the top of its chapter when that scenario is in an earlier chapter. Shared by everything below. |
+| Command tests | `docs/tests/*.bats` | The `git-splice` CLI, run through the `splice` helper, against a scenario. |
+| Oracle tests | `docs/tests/rebuild.bats` | The rebuild against `git subtree split`. |
+| Scenario READMEs | `docs/scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
+| Walkthroughs | `docs/walkthrough/*.md` | Every command once, in order, then a page per command, each on a fresh sandbox, checked by scrut. |
+| Benchmark | `bench/`, `docs/tests/bench.bats` | `status` timings on a synthetic monorepo, reported on PRs out of draft. |
 
 ### Writing a bats test
 
@@ -107,7 +107,7 @@ setup() {
   changes moves up"`. The list of test names should read as a specification.
 - **Start from a scenario** if one fits, so the test and the README show
   the same state. Otherwise build the state inline from the helpers in
-  `test/helpers/fixtures.bash`: `make_bare_repo`, `seed_bare_repo`,
+  `docs/tests/helpers/fixtures.bash`: `make_bare_repo`, `seed_bare_repo`,
   `init_monorepo`, `add_splice`, `commit_local`, `fetch_splice`.
 - **Fixtures don't use the code under test.** `add_splice` splices a
   folder in with raw plumbing, not `git splice clone`, so a bug in `clone`
@@ -144,7 +144,7 @@ fn shell_quote_closes_and_reopens_the_quotes_around_a_single_quote() {
 ### Writing a scenario
 
 A scenario is one state a splice can be in, or one situation a command
-has to handle. [Adding a scenario](../test/scenarios/README.md#adding-a-scenario)
+has to handle. [Adding a scenario](scenarios/README.md#adding-a-scenario)
 has the steps.
 
 ### `git subtree split` as the test oracle

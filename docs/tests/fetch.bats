@@ -1,0 +1,110 @@
+setup() {
+  load 'helpers/fixtures'
+  hermetic_git_config
+  load '../scenarios/01-everyday-sync/02-up-to-date/setup'
+  load '../scenarios/01-everyday-sync/04-never-fetched/setup'
+  load '../scenarios/04-upstreams/03-shared-remote-url/setup'
+  monorepo="$BATS_TEST_TMPDIR/monorepo"
+  upstream="$BATS_TEST_TMPDIR/upstream.git"
+}
+
+@test "fetch: brings every upstream branch into refs/splices/<key>/heads/" {
+  scenario_never_fetched "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "on a branch" feature
+  cd "$monorepo"
+  run splice fetch
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a fetched" ]
+  git rev-parse --verify --quiet "$(upstream_refs "$upstream")main"
+  git rev-parse --verify --quiet "$(upstream_refs "$upstream")feature"
+  [ -z "$(git remote)" ]
+}
+
+@test "fetch: says when the branch this one syncs with moved" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  run splice fetch vendor/a
+  [[ "$output" == "ok   vendor/a fetched (main moved "*..*")" ]]
+}
+
+@test "fetch: prunes branches deleted upstream" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "on a branch" feature
+  cd "$monorepo"
+  splice fetch
+  git -C "$upstream" branch -D feature >/dev/null
+  splice fetch
+  ! git rev-parse --verify --quiet "$(upstream_refs "$upstream")feature"
+}
+
+@test "fetch: a failing upstream is reported, the others still fetch" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/b/.splice upstream.origin.url "$BATS_TEST_TMPDIR/nowhere.git"
+  git commit -q -am "break vendor/b"
+  run splice fetch
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"ok   vendor/a fetched"* ]]
+  [[ "$output" == *"Failed: vendor/b"* ]]
+}
+
+@test "fetch: honors url.<base>.insteadOf, since it works on URLs" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.origin.url "example:upstream.git"
+  git commit -q -am "use a short URL"
+  git config "url.$BATS_TEST_TMPDIR/.insteadOf" "example:"
+  run splice fetch
+  [ "$status" -eq 0 ]
+}
+
+@test "fetch: fetches an upstream that several splices share once, and reports each" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  local fetches="$BATS_TEST_TMPDIR/fetches"
+  stub_git 'if [[ " $* " == *" fetch "* && "$*" == *"refs/heads/*:"* ]]; then echo x >>"$BATS_TEST_TMPDIR/fetches"; fi'
+  run splice fetch
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok   vendor/a fetched (main moved"* ]]
+  [[ "$output" == *"ok   vendor/b fetched (main moved"* ]]
+  [ "$(wc -l <"$fetches")" -eq 1 ]
+}
+
+@test "fetch: a splice without a synced commit yet fetches its upstream once" {
+  load '../scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null
+  stub_git 'if [[ " $* " == *" fetch "* ]]; then echo fetch >>"$BATS_TEST_TMPDIR/fetches"; fi'
+  run splice fetch lib/a
+  [ "$status" -eq 0 ]
+  [ "$(wc -l <"$BATS_TEST_TMPDIR/fetches")" -eq 1 ]
+}
+
+@test "fetch: shows what git printed on a successful fetch, once per upstream" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  stub_git 'if [[ " $* " == *" fetch "* ]]; then echo "warning: from the transport" >&2; fi'
+  run splice fetch
+  [ "$status" -eq 0 ]
+  [ "$(grep -c "warning: from the transport" <<<"$output")" -eq 1 ]
+  [[ "$output" == *"ok   vendor/a fetched"* && "$output" == *"ok   vendor/b fetched"* ]]
+}
+
+@test "fetch: leaves the monorepo's submodules alone, even with fetch.recurseSubmodules" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  local sub="$BATS_TEST_TMPDIR/sub.git" before
+  make_bare_repo "$sub"
+  seed_bare_repo "$sub" "sub"
+  cd "$monorepo"
+  git -c protocol.file.allow=always submodule add -q "$sub" vendor/sub
+  git commit -q -m "add vendor/sub as a submodule"
+  before="$(git -C vendor/sub rev-parse origin/main)"
+  seed_bare_repo "$sub" "newer"
+  git config fetch.recurseSubmodules true
+  run splice fetch vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C vendor/sub rev-parse origin/main)" = "$before" ]
+}
