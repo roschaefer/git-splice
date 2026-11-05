@@ -53,6 +53,25 @@ $ echo "monorepo change" >>vendor/a/file.txt &&
 >   git commit -q -am "monorepo change"
 ```
 
+Two lines of work start at the rebuild, *k*: the monorepo's change *c*,
+which the rebuild copies to *c'*, and *o*, the worktree's commit, on a
+branch of the monorepo no upstream has, `work-on-a`:
+
+<div align="center">
+
+![The monorepo's a and c, B at a and H at c; upstream k, T and U(H); on top of k, dashed, c prime, R, and o, work-on-a, a dashed box](worked-on-before-merge.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/worked-on-before-merge.drawio.svg" \
+>     a=HEAD~1 c=HEAD k="$k" o=work-on-a
+ok   worked-on-before-merge.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
+```
+-->
+
 ## Back into the monorepo
 
 ```scrut
@@ -75,6 +94,23 @@ from the worktree
 seed
 monorepo change
 ```
+
+The merge's commit, *m*, has *o*'s changes, not *o*: the rebuild has *m'*
+on top of *c'*, and *o* stays on its branch:
+
+<div align="center">
+
+![The monorepo's a, c and m, B at a and H at m; upstream k, T and U(H); on top of k, dashed, c prime and m prime, R, and o, work-on-a, a dashed box](worked-on-merged-back.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/worked-on-merged-back.drawio.svg" \
+>   a=HEAD~2 c=HEAD~1 m=HEAD k="$k" o=work-on-a
+ok   worked-on-merged-back.drawio.svg: 7 commits, 10 arrows, 5 boxes, 1 lanes
+```
+-->
 
 `.splice` still names `seed`, so both changes are ahead, and the push
 sends them:
@@ -112,9 +148,8 @@ $ git -C ../a-work rm -q other.txt &&
 >   git -C ../a-work commit -q -m "remove other.txt"
 ```
 
-The rebuild doesn't have the worktree's first commit, only a copy of the
-merge's own commit. So the merge starts where the last merge took the
-branch, at that commit, which it recorded. From the rebuild's start,
+The rebuild doesn't have *o*, only *m'*. So the merge starts where the
+last merge took the branch, at *o*, which it recorded. From *k*,
 `other.txt` would look like the monorepo's own addition, and stay:
 
 ```scrut
