@@ -55,8 +55,14 @@ fork's `patches`, and `git splice pull vendor/a` brings that branch in.
 
 ## Open a pull request per change
 
-In a clone of the fork, give each change a branch that starts at `main`,
-and push it:
+Clone the fork, with the library as a second remote:
+
+```sh
+git clone https://github.com/<you>/lib.git && cd lib
+git remote add original https://github.com/<them>/lib.git
+```
+
+Give each change a branch that starts at `main`, and push it:
 
 ```sh
 git switch -c fix/parser origin/main
@@ -69,14 +75,21 @@ Open the pull request against the library. One against the fork's own
 
 ## When the library moves on
 
-Bring the fork's `main` up to date. It has no commits of its own, so
-that's a fast-forward. Then rebase `patches` and the pull request
-branches onto it, and force-push them:
+In the clone of the fork, bring the fork's `main` up to date. It has
+no commits of its own, so that's a fast-forward:
 
 ```sh
 git fetch original
 git push origin original/main:main
-git rebase origin/main patches
+git fetch origin
+```
+
+Then rebase `patches` onto it, and force-push it. The same goes for each
+pull request branch:
+
+```sh
+git switch -C patches origin/patches
+git rebase origin/main
 git push --force-with-lease origin patches
 ```
 
