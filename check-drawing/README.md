@@ -61,14 +61,13 @@ arguments.
 
 ## Requirements
 
-- Bash, Git, awk and [xmlstarlet](https://xmlstar.sourceforge.net/)
-- `git-splice` on `PATH`, and `just build` run in this checkout
+- Git, and `just build` run in this checkout: it builds the checker, the
+  Rust tool in `src/`, into `target/debug`
 
-From `git-splice`, it uses the commands `boundary`, `rebuild` and `key`. The
-rest comes from `git-splice`'s own code, through the Rust tool in `src/`, which
-`just build` puts in `target/debug`: the list of splices, the fetched ref a
-splice syncs with, and the folders a splice had before it moved. The script
-still reads the drawings; that moves to Rust next.
+The script `check-drawing` runs that tool. What it reads about a splice, its
+boundary, rebuild and keys, and the folders it had before it moved, comes from
+`git-splice`'s own code, so a drawing is checked against what the tool really
+does.
 
 ## The drawing's vocabulary
 

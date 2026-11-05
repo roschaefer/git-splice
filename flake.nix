@@ -227,7 +227,7 @@
             pkgs.bashInteractive
             pkgs.just
             pkgs.hyperfine
-            # Reads the diagrams embedded in the .drawio.svg drawings, check-drawing/.
+            # Edits the diagrams embedded in the .drawio.svg drawings, in test/drawing*.bats.
             pkgs.xmlstarlet
             # Renders the walkthrough chapters in the walkthrough shell.
             pkgs.glow

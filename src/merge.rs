@@ -749,15 +749,160 @@ pub fn apply_merge_options(repo: &mut Repo) -> Res<()> {
 
 pub const MERGE_OPTIONS: &str = "--upstream --branch --track --bump --rebase --no-fork-point -m";
 
+impl Repo {
+    /// For --rebuilt-commit: merges <commit>, which continues the splice's
+    /// rebuild, e.g. with a pull made in a worktree of it, into the folder.
+    /// A three-way merge from where <commit> left the rebuild, as one
+    /// ordinary commit. The synced commit stays: <commit> isn't upstream's.
+    fn merge_rebuilt_commit(&mut self, path: &str, commit: &str) -> Res<()> {
+        let Some(given) = commit_of(commit) else {
+            return die(format!("--rebuilt-commit: unknown commit: {commit}"));
+        };
+        let Some(rebuilt) = self.rebuild_splice(path, "HEAD")? else {
+            return die(format!(
+                "{path}: no rebuild to continue, e.g. before its first fetch -- run 'git splice fetch {}' first",
+                shell_quote(path)
+            ));
+        };
+        let Some(base) = git(&["merge-base", &rebuilt, &given]).out() else {
+            return die(format!(
+                "{path}: {} shares no history with its rebuild -- --rebuilt-commit takes a commit made on top of 'git splice rebuild {}'",
+                short(&given),
+                shell_quote(path)
+            ));
+        };
+        if base == given {
+            log_ok(format!(
+                "{path}: {} is part of the rebuild already -- nothing to merge",
+                short(&given)
+            ));
+            return Ok(());
+        }
+        if upstream_has_state_file(&given) {
+            return die(format!(
+                "{path}: {} has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE}",
+                short(&given)
+            ));
+        }
+        refuse_changed_submodule(path, &base, &given)?;
+        self.refuse_upstream_commits(path, &rebuilt, &given)?;
+        let count = git(&["rev-list", "--count", &format!("{base}..{given}")])
+            .out()
+            .unwrap_or_default();
+        let default = if count == "1" {
+            git(&["log", "-1", "--format=%B", &given])
+                .out()
+                .unwrap_or_default()
+        } else {
+            format!("splice: merge {} into {path}", short(&given))
+        };
+        let message = self.commit_message(default);
+        let blob = state_file_blob("HEAD", path).ok_or(Fail::Hard)?;
+        let base_folder = tree_of(&base).ok_or(Fail::Hard)?;
+        match splice_in(
+            path,
+            Some(&base_folder),
+            Some(&blob),
+            &format!("{given}^{{tree}}"),
+            &blob,
+            &message,
+        ) {
+            Err(_) => return die(format!("{path}: merge failed")),
+            Ok(false) => {
+                log_ok(format!(
+                    "{path}: {}'s changes are in the folder already -- nothing to merge",
+                    short(&given)
+                ));
+                return Ok(());
+            }
+            Ok(true) => {}
+        }
+        log_ok(format!("{path}: merged {}", short(&given)));
+        Ok(())
+    }
+}
+
+impl Repo {
+    /// --rebuilt-commit merges <commit> as the monorepo's own work and keeps
+    /// the synced commit. A commit of the splice's upstream in <commit> that
+    /// the rebuild lacks, e.g. from a pull in a worktree of it, would come in
+    /// as local work too, and the next push would publish its changes again,
+    /// in a commit of its own. A pull records it as the synced commit instead.
+    fn refuse_upstream_commits(&mut self, path: &str, rebuilt: &str, given: &str) -> Res<()> {
+        self.require_upstream_list(path)?;
+        let names = self.upstream_lists.get(path).cloned().unwrap_or_default();
+        let mut prefixes = Vec::new();
+        for name in names {
+            let url = self.url_of(path, &name);
+            let key = self.upstream_key(&url)?;
+            if !key.is_empty() {
+                prefixes.push(format!("refs/splices/{key}/"));
+            }
+        }
+        if prefixes.is_empty() {
+            return Ok(());
+        }
+        let local = git(&["rev-list", given, "--not", rebuilt])
+            .out()
+            .unwrap_or_default();
+        for commit in local.lines() {
+            let mut args = vec![
+                "for-each-ref",
+                "--count=1",
+                "--format=%(refname)",
+                "--contains",
+                commit,
+            ];
+            args.extend(prefixes.iter().map(String::as_str));
+            if git(&args).out().is_some_and(|found| !found.is_empty()) {
+                return die(format!(
+                    "{path}: {} has {}, a commit of its upstream that the rebuild lacks, which would come in as a local change -- 'git splice pull {}' takes the upstream's commits in instead",
+                    short(given),
+                    short(commit),
+                    shell_quote(path)
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, MERGE_OPTIONS, argv)?;
+    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --rebuilt-commit"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
+    let rebuilt_commit = args.rebuilt_commit.clone();
+    if !rebuilt_commit.is_empty() {
+        let given = [
+            ("--upstream", !args.upstream.is_empty()),
+            ("--branch", !args.branch.is_empty()),
+            ("--track", args.has_flag("--track")),
+            ("--bump", args.has_flag("--bump")),
+            ("--rebase", args.has_flag("--rebase")),
+            ("--no-fork-point", args.has_flag("--no-fork-point")),
+        ];
+        if let Some((option, _)) = given.into_iter().find(|(_, given)| *given) {
+            return die(format!(
+                "--rebuilt-commit merges the given commit, not an upstream branch -- {option} doesn't go with it"
+            ));
+        }
+    }
     let mut repo = Repo::new(args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
     // Before select_splices: a rebase in progress has detached HEAD.
     require_no_splice_in_progress()?;
+    if !rebuilt_commit.is_empty() {
+        // No upstream to choose: the commit is given, and the check for
+        // upstream commits in it reads every upstream the splice names.
+        repo.select_paths(Kind::Explicit, "merge")?;
+        if repo.args.all || repo.selected.len() != 1 {
+            return die("--rebuilt-commit takes exactly one splice");
+        }
+        let path = repo.selected[0].clone();
+        repo.merge_rebuilt_commit(&path, &rebuilt_commit)?;
+        return Ok(0);
+    }
     repo.select_splices(Kind::Explicit, "merge")?;
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();

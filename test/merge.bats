@@ -848,3 +848,163 @@ a: add vendor/a" ]
   [ "$(git rev-parse HEAD)" = "$head" ]
   [ -z "$(git status --porcelain)" ]
 }
+
+# Checks the rebuild of vendor/a out in a worktree on branch "layer", with
+# one commit on top that adds other.txt, and cds back to the monorepo.
+layer_with_a_commit() {
+  cd "$monorepo"
+  git worktree add -q -b layer "$BATS_TEST_TMPDIR/layer" "$(splice rebuild vendor/a)"
+  echo "from the layer" >"$BATS_TEST_TMPDIR/layer/other.txt"
+  git -C "$BATS_TEST_TMPDIR/layer" add other.txt
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q -m "layer change"
+}
+
+@test "merge --rebuilt-commit merges a commit made on top of the rebuild into the folder, as one commit with its message, and keeps the synced commit" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  synced="$(git config --file vendor/a/.splice splice.commit)"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: merged $(git rev-parse --short layer)"* ]]
+  [ "$(git log -1 --format=%s)" = "layer change" ]
+  [ "$(cat vendor/a/other.txt)" = "from the layer" ]
+  [ "$(git config --file vendor/a/.splice splice.commit)" = "$synced" ]
+  [ "$(git show --name-only --format= HEAD)" = "vendor/a/other.txt" ]
+  [ "$(splice_state vendor/a)" = "push" ]
+}
+
+@test "merge --rebuilt-commit also keeps what the monorepo changed in the folder since the rebuild" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  commit_local "$monorepo" vendor/a "monorepo change"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/other.txt)" = "from the layer" ]
+  [[ "$(cat vendor/a/file.txt)" == *"monorepo change"* ]]
+}
+
+@test "merge --rebuilt-commit leaves a conflict with what the monorepo changed since the rebuild in the working tree" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  echo "layer line" >>"$BATS_TEST_TMPDIR/layer/file.txt"
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q -am "layer line"
+  commit_local "$monorepo" vendor/a "monorepo line"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"CONFLICT"* ]]
+  [ "$(git diff --name-only --diff-filter=U)" = "vendor/a/file.txt" ]
+}
+
+@test "merge --rebuilt-commit names several commits on top of the rebuild in its message, and -m gives another" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q --allow-empty -m "second"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "splice: merge $(git rev-parse --short layer) into vendor/a" ]
+  git reset -q --hard HEAD^
+  run splice merge --rebuilt-commit layer -m "from the layer" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "from the layer" ]
+}
+
+@test "merge --rebuilt-commit has nothing to merge for a commit of the rebuild" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice merge --rebuilt-commit "$(splice rebuild vendor/a)^" vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"is part of the rebuild already -- nothing to merge"* ]]
+  [ "$(git log -1 --format=%s)" = "local change" ]
+}
+
+@test "merge --rebuilt-commit has nothing to merge for a commit that doesn't change the files, and leaves no cherry-pick behind" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git worktree add -q -b layer "$BATS_TEST_TMPDIR/layer" "$(splice rebuild vendor/a)"
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q --amend -m "reworded"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: $(git rev-parse --short layer)'s changes are in the folder already -- nothing to merge"* ]]
+  [ "$(git log -1 --format=%s)" = "local change" ]
+  ! git rev-parse --quiet --verify CHERRY_PICK_HEAD
+  run splice status
+  [ "$status" -eq 0 ]
+}
+
+@test "merge --rebuilt-commit has nothing to merge for changes the monorepo made the same way meanwhile" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  echo "from the layer" >vendor/a/other.txt
+  git add vendor/a/other.txt
+  git commit -q -m "same change"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"changes are in the folder already -- nothing to merge"* ]]
+  [ "$(git log -1 --format=%s)" = "same change" ]
+  ! git rev-parse --quiet --verify CHERRY_PICK_HEAD
+}
+
+@test "merge --rebuilt-commit refuses a commit with an upstream commit the rebuild lacks, e.g. from a pull in the worktree, and merges nothing" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  splice fetch vendor/a
+  commit_local "$monorepo" vendor/a "local change" local.txt
+  git worktree add -q -b layer "$BATS_TEST_TMPDIR/layer" "$(splice rebuild vendor/a)"
+  git -C "$BATS_TEST_TMPDIR/layer" -c user.name=Test -c user.email=test@example.com \
+    pull -q --no-rebase --no-edit "$upstream" main
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: $(git rev-parse --short layer) has $(git rev-parse --short layer^2), a commit of its upstream that the rebuild lacks"*"'git splice pull vendor/a'"* ]]
+  [ "$(git log -1 --format=%s)" = "local change" ]
+}
+
+@test "merge --rebuilt-commit needs no default upstream, as it merges no upstream branch" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.fork.url "$upstream"
+  git commit -q -m "vendor/a: add fork" -- vendor/a/.splice
+  layer_with_a_commit
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/other.txt)" = "from the layer" ]
+}
+
+@test "merge --rebuilt-commit merges a branch merged before and continued from the new rebuild, once it's rebased onto it" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  echo second >"$BATS_TEST_TMPDIR/layer/second.txt"
+  git -C "$BATS_TEST_TMPDIR/layer" add second.txt
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q -m "add second.txt"
+  splice merge --rebuilt-commit layer vendor/a >/dev/null
+  git -C "$BATS_TEST_TMPDIR/layer" rebase -q "$(splice rebuild vendor/a)"
+  git -C "$BATS_TEST_TMPDIR/layer" rm -q second.txt
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q -m "remove second.txt"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ ! -e vendor/a/second.txt ]
+  [ "$(cat vendor/a/other.txt)" = "from the layer" ]
+}
+
+@test "merge --rebuilt-commit refuses a commit that shares no history with the rebuild" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  other="$(git commit-tree "$(git mktree </dev/null)" -m other)"
+  run splice merge --rebuilt-commit "$other" vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"shares no history with its rebuild"* ]]
+}
+
+@test "merge --rebuilt-commit refuses the options that choose an upstream branch, and more than one splice" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  for option in "--branch main" "--upstream origin" --bump --rebase --no-fork-point; do
+    # shellcheck disable=SC2086
+    run splice merge --rebuilt-commit layer $option vendor/a
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--rebuilt-commit merges the given commit, not an upstream branch -- ${option%% *} doesn't go with it"* ]]
+  done
+  run splice merge --rebuilt-commit layer --all
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"--rebuilt-commit takes exactly one splice"* ]]
+}

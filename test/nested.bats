@@ -984,3 +984,20 @@ order_of() {
   [[ "$output" == *"vendor/x: pulled"* ]]
   [[ "$output" == *"Failed: vendor/a/b"* ]]
 }
+
+@test "nested: a pull of b made in a worktree of a's rebuild, merged back with merge --rebuilt-commit, is a pull of b in the monorepo" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b upstream" main other.txt
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice fetch vendor/a vendor/a/b
+  git worktree add -q -b layer "$BATS_TEST_TMPDIR/layer" "$(splice rebuild vendor/a)"
+  (cd "$BATS_TEST_TMPDIR/layer" && splice pull --branch main b)
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "splice: pull b from main at $(git -C "$upstream_b" rev-parse --short main)" ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ "$(splice_state vendor/a/b)" = "push" ]
+  splice push vendor/a/b
+  [ "$(git -C "$upstream_b" log --format=%s -1 main^2)" = "b upstream" ]
+}

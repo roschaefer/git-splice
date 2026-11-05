@@ -3,8 +3,9 @@ name = "check-drawing"
 version = "0.0.0"
 edition = "2021"
 license = "MIT"
-description = "What check-drawing reads from a repository, from git-splice's own code"
+description = "Checks a draw.io drawing of commit graphs against the repositories it shows"
 publish = false
 
 [dependencies]
 git-splice = { path = ".." }
+roxmltree = "0.21.2"
