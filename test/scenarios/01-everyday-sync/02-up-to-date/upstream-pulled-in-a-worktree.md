@@ -66,7 +66,23 @@ $ git -C ../a-work pull -q --no-rebase --no-edit "$UPSTREAM" main
 ```
 
 The pull merges *n* and the rebuild's copy of *b*, *b'*, in a merge
-commit of its own:
+commit of its own, *w*. Both are on the worktree's branch, `work-on-a`,
+a branch of the monorepo that no upstream has, so they're dashed, and so
+is its box:
+
+<div align="center">
+
+![The monorepo's a and b, H at b and B at a; upstream k, l and n, T at n, U(H) at k; on top of k, dashed, the rebuild b prime, R, and w, a merge of b prime and n, work-on-a, a dashed box](upstream-pulled-in-the-worktree.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/upstream-pulled-in-the-worktree.drawio.svg" \
+>   a=HEAD~1 k="$(git config --file vendor/a/.splice splice.commit)" w=work-on-a
+ok   upstream-pulled-in-the-worktree.drawio.svg: 7 commits, 12 arrows, 6 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git -C ../a-work log --graph --format=%s
