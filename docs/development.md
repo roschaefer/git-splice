@@ -49,18 +49,34 @@ and a scenario's README shows the tool's real output. Run them in
 `nix develop`:
 
 ```
-just test                 # bats tests
+just test                 # Rust unit tests, then bats tests
 just docs-check           # concepts, scenario READMEs and walkthroughs, via scrut
 just docs-check --write   # update them after an intended output change
 just ci                   # lint, fmt-check, test, docs-check
 ```
 
-CI also runs the whole suite on the oldest supported Git, 2.40.
+CI also runs the bats tests on the oldest supported Git, 2.40.
+
+### Which test to write
+
+| What changed | Test |
+|---|---|
+| What a user sees: output, exit code, the repositories afterwards | A [bats test](#writing-a-bats-test), or a [scenario](#writing-a-scenario) if the output belongs in the docs |
+| Logic with many edge cases that needs no repository: parsing, paths, quoting, messages | A [unit test](#writing-a-unit-test) next to the function |
+| A bug | A bats test for the symptom the user saw, plus unit tests for the edge cases behind it |
+
+The bats tests run the built binary and know nothing about its code, so
+they kept checking the behaviour while the tool moved from shell to Rust.
+Keep it that way: don't port them to Rust. They aren't slow because of
+bats but because each builds repositories and runs Git, which a Rust
+integration test would do too. A unit test needs neither and runs in
+microseconds, so an edge case that fits one should not cost a repository.
 
 ### The layers
 
 | Layer | Where | What it checks |
 |---|---|---|
+| Unit tests | `src/**/*.rs`, `check-*/src/*.rs` | Functions that need no repository, run by `cargo test`. |
 | Scenarios | `test/scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from, or at the top of its chapter when that scenario is in an earlier chapter. Shared by everything below. |
 | Command tests | `test/*.bats` | The `git-splice` CLI, run through the `splice` helper, against a scenario. |
 | Oracle tests | `test/rebuild.bats` | The rebuild against `git subtree split`. |
@@ -105,6 +121,25 @@ setup() {
   precondition too, e.g. that the rebuild has three commits before
   comparing it.
 - **A bug fix starts with a failing test** that reproduces it.
+
+### Writing a unit test
+
+A unit test lives in a `#[cfg(test)] mod tests` at the end of the module
+it tests, as in `src/util.rs`:
+
+```rust
+#[test]
+fn shell_quote_closes_and_reopens_the_quotes_around_a_single_quote() {
+    assert_eq!(shell_quote("it's"), r"'it'\''s'");
+}
+```
+
+- **Name the behaviour** as for bats, in snake case: the list of names
+  should read as a specification.
+- **Test functions that need no repository.** A function that runs Git is
+  tested through the binary, by a bats test.
+- **Make sure the test can fail:** break the function on purpose once and
+  watch the test fail.
 
 ### Writing a scenario
 
