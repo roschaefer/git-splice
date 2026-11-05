@@ -33,7 +33,7 @@ $ WAIT_SECONDS=1 "$SCRUT_BIN" test --match-markdown "*.mdtest" "$TESTDIR/first.m
 // -----------------------------------------------------------------------------
 // # Sends the signal the first document waits for
 // -----------------------------------------------------------------------------
-// $ echo "from the second document" > "$SIGNAL_FILE" && echo sent
+// $ echo "from the second document" > "$SIGNAL_FILE.tmp" && mv "$SIGNAL_FILE.tmp" "$SIGNAL_FILE" && echo sent
 // =============================================================================
 
 1     | - expected otherwise
@@ -68,7 +68,7 @@ $ rm -f "$SIGNAL_FILE"; WAIT_SECONDS=30 "$SCRUT_BIN" test --jobs 2 --match-markd
 // -----------------------------------------------------------------------------
 // # Sends the signal the first document waits for
 // -----------------------------------------------------------------------------
-// $ echo "from the second document" > "$SIGNAL_FILE" && echo sent
+// $ echo "from the second document" > "$SIGNAL_FILE.tmp" && mv "$SIGNAL_FILE.tmp" "$SIGNAL_FILE" && echo sent
 // =============================================================================
 
 1     | - expected otherwise

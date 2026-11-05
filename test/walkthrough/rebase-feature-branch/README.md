@@ -36,9 +36,9 @@ carry the result across with `git-splice`, in this order:
    `feature` and overwrites the PR, so it's for branches nobody else
    pushes to.
 
-**[What you don't want](dont-pull-the-old-commits.md)**: mixing the
-two. A rebase in the monorepo, then a pull of the PR that was never
-rebased, sends the old commits back to the PR.
+**[Don't mix the strategies](dont-pull-the-old-commits.md)**: a rebase
+in the monorepo, then a pull of the PR that was never rebased, sends the
+old commits back to the PR.
 
 ## Output
 
