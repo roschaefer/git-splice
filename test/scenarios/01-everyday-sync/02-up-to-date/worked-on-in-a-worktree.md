@@ -100,3 +100,28 @@ add other.txt
 monorepo change
 seed
 ```
+
+## Nothing to merge
+
+A commit in the worktree that changes no files, here the same commit
+reworded, has nothing to bring back:
+
+```scrut
+$ git -C ../a-work commit -q --amend -m "add other.txt, reworded"
+```
+
+```scrut
+$ git splice merge --rebuilt-commit work-on-a vendor/a
+ok   vendor/a: a5e4a9e's changes are in the folder already -- nothing to merge
+```
+
+No commit, and no cherry-pick left in progress:
+
+```scrut
+$ git log --format=%s -1
+add other.txt
+```
+
+```scrut
+$ git status --short
+```

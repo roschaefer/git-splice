@@ -917,6 +917,33 @@ layer_with_a_commit() {
   [ "$(git log -1 --format=%s)" = "local change" ]
 }
 
+@test "merge --rebuilt-commit has nothing to merge for a commit that doesn't change the files, and leaves no cherry-pick behind" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git worktree add -q -b layer "$BATS_TEST_TMPDIR/layer" "$(splice rebuild vendor/a)"
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q --amend -m "reworded"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: $(git rev-parse --short layer)'s changes are in the folder already -- nothing to merge"* ]]
+  [ "$(git log -1 --format=%s)" = "local change" ]
+  ! git rev-parse --quiet --verify CHERRY_PICK_HEAD
+  run splice status
+  [ "$status" -eq 0 ]
+}
+
+@test "merge --rebuilt-commit has nothing to merge for changes the monorepo made the same way meanwhile" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  echo "from the layer" >vendor/a/other.txt
+  git add vendor/a/other.txt
+  git commit -q -m "same change"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"changes are in the folder already -- nothing to merge"* ]]
+  [ "$(git log -1 --format=%s)" = "same change" ]
+  ! git rev-parse --quiet --verify CHERRY_PICK_HEAD
+}
+
 @test "merge --rebuilt-commit refuses a commit that shares no history with the rebuild" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

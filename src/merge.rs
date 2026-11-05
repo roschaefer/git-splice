@@ -798,17 +798,23 @@ impl Repo {
         let message = self.commit_message(default);
         let blob = state_file_blob("HEAD", path).ok_or(Fail::Hard)?;
         let base_folder = tree_of(&base).ok_or(Fail::Hard)?;
-        if splice_in(
+        match splice_in(
             path,
             Some(&base_folder),
             Some(&blob),
             &format!("{given}^{{tree}}"),
             &blob,
             &message,
-        )
-        .is_err()
-        {
-            return die(format!("{path}: merge failed"));
+        ) {
+            Err(_) => return die(format!("{path}: merge failed")),
+            Ok(false) => {
+                log_ok(format!(
+                    "{path}: {}'s changes are in the folder already -- nothing to merge",
+                    short(&given)
+                ));
+                return Ok(());
+            }
+            Ok(true) => {}
         }
         log_ok(format!("{path}: merged {}", short(&given)));
         Ok(())
