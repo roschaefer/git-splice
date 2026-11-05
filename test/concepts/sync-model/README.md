@@ -161,7 +161,7 @@ builds this state.
 ### After the push and bump
 
 A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
-[`git splice pull --bump`](../../walkthrough/bump/README.md) records *e'* as U(H),
+[`git splice pull --bump`](../../walkthrough/bump.md) records *e'* as U(H),
 in a new commit *f*:
 
 ```scrut
@@ -177,13 +177,13 @@ ok   lib: bumped the synced commit to 8430dba
 
 <div align="center">
 
-![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e', and T and R point at e' too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/pushed-and-bumped.drawio.svg)
+![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e', and T and R point at e' too](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed/pushed-and-bumped.drawio.svg)
 
 </div>
 
 *f*'s folder is *e'*, so *f* is the new B, and the rebuild has nothing to add:
 R = T = U(H) = U(B) = *e'*
-([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/README.md)).
+([scenario](../../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed/README.md)).
 
 ### Parents of rebuilt commits
 
@@ -240,7 +240,7 @@ commit. `git splice pull --bump` must record it as U(H) before the next
 change, as `push` reminds you
 ([scenario](../../scenarios/06-rewritten-history/01-edited-before-push/README.md)).
 Rebuilding walks every commit since B, pushed or not;
-[`pull --bump`](../../walkthrough/bump/README.md) moves B forward where that cost
+[`pull --bump`](../../walkthrough/bump.md) moves B forward where that cost
 matters.
 
 A pull could have been a merge, with U(H) as its second parent:

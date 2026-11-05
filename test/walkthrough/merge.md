@@ -129,12 +129,12 @@ upstream branch anyway:
 
 <div align="center">
 
-![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e prime, and T and R point at e prime too](../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed-and-bumped/pushed-and-bumped.drawio.svg)
+![After the push and the bump: the bump commit f is H and B, U(H) = U(B) = e prime, and T and R point at e prime too](../scenarios/01-everyday-sync/01-sync-model/01-after-pull/01-pushed/pushed-and-bumped.drawio.svg)
 
 </div>
 
 Use it sparingly: on a feature branch, a bump can conflict
-([bumping the sync point](bump/README.md#not-on-a-feature-branch)).
+([bumping the sync point](bump.md#when-not-to-bump)).
 
 ### `--rebase`
 

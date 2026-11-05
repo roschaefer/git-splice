@@ -170,7 +170,7 @@ ok   lib: bumped the synced commit to 8430dba
 ```
 
 Its folder is *e'*, so it's the new B, U(B) = *e'*, and rebuilds start there
-([pushed-and-bumped](01-pushed-and-bumped/README.md) draws this state):
+([pushed](01-pushed/README.md) draws this state):
 
 ```scrut
 $ git log -1 --format=%s "$(git splice boundary lib)"
