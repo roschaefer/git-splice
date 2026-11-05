@@ -208,8 +208,8 @@ $ git splice merge -h | check-help option --rebuilt-commit
         fetched, that the rebuild lacks, e.g. from a pull in the worktree:
         that would come in as a local change, and the next push would
         publish it again. 'git splice pull <path>' takes the upstream's
-        commits in instead. Upstream commits this clone hasn't fetched yet
-        look like local work to it.
+        commits in instead. Upstream commits no fetched branch has, not
+        fetched yet or rewritten away since, look like local work to it.
 ```
 
 The [scenario](../scenarios/01-everyday-sync/02-up-to-date/worked-on-in-a-worktree.md)
