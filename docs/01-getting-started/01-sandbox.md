@@ -6,7 +6,7 @@ clone of `git-splice`:
     nix develop -c just sandbox
 
 It opens a shell in a throwaway monorepo, the one the
-[walkthrough](03-walkthrough.md) starts from: run the
+[walkthrough](02-walkthrough.md) starts from: run the
 walkthrough's commands there, and they print what it shows. Without
 Nix, run `docs/01-getting-started/sandbox.sh`; it needs Bash and Git.
 

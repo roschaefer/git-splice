@@ -26,7 +26,7 @@ $ git splice push -h | check-help section description
     are pushed; push warns about uncommitted ones in a splice's folder.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), `vendor/pkg-a/` starts
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `vendor/pkg-a/` starts
 one commit behind. Pull it to start from an up-to-date splice:
 
 ```scrut

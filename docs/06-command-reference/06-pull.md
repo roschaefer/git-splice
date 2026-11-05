@@ -25,7 +25,7 @@ $ git splice pull -h | check-help section description
     commit per splice.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), `vendor/pkg-a/` is
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `vendor/pkg-a/` is
 already one commit behind. Splice in `pkg-b/`, then push another commit
 to its upstream, so both splices are behind:
 

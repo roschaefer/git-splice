@@ -24,7 +24,7 @@ $ git splice status -h | check-help section description
     splice's folder, which push leaves out.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), `vendor/pkg-a/`'s upstream
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `vendor/pkg-a/`'s upstream
 has one commit the monorepo doesn't have yet:
 
 ```scrut

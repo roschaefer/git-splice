@@ -81,7 +81,7 @@ microseconds, so an edge case that fits one should not cost a repository.
 | Command tests | `docs/tests/*.bats` | The `git-splice` CLI, run through the `splice` helper, against a scenario. |
 | Oracle tests | `docs/tests/rebuild.bats` | The rebuild against `git subtree split`. |
 | Scenario READMEs | `docs/09-scenarios/**/*.md` | What the tool prints in that state, checked by scrut. |
-| Walkthroughs | `docs/01-getting-started/03-walkthrough.md`, `docs/06-command-reference/*.md` | Every command once, in order, then a page per command, each on a fresh sandbox, checked by scrut. |
+| Walkthroughs | `docs/01-getting-started/02-walkthrough.md`, `docs/06-command-reference/*.md` | Every command once, in order, then a page per command, each on a fresh sandbox, checked by scrut. |
 | Benchmark | `bench/`, `docs/tests/bench.bats` | `status` timings on a synthetic monorepo, reported on PRs out of draft. |
 
 ### Writing a bats test

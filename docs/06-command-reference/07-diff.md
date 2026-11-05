@@ -24,7 +24,7 @@ $ git splice diff -h | check-help section description
     'git splice fetch' first for up-to-date results.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), `vendor/pkg-a/` starts
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `vendor/pkg-a/` starts
 one commit behind. Pull it first, so the example compares a local change
 with an up-to-date upstream:
 

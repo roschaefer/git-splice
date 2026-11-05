@@ -43,7 +43,10 @@ module.exports = {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
           sidebarItemsGenerator: async ({defaultSidebarItemsGenerator, ...args}) =>
-            indexFirst(await defaultSidebarItemsGenerator(args)),
+            indexFirst(await defaultSidebarItemsGenerator(args), (id) => {
+              const doc = args.docs.find((d) => d.id === id);
+              return args.categoriesMetadata[doc.sourceDirName] ? doc.frontMatter.sidebar_label ?? doc.title : 'Overview';
+            }),
           // docPath is relative to the repository root (path above); the
           // string form would put "../" after main/ and leave the branch.
           editUrl: ({docPath}) => `${repoUrl}/edit/main/${docPath}`,

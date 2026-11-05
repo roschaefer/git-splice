@@ -24,7 +24,7 @@ $ git splice key -h | check-help section description
     'git log splices/<key>/heads/main'.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), `vendor/pkg-a/` has
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `vendor/pkg-a/` has
 already been fetched, so its upstream has the key `pkg-a`:
 
 ```scrut

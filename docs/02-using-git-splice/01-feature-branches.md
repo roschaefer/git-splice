@@ -14,7 +14,7 @@ merge request: the feature branch is compared with the default branch.
 </div>
 
 This works across all the repositories involved. In the
-[walkthrough sandbox](../01-getting-started/03-walkthrough.md), both splices start on `main`. Switch the
+[walkthrough sandbox](../01-getting-started/02-walkthrough.md), both splices start on `main`. Switch the
 monorepo to `feature`; neither upstream has that branch:
 
 <!-- Builds a fresh sandbox; see `just docs-check`.

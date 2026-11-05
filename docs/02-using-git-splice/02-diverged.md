@@ -2,7 +2,7 @@
 
 A splice has diverged when both the monorepo and the upstream changed it
 since the last sync. In this example, both sides change the same line, then
-resolve the conflict. It uses the [walkthrough sandbox](../01-getting-started/03-walkthrough.md).
+resolve the conflict. It uses the [walkthrough sandbox](../01-getting-started/02-walkthrough.md).
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}

@@ -113,7 +113,7 @@ ok 07-moved-folders/03-mirrors (1 document)
 
 ## Scenario output
 
-The docs use [specification by example](../01-getting-started/02-sandbox.md).
+The docs use [specification by example](../01-getting-started/01-sandbox.md).
 Under "Output", each document first calls its folder's scenario
 function, so it runs in the state the bats tests use:
 

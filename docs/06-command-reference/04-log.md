@@ -22,7 +22,7 @@ $ git splice log -h | check-help section description
     with, in both directions. Purely local -- run 'git splice fetch' first.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), the monorepo changes `vendor/pkg-a/`, and so
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), the monorepo changes `vendor/pkg-a/`, and so
 does its upstream:
 
 ```scrut

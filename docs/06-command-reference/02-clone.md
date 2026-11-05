@@ -24,7 +24,7 @@ $ git splice clone -h | check-help section description
     With --from-submodule, it turns a submodule into a splice instead.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), `pkg-b.git` isn't spliced in yet:
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `pkg-b.git` isn't spliced in yet:
 
 ```scrut
 $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b

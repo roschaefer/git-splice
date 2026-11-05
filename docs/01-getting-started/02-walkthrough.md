@@ -1,7 +1,7 @@
 # Walkthrough
 
 Let's start with an example monorepo and three upstreams. The walkthrough
-uses the same [sandbox](02-sandbox.md) throughout, under
+uses the same [sandbox](01-sandbox.md) throughout, under
 `$WALKTHROUGH`:
 
 - `monorepo/` is the working repository, on `main`.

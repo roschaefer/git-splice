@@ -56,7 +56,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 
 ## Bump on main, after a push
 
-Bring `pkg-a` up to date, as in the [main walkthrough](../01-getting-started/03-walkthrough.md#pull),
+Bring `pkg-a` up to date, as in the [main walkthrough](../01-getting-started/02-walkthrough.md#pull),
 then change it and push:
 
 ```scrut

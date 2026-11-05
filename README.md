@@ -142,7 +142,7 @@ The [comparisons](docs/05-comparisons/README.md) run each of these next to
 
 ## Getting started
 
-Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/getting-started/installation/)
+Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/getting-started/)
 to install `git-splice`, try it in a sandbox, and walk through every
 command.
 

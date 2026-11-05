@@ -27,7 +27,7 @@ $ git splice rebuild -h | check-help section description
     Purely local, but the synced commit must have been fetched.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), pull `vendor/pkg-a/`,
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), pull `vendor/pkg-a/`,
 then add a local commit. The rebuild puts that commit on the upstream's
 history:
 

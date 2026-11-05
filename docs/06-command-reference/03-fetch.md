@@ -23,7 +23,7 @@ $ git splice fetch -h | check-help section description
     moved. Branches deleted upstream are pruned.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), someone pushes another
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), someone pushes another
 commit to `pkg-a`'s upstream:
 
 ```scrut

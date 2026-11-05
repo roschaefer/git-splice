@@ -26,7 +26,7 @@ $ git splice boundary -h | check-help section description
     commit must have been fetched. Writes no ref and no monorepo commit.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), pull `vendor/pkg-a/`,
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), pull `vendor/pkg-a/`,
 then add a local commit. Its boundary is the pull commit:
 
 ```scrut

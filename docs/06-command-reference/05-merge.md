@@ -26,7 +26,7 @@ $ git splice merge -h | check-help section description
     first, or 'git splice pull' to do both.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), `vendor/pkg-a/`'s upstream
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `vendor/pkg-a/`'s upstream
 has a commit the monorepo doesn't have yet, and it's already fetched:
 
 ```scrut

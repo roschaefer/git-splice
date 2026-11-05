@@ -31,7 +31,7 @@ $ git splice init -h | check-help section description
     syncing with it.
 ```
 
-In the [walkthrough's repositories](../01-getting-started/03-walkthrough.md), `libs/c/` grew inside the monorepo, and
+In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `libs/c/` grew inside the monorepo, and
 `lib-c.git` is empty:
 
 ```scrut

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the state a docs page starts from, and opens a shell in it.
-# See docs/01-getting-started/02-sandbox.md.
+# See docs/01-getting-started/01-sandbox.md.
 set -euo pipefail
 
 docs="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -57,7 +57,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 markdown=""
-page="${page:-01-getting-started/03-walkthrough}"
+page="${page:-01-getting-started/02-walkthrough}"
 page="${page#docs/}"
 for candidate in "$docs/$page" "$docs/$page.md" "$docs/$page/README.md"; do
   if [[ -f "$candidate" && "$candidate" == *.md ]]; then
