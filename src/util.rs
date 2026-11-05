@@ -342,3 +342,56 @@ pub fn git_merged_output(args: &[&str]) -> (bool, String) {
         Err(error) => (false, error.to_string()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shell_quote_leaves_words_without_special_characters_as_they_are() {
+        assert_eq!(shell_quote("vendor/lib-a"), "vendor/lib-a");
+        assert_eq!(
+            shell_quote("git@host:org/repo.git"),
+            "git@host:org/repo.git"
+        );
+    }
+
+    #[test]
+    fn shell_quote_single_quotes_spaces_and_shell_characters() {
+        assert_eq!(shell_quote("my lib"), "'my lib'");
+        assert_eq!(shell_quote("a;rm -rf"), "'a;rm -rf'");
+        assert_eq!(shell_quote("$HOME"), "'$HOME'");
+    }
+
+    #[test]
+    fn shell_quote_closes_and_reopens_the_quotes_around_a_single_quote() {
+        assert_eq!(shell_quote("it's"), r"'it'\''s'");
+    }
+
+    #[test]
+    fn shell_quote_turns_an_empty_word_into_empty_quotes_so_it_stays_an_argument() {
+        assert_eq!(shell_quote(""), "''");
+    }
+
+    #[test]
+    fn normalize_path_drops_a_leading_dot_slash_and_trailing_slashes() {
+        assert_eq!(normalize_path("./vendor/a/"), "vendor/a");
+        assert_eq!(normalize_path("vendor/a//"), "vendor/a");
+        assert_eq!(normalize_path("vendor/a"), "vendor/a");
+    }
+
+    #[test]
+    fn short_keeps_seven_characters_and_leaves_shorter_ids_whole() {
+        assert_eq!(short("0123456789abcdef"), "0123456");
+        assert_eq!(short("abc"), "abc");
+    }
+
+    #[test]
+    fn join_names_quotes_each_name_and_puts_and_before_the_last() {
+        let names = |list: &[&str]| list.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+        assert_eq!(join_names(&names(&[])), "");
+        assert_eq!(join_names(&names(&["a"])), "'a'");
+        assert_eq!(join_names(&names(&["a", "b"])), "'a' and 'b'");
+        assert_eq!(join_names(&names(&["a", "b", "c"])), "'a', 'b' and 'c'");
+    }
+}
