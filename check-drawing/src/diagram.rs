@@ -177,15 +177,6 @@ impl Diagram {
         (x, y)
     }
 
-    /// Whether shape <cell>'s center is inside shape <outer>.
-    pub fn inside(&self, cell: usize, outer: usize) -> bool {
-        let (x, y) = self.absolute(cell);
-        let (ox, oy) = self.absolute(outer);
-        let (c, o) = (&self.cells[cell], &self.cells[outer]);
-        let (cx, cy) = (x + c.width / 2.0, y + c.height / 2.0);
-        cx >= ox && cx <= ox + o.width && cy >= oy && cy <= oy + o.height
-    }
-
     /// Whether shape <cell> lies wholly inside shape <outer>.
     pub fn contains(&self, cell: usize, outer: usize) -> bool {
         let (x, y) = self.absolute(cell);
