@@ -62,7 +62,8 @@ until the first `fetch`, a known bug
 
 ```scrut
 $ git splice init -h | check-help option -m
-        Gives the commit this message instead of the default one.
+        Gives the commit this message instead of the default one or
+        splice.messageTemplate's (see 'git splice merge --help').
 ```
 
 It works as for [`merge`](04-merge.md#-m).
