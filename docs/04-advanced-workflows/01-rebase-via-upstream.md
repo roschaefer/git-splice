@@ -19,11 +19,11 @@ isn't rebased:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../09-scenarios/readme-setup.sh"
+$ source "$TESTDIR/../09-scenarios/readme-setup.sh" && source "$TESTDIR/rebase-setup.bash"
 ```
 -->
 
-[`setup.bash`](setup.bash) builds this state:
+[`rebase-setup.bash`](rebase-setup.bash) builds this state:
 
 ```scrut
 $ build_scenario scenario_feature_branch_behind_default_branch

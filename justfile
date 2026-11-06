@@ -35,7 +35,7 @@ bench *args:
     @cargo build --release --quiet
     @bench/run.sh "$@"
 
-# Open a shell in the state a docs page starts from, the walkthrough by default, e.g. `just sandbox 05-comparisons/git-submodule`; see `just sandbox --help`
+# Open a shell in the state a docs page starts from, the walkthrough by default, e.g. `just sandbox 05-comparisons/01-git-submodule`; see `just sandbox --help`
 [positional-arguments]
 sandbox *args: build
     @docs/01-getting-started/sandbox.sh "$@"

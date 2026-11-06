@@ -383,7 +383,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
 }
 
 @test "drawing: c' is R's copy of c, though an upstream branch has an older copy, pushed before a 'git rebase'" {
-  load '../04-advanced-workflows/setup'
+  load '../04-advanced-workflows/rebase-setup'
   # Equal dates, as in the docs, leave git log's order to the refs given.
   export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
   scenario_feature_branch_behind_default_branch "$BATS_TEST_TMPDIR/rebased" "$BATS_TEST_TMPDIR/rebased-upstream.git"
@@ -395,7 +395,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
 }
 
 @test "drawing: without b'=<rev>, the pushed b' and R's c' after a 'git rebase' look alike, and b' is taken for c'" {
-  load '../04-advanced-workflows/setup'
+  load '../04-advanced-workflows/rebase-setup'
   export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
   scenario_feature_branch_behind_default_branch "$BATS_TEST_TMPDIR/rebased" "$BATS_TEST_TMPDIR/rebased-upstream.git"
   local b

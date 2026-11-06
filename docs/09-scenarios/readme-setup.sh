@@ -26,6 +26,10 @@ build_scenario() {
     # shellcheck disable=SC1091
     source "$TESTDIR/setup.bash"
   fi
+  declare -F "$1" >/dev/null || {
+    echo "build_scenario: no function $1; is its setup sourced?" >&2
+    return 1
+  }
   "$1" "$PWD/monorepo" "$UPSTREAM" "${@:2}" >/dev/null 2>&1 || return
   cd monorepo || return
   scenario_built=1
