@@ -22,6 +22,23 @@ $ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFI
 $ build_scenario scenario_patch_branch_rebased https://git.example.com/a.git
 ```
 
+<div align="center">
+
+![The monorepo's a records q, the old patches on top of k; T is n, the other patch rebased onto m, the reworded patch](patch-branch-rebased.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ q="$(git config --file vendor/a/.splice splice.commit)"
+```
+
+```scrut
+$ check_drawing "$TESTDIR/patch-branch-rebased.drawio.svg" q="$q" n=refs/splices/a/heads/patches
+ok   patch-branch-rebased.drawio.svg: 6 commits, 8 arrows, 4 boxes, 1 lanes
+```
+-->
+
 The monorepo's reflog of the fetched branch has both, *q* and then *n*:
 
 ```scrut

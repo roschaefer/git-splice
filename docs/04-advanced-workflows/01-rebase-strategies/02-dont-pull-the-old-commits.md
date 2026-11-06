@@ -19,6 +19,20 @@ $ source "$TESTDIR/../../09-scenarios/readme-setup.sh" && source "$TESTDIR/../re
 $ build_scenario scenario_feature_branch_behind_default_branch
 ```
 
+<div align="center">
+
+![The monorepo, a with two children, p on main and b on feature, which is H; upstream, k, which is U(H), with two children, m on main and b prime, which is T, R and feature](../feature-branch-behind-default-branch.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/../feature-branch-behind-default-branch.drawio.svg" \
+>   p=main m=refs/splices/a/heads/main
+ok   feature-branch-behind-default-branch.drawio.svg: 6 commits, 9 arrows, 5 boxes, 1 lanes
+```
+-->
+
 <!--
 ```scrut
 $ pushed="$(git rev-parse splices/a/heads/feature)"
