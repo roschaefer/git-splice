@@ -310,7 +310,7 @@ $ git splice merge -h | check-help section nested-splices
     level up, a change the monorepo made meanwhile can conflict again.
     --abort removes the worktrees instead, and nothing reaches the
     monorepo. Until then, pull, merge and push refuse the splices the
-    worktrees are for, and the ones below them.
+    worktrees are for, and the ones above and below them.
 ```
 
 How the levels fit together: [nesting](../03-concepts/04-nesting.md).
