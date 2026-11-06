@@ -111,7 +111,7 @@ edit_drawing() {
   edit_drawing -d '//mxCell[@id="legend" or @parent="legend"]'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   b is outlined in color, but the drawing has no legend to say why: add one, or outline it black"* ]]
+  [ "$output" = "!!   the drawing has no legend to explain an orange outline: add one with a sample of it, or drop it" ]
   sed -i 's/strokeColor=#E07000;//g' "$drawing"
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
@@ -163,26 +163,44 @@ XML
   [ "$output" = "!!   the legend explains a ' after a label, which no commit has: drop that sample" ]
 }
 
+@test "drawing: a legend may add a color of its own, which nothing checks" {
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#8000FF;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a is outlined #8000FF, a color the legend doesn't explain: outline it black" ]
+  edit_drawing -s '//mxCell[@id="legend"]/..' -t elem -n mxCell \
+    -i '//mxCell[not(@id)]' -t attr -n id -v legend_purple \
+    -i '//mxCell[@id="legend_purple"]' -t attr -n parent -v legend \
+    -i '//mxCell[@id="legend_purple"]' -t attr -n vertex -v 1 \
+    -i '//mxCell[@id="legend_purple"]' -t attr -n style -v 'ellipse;strokeColor=#8000FF;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+  edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   the legend explains a #8000FF outline, which no commit has: drop that sample" ]
+}
+
 @test "drawing: black and white set explicitly are colors too" {
   edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=#000000;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
+  [ "$output" = "!!   a is filled black, a color the legend doesn't explain: leave it white" ]
   edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=#FFFFFF;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   a is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
+  [ "$output" = "!!   a is outlined white, a color the legend doesn't explain: outline it black" ]
 }
 
 @test "drawing: a transparent outline or fill isn't black or white" {
   edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;strokeColor=none;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   a is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
+  [[ "$output" == "!!   a is outlined "*", a color the legend doesn't explain: outline it black" ]]
   edit_drawing -u '//mxCell[@id="a"]/@style' -v 'ellipse;aspect=fixed;fillColor=none;'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   a is filled, but the rebuild doesn't walk it: leave it white" ]
+  [[ "$output" == "!!   a is filled "*", a color the legend doesn't explain: leave it white" ]]
 }
 
 @test "drawing: log.showSignature doesn't hide that R copies a signed commit" {

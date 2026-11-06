@@ -161,7 +161,9 @@ does.
 - **Legend**: a shape styled `legend=1`, with a sample commit inside
   for each mark the drawing's commits use, and the words for it next to
   it. Its shapes are no commits, boxes or texts of the drawing. It
-  explains each color below the drawing uses, and no other. A dash and
+  explains each color the drawing's commits use, and no other. The
+  colors below have a meaning `check_drawing` knows and checks; any
+  other color the legend explains is the drawing's own, and unchecked. A dash and
   a trailing `'` are the
   [central legend's](../docs/10-contributing/02-writing.md#reading-the-drawings),
   which explains them for every drawing, so a `legend=1` doesn't. A

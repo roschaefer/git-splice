@@ -114,6 +114,9 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   the number of commits the rebuild walks matters, the monorepo commits
   on the first-parent history since B. A drawing uses a color only with
   its sample in the legend; without, every commit is black and white.
+  A legend may add any other mark the drawing needs, e.g. a shaded lane,
+  as long as it says what it means; `check_drawing` only checks the
+  colors it knows.
   The README's drawing, the first a reader sees, keeps a full legend,
   styled `legend=full`, that explains dashes and primes too. The first
   docs page with a drawing links to the central legend; the others
