@@ -453,6 +453,14 @@ These are known and accepted, each to keep the design simple:
   ([`clone`](../06-command-reference/01-clone.md#--recursive),
   [#153](https://github.com/roschaefer/git-splice/issues/153)).
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
+- **Names that aren't valid UTF-8** are refused: a splice's folder, an
+  argument, the folder the monorepo is in, and the author or committer of
+  a commit that a rebuild copies. Windows has no such paths, and its
+  environment variables, which carry names and dates to
+  `git commit-tree`, are text: so every platform rebuilds the same
+  commits. Commit messages may have any bytes. Rename the folder,
+  or rewrite the commit before it reaches a shared branch; if that's not
+  possible for you, please open an issue.
 - **Upstream URLs that differ only in letter case**, e.g.
   `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
   on case-insensitive file systems, like macOS's default one: fetching one

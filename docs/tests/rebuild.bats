@@ -144,6 +144,18 @@ split() {
   [ "$(splice rebuild vendor/a)" = "$plain" ]
 }
 
+@test "rebuild: refuses a commit whose author isn't valid UTF-8, naming it" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  # git commit would write a UTF-8 name; an old or broken tool might not.
+  local latin1
+  latin1="$(git cat-file commit HEAD | sed $'s/^author Test /author Ren\xe9 /' | git hash-object -t commit -w --stdin)"
+  git update-ref HEAD "$latin1"
+  run splice rebuild vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"commit $latin1 isn't supported: its author or committer isn't valid UTF-8"* ]]
+}
+
 @test "rebuild: log.showSignature doesn't change where a splice's history starts" {
   command -v ssh-keygen >/dev/null || skip "no ssh-keygen to sign a commit with"
   scenario_push_ahead "$monorepo" "$upstream"

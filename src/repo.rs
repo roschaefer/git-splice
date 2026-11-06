@@ -466,7 +466,14 @@ impl Repo {
         let Some(toplevel) = git(&["rev-parse", "--show-toplevel"]).q().bytes() else {
             return die("not inside a git repository");
         };
-        let toplevel = path_from_output(toplevel);
+        let toplevel = match path_from_output(toplevel) {
+            Ok(toplevel) => toplevel,
+            Err(lossy) => {
+                return die(format!(
+                    "'{lossy}' isn't supported as the repository's path -- rename the folder: its name isn't valid UTF-8"
+                ))
+            }
+        };
         if std::env::set_current_dir(&toplevel).is_err() {
             return die(format!("failed to cd to repo root: {}", toplevel.display()));
         }
@@ -1061,7 +1068,14 @@ impl Repo {
         let dir = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"])
             .bytes()
             .unwrap_or_default();
-        let lock = path_from_output(dir).join("splice-keys.lock");
+        let lock = match path_from_output(dir) {
+            Ok(dir) => dir.join("splice-keys.lock"),
+            Err(lossy) => {
+                return die(format!(
+                    "'{lossy}' isn't supported as the repository's Git directory -- rename the folder: its name isn't valid UTF-8"
+                ))
+            }
+        };
         for _ in 0..KEY_LOCK_TRIES {
             if std::fs::create_dir(&lock).is_ok() {
                 return Ok(KeyLock { path: lock });
