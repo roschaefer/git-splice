@@ -679,6 +679,38 @@ message_arrow() {
   [ "$output" = "!!   a message arrow (m) doesn't join two commits: draw it from a commit to the one its message names" ]
 }
 
+# plain_history, with e's state.ini naming the commit given as its own
+# value, and a config arrow from e to <target>.
+config_arrow() {
+  local named="$1" target="$2" style="${3:-dashed=1;config=state.ini:state.last;}"
+  plain_history
+  git config --file state.ini state.last "$(git rev-parse "$named")"
+  git add state.ini
+  git commit -q --amend --no-edit
+  sed -i "s#</root>#<mxCell id=\"m\" parent=\"1\" edge=\"1\" source=\"e\" target=\"$target\" style=\"$style\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
+}
+
+@test "drawing: a config arrow points at the commit a committed file names" {
+  config_arrow HEAD~5 a
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   plain.drawio: 7 commits, 8 arrows, 1 boxes" ]
+}
+
+@test "drawing: a config arrow at a commit the file doesn't name" {
+  config_arrow HEAD~5 b
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   e's state.ini doesn't name b as state.last: point the config arrow at the commit it names" ]
+}
+
+@test "drawing: a config arrow names its key" {
+  config_arrow HEAD~5 a "dashed=1;config=state.ini;"
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a config arrow (m) names no key: style it config=<file>:<key>" ]
+}
+
 # Two circles, x and x', with a box that points at x'.
 pushed_copy_drawing() {
   local box="$1" x_style="${2:-ellipse;}" copy_style="${3:-ellipse;}"

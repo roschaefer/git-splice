@@ -1240,7 +1240,9 @@ impl<'a> Checker<'a> {
     }
 
     /// Arrows: between commits, parent to child; from a box, to its commit;
-    /// styled message=1, from a commit to one its message names by hash.
+    /// styled message=1, from a commit to one its message names by hash;
+    /// styled config=<file>:<key>, from a commit to the one its <file> names
+    /// under <key>.
     #[allow(clippy::type_complexity)]
     fn check_arrows(
         &mut self,
@@ -1283,6 +1285,30 @@ impl<'a> Checker<'a> {
                     {
                         self.errors.push(format!(
                             "{vs}'s message doesn't name {vt}: point the message arrow at the commit it names"
+                        ));
+                    }
+                }
+                continue;
+            }
+            if let Some(config) = cell.style.value("config") {
+                let Some((file, key)) = config.split_once(':') else {
+                    self.errors.push(format!(
+                        "a config arrow ({}) names no key: style it config=<file>:<key>",
+                        cell.id
+                    ));
+                    continue;
+                };
+                if source_kind != Some(Kind::Commit) || target_kind != Some(Kind::Commit) {
+                    self.errors.push(format!("a config arrow ({}) doesn't join two commits: draw it from a commit to the one its {file} names", cell.id));
+                } else {
+                    let (cs, ct) = (self.commit(s), self.commit(t));
+                    let named = self.git.config(&format!("{cs}:{file}"), key);
+                    if !cs.is_empty()
+                        && !ct.is_empty()
+                        && (named.is_empty() || !ct.starts_with(&named))
+                    {
+                        self.errors.push(format!(
+                            "{vs}'s {file} doesn't name {vt} as {key}: point the config arrow at the commit it names"
                         ));
                     }
                 }

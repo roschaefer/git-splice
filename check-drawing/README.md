@@ -107,6 +107,11 @@ does.
   copied *b* to *c*, give the copy in full: `b'=<rev>`.
 - **Parent arrow**: an arrow between two commits points from a parent to
   its child.
+- **Config arrow**: an arrow styled `config=<file>:<key>` points from a
+  commit to the commit that the config file <file>, as of that commit,
+  names under <key>, e.g. `config=vendor/lib/.gitrepo:subrepo.parent`
+  for the monorepo commit `git-subrepo` recorded last. Drawn like a
+  message arrow, and labelled with the key.
 - **Message arrow**: an arrow styled `message=1` points from a commit to
   one its message names by hash, e.g. the `git-subtree-mainline:` line
   of a `git subtree split --rejoin`.
