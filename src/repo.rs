@@ -1,6 +1,7 @@
 //! Discovery of the splices, their upstreams, keys and targets.
 
 use crate::args::Args;
+use crate::message::{Message, Template};
 use crate::util::*;
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
@@ -122,6 +123,7 @@ pub struct Repo {
     pub merge_bump: bool,
     pub merge_rebase: bool,
     pub merge_no_fork_point: bool,
+    message_template: Option<Template>,
     pub c: Classified,
     pub d: Compared,
 }
@@ -1440,13 +1442,39 @@ impl Repo {
         }
     }
 
-    /// The message -m gave, else <default>: the message of the commit a command
-    /// writes.
-    pub fn commit_message(&self, default: String) -> String {
+    /// The message -m gave, else <default>, for a commit no template is for.
+    pub fn given_message_or(&self, default: String) -> String {
         if self.args.message.is_empty() {
             default
         } else {
             self.args.message.clone()
+        }
+    }
+
+    /// Loads splice.messageTemplate, unless -m gives the message, and ends the
+    /// command before it writes anything if the template is broken or needs a
+    /// value <known> doesn't have (see message::KNOWN).
+    pub fn require_message_template(&mut self, known: Message) -> Res<()> {
+        if !self.args.message.is_empty() {
+            return Ok(());
+        }
+        let Some(template) = Template::configured()? else {
+            return Ok(());
+        };
+        template.require(&known)?;
+        self.message_template = Some(template);
+        Ok(())
+    }
+
+    /// The message of the commit a command writes: the one -m gave, else
+    /// splice.messageTemplate's filled in with <message>, else <default>.
+    pub fn commit_message(&self, default: String, message: Message) -> Res<String> {
+        if !self.args.message.is_empty() {
+            return Ok(self.args.message.clone());
+        }
+        match &self.message_template {
+            Some(template) => template.render(&message),
+            None => Ok(default),
         }
     }
 }

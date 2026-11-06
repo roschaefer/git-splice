@@ -66,8 +66,9 @@ publish a folder of the monorepo to a new, empty repository, use
 $ git splice clone -h | check-help section options
     -m <message>
         Gives the commit this message instead of the default one, which
-        names the upstream branch and commit. Nothing reads the message
-        back: .splice records them.
+        names the upstream branch and commit, or splice.messageTemplate's
+        (see 'git splice merge --help'). Nothing reads the message back:
+        .splice records them.
 ```
 
 ### `--merge`

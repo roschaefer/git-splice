@@ -222,10 +222,11 @@ shows the refusal of a pull made there.
 ```scrut
 $ git splice merge -h | check-help option -m
         Gives the commit this message instead of the default one, which
-        names the upstream branch and commit; with --rebase, the commit the
-        rebased ones go on top of. It takes one splice: each gets a commit
-        of its own. Nothing reads the message back: .splice records the
-        synced commit. On a conflict, 'git commit' keeps the message.
+        names the upstream branch and commit, or splice.messageTemplate's;
+        with --rebase, the commit the rebased ones go on top of. It takes
+        one splice: each gets a commit of its own. Nothing reads the message
+        back: .splice records the synced commit. On a conflict, 'git commit'
+        keeps the message.
 ```
 
 <!--
@@ -243,6 +244,59 @@ ok   vendor/pkg-a: merged 703b936
 $ git log -1 --format=%s
 pkg-a: take the second commit
 ```
+
+## Message template
+
+```scrut
+$ git splice merge -h | check-help section message-template
+    The git config key splice.messageTemplate replaces the default message
+    of the commits clone, init, merge and pull write; -m still wins. Its
+    placeholders are {command} (clone, init, merge, pull or bump), {path},
+    {upstream} (the upstream branch), {old} and {new} (the synced commit
+    before and after; {full-old} and {full-new} unabbreviated), and {count}
+    and {shortlog} for the commits from {old} to {new}, merge commits left
+    out: their number, and their subjects as 'git merge --log' lists them,
+    at most 20. {{ and }} are literal braces. A placeholder the command has
+    no value for, e.g. {old} for clone, stops it before it writes anything.
+    merge --rebuilt-commit keeps its own message.
+```
+
+A monorepo that uses Conventional Commits can have every merge and pull
+say so, and list what came in:
+
+<!--
+```scrut
+$ git reset -q --hard HEAD~1
+```
+-->
+
+```scrut
+$ git config splice.messageTemplate 'chore(deps): {command} {path} to {new}
+> 
+> {shortlog}'
+```
+
+```scrut
+$ git splice merge vendor/pkg-a
+ok   vendor/pkg-a: merged 703b936
+```
+
+```scrut
+$ git log -1 --format=%B
+chore(deps): merge vendor/pkg-a to 703b936
+
+  pkg-a: a second commit, after the clone
+
+```
+
+`git config --global` sets it for every monorepo. For one commit, `-m`
+replaces it; `pull --all`, which takes no `-m`, uses it for each splice.
+
+<!--
+```scrut
+$ git config --unset splice.messageTemplate
+```
+-->
 
 ## Upstream branch
 

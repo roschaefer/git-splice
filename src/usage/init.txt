@@ -21,7 +21,8 @@ DESCRIPTION
 
 OPTIONS
     -m <message>
-        Gives the commit this message instead of the default one.
+        Gives the commit this message instead of the default one or
+        splice.messageTemplate's (see 'git splice merge --help').
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/init/#-m
 

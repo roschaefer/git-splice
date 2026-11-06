@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::fetch::{fetch_by_id, fetch_upstream};
+use crate::message::{Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -532,6 +533,12 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     require_usable_splice_path(&path, "choose another folder name")?;
 
     repo.open()?;
+    repo.require_message_template(Message {
+        command: "clone",
+        upstream: KNOWN,
+        new: KNOWN,
+        ..Message::default()
+    })?;
     let branch = current_branch()?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
@@ -609,10 +616,19 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     let folder = format!("{target}^{{tree}}");
     let tree = reroot_tree(&path, Some(&folder), Some(&blob), "HEAD").map_err(|_| Fail::Hard)?;
     refuse_monorepo_attributes(&path, &target, &tree)?;
-    let message = repo.commit_message(format!(
-        "splice: clone {path} from {upstream_branch} at {}",
-        short(&target)
-    ));
+    let message = repo.commit_message(
+        format!(
+            "splice: clone {path} from {upstream_branch} at {}",
+            short(&target)
+        ),
+        Message {
+            command: "clone",
+            path: &path,
+            upstream: Some(&upstream_branch),
+            new: Some(&target),
+            ..Message::default()
+        },
+    )?;
     // The merge base is an empty folder: the two sides share nothing.
     if splice_in(&path, None, None, &folder, &blob, &message).is_err() {
         return die(format!("{path}: clone failed"));
@@ -636,6 +652,11 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     require_usable_splice_path(&path, "rename the submodule's folder")?;
 
     repo.open()?;
+    repo.require_message_template(Message {
+        command: "clone",
+        new: KNOWN,
+        ..Message::default()
+    })?;
     current_branch()?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
@@ -844,10 +865,15 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         }
         must(git(&["add", "--", &gitmodules]).run())?;
     }
-    let message = repo.commit_message(format!(
-        "splice: clone {path} from submodule at {}",
-        short(&commit)
-    ));
+    let message = repo.commit_message(
+        format!("splice: clone {path} from submodule at {}", short(&commit)),
+        Message {
+            command: "clone",
+            path: &path,
+            new: Some(&commit),
+            ..Message::default()
+        },
+    )?;
     if git(&["commit", "--quiet", "-m", &message]).run() != 0 {
         return die(format!(
             "{path}: 'git commit' failed -- the conversion stays staged"

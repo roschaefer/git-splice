@@ -1,6 +1,7 @@
 //! git splice init.
 
 use crate::args::parse_args;
+use crate::message::Message;
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -38,6 +39,10 @@ pub fn run(argv: &[String]) -> Res<i32> {
 
     let mut repo = Repo::new(args);
     repo.open()?;
+    repo.require_message_template(Message {
+        command: "init",
+        ..Message::default()
+    })?;
     current_branch()?;
     require_no_splice_in_progress()?;
     if repo.is_splice_path(&path) {
@@ -166,7 +171,14 @@ pub fn run(argv: &[String]) -> Res<i32> {
         let blob = state_blob_in(inner, "HEAD", &settings).map_err(|_| Fail::Hard)?;
         files.push((format!("{inner}/{STATE_FILE}"), blob));
     }
-    let message = repo.commit_message(format!("splice: init {path}"));
+    let message = repo.commit_message(
+        format!("splice: init {path}"),
+        Message {
+            command: "init",
+            path: &path,
+            ..Message::default()
+        },
+    )?;
     if commit_state_files(&files, &message).is_err() {
         return fail(format!("{path}: init failed"));
     }
