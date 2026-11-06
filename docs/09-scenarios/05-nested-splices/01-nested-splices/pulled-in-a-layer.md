@@ -46,14 +46,40 @@ ok   vendor/a fetched
 ok   vendor/a/b fetched (main moved 11f4ee8..66aab4e)
 ```
 
+The monorepo's `b local`, c, is in R of `vendor/a/`, rebuilt as c'. T of
+`vendor/a/b/` is the inner upstream's `b upstream`, u:
+
+<div align="center">
+
+![The monorepo's a and c, H at c; in the lane vendor/a/, a's upstream commits k and l, T and U(H) at l; on top of l, dashed, c prime, R; in vendor/a/b/, drawn inside it, b's upstream commits m, U(H) and U(l), and u, T](fetched.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/fetched.drawio.svg" \
+>   a=HEAD~1 c=HEAD k=refs/splices/upstream/heads/main~1 \
+>   l=refs/splices/upstream/heads/main \
+>   m=refs/splices/b/heads/main~1 u=refs/splices/b/heads/main
+ok   fetched.drawio.svg: 7 commits, 9 arrows, 5 boxes, 2 lanes
+```
+-->
+
 ## The pull, one level down
 
-The rebuild of `vendor/a/`, checked out in a worktree of the monorepo. It
-shares the monorepo's fetched refs, so the inner upstream is there:
+R of `vendor/a/`, checked out in a worktree of the monorepo, on a branch
+`layer/a`. It shares the monorepo's fetched refs, so the inner upstream
+is there:
 
 ```scrut
-$ git worktree add -q -b layer/a ../a-layer "$(git splice rebuild vendor/a)" &&
->   cd ../a-layer
+$ git worktree add -q -b layer/a ../a-layer "$(git splice rebuild vendor/a)"
+```
+
+The next commands run in the worktree, as the repository `vendor/a/` is
+spliced from:
+
+```scrut
+$ cd ../a-layer
 ```
 
 ```scrut
@@ -92,10 +118,8 @@ $ git log --format=%s -1
 splice: pull b from main at 66aab4e
 ```
 
-The worktree's branch `layer/a` is R of `vendor/a/`, c' (the monorepo's
-`b local`, c, rebuilt), with that pull, p, on top. p's `b/.splice`
-records u (`b upstream`), T of `vendor/a/b/`. The monorepo hasn't
-changed:
+The pull adds one commit, p, to `layer/a`, on top of c'. p's `b/.splice`
+records u. The monorepo hasn't changed:
 
 <div align="center">
 
@@ -115,12 +139,17 @@ ok   pulled-in-the-worktree.drawio.svg: 8 commits, 11 arrows, 6 boxes, 2 lanes
 
 ## Back into the monorepo
 
+The next commands run in the monorepo again:
+
+```scrut
+$ cd ../monorepo
+```
+
 `vendor/a/` gets the worktree's files, and keeps its own `.splice`, which
 the rebuild doesn't have:
 
 ```scrut
-$ cd ../monorepo &&
->   git rm -q -r -- vendor/a ':!vendor/a/.splice' &&
+$ git rm -q -r -- vendor/a ':!vendor/a/.splice' &&
 >   git archive layer/a | tar -x -C vendor/a &&
 >   git add vendor/a &&
 >   git commit -q -m "$(git log -1 --format=%s layer/a)"
@@ -128,21 +157,22 @@ $ cd ../monorepo &&
 
 The commit, q, changes `vendor/a/b/.splice`, so it's a pull of
 `vendor/a/b/` to the monorepo: R of `vendor/a/b/` joins c' and u, as
-after a pull in the monorepo, and the push sends that:
+after a pull in the monorepo, and the push sends that. `layer/a` is
+still there, and plays no part:
 
 <div align="center">
 
-![The monorepo's a, c and q, H at q; in the lane vendor/a/, a's upstream commits k and l, T and U(H) at l; in vendor/a/b/, drawn inside it, b's upstream commits m, U(l), and u, T and U(H); dashed, c prime on top of m, and q prime, R, a merge of c prime and u](copied-back.drawio.svg)
+![The monorepo's a, c and q, H at q; in the lane vendor/a/, a's upstream commits k and l, T and U(H) at l, and on top of l, dashed, c prime and p, layer/a, a dashed box; in vendor/a/b/, drawn inside it, b's upstream commits m, U(l), and u, T and U(H); dashed, c prime on top of m, and q prime, R, a merge of c prime and u](copied-back.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/copied-back.drawio.svg" \
->   a=HEAD~2 c=HEAD~1 q=HEAD k=refs/splices/upstream/heads/main~1 \
+>   a=HEAD~2 c=HEAD~1 q=HEAD p=layer/a k=refs/splices/upstream/heads/main~1 \
 >   l=refs/splices/upstream/heads/main \
 >   m=refs/splices/b/heads/main~1 u=refs/splices/b/heads/main
-ok   copied-back.drawio.svg: 9 commits, 12 arrows, 5 boxes, 2 lanes
+ok   copied-back.drawio.svg: 11 commits, 15 arrows, 6 boxes, 2 lanes
 ```
 -->
 
