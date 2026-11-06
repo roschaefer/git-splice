@@ -1,6 +1,6 @@
 # Scenario: bumped-on-a-feature-branch
 
-[Bumping the sync point](../../../04-advanced-workflows/05-bump.md#when-not-to-bump)
+[Bumping the sync point](../../../04-advanced-workflows/03-bump.md#when-not-to-bump)
 says not to bump on a feature branch. This shows why, when the library
 squash-merges its pull requests: a bump on a feature branch that's merged
 after the library's merge conflicts, and one merged before leaves `main`

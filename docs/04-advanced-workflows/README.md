@@ -26,17 +26,17 @@ carry the result across with `git-splice`, in this order:
 
 </div>
 
-1. **[Rebase via upstream](01-rebase-via-upstream.md)**: click "Update
+1. **[Rebase via upstream](01-rebase-strategies/README.md)**: click "Update
    branch" on GitHub, or rebase `feature` onto `main` in a clone of the
    upstream, then `git splice pull` on `feature`. The simple default.
-2. **[Rebase via monorepo](02-rebase-via-monorepo.md)**: `git rebase main`
+2. **[Rebase via monorepo](01-rebase-strategies/01-rebase-via-monorepo.md)**: `git rebase main`
    on `feature`, then `git splice push --force`. For when GitHub can't
    rebase, e.g. on a conflict, which you then resolve with the whole
    monorepo to build and test against. It rewrites the monorepo's
    `feature` and overwrites the PR, so it's for branches nobody else
    pushes to.
 
-**[Don't mix the strategies](03-dont-pull-the-old-commits.md)**: a rebase
+**[Don't mix the strategies](01-rebase-strategies/02-dont-pull-the-old-commits.md)**: a rebase
 in the monorepo, then a pull of the PR that was never rebased, sends the
 old commits back to the PR.
 

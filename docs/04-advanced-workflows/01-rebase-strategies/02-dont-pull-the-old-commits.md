@@ -1,6 +1,6 @@
 # Don't mix the strategies
 
-In the [same state](README.md), `feature` is rebased in the monorepo,
+In the [same state](../README.md), `feature` is rebased in the monorepo,
 and then the PR, which was never rebased, is pulled. That mixes the two
 strategies: the next push sends the old commits back to the PR, next to
 the rebased ones.
@@ -9,11 +9,11 @@ the rebased ones.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../09-scenarios/readme-setup.sh" && source "$TESTDIR/rebase-setup.bash"
+$ source "$TESTDIR/../../09-scenarios/readme-setup.sh" && source "$TESTDIR/../rebase-setup.bash"
 ```
 -->
 
-[`rebase-setup.bash`](rebase-setup.bash) builds this state:
+[`rebase-setup.bash`](../rebase-setup.bash) builds this state:
 
 ```scrut
 $ build_scenario scenario_feature_branch_behind_default_branch
@@ -62,7 +62,7 @@ ok   vendor/a fetched
 It states only what it knows. It can't tell this `feature` from one
 that upstream rebased before this clone fetched it, e.g. in a fresh
 clone, so it suggests no command; here, the
-[rebase strategies](README.md#the-rebase-strategies) are the ways out.
+[rebase strategies](../README.md#the-rebase-strategies) are the ways out.
 
 The plain `pull` merges *b'*, the copy of *b* from before the rebase,
 into `feature` as the pull *x*. No change is lost,

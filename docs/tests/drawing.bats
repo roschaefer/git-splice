@@ -389,7 +389,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   scenario_feature_branch_behind_default_branch "$BATS_TEST_TMPDIR/rebased" "$BATS_TEST_TMPDIR/rebased-upstream.git"
   git -C "$BATS_TEST_TMPDIR/rebased" rebase -q main
   cd "$BATS_TEST_TMPDIR/rebased"
-  run check_drawing "$BATS_TEST_DIRNAME/../04-advanced-workflows/rebased-in-the-monorepo.drawio.svg" \
+  run check_drawing "$BATS_TEST_DIRNAME/../04-advanced-workflows/01-rebase-strategies/rebased-in-the-monorepo.drawio.svg" \
     c=HEAD "b'=refs/splices/a/heads/feature"
   [ "$status" -eq 0 ]
 }
@@ -402,7 +402,7 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   b="$(git -C "$BATS_TEST_TMPDIR/rebased" rev-parse HEAD)"
   git -C "$BATS_TEST_TMPDIR/rebased" rebase -q main
   cd "$BATS_TEST_TMPDIR/rebased"
-  run check_drawing "$BATS_TEST_DIRNAME/../04-advanced-workflows/rebased-in-the-monorepo.drawio.svg" \
+  run check_drawing "$BATS_TEST_DIRNAME/../04-advanced-workflows/01-rebase-strategies/rebased-in-the-monorepo.drawio.svg" \
     c=HEAD b="$b"
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   b' is solid, but no upstream branch has it: dash it"* ]]

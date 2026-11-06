@@ -1,6 +1,6 @@
 # Rebase via monorepo
 
-In the [same state](README.md), `feature` is rebased onto `main` in the
+In the [same state](../README.md), `feature` is rebased onto `main` in the
 monorepo, and the result replaces the PR:
 
 1. On `main`: `git splice pull`. Done already: *p* brought in *m*.
@@ -9,7 +9,7 @@ monorepo, and the result replaces the PR:
 
 <div align="center">
 
-![Rebase via monorepo, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../images/rebase-via-monorepo.drawio.svg)
+![Rebase via monorepo, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, on main, git splice pull from the upstream main; 2, on feature, git rebase main; 3, git splice push --force to the upstream feature](../../images/rebase-via-monorepo.drawio.svg)
 
 </div>
 
@@ -21,11 +21,11 @@ a PR nobody else pushes to.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../09-scenarios/readme-setup.sh" && source "$TESTDIR/rebase-setup.bash"
+$ source "$TESTDIR/../../09-scenarios/readme-setup.sh" && source "$TESTDIR/../rebase-setup.bash"
 ```
 -->
 
-[`rebase-setup.bash`](rebase-setup.bash) builds this state:
+[`rebase-setup.bash`](../rebase-setup.bash) builds this state:
 
 ```scrut
 $ build_scenario scenario_feature_branch_behind_default_branch
