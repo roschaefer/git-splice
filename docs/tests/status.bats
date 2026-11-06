@@ -37,6 +37,15 @@ assert_state() {
   [ "$state" = "$2" ]
 }
 
+@test "status: finds the splices without /dev/null, which Windows lacks" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  stub_git 'for arg; do [[ "$arg" != /dev/null ]] || exit 128; done'
+  run splice status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a"* ]]
+}
+
 @test "state: up-to-date" { assert_state up-to-date up-to-date; }
 @test "state: push" { assert_state push-ahead push; }
 @test "state: pull" { assert_state pull-ahead pull; }
