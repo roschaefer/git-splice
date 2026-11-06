@@ -10,11 +10,12 @@ mod check;
 mod diagram;
 mod history;
 mod labels;
+mod placement;
 
 use check::{Checker, Labels};
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: check-drawing <drawing> [--alias <name>=<term>...] [<label>=<rev>...]\n       check-drawing labels <page>...";
+const USAGE: &str = "usage: check-drawing <drawing> [--alias <name>=<term>...] [<label>=<rev>...]\n       check-drawing labels <page>...\n       check-drawing placement <page>...";
 
 /// <name>=<value>, split at the first `=`; without one, both are the whole.
 fn split_pair(pair: &str) -> (String, String) {
@@ -30,6 +31,13 @@ fn main() -> ExitCode {
         eprintln!("{USAGE}");
         return ExitCode::FAILURE;
     };
+    if drawing == "placement" {
+        return if placement::run(rest) {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        };
+    }
     if drawing == "labels" {
         return if labels::run(rest) {
             ExitCode::SUCCESS

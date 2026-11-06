@@ -73,6 +73,18 @@ italic that starts with a capital, *X*, is a variable, and a word,
 (`<!--` … `-->`) name nothing. `just docs-check` runs it over the
 README and `docs/`.
 
+### Drawings next to their checks
+
+```sh
+check-drawing/check-drawing placement <page>...
+```
+
+checks that every drawing a `check_drawing` call on the pages checks is
+shown next to one of its checks at least once: an image of it and a
+block that checks it, hidden or not, with only prose between. Any other
+code block, hidden or not, may change the state, so it comes between
+them. `just docs-check` runs it over the README and `docs/`.
+
 ## Requirements
 
 - Git, and `just build` run in this checkout: it builds the checker, the

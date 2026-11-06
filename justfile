@@ -43,6 +43,7 @@ sandbox *args: build
 # Check the README, walkthroughs, concepts, scenario READMEs and comparisons against real output; --write updates them
 docs-check flag="": build
     target/debug/check-drawing labels README.md $(git ls-files 'docs/*.md' ':!docs/10-contributing/02-writing.md')
+    target/debug/check-drawing placement README.md $(git ls-files 'docs/*.md')
     @if [[ "{{flag}}" == --write ]]; then \
       scrut update --replace --assume-yes README.md docs/01-getting-started/02-walkthrough.md docs/02-using-git-splice docs/03-concepts docs/04-advanced-workflows docs/05-comparisons docs/06-command-reference docs/07-design/03-git-trace.md docs/09-scenarios; \
     elif [[ -n "{{flag}}" ]]; then \
