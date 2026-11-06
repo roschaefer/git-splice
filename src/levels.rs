@@ -525,7 +525,8 @@ impl Repo {
                 return Ok(());
             }
             let message = self.outer_message(&deepest, &commit);
-            remove_level(branch, &deepest)?;
+            // The level stays until its commit is taken up, or a conflict
+            // above takes it over: until then, it's the commit's only branch.
             match pending.last() {
                 Some(above) => {
                     let above_dir = layer_dir(branch, above)?;
@@ -540,19 +541,25 @@ impl Repo {
                     if !ok {
                         print_lines(&out);
                         if merge_in_progress(&above_dir) {
+                            remove_level(branch, &deepest)?;
                             log_err(pending_hint(branch).unwrap_or_default());
                             return Err(Fail::Soft);
                         }
                         return die(format!(
-                            "{deepest}: can't take it into {above} -- 'git splice pull --abort' gives up"
+                            "{deepest}: can't take it into {above} -- fix that, then 'git splice pull --continue' (or 'git splice pull --abort')"
                         ));
                     }
+                    remove_level(branch, &deepest)?;
                 }
                 None => {
                     // Into the monorepo: a conflict here is one like any other.
                     let given = std::mem::replace(&mut self.args.message, message);
+                    let already = splice_in_progress();
                     let result = self.merge_rebuilt_commit_quietly(&deepest, &commit);
                     self.args.message = given;
+                    if result.is_ok() || (!already && splice_in_progress()) {
+                        remove_level(branch, &deepest)?;
+                    }
                     return result;
                 }
             }

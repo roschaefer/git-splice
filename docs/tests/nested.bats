@@ -918,6 +918,23 @@ pull_of_b_conflicts() {
   [ "$(git -C "$upstream_b" log --format=%s -1 main^2)" = "b upstream" ]
 }
 
+@test "nested: pull --continue keeps the resolved worktree when the monorepo refuses the merge, so a second --continue finishes it" {
+  pull_of_b_conflicts
+  printf 'b seed\nb local\nb upstream\n' >"$layer_a/b/file.txt"
+  git -C "$layer_a" add b/file.txt
+  echo "not committed" >>vendor/a/b/file.txt
+  run splice pull --continue
+  [ "$status" -eq 1 ]
+  [ -e "$layer_a" ]
+  [ -n "$(git branch --list 'splice-layer/*')" ]
+  git checkout -q -- vendor/a/b/file.txt
+  run splice pull --continue
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ ! -e "$layer_a" ]
+  [ -z "$(git branch --list 'splice-layer/*')" ]
+}
+
 @test "nested: pull --continue keeps a commit to a made in the monorepo while the conflict waited" {
   pull_of_b_conflicts
   echo "a meanwhile" >vendor/a/other.txt
