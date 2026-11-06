@@ -1,6 +1,6 @@
 # Rebase via upstream
 
-In the [same state](README.md), `feature` is rebased onto `main`
+In the [same state](../README.md), `feature` is rebased onto `main`
 upstream, and the monorepo pulls the result. The monorepo's `feature`
 isn't rebased:
 
@@ -11,7 +11,7 @@ isn't rebased:
 
 <div align="center">
 
-![Rebase via upstream, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../images/rebase-via-upstream.drawio.svg)
+![Rebase via upstream, with the monorepo main and feature on the left and the upstream main and feature on the right: 1, rebase or merge the upstream feature onto main, for example with Update branch; 2, on feature, git splice pull into the monorepo feature](../../images/rebase-via-upstream.drawio.svg)
 
 </div>
 
@@ -19,11 +19,11 @@ isn't rebased:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../09-scenarios/readme-setup.sh" && source "$TESTDIR/rebase-setup.bash"
+$ source "$TESTDIR/../../09-scenarios/readme-setup.sh" && source "$TESTDIR/../rebase-setup.bash"
 ```
 -->
 
-[`rebase-setup.bash`](rebase-setup.bash) builds this state:
+[`rebase-setup.bash`](../rebase-setup.bash) builds this state:
 
 ```scrut
 $ build_scenario scenario_feature_branch_behind_default_branch

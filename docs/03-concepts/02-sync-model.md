@@ -161,7 +161,7 @@ builds this state.
 ### After the push and bump
 
 A push sends *b'*, *d'* and *e'*. B and U(B) stay where they are until
-[`git splice pull --bump`](../04-advanced-workflows/05-bump.md) records *e'* as U(H),
+[`git splice pull --bump`](../04-advanced-workflows/03-bump.md) records *e'* as U(H),
 in a new commit *f*:
 
 ```scrut
@@ -240,7 +240,7 @@ commit. `git splice pull --bump` must record it as U(H) before the next
 change, as `push` reminds you
 ([scenario](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md)).
 Rebuilding walks every commit since B, pushed or not;
-[`pull --bump`](../04-advanced-workflows/05-bump.md) moves B forward where that cost
+[`pull --bump`](../04-advanced-workflows/03-bump.md) moves B forward where that cost
 matters.
 
 A pull could have been a merge, with U(H) as its second parent:
