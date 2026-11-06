@@ -59,15 +59,15 @@ $ echo "fix" >>vendor/lib/src/parse.txt &&
 
 <div align="center">
 
-![The monorepo's a, c and f on main; HEAD points at f, and parent at a](git-subrepo-before-push.drawio.svg)
+![The monorepo's a, c and f on main; HEAD points at f, and a dashed arrow, parent, from f to a](git-subrepo-before-push.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/git-subrepo-before-push.drawio.svg" --alias HEAD=H \
->   a=HEAD~2 c=HEAD~1 f=HEAD parent="$(git config --file vendor/lib/.gitrepo subrepo.parent)"
-ok   git-subrepo-before-push.drawio.svg: 3 commits, 4 arrows, 2 boxes
+>   a=HEAD~2 c=HEAD~1 f=HEAD
+ok   git-subrepo-before-push.drawio.svg: 3 commits, 4 arrows, 1 boxes
 ```
 -->
 
@@ -105,15 +105,15 @@ moves `parent` to the monorepo commit it pushed from, *f*:
 
 <div align="center">
 
-![The monorepo's a, c, f and p on main; HEAD points at p, and parent at f](git-subrepo-pushed.drawio.svg)
+![The monorepo's a, c, f and p on main; HEAD points at p, and a dashed arrow, parent, from p to f](git-subrepo-pushed.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/git-subrepo-pushed.drawio.svg" --alias HEAD=H \
->   a=HEAD~3 c=HEAD~2 f=HEAD~1 p=HEAD parent="$(git config --file vendor/lib/.gitrepo subrepo.parent)"
-ok   git-subrepo-pushed.drawio.svg: 4 commits, 5 arrows, 2 boxes
+>   a=HEAD~3 c=HEAD~2 f=HEAD~1 p=HEAD
+ok   git-subrepo-pushed.drawio.svg: 4 commits, 5 arrows, 1 boxes
 ```
 -->
 
@@ -195,7 +195,7 @@ not in main
 
 <div align="center">
 
-![The monorepo's c, f, p and s on main; g, q, h and r on the feature branch, which starts at p; parent points at h, and HEAD at s](git-subrepo-squash-merged.drawio.svg)
+![The monorepo's c, f, p and s on main; g, q, h and r on the feature branch, which starts at p; a dashed arrow, parent, from s to h, and HEAD at s](git-subrepo-squash-merged.drawio.svg)
 
 </div>
 
@@ -203,8 +203,8 @@ not in main
 ```scrut
 $ check_drawing "$TESTDIR/git-subrepo-squash-merged.drawio.svg" --alias HEAD=H \
 >   c=HEAD~3 f=HEAD~2 p=HEAD~1 s=HEAD g=feature~3 q=feature~2 h=feature~1 r=feature \
->   parent="$parent" feature=feature
-ok   git-subrepo-squash-merged.drawio.svg: 8 commits, 10 arrows, 3 boxes
+>   feature=feature
+ok   git-subrepo-squash-merged.drawio.svg: 8 commits, 10 arrows, 2 boxes
 ```
 -->
 
