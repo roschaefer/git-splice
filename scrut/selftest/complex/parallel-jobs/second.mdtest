@@ -1,6 +1,7 @@
 # Sends the signal the first document waits for
 
+`send_signal` comes from `test-parallel-jobs.md`.
+
 ```scrut
-$ echo "from the second document" > "$SIGNAL_FILE.tmp" && mv "$SIGNAL_FILE.tmp" "$SIGNAL_FILE" && echo sent
-expected otherwise
+$ send_signal
 ```

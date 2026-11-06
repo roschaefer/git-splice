@@ -1,88 +1,97 @@
 # Run documents at the same time with --jobs
 
 Tests in this file validate that `--jobs` runs documents at the same time and
-still reports them in the order they are given. `first.mdtest` waits for a
-file that `second.mdtest` writes, so it can only see that file if both run at
-the same time, and it finishes last.
+still reports them in the order they are given.
+
+`first.mdtest` waits for a signal that `second.mdtest` sends. Run one after
+another, the first document finishes before the second one starts, so it
+waits in vain. Only if both run at the same time does the first one get the
+signal.
+
+## The signal
+
+The signal is a file. `send_signal` writes it under a temporary name and
+renames it into place, so it appears complete or not at all:
 
 ```scrut
 $ export SIGNAL_FILE="$TMPDIR/signal"
+> send_signal() {
+>   echo "from the second document" > "$SIGNAL_FILE.tmp"
+>   mv "$SIGNAL_FILE.tmp" "$SIGNAL_FILE"
+> }
+```
+
+`wait_for_signal` looks for the file every 0.1 seconds, for up to
+`$WAIT_SECONDS`, and stops as soon as it is there:
+
+```scrut
+$ wait_for_signal() {
+>   for _ in $(seq "$((WAIT_SECONDS * 10))"); do
+>     [ -e "$SIGNAL_FILE" ] && break
+>     sleep 0.1
+>   done
+>   cat "$SIGNAL_FILE" 2>/dev/null || echo "no signal"
+> }
+```
+
+Both are exported, so that the shells of the two documents have them:
+
+```scrut
+$ export -f send_signal wait_for_signal
 ```
 
 ## Without --jobs, documents run one after another
 
-The first document waits in vain, because the second one starts only after it.
-A second is enough to show that.
+The first document waits in vain, because the second one starts only after
+it. A second is enough to show that.
 
 ```scrut
-$ WAIT_SECONDS=1 "$SCRUT_BIN" test --match-markdown "*.mdtest" "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest"
+$ WAIT_SECONDS=1 "$SCRUT_BIN" test --match-markdown "*.mdtest" \
+>   "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest"
 // =============================================================================
-// @ *first.mdtest:4 (glob)
+// @ *first.mdtest:6 (glob)
 // -----------------------------------------------------------------------------
-// # Waits up to $WAIT_SECONDS seconds for the second document
+// # Waits for the signal of the second document
 // -----------------------------------------------------------------------------
-// $ for i in $(seq "$((WAIT_SECONDS * 10))"); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
-// =============================================================================
-
-1     | - signal: expected otherwise
-   1  | + signal: none
-
-
-// =============================================================================
-// @ *second.mdtest:4 (glob)
-// -----------------------------------------------------------------------------
-// # Sends the signal the first document waits for
-// -----------------------------------------------------------------------------
-// $ echo "from the second document" > "$SIGNAL_FILE.tmp" && mv "$SIGNAL_FILE.tmp" "$SIGNAL_FILE" && echo sent
+// $ wait_for_signal
 // =============================================================================
 
-1     | - expected otherwise
-   1  | + sent
+1     | - from the second document
+   1  | + no signal
 
 
-Result: 2 document(s) with 2 testcase(s): 0 succeeded, 2 failed and 0 skipped
+Result: 2 document(s) with 2 testcase(s): 1 succeeded, 1 failed and 0 skipped
 [50]
 ```
 
 ## With --jobs, documents run at the same time, reported in their order
 
-The first document stops waiting as soon as the second one has written the
-file, so the long limit only matters on a slow machine.
+```scrut
+$ rm "$SIGNAL_FILE"
+```
+
+The first document gets the signal. It finishes last, because it waits for
+the second one, but it is still reported first. The limit of 30 seconds only
+matters on a slow machine.
 
 ```scrut
-$ rm -f "$SIGNAL_FILE"; WAIT_SECONDS=30 "$SCRUT_BIN" test --jobs 2 --match-markdown "*.mdtest" "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest"
-// =============================================================================
-// @ *first.mdtest:4 (glob)
-// -----------------------------------------------------------------------------
-// # Waits up to $WAIT_SECONDS seconds for the second document
-// -----------------------------------------------------------------------------
-// $ for i in $(seq "$((WAIT_SECONDS * 10))"); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
-// =============================================================================
-
-1     | - signal: expected otherwise
-   1  | + signal: from the second document
-
-
-// =============================================================================
-// @ *second.mdtest:4 (glob)
-// -----------------------------------------------------------------------------
-// # Sends the signal the first document waits for
-// -----------------------------------------------------------------------------
-// $ echo "from the second document" > "$SIGNAL_FILE.tmp" && mv "$SIGNAL_FILE.tmp" "$SIGNAL_FILE" && echo sent
-// =============================================================================
-
-1     | - expected otherwise
-   1  | + sent
-
-
-Result: 2 document(s) with 2 testcase(s): 0 succeeded, 2 failed and 0 skipped
-[50]
+$ WAIT_SECONDS=30 "$SCRUT_BIN" test --jobs 2 --renderer yaml --match-markdown "*.mdtest" \
+>   "$TESTDIR/first.mdtest" "$TESTDIR/second.mdtest"
+- location: *first.mdtest (glob)
+  title: Waits for the signal of the second document
+  result:
+    kind: success
+- location: *second.mdtest (glob)
+  title: Sends the signal the first document waits for
+  result:
+    kind: success
 ```
 
 ## Documents can't share a user provided work directory
 
 ```scrut
-$ "$SCRUT_BIN" test --jobs 2 --work-directory "$TMPDIR" --match-markdown "*.mdtest" "$TESTDIR/first.mdtest" 2>&1
+$ "$SCRUT_BIN" test --jobs 2 --work-directory "$TMPDIR" --match-markdown "*.mdtest" \
+>   "$TESTDIR/first.mdtest" 2>&1
 * ERROR scrut: Error: --jobs greater than 1 can't be combined with --work-directory (glob)
 [1]
 ```
