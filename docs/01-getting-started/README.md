@@ -7,9 +7,11 @@ completions:
     nix profile install github:roschaefer/git-splice
     nix run github:roschaefer/git-splice -- status   # or try it first
 
-Otherwise, download a binary for Linux or macOS, x86-64 or ARM, from the
+Otherwise, download a binary for Linux or macOS, x86-64 or ARM, or for
+Windows, x86-64, from the
 [releases](https://github.com/roschaefer/git-splice/releases), and put
-`git-splice` on your `PATH`. The tarball also has the shell completions.
+`git-splice` (`git-splice.exe` on Windows) on your `PATH`. The archive also
+has the shell completions.
 
 Or build it with [Rust](https://rustup.rs):
 

@@ -110,12 +110,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
-          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
-          - { os: macos-15-intel, target: x86_64-apple-darwin }
-          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, archive: tar.gz }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl, archive: tar.gz }
+          - { os: macos-15-intel, target: x86_64-apple-darwin, archive: tar.gz }
+          - { os: macos-latest, target: aarch64-apple-darwin, archive: tar.gz }
+          # A zip, as Windows users expect; Windows has no executable bit to lose.
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, archive: zip, exe: .exe }
     env:
       TARGET: ${{ matrix.target }}
+      ARCHIVE: git-splice-${{ matrix.target }}.${{ matrix.archive }}
+      EXE: ${{ matrix.exe }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -126,21 +130,31 @@ jobs:
         run: |
           rustup target add "$TARGET"
           cargo build --release --locked --package git-splice --target "$TARGET"
-          "target/$TARGET/release/git-splice" --version
+          "target/$TARGET/release/git-splice$EXE" --version
 
-      # A tarball, because artifacts lose the executable bit.
+      # Only the commands every user runs: the full tests run on Linux, in
+      # the test job.
+      - name: Clone, push and pull a splice with it
+        shell: bash
+        run: .github/smoke-test.sh "target/$TARGET/release"
+
+      # A tarball on Unix, because artifacts lose the executable bit.
       - name: Package it
         shell: bash
         run: |
           mkdir git-splice
-          cp "target/$TARGET/release/git-splice" LICENSE git-splice/
+          cp "target/$TARGET/release/git-splice$EXE" LICENSE git-splice/
           cp -R completions git-splice/
-          tar -czf "git-splice-$TARGET.tar.gz" git-splice
+          if [[ "$ARCHIVE" == *.zip ]]; then
+            7z a -tzip -bso0 "$ARCHIVE" git-splice
+          else
+            tar -czf "$ARCHIVE" git-splice
+          fi
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: git-splice-${{ matrix.target }}
-          path: git-splice-${{ matrix.target }}.tar.gz
+          path: git-splice-${{ matrix.target }}.${{ matrix.archive }}
           if-no-files-found: error
 
   release-please:
@@ -212,11 +226,11 @@ jobs:
             exit 0
           fi
           assets="$(gh release view "$tag" --json assets --jq '.assets[].name')"
-          for tarball in binaries/git-splice-*.tar.gz; do
-            asset="git-splice-$tag-${tarball#binaries/git-splice-}"
+          for archive in binaries/git-splice-*; do
+            asset="git-splice-$tag-${archive#binaries/git-splice-}"
             if grep -qxF "$asset" <<<"$assets"; then
               continue
             fi
-            mv "$tarball" "$asset"
+            mv "$archive" "$asset"
             gh release upload "$tag" "$asset"
           done
