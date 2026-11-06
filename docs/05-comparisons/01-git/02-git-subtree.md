@@ -188,7 +188,7 @@ first parent:
 
 <div align="center">
 
-![The monorepo's a, s, b, c, d, e and j in a line; below it, q as the second parent of s, and r, on top of q, as the second parent of j](git-subtree-rejoin.drawio.svg)
+![The monorepo's a, s, b, c, d, e and j in a line; below it, q as the second parent of s, and r, on top of q, as the second parent of j; j's message names e, as git-subtree-mainline](git-subtree-rejoin.drawio.svg)
 
 </div>
 
@@ -197,7 +197,7 @@ first parent:
 $ check_drawing "$TESTDIR/git-subtree-rejoin.drawio.svg" --alias HEAD=H \
 >   a=before-lib s=HEAD^~4 b=HEAD^~3 c=HEAD^~2 d=HEAD^~1 e=HEAD^ j=HEAD \
 >   q=HEAD^~4^2 r=HEAD^2
-ok   git-subtree-rejoin.drawio.svg: 9 commits, 10 arrows, 1 boxes
+ok   git-subtree-rejoin.drawio.svg: 9 commits, 11 arrows, 1 boxes
 ```
 -->
 
