@@ -60,10 +60,10 @@ $ echo "b next" >>vendor/a/b/file.txt &&
 
 ## In the monorepo
 
-The monorepo has c (`b local`), pushed to the inner upstream as c', then
-i (`splice: init vendor`) and n (`b next`). Each lane's R walks them:
-`vendor/`'s starts at i, and in `vendor/a/b/`, R puts n' on the pushed
-c':
+The monorepo has *c* (`b local`), pushed to the inner upstream as *c'*,
+then *i* (`splice: init vendor`) and *n* (`b next`). Each lane's R walks
+them: `vendor/`'s starts at *i*, and in `vendor/a/b/`, R puts *n'* on the
+pushed *c'*:
 
 <div align="center">
 
@@ -164,8 +164,9 @@ $ git splice log b
 ```
 
 Each layer's branch rebuilds the one above it, so its commits are copies
-of copies: i'' and n'' of i' and n', and i''' and n''' of those. In
-`vendor/a/b/`, `layer/b` puts i''' on m, next to the upstream's c', the
+of copies: *i''* and *n''* of *i'* and *n'*, and *i'''* and *n'''* of
+those. In `vendor/a/b/`, `layer/b` puts *i'''* on *m*, next to the
+upstream's *c'*, the
 same change in two commits:
 
 <div align="center">

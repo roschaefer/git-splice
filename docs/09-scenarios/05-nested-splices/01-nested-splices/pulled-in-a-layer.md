@@ -46,8 +46,8 @@ ok   vendor/a fetched
 ok   vendor/a/b fetched (main moved 11f4ee8..66aab4e)
 ```
 
-The monorepo's `b local`, c, is in R of `vendor/a/`, rebuilt as c'. T of
-`vendor/a/b/` is the inner upstream's `b upstream`, u:
+The monorepo's `b local`, *c*, is in R of `vendor/a/`, rebuilt as *c'*. T
+of `vendor/a/b/` is the inner upstream's `b upstream`, *u*:
 
 <div align="center">
 
@@ -118,8 +118,8 @@ $ git log --format=%s -1
 splice: pull b from main at 66aab4e
 ```
 
-The pull adds one commit, p, to `layer/a`, on top of c'. p's `b/.splice`
-records u. The monorepo hasn't changed:
+The pull adds one commit, *p*, to `layer/a`, on top of *c'*. *p*'s
+`b/.splice` records *u*. The monorepo hasn't changed:
 
 <div align="center">
 
@@ -155,8 +155,8 @@ $ git rm -q -r -- vendor/a ':!vendor/a/.splice' &&
 >   git commit -q -m "$(git log -1 --format=%s layer/a)"
 ```
 
-The commit, q, changes `vendor/a/b/.splice`, so it's a pull of
-`vendor/a/b/` to the monorepo: R of `vendor/a/b/` joins c' and u, as
+The commit, *q*, changes `vendor/a/b/.splice`, so it's a pull of
+`vendor/a/b/` to the monorepo: R of `vendor/a/b/` joins *c'* and *u*, as
 after a pull in the monorepo, and the push sends that. `layer/a` is
 still there, and plays no part:
 
