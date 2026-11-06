@@ -123,7 +123,7 @@ The pull adds one commit, *p*, to `layer/a`, on top of *c'*. *p*'s
 
 <div align="center">
 
-![The monorepo's a and c, H at c; in the lane vendor/a/, a's upstream commits k and l, T and U(H) at l; on top of l, dashed, c prime, R, and p, layer/a, a dashed box; in vendor/a/b/, drawn inside it, b's upstream commits m, U(H) and U(l), and u, T and U(p)](pulled-in-the-worktree.drawio.svg)
+![The monorepo's a and c, H at c; in the lane vendor/a/, shaded, a's upstream commits k and l, T and U(H) at l; on top of l, dashed, c prime, R, and p, layer/a, a dashed box; in vendor/a/b/, drawn inside it, b's upstream commits m, U(H) and U(l), and u, T and U(p)](pulled-in-the-worktree.drawio.svg)
 
 </div>
 

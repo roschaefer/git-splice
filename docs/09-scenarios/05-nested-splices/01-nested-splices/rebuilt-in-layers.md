@@ -171,7 +171,7 @@ same change in two commits:
 
 <div align="center">
 
-![The monorepo's a, c, i and n, H at n; in the lane vendor/, dashed, i prime and n prime, layer/vendor; in vendor/a/, drawn inside it, a's upstream commits k and l, T and U(H) at l, and dashed on l, i double prime and n double prime, layer/a; in vendor/a/b/, drawn inside that, b's upstream commits m, U(H) and U(l), and c prime, T, and dashed on m, i triple prime and n triple prime, layer/b](layers-one-by-one.drawio.svg)
+![The monorepo's a, c, i and n, H at n; in the lane vendor/, dashed, i prime and n prime, layer/vendor; in vendor/a/, drawn inside it and shaded, a's upstream commits k and l, T and U(H) at l, and dashed on l, i double prime and n double prime, layer/a; in vendor/a/b/, drawn inside that, b's upstream commits m, U(H) and U(l), and c prime, T, and dashed on m, i triple prime and n triple prime, layer/b](layers-one-by-one.drawio.svg)
 
 </div>
 
