@@ -2,7 +2,7 @@
 
 [Sapling](https://sapling-scm.com/) (`sl`) can work in a Git repository,
 and `git-splice` runs next to it there
-([comparison](../05-comparisons/04-vcs/01-sapling.md)). Its `sl subtree`
+([comparison](../05-comparisons/03-vcs/01-sapling.md)). Its `sl subtree`
 also records sync points, in the commit instead of a file. This page says
 what `git-splice` could do about both. None of it is planned yet.
 
@@ -39,7 +39,7 @@ so the format may still change.
   the sync point, the folder and the URL. They could take them from the
   newest Sapling record, so a folder imported with `sl` syncs both ways
   without a `.splice`. A squash merge
-  [drops the record](../05-comparisons/04-vcs/01-sapling.md#a-squash-merge-drops-the-record),
+  [drops the record](../05-comparisons/03-vcs/01-sapling.md#a-squash-merge-drops-the-record),
   and an older one would give the wrong sync point, so `git-splice`
   would have to refuse where Sapling falls back.
 - **Write the record too.** A pull could add the header to its commit,

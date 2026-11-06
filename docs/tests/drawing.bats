@@ -505,7 +505,7 @@ plain_history() {
   for c in b c d e; do git commit -q --allow-empty -m "$c"; done
   drawing="$BATS_TEST_TMPDIR/plain.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/../05-comparisons/git-subtree-squashed.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/../05-comparisons/01-git/git-subtree-squashed.drawio.svg" >"$drawing" 2>/dev/null
 }
 
 @test "drawing: a monorepo without splices needs no lanes" {

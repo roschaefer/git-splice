@@ -16,7 +16,7 @@ in the monorepo's Git repository. It shows where each one keeps the record,
 what that means for a squash merge, and which way changes can go.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
-and a monorepo with an app. [How these pages run](../README.md).
+and a monorepo with an app. [How these pages run](../01-git/README.md).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
@@ -132,7 +132,7 @@ ok   vendor/lib: pushed 5069701 to main
 
 The patch, applied by hand, gave the same commit. For one commit, that's
 the work `git splice push` saves. For several, a branch, or a merge in the
-monorepo, see [what a push sends](../03-third-party/02-josh.md#whose-history-is-it).
+monorepo, see [what a push sends](../02-third-party/02-josh.md#whose-history-is-it).
 
 ## Both sides move on
 
@@ -234,7 +234,7 @@ eacfd6697aff lib commit 29
 Git's own `git log` stops at the import, and in the `git-splice` monorepo
 at the clone. There, the library's commits are fetched into the
 monorepo's repository, for `git log` on the library's history
-([bisecting into a pull](../03-third-party/02-josh.md#git-splice-the-culprit-is-the-pull)).
+([bisecting into a pull](../02-third-party/02-josh.md#git-splice-the-culprit-is-the-pull)).
 
 ## A squash merge drops the record
 

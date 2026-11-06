@@ -4,7 +4,7 @@ Sapling and Jujutsu are version control systems that can work in a Git
 repository: `sl` and `jj` read and write `.git/`, and Git commands still
 work. So `git-splice` can run next to them, within limits. The pages run
 each one on the same library and monorepo as
-[`git submodule` and `git subtree`](../README.md).
+[`git submodule` and `git subtree`](../01-git/README.md).
 
 - [Sapling](01-sapling.md): `sl subtree` imports a repository into a
   folder and merges its changes, recording the sync point in each

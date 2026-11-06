@@ -16,7 +16,7 @@ and a monorepo with an app. [How these pages run](README.md).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/scrut-setup.sh"
+$ source "$TESTDIR/../scrut-setup.sh"
 ```
 -->
 

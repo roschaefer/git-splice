@@ -42,7 +42,7 @@ The tool behind this was [FBShipIt](https://github.com/facebook/fbshipit),
 now archived: it maps a folder of the internal repository to the
 public one and leaves out internal files. `meta-codesync` likely
 continues it. The internal repository is likely on
-[Sapling](../04-vcs/01-sapling.md), Meta's version control system, whose own
+[Sapling](../03-vcs/01-sapling.md), Meta's version control system, whose own
 public commits are exported the same way. `fbshipit-source-id` is a sync
 point as text in the commit message, like `cherry-pick -x`
 ([weak parents](../../08-going-forward/05-weak-parents.md)).
@@ -58,7 +58,7 @@ public repository, and the monorepo pulls the resulting `main`. This page
 shows that workflow; it doesn't run Copybara or ShipIt.
 
 The setup: `https://git.example.com/lib.git`, a public library with 30
-commits, and a monorepo with an app. [How these pages run](../README.md).
+commits, and a monorepo with an app. [How these pages run](../01-git/README.md).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
