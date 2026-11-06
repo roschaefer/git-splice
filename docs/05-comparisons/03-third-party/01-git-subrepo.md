@@ -1,6 +1,6 @@
-# git-subrepo compared
+# `git-subrepo` compared
 
-[git-subrepo](https://github.com/ingydotnet/git-subrepo) looks the most
+[`git-subrepo`](https://github.com/ingydotnet/git-subrepo) looks the most
 like `git-splice`. The library's files are ordinary monorepo files, a
 committed file in the folder, `.gitrepo`, names the library, and `push`
 turns the monorepo's commits that touched the folder into library commits.
@@ -346,7 +346,7 @@ pushed ones, as with `git push`: `status` shows the splice as diverged, and
 
 ## Problem 4: fetched refs are keyed by folder
 
-Both tools keep what they fetched under refs of their own. git-subrepo
+Both tools keep what they fetched under refs of their own. `git-subrepo`
 keys them by the folder's path, `refs/subrepo/<path>/`; `git-splice` by the
 upstream, `refs/splices/<key>/heads/<branch>`, with one key per URL. They differ
 when another branch uses the same folder for another upstream, here a
@@ -361,7 +361,7 @@ $ git init -q -b main ../other &&
 >   git -C ../other push -q https://git.example.com/other.git main
 ```
 
-Back in git-subrepo's monorepo, `vendor/lib/` on `main` was last fetched
+Back in `git-subrepo`'s monorepo, `vendor/lib/` on `main` was last fetched
 from `lib.git`:
 
 ```scrut
@@ -426,7 +426,7 @@ On branch main
 
 ### After `git mv`
 
-A move changes the key too. In git-subrepo's monorepo, `.gitrepo` moves
+A move changes the key too. In `git-subrepo`'s monorepo, `.gitrepo` moves
 with the folder, and the next fetch starts new refs under the new path,
 for the upstream branch `feature` that the squash merge left in
 `.gitrepo`. The old refs stay behind:
@@ -467,7 +467,7 @@ refs/splices/lib/heads/main
 refs/splices/other/heads/main
 ```
 
-## Where git-subrepo is different
+## Where `git-subrepo` is different
 
 - **Explicit vs. implicit upstream branches.** `.gitrepo` names the
   upstream branch, so every monorepo branch syncs with that one, say
@@ -491,7 +491,7 @@ refs/splices/other/heads/main
 
 ## In short
 
-| | git-subrepo | `git-splice` |
+| | `git-subrepo` | `git-splice` |
 | --- | --- | --- |
 | Monorepo history | linear | linear |
 | Commits per sync | one per pull, one per push | one per pull |

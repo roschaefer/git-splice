@@ -133,7 +133,7 @@ The [comparisons](docs/05-comparisons/README.md) run each of these next to
   it, which every clone, `git status` and fix has to handle separately.
 - [`git subtree`](docs/05-comparisons/02-git-subtree.md): syncing pollutes your
   history with merges, and can bring the library's whole history along.
-- [git-subrepo](docs/05-comparisons/03-third-party/01-git-subrepo.md): it records
+- [`git-subrepo`](docs/05-comparisons/03-third-party/01-git-subrepo.md): it records
   each push in a commit of your monorepo, a redundant commit that a squash
   merge or rebase makes invalid.
 - [Josh](docs/05-comparisons/03-third-party/02-josh.md): the library has to share
