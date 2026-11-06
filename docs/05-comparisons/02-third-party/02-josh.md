@@ -457,9 +457,9 @@ $ git switch -q main &&
 >   git merge -q --no-ff -m "Merge branch 'parse-options'" parse-options
 ```
 
-Josh's view of the library gets the merge, with the branch's name, and
-both library commits, the typo fix included; only *p* and *b* stay
-behind:
+Josh's view of the library gets the merge, *g'*, with the branch's name,
+and both library commits, *o'* and *t'*, the typo fix included; only *p*
+and *b* stay behind:
 
 ```scrut
 $ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
@@ -478,16 +478,17 @@ $ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
 
 <div align="center">
 
-![Josh's view of the library: m, a stack, and g on main; o and t on parse-options, merged into g](josh-view-merged.drawio.svg)
+![The monorepo's j, a stack, b and g on main, and o, p and t on parse-options, merged into g, with HEAD; below, Josh's view: j prime, a stack, then o prime and t prime, merged into g prime](josh-view-merged.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
 $ git branch -q -f josh/view FILTERED_HEAD &&
->   check_drawing "$TESTDIR/josh-view-merged.drawio.svg" \
->   m=josh/view^1 o=josh/view^2~1 t=josh/view^2 g=josh/view
-ok   josh-view-merged.drawio.svg: 4 commits, 4 arrows, 0 boxes
+>   check_drawing "$TESTDIR/josh-view-merged.drawio.svg" --alias HEAD=H \
+>   j=HEAD~2 b=HEAD^1 o=HEAD^2~2 p=HEAD^2~1 t=HEAD^2 g=HEAD \
+>   "j'=josh/view^1" "o'=josh/view^2~1" "t'=josh/view^2" "g'=josh/view"
+ok   josh-view-merged.drawio.svg: 10 commits, 11 arrows, 1 boxes
 ```
 -->
 
