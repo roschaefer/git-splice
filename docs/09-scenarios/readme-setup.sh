@@ -21,8 +21,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../check-drawing/check-drawing"
 # bats tests call too, with any further arguments, and cds into the
 # monorepo it built. The upstream is the bare repository $UPSTREAM.
 build_scenario() {
-  # shellcheck disable=SC1091
-  source "$TESTDIR/setup.bash"
+  # A page outside the scenarios sources its own setup before.
+  if [[ -f "$TESTDIR/setup.bash" ]]; then
+    # shellcheck disable=SC1091
+    source "$TESTDIR/setup.bash"
+  fi
   "$1" "$PWD/monorepo" "$UPSTREAM" "${@:2}" >/dev/null 2>&1 || return
   cd monorepo || return
   scenario_built=1

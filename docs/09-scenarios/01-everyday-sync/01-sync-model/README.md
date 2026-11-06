@@ -1,7 +1,7 @@
 # Scenario: sync-model
 
 The state the [README](../../../../README.md) and the
-[sync model](../../../03-concepts/03-sync-model/README.md) draw: both sides moved
+[sync model](../../../03-concepts/02-sync-model.md) draw: both sides moved
 on since the clone, and nothing was pulled or pushed yet. The commits are
 named as in the drawing:
 

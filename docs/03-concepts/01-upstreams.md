@@ -3,7 +3,7 @@
 An upstream is much like a Git remote: a named repository a splice fetches
 from and pushes to. Its name and URL live inside the splice folder, in
 `.splice`, so they move and branch with it
-([why](../../07-design/README.md#principles)):
+([why](../07-design/README.md#principles)):
 
 ```text
 [upstream "origin"]
@@ -12,7 +12,7 @@ from and pushes to. Its name and URL live inside the splice folder, in
 
 Unlike a Git remote, it is fetched into private refs without creating an
 entry under `git remote`
-([why](../../07-design/README.md#refs-instead-of-remotes)).
+([why](../07-design/README.md#refs-instead-of-remotes)).
 
 ## A fork and the original
 
@@ -32,7 +32,7 @@ When `.splice` names several upstreams, `default-upstream` says which one
 commands use when `--upstream` is omitted. Without it, commands that need
 one upstream refuse to guess. In the example above, commands use `fork`
 unless `--upstream origin` selects the original; `fetch` fetches both
-([example](../../09-scenarios/04-upstreams/02-several-upstreams/README.md)).
+([example](../09-scenarios/04-upstreams/02-several-upstreams/README.md)).
 
 ## URLs, keys and refs
 
@@ -48,11 +48,11 @@ the key `shared-lib`, so its `main` branch is fetched to
 The first fetch records the mapping and fetches the upstream's branches to
 `refs/splices/<key>/heads/`. These are ordinary Git refs, so commands such
 as `git log` can read them and `git worktree add` can check them out
-([example](../../06-command-reference/02-fetch.md#looking-at-an-upstream)).
+([example](../06-command-reference/02-fetch.md#looking-at-an-upstream)).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../09-scenarios/readme-setup.sh"
+$ source "$TESTDIR/../09-scenarios/readme-setup.sh" && source "$TESTDIR/upstreams-setup.bash"
 ```
 
 ```scrut
@@ -66,7 +66,7 @@ The generated key comes from the URL, but it can be renamed. Choose a name
 you already associate with the upstream, or one that makes its refs easier
 to recognize and type.
 
-[`setup.bash`](setup.bash) builds an example whose generated key is `s`.
+[`upstreams-setup.bash`](upstreams-setup.bash) builds an example whose generated key is `s`.
 Rename it to `shared-lib` through any splice that uses the URL:
 
 ```scrut
@@ -113,7 +113,7 @@ ok   app-a/s fetched
 ok   app-a/s: 'main' no longer tracks 'development'
 ```
 
-See the [`fetch` command reference](../../06-command-reference/02-fetch.md) for the other
+See the [`fetch` command reference](../06-command-reference/02-fetch.md) for the other
 ways to set a tracked branch and its exact fallback behavior.
 
 ## The same library at different versions
@@ -158,4 +158,4 @@ On branch main
 ```
 
 The two folders are independent splices because they have different
-[`id`s](../04-splice-identity/README.md).
+[`id`s](03-splice-identity.md).

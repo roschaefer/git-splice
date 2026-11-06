@@ -6,12 +6,12 @@ commands for you.
 
 <!-- See `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../09-scenarios/readme-setup.sh" && build_scenario scenario_git_trace
+$ source "$TESTDIR/../09-scenarios/readme-setup.sh" && source "$TESTDIR/git-trace-setup.bash" && build_scenario scenario_git_trace
 ```
 -->
 
 The folder `lib/` here is a splice with one commit to push
-([setup](setup.bash)). `GIT_TRACE` set to an absolute path makes Git add a line
+([setup](git-trace-setup.bash)). `GIT_TRACE` set to an absolute path makes Git add a line
 to that file for each command:
 
 ```scrut

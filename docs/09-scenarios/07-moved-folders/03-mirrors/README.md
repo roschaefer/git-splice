@@ -1,6 +1,6 @@
 # Scenario: mirrors
 
-Two paths with the same [id](../../../03-concepts/04-splice-identity/README.md)
+Two paths with the same [id](../../../03-concepts/03-splice-identity.md)
 are mirrors, meant to have the same files. Here `vendor/a/` gets a mirror,
 and `third_party/a/`, cloned from the same upstream, stays independent.
 [What mirrors would need](../../../08-going-forward/02-mirrors.md) from

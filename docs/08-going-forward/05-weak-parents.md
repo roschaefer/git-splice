@@ -7,7 +7,7 @@ here changes how `git-splice` works.
 ## The sync point is a parent, written into the tree
 
 A pull, the commit that wrote U(H) into `lib/.splice`
-([sync model](../03-concepts/03-sync-model/README.md)), could have
+([sync model](../03-concepts/02-sync-model.md)), could have
 been a merge instead, with two parents: the monorepo's previous commit,
 and U(H). Its tree would be the same as the pull's: U(H)'s files in `lib/`, merged
 with the folder's changes since the last sync, if there are any. That's

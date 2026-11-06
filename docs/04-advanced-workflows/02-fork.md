@@ -28,7 +28,7 @@ runs the whole workflow.
 ## Follow the fork
 
 Fork the library on its host. Then add the fork to the splice's
-`.splice` as a second [upstream](../03-concepts/02-upstreams/README.md), make
+`.splice` as a second [upstream](../03-concepts/01-upstreams.md), make
 it the default, and follow its `patches`:
 
 ```sh

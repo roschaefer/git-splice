@@ -148,7 +148,7 @@ $ git splice pull -h | check-help section order
 
 `pull` also fetches the splices below the ones it pulls, since pulling
 the splice above can move their synced commits
-([nesting](../03-concepts/05-nesting/README.md)).
+([nesting](../03-concepts/04-nesting.md)).
 
 ## Conflicts
 

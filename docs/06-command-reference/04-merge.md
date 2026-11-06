@@ -77,7 +77,7 @@ $ git splice merge -h | check-help option --upstream
 
 For a splice with a fork and the original as upstreams: merge the
 original's fix without switching the default
-([upstreams](../03-concepts/02-upstreams/README.md#a-fork-and-the-original),
+([upstreams](../03-concepts/01-upstreams.md#a-fork-and-the-original),
 [scenario](../09-scenarios/04-upstreams/02-several-upstreams/README.md)).
 
 ### Branch tracking
@@ -110,7 +110,7 @@ $ git splice merge -h | check-help option branch-tracking
 
 </div>
 
-[Tracked branches](../03-concepts/02-upstreams/README.md) explains them, and
+[Tracked branches](../03-concepts/01-upstreams.md) explains them, and
 the [scenario](../09-scenarios/03-branches-and-teamwork/07-tracked-branch/README.md)
 sets and unsets one.
 
@@ -275,7 +275,7 @@ $ git splice merge -h | check-help section order
 ```
 
 Pulling `vendor/a/` can move the synced commit of `vendor/a/b/`, nested
-in it, so `vendor/a/` goes first ([nesting](../03-concepts/05-nesting/README.md)).
+in it, so `vendor/a/` goes first ([nesting](../03-concepts/04-nesting.md)).
 
 ## Conflicts
 

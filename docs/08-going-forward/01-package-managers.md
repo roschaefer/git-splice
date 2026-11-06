@@ -9,19 +9,19 @@ maps, and what doesn't.
 
 | Package manager | `git-splice` |
 |---|---|
-| package name | upstream ([upstreams](../03-concepts/02-upstreams/README.md)) |
+| package name | upstream ([upstreams](../03-concepts/01-upstreams.md)) |
 | what you ask for: a version range or tag, e.g. `^1.2` (a *descriptor* in Yarn) | the upstream branch a splice syncs with |
 | what you got: the exact version in the lockfile (a *locator* in Yarn) | the synced commit U(H) |
-| a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../03-concepts/05-nesting/README.md)) |
+| a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../03-concepts/04-nesting.md)) |
 | registries and mirror servers | several upstreams per splice ([several-upstreams](../09-scenarios/04-upstreams/02-several-upstreams/README.md)) |
-| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../03-concepts/02-upstreams/README.md#the-same-library-at-different-versions)) |
+| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../03-concepts/01-upstreams.md#the-same-library-at-different-versions)) |
 | one package, deduplicated | mirrors: splices with the same `id` ([mirrors](02-mirrors.md)) |
 | `yarn dedupe --check` | a report of mirrors that drifted, not yet |
-| — | the [`id`](../03-concepts/04-splice-identity/README.md): which copies are one splice, history included. A package can't be edited in place, so its name and version say that already |
+| — | the [`id`](../03-concepts/03-splice-identity.md): which copies are one splice, history included. A package can't be edited in place, so its name and version say that already |
 
 A package name is one identity in a registry. A URL is only a location:
 two URLs of one repository are two upstreams to the monorepo
-([upstreams](../03-concepts/02-upstreams/README.md#urls-keys-and-refs)).
+([upstreams](../03-concepts/01-upstreams.md#urls-keys-and-refs)).
 
 ## What doesn't: reference versus containment
 

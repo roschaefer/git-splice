@@ -76,7 +76,7 @@ $ git splice fetch -h | check-help option branch-tracking
 
 Tracking a branch only changes this clone's config, so it needs no pull
 or push ([tracking another upstream branch
-locally](../03-concepts/02-upstreams/README.md#tracking-another-upstream-branch-locally),
+locally](../03-concepts/01-upstreams.md#tracking-another-upstream-branch-locally),
 [scenario](../09-scenarios/03-branches-and-teamwork/07-tracked-branch/README.md)).
 
 ## Refs
@@ -90,7 +90,7 @@ $ git splice fetch -h | check-help section refs
 ```
 
 Fetched branches are ordinary Git refs under `refs/splices/<key>/heads/`
-([URLs, keys and refs](../03-concepts/02-upstreams/README.md#urls-keys-and-refs)).
+([URLs, keys and refs](../03-concepts/01-upstreams.md#urls-keys-and-refs)).
 
 ### Looking at an upstream
 

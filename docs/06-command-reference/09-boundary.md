@@ -84,7 +84,7 @@ $ git splice boundary -h | check-help section nested-splices
 
 A nested splice's history from before the last sync of the splice above
 comes from that upstream
-([nesting](../03-concepts/05-nesting/README.md)), so ask there where its
+([nesting](../03-concepts/04-nesting.md)), so ask there where its
 rebuild starts.
 
 <!-- Checks that every linked help section appears above, in order.

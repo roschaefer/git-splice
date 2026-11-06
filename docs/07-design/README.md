@@ -10,7 +10,7 @@ switches the branch every folder syncs with.
   `.splice`, refs under `refs/splices/`, and rebuilt commits that always come
   out the same. The docs write out the Git commands and run them against real
   output. And the tool only runs the `git` CLI, not a library, so
-  [`GIT_TRACE` lists all it does](03-git-trace/README.md).
+  [`GIT_TRACE` lists all it does](03-git-trace.md).
 - **Let Git do the work.** Wherever Git can do a job, the tool calls Git: `git config` parses the state file,
   `cherry-pick` merges, `commit-tree` rebuilds, `log --left-right` compares.
   The tool's own code connects these, and stays small.
@@ -52,7 +52,7 @@ submodule, the monorepo records an upstream commit. But a gitlink says
 which revision to check out; a splice's commit is a sync point, the
 upstream revision the folder last matched. Later commits can change
 the folder and leave the sync point where it is
-([sync model](../03-concepts/03-sync-model/README.md)).
+([sync model](../03-concepts/02-sync-model.md)).
 
 ## Vocabulary
 
@@ -62,7 +62,7 @@ the folder and leave the sync point where it is
 | **path** | Where the splice lives in the monorepo, e.g. `vendor/a/`. (`git subtree` calls it `--prefix`.) |
 | **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
 | **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
-| **synced commit**, **boundary**, **rebuild**, **upstream branch** | U(H), B, R and T of the [sync model](../03-concepts/03-sync-model/README.md). |
+| **synced commit**, **boundary**, **rebuild**, **upstream branch** | U(H), B, R and T of the [sync model](../03-concepts/02-sync-model.md). |
 | **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U(H). |
 | **mount** | Where a splice's history starts: its first `.splice`, or a `git mv`. |
 | **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
@@ -70,7 +70,7 @@ the folder and leave the sync point where it is
 | **splice out** | Publish the monorepo's changes upstream: `push`. |
 | **sync state** | How R and T relate: `up to date`, `push`, `pull`, `diverged` and so on. |
 | **default branch** | A repository's main branch (`HEAD` on the remote). The monorepo's default branch corresponds to upstream's. |
-| **nested splice** | A splice below another one's folder ([nesting](../03-concepts/05-nesting/README.md)). |
+| **nested splice** | A splice below another one's folder ([nesting](../03-concepts/04-nesting.md)). |
 
 "Default branch" belongs to a repository and is stored in `.splice` when
 needed. It isn't called "fallback", which would describe only one of its
@@ -106,7 +106,7 @@ the monorepo's history each time a command runs.
 
 ## The `.splice` file
 
-[The `.splice` file](../03-concepts/01-splice-file/README.md) shows
+[The `.splice` file](../03-concepts/README.md) shows
 what it holds and which commands write it, and why it has no path and no
 monorepo commit. The other choices:
 
@@ -192,7 +192,7 @@ folder:
 
 Two rules follow from the layout:
 
-- **Both sides of a [nested splice](../03-concepts/05-nesting/README.md)
+- **Both sides of a [nested splice](../03-concepts/04-nesting.md)
   find the same state.** The `.splice` holds nothing specific to the
   monorepo, and fetched refs are keyed by URL, so the monorepo and the
   upstream above find the same synced commit under the same refs. An
@@ -269,7 +269,7 @@ explicitly:
    the work, including rename detection.
 
 The merge base is `git merge-base R T`
-([why](../03-concepts/03-sync-model/README.md#how-r-and-t-determine-the-status)).
+([why](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)).
 
 **The same files, another history:** if the folder already has T's
 files, there's nothing to merge. But if T isn't part of R's history,
@@ -321,8 +321,8 @@ commits. `rebuild_splice` is a function of `HEAD` alone:
    tree, *L* is B, and the rebuild continues from U(L). Otherwise a pull
    merged a divergence, or a squash merge mixed local edits into *L*, and
    *L* is rebuilt too, on the parents the
-   [sync model](../03-concepts/03-sync-model/README.md#parents-of-rebuilt-commits)
-   picks, back to [B](../03-concepts/03-sync-model/README.md#where-b-is)
+   [sync model](../03-concepts/02-sync-model.md#parents-of-rebuilt-commits)
+   picks, back to [B](../03-concepts/02-sync-model.md#where-b-is)
    ([scenario](../09-scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)).
    Without U(L), e.g. after `init`, the rebuild starts at the mount, as a
    root commit.
@@ -359,7 +359,7 @@ A new upstream URL keeps the history: the `id` stays
 
 **A nested splice's history up to the splice above's last sync** comes
 from that splice's upstream, at its synced commit
-([nesting](../03-concepts/05-nesting/README.md),
+([nesting](../03-concepts/04-nesting.md),
 [example](../09-scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
 Of the splices above, it takes the one with the newest last sync, and on
 a tie the outermost: a push writes nothing to the monorepo, so the
@@ -378,7 +378,7 @@ reads all commit metadata with one `git log` and all folder trees with one
 `git cat-file --batch-check`, so it spawns about one process per commit.
 
 **Never writes to the monorepo**
-([why](../03-concepts/03-sync-model/README.md#r-is-computed-not-stored)).
+([why](../03-concepts/02-sync-model.md#r-is-computed-not-stored)).
 
 **A new upstream branch** is created only if R has commits that
 upstream's default branch lacks, which a PR from the new branch would
@@ -394,7 +394,7 @@ with nothing new
 ### `status`: the sync state
 
 `classify_splice` works the state out each time, from R and T, as the
-[sync model](../03-concepts/03-sync-model/README.md#how-r-and-t-determine-the-status)
+[sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)
 describes. It compares the files first: when they're equal, nothing
 needs rebuilding. Before that, it checks there's something to compare:
 without `refs/splices/<key>/*`, and with U(H) recorded but not available

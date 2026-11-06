@@ -35,7 +35,7 @@ On branch main
 ```
 
 What `status` compares to tell the states apart: the
-[sync model](../03-concepts/03-sync-model/README.md).
+[sync model](../03-concepts/02-sync-model.md).
 
 ## Options
 
@@ -85,7 +85,7 @@ $ git splice status -h | check-help section output
 Each state comes with a small, tested scenario, and `merge`, `pull` and
 `push` act on it. In the drawings, H is `HEAD`, R the rebuild `push`
 would send, and T the fetched upstream branch; dashed commits are on no
-upstream branch yet ([sync model](../03-concepts/03-sync-model/README.md)).
+upstream branch yet ([sync model](../03-concepts/02-sync-model.md)).
 
 | `status` shows | Meaning | What to do |
 | --- | --- | --- |

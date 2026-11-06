@@ -486,7 +486,7 @@ eacfd66 lib commit 29
 
 `git subtree` and `git-splice` remember the same thing: which monorepo
 commit matches which library commit. In the
-[sync model](../03-concepts/03-sync-model/README.md)'s terms:
+[sync model](../03-concepts/02-sync-model.md)'s terms:
 
 | `git subtree` | `git-splice` |
 | --- | --- |

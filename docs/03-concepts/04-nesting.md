@@ -8,8 +8,8 @@ recursively, as with `git clone --recurse-submodules`: the library's
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../09-scenarios/readme-setup.sh" &&
->   source "$TESTDIR/../../09-scenarios/05-nested-splices/03-diamond/setup.bash" &&
+$ source "$TESTDIR/../09-scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/../09-scenarios/05-nested-splices/03-diamond/setup.bash" &&
 >   scenario_diamond "$PWD/monorepo" "$UPSTREAM" >/dev/null 2>&1 &&
 >   cd monorepo
 ```
@@ -34,7 +34,7 @@ On branch main
 ```
 
 `a/c/` is a splice now. `clone` fetched only the app's upstream, so the
-library's upstream waits for a [`fetch`](../../06-command-reference/02-fetch.md).
+library's upstream waits for a [`fetch`](../06-command-reference/02-fetch.md).
 
 ## Each splice syncs with the monorepo
 
@@ -48,7 +48,7 @@ read once, when the command starts
 
 <div align="center">
 
-![The monorepo commit a; in the lane vendor/a/, the upstream commits k and l; in the lane vendor/a/b/, drawn inside it, the upstream commit m, which the b/.splice of l records](../../09-scenarios/05-nested-splices/01-nested-splices/nested-splices.drawio.svg)
+![The monorepo commit a; in the lane vendor/a/, the upstream commits k and l; in the lane vendor/a/b/, drawn inside it, the upstream commit m, which the b/.splice of l records](../09-scenarios/05-nested-splices/01-nested-splices/nested-splices.drawio.svg)
 
 </div>
 
@@ -62,11 +62,11 @@ together in three ways:
   the splice below. So `merge` and `pull` take the splice above first.
 - **Push bottom-up.** Pushing the splice above sends the nested
   `.splice`, which must not name a commit its own upstream doesn't have
-  yet ([why](../../07-design/README.md#splicing-in-merge-and-pull--fetch--merge)).
+  yet ([why](../07-design/README.md#splicing-in-merge-and-pull--fetch--merge)).
 - **History from above.** The splice above came in squashed, so the
   monorepo lacks the older history of the splice below. A push takes it
   from the upstream above
-  ([scenario](../../09-scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
+  ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
 
 ## Settings come from the splice above
 
@@ -75,16 +75,16 @@ monorepo. A nested `.splice` has to mean the same there as here. So a
 nested `.splice` without `default-branch` follows the default branch of
 the splice above, which follows its own splice above, up to the
 monorepo
-([scenario](../../09-scenarios/05-nested-splices/02-nested-default-branch/README.md)).
+([scenario](../09-scenarios/05-nested-splices/02-nested-default-branch/README.md)).
 If a splice above is pinned with `default-pin` instead, the splice below
 refuses until it records a `default-branch` of its own.
 
 ## Read more
 
-- [Nested splices](../../09-scenarios/05-nested-splices/01-nested-splices/README.md)
+- [Nested splices](../09-scenarios/05-nested-splices/01-nested-splices/README.md)
   that are dropped, replaced or pushed from above, and [three
-  levels](../../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md).
-- A [diamond](../../09-scenarios/05-nested-splices/03-diamond/README.md):
+  levels](../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md).
+- A [diamond](../09-scenarios/05-nested-splices/03-diamond/README.md):
   two apps that splice in the same library.
-- A [cycle](../../09-scenarios/05-nested-splices/04-cycle/README.md): a
+- A [cycle](../09-scenarios/05-nested-splices/04-cycle/README.md): a
   splice that contains itself.

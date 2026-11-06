@@ -33,7 +33,7 @@ ok   vendor/pkg-b: cloned 9b3cb02 from main
 ```
 
 The commit adds the upstream's files and
-[`.splice`](../03-concepts/01-splice-file/README.md), which records the
+[`.splice`](../03-concepts/README.md), which records the
 upstream and the commit the folder now matches, U(H):
 
 ```scrut

@@ -5,7 +5,7 @@ you commit the new upstream commit in the monorepo. With `git-splice`,
 you don't have to. `.splice` names the upstream commit the folder was
 last synced with, and it doesn't need to be up to date: pulls and pushes
 work without it. A push doesn't even change it
-([why](../03-concepts/03-sync-model/README.md#r-is-computed-not-stored)).
+([why](../03-concepts/02-sync-model.md#r-is-computed-not-stored)).
 
 But if you want to, you can: after a push, `git splice pull --bump`
 commits the pushed commit in `.splice`, and changes nothing else.
@@ -28,7 +28,7 @@ last pull. The bump *f* changes it to *e'*
   bring in the pushed commits too, so a bisect of that pull goes through
   them as well
   ([scenario](../09-scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/01-after-a-push/README.md)).
-- **Before you change a splice's [id](../03-concepts/04-splice-identity/README.md).**
+- **Before you change a splice's [id](../03-concepts/03-splice-identity.md).**
   Here a bump is required: without it, the next push is refused
   ([scenario](../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/new-id-after-push.md)).
 

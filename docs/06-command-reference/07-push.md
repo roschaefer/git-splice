@@ -218,7 +218,7 @@ $ git splice push -h | check-help section order
 ```
 
 Pushing the splice above sends the `.splice` of the one below, so the
-one below goes first ([nesting](../03-concepts/05-nesting/README.md)).
+one below goes first ([nesting](../03-concepts/04-nesting.md)).
 
 ## Read more
 

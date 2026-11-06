@@ -77,8 +77,8 @@ $ git splice key -h | check-help section keys
 ```
 
 A key belongs to an upstream URL, so every splice of that URL shares it
-([URLs, keys and refs](../03-concepts/02-upstreams/README.md#urls-keys-and-refs),
-[choosing a key](../03-concepts/02-upstreams/README.md#choosing-a-key)).
+([URLs, keys and refs](../03-concepts/01-upstreams.md#urls-keys-and-refs),
+[choosing a key](../03-concepts/01-upstreams.md#choosing-a-key)).
 How the commands change these refs, and what they cost:
 [splice refs](../09-scenarios/04-upstreams/05-splice-refs/README.md).
 

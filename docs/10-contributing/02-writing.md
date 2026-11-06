@@ -117,8 +117,9 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
 The folders in `docs/` are the sidebar. The numbers in their names set
 its order, and the site leaves them out of the URLs.
 
-A folder with several pages has a `README.md`, the page GitHub shows
-first. The site lists it first too, as "Overview", and names the folder
+A page that would be alone in its folder is a file instead, named like
+the folder. A folder with several pages has a `README.md`, the page
+GitHub shows first. The site lists it first too, as "Overview", and names the folder
 after its heading. A README that is a page of its own, like the
 installation in `01-getting-started/`, keeps its heading in the sidebar.
 Its folder then takes its name from `_category_.json`.

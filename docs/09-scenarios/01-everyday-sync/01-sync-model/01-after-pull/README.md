@@ -4,7 +4,7 @@ A pull merged local commits that were never pushed. The pull's commit is
 the newest that changed `.splice`, but the rebuild starts further back,
 at B: the newest such commit whose folder is the upstream commit it
 recorded, U(B)
-([sync model](../../../../03-concepts/03-sync-model/README.md)). The commits are
+([sync model](../../../../03-concepts/02-sync-model.md)). The commits are
 named as in the drawing there:
 
 <div align="center">

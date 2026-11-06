@@ -6,8 +6,9 @@ can't identify it. That matters in three situations.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../09-scenarios/readme-setup.sh" &&
->   source "$TESTDIR/../../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/setup.bash" &&
+$ source "$TESTDIR/../09-scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/splice-identity-setup.bash" &&
+>   source "$TESTDIR/../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/setup.bash" &&
 >   mkdir moved &&
 >   scenario_moved_with_unpushed_commits "$PWD/moved/monorepo" "$PWD/moved/upstream" >/dev/null 2>&1 &&
 >   cd moved/monorepo
@@ -37,7 +38,7 @@ still belongs to the splice, so a push follows the id back to the old path:
 
 <div align="center">
 
-![After the move m: the monorepo commits a, b and m, where m is H and a is B; in the lane libs/a/, R is b prime on top of k, and m has no copy](../../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/moved-with-unpushed-commits.drawio.svg)
+![After the move m: the monorepo commits a, b and m, where m is H and a is B; in the lane libs/a/, R is b prime on top of k, and m has no copy](../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/moved-with-unpushed-commits.drawio.svg)
 
 </div>
 
@@ -49,7 +50,7 @@ $ git splice log libs/a
 
 Where a `.splice` is new at a path, or has another id, and no move explains
 it, the splice's history starts there. Nothing older is published
-([scenario](../../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
+([scenario](../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
 
 <!--
 ```scrut
@@ -70,14 +71,14 @@ library at different versions:
 </div>
 
 When mirrors have different files, they have *drifted*, and that's
-something to fix. [Mirrors](../../09-scenarios/07-moved-folders/03-mirrors/README.md) shows how that happens.
+something to fix. [Mirrors](../09-scenarios/07-moved-folders/03-mirrors/README.md) shows how that happens.
 
 ## A repeated id exposes a cycle
 
-With [nesting](../05-nesting/README.md), a `.splice` with the same id as one
+With [nesting](04-nesting.md), a `.splice` with the same id as one
 above it means a splice contains itself. The id is what makes that
 visible, though nothing refuses it yet
-([cycle](../../09-scenarios/05-nested-splices/04-cycle/README.md)).
+([cycle](../09-scenarios/05-nested-splices/04-cycle/README.md)).
 
 ## What an id is
 
@@ -128,10 +129,10 @@ vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
 The two share the upstream's fetched refs
-([upstreams](../02-upstreams/README.md)), and nothing else.
+([upstreams](01-upstreams.md)), and nothing else.
 
 ## Read more
 
-- Two [splices that swap paths](../../09-scenarios/07-moved-folders/02-swapped-splices/README.md) each keep their own history.
-- [Mirrors](../../09-scenarios/07-moved-folders/03-mirrors/README.md) can swap paths, or make a move ambiguous.
-- [How the id is derived](../../07-design/README.md#the-splice-file).
+- Two [splices that swap paths](../09-scenarios/07-moved-folders/02-swapped-splices/README.md) each keep their own history.
+- [Mirrors](../09-scenarios/07-moved-folders/03-mirrors/README.md) can swap paths, or make a move ambiguous.
+- [How the id is derived](../07-design/README.md#the-splice-file).
