@@ -138,7 +138,9 @@ impl Args {
         // documents running at the same time would share a user provided
         // work directory
         if self.jobs.get() > 1 && self.global.work_directory.is_some() {
-            bail!("--jobs greater than 1 can't be combined with --work-directory");
+            bail!(
+                "--work-directory can't be combined with running documents in parallel (--jobs 2 or more)"
+            );
         }
 
         // init parser and determine suffices to look for
