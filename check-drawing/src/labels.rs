@@ -88,7 +88,12 @@ fn circles(path: &Path) -> BTreeSet<String> {
     diagram
         .cells
         .iter()
-        .filter(|cell| !cell.edge && cell.style.is_ellipse() && !cell.value.is_empty())
+        .filter(|cell| {
+            !cell.edge
+                && cell.style.is_ellipse()
+                && !cell.value.is_empty()
+                && !diagram.in_legend(cell)
+        })
         .map(|cell| cell.value.clone())
         .collect()
 }
@@ -133,6 +138,20 @@ pub fn run(pages: &[String]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_legend_sample_is_no_drawn_commit() {
+        let drawing = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../docs/09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/pushed-after-the-move.drawio.svg",
+        );
+        // Its legend explains the prime with a sample labelled a'.
+        assert_eq!(
+            circles(&drawing),
+            ["a", "b", "b'", "c", "c'", "k", "m"]
+                .map(String::from)
+                .into()
+        );
+    }
 
     #[test]
     fn a_commit_label_starts_lowercase_and_may_end_in_primes() {
