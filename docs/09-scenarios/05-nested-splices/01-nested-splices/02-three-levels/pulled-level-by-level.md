@@ -66,12 +66,12 @@ $ monorepo="$PWD" s="$(git rev-parse HEAD~1)" c="$(git rev-parse HEAD)" &&
 
 Each lane is one level, drawn inside the one above it. The monorepo's
 *c* changes the innermost folder, so each level's rebuild, R, has a copy
-of it, *c'*, on top of the synced commit. Only the innermost upstream
-moved on, to *u*:
+of it, *c'*, on top of the synced commit, both outlined orange: a change
+the rebuild carries over. Only the innermost upstream moved on, to *u*:
 
 <div align="center">
 
-![The monorepo's s and c, H at c; in vendor/a/, k, T and U(H), and on top of it, dashed, c prime, R; in vendor/a/b/ the same with l; in vendor/a/b/c/, n, U(H), u on top of it, T, and c prime on top of n, dashed, R](levels-before.drawio.svg)
+![The monorepo's s and c, outlined orange, H at c; in vendor/a/, k, T and U(H), and on top of it, dashed and orange, c prime, R; in vendor/a/b/ the same with l; in vendor/a/b/c/, n, U(H), u on top of it, T, and c prime on top of n, dashed, R](levels-before.drawio.svg)
 
 </div>
 
@@ -244,11 +244,13 @@ c local
 *m* has *q*'s changes, on top of *a*. Each level's rebuild takes it in:
 `vendor/a/`'s as *m'*, on top of *a'*; `vendor/a/b/`'s as *p* itself, the
 commit the pull made in the worktree; and `vendor/a/b/c/`'s as *m'*, a
-merge of *c'* and *u*, which `.splice` records now:
+merge of *c'* and *u*, which `.splice` records now. So *u* is outlined
+blue from here on, a commit the monorepo pulled in, though the pull
+happened two levels down:
 
 <div align="center">
 
-![The monorepo's s, c, a and m, H at m; in vendor/a/, m prime on top of a prime, R, and q, layer/a; in vendor/a/b/, p is R and layer/b; in vendor/a/b/c/, m prime, a merge of c prime and u, R, and u is T and U(H)](levels-merged-into-monorepo.drawio.svg)
+![The monorepo's s, c, a and m, H at m; in vendor/a/, m prime on top of a prime, R, and q, layer/a; in vendor/a/b/, p is R and layer/b; in vendor/a/b/c/, m prime, a merge of c prime and u, R, and u, outlined blue, is T and U(H)](levels-merged-into-monorepo.drawio.svg)
 
 </div>
 
