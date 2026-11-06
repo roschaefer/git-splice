@@ -30,7 +30,7 @@ $ sed -n 's/.*trace: built-in: //p' ../trace
 git version
 git rev-parse --show-toplevel
 git rev-parse --quiet --verify 'HEAD^{commit}'
-git hash-object -t tree /dev/null
+git hash-object -t tree --stdin
 git diff-tree -r --name-only -z 4b825dc642cb6eb9a060e54bf8d69288fbee4904 HEAD -- ':(top,glob)**/.splice'
 git check-ref-format refs/splices/lib/branch
 git config --blob HEAD:lib/.splice --list -z

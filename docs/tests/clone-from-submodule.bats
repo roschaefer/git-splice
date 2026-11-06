@@ -509,6 +509,12 @@ resolved_submodule_url() {
   [ "$(resolved_submodule_url ../lib.git)" = https://git.example.com/org/lib.git ]
 }
 
+@test "clone --from-submodule: resolves a relative URL without /dev/null, which Windows lacks" {
+  stub_git 'for arg; do [[ "$arg" != /dev/null ]] || exit 128; done'
+  git remote add origin https://git.example.com/org/mono.git
+  [ "$(resolved_submodule_url ../lib.git)" = https://git.example.com/org/lib.git ]
+}
+
 @test "clone --from-submodule: a remote URL that is a relative path is relative to the monorepo" {
   git remote add origin mono.git
   [ "$(resolved_submodule_url ../lib.git)" = "$monorepo/lib.git" ]

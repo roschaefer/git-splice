@@ -245,14 +245,25 @@ setup() {
   [ "$(git -C "$upstream" rev-parse feature^)" = "$(git -C "$upstream" rev-parse main)" ]
 }
 
-@test "push: removes its SSH control folder and exits cleanly" {
+@test "push: connects with the repository's core.sshCommand, as git push does" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  mkdir "$BATS_TEST_TMPDIR/tmp"
-  TMPDIR="$BATS_TEST_TMPDIR/tmp" run splice push vendor/a
+  # Stands in for ssh: records how git called it, then runs the command it
+  # was asked to run on the "host", here the local upstream's receive-pack.
+  cat >"$BATS_TEST_TMPDIR/fake-ssh" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "GIT_SSH_COMMAND=${GIT_SSH_COMMAND-unset}" "$@" >>"$BATS_TEST_TMPDIR/ssh.log"
+exec sh -c "${@: -1}"
+SH
+  chmod +x "$BATS_TEST_TMPDIR/fake-ssh"
+  git config core.sshCommand "$BATS_TEST_TMPDIR/fake-ssh"
+  git config "url.ssh://git.example.com$upstream.pushInsteadOf" "$upstream"
+  BATS_TEST_TMPDIR="$BATS_TEST_TMPDIR" run splice push vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: pushed $(git rev-parse --short=7 "$(upstream_refs "$upstream")main") to main" ]
-  [ -z "$(ls -A "$BATS_TEST_TMPDIR/tmp")" ]
+  grep -qx "GIT_SSH_COMMAND=unset" "$BATS_TEST_TMPDIR/ssh.log"
+  grep -qx "git.example.com" "$BATS_TEST_TMPDIR/ssh.log"
+  ! grep -q "ControlMaster" "$BATS_TEST_TMPDIR/ssh.log"
 }
 
 @test "push: on the default branch, pushes to upstream's default branch" {

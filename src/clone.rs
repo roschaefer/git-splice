@@ -269,7 +269,9 @@ fn resolve_submodule_url(url: &str, base: &str) -> Res<String> {
             return None;
         }
         // In the probe: it needn't have the monorepo's object format.
-        let empty = in_dir(&["hash-object", "-t", "tree", "/dev/null"]).out()?;
+        let empty = in_dir(&["hash-object", "-t", "tree", "--stdin"])
+            .input("")
+            .out()?;
         let entry = format!("160000,{empty},s");
         (in_dir(&["config", "remote.origin.url", &base]).ok()
             && in_dir(&["config", "--file", ".gitmodules", "submodule.s.path", "s"]).ok()
