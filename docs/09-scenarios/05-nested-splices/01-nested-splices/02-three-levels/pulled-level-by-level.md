@@ -85,16 +85,32 @@ ok   levels-before.drawio.svg: 9 commits, 13 arrows, 8 boxes, 3 lanes
 
 ## 1. The outer upstream's repository
 
+The rebuild of `vendor/a/`, checked out in a worktree on a branch of its
+own, `layer/a`, is the outer upstream's repository:
+
 ```scrut
-$ git worktree add -q -b layer/a ../a-layer "$(git splice rebuild vendor/a)" &&
->   cd ../a-layer
+$ git worktree add -q -b layer/a ../a-layer "$(git splice rebuild vendor/a)"
+```
+
+The commands from here on run there, not in the monorepo:
+
+```scrut
+$ cd ../a-layer
 ```
 
 ## 2. The middle upstream's repository
 
+In it, `b/` is a splice, and its rebuild, checked out as `layer/b`, is
+the middle upstream's repository:
+
 ```scrut
-$ git worktree add -q -b layer/b ../b-layer "$(git splice rebuild b)" &&
->   cd ../b-layer
+$ git worktree add -q -b layer/b ../b-layer "$(git splice rebuild b)"
+```
+
+The commands from here on run there, one level further down:
+
+```scrut
+$ cd ../b-layer
 ```
 
 ```scrut
@@ -106,11 +122,12 @@ file.txt
 The two worktrees' branches are rebuilds, unchanged: `layer/a` is R of
 `vendor/a/`, and `layer/b`, rebuilt from `layer/a`'s commits, is the
 same commit as the monorepo's R of `vendor/a/b/`. They're branches of
-the monorepo that no upstream has, so their boxes are dashed:
+the monorepo that no upstream has, so their boxes are dashed. The shaded
+lane is the repository the commands run in now, `vendor/a/b/`'s:
 
 <div align="center">
 
-![As before, and the dashed boxes layer/a at the c prime of vendor/a/, and layer/b at the c prime of vendor/a/b/](levels-worktrees.drawio.svg)
+![As before, and the dashed boxes layer/a at the c prime of vendor/a/, and layer/b at the c prime of vendor/a/b/; vendor/a/b/ is shaded](levels-worktrees.drawio.svg)
 
 </div>
 
@@ -156,7 +173,7 @@ changed:
 
 <div align="center">
 
-![As before, and in vendor/a/b/, p on top of c prime, dashed, layer/b; in vendor/a/b/c/, u is T and U(p)](levels-pulled-below.drawio.svg)
+![As before, and in vendor/a/b/, shaded, p on top of c prime, dashed, layer/b; in vendor/a/b/c/, u is T and U(p)](levels-pulled-below.drawio.svg)
 
 </div>
 
@@ -171,9 +188,14 @@ ok   levels-pulled-below.drawio.svg: 10 commits, 16 arrows, 10 boxes, 3 lanes
 
 ## 4. Into the outer upstream's repository
 
+The commands run in the outer upstream's repository again, one level up:
+
 ```scrut
-$ cd ../a-layer &&
->   git splice merge --rebuilt-commit layer/b b
+$ cd ../a-layer
+```
+
+```scrut
+$ git splice merge --rebuilt-commit layer/b b
 ok   b: merged 4975461
 ```
 
@@ -183,11 +205,12 @@ splice: pull c from main at 68ea527
 ```
 
 *q*, on top of `layer/a`, takes *p*'s changes into `b/`, and with them
-`b/c/.splice`, which records *u* too:
+`b/c/.splice`, which records *u* too. The shaded lane is now
+`vendor/a/`'s:
 
 <div align="center">
 
-![As before, and in vendor/a/, q on top of c prime, dashed, layer/a; in vendor/a/b/c/, u is T, U(p) and U(q)](levels-merged-into-a.drawio.svg)
+![As before, and in vendor/a/, now shaded, q on top of c prime, dashed, layer/a; in vendor/a/b/c/, u is T, U(p) and U(q)](levels-merged-into-a.drawio.svg)
 
 </div>
 
@@ -202,11 +225,16 @@ ok   levels-merged-into-a.drawio.svg: 11 commits, 17 arrows, 10 boxes, 3 lanes
 
 ## 5. Into the monorepo
 
+The commands run in the monorepo again, where no lane is shaded:
+
+```scrut
+$ cd ../monorepo
+```
+
 Meanwhile, the monorepo changes `vendor/a/`:
 
 ```scrut
-$ cd ../monorepo &&
->   echo "a local" >vendor/a/other.txt &&
+$ echo "a local" >vendor/a/other.txt &&
 >   git add vendor/a/other.txt &&
 >   git commit -q -m "a local"
 ```
