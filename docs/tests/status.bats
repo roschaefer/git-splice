@@ -462,12 +462,12 @@ EOF2
   [[ "$output" == *"vendor/a: default-pin names 'rel', a branch upstream, not a tag"* ]]
 }
 
-@test "status: works in a repository whose folder's name isn't valid UTF-8" {
+@test "status: refuses a repository whose folder's name isn't valid UTF-8" {
   monorepo="$BATS_TEST_TMPDIR/"$'repo-\xff'/monorepo
   mkdir -p "$(dirname "$monorepo")"
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   run splice status
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"up to date"*"vendor/a"* ]]
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   '$BATS_TEST_TMPDIR/repo-"$'\xef\xbf\xbd'"/monorepo' isn't supported as the repository's path -- rename the folder: its name isn't valid UTF-8" ]
 }

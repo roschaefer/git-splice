@@ -26,19 +26,44 @@ fn encoded_git(args: &[&str]) -> Git {
 }
 
 /// Where a commit's metadata comes from for a copy of it.
+/// Names, emails and dates are UTF-8, as environment variables are text on
+/// Windows; the message may have any bytes.
 struct Copied<'a> {
-    author: &'a [u8],
-    email: &'a [u8],
-    date: &'a [u8],
-    committer: &'a [u8],
-    committer_email: &'a [u8],
-    committer_date: &'a [u8],
+    author: &'a str,
+    email: &'a str,
+    date: &'a str,
+    committer: &'a str,
+    committer_email: &'a str,
+    committer_date: &'a str,
     message: &'a [u8],
 }
 
-fn os(bytes: &[u8]) -> &std::ffi::OsStr {
-    use std::os::unix::ffi::OsStrExt;
-    std::ffi::OsStr::from_bytes(bytes)
+impl<'a> Copied<'a> {
+    /// From the fields of COPY_FORMAT, of commit <source>.
+    fn from_fields(source: &str, fields: &[&'a [u8]]) -> Res<Copied<'a>> {
+        let [author, email, date, committer, committer_email, committer_date, message] = fields
+        else {
+            return Err(Fail::Soft);
+        };
+        let text = |field: &'a [u8]| std::str::from_utf8(field).ok();
+        let copied = || {
+            Some(Copied {
+                author: text(author)?,
+                email: text(email)?,
+                date: text(date)?,
+                committer: text(committer)?,
+                committer_email: text(committer_email)?,
+                committer_date: text(committer_date)?,
+                message,
+            })
+        };
+        copied().ok_or_else(|| {
+            log_err(format!(
+                "commit {source} isn't supported: its author or committer isn't valid UTF-8"
+            ));
+            Fail::Soft
+        })
+    }
 }
 
 /// A new commit with <tree> and <parents> that copies author, committer and
@@ -51,12 +76,12 @@ fn write_copy(copied: &Copied, tree: &str, parents: &[String]) -> Res<String> {
         args.push(parent);
     }
     let commit = encoded_git(&args)
-        .env("GIT_AUTHOR_NAME", os(copied.author))
-        .env("GIT_AUTHOR_EMAIL", os(copied.email))
-        .env("GIT_AUTHOR_DATE", os(copied.date))
-        .env("GIT_COMMITTER_NAME", os(copied.committer))
-        .env("GIT_COMMITTER_EMAIL", os(copied.committer_email))
-        .env("GIT_COMMITTER_DATE", os(copied.committer_date))
+        .env("GIT_AUTHOR_NAME", copied.author)
+        .env("GIT_AUTHOR_EMAIL", copied.email)
+        .env("GIT_AUTHOR_DATE", copied.date)
+        .env("GIT_COMMITTER_NAME", copied.committer)
+        .env("GIT_COMMITTER_EMAIL", copied.committer_email)
+        .env("GIT_COMMITTER_DATE", copied.committer_date)
         .input(copied.message)
         .out();
     commit.ok_or(Fail::Soft)
@@ -72,22 +97,7 @@ fn copy_commit(source: &str, tree: &str, parents: &[String]) -> Res<String> {
         .bytes()
         .ok_or(Fail::Soft)?;
     let fields: Vec<&[u8]> = output.splitn(7, |&byte| byte == 0).collect();
-    if fields.len() != 7 {
-        return Err(Fail::Soft);
-    }
-    write_copy(
-        &Copied {
-            author: fields[0],
-            email: fields[1],
-            date: fields[2],
-            committer: fields[3],
-            committer_email: fields[4],
-            committer_date: fields[5],
-            message: fields[6],
-        },
-        tree,
-        parents,
-    )
+    write_copy(&Copied::from_fields(source, &fields)?, tree, parents)
 }
 
 /// Where a splice came from, read off a commit that moved it.
@@ -797,15 +807,7 @@ impl Repo {
             }
             let parents: Vec<String> = prev.iter().cloned().collect();
             let copy = write_copy(
-                &Copied {
-                    author: commit[1],
-                    email: commit[2],
-                    date: commit[3],
-                    committer: commit[4],
-                    committer_email: commit[5],
-                    committer_date: commit[6],
-                    message: commit[7],
-                },
+                &Copied::from_fields(&hash_of(commit), &commit[1..])?,
                 &tree,
                 &parents,
             )?;

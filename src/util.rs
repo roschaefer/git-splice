@@ -228,13 +228,14 @@ impl Git {
     }
 }
 
-/// A path git printed, byte for byte: a folder's name need not be UTF-8.
-pub fn path_from_output(mut bytes: Vec<u8>) -> PathBuf {
-    use std::os::unix::ffi::OsStringExt;
+/// A path git printed, if it's valid UTF-8, as every path is on Windows.
+pub fn path_from_output(mut bytes: Vec<u8>) -> Result<PathBuf, String> {
     while bytes.last() == Some(&b'\n') {
         bytes.pop();
     }
-    PathBuf::from(std::ffi::OsString::from_vec(bytes))
+    String::from_utf8(bytes)
+        .map(PathBuf::from)
+        .map_err(|error| String::from_utf8_lossy(error.as_bytes()).into_owned())
 }
 
 /// `$(...)`: text without trailing newlines.
