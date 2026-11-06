@@ -1,6 +1,6 @@
 //! Logging, failures and running git.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -88,10 +88,14 @@ pub fn eprint_text(text: &str) {
 
 /// The status a shell would report: 128 + the signal that ended a command.
 pub fn status_code(status: ExitStatus) -> i32 {
-    use std::os::unix::process::ExitStatusExt;
-    status
-        .code()
-        .unwrap_or_else(|| 128 + status.signal().unwrap_or(0))
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            return 128 + signal;
+        }
+    }
+    status.code().unwrap_or(1)
 }
 
 /// A git command to run.
@@ -332,14 +336,22 @@ pub fn normalize_path(path: &str) -> String {
 /// Stdout and stderr of a git command in the order it wrote them, without
 /// trailing newlines, and whether it succeeded.
 pub fn git_merged_output(args: &[&str]) -> (bool, String) {
-    let output = Command::new("sh")
-        .args(["-c", "exec \"$@\" 2>&1", "sh", "git"])
-        .args(args)
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output();
-    match output {
-        Ok(output) => (output.status.success(), text(&output.stdout)),
+    let run = || -> std::io::Result<(bool, Vec<u8>)> {
+        // One pipe for both, as `2>&1` would give. The Command, and with it
+        // its write ends, is gone after spawn, so the read ends with git.
+        let (mut reader, writer) = std::io::pipe()?;
+        let mut child = Command::new("git")
+            .args(args)
+            .stdin(Stdio::null())
+            .stdout(writer.try_clone()?)
+            .stderr(writer)
+            .spawn()?;
+        let mut output = Vec::new();
+        reader.read_to_end(&mut output)?;
+        Ok((child.wait()?.success(), output))
+    };
+    match run() {
+        Ok((ok, output)) => (ok, text(&output)),
         Err(error) => (false, error.to_string()),
     }
 }

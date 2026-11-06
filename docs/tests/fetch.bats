@@ -20,6 +20,17 @@ setup() {
   [ -z "$(git remote)" ]
 }
 
+@test "fetch: needs no sh, which Windows lacks" {
+  scenario_never_fetched "$monorepo" "$upstream"
+  cd "$monorepo"
+  local bin="$BATS_TEST_TMPDIR/only-git"
+  mkdir "$bin"
+  ln -s "$(command -v git)" "$bin/git"
+  PATH="$bin" run "$ENTRYPOINT" fetch
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a fetched" ]
+}
+
 @test "fetch: says when the branch this one syncs with moved" {
   scenario_up_to_date "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "upstream change"
