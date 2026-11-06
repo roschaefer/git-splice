@@ -205,12 +205,14 @@ splice: pull c from main at 68ea527
 ```
 
 *q*, on top of `layer/a`, takes *p*'s changes into `b/`, and with them
-`b/c/.splice`, which records *u* too. The shaded lane is now
+`b/c/.splice`, which records *u* too. `b/.splice` still records *l*:
+`merge --rebuilt-commit` leaves the synced commit where it was, so *p*
+counts as `b/`'s own work, for the push. The shaded lane is now
 `vendor/a/`'s:
 
 <div align="center">
 
-![As before, and in vendor/a/, now shaded, q on top of c prime, dashed, layer/a; in vendor/a/b/c/, u is T, U(p) and U(q)](levels-merged-into-a.drawio.svg)
+![As before, and in vendor/a/, now shaded, q on top of c prime, dashed, layer/a; in vendor/a/b/, l is U(q) too; in vendor/a/b/c/, u is T, U(p) and U(q)](levels-merged-into-a.drawio.svg)
 
 </div>
 
