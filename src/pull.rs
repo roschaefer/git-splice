@@ -60,16 +60,18 @@ pub fn run(argv: &[String]) -> Res<i32> {
         .filter(|path| !synced_commit_here(path))
         .cloned()
         .collect();
+    // A pull above can move the synced commit of one below it, selected
+    // itself or not, to one any of its upstreams may have. In a worktree of a
+    // level, that pull above is the one in the monorepo, and moved it if the
+    // synced commit isn't here.
+    let in_level = std::env::var_os(crate::levels::BRANCH_VARIABLE).is_some();
+    let (direct_below, direct_top): (Vec<String>, Vec<String>) = direct
+        .iter()
+        .cloned()
+        .partition(|path| below(path, &direct) || (in_level && !synced_commit_here(path)));
     let mut entries = repo.used_upstream_entry(&above);
-    // A synced commit that isn't here, e.g. one a pull above moved it to, may
-    // be on any of the splice's upstreams.
-    for path in &direct {
-        if synced_commit_here(path) {
-            entries.extend(repo.used_upstream_entry(std::slice::from_ref(path)));
-        } else {
-            entries.extend(repo.every_upstream_entry(std::slice::from_ref(path))?);
-        }
-    }
+    entries.extend(repo.used_upstream_entry(&direct_top));
+    entries.extend(repo.every_upstream_entry(&direct_below)?);
     entries.extend(repo.every_upstream_entry(&below_direct)?);
     let failures = repo.fetch_all(&branch, &entries)?;
 
