@@ -5,7 +5,8 @@ tool's pain points, then shows how `git-splice` handles them in the same
 example. The example is a monorepo with an app that uses a library,
 `https://git.example.com/lib.git`, with 30 commits. You put the library
 into a folder of the monorepo, fix it together with the app, send the
-fix back, and take in the library's own changes.
+fix back, and take in the library's own changes. Every page starts from
+the same repositories, built by [`scrut-setup.sh`](../scrut-setup.sh).
 
 Git comes with two tools for this, compared with `git-splice` point by
 point:
