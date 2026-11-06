@@ -1,20 +1,25 @@
 # Scenario: nested-splices, rebuilt layer by layer
 
-Each splice has a repository it's spliced into, and `git-splice` works the
-same in any of them. So the commands for one level could run once per
-level: rebuild the outer splice, check that out as its repository, and
-run the command for the inner splice there. This page tries that with
-today's commands, in worktrees, and compares it with what the monorepo
-says.
+Nesting would be simpler if each level ran the command for one level, in
+the repository its splice is spliced into: the rebuild of the splice
+above. That only gives the monorepo's answer if the rebuild of the splice
+above has all the history the levels below need. This page shows a case
+where it doesn't, and the two answers differ.
 
-It works as long as each level's history has everything the levels below
-it need. Here it doesn't: `vendor/` is made a splice around `vendor/a/`
-after the monorepo pushed a change to `vendor/a/b/`. A splice's history
-starts where it was made, so `vendor/`'s history starts at its `init`,
-with everything before folded into that one commit, the pushed change
-too. Rebuilt from there, `b/` has the pushed change in the wrong commit,
-and diverges from its upstream. The monorepo's own rebuild walks its
-commits for `vendor/a/b/`, and has it.
+The monorepo pushes a change to `vendor/a/b/`, and then makes `vendor/` a
+splice around `vendor/a/`. A splice's history starts where it was made,
+so `vendor/`'s rebuild starts at its `init`, with the pushed change
+folded into that one commit. Rebuilt level by level from there, `b/` has
+the change as part of the `init`, next to the upstream's own commit for
+it: `b/` diverges from its upstream. The monorepo's rebuild walks the
+monorepo's commits, and has the pushed commit itself, as the upstream
+does.
+
+The monorepo's answer is the right one: it agrees with the upstream. So
+running the command one level at a time needs the history from the
+monorepo's rebuild. The level only gives its files and `.splice` files.
+[#364](https://github.com/roschaefer/git-splice/pull/364) pulls one
+level at a time that way.
 
 ## Output
 
