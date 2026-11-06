@@ -135,11 +135,33 @@ The drawings share one language, explained here once. A drawing's own
 legend only adds what's unusual on it, like the commits the next rebuild
 carries over.
 
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../09-scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/../09-scenarios/01-everyday-sync/02-up-to-date/setup.bash" &&
+>   build_scenario scenario_up_to_date &&
+>   git worktree add -q -b work-on-a ../a-work "$(git splice rebuild vendor/a)" &&
+>   echo "from the worktree" >../a-work/other.txt &&
+>   git -C ../a-work add other.txt &&
+>   git -C ../a-work commit -q -m "add other.txt" &&
+>   echo "monorepo change" >>vendor/a/file.txt &&
+>   git commit -q -am "monorepo change"
+```
+-->
+
 <div align="center">
 
-![The monorepo's a and c, B at a and H at c; in vendor/a/, k, T and U(H), and on top of k, dashed, c prime, R, and o, on work-on-a, a dashed box; a legend for boxes, lanes, dashes and primes](../09-scenarios/01-everyday-sync/02-up-to-date/worked-on-before-merge.drawio.svg)
+![The monorepo's a and c, B at a and H at c; in vendor/a/, k, T and U(H), and on top of k, dashed, c prime, R, and o, on work-on-a, a dashed box; a legend for boxes, lanes, dashes and primes](../09-scenarios/01-everyday-sync/02-up-to-date/central-legend.drawio.svg)
 
 </div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/../09-scenarios/01-everyday-sync/02-up-to-date/central-legend.drawio.svg" \
+>   a=HEAD~1 c=HEAD k="$(git config --file vendor/a/.splice splice.commit)" o=work-on-a
+ok   central-legend.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
+```
+-->
 
 - A circle is a commit, with its arrows going to the commits made on top
   of it, so history grows away from the oldest commit, *a* or *k* here.
