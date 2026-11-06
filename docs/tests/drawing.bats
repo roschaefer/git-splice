@@ -117,18 +117,45 @@ edit_drawing() {
   [ "$status" -eq 0 ]
 }
 
-@test "drawing: the legend explains each mark a commit has" {
-  edit_drawing -d '//mxCell[@parent="legend" and contains(@style, "dashed=1")]'
+@test "drawing: the legend explains each color a commit has" {
+  edit_drawing -d '//mxCell[@id="legend_orange" or @id="legend_orange_text"]'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   the legend doesn't explain a dashed outline: add a sample commit with it, and what it means" ]
+  [ "$output" = "!!   the legend doesn't explain an orange outline: add a sample commit with it, and what it means" ]
+}
+
+@test "drawing: a legend leaves dashes and primes to the central legend" {
+  edit_drawing -s '//mxCell[@id="legend"]/..' -t elem -n mxCell \
+    -i '//mxCell[not(@id)]' -t attr -n id -v legend_prime \
+    -i '//mxCell[@id="legend_prime"]' -t attr -n parent -v legend \
+    -i '//mxCell[@id="legend_prime"]' -t attr -n vertex -v 1 \
+    -i '//mxCell[@id="legend_prime"]' -t attr -n style -v 'ellipse;' \
+    -i '//mxCell[@id="legend_prime"]' -t attr -n value -v "a'"
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   the legend explains a ' after a label, which the central legend explains for every drawing: drop that sample, or style the legend legend=full" ]
+}
+
+@test "drawing: a full legend explains dashes and primes too, as the central one does" {
+  edit_drawing -u '//mxCell[@id="legend"]/@style' -v 'rounded=1;legend=full;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   the legend doesn't explain a dashed outline: add a sample commit with it, and what it means"* ]]
+  [[ "$output" == *"!!   the legend doesn't explain a ' after a label: add a sample commit with it, and what it means"* ]]
+}
+
+@test "drawing: without an orange sample, a commit R copies is outlined black" {
+  edit_drawing -d '//mxCell[@id="legend_orange" or @id="legend_orange_text"]'
+  sed -i 's/strokeColor=#E07000;//g' "$drawing"
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
 }
 
 @test "drawing: the legend explains no mark that no commit has" {
   cat >"$drawing" <<XML
 <mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
 <mxCell id="a" parent="1" vertex="1" style="ellipse;" value="a"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
-$(legend_cells prime)
+$(legend_cells prime | sed 's/legend=1;/legend=full;/')
 </root></mxGraphModel></diagram></mxfile>
 XML
   run check_drawing "$drawing" a=HEAD~4
@@ -216,7 +243,7 @@ XML
 <mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
 <mxCell id="m" parent="1" vertex="1" style="ellipse;strokeColor=#E07000;" value="m"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="m_" parent="1" vertex="1" style="ellipse;dashed=1;strokeColor=#E07000;" value="m'"><mxGeometry x="160" y="0" width="70" height="70" as="geometry" /></mxCell>
-$(legend_cells orange dashed prime)
+$(legend_cells orange)
 </root></mxGraphModel></diagram></mxfile>
 XML
   run check_drawing "$drawing" m=HEAD

@@ -13,6 +13,12 @@ impl Style {
         format!(";{};", self.0).contains(&format!(";{entry};"))
     }
 
+    /// Whether it's a legend's: `legend=1`, or `legend=full` for one that
+    /// also explains what the central legend does.
+    pub fn is_legend(&self) -> bool {
+        self.has("legend=1") || self.has("legend=full")
+    }
+
     /// Whether it draws shape <shape>: named first, or as an entry. <loose>
     /// also takes an entry that only starts with the name.
     fn draws(&self, shape: &str, loose: bool) -> bool {
@@ -185,11 +191,11 @@ impl Diagram {
         x >= ox && x + c.width <= ox + o.width && y >= oy && y + c.height <= oy + o.height
     }
 
-    /// Whether <cell> is a sample in a legend, a shape styled `legend=1`
-    /// that explains the drawing's marks: no commit, box or text.
+    /// Whether <cell> is a sample in a legend, a shape that explains the
+    /// drawing's marks: no commit, box or text.
     pub fn in_legend(&self, cell: &Cell) -> bool {
         self.index_of(&cell.parent)
-            .is_some_and(|parent| self.cells[parent].style.has("legend=1"))
+            .is_some_and(|parent| self.cells[parent].style.is_legend())
     }
 
     pub fn center_x(&self, cell: usize) -> f64 {

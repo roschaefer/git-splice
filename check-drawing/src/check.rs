@@ -110,6 +110,9 @@ pub struct Checker<'a> {
     separators: Vec<usize>,
     sides: Vec<usize>,
     legends: usize,
+    /// Whether a legend, styled legend=full, explains the marks the central
+    /// legend explains too, as in the README.
+    full_legend: bool,
     legend_samples: Vec<usize>,
 
     splices: Vec<String>,
@@ -209,6 +212,7 @@ impl<'a> Checker<'a> {
             separators: Vec::new(),
             sides: Vec::new(),
             legends: 0,
+            full_legend: false,
             legend_samples: Vec::new(),
             splices: Vec::new(),
             default: String::new(),
@@ -288,17 +292,19 @@ impl<'a> Checker<'a> {
     }
 
     /// What each shape is. A legend, a shape styled legend=1, explains the
-    /// marks a drawing uses: the shapes inside it are samples, not commits,
-    /// boxes or texts.
+    /// marks a drawing uses that the central legend doesn't; one styled
+    /// legend=full explains those too. The shapes inside it are samples, not
+    /// commits, boxes or texts.
     fn classify(&mut self) {
         let legends: HashSet<&str> = self
             .d
             .cells
             .iter()
-            .filter(|c| c.style.has("legend=1"))
+            .filter(|c| c.style.is_legend())
             .map(|c| c.id.as_str())
             .collect();
         self.legends = legends.len();
+        self.full_legend = self.d.cells.iter().any(|c| c.style.has("legend=full"));
         for (i, cell) in self.d.cells.iter().enumerate() {
             if legends.contains(cell.id.as_str()) {
                 continue;
@@ -840,10 +846,11 @@ impl<'a> Checker<'a> {
     }
 
     /// What the next rebuild does with a commit, if the drawing's legend says
-    /// so. A change it carries across is outlined orange, on both ends: a
-    /// commit R copies, from the monorepo's first-parent history since B, and
-    /// its copy in R. With a grey sample in the legend, each monorepo commit
-    /// the rebuild walks, on that history, is filled grey, e.g. to count them.
+    /// so. With an orange sample in the legend, a change it carries across is
+    /// outlined orange, on both ends: a commit R copies, from the monorepo's
+    /// first-parent history since B, and its copy in R. With a grey sample in
+    /// the legend, each monorepo commit the rebuild walks, on that history, is
+    /// filled grey, e.g. to count them.
     /// Every other commit is outlined black and white inside. Without
     /// splices, e.g. in a drawing of git subtree, neither is checked.
     fn check_colors(&mut self) {
@@ -876,6 +883,10 @@ impl<'a> Checker<'a> {
             .legend_samples
             .iter()
             .any(|&s| self.d.cells[s].style.color("fillColor", "white") == WALKED_FILL);
+        let legend_orange = self
+            .legend_samples
+            .iter()
+            .any(|&s| self.d.cells[s].style.color("strokeColor", "black") == CARRIED_OUTLINE);
         // Each walked monorepo commit's label, by what its copy in R shares
         // with it: author, dates and message.
         let mut walked_label: HashMap<String, String> = HashMap::new();
@@ -951,22 +962,24 @@ impl<'a> Checker<'a> {
             }
 
             let have = style.color("strokeColor", "black");
-            let want = if is_carried && self.legends > 0 {
+            let want = if is_carried && legend_orange {
                 CARRIED_OUTLINE
             } else {
                 "black"
             };
             if have != want {
-                if is_carried && self.legends > 0 && primed {
+                if is_carried && legend_orange && primed {
                     self.errors.push(format!(
                         "{value} is R's copy of a commit since B: outline it orange, {CARRIED_OUTLINE}"
                     ));
-                } else if is_carried && self.legends > 0 {
+                } else if is_carried && legend_orange {
                     self.errors.push(format!(
                         "{value} is a commit R copies: outline it orange, {CARRIED_OUTLINE}"
                     ));
-                } else if is_carried {
+                } else if is_carried && self.legends == 0 {
                     self.errors.push(format!("{value} is outlined in color, but the drawing has no legend to say why: add one, or outline it black"));
+                } else if is_carried && have == CARRIED_OUTLINE {
+                    // The legend's check asks for an orange sample.
                 } else {
                     self.errors.push(format!("{value} is outlined in color, but the rebuild doesn't carry it across: outline it black"));
                 }
@@ -995,9 +1008,19 @@ impl<'a> Checker<'a> {
             ("dashed", "a dashed outline"),
             ("prime", "a ' after a label"),
         ];
+        // The central legend, in writing.md, explains these for every drawing.
+        let central = ["dashed", "prime"];
         for (mark, name) in marks {
             let uses = self.commits.iter().any(|&c| has_mark(c, mark));
             let explains = self.legend_samples.iter().any(|&c| has_mark(c, mark));
+            if central.contains(&mark) && !self.full_legend {
+                if explains {
+                    self.errors.push(format!(
+                        "the legend explains {name}, which the central legend explains for every drawing: drop that sample, or style the legend legend=full"
+                    ));
+                }
+                continue;
+            }
             if uses && !explains {
                 self.errors.push(format!(
                     "the legend doesn't explain {name}: add a sample commit with it, and what it means"
