@@ -109,7 +109,7 @@ $ git splice log -h | check-help section no-upstream-branch
 
 On a feature branch the upstream doesn't have, the other side is the
 upstream's default branch, as for a PR
-([feature branches](../02-using-git-splice/01-feature-branches.md)).
+([feature branches](../02-using-git-splice/README.md)).
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut

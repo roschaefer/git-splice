@@ -188,7 +188,7 @@ folder:
   needed.
 - Every Git command can read an upstream as `splices/<key>/heads/<branch>`,
   as of the last fetch, so no separate clone is needed
-  ([looking at an upstream](../06-command-reference/03-fetch.md#looking-at-an-upstream)).
+  ([looking at an upstream](../06-command-reference/02-fetch.md#looking-at-an-upstream)).
 
 Two rules follow from the layout:
 
@@ -450,7 +450,7 @@ These are known and accepted, each to keep the design simple:
 - **An upstream that keeps its submodules:** after
   `clone --from-submodule --recursive`, `pull` refuses every commit of
   theirs that moves one
-  ([`clone`](../06-command-reference/02-clone.md#--recursive),
+  ([`clone`](../06-command-reference/01-clone.md#--recursive),
   [#153](https://github.com/roschaefer/git-splice/issues/153)).
 - **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
 - **Upstream URLs that differ only in letter case**, e.g.

@@ -21,11 +21,11 @@ the model finds five other commits:
 
 | Name | Meaning | Also called | Lives in |
 |---|---|---|---|
-| B | The [boundary](../../06-command-reference/10-boundary.md), where the rebuild starts: usually the last pull ([where exactly](#where-b-is)). | *boundary* | the monorepo |
+| B | The [boundary](../../06-command-reference/09-boundary.md), where the rebuild starts: usually the last pull ([where exactly](#where-b-is)). | *boundary* | the monorepo |
 | U(H) | The synced commit: the upstream commit `.splice` records at `HEAD`. | | the upstream |
 | U(B) | The upstream commit recorded by B's `.splice`. R starts there. Usually U(H). | | the upstream |
 | T | The fetched tip of tracked(X), in `refs/splices/`: the branch [tracked](../../09-scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) for monorepo branch X, or the upstream branch named X. | *tracked*, *theirs* | the upstream |
-| R | The [rebuild](../../06-command-reference/11-rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *rebuild*, *ours* | computed |
+| R | The [rebuild](../../06-command-reference/10-rebuild.md), *ours*: the folder's history since B, rebuilt as upstream commits on top of U(B). | *rebuild*, *ours* | computed |
 
 <!-- Build the scenario in the diagram; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
@@ -71,7 +71,7 @@ previous and new sync points. A push between them is the exception
 ## How R and T determine the status
 
 R and T are two histories of the same folder, as upstream commits. How
-they relate is the [sync state](../../06-command-reference/01-status.md#output):
+they relate is the [sync state](../../06-command-reference/README.md#output):
 
 | R and T | `status` shows |
 |---|---|
@@ -119,11 +119,11 @@ contains those local changes. Two exceptions:
   and R's history up to there comes from the upstream above, at its
   synced commit ([nesting](../05-nesting/README.md)).
 
-[`boundary`](../../06-command-reference/10-boundary.md) prints B.
+[`boundary`](../../06-command-reference/09-boundary.md) prints B.
 
 ## R, the rebuild
 
-[`git splice rebuild`](../../06-command-reference/11-rebuild.md) computes R. It
+[`git splice rebuild`](../../06-command-reference/10-rebuild.md) computes R. It
 recreates each monorepo commit since B that changed the folder as an
 upstream commit on top of U(B). A rebuilt commit contains the folder's
 tree without `.splice` and keeps the original author, dates and message.

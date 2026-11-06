@@ -106,7 +106,7 @@ $ git splice pull -h | check-help option merge-options
         --help'.
 ```
 
-They work as for [`merge`](05-merge.md#options), after the fetch.
+They work as for [`merge`](04-merge.md#options), after the fetch.
 
 ### `-m`
 
@@ -160,7 +160,7 @@ $ git splice pull -h | check-help section conflicts
 ```
 
 When both sides changed the same lines, the pull stops at a conflict;
-resolve it and `git commit` ([diverged history](../02-using-git-splice/02-diverged.md)).
+resolve it and `git commit` ([diverged history](../02-using-git-splice/01-diverged.md)).
 
 Two developers who pull the same splice at different times get conflicts
 in `.splice` when one merges the other's work. Pull the monorepo before

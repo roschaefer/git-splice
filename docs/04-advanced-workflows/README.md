@@ -1,6 +1,6 @@
 # Advanced workflows
 
-Workflows that build on the [concepts](../03-concepts/README.md),
+Workflows that build on the concepts,
 especially the [sync model](../03-concepts/03-sync-model/README.md).
 
 - [Rebasing a feature branch](01-rebase-feature-branch/README.md): bring

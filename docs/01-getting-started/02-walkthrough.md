@@ -17,18 +17,18 @@ uses the same [sandbox](01-sandbox.md) throughout, under
 
 | Command | What it does |
 | --- | --- |
-| [`status`](../06-command-reference/01-status.md) | Shows each splice's sync state, with how many commits `push` would publish and `pull` would bring in. |
-| [`clone`](../06-command-reference/02-clone.md) | Splices an existing repository into a new folder, as one commit. |
-| [`fetch`](../06-command-reference/03-fetch.md) | Fetches every branch of each upstream into `refs/splices/<key>/heads/`. |
-| [`log`](../06-command-reference/04-log.md) | Shows the commits `push` would publish and `pull` would bring in. |
-| [`merge`](../06-command-reference/05-merge.md) | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
-| [`pull`](../06-command-reference/06-pull.md) | `fetch` + `merge`. |
-| [`diff`](../06-command-reference/07-diff.md) | Shows the file changes `push` would send. |
-| [`push`](../06-command-reference/08-push.md) | Rebuilds the commits that changed each splice since its boundary and pushes them upstream. Writes nothing to the monorepo. |
-| [`init`](../06-command-reference/09-init.md) | Makes a folder a splice of a new, empty repository. |
-| [`boundary`](../06-command-reference/10-boundary.md) | Prints the monorepo commit a splice's rebuild starts from, usually its last sync. |
-| [`rebuild`](../06-command-reference/11-rebuild.md) | Prints the commit `push` would send, without pushing it. |
-| [`key`](../06-command-reference/12-key.md) | Prints the key of a splice's upstream, or renames it, refs included. |
+| [`status`](../06-command-reference/README.md) | Shows each splice's sync state, with how many commits `push` would publish and `pull` would bring in. |
+| [`clone`](../06-command-reference/01-clone.md) | Splices an existing repository into a new folder, as one commit. |
+| [`fetch`](../06-command-reference/02-fetch.md) | Fetches every branch of each upstream into `refs/splices/<key>/heads/`. |
+| [`log`](../06-command-reference/03-log.md) | Shows the commits `push` would publish and `pull` would bring in. |
+| [`merge`](../06-command-reference/04-merge.md) | Splices already-fetched upstream changes in, as one ordinary commit per splice. |
+| [`pull`](../06-command-reference/05-pull.md) | `fetch` + `merge`. |
+| [`diff`](../06-command-reference/06-diff.md) | Shows the file changes `push` would send. |
+| [`push`](../06-command-reference/07-push.md) | Rebuilds the commits that changed each splice since its boundary and pushes them upstream. Writes nothing to the monorepo. |
+| [`init`](../06-command-reference/08-init.md) | Makes a folder a splice of a new, empty repository. |
+| [`boundary`](../06-command-reference/09-boundary.md) | Prints the monorepo commit a splice's rebuild starts from, usually its last sync. |
+| [`rebuild`](../06-command-reference/10-rebuild.md) | Prints the commit `push` would send, without pushing it. |
+| [`key`](../06-command-reference/11-key.md) | Prints the key of a splice's upstream, or renames it, refs included. |
 
 `clone`, `init`, `fetch`, `merge`, `pull`, `push`, `status`, `diff` and
 `log` are named after Git's commands, and do to a splice what their
@@ -53,7 +53,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 
 ## status
 
-Lists every splice with its sync state ([status in detail](../06-command-reference/01-status.md)):
+Lists every splice with its sync state ([status in detail](../06-command-reference/README.md)):
 
 ```scrut
 $ git splice status
@@ -64,7 +64,7 @@ On branch main
 
 ## clone
 
-Splices in `pkg-b` ([clone in detail](../06-command-reference/02-clone.md)):
+Splices in `pkg-b` ([clone in detail](../06-command-reference/01-clone.md)):
 
 ```scrut
 $ git splice clone https://git.example.com/pkg-b.git vendor/pkg-b
@@ -75,7 +75,7 @@ ok   vendor/pkg-b: cloned 9b3cb02 from main
 ## fetch
 
 Someone pushes to `pkg-b`'s upstream. `fetch` fetches every splice's
-upstream in parallel and calls out which branch moved ([fetch in detail](../06-command-reference/03-fetch.md)):
+upstream in parallel and calls out which branch moved ([fetch in detail](../06-command-reference/02-fetch.md)):
 
 ```scrut
 $ git clone -q "$WALKTHROUGH/upstream/pkg-b.git" ../pkg-b &&
@@ -93,7 +93,7 @@ ok   vendor/pkg-b fetched (main moved 9b3cb02..b937c4f)
 ## log
 
 `>` marks what a pull brings in, `<` what a push publishes
-([log in detail](../06-command-reference/04-log.md)):
+([log in detail](../06-command-reference/03-log.md)):
 
 ```scrut
 $ git splice log
@@ -106,7 +106,7 @@ $ git splice log
 ## merge
 
 Splices in what was fetched, without contacting the upstream
-([merge in detail](../06-command-reference/05-merge.md)):
+([merge in detail](../06-command-reference/04-merge.md)):
 
 ```scrut
 $ git splice merge vendor/pkg-a
@@ -115,7 +115,7 @@ ok   vendor/pkg-a: merged 703b936
 
 ## pull
 
-`fetch` and `merge` in one ([pull in detail](../06-command-reference/06-pull.md)):
+`fetch` and `merge` in one ([pull in detail](../06-command-reference/05-pull.md)):
 
 ```scrut
 $ git splice pull --all
@@ -128,7 +128,7 @@ ok   vendor/pkg-b: pulled b937c4f
 ## diff
 
 A commit in the monorepo changes `vendor/pkg-a/`. `diff` shows what `push`
-would send, with paths as the upstream sees them ([diff in detail](../06-command-reference/07-diff.md)):
+would send, with paths as the upstream sees them ([diff in detail](../06-command-reference/06-diff.md)):
 
 ```scrut
 $ echo "a local fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: a local fix"
@@ -143,7 +143,7 @@ $ git splice diff --stat
 
 ## push
 
-Sends it to the upstream branch named like yours ([push in detail](../06-command-reference/08-push.md)):
+Sends it to the upstream branch named like yours ([push in detail](../06-command-reference/07-push.md)):
 
 ```scrut
 $ git splice push --all
@@ -162,7 +162,7 @@ On branch main
 ## init
 
 Makes `libs/c/` a splice of the empty `lib-c.git`; the first push
-publishes it ([init in detail](../06-command-reference/09-init.md)):
+publishes it ([init in detail](../06-command-reference/08-init.md)):
 
 ```scrut
 $ git splice init libs/c https://git.example.com/lib-c.git
@@ -177,7 +177,7 @@ ok   libs/c: pushed 9dc1e6a to main
 
 ## boundary
 
-The monorepo commit `vendor/pkg-a/`'s rebuild starts from, here its last sync ([boundary in detail](../06-command-reference/10-boundary.md)):
+The monorepo commit `vendor/pkg-a/`'s rebuild starts from, here its last sync ([boundary in detail](../06-command-reference/09-boundary.md)):
 
 ```scrut
 $ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
@@ -186,7 +186,7 @@ $ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
 
 ## rebuild
 
-The commit `push` would send ([rebuild in detail](../06-command-reference/11-rebuild.md)):
+The commit `push` would send ([rebuild in detail](../06-command-reference/10-rebuild.md)):
 
 ```scrut
 $ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
@@ -196,7 +196,7 @@ $ git show -s --oneline "$(git splice rebuild vendor/pkg-a)"
 ## key
 
 The short name of `vendor/pkg-a/`'s upstream in `refs/splices/`
-([key in detail](../06-command-reference/12-key.md)):
+([key in detail](../06-command-reference/11-key.md)):
 
 ```scrut
 $ git splice key vendor/pkg-a

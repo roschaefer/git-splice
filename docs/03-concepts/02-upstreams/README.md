@@ -48,7 +48,7 @@ the key `shared-lib`, so its `main` branch is fetched to
 The first fetch records the mapping and fetches the upstream's branches to
 `refs/splices/<key>/heads/`. These are ordinary Git refs, so commands such
 as `git log` can read them and `git worktree add` can check them out
-([example](../../06-command-reference/03-fetch.md#looking-at-an-upstream)).
+([example](../../06-command-reference/02-fetch.md#looking-at-an-upstream)).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
@@ -113,7 +113,7 @@ ok   app-a/s fetched
 ok   app-a/s: 'main' no longer tracks 'development'
 ```
 
-See the [`fetch` command reference](../../06-command-reference/03-fetch.md) for the other
+See the [`fetch` command reference](../../06-command-reference/02-fetch.md) for the other
 ways to set a tracked branch and its exact fallback behavior.
 
 ## The same library at different versions

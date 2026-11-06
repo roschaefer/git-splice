@@ -3,7 +3,7 @@
 Each folder here is one reusable test setup: a state a splice and its
 upstream can be in, or a situation a command has to handle. A folder may
 contain several Markdown documents, but each document explains and executes
-one problem. `status`'s [sync states](../06-command-reference/01-status.md#output)
+one problem. `status`'s [sync states](../06-command-reference/README.md#output)
 link to them as examples. Some show a bug as it is today; [Known
 bugs](08-known-bugs.md) lists them.
 
@@ -12,7 +12,7 @@ situations every user meets to the edge cases: everyday sync, starting a
 splice, branches and teamwork, upstreams, nested splices, rewritten
 history, and moved and copied folders. Within a chapter, the numbers order the
 scenarios the same way. The site drops the numbers from its URLs, and
-takes a chapter's name from its README.
+takes a chapter's name from its `_category_.json`.
 
 A scenario folder has:
 

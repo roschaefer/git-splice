@@ -65,7 +65,7 @@ $ git splice init -h | check-help option -m
         Gives the commit this message instead of the default one.
 ```
 
-It works as for [`merge`](05-merge.md#-m).
+It works as for [`merge`](04-merge.md#-m).
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut

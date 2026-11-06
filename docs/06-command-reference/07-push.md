@@ -98,7 +98,7 @@ $ git splice push -h | check-help option branch-tracking
         -u'; see 'git splice merge --help'.
 ```
 
-They work as for [`merge`](05-merge.md#branch-tracking): the push goes
+They work as for [`merge`](04-merge.md#branch-tracking): the push goes
 to that upstream branch instead.
 
 ### `--force`
@@ -141,7 +141,7 @@ go upstream:
 $ echo "a parser fix" >>vendor/pkg-a/file.txt && git commit -qam "pkg-a: fix INTERNAL-123"
 ```
 
-[`rebuild`](11-rebuild.md) prints the commit `push` would send. Check it out
+[`rebuild`](10-rebuild.md) prints the commit `push` would send. Check it out
 in a worktree of its own, since it has the upstream's layout, and reword
 it there:
 
@@ -186,7 +186,7 @@ $ git worktree remove ../edited
 Why pull right away, and what `push` checks:
 [edited-before-push](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md).
 
-The other way round, [`merge --rebuilt-commit`](05-merge.md#--rebuilt-commit)
+The other way round, [`merge --rebuilt-commit`](04-merge.md#--rebuilt-commit)
 brings work committed in such a worktree into the monorepo.
 
 ## Upstream branch
@@ -206,7 +206,7 @@ $ git splice push -h | check-help section upstream-branch
 
 On a feature branch, `push` creates the upstream branch of that name,
 but only for the splices that changed on it
-([feature branches](../02-using-git-splice/01-feature-branches.md)).
+([feature branches](../02-using-git-splice/README.md)).
 
 ## Order
 

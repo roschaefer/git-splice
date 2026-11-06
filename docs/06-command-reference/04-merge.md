@@ -36,7 +36,7 @@ ok   vendor/pkg-a: merged 703b936
 
 The commit `merge` made records the fetched branch, T, as the new synced
 commit, U(H). Nothing was waiting to be pushed, so its folder is U(H), and
-it's `vendor/pkg-a/`'s new [boundary](10-boundary.md), B:
+it's `vendor/pkg-a/`'s new [boundary](09-boundary.md), B:
 
 ```scrut
 $ git log -1 --stat --format=%s
@@ -264,7 +264,7 @@ ok   vendor/pkg-a: upstream has no 'feature' branch -- nothing to merge
 
 `--branch main` would merge the default branch there. `status` and
 `push` compare such a branch with the default branch, like a pull
-request ([feature branches](../02-using-git-splice/01-feature-branches.md)).
+request ([feature branches](../02-using-git-splice/README.md)).
 
 ## Order
 

@@ -14,7 +14,7 @@ usage: docs/01-getting-started/sandbox.sh [<page>] [--dir <path>] [--no-shell]
 
 Builds the state the docs page <page> starts from, and drops you into a
 shell there. <page> is its path under docs/, with or without .md, e.g.
-06-command-reference/08-push or 09-scenarios/02-starting-a-splice/01-clone-copied-content.
+06-command-reference/07-push or 09-scenarios/02-starting-a-splice/01-clone-copied-content.
 Without one, it's the walkthrough, which tries every command once.
 
 The state is the page's setup: its hidden commands, and the shown ones

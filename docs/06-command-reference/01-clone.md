@@ -58,7 +58,7 @@ A clone is a commit on top of `HEAD`, so a monorepo without commits
 needs a first one
 ([clone-without-commits](../09-scenarios/02-starting-a-splice/06-clone-without-commits/README.md)). To
 publish a folder of the monorepo to a new, empty repository, use
-[`init`](09-init.md) instead.
+[`init`](08-init.md) instead.
 
 ## Options
 

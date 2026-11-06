@@ -65,7 +65,7 @@ $ git splice rebuild -h | check-help section using-the-rebuild
 
 To reword or squash its commits before they go upstream, edit them in a
 worktree and push the result with
-[`push --rebuilt-commit`](08-push.md#--rebuilt-commit).
+[`push --rebuilt-commit`](07-push.md#--rebuilt-commit).
 Like every `git splice push`, it finds the upstream's URL and branch
 itself, updates the fetched upstream branch, and checks what it pushes:
 the commit must have the folder's files and contain the synced commit,
@@ -90,7 +90,7 @@ $ git -C "$WALKTHROUGH/upstream/pkg-a.git" log --oneline release
 
 Then you pick the URL and the branch, nothing checks the commit, and the
 monorepo learns about the push only with the next `fetch`: until then,
-`status` still shows what was pushed as ahead. Prefer [`push`](08-push.md)
+`status` still shows what was pushed as ahead. Prefer [`push`](07-push.md)
 where it can do the job.
 
 <!-- Checks that every linked help section appears above, in order.
