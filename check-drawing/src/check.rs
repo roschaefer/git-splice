@@ -1034,8 +1034,9 @@ impl<'a> Checker<'a> {
     }
 
     /// The upstream commits the last pull of each splice brought in: in U(H),
-    /// but not in the commit its .splice recorded before, leaving out copies
-    /// of the monorepo's own commits, which came back from a push.
+    /// but not in the commit its .splice recorded before, or all of U(H)'s
+    /// history for the first pull after an init, which recorded none; leaving
+    /// out copies of the monorepo's own commits, which came back from a push.
     fn pulled_in(&self) -> HashMap<String, HashSet<String>> {
         let own: HashSet<String> = self
             .git
@@ -1051,12 +1052,16 @@ impl<'a> Checker<'a> {
             if truth.u.is_empty() {
                 continue;
             }
-            let Some(before) = truth.synced.iter().find(|s| **s != truth.u) else {
-                continue;
-            };
+            let mut range = vec![truth.u.clone()];
+            match truth.synced.iter().find(|s| **s != truth.u) {
+                Some(before) => range.push(format!("^{before}")),
+                None if truth.started_empty => {}
+                // A clone records its first commit: nothing was pulled yet.
+                None => continue,
+            }
             let commits: HashSet<String> = self
                 .git
-                .log(&[truth.u.clone(), format!("^{before}")])
+                .log(&range)
                 .iter()
                 .map(|subject| subject.hash.clone())
                 .filter(|commit| !own.contains(&self.git.copy_key(commit)))

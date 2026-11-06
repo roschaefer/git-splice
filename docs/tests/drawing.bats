@@ -174,6 +174,30 @@ XML
   [ "$status" -eq 0 ]
 }
 
+@test "drawing: the first pull after init brings in what the upstream added since the push" {
+  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  scenario_init_new_upstream "$BATS_TEST_TMPDIR/init" "$BATS_TEST_TMPDIR/init.git"
+  cd "$BATS_TEST_TMPDIR/init"
+  splice init lib/a "$BATS_TEST_TMPDIR/init.git" >/dev/null
+  splice push lib/a >/dev/null 2>&1
+  export GIT_AUTHOR_NAME=Test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=Test GIT_COMMITTER_EMAIL=test@example.com
+  git clone -q "$BATS_TEST_TMPDIR/init.git" "$BATS_TEST_TMPDIR/u"
+  (cd "$BATS_TEST_TMPDIR/u" && echo n >n.txt && git add n.txt && git commit -q -m n && git push -q origin HEAD:main)
+  splice pull lib/a -m p >/dev/null
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="n" parent="1" vertex="1" style="ellipse;strokeColor=#0070E0;" value="n"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="m_" parent="1" vertex="1" style="ellipse;" value="m'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="mn" parent="1" edge="1" source="m_" target="n"><mxGeometry relative="1" as="geometry" /></mxCell>
+$(legend_cells blue)
+</root></mxGraphModel></diagram></mxfile>
+XML
+  local n
+  n="$(git config --file lib/a/.splice splice.commit)"
+  run check_drawing "$drawing" n="$n" m\'="$n^1"
+  [ "$status" -eq 0 ]
+}
+
 @test "drawing: without a legend, a commit R copies is outlined black, as there's nothing to say why" {
   edit_drawing -d '//mxCell[@id="legend" or @parent="legend"]'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
