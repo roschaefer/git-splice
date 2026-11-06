@@ -19,7 +19,7 @@ three developers, and a monorepo with an app and 40 commits.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/scrut-setup.sh"
+$ source "$TESTDIR/../scrut-setup.sh"
 ```
 -->
 
@@ -163,6 +163,12 @@ $ check_drawing "$TESTDIR/git-subtree-split-walks.drawio.svg" --alias HEAD=H \
 ok   git-subtree-split-walks.drawio.svg: 7 commits, 7 arrows, 1 boxes
 ```
 -->
+
+[`splitsh-lite`](../02-third-party/03-splitsh-lite.md) replaces `split` with a
+faster one that gives the same commits, and caches the commits it has
+split, so the next run doesn't split them again. It's made for
+publishing a monorepo's folders as read-only repositories: nothing comes
+back.
 
 ### `--rejoin`: a merge for every push
 
@@ -486,7 +492,7 @@ eacfd66 lib commit 29
 
 `git subtree` and `git-splice` remember the same thing: which monorepo
 commit matches which library commit. In the
-[sync model](../03-concepts/02-sync-model.md)'s terms:
+[sync model](../../03-concepts/02-sync-model.md)'s terms:
 
 | `git subtree` | `git-splice` |
 | --- | --- |
@@ -509,10 +515,10 @@ A squash merge keeps the file's content, where it drops *j*'s message.
 Squash-merged, *c* and *e* leave `.splice` as it was, and B stays the
 `clone` commit; a pull request with a pull in it changes `.splice`, and
 its squash commit becomes B
-([scenario](../09-scenarios/03-branches-and-teamwork/03-squash-merged-pull/README.md)).
+([scenario](../../09-scenarios/03-branches-and-teamwork/03-squash-merged-pull/README.md)).
 `git mv` moves the file along, and a change to it shows in the diff like
 any other. Moving a splice has gaps of its own, shown in the
-[moved folders scenarios](../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md).
+[moved folders scenarios](../../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md).
 
 ## Where `git subtree` is the better tool
 

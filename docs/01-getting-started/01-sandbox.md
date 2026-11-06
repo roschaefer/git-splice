@@ -16,7 +16,7 @@ The sandbox builds any page of these docs that runs commands, a
 walkthrough chapter, a concept, a scenario or a comparison, by its path
 under `docs/`:
 
-    nix develop -c just sandbox 05-comparisons/01-git-submodule
+    nix develop -c just sandbox 05-comparisons/01-git/01-git-submodule
 
 It runs the page's setup, up to the first command the page shows, and
 opens bash in the page's monorepo, with the settings scrut runs the page

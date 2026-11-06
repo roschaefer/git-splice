@@ -16,7 +16,7 @@ uses it. It shows that the library gets the same commits from both tools,
 and what the monorepo has to hold for that.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
-and a monorepo with an app. [How these pages run](../README.md).
+and a monorepo with an app. [How these pages run](../01-git/README.md).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}

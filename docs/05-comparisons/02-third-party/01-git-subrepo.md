@@ -16,7 +16,7 @@ which every push writes too. This page shows what follows from that on a
 feature branch that ends in a squash merge.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
-and a monorepo with an app. [How these pages run](../README.md).
+and a monorepo with an app. [How these pages run](../01-git/README.md).
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
