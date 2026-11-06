@@ -124,25 +124,37 @@ outline_blue() {
   done
 }
 
-@test "drawing: with a blue sample in the legend, the upstream commits the last pull brought in are outlined blue" {
+@test "drawing: with a blue sample in the legend, the upstream commits a drawn pull brought in are outlined blue" {
   add_blue_sample
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   l is a commit the last pull brought in: outline it blue, #0070E0"* ]]
-  [[ "$output" == *"!!   m is a commit the last pull brought in: outline it blue, #0070E0"* ]]
-  [[ "$output" == *"!!   n is a commit the last pull brought in: outline it blue, #0070E0"* ]]
+  [[ "$output" == *"!!   l is a commit a pull brought in: outline it blue, #0070E0"* ]]
+  [[ "$output" == *"!!   m is a commit a pull brought in: outline it blue, #0070E0"* ]]
+  [[ "$output" == *"!!   n is a commit a pull brought in: outline it blue, #0070E0"* ]]
   [[ "$output" != *"!!   k is"* ]]
   outline_blue l m n
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
 }
 
-@test "drawing: a commit synced before the last pull isn't outlined blue" {
+@test "drawing: the commit that records a pull is outlined blue too, unless orange says more" {
+  add_blue_sample
+  outline_blue l m n
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+  edit_drawing -d '//mxCell[@id="legend_orange" or @id="legend_orange_text"]'
+  sed -i 's/strokeColor=#E07000;//g' "$drawing"
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   e is a commit that records a pull: outline it blue, #0070E0" ]
+}
+
+@test "drawing: a commit synced before the pull isn't outlined blue" {
   add_blue_sample
   outline_blue k l m n
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   k is outlined blue, but the last pull didn't bring it in: outline it black" ]
+  [ "$output" = "!!   k is outlined blue, but it neither records a pull nor came in with one: outline it black" ]
 }
 
 @test "drawing: without a blue sample in the legend, the commits the last pull brought in are outlined black" {
@@ -162,6 +174,7 @@ outline_blue() {
   splice pull lib -m f >/dev/null
   cat >"$drawing" <<XML
 <mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="f" parent="1" vertex="1" style="ellipse;strokeColor=#0070E0;" value="f"><mxGeometry x="-200" y="0" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="o" parent="1" vertex="1" style="ellipse;strokeColor=#0070E0;" value="o"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="e_" parent="1" vertex="1" style="ellipse;" value="e'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="ed" parent="1" edge="1" source="e_" target="o"><mxGeometry relative="1" as="geometry" /></mxCell>
@@ -174,7 +187,7 @@ XML
   [ "$status" -eq 0 ]
 }
 
-@test "drawing: the first pull after init brings in what the upstream added since the push" {
+@test "drawing: the first pull after init records a pull and brings in what the upstream added since the push" {
   load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   scenario_init_new_upstream "$BATS_TEST_TMPDIR/init" "$BATS_TEST_TMPDIR/init.git"
   cd "$BATS_TEST_TMPDIR/init"
@@ -186,6 +199,7 @@ XML
   splice pull lib/a -m p >/dev/null
   cat >"$drawing" <<XML
 <mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="p" parent="1" vertex="1" style="ellipse;strokeColor=#0070E0;" value="p"><mxGeometry x="-200" y="0" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="n" parent="1" vertex="1" style="ellipse;strokeColor=#0070E0;" value="n"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="m_" parent="1" vertex="1" style="ellipse;" value="m'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
 <mxCell id="mn" parent="1" edge="1" source="m_" target="n"><mxGeometry relative="1" as="geometry" /></mxCell>

@@ -114,8 +114,10 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   ends, a commit R copies and its copy; a grey fill (`#E0E0E0`), where
   the number of commits the rebuild walks matters, the monorepo commits
   on the first-parent history since B; and, the other way, where what
-  came in matters, a blue outline (`#0070E0`) the upstream commits the
-  last pull brought in. A drawing uses a color only with
+  came in matters, a blue outline (`#0070E0`) each pull the drawing
+  shows, at any level: the commit that records it and the upstream
+  commits it brought in, so a pulled commit can be followed out through
+  the splices around it. A drawing uses a color only with
   its sample in the legend; without, every commit is black and white.
   A legend may add any other mark the drawing needs, e.g. a shaded lane,
   as long as it says what it means; `check_drawing` only checks the

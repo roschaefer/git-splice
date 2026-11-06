@@ -49,7 +49,8 @@ const MARKS: [Mark; 3] = [
         color: PULLED_OUTLINE,
         name: "a blue outline",
         fix: "outline it blue",
-        unwanted: "is outlined blue, but the last pull didn't bring it in: outline it black",
+        unwanted:
+            "is outlined blue, but it neither records a pull nor came in with one: outline it black",
     },
 ];
 
@@ -893,8 +894,9 @@ impl<'a> Checker<'a> {
     /// outlined orange, on both ends: a commit R copies, from the monorepo's
     /// first-parent history since B, and its copy in R. With a grey sample in
     /// the legend, each monorepo commit the rebuild walks, on that history, is
-    /// filled grey, e.g. to count them. With a blue sample, each upstream
-    /// commit the last pull brought in is outlined blue.
+    /// filled grey, e.g. to count them. With a blue sample, each pull the
+    /// drawing shows, at any level, is outlined blue: the commit that records
+    /// it and the upstream commits it brought in.
     /// Every other commit is outlined black and white inside. Without
     /// splices, e.g. in a drawing of git subtree, none is checked.
     fn check_colors(&mut self) {
@@ -924,7 +926,7 @@ impl<'a> Checker<'a> {
             }
         }
         // Whether the legend has a sample of <color> as <attr>.
-        let pulled = self.pulled_in();
+        let (pulls, brought) = self.pulls();
         let explained = |attr: &str, plain: &str, color: &str| {
             self.legend_samples
                 .iter()
@@ -949,7 +951,6 @@ impl<'a> Checker<'a> {
             let splice = self.splice_of(cell);
             let truth = self.truth(&splice);
             let (mut is_walked, mut is_carried) = (false, false);
-            let is_pulled = pulled.get(&splice).is_some_and(|p| p.contains(&commit));
             // R's copy of a drawn commit is labelled after it, with a '.
             if !primed
                 && !splice.is_empty()
@@ -988,7 +989,13 @@ impl<'a> Checker<'a> {
                 } else {
                     "a commit R copies"
                 }),
-                is_pulled.then_some("a commit the last pull brought in"),
+                if pulls.contains(&commit) {
+                    Some("a commit that records a pull")
+                } else if brought.contains(&commit) {
+                    Some("a commit a pull brought in")
+                } else {
+                    None
+                },
             ];
             let style = &self.d.cells[cell].style;
             for (attr, plain, word, fix) in [
@@ -1033,42 +1040,52 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// The upstream commits the last pull of each splice brought in: in U(H),
-    /// but not in the commit its .splice recorded before, or all of U(H)'s
-    /// history for the first pull after an init, which recorded none; leaving
-    /// out copies of the monorepo's own commits, which came back from a push.
-    fn pulled_in(&self) -> HashMap<String, HashSet<String>> {
+    /// The pulls the drawing shows, at any level, so a pulled commit can be
+    /// followed out through the splices around it: each drawn commit whose
+    /// .splice for a splice inside it records another synced commit than its
+    /// first parent's, and the upstream commits each brought in, in the new
+    /// synced commit's history but not the old one's, or all of it after an
+    /// init, which recorded none. A commit that adds a .splice, like a
+    /// clone's, records no pull. Copies of the monorepo's own commits, which
+    /// came back from a push, weren't brought in.
+    fn pulls(&self) -> (HashSet<String>, HashSet<String>) {
         let own: HashSet<String> = self
             .git
             .log_with_copy_keys(&["--first-parent".to_string(), "HEAD".to_string()])
             .iter()
             .map(|commit| self.git.copy_key(commit))
             .collect();
-        let mut pulled = HashMap::new();
-        for splice in &self.splices {
-            let Some(truth) = self.truth.get(splice) else {
+        let (mut pulls, mut brought) = (HashSet::new(), HashSet::new());
+        for &cell in &self.commits {
+            let commit = self.commit(cell);
+            let Some(parent) = self.git.parents_of(&commit).first().cloned() else {
                 continue;
             };
-            if truth.u.is_empty() {
-                continue;
+            for file in self.git.state_files(&commit).iter() {
+                let now = self
+                    .git
+                    .config(&format!("{commit}:{file}"), "splice.commit");
+                let earlier = format!("{parent}:{file}");
+                if now.is_empty() || self.git.rev_parse(&earlier).is_none() {
+                    continue;
+                }
+                let before = self.git.config(&earlier, "splice.commit");
+                if before == now {
+                    continue;
+                }
+                pulls.insert(commit.clone());
+                let mut range = vec![now];
+                if !before.is_empty() {
+                    range.push(format!("^{before}"));
+                }
+                for subject in self.git.log(&range).iter() {
+                    if !own.contains(&self.git.copy_key(&subject.hash)) {
+                        brought.insert(subject.hash.clone());
+                    }
+                }
             }
-            let mut range = vec![truth.u.clone()];
-            match truth.synced.iter().find(|s| **s != truth.u) {
-                Some(before) => range.push(format!("^{before}")),
-                None if truth.started_empty => {}
-                // A clone records its first commit: nothing was pulled yet.
-                None => continue,
-            }
-            let commits: HashSet<String> = self
-                .git
-                .log(&range)
-                .iter()
-                .map(|subject| subject.hash.clone())
-                .filter(|commit| !own.contains(&self.git.copy_key(commit)))
-                .collect();
-            pulled.insert(splice.clone(), commits);
         }
-        pulled
+        (pulls, brought)
     }
 
     /// The legend explains each mark the drawing's commits use, by a sample

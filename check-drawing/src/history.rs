@@ -46,8 +46,6 @@ pub struct Truth {
     /// Every commit the splice's .splice recorded on HEAD's first-parent
     /// history.
     pub synced: Vec<String>,
-    /// Whether the first .splice recorded no commit, as after an init.
-    pub started_empty: bool,
 }
 
 #[derive(Default)]
@@ -550,8 +548,6 @@ impl History {
             .unwrap_or_default();
             for commit in commits.lines() {
                 let synced = self.config(&format!("{commit}:{folder}/.splice"), "splice.commit");
-                // Newest first: the last one read is the first .splice.
-                truth.started_empty = synced.is_empty();
                 if !synced.is_empty() {
                     truth.synced.push(synced);
                 }
