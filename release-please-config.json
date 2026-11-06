@@ -10,6 +10,7 @@
         { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(@.name.value == 'git-splice')].version" }
       ],
       "initial-version": "0.1.0",
+      "exclude-paths": ["check-drawing", "check-help"],
       "include-component-in-tag": false
     }
   },
