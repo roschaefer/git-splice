@@ -140,6 +140,15 @@ $ git subrepo push vendor/lib
 Subrepo 'vendor/lib' pushed to 'https://git.example.com/lib.git' (main).
 ```
 
+The library's `main` has it now:
+
+```scrut
+$ git -C "$COMPARISON/upstream/lib.git" log --format=%s -3 main
+fix 2
+fix parse() and call it
+lib commit 30
+```
+
 To push to another branch, `--branch` names it and `--update` writes it
 into `.gitrepo`. After a push, that takes a `fetch` first, or it fails
 with "Local repository does not contain" the commit it pushed:
