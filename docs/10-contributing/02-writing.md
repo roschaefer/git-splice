@@ -125,6 +125,12 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   commits that tool walks and the ones it carries over, e.g.
   `git subtree split`, with a legend in its words; there
   `check_drawing` can't check them.
+- On a page whose commands `cd` into the repository of a splice, e.g. a
+  worktree of its rebuild, a drawing shown while they run there shades
+  that splice's lane (`#FFF2CC`), keeps the lanes inside it white, and
+  says so in its legend: "where the commands run". Each such `cd` gets
+  a code block of its own, with a sentence saying where the commands
+  run from there on: inside a longer block, it's easy to miss.
 - A drawn commit the page makes starts its subject with its label,
   `b: an option in pkg-a`, and a pull or bump gets one with `-m`. The
   output then shows the labels, so the prose doesn't need to name each
