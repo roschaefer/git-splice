@@ -94,7 +94,7 @@ module.exports = {
       },
       footer: {
         style: 'dark',
-        copyright: `MIT licensed · <a href="${repoUrl}">${repoUrl.replace('https://', '')}</a>`,
+        copyright: `MIT licensed · <a href="${repoUrl}">${repoUrl.replace('https://', '')}</a> · <a href="${baseUrl}privacy/">Privacy</a>`,
       },
       prism: {
         theme: themes.github,
