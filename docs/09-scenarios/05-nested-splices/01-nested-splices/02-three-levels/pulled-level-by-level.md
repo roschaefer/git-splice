@@ -15,9 +15,11 @@ hand, with commands that each know one level only:
 5. Back in the monorepo, the same takes the outer worktree's commit into
    `vendor/a/`.
 
-The monorepo then has a pull of `vendor/a/b/c/`, as if it had pulled it
-itself: the same rebuild, and the same push. It changed `vendor/a/` in
-between, and keeps that change.
+The monorepo then has a pull of `vendor/a/b/c/` like one it made
+itself: the same files, and rebuilds and a push of the same shape. Only
+the message differs, `splice: pull c` for `splice: pull vendor/a/b/c`,
+and with it the commits. It changed `vendor/a/` in between, and keeps
+that change.
 
 ## Output
 
