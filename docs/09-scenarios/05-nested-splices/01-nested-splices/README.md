@@ -20,12 +20,6 @@ push there.
 [The design](../../../07-design/README.md#refs-instead-of-remotes)
 explains why both repositories agree on the inner splice's state.
 
-<div align="center">
-
-![The monorepo's a; in the lane vendor/a/, a's upstream commits k and l; in vendor/a/b/, drawn inside it, b's upstream commit m, which l's b/.splice records](nested-splices.drawio.svg)
-
-</div>
-
 *l*'s `b/.splice` and the monorepo's `vendor/a/b/.splice` record the
 same commit, *m*.
 
@@ -42,6 +36,12 @@ $ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFI
 ```scrut
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
+
+<div align="center">
+
+![The monorepo's a; in the lane vendor/a/, a's upstream commits k and l; in vendor/a/b/, drawn inside it, b's upstream commit m, which l's b/.splice records](nested-splices.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

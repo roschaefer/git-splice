@@ -3,13 +3,7 @@
 The state the [README](../../../../README.md) and the
 [sync model](../../../03-concepts/02-sync-model.md) draw: both sides moved
 on since the clone, and nothing was pulled or pushed yet. The commits are
-named as in the drawing:
-
-<div align="center">
-
-![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](before-pull.drawio.svg)
-
-</div>
+named as in the drawing below.
 
 [after-pull](01-after-pull/README.md) continues with the pull.
 
@@ -26,6 +20,12 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_sync_model
 ```
+
+<div align="center">
+
+![Monorepo commits a to d, upstream commits k to n, and the rebuilt commits b prime and d prime on top of k: U(H) = U(B) = k](before-pull.drawio.svg)
+
+</div>
 
 <!--
 ```scrut
@@ -45,6 +45,12 @@ $ check_drawing "$TESTDIR/before-pull-git-names.drawio.svg" \
 >   --alias 'base=merge-base(R,T)'
 ok   before-pull-git-names.drawio.svg: 10 commits, 13 arrows, 5 boxes, 1 lanes
 ```
+
+<div align="center">
+
+![Monorepo commits a to d, with HEAD at d and boundary at a, the clone of k; library commits k to n, theirs at n; ours is d prime, the rebuilt b prime and d prime on top of k, which is U(boundary) and base](before-pull-git-names.drawio.svg)
+
+</div>
 
 R and T have each moved on from *k*:
 

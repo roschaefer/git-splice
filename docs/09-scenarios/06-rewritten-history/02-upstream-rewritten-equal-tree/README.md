@@ -7,12 +7,6 @@ the new commit as the synced commit, so the next change builds on the
 rewritten history
 ([#17](https://github.com/roschaefer/git-splice/issues/17)).
 
-<div align="center">
-
-![The monorepo's a records r, the old release on top of k; T is w, the rewritten release, a root commit of its own](upstream-rewritten-equal-tree.drawio.svg)
-
-</div>
-
 That only works while the folder still has the upstream's files. After a
 local change, the splice is `unrelated history`, and `merge` and `pull`
 refuse to guess. Then [keep the upstream's
@@ -39,6 +33,12 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_upstream_rewritten_equal_tree
 ```
+
+<div align="center">
+
+![The monorepo's a records r, the old release on top of k; T is w, the rewritten release, a root commit of its own](upstream-rewritten-equal-tree.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

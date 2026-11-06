@@ -2,12 +2,6 @@
 
 Only upstream changed since the clone.
 
-<div align="center">
-
-![The monorepo commit a clones the upstream commit k, R; the upstream moved on to l, T](behind.drawio.svg)
-
-</div>
-
 ## Output
 
 <!--
@@ -21,6 +15,12 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_pull_ahead
 ```
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k, R; the upstream moved on to l, T](behind.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

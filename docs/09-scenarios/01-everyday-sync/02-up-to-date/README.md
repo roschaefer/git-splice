@@ -2,12 +2,6 @@
 
 A splice freshly cloned and never touched again on either side.
 
-<div align="center">
-
-![The monorepo commit a clones the upstream commit k; T and R both point at k](up-to-date.drawio.svg)
-
-</div>
-
 ## Output
 
 <!--
@@ -21,6 +15,12 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_up_to_date
 ```
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k; T and R both point at k](up-to-date.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

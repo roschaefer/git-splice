@@ -2,13 +2,7 @@
 
 The [same state](../README.md), but the monorepo changed the folder
 after *a*, in *b*, which adds `local.txt`, and didn't push the change
-before the fork rebased `patches`:
-
-<div align="center">
-
-![The monorepo's a and b; R is b prime on top of q, the old patches; T is n, the rebased ones](unpushed-local-commit.drawio.svg)
-
-</div>
+before the fork rebased `patches`.
 
 R is built on the old patches, which the rebase replaced. A merge
 would get the files right,
@@ -22,13 +16,7 @@ top of *a*, and rebases *b* onto it as *c*. The folder at *x* has
 exactly *n*'s files, so the rebuild starts at *n*: the next push sends
 the local change alone, and *p* and *q* stay dropped. It rewrites the monorepo's branch, so it's for a
 branch nobody else has yet: it refuses when a remote-tracking branch
-has *b*. After the pull:
-
-<div align="center">
-
-![The monorepo's a, x and c, H and main at c, B at x; R is c prime, dashed, on top of n, which is T, U(H), U(B) and patches; m is main; p and q, dashed, are left behind on k](rebased-onto-pull.drawio.svg)
-
-</div>
+has *b*.
 
 Or avoid the refusal: push the local commits before the fork rebases
 its branch. The rebased branch then has them, and the pull [goes
@@ -47,6 +35,12 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_unpushed_local_commit
 ```
+
+<div align="center">
+
+![The monorepo's a and b; R is b prime on top of q, the old patches; T is n, the rebased ones](unpushed-local-commit.drawio.svg)
+
+</div>
 
 <!--
 ```scrut
@@ -92,6 +86,12 @@ $ git splice pull --rebase -m "x: pull the rebased patches" vendor/a
 ok   vendor/a fetched
 ok   vendor/a: pulled 28d3fa4, and rebased 1 commit onto it
 ```
+
+<div align="center">
+
+![The monorepo's a, x and c, H and main at c, B at x; R is c prime, dashed, on top of n, which is T, U(H), U(B) and patches; m is main; p and q, dashed, are left behind on k](rebased-onto-pull.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

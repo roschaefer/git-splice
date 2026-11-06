@@ -3,13 +3,7 @@
 The [parent scenario's](../README.md) squash merge, but the feature
 branch also edited the folder. So one commit, *s*, does two things: it
 records the pulled upstream commit *f* in `.splice`, and it holds a local
-edit that the upstream doesn't have, `local.txt`:
-
-<div align="center">
-
-![The monorepo's a and the squash merge s; the upstream's k and f; B is a, and R is s prime on top of f](local-edit-in-the-squash.drawio.svg)
-
-</div>
+edit that the upstream doesn't have, `local.txt`.
 
 ## Output
 
@@ -25,19 +19,18 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 $ build_scenario scenario_local_edit_in_the_squash
 ```
 
+<div align="center">
+
+![The monorepo's a and the squash merge s; the upstream's k and f; B is a, and R is s prime on top of f](local-edit-in-the-squash.drawio.svg)
+
+</div>
+
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/local-edit-in-the-squash.drawio.svg" \
 >   a=HEAD~1 s=HEAD k=refs/splices/upstream/heads/main \
 >   f=refs/splices/upstream/heads/feature
 ok   local-edit-in-the-squash.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
-```
-
-```scrut
-$ check_drawing "$TESTDIR/local-edit-in-the-squash-table.drawio.svg" \
->   a=HEAD~1 s=HEAD k=refs/splices/upstream/heads/main \
->   f=refs/splices/upstream/heads/feature
-ok   local-edit-in-the-squash-table.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
 
 ```scrut
@@ -50,6 +43,15 @@ $ k="$(git rev-parse refs/splices/upstream/heads/main)" &&
 ok   synced-commit-contains-rebuilt-tip.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 ```
 -->
+
+The [sync model's table](../../../../03-concepts/02-sync-model.md) draws
+the same commits for this case, with the upstream's `main` at *f*:
+
+<div align="center">
+
+![The synced commit U(H) contains U(B), and the squash merge s is rebuilt as s' on top of U(H)](../../../../03-concepts/synced-commit-contains-rebuilt-tip.drawio.svg)
+
+</div>
 
 *s* is the last commit, and the only one since the clone *a*:
 

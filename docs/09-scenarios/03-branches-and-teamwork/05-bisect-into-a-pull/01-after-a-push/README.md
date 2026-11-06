@@ -4,13 +4,7 @@ The [parent scenario's](../README.md) recipe takes the upstream commits
 of a pull *X* from `.splice`: U(X^) in *X*'s first parent, U(X) in *X*. That's
 only right if *X* merged from U(X^). After a push, it didn't. Here, the
 parent's pull is *c*, a local change, *e*, was pushed as *e'*, and *X*
-pulled *o*:
-
-<div align="center">
-
-![The first pull c, d, the pushed change e and the new pull X; upstream n, the pushed e prime and o: U(e) = n, U(X) = o](after-a-push.drawio.svg)
-
-</div>
+pulled *o*.
 
 U(e)..U(X) is *e'* and *o*, though *X* only brought in *o*.
 
@@ -27,6 +21,12 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_after_a_push
 ```
+
+<div align="center">
+
+![The first pull c, d, the pushed change e and the new pull X; upstream n, the pushed e prime and o: U(e) = n, U(X) = o](after-a-push.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

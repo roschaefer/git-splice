@@ -1,13 +1,7 @@
 # Scenario: squash-merged-pull
 
 A pull on a feature branch, squash-merged into `main` as *s*, then a
-local commit, *c*:
-
-<div align="center">
-
-![The monorepo's a, the squash merge s and c; the upstream's k on main and f on feature; R is c prime on top of f, and B is s](squash-merged-pull.drawio.svg)
-
-</div>
+local commit, *c*.
 
 `.splice` records a commit, not a branch: *s* records *f*, though nobody
 merged the upstream's `feature` into its `main`.
@@ -29,6 +23,12 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_squash_merged_pull
 ```
+
+<div align="center">
+
+![The monorepo's a, the squash merge s and c; the upstream's k on main and f on feature; R is c prime on top of f, and B is s](squash-merged-pull.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

@@ -6,12 +6,6 @@ on without it. The original's `main` lacks the synced commit, as a
 [rebased patch branch](../../../06-rewritten-history/04-patch-branch-rebased/README.md)
 does, but nothing was rewritten: the original never had the patch.
 
-<div align="center">
-
-![The monorepo's a, c and x, H and B; the lane vendor/a/ split in two: origin with r on top of k, its main; fork with f on top of k, which is T, R, U(H) and U(B)](original-without-the-patch.drawio.svg)
-
-</div>
-
 `git splice pull --upstream origin` merges *r* in. Git's merge base of
 R, *f*, and *r* is *k*, so the fork's patch is a change on the
 monorepo's side only, and stays. A rebased branch would merge from its
@@ -32,6 +26,12 @@ $ source "$TESTDIR/../../../readme-setup.sh" && export GIT_CONFIG_COUNT=2 GIT_CO
 ```scrut
 $ build_scenario scenario_original_without_the_patch https://git.example.com/lib.git https://git.example.com/company/lib.git
 ```
+
+<div align="center">
+
+![The monorepo's a, c and x, H and B; the lane vendor/a/ split in two: origin with r on top of k, its main; fork with f on top of k, which is T, R, U(H) and U(B)](original-without-the-patch.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

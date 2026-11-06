@@ -7,13 +7,7 @@ second developer merges the first one's work, Git reports conflicts in
 both.
 
 Alice pushed her pull, *q*, which took *l*. Bob, in this monorepo, then
-pulled *n* as *p*, without pulling the monorepo first:
-
-<div align="center">
-
-![The clone a with two children: Bob's pull p, which is H and B and whose .splice records n, and Alice's pull q on origin/main, whose .splice records l; upstream k, l and n, with T and R at n](concurrent-pulls.drawio.svg)
-
-</div>
+pulled *n* as *p*, without pulling the monorepo first.
 
 To avoid this, pull the monorepo before you pull a splice. To get out of
 it, resolve the conflict as below, or [redo the pull](redo-the-pull.md).
@@ -33,6 +27,12 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_concurrent_pulls
 ```
+
+<div align="center">
+
+![The clone a with two children: Bob's pull p, which is H and B and whose .splice records n, and Alice's pull q on origin/main, whose .splice records l; upstream k, l and n, with T and R at n](concurrent-pulls.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

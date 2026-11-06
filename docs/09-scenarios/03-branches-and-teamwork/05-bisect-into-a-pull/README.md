@@ -9,12 +9,6 @@ The upstream's own history has no test for it: the bug only shows in
 the monorepo. So the upstream commits are tested inside the monorepo, as
 it was right before the pull.
 
-<div align="center">
-
-![The monorepo's commits a, b, the pull X and d, the upstream commits k to n: U(b) = k, U(X) = n](bisect-into-a-pull.drawio.svg)
-
-</div>
-
 *X* merged from U(b) = *k* and records U(X) = *n*, so the pulled commits are
 U(b)..U(X): *l*, *m* and *n*.
 
@@ -31,6 +25,12 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_bisect_into_a_pull
 ```
+
+<div align="center">
+
+![The monorepo's commits a, b, the pull X and d, the upstream commits k to n: U(b) = k, U(X) = n](bisect-into-a-pull.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

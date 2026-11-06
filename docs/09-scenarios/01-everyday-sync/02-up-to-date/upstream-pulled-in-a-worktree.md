@@ -138,6 +138,14 @@ The upstream has *l* and *n* once, and *b'* and the pull's *p'* on top:
 
 </div>
 
+<!--
+```scrut
+$ check_drawing "$TESTDIR/upstream-pulled-instead.drawio.svg" \
+>   a=HEAD~2 k="$(git -C "$UPSTREAM" rev-list --max-parents=0 main)"
+ok   upstream-pulled-instead.drawio.svg: 8 commits, 10 arrows, 3 boxes, 1 lanes
+```
+-->
+
 ```scrut
 $ git -C "$UPSTREAM" log --graph --format=%s main
 *   p: pull vendor/a
@@ -148,11 +156,3 @@ $ git -C "$UPSTREAM" log --graph --format=%s main
 |/  
 * seed
 ```
-
-<!--
-```scrut
-$ check_drawing "$TESTDIR/upstream-pulled-instead.drawio.svg" \
->   a=HEAD~2 k="$(git -C "$UPSTREAM" rev-list --max-parents=0 main)"
-ok   upstream-pulled-instead.drawio.svg: 8 commits, 10 arrows, 3 boxes, 1 lanes
-```
--->

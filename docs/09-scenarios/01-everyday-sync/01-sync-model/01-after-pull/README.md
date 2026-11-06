@@ -5,13 +5,7 @@ the newest that changed `.splice`, but the rebuild starts further back,
 at B: the newest such commit whose folder is the upstream commit it
 recorded, U(B)
 ([sync model](../../../../03-concepts/02-sync-model.md)). The commits are
-named as in the drawing there:
-
-<div align="center">
-
-![The graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](after-pull.drawio.svg)
-
-</div>
+named as in the drawing there.
 
 ## Output
 
@@ -26,6 +20,12 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_after_pull
 ```
+
+<div align="center">
+
+![The graphs after a pull: the pull commit e records n, so U(H) = n; B stays at a, and U(B) = k; R is e prime, a merge of the rebuilt d prime and n](after-pull.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

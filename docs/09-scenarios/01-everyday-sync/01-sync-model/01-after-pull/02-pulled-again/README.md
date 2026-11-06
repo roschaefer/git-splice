@@ -1,13 +1,7 @@
 # Scenario: pulled again
 
 The monorepo and upstream both change again after the [first pull](../README.md).
-The second pull creates another merge in the rebuilt history:
-
-<div align="center">
-
-![Two pulls e and g in the monorepo become two merges e' and g' in the rebuilt history; g' is R](pulled-again.drawio.svg)
-
-</div>
+The second pull creates another merge in the rebuilt history.
 
 ## Output
 
@@ -22,6 +16,12 @@ $ source "$TESTDIR/../../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_pulled_again
 ```
+
+<div align="center">
+
+![Two pulls e and g in the monorepo become two merges e' and g' in the rebuilt history; g' is R](pulled-again.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

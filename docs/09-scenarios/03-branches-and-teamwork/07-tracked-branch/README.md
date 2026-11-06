@@ -9,12 +9,6 @@ its upstream's team works, `vendor/b/` with `review`.
 - **Upstream of `vendor/a/`**: *k* on `main`, and *l* on `development`.
 - **Upstream of `vendor/b/`**: *m* on `main`, and *n* on `review`.
 
-<div align="center">
-
-![The monorepo's a and b, which is H, feature and main; in vendor/a/, k, which is U(H), R and main, and l on top, which is T, tracked(feature) and development; in vendor/b/ the same with m, and n on top, which is review](tracked-branch.drawio.svg)
-
-</div>
-
 tracked(X) is the upstream branch a splice tracks on the monorepo
 branch X, if any: here tracked(feature) is `development` for
 `vendor/a/` and `review` for `vendor/b/`. T is the fetched tracked
@@ -78,8 +72,11 @@ ok   vendor/b fetched
 ok   vendor/b: 'feature' tracks 'review' from now on
 ```
 
-Each upstream has its own tracked branch, by its key, in the monorepo's
-`branch.feature.splice`, as drawn above:
+<div align="center">
+
+![The monorepo's a and b, which is H, feature and main; in vendor/a/, k, which is U(H), R and main, and l on top, which is T, tracked(feature) and development; in vendor/b/ the same with m, and n on top, which is review](tracked-branch.drawio.svg)
+
+</div>
 
 <!--
 ```scrut
@@ -87,6 +84,9 @@ $ check_drawing "$TESTDIR/tracked-branch.drawio.svg"
 ok   tracked-branch.drawio.svg: 6 commits, 10 arrows, 7 boxes, 2 lanes
 ```
 -->
+
+Each upstream has its own tracked branch, by its key, in the monorepo's
+`branch.feature.splice`, as drawn above:
 
 ```scrut
 $ git config --get-all branch.feature.splice
