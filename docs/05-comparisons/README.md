@@ -28,7 +28,7 @@ also says where it is the better tool.
 | Second worktree | initialize again, `submodule.*` settings shared, can't be moved | works | works |
 | Best for | libraries kept apart, with their own access | moving a repository in for good, history included | changing a library in the monorepo and sending the changes back |
 
-[Third-party tools](03-third-party/README.md) compares git-subrepo,
+[Third-party tools](03-third-party/README.md) compares `git-subrepo`,
 Josh, splitsh-lite, and the export tools Copybara and Meta's ShipIt.
 [Version control systems](04-vcs/README.md) compares Sapling and Jujutsu,
 which work in a Git repository, and `git-splice` running next to them.
