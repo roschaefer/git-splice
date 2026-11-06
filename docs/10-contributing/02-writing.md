@@ -25,6 +25,13 @@ A few details:
   `git-splice`. A path given as an argument stays as typed:
   `git splice push vendor/a`.
 - A commit's subject goes next to its name: *a* (`add vendor/a`).
+- A page shows each commit it names: a drawing on the page has it, or
+  a code block shows its subject starting with the label, `m: reorganize
+  folders`. A reader who lands on the page from a search or a link can't
+  look it up on another one. A copy, *b'*, keeps the subject of the
+  commit it copies, so only a drawing shows it.
+  [`check-drawing labels`](../../check-drawing/)
+  checks this for lowercase italics: *X* in capitals is a variable.
 - Roles need no markup: no English word is written in capitals, so they
   already stand out. A role you type, like `BOUNDARY` for
   `check_drawing --alias`, is literal there.
