@@ -10,8 +10,9 @@ commits that touched the folder back into library commits.
 because of the problems this page shows: without `--squash`, the
 library's whole history comes into the monorepo; with it, `split` walks
 the monorepo's whole history on every push; and the sync points that
-`--rejoin` adds against that are lines in commit messages. After them,
-the same with `git-splice`, and where `git subtree` is the better tool.
+`--rejoin` adds against that are lines in commit messages. Each problem
+ends with the same steps in `git-splice`, and the page with where
+`git subtree` is the better tool.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits by
 three developers, and a monorepo with an app and 40 commits.
@@ -73,13 +74,34 @@ git-subtree-mainline: 7de219808bfd601897cdad67aa5c90b5a2e9bce8
 git-subtree-split: bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
+### With `git-splice`: one commit, and no history
+
+In a copy of the monorepo from before the library, `clone` adds one
+ordinary commit, and the history stays linear. It also adds
+`vendor/lib/.splice`, which stays in the monorepo: `push` never sends it
+to the library.
+
+```scrut
+$ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
+===  vendor/lib: fetching https://git.example.com/lib.git
+ok   vendor/lib: cloned bafd496 from main
+```
+
+```scrut
+$ git log --graph --format=%s -3
+* splice: clone vendor/lib from main at bafd496
+* app commit 40
+* app commit 39
+```
+
 ## Problem 2: with `--squash`, `split` walks everything
 
 `--squash` keeps the library's history out: `add` merges a single commit
 with the library's files:
 
 ```scrut
-$ git switch -q -c squashed before-lib &&
+$ cd ../monorepo &&
+>   git switch -q -c squashed before-lib &&
 >   git subtree add -q --squash --prefix=vendor/lib https://git.example.com/lib.git main
 git fetch https://git.example.com/lib.git main
 From $COMPARISON/upstream/lib
@@ -182,7 +204,7 @@ Merge made by the 'ort' strategy.
 ```
 
 `48108da` is the library commit with the two fixes, the same one
-`git splice push` makes [below](#how-git-splice-avoids-them). It comes
+`git splice push` makes [below](#with-git-splice-the-walk-starts-at-b). It comes
 in squashed, as *r* on top of *q*, and the merge *j* names *e*, its
 first parent:
 
@@ -335,6 +357,69 @@ ok   git-subtree-rejoin-three.drawio.svg: 21 commits, 27 arrows, 1 boxes
 None of these merges says anything about the app. They're there so that
 `split` stays fast.
 
+### With `git-splice`: the walk starts at B
+
+The same two fixes:
+
+```scrut
+$ cd ../splice-monorepo &&
+>   echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
+>   echo "lib fix 1" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 1" &&
+>   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
+>   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
+```
+
+`push` walks only the commits since B, the
+[boundary](../../03-concepts/02-sync-model.md#where-b-is): the newest
+commit that changed `.splice`, here the `clone` commit:
+
+```scrut
+$ boundary="$(git log -1 --format=%H -- vendor/lib/.splice)" &&
+>   git log --first-parent --format=%s "$boundary"..HEAD
+lib fix 2
+app commit 42
+lib fix 1
+app commit 41
+```
+
+It rebuilds the two that changed the library on top of the library's
+history:
+
+```scrut
+$ git splice push vendor/lib
+ok   vendor/lib: pushed 48108da to main
+```
+
+The monorepo's history stays a line, with the `clone` commit *s* in
+place of the merge. The library's `main` gets *c'* and *e'*, rebuilt
+from *c* and *e*, on top of its last commits *k* and *l*:
+
+<div align="center">
+
+![The monorepo's a, s, b, c, d and e in a line; below it, the library's k and l, then c prime under c and e prime under e, with main at e prime](git-subtree-splice.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subtree-splice.drawio.svg" --alias HEAD=H \
+>   a=HEAD~5 s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD \
+>   k=refs/splices/lib/heads/main~3 l=refs/splices/lib/heads/main~2
+ok   git-subtree-splice.drawio.svg: 10 commits, 10 arrows, 2 boxes
+```
+-->
+
+The library's history stays out of the monorepo's, but at hand, fetched
+under `refs/splices/lib/heads/`:
+
+```scrut
+$ git log --oneline -4 refs/splices/lib/heads/main
+48108da lib fix 2
+0579a80 lib fix 1
+bafd496 lib commit 30
+eacfd66 lib commit 29
+```
+
 ## Problem 3: the sync points are in commit messages
 
 `git subtree` keeps no file of its own. `pull --squash` and `split` find
@@ -348,7 +433,8 @@ Hosts can fill a squash merge's message with the messages of the pull
 request's commits. Then *p* carries the lines of *j* and *r*:
 
 ```scrut
-$ git switch -q squash-merged &&
+$ cd ../monorepo &&
+>   git switch -q squash-merged &&
 >   git commit -q --amend -m "lib fixes (#1)" \
 >     -m "$(git log --format='* %s%n%n%b' HEAD~1..squashed)"
 ```
@@ -409,86 +495,7 @@ $ git subtree push --prefix=vendor/parser https://git.example.com/lib.git main |
  ! [rejected]        c7121590d05f5a17f3adebbbd88ff15816a537d2 -> main (non-fast-forward)
 ```
 
-## How `git-splice` avoids them
-
-In a copy of the monorepo from before the library, `clone` adds one
-ordinary commit, and the history stays linear. It also adds
-`vendor/lib/.splice`, which stays in the monorepo: `push` never sends it
-to the library.
-
-```scrut
-$ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
-===  vendor/lib: fetching https://git.example.com/lib.git
-ok   vendor/lib: cloned bafd496 from main
-```
-
-```scrut
-$ git log --graph --format=%s -3
-* splice: clone vendor/lib from main at bafd496
-* app commit 40
-* app commit 39
-```
-
-The same two fixes:
-
-```scrut
-$ echo "app commit 41" >>app/main.txt && git commit -q -a -m "app commit 41" &&
->   echo "lib fix 1" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 1" &&
->   echo "app commit 42" >>app/main.txt && git commit -q -a -m "app commit 42" &&
->   echo "lib fix 2" >>vendor/lib/src/parse.txt && git commit -q -a -m "lib fix 2"
-```
-
-`push` walks only the commits since the boundary, the newest commit
-that changed `.splice`, here the `clone` commit:
-
-```scrut
-$ boundary="$(git log -1 --format=%H -- vendor/lib/.splice)" &&
->   git log --first-parent --format=%s "$boundary"..HEAD
-lib fix 2
-app commit 42
-lib fix 1
-app commit 41
-```
-
-It rebuilds the two that changed the library on top of the library's
-history:
-
-```scrut
-$ git splice push vendor/lib
-ok   vendor/lib: pushed 48108da to main
-```
-
-The monorepo's history stays a line, with the `clone` commit *s* in
-place of the merge. The library's `main` gets *c'* and *e'*, rebuilt
-from *c* and *e*, on top of its last commits *k* and *l*:
-
-<div align="center">
-
-![The monorepo's a, s, b, c, d and e in a line; below it, the library's k and l, then c prime under c and e prime under e, with main at e prime](git-subtree-splice.drawio.svg)
-
-</div>
-
-<!--
-```scrut
-$ check_drawing "$TESTDIR/git-subtree-splice.drawio.svg" --alias HEAD=H \
->   a=HEAD~5 s=HEAD~4 b=HEAD~3 c=HEAD~2 d=HEAD~1 e=HEAD \
->   k=refs/splices/lib/heads/main~3 l=refs/splices/lib/heads/main~2
-ok   git-subtree-splice.drawio.svg: 10 commits, 10 arrows, 2 boxes
-```
--->
-
-The library's history stays out of the monorepo's, but at hand, fetched
-under `refs/splices/lib/heads/`:
-
-```scrut
-$ git log --oneline -4 refs/splices/lib/heads/main
-48108da lib fix 2
-0579a80 lib fix 1
-bafd496 lib commit 30
-eacfd66 lib commit 29
-```
-
-### The same sync point, kept in a file
+### With `git-splice`: the same sync point, kept in a file
 
 `git subtree` and `git-splice` remember the same thing: which monorepo
 commit matches which library commit. In the
@@ -507,7 +514,7 @@ carrier and named commit are two. `git-splice` writes U into
 carrier and boundary in one.
 
 ```scrut
-$ git config -f vendor/lib/.splice splice.commit
+$ cd ../splice-monorepo && git config -f vendor/lib/.splice splice.commit
 bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
