@@ -62,6 +62,9 @@ module.exports = {
     ],
   ],
 
+  // Cookieless page view counts on https://git-splice.goatcounter.com.
+  clientModules: [require.resolve('./src/goatcounter')],
+
   // Full-text search, indexed at build time: no external service.
   plugins: [[require.resolve('./src/drawings'), {repoRoot: require('path').resolve(__dirname, '..')}]],
 
@@ -91,7 +94,7 @@ module.exports = {
       },
       footer: {
         style: 'dark',
-        copyright: `MIT licensed · <a href="${repoUrl}">${repoUrl.replace('https://', '')}</a>`,
+        copyright: `MIT licensed · <a href="${repoUrl}">${repoUrl.replace('https://', '')}</a> · <a href="${baseUrl}privacy/">Privacy</a>`,
       },
       prism: {
         theme: themes.github,
