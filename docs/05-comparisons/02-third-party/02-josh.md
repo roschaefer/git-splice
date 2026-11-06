@@ -478,7 +478,7 @@ $ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
 
 <div align="center">
 
-![Josh's view of the library: m, a stack, then o and t on a side line, merged into g](josh-view-merged.drawio.svg)
+![Josh's view of the library: m, a stack, and g on main; o and t on parse-options, merged into g](josh-view-merged.drawio.svg)
 
 </div>
 
