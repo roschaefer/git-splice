@@ -236,6 +236,8 @@
             pkgs.git-subrepo
             # Runs in the Josh comparison, docs/05-comparisons/02-third-party/.
             pkgs.josh
+            # Runs in the Git LFS scenarios, docs/09-scenarios/04-upstreams/08-lfs-upstream/.
+            pkgs.git-lfs
             jujutsu
           ] ++ lib.optionals pkgs.stdenv.isLinux [
             sapling
