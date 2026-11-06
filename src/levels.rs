@@ -362,6 +362,17 @@ impl Repo {
         for level in levels.iter().chain([&path.to_string()]) {
             quietly(|| contained(self.load_splice_upstream(level))).ok();
         }
+        // --upstream names the upstream of every splice the command selected,
+        // a level above included: the reload read its default instead.
+        if !self.args.upstream.is_empty() {
+            let upstream = self.args.upstream.clone();
+            let selected: Vec<String> = levels
+                .iter()
+                .filter(|level| self.selected.contains(level))
+                .cloned()
+                .collect();
+            quietly(|| contained(self.use_upstreams(&upstream, &selected))).ok();
+        }
         let stands: Vec<Stand> = levels
             .iter()
             .map(|level| {
