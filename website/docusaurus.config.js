@@ -62,6 +62,9 @@ module.exports = {
     ],
   ],
 
+  // Cookieless page view counts on https://git-splice.goatcounter.com.
+  clientModules: [require.resolve('./src/goatcounter')],
+
   // Full-text search, indexed at build time: no external service.
   plugins: [[require.resolve('./src/drawings'), {repoRoot: require('path').resolve(__dirname, '..')}]],
 
