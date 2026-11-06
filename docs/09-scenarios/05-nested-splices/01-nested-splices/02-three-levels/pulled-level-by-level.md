@@ -122,8 +122,7 @@ file.txt
 The two worktrees' branches are rebuilds, unchanged: `layer/a` is R of
 `vendor/a/`, and `layer/b`, rebuilt from `layer/a`'s commits, is the
 same commit as the monorepo's R of `vendor/a/b/`. They're branches of
-the monorepo that no upstream has, so their boxes are dashed. The shaded
-lane is the repository the commands run in now, `vendor/a/b/`'s:
+the monorepo that no upstream has:
 
 <div align="center">
 
@@ -207,8 +206,7 @@ splice: pull c from main at 68ea527
 *q*, on top of `layer/a`, takes *p*'s changes into `b/`, and with them
 `b/c/.splice`, which records *u* too. `b/.splice` still records *l*:
 `merge --rebuilt-commit` leaves the synced commit where it was, so *p*
-counts as `b/`'s own work, for the push. The shaded lane is now
-`vendor/a/`'s:
+counts as `b/`'s own work, for the push:
 
 <div align="center">
 
@@ -227,7 +225,7 @@ ok   levels-merged-into-a.drawio.svg: 11 commits, 17 arrows, 10 boxes, 3 lanes
 
 ## 5. Into the monorepo
 
-The commands run in the monorepo again, where no lane is shaded:
+The commands run in the monorepo again:
 
 ```scrut
 $ cd ../monorepo
