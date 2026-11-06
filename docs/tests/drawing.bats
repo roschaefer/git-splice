@@ -107,6 +107,73 @@ edit_drawing() {
   [ "$output" = "!!   c is outlined in color, but the rebuild doesn't carry it across: outline it black" ]
 }
 
+# Adds a blue sample to the drawing's legend.
+add_blue_sample() {
+  edit_drawing -s '//mxCell[@id="legend"]/..' -t elem -n mxCell \
+    -i '//mxCell[not(@id)]' -t attr -n id -v legend_blue \
+    -i '//mxCell[@id="legend_blue"]' -t attr -n parent -v legend \
+    -i '//mxCell[@id="legend_blue"]' -t attr -n vertex -v 1 \
+    -i '//mxCell[@id="legend_blue"]' -t attr -n style -v 'ellipse;strokeColor=#0070E0;'
+}
+
+# Outlines the drawing's commits $@ blue.
+outline_blue() {
+  local id
+  for id in "$@"; do
+    edit_drawing -u "//mxCell[@id=\"$id\"]/@style" -v 'ellipse;aspect=fixed;strokeColor=#0070E0;'
+  done
+}
+
+@test "drawing: with a blue sample in the legend, the upstream commits the last pull brought in are outlined blue" {
+  add_blue_sample
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   l is a commit the last pull brought in: outline it blue, #0070E0"* ]]
+  [[ "$output" == *"!!   m is a commit the last pull brought in: outline it blue, #0070E0"* ]]
+  [[ "$output" == *"!!   n is a commit the last pull brought in: outline it blue, #0070E0"* ]]
+  [[ "$output" != *"!!   k is"* ]]
+  outline_blue l m n
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: a commit synced before the last pull isn't outlined blue" {
+  add_blue_sample
+  outline_blue k l m n
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   k is outlined blue, but the last pull didn't bring it in: outline it black" ]
+}
+
+@test "drawing: without a blue sample in the legend, the commits the last pull brought in are outlined black" {
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+  outline_blue l m n
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   the legend doesn't explain a blue outline: add a sample commit with it, and what it means" ]
+}
+
+@test "drawing: a copy of the monorepo's own commit isn't outlined blue, though a pull brought it back after a push" {
+  splice push lib >/dev/null
+  export GIT_AUTHOR_NAME=Test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=Test GIT_COMMITTER_EMAIL=test@example.com
+  git clone -q "$upstream" "$BATS_TEST_TMPDIR/u"
+  (cd "$BATS_TEST_TMPDIR/u" && echo o >o.txt && git add o.txt && git commit -q -m o && git push -q origin HEAD:main)
+  splice pull lib -m f >/dev/null
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="o" parent="1" vertex="1" style="ellipse;strokeColor=#0070E0;" value="o"><mxGeometry x="0" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="e_" parent="1" vertex="1" style="ellipse;" value="e'"><mxGeometry x="0" y="160" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="ed" parent="1" edge="1" source="e_" target="o"><mxGeometry relative="1" as="geometry" /></mxCell>
+$(legend_cells blue)
+</root></mxGraphModel></diagram></mxfile>
+XML
+  local o
+  o="$(git config --file lib/.splice splice.commit)"
+  run check_drawing "$drawing" o="$o" e\'="$o^1"
+  [ "$status" -eq 0 ]
+}
+
 @test "drawing: without a legend, a commit R copies is outlined black, as there's nothing to say why" {
   edit_drawing -d '//mxCell[@id="legend" or @parent="legend"]'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
@@ -214,7 +281,7 @@ XML
   [ "$status" -eq 0 ]
 }
 
-# The cells of a legend explaining the marks $@: orange, dashed, prime.
+# The cells of a legend explaining the marks $@: orange, blue, dashed, prime.
 legend_cells() {
   local mark row=0 style value
   printf '<mxCell id="legend" parent="1" vertex="1" style="rounded=1;legend=1;" value=""><mxGeometry x="400" y="0" width="300" height="150" as="geometry" /></mxCell>\n'
@@ -222,6 +289,7 @@ legend_cells() {
     value=""
     case "$mark" in
       orange) style="ellipse;strokeColor=#E07000;" ;;
+      blue) style="ellipse;strokeColor=#0070E0;" ;;
       dashed) style="ellipse;dashed=1;" ;;
       prime) style="ellipse;" value="a'" ;;
     esac

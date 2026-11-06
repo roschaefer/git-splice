@@ -178,6 +178,11 @@ does.
   - Filled grey, `#E0E0E0`, if the legend has a grey sample: a monorepo
     commit on the first-parent history since B, which the rebuild walks.
     Every other commit is white.
+  - Outlined blue, `#0070E0`, if the legend has a blue sample: an
+    upstream commit the last pull brought in, the other way: in U(H), but
+    not in the commit `.splice` recorded before it. A copy of the
+    monorepo's own commit, which a push sent and the pull brought back,
+    isn't one.
   - Without the color's sample, every commit is outlined black and white
     inside.
     In a drawing without splices, e.g. of what `git subtree` makes,
