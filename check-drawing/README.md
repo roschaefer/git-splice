@@ -11,7 +11,7 @@ repositories, and names every difference.
 
 It's made for drawings of [`git-splice`](../README.md) histories: a
 monorepo, the upstreams of its splices, and the names of
-`git-splice`'s [sync model](../docs/03-concepts/sync-model/README.md),
+`git-splice`'s [sync model](../docs/03-concepts/02-sync-model.md),
 H, B, T, R, U(x) and tracked(x).
 
 ## Usage

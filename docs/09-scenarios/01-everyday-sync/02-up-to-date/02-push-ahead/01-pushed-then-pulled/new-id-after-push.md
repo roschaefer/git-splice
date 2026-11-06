@@ -4,10 +4,10 @@ The same state as in [pushed-then-pulled](README.md): the monorepo pushed
 a change, and `.splice` still names `seed`. Then someone gives the splice
 a new id by editing `.splice`. From then on, the splice can't push.
 
-A new [id](../../../../../03-concepts/splice-identity/README.md#what-an-id-is)
+A new [id](../../../../../03-concepts/03-splice-identity.md#what-an-id-is)
 makes it a new splice. Its history starts at the commit with the new id,
 on top of the synced commit in `.splice`. A push doesn't move that synced
-commit ([why](../../../../../03-concepts/sync-model/README.md#r-is-computed-not-stored)),
+commit ([why](../../../../../03-concepts/02-sync-model.md#r-is-computed-not-stored)),
 so it still names `seed`. The new history therefore has the pushed change
 again, in another commit, and the upstream's commit isn't part of it.
 

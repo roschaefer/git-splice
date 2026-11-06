@@ -19,7 +19,7 @@ setup() {
     06-rewritten-history/02-upstream-rewritten-equal-tree; do
     load "../09-scenarios/$scenario/setup"
   done
-  load '../04-advanced-workflows/rebase-feature-branch/setup'
+  load '../04-advanced-workflows/rebase-setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }

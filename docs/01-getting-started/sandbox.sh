@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the state a docs page starts from, and opens a shell in it.
-# See docs/01-getting-started/sandbox.md.
+# See docs/01-getting-started/01-sandbox.md.
 set -euo pipefail
 
 docs="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,7 +14,7 @@ usage: docs/01-getting-started/sandbox.sh [<page>] [--dir <path>] [--no-shell]
 
 Builds the state the docs page <page> starts from, and drops you into a
 shell there. <page> is its path under docs/, with or without .md, e.g.
-06-command-reference/push or 09-scenarios/02-starting-a-splice/01-clone-copied-content.
+06-command-reference/07-push or 09-scenarios/02-starting-a-splice/01-clone-copied-content.
 Without one, it's the walkthrough, which tries every command once.
 
 The state is the page's setup: its hidden commands, and the shown ones
@@ -57,7 +57,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 markdown=""
-page="${page:-01-getting-started/walkthrough}"
+page="${page:-01-getting-started/02-walkthrough}"
 page="${page#docs/}"
 for candidate in "$docs/$page" "$docs/$page.md" "$docs/$page/README.md"; do
   if [[ -f "$candidate" && "$candidate" == *.md ]]; then

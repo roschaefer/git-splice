@@ -44,7 +44,7 @@ ok   local-edit-in-the-squash-table.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 
 $ k="$(git rev-parse refs/splices/upstream/heads/main)" &&
 > f="$(git rev-parse refs/splices/upstream/heads/feature)" &&
 > git update-ref refs/splices/upstream/heads/main "$f" &&
-> check_drawing "$TESTDIR/../../../../03-concepts/sync-model/synced-commit-contains-rebuilt-tip.drawio.svg" \
+> check_drawing "$TESTDIR/../../../../03-concepts/synced-commit-contains-rebuilt-tip.drawio.svg" \
 >   a=HEAD~1 s=HEAD k="$k" f=refs/splices/upstream/heads/main &&
 > git update-ref refs/splices/upstream/heads/main "$k"
 ok   synced-commit-contains-rebuilt-tip.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
@@ -81,7 +81,7 @@ local.txt
 
 So *s* can't be B, the newest commit that changed
 `.splice` and whose folder is the commit it recorded
-([sync model](../../../../03-concepts/sync-model/README.md)). The rebuild
+([sync model](../../../../03-concepts/02-sync-model.md)). The rebuild
 copies *s*, and starts where it would have before *s*, at the clone, *a*:
 
 ```scrut

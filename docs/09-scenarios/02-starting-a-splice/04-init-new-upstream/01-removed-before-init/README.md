@@ -16,7 +16,7 @@ with its message and author. Every commit after it is pushed as usual.
 The same goes for a folder that becomes a splice with `clone --merge`:
 the upstream gets the merge, not the folder's history from before it.
 It's the same concern as
-[pushing the monorepo to a subfolder's upstream](../../../../07-design/accidental-monorepo-push.md),
+[pushing the monorepo to a subfolder's upstream](../../../../07-design/02-accidental-monorepo-push.md),
 on a smaller scale: history reaching an upstream it wasn't meant for.
 
 ## Output

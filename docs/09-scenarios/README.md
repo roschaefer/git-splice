@@ -3,7 +3,7 @@
 Each folder here is one reusable test setup: a state a splice and its
 upstream can be in, or a situation a command has to handle. A folder may
 contain several Markdown documents, but each document explains and executes
-one problem. `status`'s [sync states](../06-command-reference/status.md#output)
+one problem. `status`'s [sync states](../06-command-reference/README.md#output)
 link to them as examples. Some show a bug as it is today; [Known
 bugs](08-known-bugs.md) lists them.
 
@@ -113,7 +113,7 @@ ok 07-moved-folders/03-mirrors (1 document)
 
 ## Scenario output
 
-The docs use [specification by example](../01-getting-started/sandbox.md).
+The docs use [specification by example](../01-getting-started/01-sandbox.md).
 Under "Output", each document first calls its folder's scenario
 function, so it runs in the state the bats tests use:
 

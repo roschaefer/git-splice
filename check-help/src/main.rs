@@ -229,13 +229,51 @@ fn document(help: &str, path: &str) -> Result<(), String> {
     validate_document(help, path, &markdown)
 }
 
-fn validate_document(help: &str, path: &str, markdown: &str) -> Result<(), String> {
-    let command = path
+/// The sidebar order prefix, `01-`, which the site leaves out of its URLs.
+fn without_order_prefix(name: &str) -> &str {
+    match name.split_once('-') {
+        Some((digits, rest))
+            if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            rest
+        }
+        _ => name,
+    }
+}
+
+/// The command a help text is for, from its NAME line: `status` in
+/// `git-splice-status - Show each splice's sync state`.
+fn command_name(help: &str) -> Result<&str, String> {
+    let mut lines = help.lines();
+    lines
+        .by_ref()
+        .find(|line| *line == "NAME")
+        .ok_or("no NAME section")?;
+    let name = lines
+        .next()
+        .and_then(|line| line.split_whitespace().next())
+        .ok_or("empty NAME section")?;
+    Ok(name.strip_prefix("git-splice-").unwrap_or(name))
+}
+
+/// The page the site serves a Markdown file at: a folder's README is the
+/// folder itself.
+fn page_url(path: &str) -> Result<String, String> {
+    let name = path
         .rsplit_once('/')
         .map_or(path, |(_, name)| name)
         .strip_suffix(".md")
         .ok_or_else(|| format!("not a Markdown file: {path}"))?;
-    let expected_page = format!("{URL_PREFIX}{command}/");
+    Ok(if name == "README" {
+        URL_PREFIX.to_string()
+    } else {
+        format!("{URL_PREFIX}{}/", without_order_prefix(name))
+    })
+}
+
+fn validate_document(help: &str, path: &str, markdown: &str) -> Result<(), String> {
+    let command = command_name(help)?;
+    let expected_page = page_url(path)?;
     let parsed = scan_markdown(markdown);
     let headings = &parsed.headings;
     let sections = linked_sections(help)?;
@@ -247,7 +285,7 @@ fn validate_document(help: &str, path: &str, markdown: &str) -> Result<(), Strin
         ));
     }
     for section in sections {
-        if !section.url.starts_with(&expected_page) {
+        if section.url.split_once('#').map(|(page, _)| page) != Some(&expected_page) {
             return Err(format!("{} links outside {expected_page}", section.url));
         }
         let command_line = format!(
@@ -264,7 +302,7 @@ fn validate_document(help: &str, path: &str, markdown: &str) -> Result<(), Strin
     }
     let option_headings = &parsed.options;
     for option in linked_options(help)? {
-        if !option.url.starts_with(&expected_page) {
+        if option.url.split_once('#').map(|(page, _)| page) != Some(&expected_page) {
             return Err(format!("{} links outside {expected_page}", option.url));
         }
         if !option_headings.iter().any(|anchor| anchor == option.anchor) {
@@ -427,10 +465,19 @@ mod tests {
     }
 
     #[test]
+    fn the_command_comes_from_the_help_text_not_the_file_name() {
+        let readme = HELP.replace("/docs/command-reference/x/", "/docs/command-reference/");
+        assert!(validate_document(&readme, "docs/06-command-reference/README.md", PAGE).is_ok());
+        assert!(validate_document(HELP, "docs/06-command-reference/README.md", PAGE).is_err());
+        let named = HELP.replace("NAME\n    x\n", "NAME\n    git-splice-x - Explain x.\n");
+        assert!(validate_document(&named, "docs/06-command-reference/01-x.md", PAGE).is_ok());
+    }
+
+    #[test]
     fn reference_links_use_the_published_command_reference_route() {
-        assert!(validate_document(HELP, "docs/06-command-reference/x.md", PAGE).is_ok());
+        assert!(validate_document(HELP, "docs/06-command-reference/01-x.md", PAGE).is_ok());
         let shortened = HELP.replace("/docs/command-reference/", "/");
-        assert!(validate_document(&shortened, "docs/06-command-reference/x.md", PAGE).is_err());
+        assert!(validate_document(&shortened, "docs/06-command-reference/01-x.md", PAGE).is_err());
     }
 
     #[test]

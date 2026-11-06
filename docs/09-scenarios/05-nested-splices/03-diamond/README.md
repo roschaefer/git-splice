@@ -4,7 +4,7 @@ Two apps, each in a repository of its own, have the library spliced in at
 `c/`. The monorepo clones both apps, and the library once more at `c/`,
 to work on it directly. So two paths lead from the monorepo to the
 library, one through each app, a *diamond*, as in a package manager's
-dependency graph. The library is [nested](../../../03-concepts/nesting/README.md)
+dependency graph. The library is [nested](../../../03-concepts/04-nesting.md)
 in each app.
 
 ```text
@@ -16,7 +16,7 @@ in each app.
 ```
 
 Each path has a real copy, so each app's repository still works on its
-own. Each copy has its own [id](../../../03-concepts/splice-identity/README.md),
+own. Each copy has its own [id](../../../03-concepts/03-splice-identity.md),
 since each repository ran `clone` itself, so the copies are independent
 and can be at different versions. Here a change to the library is made
 once, in the monorepo's `c/`, and then reaches every copy.
@@ -78,9 +78,9 @@ On branch main
 
 Each is a splice of its own, with its own id: each app ran `clone` for
 the library, and so did the monorepo
-([splice identity](../../../03-concepts/splice-identity/README.md)). All three share the
+([splice identity](../../../03-concepts/03-splice-identity.md)). All three share the
 library's upstream, and with it one key and one fetch
-([upstreams](../../../03-concepts/upstreams/README.md)):
+([upstreams](../../../03-concepts/01-upstreams.md)):
 
 ```scrut
 $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
@@ -92,7 +92,7 @@ c/.splice: id = 27a7630097a94256
 ```
 
 By their ids, the three copies of the library are independent splices
-([splice identity](../../../03-concepts/splice-identity/README.md#what-an-id-is)): each
+([splice identity](../../../03-concepts/03-splice-identity.md#what-an-id-is)): each
 repository cloned the library itself. They're one library, at possibly
 different versions, as in a package manager's diamond: one app may still
 use an older version than the other. Keeping them at the same version is
@@ -158,7 +158,7 @@ On branch main
   up to date  c
 ```
 
-In terms of the [sync model](../../../03-concepts/sync-model/README.md): R of `c/`, the
+In terms of the [sync model](../../../03-concepts/02-sync-model.md): R of `c/`, the
 commit its push sent, is the library's upstream branch T now. `a/c/` and
 `b/c/` still have the old content, so their R is the old commit.
 `log --graph` leaves out `c/`, which is up to date:
@@ -251,5 +251,5 @@ the same files
 
 `git-splice` compares each copy only with its own upstream, not the
 copies with each other. Copies with one id,
-[mirrors](../../../08-going-forward/mirrors.md), are meant to stay
+[mirrors](../../../08-going-forward/02-mirrors.md), are meant to stay
 alike; these three aren't.
