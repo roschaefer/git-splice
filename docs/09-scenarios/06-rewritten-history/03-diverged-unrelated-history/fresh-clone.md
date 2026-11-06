@@ -2,9 +2,9 @@
 
 In the [same state](README.md), upstream rebuilt from scratch, a
 colleague clones the monorepo. The clone has no fetched refs, and the
-upstream no longer has the synced commit *k*, so no fetch brings it. A
-pull says that first, then prints the same ways out as in the monorepo
-that fetched *k* before.
+upstream no longer has the synced commit, so no fetch brings it. A pull
+says that first, then prints the same ways out as the monorepo that
+fetched the synced commit before.
 
 ## Output
 
@@ -19,6 +19,27 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_diverged_unrelated_history
 ```
+
+<!--
+```scrut
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/unrelated-history.drawio.svg" \
+>     k="$k" a=HEAD~1 b=HEAD z=splices/upstream/heads/main
+ok   unrelated-history.drawio.svg: 5 commits, 5 arrows, 3 boxes, 1 lanes
+```
+-->
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k, then b changes the folder, rebuilt as b prime on top of k, R; the upstream now has only z, T, unrelated to k, which is dashed](unrelated-history.drawio.svg)
+
+</div>
+
+*a* (`add vendor/a`) cloned *k* (`seed`), the synced commit, and *b*
+(`local change`) changed the folder since. The upstream now has only *z*
+(`brand new unrelated history`). No upstream branch has *k* any more,
+so it is dashed. The monorepo still has *k* from an earlier fetch; a
+fresh clone doesn't:
 
 ```scrut
 $ git clone -q --no-local . ../fresh
