@@ -1,6 +1,8 @@
-# Waits up to $WAIT_SECONDS seconds for the second document
+# Waits for the signal of the second document
+
+`wait_for_signal` comes from `test-parallel-jobs.md`.
 
 ```scrut
-$ for i in $(seq "$((WAIT_SECONDS * 10))"); do [ -e "$SIGNAL_FILE" ] && break; sleep 0.1; done; echo "signal: $(cat "$SIGNAL_FILE" 2>/dev/null || echo none)"
-signal: expected otherwise
+$ wait_for_signal
+from the second document
 ```

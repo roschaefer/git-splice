@@ -41,5 +41,5 @@ This is safe for documents that only use what Scrut provides per document: the s
 - The results are still reported in the order of the documents, whatever order they finish in.
 - If a document can't be executed at all, for example because its shell can't be started, Scrut starts no further documents, waits for the ones already running, and fails.
 - `scrut update` has no `--jobs`: it writes documents, which other documents running at the same time could read half-written, so it executes one document after another.
-- `--jobs` greater than 1 can't be combined with `--work-directory`, because all documents would share that one directory.
+- `--work-directory` can't be combined with running documents in parallel, because all documents would share that one directory. With `--jobs 1`, the default, documents run one after another, so they can use it.
 - Log messages (`--log-level`) of documents that run at the same time are printed as they happen, mixed with each other. To follow one document's log, run it without `--jobs`. The output of `--debug` stays together per document, in the order the documents finish.
