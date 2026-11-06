@@ -161,19 +161,25 @@ does.
 - **Legend**: a shape styled `legend=1`, with a sample commit inside
   for each mark the drawing's commits use, and the words for it next to
   it. Its shapes are no commits, boxes or texts of the drawing. It
-  explains each of the marks below the drawing uses, and no other: a
-  dash, a trailing `'`, and the colors, which only a drawing with a
-  legend shows.
+  explains each color the drawing's commits use, and no other. The
+  colors below have a meaning `check_drawing` knows and checks; any
+  other color the legend explains is the drawing's own, and unchecked. A dash and
+  a trailing `'` are the
+  [central legend's](../docs/10-contributing/02-writing.md#reading-the-drawings),
+  which explains them for every drawing, so a `legend=1` doesn't. A
+  legend styled `legend=full`, as in the README, explains them too.
 - **Filled and outlined**: what the next rebuild does with a commit,
-  in a drawing with a legend.
-  - Outlined orange, `#E07000`: a change the rebuild carries across, on
+  in a drawing whose legend has a sample of the color.
+  - Outlined orange, `#E07000`, if the legend has an orange sample: a
+    change the rebuild carries across, on
     both ends: a walked commit R copies, and its copy, a commit with a
     trailing `'` in R's history since U(B). Every other commit is
     outlined black.
   - Filled grey, `#E0E0E0`, if the legend has a grey sample: a monorepo
     commit on the first-parent history since B, which the rebuild walks.
     Every other commit is white.
-  - Without a legend, every commit is outlined black and white inside.
+  - Without the color's sample, every commit is outlined black and white
+    inside.
     In a drawing without splices, e.g. of what `git subtree` makes,
     neither is checked.
 

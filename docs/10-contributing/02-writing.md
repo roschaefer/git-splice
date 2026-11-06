@@ -106,16 +106,22 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   an earlier or later one. Any page may show it elsewhere too, at the
   top or on a concept page.
   [`check-drawing placement`](../../check-drawing/) checks this.
-- A drawing with a legend says what the next rebuild does with a
-  commit: an orange outline (`#E07000`) for a change it carries across,
-  on both ends, a commit R copies and its copy, and, where the number
-  of commits it walks matters, a grey fill (`#E0E0E0`) for the monorepo
-  commits on the first-parent history since B. The legend, a shape
-  styled `legend=1` below the drawing, shows a sample commit for each
-  mark the drawing's commits use, orange, grey, dashed or a `'`, with
-  what it means. Without a legend, every commit is black and white.
-  `check_drawing` checks the marks against the legend, as it checks the
-  dashes. A drawing of another tool uses them the same way, for the
+- A drawing's legend, a shape styled `legend=1` below it, explains
+  only what the [central legend](#reading-the-drawings) doesn't: the
+  colors, each with a sample commit and what it means. An orange outline
+  (`#E07000`) marks a change the next rebuild carries across, on both
+  ends, a commit R copies and its copy; a grey fill (`#E0E0E0`), where
+  the number of commits the rebuild walks matters, the monorepo commits
+  on the first-parent history since B. A drawing uses a color only with
+  its sample in the legend; without, every commit is black and white.
+  A legend may add any other mark the drawing needs, e.g. a shaded lane,
+  as long as it says what it means; `check_drawing` only checks the
+  colors it knows.
+  The README's drawing, the first a reader sees, keeps a full legend,
+  styled `legend=full`, that explains dashes and primes too. The first
+  docs page with a drawing links to the central legend; the others
+  don't repeat it. `check_drawing` checks the marks against the legend,
+  as it checks the dashes. A drawing of another tool uses them the same way, for the
   commits that tool walks and the ones it carries over, e.g.
   `git subtree split`, with a legend in its words; there
   `check_drawing` can't check them.
@@ -125,6 +131,54 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   commit's subject. `<label>=<rev>` is for the rest: a rebased or copied
   commit, which keeps another one's message, a commit the shared setup
   makes, and a commit on a branch other than `HEAD`.
+
+## Reading the drawings
+
+The drawings share one language, explained here once. A drawing's own
+legend only adds what's unusual on it, like the commits the next rebuild
+carries over.
+
+<!--
+```scrut {fail_fast: true, output_stream: combined}
+$ source "$TESTDIR/../09-scenarios/readme-setup.sh" &&
+>   source "$TESTDIR/../09-scenarios/01-everyday-sync/02-up-to-date/setup.bash" &&
+>   build_scenario scenario_up_to_date &&
+>   git worktree add -q -b work-on-a ../a-work "$(git splice rebuild vendor/a)" &&
+>   echo "from the worktree" >../a-work/other.txt &&
+>   git -C ../a-work add other.txt &&
+>   git -C ../a-work commit -q -m "add other.txt" &&
+>   echo "monorepo change" >>vendor/a/file.txt &&
+>   git commit -q -am "monorepo change"
+```
+-->
+
+<div align="center">
+
+![The monorepo's a and c, B at a and H at c; in vendor/a/, k, T and U(H), and on top of k, dashed, c prime, R, and o, on work-on-a, a dashed box; a legend for boxes, lanes, dashes and primes](../09-scenarios/01-everyday-sync/02-up-to-date/central-legend.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/../09-scenarios/01-everyday-sync/02-up-to-date/central-legend.drawio.svg" \
+>   a=HEAD~1 c=HEAD k="$(git config --file vendor/a/.splice splice.commit)" o=work-on-a
+ok   central-legend.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
+```
+-->
+
+- A circle is a commit, with its arrows going to the commits made on top
+  of it, so history grows away from the oldest commit, *a* or *k* here.
+- A box names the commit its arrow points at: H, B, T, R and U(x) of
+  the [sync model](../03-concepts/02-sync-model.md), or a branch.
+- A lane, a rounded frame named after a folder, is a splice: the
+  commits inside are its upstream's, like *k*, and those outside every
+  lane the monorepo's, like *a* and *c*. Lanes nest like the folders do.
+- Dashed is what no upstream has yet: a commit or the arrow into it,
+  like *c'* and *o*. A dashed box names a branch only the monorepo has,
+  like `work-on-a`, checked out in a worktree.
+- A `'` marks a rebuilt copy: *c'* is the rebuild's copy of the
+  monorepo's *c*, with the same changes and message, in the upstream's
+  layout.
 
 ## The sidebar
 

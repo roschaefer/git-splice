@@ -3,12 +3,47 @@
 //! label names and the facts of each splice, then check the rules, each adding
 //! the differences it finds. See README.md next to src/ for the vocabulary.
 
-use crate::diagram::{is_box_label, is_lane_label, Diagram};
+use crate::diagram::{is_box_label, is_lane_label, Cell, Diagram};
 use crate::history::{History, Truth};
 use std::collections::{HashMap, HashSet};
 
 const CARRIED_OUTLINE: &str = "#E07000";
 const WALKED_FILL: &str = "#E0E0E0";
+
+/// A mark a drawing's legend may add to the central legend's whose meaning
+/// check_drawing knows: once the legend has a sample of it, every commit with
+/// that meaning has it, and no other. A legend may explain any other color
+/// too, which nothing checks.
+struct Mark {
+    /// The style key it sets.
+    attr: &'static str,
+    color: &'static str,
+    name: &'static str,
+    /// How to give a commit the mark.
+    fix: &'static str,
+    /// What a commit with the mark but without its meaning is told.
+    unwanted: &'static str,
+}
+
+/// Whether a cell has some mark.
+type CellTest = fn(&Cell) -> bool;
+
+const MARKS: [Mark; 2] = [
+    Mark {
+        attr: "fillColor",
+        color: WALKED_FILL,
+        name: "a grey fill",
+        fix: "fill it grey",
+        unwanted: "is filled, but the rebuild doesn't walk it: leave it white",
+    },
+    Mark {
+        attr: "strokeColor",
+        color: CARRIED_OUTLINE,
+        name: "an orange outline",
+        fix: "outline it orange",
+        unwanted: "is outlined in color, but the rebuild doesn't carry it across: outline it black",
+    },
+];
 
 /// What a shape of the drawing is.
 #[derive(Clone, Copy, PartialEq)]
@@ -110,6 +145,9 @@ pub struct Checker<'a> {
     separators: Vec<usize>,
     sides: Vec<usize>,
     legends: usize,
+    /// Whether a legend, styled legend=full, explains the marks the central
+    /// legend explains too, as in the README.
+    full_legend: bool,
     legend_samples: Vec<usize>,
 
     splices: Vec<String>,
@@ -209,6 +247,7 @@ impl<'a> Checker<'a> {
             separators: Vec::new(),
             sides: Vec::new(),
             legends: 0,
+            full_legend: false,
             legend_samples: Vec::new(),
             splices: Vec::new(),
             default: String::new(),
@@ -288,17 +327,19 @@ impl<'a> Checker<'a> {
     }
 
     /// What each shape is. A legend, a shape styled legend=1, explains the
-    /// marks a drawing uses: the shapes inside it are samples, not commits,
-    /// boxes or texts.
+    /// marks a drawing uses that the central legend doesn't; one styled
+    /// legend=full explains those too. The shapes inside it are samples, not
+    /// commits, boxes or texts.
     fn classify(&mut self) {
         let legends: HashSet<&str> = self
             .d
             .cells
             .iter()
-            .filter(|c| c.style.has("legend=1"))
+            .filter(|c| c.style.is_legend())
             .map(|c| c.id.as_str())
             .collect();
         self.legends = legends.len();
+        self.full_legend = self.d.cells.iter().any(|c| c.style.has("legend=full"));
         for (i, cell) in self.d.cells.iter().enumerate() {
             if legends.contains(cell.id.as_str()) {
                 continue;
@@ -840,10 +881,11 @@ impl<'a> Checker<'a> {
     }
 
     /// What the next rebuild does with a commit, if the drawing's legend says
-    /// so. A change it carries across is outlined orange, on both ends: a
-    /// commit R copies, from the monorepo's first-parent history since B, and
-    /// its copy in R. With a grey sample in the legend, each monorepo commit
-    /// the rebuild walks, on that history, is filled grey, e.g. to count them.
+    /// so. With an orange sample in the legend, a change it carries across is
+    /// outlined orange, on both ends: a commit R copies, from the monorepo's
+    /// first-parent history since B, and its copy in R. With a grey sample in
+    /// the legend, each monorepo commit the rebuild walks, on that history, is
+    /// filled grey, e.g. to count them.
     /// Every other commit is outlined black and white inside. Without
     /// splices, e.g. in a drawing of git subtree, neither is checked.
     fn check_colors(&mut self) {
@@ -872,10 +914,12 @@ impl<'a> Checker<'a> {
                 walked.insert(truth.b.clone());
             }
         }
-        let legend_grey = self
-            .legend_samples
-            .iter()
-            .any(|&s| self.d.cells[s].style.color("fillColor", "white") == WALKED_FILL);
+        // Whether the legend has a sample of <color> as <attr>.
+        let explained = |attr: &str, plain: &str, color: &str| {
+            self.legend_samples
+                .iter()
+                .any(|&s| self.d.cells[s].style.color(attr, plain) == color)
+        };
         // Each walked monorepo commit's label, by what its copy in R shares
         // with it: author, dates and message.
         let mut walked_label: HashMap<String, String> = HashMap::new();
@@ -925,50 +969,53 @@ impl<'a> Checker<'a> {
                 is_carried = copied.contains(&self.git.copy_key(&commit));
             }
 
-            let style = &self.d.cells[cell].style;
-            let have = style.color("fillColor", "white");
-            let want = if is_walked && legend_grey {
-                WALKED_FILL
-            } else {
-                "white"
-            };
-            if have != want {
-                if is_walked && legend_grey {
-                    self.errors.push(format!(
-                        "{value} is a commit the rebuild walks: fill it grey, {WALKED_FILL}"
-                    ));
-                } else if !is_walked {
-                    self.errors.push(format!(
-                        "{value} is filled, but the rebuild doesn't walk it: leave it white"
-                    ));
-                } else if self.legends == 0 {
-                    self.errors.push(format!("{value} is filled, but the drawing has no legend to say why: add one, or leave it white"));
-                } else if have != WALKED_FILL {
-                    self.errors.push(format!(
-                        "{value} is filled {have}, a color the legend doesn't explain: leave it white"
-                    ));
-                }
-            }
-
-            let have = style.color("strokeColor", "black");
-            let want = if is_carried && self.legends > 0 {
-                CARRIED_OUTLINE
-            } else {
-                "black"
-            };
-            if have != want {
-                if is_carried && self.legends > 0 && primed {
-                    self.errors.push(format!(
-                        "{value} is R's copy of a commit since B: outline it orange, {CARRIED_OUTLINE}"
-                    ));
-                } else if is_carried && self.legends > 0 {
-                    self.errors.push(format!(
-                        "{value} is a commit R copies: outline it orange, {CARRIED_OUTLINE}"
-                    ));
-                } else if is_carried {
-                    self.errors.push(format!("{value} is outlined in color, but the drawing has no legend to say why: add one, or outline it black"));
+            // Why the commit has each of MARKS, in its order.
+            let reasons = [
+                is_walked.then_some("a commit the rebuild walks"),
+                is_carried.then_some(if primed {
+                    "R's copy of a commit since B"
                 } else {
-                    self.errors.push(format!("{value} is outlined in color, but the rebuild doesn't carry it across: outline it black"));
+                    "a commit R copies"
+                }),
+            ];
+            let style = &self.d.cells[cell].style;
+            for (attr, plain, word, fix) in [
+                ("fillColor", "white", "filled", "leave it white"),
+                ("strokeColor", "black", "outlined", "outline it black"),
+            ] {
+                let have = style.color(attr, plain);
+                let wanted = MARKS.iter().zip(reasons).find(|(m, r)| {
+                    m.attr == attr && r.is_some() && explained(attr, plain, m.color)
+                });
+                if let Some((mark, reason)) = wanted {
+                    if have != mark.color {
+                        self.errors.push(format!(
+                            "{value} is {}: {}, {}",
+                            reason.unwrap_or_default(),
+                            mark.fix,
+                            mark.color
+                        ));
+                    }
+                    continue;
+                }
+                if have == plain {
+                    continue;
+                }
+                if let Some((mark, reason)) = MARKS
+                    .iter()
+                    .zip(reasons)
+                    .find(|(m, _)| m.attr == attr && m.color == have)
+                {
+                    // With the meaning, the legend's check asks for a sample.
+                    if reason.is_none() {
+                        self.errors.push(format!("{value} {}", mark.unwanted));
+                    }
+                    continue;
+                }
+                if !explained(attr, plain, &have) {
+                    self.errors.push(format!(
+                        "{value} is {word} {have}, a color the legend doesn't explain: {fix}"
+                    ));
                 }
             }
         }
@@ -977,28 +1024,24 @@ impl<'a> Checker<'a> {
     /// The legend explains each mark the drawing's commits use, by a sample
     /// commit with that mark next to the words for it, and no other mark.
     fn check_legend(&mut self) {
-        if self.legends == 0 || self.splices.is_empty() {
+        if self.splices.is_empty() {
             return;
         }
-        let has_mark = |cell: usize, mark: &str| {
-            let c = &self.d.cells[cell];
-            match mark {
-                "grey" => c.style.color("fillColor", "white") == WALKED_FILL,
-                "orange" => c.style.color("strokeColor", "black") == CARRIED_OUTLINE,
-                "dashed" => c.style.dashed(),
-                _ => c.value.ends_with('\''),
-            }
-        };
-        let marks = [
-            ("grey", "a grey fill"),
-            ("orange", "an orange outline"),
-            ("dashed", "a dashed outline"),
-            ("prime", "a ' after a label"),
+        // The central legend, in writing.md, explains these for every drawing.
+        let central: [(&str, CellTest); 2] = [
+            ("a dashed outline", |c| c.style.dashed()),
+            ("a ' after a label", |c| c.value.ends_with('\'')),
         ];
-        for (mark, name) in marks {
-            let uses = self.commits.iter().any(|&c| has_mark(c, mark));
-            let explains = self.legend_samples.iter().any(|&c| has_mark(c, mark));
-            if uses && !explains {
+        for (name, has) in central {
+            let uses = self.commits.iter().any(|&c| has(&self.d.cells[c]));
+            let explains = self.legend_samples.iter().any(|&c| has(&self.d.cells[c]));
+            if !self.full_legend {
+                if explains {
+                    self.errors.push(format!(
+                        "the legend explains {name}, which the central legend explains for every drawing: drop that sample, or style the legend legend=full"
+                    ));
+                }
+            } else if uses && !explains {
                 self.errors.push(format!(
                     "the legend doesn't explain {name}: add a sample commit with it, and what it means"
                 ));
@@ -1006,6 +1049,48 @@ impl<'a> Checker<'a> {
                 self.errors.push(format!(
                     "the legend explains {name}, which no commit has: drop that sample"
                 ));
+            }
+        }
+        // Each color: the known marks, and any other a sample shows.
+        for (attr, plain, word) in [
+            ("fillColor", "white", "fill"),
+            ("strokeColor", "black", "outline"),
+        ] {
+            let mut colors: Vec<String> = self
+                .legend_samples
+                .iter()
+                .map(|&c| self.d.cells[c].style.color(attr, plain))
+                .filter(|color| color != plain)
+                .collect();
+            colors.extend(
+                MARKS
+                    .iter()
+                    .filter(|m| m.attr == attr)
+                    .map(|m| m.color.to_string()),
+            );
+            colors.sort();
+            colors.dedup();
+            for color in colors {
+                let name = MARKS
+                    .iter()
+                    .find(|m| m.attr == attr && m.color == color)
+                    .map_or(format!("a {color} {word}"), |m| m.name.to_string());
+                let has = |c: usize| self.d.cells[c].style.color(attr, plain) == color;
+                let uses = self.commits.iter().any(|&c| has(c));
+                let explains = self.legend_samples.iter().any(|&c| has(c));
+                if uses && !explains && self.legends == 0 {
+                    self.errors.push(format!(
+                        "the drawing has no legend to explain {name}: add one with a sample of it, or drop it"
+                    ));
+                } else if uses && !explains {
+                    self.errors.push(format!(
+                        "the legend doesn't explain {name}: add a sample commit with it, and what it means"
+                    ));
+                } else if !uses && explains {
+                    self.errors.push(format!(
+                        "the legend explains {name}, which no commit has: drop that sample"
+                    ));
+                }
             }
         }
     }

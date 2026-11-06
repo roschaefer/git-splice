@@ -13,6 +13,11 @@ merge request: the feature branch is compared with the default branch.
 
 </div>
 
+The drawings in these docs share one language, the
+[central legend](../10-contributing/02-writing.md#reading-the-drawings):
+boxes name commits, lanes are splices, and dashed commits aren't on the
+upstream yet.
+
 This works across all the repositories involved. In the
 [walkthrough sandbox](../01-getting-started/02-walkthrough.md), both splices start on `main`. Switch the
 monorepo to `feature`; neither upstream has that branch:
