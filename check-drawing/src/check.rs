@@ -1003,10 +1003,24 @@ impl<'a> Checker<'a> {
                 ("strokeColor", "black", "outlined", "outline it black"),
             ] {
                 let have = style.color(attr, plain);
-                let wanted = MARKS.iter().zip(reasons).find(|(m, r)| {
-                    m.attr == attr && r.is_some() && explained(attr, plain, m.color)
-                });
-                if let Some((mark, reason)) = wanted {
+                let wanted: Vec<_> = MARKS
+                    .iter()
+                    .zip(reasons)
+                    .filter(|(m, r)| {
+                        m.attr == attr && r.is_some() && explained(attr, plain, m.color)
+                    })
+                    .collect();
+                // One outline can't show two meanings.
+                if wanted.len() > 1 {
+                    let reasons: Vec<&str> = wanted.iter().filter_map(|(_, r)| *r).collect();
+                    self.errors.push(format!(
+                        "{value} is {}: one {} can't show both -- drop one of their samples from the legend",
+                        reasons.join(" and "),
+                        if attr == "fillColor" { "fill" } else { "outline" }
+                    ));
+                    continue;
+                }
+                if let Some((mark, reason)) = wanted.first() {
                     if have != mark.color {
                         self.errors.push(format!(
                             "{value} is {}: {}, {}",

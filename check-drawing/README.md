@@ -187,7 +187,8 @@ does.
     of it after an `init`, which recorded none. A commit that adds a
     `.splice`, like a clone's, records no pull, and a copy of the
     monorepo's own commit, which a push sent and a pull brought back,
-    didn't come in with one. Where a commit is orange too, orange wins.
+    didn't come in with one. A commit that is orange too can't show
+    both: the drawing's legend has to drop one of the two samples.
   - Without the color's sample, every commit is outlined black and white
     inside.
     In a drawing without splices, e.g. of what `git subtree` makes,

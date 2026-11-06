@@ -116,6 +116,14 @@ add_blue_sample() {
     -i '//mxCell[@id="legend_blue"]' -t attr -n style -v 'ellipse;strokeColor=#0070E0;'
 }
 
+# Swaps the drawing's orange for a blue sample: e, the pull, is carried
+# over too, and one outline can't show both.
+blue_instead_of_orange() {
+  edit_drawing -d '//mxCell[@id="legend_orange" or @id="legend_orange_text"]'
+  sed -i 's/strokeColor=#E07000;//g' "$drawing"
+  add_blue_sample
+}
+
 # Outlines the drawing's commits $@ blue.
 outline_blue() {
   local id
@@ -124,34 +132,31 @@ outline_blue() {
   done
 }
 
-@test "drawing: with a blue sample in the legend, the upstream commits a drawn pull brought in are outlined blue" {
-  add_blue_sample
+@test "drawing: with a blue sample in the legend, a drawn pull and the upstream commits it brought in are outlined blue" {
+  blue_instead_of_orange
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   e is a commit that records a pull: outline it blue, #0070E0"* ]]
   [[ "$output" == *"!!   l is a commit a pull brought in: outline it blue, #0070E0"* ]]
   [[ "$output" == *"!!   m is a commit a pull brought in: outline it blue, #0070E0"* ]]
   [[ "$output" == *"!!   n is a commit a pull brought in: outline it blue, #0070E0"* ]]
   [[ "$output" != *"!!   k is"* ]]
-  outline_blue l m n
+  outline_blue e l m n
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 0 ]
 }
 
-@test "drawing: the commit that records a pull is outlined blue too, unless orange says more" {
+@test "drawing: a commit carried over that records a pull can't be both orange and blue" {
   add_blue_sample
   outline_blue l m n
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
-  [ "$status" -eq 0 ]
-  edit_drawing -d '//mxCell[@id="legend_orange" or @id="legend_orange_text"]'
-  sed -i 's/strokeColor=#E07000;//g' "$drawing"
-  run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   e is a commit that records a pull: outline it blue, #0070E0" ]
+  [ "$output" = "!!   e is a commit R copies and a commit that records a pull: one outline can't show both -- drop one of their samples from the legend" ]
 }
 
 @test "drawing: a commit synced before the pull isn't outlined blue" {
-  add_blue_sample
-  outline_blue k l m n
+  blue_instead_of_orange
+  outline_blue e k l m n
   run check_drawing "$drawing" a=HEAD~4 e=HEAD
   [ "$status" -eq 1 ]
   [ "$output" = "!!   k is outlined blue, but it neither records a pull nor came in with one: outline it black" ]
