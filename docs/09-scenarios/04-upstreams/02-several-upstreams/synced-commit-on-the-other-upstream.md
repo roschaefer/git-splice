@@ -9,18 +9,6 @@ histories were [unrelated](../../06-rewritten-history/03-diverged-unrelated-hist
 though they share the seed. So a pull whose synced commit isn't here
 fetches every upstream of the splice, and finds it on the original.
 
-<div align="center">
-
-![The monorepo's a, x and c, H at c; the lane vendor/a/ split in two: origin with r on top of k, which is U(H), R and its main; fork with f on top of k, which is T. Only origin has r](synced-commit-on-the-other-upstream.drawio.svg)
-
-</div>
-
-*a* (`add vendor/a`) cloned *k* (`seed`) from the original, *x* pulled
-the release *r* (`original release`), and *c* (`vendor/a: work with the
-company fork`) made the fork the default upstream. The fork's `main`, T,
-is *f* (`fork patch`) on top of *k*. The synced commit U(H) is *r*, the
-original's `main`, on its side only.
-
 ## Output
 
 <!--
@@ -77,6 +65,18 @@ $ git splice fetch >/dev/null &&
 ok   synced-commit-on-the-other-upstream.drawio.svg: 7 commits, 7 arrows, 3 boxes, 1 lanes, 2 upstreams
 ```
 -->
+
+<div align="center">
+
+![The monorepo's a, x and c, H at c; the lane vendor/a/ split in two: origin with r on top of k, which is U(H), R and its main; fork with f on top of k, which is T and its main. Only origin has r](synced-commit-on-the-other-upstream.drawio.svg)
+
+</div>
+
+*a* (`add vendor/a`) cloned *k* (`seed`) from the original, *x* pulled
+the release *r* (`original release`), and *c* (`vendor/a: work with the
+company fork`) made the fork the default upstream. The fork's `main`, T,
+is *f* (`fork patch`) on top of *k*. The synced commit U(H) is *r*, the
+original's `main`, on its side only.
 
 ### In a fresh clone
 
