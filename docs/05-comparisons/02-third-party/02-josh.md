@@ -61,6 +61,16 @@ $ git -C "$COMPARISON/upstream/lib.git" rev-parse main
 bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
+### With `git-splice`: one commit
+
+The clone, *c*, brings in the library's files, but none of its history:
+
+```scrut
+$ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
+===  vendor/lib: fetching https://git.example.com/lib.git
+ok   vendor/lib: cloned bafd496 from main
+```
+
 ## Fix the library: the same commit
 
 You fix the library and use the fix in the app, in one commit, *f*. It
@@ -68,7 +78,8 @@ sits on *i*, the import, which merged *k*, the copy of the library's
 newest commit, with *a*, the app's:
 
 ```scrut
-$ echo "fix" >>vendor/lib/src/parse.txt &&
+$ cd ../monorepo &&
+>   echo "fix" >>vendor/lib/src/parse.txt &&
 >   echo "call parse()" >>app/main.txt &&
 >   git commit -q -a -m "fix parse() and call it"
 ```
@@ -96,16 +107,13 @@ $ josh-filter ':/vendor/lib' && git log --oneline -2 FILTERED_HEAD
 bafd496 lib commit 30
 ```
 
-The same fix with `git-splice`, whose clone *c* brings in no history:
+### With `git-splice`: the same commit
+
+The same fix, pushed:
 
 ```scrut
-$ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
-===  vendor/lib: fetching https://git.example.com/lib.git
-ok   vendor/lib: cloned bafd496 from main
-```
-
-```scrut
-$ echo "fix" >>vendor/lib/src/parse.txt &&
+$ cd ../splice-monorepo &&
+>   echo "fix" >>vendor/lib/src/parse.txt &&
 >   echo "call parse()" >>app/main.txt &&
 >   git commit -q -a -m "fix parse() and call it" &&
 >   git splice push vendor/lib
@@ -172,8 +180,6 @@ $ echo "example" >examples.txt &&
 >   cd ../splice-monorepo
 ```
 
-### Josh: the culprit is a monorepo commit
-
 The Josh monorepo hasn't changed the library since the fix, so
 `--reverse` turns each of the library's commits into a monorepo commit,
 on a ref that `main` fast-forwards to:
@@ -222,7 +228,7 @@ $ git bisect start HEAD HEAD~4 >/dev/null &&
 # first 'bad' commit: [092b6b1e37d8035965e55a4856c921988c941e39] parse: rename fix to fixed
 ```
 
-### `git-splice`: the culprit is the pull
+### With `git-splice`: the culprit is the pull
 
 The pull *x* brings all four commits at once. They stay in the library's
 history, between U(f) and U(x), the synced commits before and after:
@@ -329,8 +335,6 @@ $ cd ../monorepo &&
 >   git commit -q -m "add notes to lib"
 ```
 
-### Josh: merge in the filtered history
-
 Josh merges the two in the library's history, where both sides share
 commits. A worktree of the filtered history stands in for Josh's view:
 
@@ -379,7 +383,7 @@ ok   josh-both-moved.drawio.svg: 4 commits, 5 arrows, 1 boxes
 ```
 -->
 
-### `git-splice`: one pull commit
+### With `git-splice`: one pull commit
 
 ```scrut
 $ cd ../splice-monorepo && git splice pull vendor/lib
@@ -487,7 +491,9 @@ ok   josh-view-merged.drawio.svg: 4 commits, 4 arrows, 0 boxes
 ```
 -->
 
-The same branch and merge in the `git-splice` monorepo:
+### With `git-splice`: the merge as one commit
+
+The same branch and merge:
 
 ```scrut
 $ cd ../splice-monorepo &&
