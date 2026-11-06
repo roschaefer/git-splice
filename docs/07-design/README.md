@@ -468,6 +468,9 @@ These are known and accepted, each to keep the design simple:
   escaped, e.g. many spaces, fails with "File name too long". Until
   [#51](https://github.com/roschaefer/git-splice/issues/51), avoid
   upstreams whose URLs differ only in case, and long path components.
+- **No pager on Windows:** `log` and `diff` print straight to the
+  terminal there, as if `--no-pager` were given. Pipe them to a pager by
+  hand, e.g. `git splice log | less`.
 - **A splice made by `init`** has no synced commit until its first pull, so
   until then every rebuild walks the folder's history since `init`.
 - **Rare edge cases** each have an issue labelled
