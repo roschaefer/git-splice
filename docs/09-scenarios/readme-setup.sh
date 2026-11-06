@@ -110,13 +110,14 @@ check_known_bugs() {
 # Once the scenario is built, the READMEs show what a terminal shows,
 # stderr included, with the upstream's path as $UPSTREAM. Git's progress
 # counters rewrite themselves with \r; only what follows the last \r of a
-# line stays.
+# line stays. Git LFS's progress meter prints its last line only on some
+# runs, depending on timing, so it's dropped.
 git() {
   if [[ -z "${scenario_built:-}" ]]; then
     command git "$@"
     return
   fi
   command git "$@" 2>&1 |
-    sed -E "s#\r\$##; s#.*\r##; s#$UPSTREAM#\$UPSTREAM#g"
+    sed -E "s#\r\$##; s#.*\r##; /^(Uploading|Downloading|Checking out) LFS objects: /d; s#$UPSTREAM#\$UPSTREAM#g"
   return "${PIPESTATUS[0]}"
 }
