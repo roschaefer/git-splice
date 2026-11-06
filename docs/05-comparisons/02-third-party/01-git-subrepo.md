@@ -479,20 +479,13 @@ refs/splices/lib/heads/main
 refs/splices/other/heads/main
 ```
 
-## Where `git-subrepo` is better
-
-Following one upstream branch, say a release branch, from every monorepo
-branch: `.gitrepo` names it, and a merge carries a change of it along
-([git-subrepo#671](https://github.com/ingydotnet/git-subrepo/issues/671)).
-A splice follows the upstream branch named like the monorepo's.
-
 ## In short
 
 | | `git-subrepo` | `git-splice` |
 | --- | --- | --- |
 | Monorepo history | linear | linear |
 | Commits per sync | one per pull, one per push | one per pull |
-| Upstream branch | the one in `.gitrepo`, for every monorepo branch | the monorepo branch's name |
+| Upstream branch | the one in `.gitrepo`, for every monorepo branch | the monorepo branch's name, `default-branch` in `.splice` on the default branch, or one kept with [`--track`](../../09-scenarios/03-branches-and-teamwork/07-tracked-branch/README.md) |
 | Sync point, the upstream commit last synced | `commit` in `.gitrepo`, written on clone, pull and push | `commit` in `.splice`, written on clone and pull |
 | Where the last sync is in the monorepo | `parent` in `.gitrepo`, a stored commit | derived: the newest commit that changed `.splice` |
 | After a squash merge | push stops until `.gitrepo` is fixed by hand | push works |
