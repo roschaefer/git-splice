@@ -17,6 +17,8 @@ pub enum Block {
     Check(Vec<PathBuf>),
     /// Any other code, hidden or not: it may change the state.
     Code,
+    /// An image in a hidden block, as written: no reader sees it.
+    HiddenImage(String),
 }
 
 /// <path> without `.` and with each `..` taken back.
@@ -61,7 +63,7 @@ pub fn read_blocks(markdown: &str, folder: &Path) -> Vec<Block> {
     read(markdown, folder, false)
 }
 
-/// read_blocks; in a hidden block (<hidden>), images show nothing.
+/// read_blocks; in a hidden block (<hidden>), an image is a HiddenImage.
 fn read(markdown: &str, folder: &Path, hidden: bool) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut images = Vec::new();
@@ -96,9 +98,10 @@ fn read(markdown: &str, folder: &Path, hidden: bool) -> Vec<Block> {
                     code.push_str(&text);
                 }
             }
-            Event::Start(Tag::Image { dest_url, .. })
-                if !hidden && dest_url.ends_with(".drawio.svg") =>
-            {
+            Event::Start(Tag::Image { dest_url, .. }) if hidden => {
+                blocks.push(Block::HiddenImage(dest_url.to_string()));
+            }
+            Event::Start(Tag::Image { dest_url, .. }) if dest_url.ends_with(".drawio.svg") => {
                 images.push(normalize(&folder.join(dest_url.as_ref())));
             }
             _ => {}
@@ -150,13 +153,20 @@ pub fn run(pages: &[String]) -> bool {
         let folder = Path::new(page).parent().unwrap_or(Path::new(""));
         let blocks = read_blocks(&markdown, folder);
         for block in &blocks {
-            if let Block::Check(drawings) = block {
-                for drawing in drawings {
-                    checked
-                        .entry(drawing.clone())
-                        .or_default()
-                        .insert(page.clone());
+            match block {
+                Block::Check(drawings) => {
+                    for drawing in drawings {
+                        checked
+                            .entry(drawing.clone())
+                            .or_default()
+                            .insert(page.clone());
+                    }
                 }
+                Block::HiddenImage(image) => {
+                    println!("!!   {page}: {image} is in a hidden block, where no reader sees it: show it, or delete it");
+                    ok = false;
+                }
+                _ => {}
             }
         }
         shown.extend(placed(&blocks));
@@ -313,7 +323,7 @@ $ check_drawing "$TESTDIR/x.drawio.svg"
     }
 
     #[test]
-    fn an_image_in_a_hidden_block_shows_nothing() {
+    fn an_image_in_a_hidden_block_is_a_hidden_image() {
         let page = r#"
 <!--
 ![x](x.drawio.svg)
@@ -323,7 +333,9 @@ $ check_drawing "$TESTDIR/x.drawio.svg"
 ```
 -->
 "#;
-        assert_eq!(placed(&blocks(page)), BTreeSet::new());
+        let blocks = blocks(page);
+        assert!(blocks.contains(&Block::HiddenImage("x.drawio.svg".into())));
+        assert_eq!(placed(&blocks), BTreeSet::new());
     }
 
     #[test]

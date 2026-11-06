@@ -83,7 +83,8 @@ checks that every drawing a `check_drawing` call on the pages checks is
 shown at least once where it shows the current state: an image of it
 next to a block that checks it, hidden or not, with only prose between.
 Any other code block, hidden or not, may change the state, so it counts
-as one that does. `just docs-check` runs it over the README and `docs/`.
+as one that does. An image in a hidden block (`<!--` … `-->`) fails: no reader
+sees it, so show it or delete it. `just docs-check` runs it over the README and `docs/`.
 
 ## Requirements
 

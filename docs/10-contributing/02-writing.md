@@ -98,7 +98,8 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
 - A drawing's [`check_drawing`](../../check-drawing/) goes in a hidden
   block (`<!--` … `-->`): it keeps the drawing true, but a reader
   learns nothing from it. Only a page that explains the check itself,
-  like its `--alias`, shows it.
+  like its `--alias`, shows it. A hidden block holds code only, never an
+  image: a picture no reader sees is one to show or delete.
 - Each checked drawing appears at least once where it shows the current
   state: next to a block that checks it, with only prose between. The
   check runs on the state at that point, so a picture there can't show
