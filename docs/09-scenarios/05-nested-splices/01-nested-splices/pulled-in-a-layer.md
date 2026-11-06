@@ -119,8 +119,7 @@ splice: pull b from main at 66aab4e
 ```
 
 The pull adds one commit, *p*, to `layer/a`, on top of *c'*. *p*'s
-`b/.splice` records *u*. The monorepo hasn't changed. The shaded lane is
-`vendor/a/`'s, the repository the commands run in:
+`b/.splice` records *u*. The monorepo hasn't changed:
 
 <div align="center">
 

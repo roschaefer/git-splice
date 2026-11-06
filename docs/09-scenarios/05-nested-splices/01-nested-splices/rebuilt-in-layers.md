@@ -167,8 +167,7 @@ Each layer's branch rebuilds the one above it, so its commits are copies
 of copies: *i''* and *n''* of *i'* and *n'*, and *i'''* and *n'''* of
 those. In `vendor/a/b/`, `layer/b` puts *i'''* on *m*, next to the
 upstream's *c'*, the
-same change in two commits. The shaded lane is `vendor/a/`'s, the
-repository the commands run in:
+same change in two commits:
 
 <div align="center">
 
