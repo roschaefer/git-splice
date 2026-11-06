@@ -164,8 +164,8 @@ NESTED SPLICES
     add' it, then --continue takes the result the rest of the way up; one
     level up, a change the monorepo made meanwhile can conflict again.
     --abort removes the worktrees instead, and nothing reaches the
-    monorepo. Until then, pull, merge and push refuse the splices the
-    worktrees are for, and the ones above and below them.
+    monorepo. Until then, pull, merge and push refuse, for every splice,
+    as Git's own commands do during a rebase.
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#nested-splices
 

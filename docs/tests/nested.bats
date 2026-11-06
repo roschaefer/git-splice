@@ -969,12 +969,13 @@ pull_of_b_conflicts() {
   [ "$(git log -1 --format=%s)" = "b local" ]
 }
 
-@test "nested: while a merge through the levels waits, status says so, and pull, merge and push of a and b refuse" {
+@test "nested: while a merge through the levels waits, status says so, and pull, merge and push refuse for every splice, as Git does during a rebase" {
   pull_of_b_conflicts
+  add_splice "$monorepo" "$upstream_b" vendor/x
   run splice status
   [[ "$output" == *"a merge through the levels waits in the worktree of vendor/a"* ]]
   for command in pull merge push; do
-    for path in vendor/a vendor/a/b; do
+    for path in vendor/a vendor/a/b vendor/x; do
       run splice "$command" "$path"
       [ "$status" -ne 0 ]
       [[ "$output" == *"a merge through the levels waits"* ]]

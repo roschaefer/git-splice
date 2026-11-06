@@ -786,7 +786,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
         // No upstream to choose: the commit is given, and the check for
         // upstream commits in it reads every upstream the splice names.
         repo.select_paths(Kind::Explicit, "merge")?;
-        refuse_pending(&repo.monorepo_branch.clone(), &repo.selected.clone())?;
+        refuse_pending(&repo.monorepo_branch.clone())?;
         if repo.args.all || repo.selected.len() != 1 {
             return die("--rebuilt-commit takes exactly one splice");
         }
@@ -797,7 +797,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
     repo.select_splices(Kind::Explicit, "merge")?;
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
-    refuse_pending(&branch, &selected)?;
+    refuse_pending(&branch)?;
     repo.merge_paths(&branch, "merge", &selected)?;
     Ok(0)
 }

@@ -23,7 +23,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
     repo.select_splices(Kind::Explicit, "pull")?;
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
-    refuse_pending(&branch, &selected)?;
+    refuse_pending(&branch)?;
 
     // Nested splices are pulled one level down, which fetches them there, as
     // their .splice reads after the merges above; with --rebase, they merge

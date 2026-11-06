@@ -108,23 +108,14 @@ pub fn pending_hint(monorepo_branch: &str) -> Option<String> {
     ))
 }
 
-/// Ends the command if one of <paths> is, or is below or above, a splice a
-/// merge through the levels is in progress for.
-pub fn refuse_pending(monorepo_branch: &str, paths: &[String]) -> Res<()> {
-    let pending = pending_levels(monorepo_branch);
-    let blocked = paths.iter().any(|path| {
-        pending.iter().any(|level| {
-            path == level
-                || path.starts_with(&format!("{level}/"))
-                || level.starts_with(&format!("{path}/"))
-        })
-    });
-    if blocked {
-        if let Some(hint) = pending_hint(monorepo_branch) {
-            return die(hint);
-        }
+/// Ends the command while a merge through the levels is in progress on
+/// <monorepo_branch>, for any splice: like Git's own commands during a
+/// rebase, until 'pull --continue' or 'pull --abort' concludes it.
+pub fn refuse_pending(monorepo_branch: &str) -> Res<()> {
+    match pending_hint(monorepo_branch) {
+        Some(hint) => die(hint),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 /// <line> with each mention of the splice at <inner>, as a word of its own,
@@ -351,7 +342,7 @@ impl Repo {
                 "{outermost} has uncommitted changes, which a {verb} through the levels wouldn't see -- commit or stash them first"
             ));
         }
-        refuse_pending(branch, &[path.to_string()])?;
+        refuse_pending(branch)?;
 
         // What each level's worktree stands in for, as a clone of its
         // upstream would be: on the branch the monorepo's branch maps to,
