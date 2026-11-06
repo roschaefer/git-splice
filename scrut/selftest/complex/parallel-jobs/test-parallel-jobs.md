@@ -92,8 +92,16 @@ $ WAIT_SECONDS=30 "$SCRUT_BIN" test --jobs 2 --renderer yaml --match-markdown "*
 ```scrut
 $ "$SCRUT_BIN" test --jobs 2 --work-directory "$TMPDIR" --match-markdown "*.mdtest" \
 >   "$TESTDIR/first.mdtest" 2>&1
-* ERROR scrut: Error: --jobs greater than 1 can't be combined with --work-directory (glob)
+* ERROR scrut: Error: --work-directory can't be combined with running documents in parallel (--jobs 2 or more) (glob)
 [1]
+```
+
+With `--jobs 1`, the documents run one after another, so they can share it:
+
+```scrut
+$ "$SCRUT_BIN" test --jobs 1 --work-directory "$TMPDIR" --match-markdown "*.mdtest" \
+>   "$TESTDIR/second.mdtest"
+Result: 1 document(s) with 1 testcase(s): 1 succeeded, 0 failed and 0 skipped
 ```
 
 ## update runs one document after another
