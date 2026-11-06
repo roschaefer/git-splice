@@ -128,6 +128,15 @@ fn names_commit(message: &str, named: &str) -> bool {
         .any(|hash| named.starts_with(hash))
 }
 
+/// Whether a line of <message> starts with <label>, a `:` or a space, and
+/// names commit <named> by hash: `git-subtree-mainline: <hash>`.
+fn names_commit_on_line(message: &str, label: &str, named: &str) -> bool {
+    message.lines().any(|line| {
+        line.strip_prefix(label)
+            .is_some_and(|rest| rest.starts_with([':', ' ']) && names_commit(rest, named))
+    })
+}
+
 /// Whether subject <subject> is labelled <label>: all of it, or its start up
 /// to a colon.
 fn subject_has_label(subject: &str, label: &str) -> bool {
@@ -1279,13 +1288,18 @@ impl<'a> Checker<'a> {
                     self.errors.push(format!("a message arrow ({}) doesn't join two commits: draw it from a commit to the one its message names", cell.id));
                 } else {
                     let (cs, ct) = (self.commit(s), self.commit(t));
-                    if !cs.is_empty()
-                        && !ct.is_empty()
-                        && !names_commit(&self.git.message(&cs), &ct)
-                    {
-                        self.errors.push(format!(
-                            "{vs}'s message doesn't name {vt}: point the message arrow at the commit it names"
-                        ));
+                    let label = cell.value.trim();
+                    if !cs.is_empty() && !ct.is_empty() {
+                        let message = self.git.message(&cs);
+                        if !names_commit(&message, &ct) {
+                            self.errors.push(format!(
+                                "{vs}'s message doesn't name {vt}: point the message arrow at the commit it names"
+                            ));
+                        } else if !label.is_empty() && !names_commit_on_line(&message, label, &ct) {
+                            self.errors.push(format!(
+                                "{vs}'s message names {vt}, but not on a line {label}: label the message arrow with the line's start"
+                            ));
+                        }
                     }
                 }
                 continue;
@@ -1298,6 +1312,11 @@ impl<'a> Checker<'a> {
                     ));
                     continue;
                 };
+                let label = cell.value.trim();
+                let short_key = key.rsplit('.').next().unwrap_or(key);
+                if !label.is_empty() && label != short_key {
+                    self.errors.push(format!("a config arrow ({}) is labelled {label}, not {short_key}: label it with its key", cell.id));
+                }
                 if source_kind != Some(Kind::Commit) || target_kind != Some(Kind::Commit) {
                     self.errors.push(format!("a config arrow ({}) doesn't join two commits: draw it from a commit to the one its {file} names", cell.id));
                 } else {

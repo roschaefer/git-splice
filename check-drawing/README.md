@@ -111,10 +111,11 @@ does.
   commit to the commit that the config file <file>, as of that commit,
   names under <key>, e.g. `config=vendor/lib/.gitrepo:subrepo.parent`
   for the monorepo commit `git-subrepo` recorded last. Drawn like a
-  message arrow, and labelled with the key.
+  message arrow. A label is the key's last part, e.g. `parent`.
 - **Message arrow**: an arrow styled `message=1` points from a commit to
   one its message names by hash, e.g. the `git-subtree-mainline:` line
-  of a `git subtree split --rejoin`.
+  of a `git subtree split --rejoin`. A label is the start of the line
+  that names it, e.g. `git-subtree-mainline`.
 - **Box**: points at the commit its label names: H, B, T or R, U(x),
   the commit *x*'s `.splice` records, where *x* is H, B or a drawn commit, or
   a branch by its name: in a box on a monorepo commit, the monorepo's,
