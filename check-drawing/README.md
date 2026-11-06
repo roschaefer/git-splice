@@ -178,6 +178,17 @@ does.
   - Filled grey, `#E0E0E0`, if the legend has a grey sample: a monorepo
     commit on the first-parent history since B, which the rebuild walks.
     Every other commit is white.
+  - Outlined blue, `#0070E0`, if the legend has a blue sample: a pull
+    the drawing shows, the other way, at any level, so a pulled commit
+    can be followed out through the splices around it. That's each drawn
+    commit whose `.splice` for a splice inside it records another synced
+    commit than its first parent's, and the upstream commits that brought
+    in: in the new synced commit's history but not the old one's, or all
+    of it after an `init`, which recorded none. A commit that adds a
+    `.splice`, like a clone's, records no pull, and a copy of the
+    monorepo's own commit, which a push sent and a pull brought back,
+    didn't come in with one. A commit that is orange too can't show
+    both: the drawing's legend has to drop one of the two samples.
   - Without the color's sample, every commit is outlined black and white
     inside.
     In a drawing without splices, e.g. of what `git subtree` makes,
@@ -232,6 +243,10 @@ What no drawing has needed yet, it doesn't handle:
   the monorepo and later drops one of them.
 - **Old sync points**: a commit reachable only from an earlier `.splice`
   value is found by its label only when given as `<label>=<rev>`.
+- **Pulls next to a move**: blue compares each `.splice` with its
+  parent's at the same path, so a commit that moves or swaps splice
+  folders reads as a pull, and a pull in the same commit as a move goes
+  unseen.
 
 ## Tests
 
