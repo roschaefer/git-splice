@@ -155,7 +155,7 @@ Uppercase *X* is a variable, *mount* a term, **b** bold, `*c*` code.
 ```
 
 <!--
-```scrut
+```text
 $ check_drawing x.drawio.svg  # *e* in a hidden block
 ```
 -->
@@ -180,7 +180,7 @@ $ check_drawing x.drawio.svg  # *e* in a hidden block
     #[test]
     fn a_code_block_shows_the_labels_that_start_a_subject() {
         let page = r#"
-```scrut
+```text
 $ git commit -q -m "m: reorganize folders"
 $ git log --graph --format=%s
 * b: feature change
@@ -191,7 +191,7 @@ seed
 Inline `c: not a block`.
 
 <!--
-```scrut
+```text
 $ git log --format=%s
 d: hidden
 ```
