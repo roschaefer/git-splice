@@ -63,8 +63,9 @@ add b
 a seed
 ```
 
-A worktree can't have `main` checked out too, so `--branch` names the
-inner upstream's branch. The conflict comes up in this repository:
+`pull` reads the upstream branch named like the current one, and `b`'s
+upstream has no `layer/a`, so `--branch` names its `main`. The conflict
+comes up in this repository:
 
 ```scrut
 $ git splice pull --branch main b
