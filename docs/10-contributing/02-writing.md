@@ -99,10 +99,11 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
   block (`<!--` … `-->`): it keeps the drawing true, but a reader
   learns nothing from it. Only a page that explains the check itself,
   like its `--alias`, shows it.
-- Each checked drawing appears at least once next to a block that
-  checks it, with only prose between: right after the code that builds
-  its state, so the reader sees the commands, then what they made. Any
-  page may show it elsewhere too, at the top or on a concept page.
+- Each checked drawing appears at least once where it shows the current
+  state: next to a block that checks it, with only prose between. The
+  check runs on the state at that point, so a picture there can't show
+  an earlier or later one. Any page may show it elsewhere too, at the
+  top or on a concept page.
   [`check-drawing placement`](../../check-drawing/) checks this.
 - A drawing with a legend says what the next rebuild does with a
   commit: an orange outline (`#E07000`) for a change it carries across,

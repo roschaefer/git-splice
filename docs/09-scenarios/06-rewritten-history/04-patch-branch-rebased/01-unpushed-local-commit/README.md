@@ -36,12 +36,6 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 $ build_scenario scenario_unpushed_local_commit
 ```
 
-<div align="center">
-
-![The monorepo's a and b; R is b prime on top of q, the old patches; T is n, the rebased ones](unpushed-local-commit.drawio.svg)
-
-</div>
-
 <!--
 ```scrut
 $ q="$(git config --file vendor/a/.splice splice.commit)"
@@ -52,6 +46,12 @@ $ check_drawing "$TESTDIR/unpushed-local-commit.drawio.svg" b=HEAD q="$q" n=refs
 ok   unpushed-local-commit.drawio.svg: 8 commits, 12 arrows, 6 boxes, 1 lanes
 ```
 -->
+
+<div align="center">
+
+![The monorepo's a and b; R is b prime on top of q, the old patches; T is n, the rebased ones](unpushed-local-commit.drawio.svg)
+
+</div>
 
 ```scrut
 $ git splice status

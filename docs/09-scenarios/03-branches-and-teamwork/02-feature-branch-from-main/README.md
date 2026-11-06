@@ -34,7 +34,19 @@ $ check_drawing "$TESTDIR/feature-branch-before-switch.drawio.svg" \
 >   a=HEAD k=refs/splices/upstream/heads/main
 ok   feature-branch-before-switch.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
 ```
+-->
 
+`feature` came about as in the
+[feature branches guide](../../../02-using-git-splice/README.md). It
+started on `main`, with no `feature` branch upstream:
+
+<div align="center">
+
+![The monorepo and the splice upstream each have only a main branch](feature-branch-before-switch.drawio.svg)
+
+</div>
+
+<!--
 ```scrut
 $ git switch -q -c feature
 ```
@@ -44,7 +56,17 @@ $ check_drawing "$TESTDIR/feature-branch-before-change.drawio.svg" \
 >   a=HEAD k=refs/splices/upstream/heads/main
 ok   feature-branch-before-change.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
 ```
+-->
 
+It was created at `main`:
+
+<div align="center">
+
+![The monorepo's new feature branch starts at main, while the splice upstream still has only main](feature-branch-before-change.drawio.svg)
+
+</div>
+
+<!--
 ```scrut
 $ git reset -q --hard "$changed"
 ```
@@ -56,13 +78,13 @@ ok   feature-branch-from-main.drawio.svg: 4 commits, 5 arrows, 3 boxes, 1 lanes
 ```
 -->
 
-`feature` started at `main`, with no `feature` branch upstream, and
-then got *b*, as in the
-[feature branches guide](../../../02-using-git-splice/README.md):
+Then it got *b*:
 
-| On `main` | `feature` created | After *b* |
-|---|---|---|
-| ![The monorepo and the splice upstream each have only a main branch](feature-branch-before-switch.drawio.svg) | ![The monorepo's new feature branch starts at main, while the splice upstream still has only main](feature-branch-before-change.drawio.svg) | ![The monorepo's main branch at a and feature branch at b, and the upstream's main at k with b prime ready for a feature branch](feature-branch-from-main.drawio.svg) |
+<div align="center">
+
+![The monorepo's main branch at a and feature branch at b, and the upstream's main at k with b prime ready for a feature branch](feature-branch-from-main.drawio.svg)
+
+</div>
 
 ```scrut
 $ git splice status

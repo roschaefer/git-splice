@@ -34,12 +34,6 @@ $ source "$TESTDIR/../../readme-setup.sh"
 $ build_scenario scenario_upstream_rewritten_equal_tree
 ```
 
-<div align="center">
-
-![The monorepo's a records r, the old release on top of k; T is w, the rewritten release, a root commit of its own](upstream-rewritten-equal-tree.drawio.svg)
-
-</div>
-
 <!--
 ```scrut
 $ r="$(git config --file vendor/a/.splice splice.commit)"
@@ -50,6 +44,12 @@ $ check_drawing "$TESTDIR/upstream-rewritten-equal-tree.drawio.svg"
 ok   upstream-rewritten-equal-tree.drawio.svg: 4 commits, 4 arrows, 3 boxes, 1 lanes
 ```
 -->
+
+<div align="center">
+
+![The monorepo's a records r, the old release on top of k; T is w, the rewritten release, a root commit of its own](upstream-rewritten-equal-tree.drawio.svg)
+
+</div>
 
 ```scrut
 $ git -C "$UPSTREAM" log --format=%s main

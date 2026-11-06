@@ -80,10 +80,10 @@ check-drawing/check-drawing placement <page>...
 ```
 
 checks that every drawing a `check_drawing` call on the pages checks is
-shown next to one of its checks at least once: an image of it and a
-block that checks it, hidden or not, with only prose between. Any other
-code block, hidden or not, may change the state, so it comes between
-them. `just docs-check` runs it over the README and `docs/`.
+shown at least once where it shows the current state: an image of it
+next to a block that checks it, hidden or not, with only prose between.
+Any other code block, hidden or not, may change the state, so it counts
+as one that does. `just docs-check` runs it over the README and `docs/`.
 
 ## Requirements
 

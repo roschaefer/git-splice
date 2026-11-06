@@ -1,8 +1,8 @@
 //! `check-drawing placement`: checks that every drawing a `check_drawing`
 //! block checks is shown next to such a block, with only prose between the
-//! image and the block. The check runs on the state the code above it
-//! built, so an image there shows that state, right after the commands that
-//! made it.
+//! image and the block: a place where the drawing shows the current state.
+//! The check runs on the state at that point, so an image there can't show
+//! an earlier or later one.
 
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use std::collections::{BTreeMap, BTreeSet};
@@ -68,13 +68,18 @@ pub fn read_blocks(markdown: &str, folder: &Path) -> Vec<Block> {
             }
             Event::End(TagEnd::CodeBlock) | Event::End(TagEnd::HtmlBlock) if depth == 1 => {
                 depth -= 1;
-                let checked = checked_drawings(&code, folder);
+                let text = code.trim();
+                // A hidden block holds code blocks of its own, each a step.
+                if let Some(hidden) = text.strip_prefix("<!--") {
+                    let inner = hidden.rfind("-->").map_or(hidden, |end| &hidden[..end]);
+                    blocks.extend(read_blocks(inner, folder));
+                    continue;
+                }
+                let checked = checked_drawings(text, folder);
                 if !checked.is_empty() {
                     blocks.push(Block::Check(checked));
-                } else if is_layout(&code) {
-                } else if code.trim_start().starts_with("<!--")
-                    || !code.trim_start().starts_with('<')
-                {
+                } else if is_layout(text) {
+                } else if !text.starts_with('<') {
                     blocks.push(Block::Code);
                 } else {
                     blocks.push(Block::Prose(Vec::new()));
@@ -261,8 +266,52 @@ $ q="$(git rev-parse HEAD)"
     }
 
     #[test]
+    fn code_between_checks_in_one_hidden_block_counts_as_code() {
+        let page = r#"
+<!--
+```text
+$ check_drawing "$TESTDIR/x.drawio.svg"
+```
+
+```text
+$ git switch -q -c feature
+```
+
+```text
+$ check_drawing "$TESTDIR/y.drawio.svg"
+```
+-->
+
+![x](x.drawio.svg) ![y](y.drawio.svg)
+"#;
+        assert_eq!(
+            placed(&blocks(page)),
+            BTreeSet::from([path("docs/page/y.drawio.svg")])
+        );
+    }
+
+    #[test]
+    fn a_hidden_block_without_code_is_no_code() {
+        let page = r#"
+![x](x.drawio.svg)
+
+<!-- a note for the authors -->
+
+<!--
+```text
+$ check_drawing "$TESTDIR/x.drawio.svg"
+```
+-->
+"#;
+        assert_eq!(
+            placed(&blocks(page)),
+            BTreeSet::from([path("docs/page/x.drawio.svg")])
+        );
+    }
+
+    #[test]
     fn a_check_of_another_drawing_places_nothing() {
-        let page = "![x](x.drawio.svg)\n\n<!--\n$ check_drawing \"$TESTDIR/y.drawio.svg\"\n-->\n";
+        let page = "![x](x.drawio.svg)\n\n<!--\n```text\n$ check_drawing \"$TESTDIR/y.drawio.svg\"\n```\n-->\n";
         assert_eq!(placed(&blocks(page)), BTreeSet::new());
     }
 }
