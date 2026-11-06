@@ -60,11 +60,7 @@ $ monorepo="$PWD" s="$(git rev-parse HEAD~1)" c="$(git rev-parse HEAD)" &&
 >   k="$(git config --file vendor/a/.splice splice.commit)" &&
 >   l="$(git config --file vendor/a/b/.splice splice.commit)" &&
 >   n="$(git config --file vendor/a/b/c/.splice splice.commit)" &&
->   u="$(git rev-parse refs/splices/c/heads/main)" &&
->   levels() {
->     (cd "$monorepo" && check_drawing "$TESTDIR/levels-$1.drawio.svg" \
->       s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" "${@:2}")
->   }
+>   u="$(git rev-parse refs/splices/c/heads/main)"
 ```
 -->
 
@@ -81,7 +77,8 @@ moved on, to *u*:
 
 <!--
 ```scrut
-$ levels before
+$ check_drawing "$TESTDIR/levels-before.drawio.svg" \
+>   s="$s" c="$c" k="$k" l="$l" n="$n" u="$u"
 ok   levels-before.drawio.svg: 9 commits, 13 arrows, 8 boxes, 3 lanes
 ```
 -->
@@ -119,7 +116,9 @@ the monorepo that no upstream has, so their boxes are dashed:
 
 <!--
 ```scrut
-$ levels worktrees
+$ (cd "$monorepo" &&
+>   check_drawing "$TESTDIR/levels-worktrees.drawio.svg" \
+>     s="$s" c="$c" k="$k" l="$l" n="$n" u="$u")
 ok   levels-worktrees.drawio.svg: 9 commits, 15 arrows, 10 boxes, 3 lanes
 ```
 -->
@@ -163,7 +162,9 @@ changed:
 
 <!--
 ```scrut
-$ levels pulled-below p=layer/b
+$ (cd "$monorepo" &&
+>   check_drawing "$TESTDIR/levels-pulled-below.drawio.svg" \
+>     s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" p=layer/b)
 ok   levels-pulled-below.drawio.svg: 10 commits, 16 arrows, 10 boxes, 3 lanes
 ```
 -->
@@ -192,7 +193,9 @@ splice: pull c from main at 68ea527
 
 <!--
 ```scrut
-$ levels merged-into-a p=layer/b q=layer/a
+$ (cd "$monorepo" &&
+>   check_drawing "$TESTDIR/levels-merged-into-a.drawio.svg" \
+>     s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" p=layer/b q=layer/a)
 ok   levels-merged-into-a.drawio.svg: 11 commits, 17 arrows, 10 boxes, 3 lanes
 ```
 -->
@@ -220,7 +223,8 @@ and the monorepo both go on from the rebuild:
 
 <!--
 ```scrut
-$ levels monorepo-moved-on a="$(git rev-parse HEAD)" p=layer/b q=layer/a
+$ check_drawing "$TESTDIR/levels-monorepo-moved-on.drawio.svg" \
+>   s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" a="$(git rev-parse HEAD)" p=layer/b q=layer/a
 ok   levels-monorepo-moved-on.drawio.svg: 13 commits, 19 arrows, 10 boxes, 3 lanes
 ```
 -->
@@ -250,7 +254,8 @@ merge of *c'* and *u*, which `.splice` records now:
 
 <!--
 ```scrut
-$ levels merged-into-monorepo a="$(git rev-parse HEAD~1)" m="$(git rev-parse HEAD)" p=layer/b q=layer/a
+$ check_drawing "$TESTDIR/levels-merged-into-monorepo.drawio.svg" \
+>   s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" a="$(git rev-parse HEAD~1)" m="$(git rev-parse HEAD)" p=layer/b q=layer/a
 ok   levels-merged-into-monorepo.drawio.svg: 16 commits, 22 arrows, 9 boxes, 3 lanes
 ```
 -->
@@ -311,7 +316,8 @@ merge took its changes, not the commit:
 
 <!--
 ```scrut
-$ levels pushed a="$(git rev-parse HEAD~1)" m="$(git rev-parse HEAD)" p=layer/b q=layer/a
+$ check_drawing "$TESTDIR/levels-pushed.drawio.svg" \
+>   s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" a="$(git rev-parse HEAD~1)" m="$(git rev-parse HEAD)" p=layer/b q=layer/a
 ok   levels-pushed.drawio.svg: 16 commits, 22 arrows, 9 boxes, 3 lanes
 ```
 -->
