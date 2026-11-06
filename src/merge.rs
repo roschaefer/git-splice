@@ -122,6 +122,16 @@ impl Repo {
                     log_warn(format!("{path}: {}", self.missing_synced_message(path)));
                     return Err(Fail::Soft);
                 }
+                // The pull fetched only the upstream it pulls from.
+                if self.several_upstreams(path) {
+                    log_err(format!(
+                        "{path}: its synced commit {} isn't on {}, the upstream this pull fetched -- 'git splice fetch {}' fetches every upstream",
+                        short(&self.c.synced),
+                        self.name_of(path),
+                        shell_quote(path)
+                    ));
+                    return Err(Fail::Soft);
+                }
                 log_err(format!(
                     "{path}: its synced commit {} isn't on its upstream any more",
                     short(&self.c.synced)

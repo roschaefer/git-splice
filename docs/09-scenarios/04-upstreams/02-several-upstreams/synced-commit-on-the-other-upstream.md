@@ -1,13 +1,11 @@
 # Synced commit on the other upstream
 
-A pull merges from the synced commit, so it needs that commit. In a
-fresh clone it has only what the pull fetches. Here the monorepo last
-pulled a release from the original, then made the company fork its
-default upstream, and the fork doesn't have the release. A pull that
-fetched only the fork found no synced commit, and said the two
-histories were [unrelated](../../06-rewritten-history/03-diverged-unrelated-history/README.md),
-though they share the seed. So a pull whose synced commit isn't here
-fetches every upstream of the splice, and finds it on the original.
+A pull merges from the synced commit, so it needs that commit, and it
+fetches only the upstream it pulls from. Here the monorepo last pulled a
+release from the original, then made the company fork its default
+upstream, and the fork doesn't have the release. In a fresh clone, a
+pull from the fork can't find the synced commit, and says so.
+`git splice fetch` fetches every upstream, and the next pull merges.
 
 ## Output
 
@@ -97,12 +95,28 @@ $ git cat-file -e "$(git config --file vendor/a/.splice splice.commit)"
 [1]
 ```
 
-The pull fetches the original too, finds *r* there, and joins the fork's
-patch with it:
+A pull fetches only the fork, which lacks *r*:
 
 ```scrut
 $ git splice pull vendor/a
+ok   vendor/a fetched from fork
+!!   vendor/a: its synced commit 3fd09f0 isn't on fork, the upstream this pull fetched -- 'git splice fetch vendor/a' fetches every upstream
+!!   Failed: vendor/a
+[1]
+```
+
+`fetch` fetches every upstream, the original with *r* too:
+
+```scrut
+$ git splice fetch vendor/a
 ok   vendor/a fetched from origin
+ok   vendor/a fetched from fork
+```
+
+Now the pull joins the fork's patch with *r*:
+
+```scrut
+$ git splice pull vendor/a
 ok   vendor/a fetched from fork
 ok   vendor/a: pulled 9bf41c7
 ```
