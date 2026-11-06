@@ -650,12 +650,14 @@ plain_history() {
   [ "${lines[0]}" = "!!   q isn't a commit of the monorepo, which has no splices" ]
 }
 
-# plain_history, with e's message naming a, and a message arrow from e to
-# the commit given.
+# plain_history, with e's message naming a, on a line split-from:, and b,
+# and a message arrow from e to the commit given, labelled <label>.
 message_arrow() {
+  local label="${2:-}"
   plain_history
-  git commit -q --amend --allow-empty -m e -m "Up to $(git rev-parse --short HEAD~5) already split."
-  sed -i "s#</root>#<mxCell id=\"m\" parent=\"1\" edge=\"1\" source=\"e\" target=\"$1\" style=\"dashed=1;message=1;\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
+  git commit -q --amend --allow-empty -m e -m "split-from: $(git rev-parse --short HEAD~5)
+Up to $(git rev-parse --short HEAD~3) already split."
+  sed -i "s#</root>#<mxCell id=\"m\" parent=\"1\" edge=\"1\" source=\"e\" target=\"$1\" value=\"$label\" style=\"dashed=1;message=1;\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
 }
 
 @test "drawing: a message arrow points at a commit the message names by its hash" {
@@ -665,11 +667,25 @@ message_arrow() {
   [ "$output" = "ok   plain.drawio: 7 commits, 8 arrows, 1 boxes" ]
 }
 
-@test "drawing: a message arrow at a commit the message doesn't name" {
-  message_arrow b
+@test "drawing: a message arrow's label is the start of the line that names its commit" {
+  message_arrow a split-from
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   plain.drawio: 7 commits, 8 arrows, 1 boxes" ]
+}
+
+@test "drawing: a message arrow labelled with a line that names another commit" {
+  message_arrow b split-from
   run check_drawing "$drawing" --alias HEAD=H q=lib
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   e's message doesn't name b: point the message arrow at the commit it names" ]
+  [ "$output" = "!!   e's message names b, but not on a line split-from: label the message arrow with the line's start" ]
+}
+
+@test "drawing: a message arrow at a commit the message doesn't name" {
+  message_arrow c
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   e's message doesn't name c: point the message arrow at the commit it names" ]
 }
 
 @test "drawing: a message arrow joins two commits" {
@@ -677,6 +693,52 @@ message_arrow() {
   run check_drawing "$drawing" --alias HEAD=H q=lib
   [ "$status" -eq 1 ]
   [ "$output" = "!!   a message arrow (m) doesn't join two commits: draw it from a commit to the one its message names" ]
+}
+
+# plain_history, with e's state.ini naming the commit given as its own
+# value, and a config arrow from e to <target>.
+config_arrow() {
+  local named="$1" target="$2" style="${3:-dashed=1;config=state.ini:state.last;}" label="${4:-}"
+  plain_history
+  git config --file state.ini state.last "$(git rev-parse "$named")"
+  git add state.ini
+  git commit -q --amend --no-edit
+  sed -i "s#</root>#<mxCell id=\"m\" parent=\"1\" edge=\"1\" source=\"e\" target=\"$target\" value=\"$label\" style=\"$style\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
+}
+
+@test "drawing: a config arrow points at the commit a committed file names" {
+  config_arrow HEAD~5 a
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   plain.drawio: 7 commits, 8 arrows, 1 boxes" ]
+}
+
+@test "drawing: a config arrow at a commit the file doesn't name" {
+  config_arrow HEAD~5 b
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   e's state.ini doesn't name b as state.last: point the config arrow at the commit it names" ]
+}
+
+@test "drawing: a config arrow labelled with its key" {
+  config_arrow HEAD~5 a "dashed=1;config=state.ini:state.last;" last
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   plain.drawio: 7 commits, 8 arrows, 1 boxes" ]
+}
+
+@test "drawing: a config arrow labelled with another key" {
+  config_arrow HEAD~5 a "dashed=1;config=state.ini:state.last;" first
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a config arrow (m) is labelled first, not last: label it with its key" ]
+}
+
+@test "drawing: a config arrow names its key" {
+  config_arrow HEAD~5 a "dashed=1;config=state.ini;"
+  run check_drawing "$drawing" --alias HEAD=H q=lib
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a config arrow (m) names no key: style it config=<file>:<key>" ]
 }
 
 # Two circles, x and x', with a box that points at x'.
