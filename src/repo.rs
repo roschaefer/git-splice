@@ -482,7 +482,8 @@ impl Repo {
     pub fn empty_tree(&self) -> String {
         self.empty_tree
             .get_or_init(|| {
-                git(&["hash-object", "-t", "tree", "/dev/null"])
+                git(&["hash-object", "-t", "tree", "--stdin"])
+                    .input("")
                     .out()
                     .unwrap_or_default()
             })
