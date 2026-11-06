@@ -150,12 +150,12 @@ $ git splice pull vendor/a/b
 ok   vendor/a/b fetched (main moved ddf42f3..a5da290)
 Auto-merging b/file.txt
 CONFLICT (content): Merge conflict in b/file.txt
-!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
+!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/fb2b0b3ec7fa189a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
 [1]
 ```
 
 ```scrut
-$ git -C .git/splice-layers/main/vendor%a status --short
+$ git -C .git/splice-layers/fb2b0b3ec7fa189a status --short
 M  b/.splice
 UU b/file.txt
 ```
@@ -163,5 +163,5 @@ UU b/file.txt
 The outer upstream's `b/` doesn't come back:
 
 ```scrut
-$ git -C .git/splice-layers/main/vendor%a ls-files b/b
+$ git -C .git/splice-layers/fb2b0b3ec7fa189a ls-files b/b
 ```

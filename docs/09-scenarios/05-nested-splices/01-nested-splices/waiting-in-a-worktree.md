@@ -63,7 +63,7 @@ $ git splice pull vendor/a/b
 ok   vendor/a/b fetched (main moved 11f4ee8..66aab4e)
 Auto-merging b/file.txt
 CONFLICT (content): Merge conflict in b/file.txt
-!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
+!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/fb2b0b3ec7fa189a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
 [1]
 ```
 
@@ -72,13 +72,13 @@ other commands until it's concluded:
 
 ```scrut
 $ git splice push vendor/a/b
-!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
+!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/fb2b0b3ec7fa189a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
 [1]
 ```
 
 ```scrut
 $ git splice pull vendor/a
-!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
+!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/fb2b0b3ec7fa189a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
 [1]
 ```
 

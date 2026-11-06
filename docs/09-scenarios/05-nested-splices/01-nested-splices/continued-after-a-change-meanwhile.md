@@ -53,8 +53,8 @@ $ echo "b meanwhile" >>vendor/a/b/file.txt &&
 ## Resolved one level down, and continued
 
 ```scrut
-$ printf 'b seed\nb local\nb upstream\n' >.git/splice-layers/main/vendor%a/b/file.txt &&
->   git -C .git/splice-layers/main/vendor%a add b/file.txt
+$ printf 'b seed\nb local\nb upstream\n' >.git/splice-layers/fb2b0b3ec7fa189a/b/file.txt &&
+>   git -C .git/splice-layers/fb2b0b3ec7fa189a add b/file.txt
 ```
 
 ```scrut

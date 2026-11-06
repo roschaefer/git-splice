@@ -74,7 +74,7 @@ git commit-tree --no-gpg-sign 5f5ab219661c5dba1f8904855aaa5867a97f2dc9 -p bde416
 git rev-parse --verify --quiet 'refs/splices/lib/heads/main^{commit}'
 git merge-base --is-ancestor bde416459fbcc09c9b585f3b65a94cab3f68bfcd 0fd98a6c01e5ee8559e8c043c4593ed9d8dd6271
 git rev-list --left-right --count 0fd98a6c01e5ee8559e8c043c4593ed9d8dd6271...refs/splices/lib/heads/main
-git for-each-ref '--format=%(refname)' refs/heads/splice-layer/main/
+git for-each-ref '--format=%(refname:short)' refs/heads/splice-layer/
 git config --get-colorbool color.status false
 ```
 

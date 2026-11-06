@@ -40,21 +40,20 @@ type Stand = (String, String);
 
 const PREFIX: &str = "splice-layer";
 
-/// The monorepo branch as part of a ref name: one level, so the splice's path
-/// can follow it.
-fn branch_part(monorepo_branch: &str) -> String {
-    monorepo_branch.replace('/', "%")
+/// A level's name, for its branch and its worktree's folder: generated from
+/// the monorepo branch and the splice's path, so neither has to fit into a
+/// ref or folder name. The level's config keeps both, for pending_levels.
+fn level_name(monorepo_branch: &str, path: &str) -> String {
+    let id = git(&["hash-object", "--stdin"])
+        .input(format!("{monorepo_branch}\0{path}\0"))
+        .out()
+        .unwrap_or_default();
+    id[..id.len().min(16)].to_string()
 }
 
-/// The temporary branch the worktree of the splice at <path> is on. The path
-/// is one part of it: a branch can't be named like a folder of another, as
-/// vendor/a would be for vendor/a/b.
+/// The temporary branch the worktree of the splice at <path> is on.
 fn layer_branch(monorepo_branch: &str, path: &str) -> String {
-    format!(
-        "{PREFIX}/{}/{}",
-        branch_part(monorepo_branch),
-        path.replace('/', "%")
-    )
+    format!("{PREFIX}/{}", level_name(monorepo_branch, path))
 }
 
 /// Where the worktree of the splice at <path> is: inside the repository's Git
@@ -65,9 +64,8 @@ fn layer_dir(monorepo_branch: &str, path: &str) -> Res<String> {
         return die("can't find the repository's Git directory");
     };
     Ok(format!(
-        "{common}/splice-layers/{}/{}",
-        branch_part(monorepo_branch),
-        path.replace('/', "%")
+        "{common}/splice-layers/{}",
+        level_name(monorepo_branch, path)
     ))
 }
 
@@ -79,15 +77,18 @@ pub fn pending_levels(monorepo_branch: &str) -> Vec<String> {
     if std::env::var_os(BRANCH_VARIABLE).is_some() {
         return Vec::new();
     }
-    let prefix = format!("refs/heads/{PREFIX}/{}/", branch_part(monorepo_branch));
-    let mut paths: Vec<String> = git(&["for-each-ref", "--format=%(refname)", &prefix])
+    let prefix = format!("refs/heads/{PREFIX}/");
+    let mut paths: Vec<String> = git(&["for-each-ref", "--format=%(refname:short)", &prefix])
         .out()
         .unwrap_or_default()
         .lines()
-        .filter_map(|reference| {
-            reference
-                .strip_prefix(&prefix)
-                .map(|path| path.replace('%', "/"))
+        .filter_map(|name| {
+            let get = |key: &str| {
+                git(&["config", "--get", &format!("branch.{name}.{key}")])
+                    .q()
+                    .out()
+            };
+            (get("spliceMonorepoBranch")? == monorepo_branch).then(|| get("splicePath"))?
         })
         .collect();
     paths.sort_by_key(|path| (path.matches('/').count(), path.clone()));
@@ -272,6 +273,16 @@ fn stand_section(monorepo_branch: &str, path: &str) -> String {
 
 fn record_stand(monorepo_branch: &str, level: &str, (branch, default): &Stand) {
     let section = stand_section(monorepo_branch, level);
+    git(&[
+        "config",
+        &format!("{section}.spliceMonorepoBranch"),
+        monorepo_branch,
+    ])
+    .q()
+    .run();
+    git(&["config", &format!("{section}.splicePath"), level])
+        .q()
+        .run();
     git(&["config", &format!("{section}.spliceStandsFor"), branch])
         .q()
         .run();

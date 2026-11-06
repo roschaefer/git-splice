@@ -195,7 +195,7 @@ swap_splice_files() {
   seed_bare_repo "$upstream" "a moves on"
   run splice pull vendor/a/b
   [ "$status" -ne 0 ]
-  layer="$(git rev-parse --git-common-dir)/splice-layers/main/vendor%a"
+  layer="$(layer_of vendor/a)"
   [ "$(git -C "$layer" diff --name-only --diff-filter=U)" = "b/file.txt" ]
   [ -z "$(git -C "$layer" ls-files b/b)" ]
 }
@@ -883,6 +883,13 @@ order_of() {
   [ "$(splice_state vendor/a/b)" = "up-to-date" ]
 }
 
+# The worktree of the level of splice $1 on main, named by a hash of both,
+# as the code names it: neither has to fit into a folder name.
+layer_of() {
+  printf '%s/splice-layers/%s' "$(git rev-parse --git-common-dir)" \
+    "$(printf 'main\0%s\0' "$1" | git hash-object --stdin | cut -c1-16)"
+}
+
 # b's upstream and the monorepo change b's file, and the pull of b
 # conflicts, one level down: in the worktree of a's rebuild, $layer_a.
 pull_of_b_conflicts() {
@@ -890,14 +897,14 @@ pull_of_b_conflicts() {
   seed_bare_repo "$upstream_b" "b upstream"
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
-  layer_a="$(git rev-parse --git-common-dir)/splice-layers/main/vendor%a"
+  layer_a="$(layer_of vendor/a)"
   run splice pull vendor/a/b
 }
 
 @test "nested: a pull of b that conflicts leaves the conflict in a worktree of a's rebuild, and the monorepo's working tree as it was" {
   pull_of_b_conflicts
   [ "$status" -eq 1 ]
-  [[ "$output" == *"a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')"* ]]
+  [[ "$output" == *"a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/$(basename "$layer_a"), 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')"* ]]
   [ "$(git -C "$layer_a" diff --name-only --diff-filter=U)" = "b/file.txt" ]
   [ -z "$(git status --short)" ]
   [ "$(git log -1 --format=%s)" = "b local" ]
@@ -932,6 +939,25 @@ pull_of_b_conflicts() {
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
   [ ! -e "$layer_a" ]
+  [ -z "$(git branch --list 'splice-layer/*')" ]
+}
+
+@test "nested: a pull through the levels and its --continue work for a splice whose folder has a % in its name" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  git mv vendor/a 'vendor/a%2Fx'
+  git commit -q -m "move a"
+  run splice pull 'vendor/a%2Fx/b'
+  [ "$status" -eq 1 ]
+  layer_a="$(sed -n "s/.*resolve the conflict in \(.*\), 'git add' it there.*/\1/p" <<<"$output" | head -1)"
+  [ -d "$layer_a" ]
+  printf 'b seed\nb local\nb upstream\n' >"$layer_a/b/file.txt"
+  git -C "$layer_a" add b/file.txt
+  run splice pull --continue
+  [ "$status" -eq 0 ]
+  [ "$(splice_config 'vendor/a%2Fx/b' commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
   [ -z "$(git branch --list 'splice-layer/*')" ]
 }
 
@@ -1012,7 +1038,7 @@ pull_of_b_conflicts() {
   cd "$monorepo"
   run splice pull vendor/a/b/c
   [ "$status" -eq 1 ]
-  layer_b="$(git rev-parse --git-common-dir)/splice-layers/main/vendor%a%b"
+  layer_b="$(layer_of vendor/a/b)"
   [ "$(git -C "$layer_b" diff --name-only --diff-filter=U)" = "c/file.txt" ]
   printf 'c seed\nc local\nc upstream\n' >"$layer_b/c/file.txt"
   git -C "$layer_b" add c/file.txt

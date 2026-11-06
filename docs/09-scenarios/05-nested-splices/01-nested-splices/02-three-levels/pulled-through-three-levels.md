@@ -44,7 +44,7 @@ $ git splice pull vendor/a/b/c
 ok   vendor/a/b/c fetched (main moved 0bfc154..68ea527)
 Auto-merging c/file.txt
 CONFLICT (content): Merge conflict in c/file.txt
-!!   a merge through the levels waits in the worktree of vendor/a/b -- resolve the conflict in .git/splice-layers/main/vendor%a%b, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
+!!   a merge through the levels waits in the worktree of vendor/a/b -- resolve the conflict in .git/splice-layers/d4f300173e760f89, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
 [1]
 ```
 
@@ -57,7 +57,7 @@ $ git worktree list | wc -l
 ```
 
 ```scrut
-$ git -C .git/splice-layers/main/vendor%a%b status --short
+$ git -C .git/splice-layers/d4f300173e760f89 status --short
 M  c/.splice
 UU c/file.txt
 ```
@@ -65,8 +65,8 @@ UU c/file.txt
 ## Resolved, and continued
 
 ```scrut
-$ printf 'c seed\nc local\nc upstream\n' >.git/splice-layers/main/vendor%a%b/c/file.txt &&
->   git -C .git/splice-layers/main/vendor%a%b add c/file.txt
+$ printf 'c seed\nc local\nc upstream\n' >.git/splice-layers/d4f300173e760f89/c/file.txt &&
+>   git -C .git/splice-layers/d4f300173e760f89 add c/file.txt
 ```
 
 ```scrut

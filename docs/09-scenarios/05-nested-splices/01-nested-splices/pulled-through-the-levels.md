@@ -47,14 +47,14 @@ $ git splice pull vendor/a/b
 ok   vendor/a/b fetched (main moved 11f4ee8..66aab4e)
 Auto-merging b/file.txt
 CONFLICT (content): Merge conflict in b/file.txt
-!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
+!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/fb2b0b3ec7fa189a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
 [1]
 ```
 
 The conflict is in the worktree, at `b/file.txt`:
 
 ```scrut
-$ git -C .git/splice-layers/main/vendor%a status --short
+$ git -C .git/splice-layers/fb2b0b3ec7fa189a status --short
 M  b/.splice
 UU b/file.txt
 ```
@@ -70,22 +70,22 @@ $ git status --short
 $ git splice status
 On branch main
 
-  a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
+  a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/fb2b0b3ec7fa189a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
   ahead 1, behind 1  vendor/a/b
   ahead 1            vendor/a
 ```
 
 ```scrut
 $ git splice push vendor/a/b
-!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/main/vendor%a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
+!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/fb2b0b3ec7fa189a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
 [1]
 ```
 
 ## Resolved, and continued
 
 ```scrut
-$ printf 'b seed\nb local\nb upstream\n' >.git/splice-layers/main/vendor%a/b/file.txt &&
->   git -C .git/splice-layers/main/vendor%a add b/file.txt
+$ printf 'b seed\nb local\nb upstream\n' >.git/splice-layers/fb2b0b3ec7fa189a/b/file.txt &&
+>   git -C .git/splice-layers/fb2b0b3ec7fa189a add b/file.txt
 ```
 
 ```scrut
