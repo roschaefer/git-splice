@@ -4,12 +4,6 @@ The monorepo's `feature` branch has a commit that its `main` lacks. Upstream
 protects its `main`, say, so changes only go in through a PR from another
 branch.
 
-<div align="center">
-
-![The monorepo's main branch at a and feature branch at b, and the upstream's main at k with b prime ready for a feature branch](feature-branch-from-main.drawio.svg)
-
-</div>
-
 The splice didn't change on `feature`, but `feature` has *b*, which
 upstream's `main` lacks. That's what counts, as for a PR: `push` creates
 `feature` upstream with it, ready for one (#150).
@@ -40,7 +34,19 @@ $ check_drawing "$TESTDIR/feature-branch-before-switch.drawio.svg" \
 >   a=HEAD k=refs/splices/upstream/heads/main
 ok   feature-branch-before-switch.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
 ```
+-->
 
+`feature` came about as in the
+[feature branches guide](../../../02-using-git-splice/README.md). It
+started on `main`, with no `feature` branch upstream:
+
+<div align="center">
+
+![The monorepo and the splice upstream each have only a main branch](feature-branch-before-switch.drawio.svg)
+
+</div>
+
+<!--
 ```scrut
 $ git switch -q -c feature
 ```
@@ -50,7 +56,17 @@ $ check_drawing "$TESTDIR/feature-branch-before-change.drawio.svg" \
 >   a=HEAD k=refs/splices/upstream/heads/main
 ok   feature-branch-before-change.drawio.svg: 2 commits, 2 arrows, 2 boxes, 1 lanes
 ```
+-->
 
+It was created at `main`:
+
+<div align="center">
+
+![The monorepo's new feature branch starts at main, while the splice upstream still has only main](feature-branch-before-change.drawio.svg)
+
+</div>
+
+<!--
 ```scrut
 $ git reset -q --hard "$changed"
 ```
@@ -61,6 +77,14 @@ $ check_drawing "$TESTDIR/feature-branch-from-main.drawio.svg" \
 ok   feature-branch-from-main.drawio.svg: 4 commits, 5 arrows, 3 boxes, 1 lanes
 ```
 -->
+
+Then it got *b*:
+
+<div align="center">
+
+![The monorepo's main branch at a and feature branch at b, and the upstream's main at k with b prime ready for a feature branch](feature-branch-from-main.drawio.svg)
+
+</div>
 
 ```scrut
 $ git splice status
@@ -87,6 +111,12 @@ $ git splice push vendor/a
 ??   vendor/a: upstream has no 'feature' branch yet -- this push creates it
 ok   vendor/a: pushed e859a6b to feature
 ```
+
+<div align="center">
+
+![The monorepo's main branch at a and feature branch at b, and the upstream's main at k and new feature branch at b prime](feature-branch-after-push.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

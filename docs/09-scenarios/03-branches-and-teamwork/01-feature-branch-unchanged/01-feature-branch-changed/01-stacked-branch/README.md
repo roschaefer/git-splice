@@ -4,12 +4,6 @@ A branch stacked on a feature branch that upstream already has, and the
 splice didn't change on the stacked branch: *b* was pushed to `feature`,
 and *c*, on `stacked`, changes nothing in `vendor/a/`.
 
-<div align="center">
-
-![The monorepo's a, b and c; the upstream's k on main and b prime on feature; R is b prime, and there is no T](stacked-branch.drawio.svg)
-
-</div>
-
 Upstream has no `stacked` branch, so `git-splice` compares with
 upstream's default branch, as a PR from `stacked` would. `main` lacks
 *b'*, so the splice counts as new, and `push` creates `stacked` upstream at *b'*, the
@@ -32,6 +26,12 @@ $ source "$TESTDIR/../../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_stacked_branch
 ```
+
+<div align="center">
+
+![The monorepo's a, b and c; the upstream's k on main and b prime on feature; R is b prime, and there is no T](stacked-branch.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

@@ -5,12 +5,6 @@ sends the unpushed commit with its own message and author. The move
 changes no file inside the folder, so it doesn't reach the upstream at
 all.
 
-<div align="center">
-
-![After the move m: the monorepo commits a, b and m, where m is H and a is B; in the lane libs/a/, R is b prime on top of k, and m has no copy](moved-with-unpushed-commits.drawio.svg)
-
-</div>
-
 `push` rebuilds the commits that changed the splice's folder. It follows
 the folder through the move, by the splice's id, and rebuilds the commits
 from before it under the old path. The move commit *m* leaves `.splice`
@@ -48,6 +42,12 @@ Someone else reorganizes the folders:
 $ git mv vendor/a libs/a &&
 >   git -c user.name=Mover -c user.email=mover@example.com commit -q -m "m: reorganize folders"
 ```
+
+<div align="center">
+
+![After the move m: the monorepo commits a, b and m, where m is H and a is B; in the lane libs/a/, R is b prime on top of k, and m has no copy](moved-with-unpushed-commits.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

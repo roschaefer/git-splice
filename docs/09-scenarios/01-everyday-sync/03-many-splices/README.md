@@ -1,13 +1,7 @@
 # Scenario: many-splices
 
 A monorepo with five splices, each in a different state, on the
-monorepo's default branch:
-
-<div align="center">
-
-![Monorepo commits a to g, and one lane per splice: cli up to date, http behind by m and n, parser ahead by f prime, store diverged with o and g prime, theme up to date](many-splices.drawio.svg)
-
-</div>
+monorepo's default branch.
 
 `status` gives every splice a line. Those that need something come first,
 most urgent first: diverged, then behind, then ahead. Those with nothing
@@ -33,6 +27,12 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_many_splices
 ```
+
+<div align="center">
+
+![Monorepo commits a to g, and one lane per splice: cli up to date, http behind by m and n, parser ahead by f prime, store diverged with o and g prime, theme up to date](many-splices.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

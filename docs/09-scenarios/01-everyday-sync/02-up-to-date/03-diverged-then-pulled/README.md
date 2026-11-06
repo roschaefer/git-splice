@@ -2,13 +2,7 @@
 
 Both sides changed different files, then upstream's change was pulled in.
 The local change is still waiting to be pushed. *b* adds `local.txt`,
-*l* adds `upstream.txt`, and the pull, *e*, merged cleanly:
-
-<div align="center">
-
-![The monorepo commits a, b and the pull e, with B at a; upstream k and l, T; the rebuild b prime on top of k, and e prime, R, a merge of b prime and l](diverged-then-pulled.drawio.svg)
-
-</div>
+*l* adds `upstream.txt`, and the pull, *e*, merged cleanly.
 
 The pull's folder differs from *l*, the commit it records: it contains
 `local.txt`. So B stays at the clone, and the push rebuilds the pull as
@@ -27,6 +21,12 @@ $ source "$TESTDIR/../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_diverged_then_pulled
 ```
+
+<div align="center">
+
+![The monorepo commits a, b and the pull e, with B at a; upstream k and l, T; the rebuild b prime on top of k, and e prime, R, a merge of b prime and l](diverged-then-pulled.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

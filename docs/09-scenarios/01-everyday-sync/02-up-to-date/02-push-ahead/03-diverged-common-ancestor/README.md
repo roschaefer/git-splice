@@ -2,12 +2,6 @@
 
 Both sides changed the same line since the clone.
 
-<div align="center">
-
-![The monorepo commit a clones the upstream commit k, then b changes the folder; the upstream has l on top of k, T, and the rebuild b prime on top of k, R, dashed](diverged.drawio.svg)
-
-</div>
-
 ## Output
 
 <!--
@@ -21,6 +15,12 @@ $ source "$TESTDIR/../../../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_diverged_common_ancestor
 ```
+
+<div align="center">
+
+![The monorepo commit a clones the upstream commit k, then b changes the folder; the upstream has l on top of k, T, and the rebuild b prime on top of k, R, dashed](diverged.drawio.svg)
+
+</div>
 
 <!--
 ```scrut

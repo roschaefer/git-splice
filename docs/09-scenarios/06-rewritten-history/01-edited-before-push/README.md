@@ -6,13 +6,7 @@ pushed with `git splice push --rebuilt-commit`. R is computed from the
 monorepo's history, which still has the original commit, so a `pull`
 right after the push records the edited commit as the synced commit. From there on, the monorepo
 builds on the edited commit. Here, *b*'s message is
-`fix, see INTERNAL-123`:
-
-<div align="center">
-
-![The monorepo's a and b, the upstream's k, and R, the rebuilt b prime on top of k](edited-before-push.drawio.svg)
-
-</div>
+`fix, see INTERNAL-123`.
 
 The recipe edits *b'*:
 
@@ -83,6 +77,12 @@ $ source "$TESTDIR/../../readme-setup.sh"
 ```scrut
 $ build_scenario scenario_edited_before_push
 ```
+
+<div align="center">
+
+![The monorepo's a and b, the upstream's k, and R, the rebuilt b prime on top of k](edited-before-push.drawio.svg)
+
+</div>
 
 <!--
 ```scrut
