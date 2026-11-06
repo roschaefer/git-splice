@@ -1113,6 +1113,29 @@ impl Repo {
         Ok(key)
     }
 
+    /// Removes the key of an upstream that was never fetched: merge takes a
+    /// key as a sign the upstream was fetched here.
+    pub fn forget_upstream_key(&mut self, key: &str) -> Res<()> {
+        let _lock = self.lock_upstream_keys()?;
+        if !git(&[
+            "config",
+            "--local",
+            "--unset-all",
+            &format!("splice.{key}.url"),
+        ])
+        .ok()
+        {
+            return die(format!(
+                "couldn't remove the key {key} of an upstream that wasn't fetched"
+            ));
+        }
+        if let Some(url) = self.url_of_key.remove(key) {
+            self.key_of_url.remove(&url);
+        }
+        self.keys.retain(|_, k| k != key);
+        Ok(())
+    }
+
     /// Rereads the keys under a lock taken for a rename.
     pub fn reread_upstream_keys(&mut self) -> Res<()> {
         self.reload_upstream_keys()

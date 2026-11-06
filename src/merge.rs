@@ -83,6 +83,15 @@ impl Repo {
                 ));
             }
             State::MissingBranch => {
+                // Its URL was never fetched here, e.g. in a fresh clone, or one
+                // a merge above just named: merge can't tell whether upstream
+                // has the branch.
+                if self.key_of(path).is_empty() {
+                    log_warn(format!(
+                        "{path}: not fetched yet -- run 'git splice fetch {option}{path}' first"
+                    ));
+                    return Err(Fail::Soft);
+                }
                 if self.branch_arg_applies(path) {
                     return fail(format!(
                         "{path}: upstream has no '{label}' branch, which --branch names"
@@ -113,6 +122,20 @@ impl Repo {
                     log_warn(format!("{path}: {}", self.missing_synced_message(path)));
                     return Err(Fail::Soft);
                 }
+                // The pull fetched only the upstream it pulls from.
+                if self.several_upstreams(path) {
+                    log_err(format!(
+                        "{path}: its synced commit {} isn't on {}, the upstream this pull fetched -- 'git splice fetch {}' fetches every upstream",
+                        short(&self.c.synced),
+                        self.name_of(path),
+                        shell_quote(path)
+                    ));
+                    return Err(Fail::Soft);
+                }
+                log_err(format!(
+                    "{path}: its synced commit {} isn't on its upstream any more",
+                    short(&self.c.synced)
+                ));
                 self.print_unrelated_history_guidance(path);
                 return Err(Fail::Soft);
             }

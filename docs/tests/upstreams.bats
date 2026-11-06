@@ -399,3 +399,25 @@ add_upstream() {
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a/.splice has no id" ]
 }
+
+@test "upstreams: in a fresh clone, pull says a synced commit only the other upstream has isn't on the one it fetched, and fetch gets it" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "origin only" main other.txt
+  cd "$monorepo"
+  splice pull vendor/a
+  add_upstream vendor/a fork "$fork" fork
+  git clone -q --no-local "$monorepo" "$BATS_TEST_TMPDIR/fresh"
+  cd "$BATS_TEST_TMPDIR/fresh"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  synced="$(splice_config vendor/a commit)"
+  run splice pull vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"fetched from origin"* ]]
+  [[ "$output" == *"!!   vendor/a: its synced commit ${synced:0:7} isn't on fork, the upstream this pull fetched -- 'git splice fetch vendor/a' fetches every upstream"* ]]
+  [[ "$output" != *"pick a side"* ]]
+  splice fetch vendor/a
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$(git -C "$fork" rev-parse main)" ]
+}

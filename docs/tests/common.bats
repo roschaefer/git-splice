@@ -200,9 +200,20 @@ four" ]
   [[ "$output" == *"git splice clone -- "*" -foo"* ]]
 }
 
+# Fetches with URL $1 standing for an empty local repository: none of these
+# URLs is real, and only a fetch that succeeds keeps the key it records.
+fetch_fake_url() {
+  local url="$1"
+  shift
+  [ -d "$BATS_TEST_TMPDIR/empty.git" ] || git init -q --bare "$BATS_TEST_TMPDIR/empty.git"
+  GIT_CONFIG_COUNT=1 \
+    GIT_CONFIG_KEY_0="url.$BATS_TEST_TMPDIR/empty.git.insteadOf" \
+    GIT_CONFIG_VALUE_0="$url" \
+    splice fetch "$@"
+}
+
 # Commits splice k naming upstream URL $1 and sets UPSTREAM_KEY to the key
-# `git splice fetch` records for it. The fetch fails after that, as no
-# protocol is allowed: none of these URLs is real.
+# `git splice fetch` records for it.
 record_upstream_key() {
   local output
   mkdir -p k
@@ -210,7 +221,7 @@ record_upstream_key() {
   git config --file k/.splice upstream.origin.url "$1"
   git add k/.splice
   git commit -q --allow-empty -m "k names $1"
-  output="$(GIT_ALLOW_PROTOCOL=none splice fetch k 2>&1)" || true
+  output="$(fetch_fake_url "$1" k 2>&1)" || true
   UPSTREAM_KEY="$(splice key k 2>/dev/null)" || {
     printf '%s\n' "$output"
     return 1
@@ -509,7 +520,7 @@ assert_candidates() {
   cd "$monorepo"
   git config --file vendor/a/.splice upstream.origin.url $'/srv/a\nb.git'
   git commit -q -am "newline in the URL"
-  GIT_ALLOW_PROTOCOL=none splice fetch vendor/a >/dev/null 2>&1 || true
+  fetch_fake_url $'/srv/a\nb.git' vendor/a >/dev/null 2>&1 || true
   [ "$(git config --local "splice.$(splice key vendor/a).url")" = $'/srv/a\nb.git' ]
 }
 

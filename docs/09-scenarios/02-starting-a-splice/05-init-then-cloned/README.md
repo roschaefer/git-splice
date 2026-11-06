@@ -3,8 +3,8 @@
 > **Known bug, [#11](https://github.com/roschaefer/git-splice/issues/11).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../08-known-bugs.md).
 
 A splice made by `init` was published, and a colleague clones the
-monorepo. Until the clone fetches, `status`, `merge`, `log` and `diff`
-treat the upstream as empty, though it has commits. This is a known bug,
+monorepo. Until the clone fetches, `status`, `log` and `diff` treat the
+upstream as empty, though it has commits. This is a known bug,
 [#11](https://github.com/roschaefer/git-splice/issues/11).
 
 - **Monorepo (`lib/a/`)**: a fresh clone of a monorepo in which `lib/a/` was
@@ -74,11 +74,15 @@ $ git splice log
 < f0fcdd0 splice: init lib/a  (Test <test@example.com>)
 ```
 
-`merge` finds nothing to merge:
+`merge` doesn't: it never fetches, so it can't tell an empty upstream
+from one it hasn't fetched, and says so, even after a
+[failed first fetch](first-fetch-failed.md):
 
 ```scrut
 $ git splice merge lib/a
-ok   lib/a: upstream has no 'main' branch -- nothing to merge
+??   lib/a: not fetched yet -- run 'git splice fetch lib/a' first
+!!   Failed: lib/a
+[1]
 ```
 
 `diff` shows the whole folder as a change to push:
