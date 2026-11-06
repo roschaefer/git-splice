@@ -135,7 +135,7 @@ upstream branch anyway:
 </div>
 
 Use it sparingly: on a feature branch, a bump can conflict
-([bumping the sync point](../04-advanced-workflows/03-bump.md#when-not-to-bump)).
+([bumping the sync point](../04-advanced-workflows/05-bump.md#when-not-to-bump)).
 
 ### `--rebase`
 
@@ -170,7 +170,7 @@ instead of being merged with them:
 
 </div>
 
-[Rebasing a feature branch](../04-advanced-workflows/01-rebase-feature-branch/README.md) compares it
+[Rebasing a feature branch](../04-advanced-workflows/README.md) compares it
 with the other ways to get there.
 
 ### `--no-fork-point`

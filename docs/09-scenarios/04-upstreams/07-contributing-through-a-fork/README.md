@@ -1,6 +1,6 @@
 # Scenario: contributing-through-a-fork
 
-The whole [contributing through a fork](../../../04-advanced-workflows/02-fork.md)
+The whole [contributing through a fork](../../../04-advanced-workflows/04-fork.md)
 workflow, step by step: the monorepo pushes two changes to the fork's
 `patches`, the fork gives each its own pull request branch, the original
 moves on, and then takes one of the pull requests.

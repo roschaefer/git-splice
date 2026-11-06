@@ -41,7 +41,7 @@ last pull. The bump *f* changes it to *e'*
     conflicts. Rebase the library's `feature` onto its `main` and pull
     on `feature`, then merge. For a library you don't maintain, that
     branch is in your company's fork of it
-    ([contributing through a fork](02-fork.md)).
+    ([contributing through a fork](04-fork.md)).
   - If the monorepo merges `feature` before that, `main`'s `.splice`
     names the pull request's commit. Once the library deletes the
     branch, a new clone of the monorepo can't fetch that commit.
