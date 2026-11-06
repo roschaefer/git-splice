@@ -13,6 +13,14 @@ impl Style {
         format!(";{};", self.0).contains(&format!(";{entry};"))
     }
 
+    /// The value of its entry <key>, e.g. `vendor/a/.gitrepo:subrepo.parent`
+    /// for `config=vendor/a/.gitrepo:subrepo.parent`.
+    pub fn value(&self, key: &str) -> Option<&str> {
+        self.0
+            .split(';')
+            .find_map(|entry| entry.strip_prefix(key)?.strip_prefix('='))
+    }
+
     /// Whether it's a legend's: `legend=1`, or `legend=full` for one that
     /// also explains what the central legend does.
     pub fn is_legend(&self) -> bool {
