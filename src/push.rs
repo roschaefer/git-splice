@@ -254,20 +254,6 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
 
-    // Pushes to the same host share one SSH connection.
-    let control = Temp::new();
-    if std::fs::create_dir(&control.path).is_err() {
-        return die("can't create a folder for SSH connections");
-    }
-    let ssh = std::env::var("GIT_SSH_COMMAND").unwrap_or_else(|_| "ssh".to_string());
-    std::env::set_var(
-        "GIT_SSH_COMMAND",
-        format!(
-            "{ssh} -o ControlMaster=auto -o ControlPersist=60s -o ControlPath={}/%r@%h:%p",
-            control.str()
-        ),
-    );
-
     // Bottom-up: a splice's push publishes the .splice files below it, which
     // should point at what their own pushes published.
     let paths = splices_in_order(true, &selected);
