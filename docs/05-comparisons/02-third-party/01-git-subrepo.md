@@ -275,18 +275,18 @@ ok   vendor/lib: pushed 5069701 to main
 ```
 
 `push` records nothing in the monorepo. The library gets *f'*, a copy of
-*f* with only the folder's change, and the last sync is still *c*, the
-boundary:
+*f* with only the folder's change, and the last sync is still *c*: B, the
+[boundary](../../03-concepts/02-sync-model.md#where-b-is):
 
 <div align="center">
 
-![The monorepo's c and f on main; BOUNDARY points at c and HEAD at f; below, the library's k and f prime, with main at f prime](git-subrepo-splice-pushed.drawio.svg)
+![The monorepo's c and f on main; B points at c and HEAD at f; below, the library's k and f prime, with main at f prime](git-subrepo-splice-pushed.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/git-subrepo-splice-pushed.drawio.svg" --alias HEAD=H --alias BOUNDARY=B \
+$ check_drawing "$TESTDIR/git-subrepo-splice-pushed.drawio.svg" --alias HEAD=H \
 >   c=HEAD~1 f=HEAD k=refs/splices/lib/heads/main~1
 ok   git-subrepo-splice-pushed.drawio.svg: 4 commits, 5 arrows, 3 boxes
 ```
@@ -325,20 +325,20 @@ library's `feature`:
 
 <div align="center">
 
-![The monorepo's c, f and s on main, and g and h on the feature branch, which starts at f; BOUNDARY points at c, HEAD at s; below, the library's k, f prime, g prime and h prime, with main at f prime and feature at h prime](git-subrepo-splice.drawio.svg)
+![The monorepo's c, f and s on main, and g and h on the feature branch, which starts at f; B points at c, HEAD at s; below, the library's k, f prime, g prime and h prime, with main at f prime and feature at h prime](git-subrepo-splice.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/git-subrepo-splice.drawio.svg" --alias HEAD=H --alias BOUNDARY=B \
+$ check_drawing "$TESTDIR/git-subrepo-splice.drawio.svg" --alias HEAD=H \
 >   c=HEAD~2 f=HEAD~1 s=HEAD g=feature~1 h=feature k=refs/splices/lib/heads/main~1
 ok   git-subrepo-splice.drawio.svg: 9 commits, 11 arrows, 4 boxes
 ```
 -->
 
-`main` syncs with `main` again. The boundary is the newest commit that
-changed `.splice`, here *c*: it comes from the history, not from a stored
+`main` syncs with `main` again. B is the newest commit that changed
+`.splice`, here *c*: it comes from the history, not from a stored
 commit, so a squash merge can't strand it. The next push sends the
 squashed commit and the new one:
 
