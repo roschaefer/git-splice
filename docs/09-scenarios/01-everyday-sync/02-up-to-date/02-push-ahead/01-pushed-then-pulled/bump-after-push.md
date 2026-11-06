@@ -146,7 +146,7 @@ ok   vendor/a: bumped the synced commit to 8b60a90
 
 *c* is the first bump, *d* (`later change`) was pushed as *d'*, *e*
 (`unpushed change`) wasn't, and *f* is this bump. *b'* is the rebuild of
-the first push's *b* (`local change`):
+the first push, `local change`:
 
 <div align="center">
 

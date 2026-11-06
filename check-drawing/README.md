@@ -59,6 +59,20 @@ An alias works inside `U(…)` too: `U(boundary)` is U(B). Without
 Sourced, the file defines the function `check_drawing`, with the same
 arguments.
 
+### Labels in the prose
+
+```sh
+check-drawing/check-drawing labels <page>...
+```
+
+checks that each Markdown page shows every commit its prose names in
+italics, *k* or *b'*: a circle in a drawing the page embeds has the
+label, or a code block on the page shows a subject starting `k: `. An
+italic that starts with a capital, *X*, is a variable, and a word,
+*mount*, a term; neither is checked. Code and hidden blocks
+(`<!--` … `-->`) name nothing. `just docs-check` runs it over the
+README and `docs/`.
+
 ## Requirements
 
 - Git, and `just build` run in this checkout: it builds the checker, the

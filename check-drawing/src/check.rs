@@ -303,7 +303,7 @@ impl<'a> Checker<'a> {
             if legends.contains(cell.id.as_str()) {
                 continue;
             }
-            if legends.contains(cell.parent.as_str()) {
+            if self.d.in_legend(cell) {
                 if cell.style.is_ellipse() {
                     self.legend_samples.push(i);
                 }

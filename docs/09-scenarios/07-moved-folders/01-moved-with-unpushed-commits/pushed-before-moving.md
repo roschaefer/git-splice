@@ -42,7 +42,7 @@ A commit after the move:
 
 ```scrut
 $ echo "after the move" >>libs/a/file.txt &&
->   git commit -q -a -m "after the move"
+>   git commit -q -a -m "c: after the move"
 ```
 
 `push` wrote nothing to `.splice`, so its synced commit is still *k*,
@@ -52,12 +52,26 @@ upstream's `main` moves forward:
 
 ```scrut
 $ git splice push libs/a
-ok   libs/a: pushed cb9d713 to main
+ok   libs/a: pushed ff42743 to main
 ```
+
+<div align="center">
+
+![The monorepo commits a, b, the move m and c, where c is H and a is B; in the lane libs/a/, k is U(H) and U(B), b prime on top of it, and c prime on top of b prime, which is T and R; m has no copy](pushed-after-the-move.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/pushed-after-the-move.drawio.svg" \
+>   a=HEAD~3 b=HEAD~2 k=refs/splices/upstream/heads/main~2
+ok   pushed-after-the-move.drawio.svg: 7 commits, 9 arrows, 4 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git -C "$UPSTREAM" log --format='%s  (%an)' main
-after the move  (Test)
+c: after the move  (Test)
 local change  (Test)
 seed  (Test)
 ```

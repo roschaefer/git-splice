@@ -185,6 +185,13 @@ impl Diagram {
         x >= ox && x + c.width <= ox + o.width && y >= oy && y + c.height <= oy + o.height
     }
 
+    /// Whether <cell> is a sample in a legend, a shape styled `legend=1`
+    /// that explains the drawing's marks: no commit, box or text.
+    pub fn in_legend(&self, cell: &Cell) -> bool {
+        self.index_of(&cell.parent)
+            .is_some_and(|parent| self.cells[parent].style.has("legend=1"))
+    }
+
     pub fn center_x(&self, cell: usize) -> f64 {
         self.absolute(cell).0 + self.cells[cell].width / 2.0
     }

@@ -144,7 +144,7 @@ ok   lib: pulled df79a48
 
 </div>
 
-A box U(x) points at the commit recorded in *x*'s `.splice`. After the
+A box U(X) points at the commit recorded in *X*'s `.splice`. After the
 pull in the drawing:
 
 - The pull commit *e* records *n*, so U(H) = *n*.

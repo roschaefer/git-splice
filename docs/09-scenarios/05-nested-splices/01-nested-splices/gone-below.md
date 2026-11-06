@@ -26,15 +26,14 @@ $ build_scenario scenario_nested_splices https://git.example.com/b.git
 
 ## The inner upstream deletes a change the outer upstream has
 
-A change in the inner upstream, *c* (`b change`), on top of *m*
-(`b seed`):
+A change in the inner upstream, `b change`:
 
 ```scrut
 $ seed_bare_repo "$UPSTREAM-b.git" "b change" main other.txt >/dev/null 2>&1
 ```
 
 In a clone of the outer upstream, `b/` pulls it, and the outer upstream
-gets it as *n*, on top of *k* (`a seed`) and *l* (`add b`):
+gets the pull:
 
 ```scrut
 $ git clone -q "$UPSTREAM" ../a-work &&
@@ -46,7 +45,7 @@ ok   b fetched
 ok   b: pulled 95165ad
 ```
 
-The inner upstream drops *c* again:
+The inner upstream drops `b change` again:
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" update-ref refs/heads/main refs/heads/main^
@@ -61,8 +60,8 @@ $ git -C "$UPSTREAM-b.git" reflog expire --expire=now --all &&
 
 ## The first pull fails
 
-The pull of `vendor/a/` moves `vendor/a/b/` to *c*, which the inner
-upstream doesn't have any more:
+The pull of `vendor/a/` moves `vendor/a/b/` to `b change`, which the
+inner upstream doesn't have any more:
 
 ```scrut
 $ git splice pull vendor/a
