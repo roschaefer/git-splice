@@ -48,13 +48,30 @@ $ cat vendor/lib/.gitrepo
 	cmdver = 0.4.9
 ```
 
-You fix the library and use the fix in the app, in one commit, and push:
+You fix the library and use the fix in the app, in one commit, *f*.
+`parent` in `.gitrepo` still names *a*, the commit before the clone *c*:
 
 ```scrut
 $ echo "fix" >>vendor/lib/src/parse.txt &&
 >   echo "call parse()" >>app/main.txt &&
 >   git commit -q -a -m "fix parse() and call it"
 ```
+
+<div align="center">
+
+![The monorepo's a, c and f on main; HEAD points at f, and parent at a](git-subrepo-before-push.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/git-subrepo-before-push.drawio.svg" --alias HEAD=H \
+>   a=HEAD~2 c=HEAD~1 f=HEAD parent="$(git config --file vendor/lib/.gitrepo subrepo.parent)"
+ok   git-subrepo-before-push.drawio.svg: 3 commits, 4 arrows, 2 boxes
+```
+-->
+
+Then you push it:
 
 ```scrut
 $ git subrepo push vendor/lib
@@ -84,19 +101,19 @@ $ git log --graph --format=%s -4
 ```
 
 It's *p*, which records in `.gitrepo` the library commit it pushed, and
-as `parent` the monorepo commit it pushed from, the fix *f*:
+moves `parent` to the monorepo commit it pushed from, *f*:
 
 <div align="center">
 
-![The monorepo's c, f and p on main; HEAD points at p, and parent at f](git-subrepo-pushed.drawio.svg)
+![The monorepo's a, c, f and p on main; HEAD points at p, and parent at f](git-subrepo-pushed.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/git-subrepo-pushed.drawio.svg" --alias HEAD=H \
->   c=HEAD~2 f=HEAD~1 p=HEAD parent="$(git config --file vendor/lib/.gitrepo subrepo.parent)"
-ok   git-subrepo-pushed.drawio.svg: 3 commits, 4 arrows, 2 boxes
+>   a=HEAD~3 c=HEAD~2 f=HEAD~1 p=HEAD parent="$(git config --file vendor/lib/.gitrepo subrepo.parent)"
+ok   git-subrepo-pushed.drawio.svg: 4 commits, 5 arrows, 2 boxes
 ```
 -->
 
