@@ -1060,15 +1060,10 @@ impl<'a> Checker<'a> {
     /// first parent's, and the upstream commits each brought in, in the new
     /// synced commit's history but not the old one's, or all of it after an
     /// init, which recorded none. A commit that adds a .splice, like a
-    /// clone's, records no pull. Copies of the monorepo's own commits, which
-    /// came back from a push, weren't brought in.
+    /// clone's, records no pull. Copies of the pulling repository's own
+    /// commits, on its first-parent history, came back from a push, not in
+    /// with the pull.
     fn pulls(&self) -> (HashSet<String>, HashSet<String>) {
-        let own: HashSet<String> = self
-            .git
-            .log_with_copy_keys(&["--first-parent".to_string(), "HEAD".to_string()])
-            .iter()
-            .map(|commit| self.git.copy_key(commit))
-            .collect();
         let (mut pulls, mut brought) = (HashSet::new(), HashSet::new());
         for &cell in &self.commits {
             let commit = self.commit(cell);
@@ -1088,6 +1083,12 @@ impl<'a> Checker<'a> {
                     continue;
                 }
                 pulls.insert(commit.clone());
+                let own: HashSet<String> = self
+                    .git
+                    .log_with_copy_keys(&["--first-parent".to_string(), parent.clone()])
+                    .iter()
+                    .map(|commit| self.git.copy_key(commit))
+                    .collect();
                 let mut range = vec![now];
                 if !before.is_empty() {
                     range.push(format!("^{before}"));
