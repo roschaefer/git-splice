@@ -116,9 +116,9 @@ _git_splice() {
       if [[ "$cmd" == merge ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == merge ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --rebuilt-commit -m --message -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --rebuilt-commit --continue --abort -m --message -h --help
       else
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point -m --message -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --continue --abort -m --message -h --help
       fi
       ;;
     push | status | diff)

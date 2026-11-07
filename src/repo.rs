@@ -446,6 +446,13 @@ pub fn require_no_splice_in_progress() -> Res<()> {
 /// The current local branch; ends the command on detached HEAD, since every
 /// splice syncs with the upstream branch named like the current one.
 pub fn current_branch() -> Res<String> {
+    // In a worktree of a level, the monorepo branch it stands in for.
+    if let Some(branch) = std::env::var(crate::levels::BRANCH_VARIABLE)
+        .ok()
+        .filter(|branch| !branch.is_empty())
+    {
+        return Ok(branch);
+    }
     match git(&["symbolic-ref", "--quiet", "--short", "HEAD"]).out() {
         Some(branch) => Ok(branch),
         None => die("not on a branch (detached HEAD) -- git splice requires a named branch"),
@@ -1219,6 +1226,11 @@ impl Repo {
     pub fn monorepo_default_branch(&self) -> String {
         self.monorepo_default
             .get_or_init(|| {
+                // In a worktree of a level, the default branch of the splice
+                // it stands in for.
+                if let Ok(name) = std::env::var(crate::levels::DEFAULT_VARIABLE) {
+                    return name;
+                }
                 let name = git(&[
                     "symbolic-ref",
                     "--quiet",

@@ -4,13 +4,13 @@
 named `origin`. A splice without one stops the command, before anything
 is pulled.
 
-A pull of the outer splice can change the `.splice` of the inner one,
-and `pull` reads it again right after that merge. If the inner upstream
-is named `fork` at that point, the inner splice fails, and so does the
-middle one, whose pull could change the inner `.splice` again, as
-[a fetch that fails after a merge above](fetch-fails-after-a-merge-above.md)
-does. Here, the middle splice's pull would have named it `origin` again.
-The other splices are still pulled.
+A pull of the outer splice can change the `.splice` of the inner one:
+here it names the inner upstream `fork` for a while, until the middle
+splice's pull names it `origin` again. A nested splice is pulled one
+level down, and reads its `.splice` there, when its own pull starts
+([pulled through the levels](../pulled-through-the-levels.md)). That's
+after the pulls above it, so the inner splice finds `origin` again, and
+all three are pulled.
 
 ## Output
 
@@ -66,50 +66,28 @@ the pull of `vendor/a/`, none after it, and one again after the pull of
 
 ## `pull --all --upstream origin`
 
-Right after the pull of `vendor/a/`, `pull` reads `vendor/a/b/c/.splice`
-again and finds no `origin`. Neither `vendor/a/b/` nor `vendor/a/b/c/`
-is pulled:
+The pull of `vendor/a/` leaves `vendor/a/b/c/` without an `origin`. The
+pull of `vendor/a/b/` names it again, and the pull of `vendor/a/b/c/`
+finds it:
 
 ```scrut
 $ git splice pull --all --upstream origin
 ok   vendor/a fetched (main moved 5bbd8de..217112c)
+ok   vendor/a: pulled 217112c
 ok   vendor/a/b fetched (main moved 8333d5f..ecb9e0e)
 ok   vendor/a/b/c fetched
-ok   vendor/a: pulled 217112c
-!!   vendor/a/b/c has no upstream 'origin' -- its upstream is 'fork'
-!!   vendor/a/b: not pulled, since vendor/a/b/c below it failed
-!!   vendor/a/b/c: not pulled, since its .splice from a merge above failed to load
-!!   Failed: vendor/a/b/c vendor/a/b
-[1]
+ok   vendor/a/b: pulled ecb9e0e
+ok   vendor/a/b/c fetched
+ok   vendor/a/b/c: nothing to pull
 ```
 
 ```scrut
-$ git log -1 --format=%s
+$ git log --format=%s -2
+splice: pull vendor/a/b from main at ecb9e0e
 splice: pull vendor/a from main at 217112c
 ```
 
-A second run stops before it starts, since `vendor/a/b/c/` has no
-`origin` now. Pulling `vendor/a/b/` first gets it back:
-
 ```scrut
-$ git splice pull --all --upstream origin
-!!   no upstream 'origin' in vendor/a/b/c -- name only the splices that have one: vendor/a vendor/a/b
-[1]
-```
-
-```scrut
-$ git splice pull vendor/a/b
-ok   vendor/a/b fetched
-ok   vendor/a/b/c fetched
-ok   vendor/a/b: pulled ecb9e0e
-```
-
-```scrut
-$ git splice pull --all --upstream origin
-ok   vendor/a fetched
-ok   vendor/a/b fetched
-ok   vendor/a/b/c fetched
-ok   vendor/a: nothing to pull
-ok   vendor/a/b: nothing to pull
-ok   vendor/a/b/c: nothing to pull
+$ git config --file vendor/a/b/c/.splice --name-only --get-regexp '^upstream\.'
+upstream.origin.url
 ```

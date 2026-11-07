@@ -78,16 +78,16 @@ ok   same-name-below.drawio.svg: 11 commits, 12 arrows, 6 boxes, 2 lanes, 4 upst
 
 Top-down, as every pull: the outer fork's patch to `b/` first, then the
 inner fork's patch. Since `vendor/a/b/` is selected too, its `fork` is
-the inner fork, and it pulls from that one. It's fetched from both of
-its upstreams, as when it isn't selected: the outer fork may move its
-synced commit to one only the inner upstream has.
+the inner fork, and it pulls from that one, one level down, with its
+`.splice` as the outer fork's pull left it. It's fetched from both of
+its upstreams only if the synced commit that pull moved it to isn't
+here: it may be on the other one.
 
 ```scrut
 $ git splice pull --upstream fork --all
 ok   vendor/a fetched from fork
-ok   vendor/a/b fetched from origin
-ok   vendor/a/b fetched from fork
 ok   vendor/a: pulled 1b1cea6
+ok   vendor/a/b fetched from fork
 ok   vendor/a/b: pulled d5d5b62
 ```
 

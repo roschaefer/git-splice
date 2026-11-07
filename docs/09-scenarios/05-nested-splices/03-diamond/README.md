@@ -189,8 +189,8 @@ by the new `c/` content and `c/.splice`:
 ```scrut
 $ git splice pull a/c b/c
 ok   a/c fetched
-ok   b/c fetched
 ok   a/c: pulled 2f685c3
+ok   b/c fetched
 ok   b/c: pulled 2f685c3
 ```
 

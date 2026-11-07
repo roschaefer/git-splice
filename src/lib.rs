@@ -7,6 +7,7 @@ pub mod diff;
 pub mod fetch;
 pub mod init;
 pub mod key;
+pub mod levels;
 pub mod log;
 pub mod merge;
 pub mod pager;

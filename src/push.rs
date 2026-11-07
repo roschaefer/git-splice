@@ -243,6 +243,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let mut repo = Repo::new(args);
     repo.open()?;
     repo.select_splices(Kind::Explicit, "push")?;
+    crate::levels::refuse_pending(&repo.monorepo_branch.clone())?;
     let rebuilt_commit = repo.args.rebuilt_commit.clone();
     if !rebuilt_commit.is_empty() {
         if repo.args.all || repo.selected.len() != 1 {

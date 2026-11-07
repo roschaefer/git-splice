@@ -15,6 +15,7 @@ SYNOPSIS
     git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
     git splice merge [-m <message>] --rebuilt-commit <commit> <path>
+    git splice merge (--continue | --abort)
 ```
 
 ## Description
@@ -64,6 +65,14 @@ $ git splice merge -h | check-help section options
 
     --all
         Merges every splice.
+
+    --continue
+        Takes a nested merge whose conflict was resolved in its worktree the
+        rest of the way up; see NESTED SPLICES.
+
+    --abort
+        Removes a nested merge's worktrees, and nothing reaches the
+        monorepo; see NESTED SPLICES.
 ```
 
 ### `--upstream`
@@ -276,6 +285,37 @@ $ git splice merge -h | check-help section order
 
 Pulling `vendor/a/` can move the synced commit of `vendor/a/b/`, nested
 in it, so `vendor/a/` goes first ([nesting](../03-concepts/04-nesting.md)).
+
+## Nested splices
+
+```scrut
+$ git splice merge -h | check-help section nested-splices
+    A nested splice is merged one level at a time: the rebuild of each
+    splice above it is checked out in a worktree, inside the repository's
+    Git directory, as the repository that splice comes from, on the branch
+    the monorepo's branch maps to there. The command runs one level down,
+    in the innermost one, as in a clone of that upstream: it reads the
+    splice's .splice there, as the merges above left it, and a pull fetches
+    there. The splice's history, which decides what's new on each side,
+    still comes from the monorepo. 'merge --rebuilt-commit' takes the
+    result up level by level, into the monorepo last. With --rebase, the
+    command one level down rebases instead, and each level above, the
+    monorepo last, puts the pull where it last took the splice below in
+    and replays its own commits on top, with that splice's folder from
+    the level below: a conflict comes up once, one level down. The folder
+    of the outermost splice must have no uncommitted changes, which the
+    worktrees wouldn't see.
+
+    A conflict waits in the worktree it came up in, which 'git splice
+    status' names; the monorepo is free meanwhile. Resolve it there, 'git
+    add' it, then --continue takes the result the rest of the way up; one
+    level up, a change the monorepo made meanwhile can conflict again.
+    --abort removes the worktrees instead, and nothing reaches the
+    monorepo. Until then, pull, merge and push refuse, for every splice,
+    as Git's own commands do during a rebase.
+```
+
+How the levels fit together: [nesting](../03-concepts/04-nesting.md).
 
 ## Conflicts
 

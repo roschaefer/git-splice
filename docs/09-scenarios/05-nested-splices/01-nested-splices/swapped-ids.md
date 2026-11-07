@@ -139,23 +139,29 @@ b/file.txt
 file.txt
 ```
 
-The pull of `vendor/a/b`, the outer upstream's splice now, conflicts on
-`file.txt`, which has the inner upstream's lines here and the outer
-upstream's there. The outer upstream's `b/` doesn't come back:
+The pull of `vendor/a/b`, the outer upstream's splice now, goes one
+level down: into the rebuild of `vendor/a/`, checked out in a worktree,
+the repository `vendor/a/b/` is spliced into. There it conflicts on `file.txt`,
+which has the inner upstream's lines here and the outer upstream's
+there:
 
 ```scrut
 $ git splice pull vendor/a/b
 ok   vendor/a/b fetched (main moved ddf42f3..a5da290)
-Auto-merging vendor/a/b/file.txt
-CONFLICT (content): Merge conflict in vendor/a/b/file.txt
-!!   vendor/a/b: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
-!!   vendor/a/b: pull failed
-!!   Failed: vendor/a/b
+Auto-merging b/file.txt
+CONFLICT (content): Merge conflict in b/file.txt
+!!   a merge through the levels waits in the worktree of vendor/a -- resolve the conflict in .git/splice-layers/fb2b0b3ec7fa189a, 'git add' it there, then 'git splice pull --continue' (or 'git splice pull --abort')
 [1]
 ```
 
 ```scrut
-$ git status --short
-M  vendor/a/b/.splice
-UU vendor/a/b/file.txt
+$ git -C .git/splice-layers/fb2b0b3ec7fa189a status --short
+M  b/.splice
+UU b/file.txt
+```
+
+The outer upstream's `b/` doesn't come back:
+
+```scrut
+$ git -C .git/splice-layers/fb2b0b3ec7fa189a ls-files b/b
 ```

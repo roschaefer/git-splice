@@ -310,7 +310,7 @@ add_upstream() {
   cd "$monorepo"
   run splice pull --all
   [ "$status" -eq 0 ]
-  [ "${lines[3]}" = "ok   vendor/a/b fetched from fork" ]
+  [ "${lines[2]}" = "ok   vendor/a/b fetched from fork" ]
   [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse main)" ]
 }
 
@@ -355,6 +355,28 @@ add_upstream() {
   run splice pull --upstream fork --all
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a/b commit)" = "$(git -C "$BATS_TEST_TMPDIR/upstream-b-fork.git" rev-parse main)" ]
+}
+
+@test "pull --upstream --all: a level above a selected splice below stands for the upstream the command names, not its default" {
+  scenario_outer_fork "$monorepo" "$upstream"
+  local a_fork="${upstream%.git}-fork.git" b_fork="$BATS_TEST_TMPDIR/upstream-b-fork.git" work="$BATS_TEST_TMPDIR/b-fork"
+  # a's fork follows release; b's fork pins nothing, so it follows the
+  # default branch of a's upstream that the command uses.
+  git -C "$a_fork" branch -q release main
+  git clone -q "$b_fork" "$work"
+  git -C "$work" switch -q -c release
+  echo "release only" >"$work/release.txt"
+  git -C "$work" add release.txt
+  git -C "$work" -c user.name=Test -c user.email=test@example.com commit -q -m "b release only"
+  git -C "$work" push -q origin release
+  git -C "$b_fork" branch -q -D main
+  cd "$monorepo"
+  add_upstream vendor/a fork "$a_fork" origin
+  git config --file vendor/a/.splice upstream.fork.default-branch release
+  git commit -q -m "a: fork follows release" -- vendor/a/.splice
+  add_upstream vendor/a/b fork "$b_fork" origin
+  run splice pull --upstream fork --all
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse release)" ]
 }
 
 @test "pull --upstream: a selected splice below gets the synced commit the pull above moves it to, from any of its upstreams" {
@@ -420,4 +442,21 @@ add_upstream() {
   run splice pull vendor/a
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a commit)" = "$(git -C "$fork" rev-parse main)" ]
+}
+
+@test "pull --upstream --branch --track of a splice below tracks the branch for the upstream the command names, not the default one" {
+  scenario_outer_fork "$monorepo" "$upstream"
+  local b_fork="$BATS_TEST_TMPDIR/upstream-b-fork.git" work="$BATS_TEST_TMPDIR/b-fork"
+  git clone -q "$b_fork" "$work"
+  git -C "$work" switch -q -c release
+  echo "release only" >"$work/release.txt"
+  git -C "$work" add release.txt
+  git -C "$work" -c user.name=Test -c user.email=test@example.com commit -q -m "b release only"
+  git -C "$work" push -q origin release
+  cd "$monorepo"
+  add_upstream vendor/a/b fork "$b_fork" origin
+  run splice pull --upstream fork --branch release --track vendor/a/b
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/b: 'main' tracks 'fork/release' from now on"* ]]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse release)" ]
 }

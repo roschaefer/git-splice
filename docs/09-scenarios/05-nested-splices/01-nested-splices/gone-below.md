@@ -69,8 +69,7 @@ ok   vendor/a fetched (main moved *..*) (glob)
 ok   vendor/a/b fetched
 ok   vendor/a: pulled * (glob)
 ok   vendor/a/b fetched
-!!   vendor/a/b: its synced commit 95165ad, from a pull above, isn't on its upstream any more
-!!   Failed: vendor/a/b
+!!   vendor/a/b: its synced commit 95165ad, from the pull above, isn't on its upstream any more
 [1]
 ```
 

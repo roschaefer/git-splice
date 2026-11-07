@@ -454,6 +454,11 @@ impl Repo {
     /// The upstream commit that represents the splice as of monorepo commit
     /// <rev>, or nothing if the splice has no content yet.
     pub fn rebuild_splice(&mut self, path: &str, rev: &str) -> Res<Option<String>> {
+        if rev == "HEAD" {
+            if let Some(given) = crate::levels::given_rebuild(path) {
+                return Ok(Some(given));
+            }
+        }
         Ok(self.rebuild_with_start(path, rev, path)?.0)
     }
 
