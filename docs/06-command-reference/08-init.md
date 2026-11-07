@@ -71,8 +71,8 @@ It works as for [`merge`](04-merge.md#-m).
 
 ```scrut
 $ git splice init -h | check-help option --message-template
-        Gives the commit a message made from <template>; see 'git splice
-        merge --help'.
+        Gives the commit a message made from <template> instead of the
+        default 'splice: init {path}'; see 'git splice merge --help'.
 ```
 
 It works as for [`merge`](04-merge.md#--message-template), with only

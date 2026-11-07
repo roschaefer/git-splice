@@ -2,7 +2,7 @@
 
 use crate::args::parse_args;
 use crate::fetch::{fetch_by_id, fetch_upstream};
-use crate::message::{Message, KNOWN};
+use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -617,10 +617,7 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     let tree = reroot_tree(&path, Some(&folder), Some(&blob), "HEAD").map_err(|_| Fail::Hard)?;
     refuse_monorepo_attributes(&path, &target, &tree)?;
     let message = repo.commit_message(
-        format!(
-            "splice: clone {path} from {upstream_branch} at {}",
-            short(&target)
-        ),
+        message::DEFAULT,
         Message {
             command: "clone",
             path: &path,
@@ -866,7 +863,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         must(git(&["add", "--", &gitmodules]).run())?;
     }
     let message = repo.commit_message(
-        format!("splice: clone {path} from submodule at {}", short(&commit)),
+        message::DEFAULT_FROM_SUBMODULE,
         Message {
             command: "clone",
             path: &path,

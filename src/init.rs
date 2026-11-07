@@ -1,7 +1,7 @@
 //! git splice init.
 
 use crate::args::parse_args;
-use crate::message::Message;
+use crate::message::{self, Message};
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -172,7 +172,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
         files.push((format!("{inner}/{STATE_FILE}"), blob));
     }
     let message = repo.commit_message(
-        format!("splice: init {path}"),
+        message::DEFAULT_INIT,
         Message {
             command: "init",
             path: &path,
