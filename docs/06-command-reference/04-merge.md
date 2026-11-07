@@ -258,7 +258,12 @@ $ git splice merge -h | check-help option --message-template
         literal braces. A placeholder the command has no value for, e.g.
         {old} for clone, stops it before it writes anything. It doesn't go
         with -m, nor with --rebuilt-commit, whose commit keeps the message
-        of the one it merges. Without it, the template is the default:
+        of the one it merges.
+
+        Given neither -m nor --message-template, the commands use the
+        template the git config key splice.messageTemplate sets, also with
+        --global, except merge --rebuilt-commit; without the key, the
+        default:
 
             splice: {command} {path} from {upstream} at {new}
 ```
@@ -289,6 +294,34 @@ chore(deps): merge vendor/pkg-a to 703b936
 
 Unlike `-m`, it takes several splices or `--all`: each commit fills in
 its own values.
+
+To use one template for every commit, set it once:
+
+<!--
+```scrut
+$ git reset -q --hard HEAD~1
+```
+-->
+
+```scrut
+$ git config splice.messageTemplate 'chore(deps): {command} {path} to {new}'
+```
+
+```scrut
+$ git splice merge vendor/pkg-a
+ok   vendor/pkg-a: merged 703b936
+```
+
+```scrut
+$ git log -1 --format=%s
+chore(deps): merge vendor/pkg-a to 703b936
+```
+
+<!--
+```scrut
+$ git config --unset splice.messageTemplate
+```
+-->
 
 ## Upstream branch
 

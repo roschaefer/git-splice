@@ -1451,11 +1451,19 @@ impl Repo {
         }
     }
 
-    /// Loads the template --message-template gives, and ends the command
-    /// before it writes anything if the template is broken or needs a value
-    /// <known> doesn't have (see message::KNOWN).
+    /// Loads the template --message-template gives, else the one
+    /// splice.messageTemplate sets, unless -m gives the message; ends the
+    /// command before it writes anything if the template is broken or needs a
+    /// value <known> doesn't have (see message::KNOWN).
     pub fn require_message_template(&mut self, known: Message) -> Res<()> {
-        let Some(template) = Template::given(&self.args.message_template)? else {
+        if !self.args.message.is_empty() {
+            return Ok(());
+        }
+        let template = match Template::given(&self.args.message_template)? {
+            Some(template) => Some(template),
+            None => Template::configured()?,
+        };
+        let Some(template) = template else {
             return Ok(());
         };
         template.require(&known)?;
@@ -1464,8 +1472,8 @@ impl Repo {
     }
 
     /// The message of the commit a command writes: the one -m gave, else
-    /// --message-template's, else the <default> template's, filled in with
-    /// <message>.
+    /// --message-template's, else splice.messageTemplate's, else the <default>
+    /// template's, filled in with <message>.
     pub fn commit_message(&self, default: &str, message: Message) -> Res<String> {
         if !self.args.message.is_empty() {
             return Ok(self.args.message.clone());

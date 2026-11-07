@@ -130,7 +130,12 @@ OPTIONS
         literal braces. A placeholder the command has no value for, e.g.
         {old} for clone, stops it before it writes anything. It doesn't go
         with -m, nor with --rebuilt-commit, whose commit keeps the message
-        of the one it merges. Without it, the template is the default:
+        of the one it merges.
+
+        Given neither -m nor --message-template, the commands use the
+        template the git config key splice.messageTemplate sets, also with
+        --global, except merge --rebuilt-commit; without the key, the
+        default:
 
             splice: {command} {path} from {upstream} at {new}
 
