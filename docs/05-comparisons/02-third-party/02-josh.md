@@ -85,20 +85,6 @@ $ cd ../monorepo &&
 >   git commit -q -a -m "fix parse() and call it"
 ```
 
-<div align="center">
-
-![The monorepo's a, a stack of app commits, and k, a stack of the library's commits copied, both parents of i; f on top of i, with HEAD](josh-imported.drawio.svg)
-
-</div>
-
-<!--
-```scrut
-$ check_drawing "$TESTDIR/josh-imported.drawio.svg" --alias HEAD=H \
->   a=HEAD~1^1 k=HEAD~1^2 i=HEAD~1 f=HEAD
-ok   josh-imported.drawio.svg: 4 commits, 4 arrows, 1 boxes
-```
--->
-
 Filtered, it's a commit on top of the library's `main`, a fast-forward:
 
 ```scrut
@@ -107,6 +93,21 @@ $ josh-filter ':/vendor/lib' && git log --oneline -2 FILTERED_HEAD
 5069701 fix parse() and call it
 bafd496 lib commit 30
 ```
+
+<div align="center">
+
+![The monorepo's a, a stack of app commits, and k, a stack of the library's commits copied, both parents of i; f on top of i, with HEAD; below, the library as Josh's view: k prime, a stack, and f prime](josh-imported.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ git branch -q -f josh/view FILTERED_HEAD &&
+>   check_drawing "$TESTDIR/josh-imported.drawio.svg" --alias HEAD=H \
+>   a=HEAD~1^1 k=HEAD~1^2 i=HEAD~1 f=HEAD "k'=josh/view~1" "f'=josh/view"
+ok   josh-imported.drawio.svg: 6 commits, 5 arrows, 1 boxes
+```
+-->
 
 ### With `git-splice`: the same commit
 
@@ -205,15 +206,18 @@ $ git log --oneline -5
 
 <div align="center">
 
-![The monorepo's f, a stack, then d, r, e and v in a line, with HEAD at v](josh-release.drawio.svg)
+![The monorepo's f, a stack, then d, r, e and v in a line, with HEAD at v; below, the library as Josh's view: f prime, a stack, then d prime, r prime, e prime and v prime](josh-release.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/josh-release.drawio.svg" --alias HEAD=H \
->   f=HEAD~4 d=HEAD~3 r=HEAD~2 e=HEAD~1 v=HEAD
-ok   josh-release.drawio.svg: 5 commits, 5 arrows, 1 boxes
+$ josh-filter ':/vendor/lib' >/dev/null &&
+>   git branch -q -f josh/view FILTERED_HEAD &&
+>   check_drawing "$TESTDIR/josh-release.drawio.svg" --alias HEAD=H \
+>   f=HEAD~4 d=HEAD~3 r=HEAD~2 e=HEAD~1 v=HEAD \
+>   "f'=josh/view~4" "d'=josh/view~3" "r'=josh/view~2" "e'=josh/view~1" "v'=josh/view"
+ok   josh-release.drawio.svg: 10 commits, 9 arrows, 1 boxes
 ```
 -->
 
@@ -375,7 +379,7 @@ $ git log --oneline --graph -4
 
 <div align="center">
 
-![The monorepo's v, a stack, n on top of it, and w beside n; both are parents of j, with HEAD; below, Josh's view: v prime, a stack, n prime and w prime, merged into j prime](josh-both-moved.drawio.svg)
+![The monorepo's v, a stack, n on top of it, and w beside n; both are parents of j, with HEAD; below, the library as Josh's view: v prime, a stack, n prime and w prime, merged into j prime](josh-both-moved.drawio.svg)
 
 </div>
 
@@ -484,7 +488,7 @@ $ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
 
 <div align="center">
 
-![The monorepo's j, a stack, b and g on main, and o, p and t on parse-options, merged into g, with HEAD; below, Josh's view: j prime, a stack, then o prime and t prime, merged into g prime](josh-view-merged.drawio.svg)
+![The monorepo's j, a stack, b and g on main, and o, p and t on parse-options, merged into g, with HEAD; below, the library as Josh's view: j prime, a stack, then o prime and t prime, merged into g prime](josh-view-merged.drawio.svg)
 
 </div>
 
