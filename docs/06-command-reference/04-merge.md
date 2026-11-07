@@ -258,7 +258,9 @@ $ git splice merge -h | check-help option --message-template
         literal braces. A placeholder the command has no value for, e.g.
         {old} for clone, stops it before it writes anything. It doesn't go
         with -m, nor with --rebuilt-commit, whose commit keeps the message
-        of the one it merges.
+        of the one it merges. Without it, the template is the default:
+
+            splice: {command} {path} from {upstream} at {new}
 ```
 
 A monorepo that uses Conventional Commits can have a merge say so, and

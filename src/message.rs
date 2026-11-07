@@ -3,6 +3,14 @@
 
 use crate::util::*;
 
+/// The message of clone's, merge's and pull's commits without -m or
+/// --message-template.
+pub const DEFAULT: &str = "splice: {command} {path} from {upstream} at {new}";
+/// The default for clone --from-submodule, which has no upstream branch.
+pub const DEFAULT_FROM_SUBMODULE: &str = "splice: clone {path} from submodule at {new}";
+/// The default for init, which has no synced commit yet.
+pub const DEFAULT_INIT: &str = "splice: init {path}";
+
 /// At most this many commits in {shortlog}, like 'git merge --log'.
 const SHORTLOG_LIMIT: usize = 20;
 
@@ -88,6 +96,12 @@ impl Template {
             Ok(template) => Ok(Some(template)),
             Err(problem) => die(format!("{source}: {problem}")),
         }
+    }
+
+    /// One of the default templates above.
+    pub fn default(text: &str) -> Res<Template> {
+        Template::parse("default message", text)
+            .or_else(|problem| die(format!("default message: {problem}")))
     }
 
     /// <text> as text and {placeholder}s; {{ and }} are literal braces.
@@ -218,6 +232,37 @@ mod tests {
             ),
             "{x} pull vendor/a main 1111111..2222222 2222222bbbb"
         );
+    }
+
+    #[test]
+    fn the_defaults_are_templates_that_fill_in_the_former_fixed_messages() {
+        let pull = Message {
+            command: "pull",
+            path: "vendor/a",
+            upstream: Some("main"),
+            old: Some("1111111aaaa"),
+            new: Some("2222222bbbb"),
+        };
+        assert_eq!(
+            render(DEFAULT, &pull),
+            "splice: pull vendor/a from main at 2222222"
+        );
+        let submodule = Message {
+            command: "clone",
+            path: "vendor/a",
+            new: Some("2222222bbbb"),
+            ..Message::default()
+        };
+        assert_eq!(
+            render(DEFAULT_FROM_SUBMODULE, &submodule),
+            "splice: clone vendor/a from submodule at 2222222"
+        );
+        let init = Message {
+            command: "init",
+            path: "lib/a",
+            ..Message::default()
+        };
+        assert_eq!(render(DEFAULT_INIT, &init), "splice: init lib/a");
     }
 
     #[test]

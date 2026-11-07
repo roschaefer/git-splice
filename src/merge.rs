@@ -1,7 +1,7 @@
 //! git splice merge.
 
 use crate::args::parse_args;
-use crate::message::{Message, KNOWN};
+use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -198,10 +198,8 @@ impl Repo {
         let base_folder = tree_of(&merge_base).ok_or(Fail::Soft)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
-        let message = self.commit_message(
-            format!("splice: {verb} {path} from {label} at {}", short(&target)),
-            self.message_for(verb, path, &target),
-        )?;
+        let message =
+            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
         if splice_in(
             path,
             Some(&base_folder),
@@ -311,14 +309,8 @@ impl Repo {
             Some(&blob),
             &base,
         )?;
-        let message = self.commit_message(
-            format!(
-                "splice: {verb} {path} from {} at {}",
-                c.upstream_label,
-                short(&target)
-            ),
-            self.message_for(verb, path, &target),
-        )?;
+        let message =
+            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
         let pull = git(&["commit-tree", &tree, "-p", &base, "-m", &message])
             .out()
             .ok_or(Fail::Soft)?;
@@ -428,14 +420,8 @@ impl Repo {
         let folder = tree_of(&target).ok_or(Fail::Soft)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
-        let message = self.commit_message(
-            format!(
-                "splice: {verb} {path} from {} at {}",
-                self.c.upstream_label,
-                short(&target)
-            ),
-            self.message_for(verb, path, &target),
-        )?;
+        let message =
+            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
         if splice_in(
             path,
             Some(&folder),
@@ -479,14 +465,8 @@ impl Repo {
             .ok_or(Fail::Soft)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
-        let message = self.commit_message(
-            format!(
-                "splice: bump {path} from {} at {}",
-                self.c.upstream_label,
-                short(&target)
-            ),
-            self.message_for("bump", path, &target),
-        )?;
+        let message =
+            self.commit_message(message::DEFAULT, self.message_for("bump", path, &target))?;
         if splice_in(
             path,
             Some(&folder),

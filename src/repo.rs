@@ -1464,14 +1464,15 @@ impl Repo {
     }
 
     /// The message of the commit a command writes: the one -m gave, else
-    /// --message-template's filled in with <message>, else <default>.
-    pub fn commit_message(&self, default: String, message: Message) -> Res<String> {
+    /// --message-template's, else the <default> template's, filled in with
+    /// <message>.
+    pub fn commit_message(&self, default: &str, message: Message) -> Res<String> {
         if !self.args.message.is_empty() {
             return Ok(self.args.message.clone());
         }
         match &self.message_template {
             Some(template) => template.render(&message),
-            None => Ok(default),
+            None => Template::default(default)?.render(&message),
         }
     }
 }

@@ -71,7 +71,8 @@ $ git splice clone -h | check-help section options
 
     --message-template <template>
         Gives each commit a message made from <template>, also with
-        --recursive; see 'git splice merge --help'.
+        --recursive; see 'git splice merge --help'. With --from-submodule,
+        the default is 'splice: clone {path} from submodule at {new}'.
 ```
 
 ### `--merge`
