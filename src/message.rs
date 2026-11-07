@@ -1,9 +1,7 @@
-//! splice.messageTemplate: the message of the commits clone, init, merge and
-//! pull write, unless -m gives one.
+//! --message-template: the message of the commits clone, init, merge and pull
+//! write, with placeholders each commit fills in.
 
 use crate::util::*;
-
-pub const KEY: &str = "splice.messageTemplate";
 
 /// At most this many commits in {shortlog}, like 'git merge --log'.
 const SHORTLOG_LIMIT: usize = 20;
@@ -74,25 +72,28 @@ enum Piece {
 }
 
 pub struct Template {
+    /// Where the template comes from, for messages: the option or the key.
+    source: &'static str,
     pieces: Vec<Piece>,
 }
 
 impl Template {
-    /// The configured template, or nothing if none is set.
-    pub fn configured() -> Res<Option<Template>> {
-        let Some(text) = git(&["config", "--get", KEY]).q().out() else {
+    /// The template --message-template gives, or nothing without one.
+    pub fn given(text: &str) -> Res<Option<Template>> {
+        if text.is_empty() {
             return Ok(None);
-        };
-        match Template::parse(&text) {
+        }
+        let source = "--message-template";
+        match Template::parse(source, text) {
             Ok(template) => Ok(Some(template)),
-            Err(problem) => die(format!("{KEY}: {problem}")),
+            Err(problem) => die(format!("{source}: {problem}")),
         }
     }
 
     /// <text> as text and {placeholder}s; {{ and }} are literal braces.
-    pub fn parse(text: &str) -> Result<Template, String> {
+    fn parse(source: &'static str, text: &str) -> Result<Template, String> {
         if text.trim().is_empty() {
-            return Err("it's empty -- unset it for the default messages".to_string());
+            return Err("it's empty".to_string());
         }
         let mut pieces = Vec::new();
         let mut literal = String::new();
@@ -138,7 +139,7 @@ impl Template {
         if !literal.is_empty() {
             pieces.push(Piece::Text(literal));
         }
-        Ok(Template { pieces })
+        Ok(Template { source, pieces })
     }
 
     /// The first placeholder <message> has no value for.
@@ -163,8 +164,8 @@ impl Template {
     pub fn require(&self, message: &Message) -> Res<()> {
         match self.missing(message) {
             Some(name) => die(format!(
-                "{KEY}: {} has no value for {{{name}}} -- give the commit a message with -m",
-                message.command
+                "{}: {} has no value for {{{name}}} -- give the commit a message with -m",
+                self.source, message.command
             )),
             None => Ok(()),
         }
@@ -175,8 +176,8 @@ impl Template {
     pub fn render(&self, message: &Message) -> Res<String> {
         if let Some(name) = self.missing(message) {
             return fail(format!(
-                "{}: no value for {{{name}}} in {KEY} -- give the commit a message with -m",
-                message.path
+                "{}: no value for {{{name}}} in {} -- give the commit a message with -m",
+                message.path, self.source
             ));
         }
         let mut text = String::new();
@@ -195,7 +196,7 @@ mod tests {
     use super::*;
 
     fn render(template: &str, message: &Message) -> String {
-        Template::parse(template)
+        Template::parse("test", template)
             .ok()
             .and_then(|t| t.render(message).ok())
             .unwrap_or_default()
@@ -222,13 +223,15 @@ mod tests {
     #[test]
     fn refuses_unknown_placeholders_and_unbalanced_braces() {
         for template in ["{nope}", "a {path", "a } b", "", "  \n"] {
-            assert!(Template::parse(template).is_err(), "{template:?}");
+            assert!(Template::parse("test", template).is_err(), "{template:?}");
         }
     }
 
     #[test]
     fn a_placeholder_without_a_value_is_missing() {
-        let template = Template::parse("{command} {path} {shortlog}").ok().unwrap();
+        let template = Template::parse("test", "{command} {path} {shortlog}")
+            .ok()
+            .unwrap();
         let init = Message {
             command: "init",
             path: "a",
