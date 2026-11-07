@@ -520,11 +520,13 @@ impl Repo {
             quietly(|| contained(self.load_splice_upstream(level))).ok();
         }
         // --upstream names the upstream of every splice the command selected,
-        // a level above included: the reload read its default instead.
+        // a level above and this one included: the reload read its default
+        // instead, and tracking --branch records it by that upstream's key.
         if !self.args.upstream.is_empty() {
             let upstream = self.args.upstream.clone();
             let selected: Vec<String> = levels
                 .iter()
+                .chain([&path.to_string()])
                 .filter(|level| self.selected.contains(level))
                 .cloned()
                 .collect();
@@ -663,6 +665,10 @@ impl Repo {
             }
             return Err(Fail::Soft);
         }
+        // Its upstream's key, for tracking --branch: the fetch one level
+        // down may have recorded it only now.
+        let name = self.name_of(path);
+        quietly(|| self.use_upstream(path, &name)).ok();
         self.continue_levels(branch)
     }
 
