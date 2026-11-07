@@ -1031,6 +1031,60 @@ pull_of_b_conflicts() {
   [[ "$output" == *"vendor/a has uncommitted changes, which a pull through the levels wouldn't see -- commit or stash them first"* ]]
 }
 
+@test "nested: pull --rebase of b goes through the levels, conflicts once in a's worktree, and --continue rebases the monorepo's commit onto the pull" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  run splice pull --rebase vendor/a/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"a merge through the levels waits in the worktree of vendor/a"* ]]
+  layer_a="$(layer_of vendor/a)"
+  [ "$(git -C "$layer_a" diff --name-only --diff-filter=U)" = "b/file.txt" ]
+  printf 'b seed\nb local\nb upstream\n' >"$layer_a/b/file.txt"
+  git -C "$layer_a" add b/file.txt
+  run splice pull --continue
+  [ "$status" -eq 0 ]
+  [ "$(git log --format=%s -2 | tr '\n' '|')" = "b local|splice: pull vendor/a/b from main at $(git -C "$upstream_b" rev-parse --short main)|" ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ -z "$(git branch --list 'splice-layer/*')" ]
+  splice push vendor/a/b
+  [ "$(git -C "$upstream_b" log --format=%s main | tr '\n' '|')" = "b local|b upstream|b seed|" ]
+}
+
+@test "nested: pull --rebase of c through three levels resolves its conflict once, innermost, and keeps a monorepo commit outside the splices on top" {
+  scenario_three_levels "$monorepo" "$upstream"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c upstream"
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  cd "$monorepo"
+  echo app >app.txt
+  git add app.txt
+  git commit -q -m "app change"
+  run splice pull --rebase vendor/a/b/c
+  [ "$status" -eq 1 ]
+  layer_b="$(layer_of vendor/a/b)"
+  [ "$(git -C "$layer_b" diff --name-only --diff-filter=U)" = "c/file.txt" ]
+  printf 'c seed\nc local\nc upstream\n' >"$layer_b/c/file.txt"
+  git -C "$layer_b" add c/file.txt
+  run splice pull --continue
+  [ "$status" -eq 0 ]
+  [ "$(git log --format=%s -3 | tr '\n' '|')" = "app change|c local|splice: pull vendor/a/b/c from main at $(git -C "$BATS_TEST_TMPDIR/upstream-c.git" rev-parse --short main)|" ]
+  [ "$(cat vendor/a/b/c/file.txt)" = "$(printf 'c seed\nc local\nc upstream')" ]
+  [ "$(git worktree list | wc -l)" -eq 1 ]
+  splice push vendor/a/b/c vendor/a/b vendor/a
+  [ "$(git -C "$BATS_TEST_TMPDIR/upstream-c.git" log --format=%s main | tr '\n' '|')" = "c local|c upstream|c seed|" ]
+}
+
+@test "nested: pull --rebase refuses before any worktree when a remote-tracking branch has the monorepo's commits it would rewrite" {
+  pull_of_b_conflicts
+  splice pull --abort
+  git update-ref refs/remotes/origin/main HEAD
+  run splice pull --rebase vendor/a/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: 'origin/main' has commits since"*"which --rebase would rewrite"* ]]
+  [ -z "$(git branch --list 'splice-layer/*')" ]
+}
+
 @test "nested: three levels, a pull of c conflicts in the worktree of b, and --continue takes it up into a and the monorepo" {
   scenario_three_levels "$monorepo" "$upstream"
   seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c upstream"

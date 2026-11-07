@@ -259,36 +259,8 @@ impl Repo {
             return result;
         }
         refuse_changed_submodule(path, &c.synced, &target)?;
+        refuse_rewrite(path, &base, verb)?;
         let since = format!("{base}..HEAD");
-        let merges = git(&["rev-list", "--min-parents=2", "--count", &since])
-            .out()
-            .unwrap_or_default();
-        if merges != "0" {
-            return fail(format!(
-                "{path}: there's a merge commit since {}, whose own changes --rebase would drop -- {verb} without --rebase",
-                short(&base)
-            ));
-        }
-        // Without merges, a remote-tracking branch that has any of the commits
-        // has the oldest one.
-        let commits = git(&["rev-list", &since]).out().unwrap_or_default();
-        let oldest = commits.lines().last().unwrap_or("");
-        let published = git(&[
-            "for-each-ref",
-            "--count=1",
-            "--contains",
-            oldest,
-            "--format=%(refname:short)",
-            "refs/remotes/",
-        ])
-        .out()
-        .unwrap_or_default();
-        if !published.is_empty() {
-            return fail(format!(
-                "{path}: '{published}' has commits since {}, which --rebase would rewrite -- {verb} on a branch nobody else has, e.g. a pull request's",
-                short(&base)
-            ));
-        }
         let blob = state_blob_in(path, &base, &[("commit", &target)])?;
         let tree = reroot_tree(
             path,
@@ -518,9 +490,8 @@ impl Repo {
                 continue;
             }
             // A nested splice is merged one level down, where its .splice is
-            // read as the merges above left it; --rebase rewrites the
-            // monorepo's own commits, which only the monorepo can.
-            let merged = if !self.merge_rebase && splice_above_in("HEAD", path).is_some() {
+            // read as the merges above left it, with --rebase too.
+            let merged = if splice_above_in("HEAD", path).is_some() {
                 self.merge_through_levels(path, branch, verb)
             } else {
                 self.merge_one(path, branch, verb)
@@ -800,4 +771,43 @@ pub fn run(argv: &[String]) -> Res<i32> {
     refuse_pending(&branch)?;
     repo.merge_paths(&branch, "merge", &selected)?;
     Ok(0)
+}
+
+/// Refuses to rewrite the branch's commits since <base>, as --rebase does:
+/// when one is a merge, whose own changes a rebase would drop, or when a
+/// remote-tracking branch has any of them, which others may build on.
+pub fn refuse_rewrite(path: &str, base: &str, verb: &str) -> Res<()> {
+    let since = format!("{base}..HEAD");
+    let merges = git(&["rev-list", "--min-parents=2", "--count", &since])
+        .out()
+        .unwrap_or_default();
+    if merges != "0" {
+        return fail(format!(
+            "{path}: there's a merge commit since {}, whose own changes --rebase would drop -- {verb} without --rebase",
+            short(base)
+        ));
+    }
+    // Without merges, a remote-tracking branch that has any of the commits
+    // has the oldest one.
+    let commits = git(&["rev-list", &since]).out().unwrap_or_default();
+    let Some(oldest) = commits.lines().last() else {
+        return Ok(());
+    };
+    let published = git(&[
+        "for-each-ref",
+        "--count=1",
+        "--contains",
+        oldest,
+        "--format=%(refname:short)",
+        "refs/remotes/",
+    ])
+    .out()
+    .unwrap_or_default();
+    if !published.is_empty() {
+        return fail(format!(
+            "{path}: '{published}' has commits since {}, which --rebase would rewrite -- {verb} on a branch nobody else has, e.g. a pull request's",
+            short(base)
+        ));
+    }
+    Ok(())
 }

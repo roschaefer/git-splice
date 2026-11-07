@@ -25,14 +25,12 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let selected = repo.selected.clone();
     refuse_pending(&branch)?;
 
-    // Nested splices are pulled one level down, which fetches them there, as
-    // their .splice reads after the merges above; with --rebase, they merge
-    // straight into the monorepo, like the others.
-    let rebase = repo.args.has_flag("--rebase");
+    // Nested splices are pulled one level down, with --rebase too, which
+    // fetches them there, as their .splice reads after the merges above.
     let (through, direct): (Vec<String>, Vec<String>) = selected
         .iter()
         .cloned()
-        .partition(|path| !rebase && splice_above_in("HEAD", path).is_some());
+        .partition(|path| splice_above_in("HEAD", path).is_some());
     let below = |path: &str, of: &[String]| {
         of.iter()
             .any(|above| path.starts_with(&format!("{above}/")))

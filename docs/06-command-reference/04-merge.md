@@ -298,11 +298,13 @@ $ git splice merge -h | check-help section nested-splices
     splice's .splice there, as the merges above left it, and a pull fetches
     there. The splice's history, which decides what's new on each side,
     still comes from the monorepo. 'merge --rebuilt-commit' takes the
-    result up level by level, into the monorepo last. With --rebase, a
-    nested splice merges straight into the monorepo's folder, since only
-    the monorepo can rebase its own commits. The folder of the outermost
-    splice must have no uncommitted changes, which the worktrees wouldn't
-    see.
+    result up level by level, into the monorepo last. With --rebase, the
+    command one level down rebases instead, and each level above, the
+    monorepo last, puts the pull where it last took the splice below in
+    and replays its own commits on top, with that splice's folder from
+    the level below: a conflict comes up once, one level down. The folder
+    of the outermost splice must have no uncommitted changes, which the
+    worktrees wouldn't see.
 
     A conflict waits in the worktree it came up in, which 'git splice
     status' names; the monorepo is free meanwhile. Resolve it there, 'git

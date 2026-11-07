@@ -6,6 +6,7 @@
 //! in progress, until 'pull --continue' or 'pull --abort'.
 
 use crate::repo::*;
+use crate::state::reroot_tree;
 use crate::util::*;
 use std::process::Command;
 
@@ -214,6 +215,158 @@ fn merge_in_progress(dir: &str) -> bool {
     .ok()
 }
 
+/// Whether a rebase stopped at a conflict in worktree <dir>.
+fn rebase_in_progress_in(dir: &str) -> bool {
+    ["rebase-merge", "rebase-apply"].iter().any(|name| {
+        git(&["-C", dir, "rev-parse", "--git-path", name])
+            .out()
+            .is_some_and(|found| {
+                let found = std::path::Path::new(&found);
+                if found.is_absolute() {
+                    found.exists()
+                } else {
+                    std::path::Path::new(dir).join(found).exists()
+                }
+            })
+    })
+}
+
+/// Marks the level of the splice at <path> as part of a merge through the
+/// levels with --rebase, for --continue in a later command.
+fn record_rebase(monorepo_branch: &str, path: &str) {
+    let section = stand_section(monorepo_branch, path);
+    git(&["config", &format!("{section}.spliceRebase"), "true"])
+        .q()
+        .run();
+}
+
+fn level_rebases(monorepo_branch: &str, path: &str) -> bool {
+    let section = stand_section(monorepo_branch, path);
+    git(&["config", "--get", &format!("{section}.spliceRebase")])
+        .q()
+        .out()
+        .is_some_and(|value| value == "true")
+}
+
+/// What a copy of commit <commit> shares with it, as a rebase keeps it:
+/// author, author date and message.
+fn rebase_key(commit: &str) -> String {
+    git(&["log", "-1", "--format=%an%n%ae%n%aD%n%B", commit])
+        .out()
+        .unwrap_or_default()
+}
+
+/// A commit of tree <tree> on <parent>, with the author and message of
+/// <like>, or <message> instead.
+fn commit_like(tree: &str, parent: &str, like: &str, message: Option<&str>) -> Res<String> {
+    let info = git(&["log", "-1", "--format=%an%x00%ae%x00%aD%x00%B", like])
+        .out()
+        .unwrap_or_default();
+    let mut fields = info.splitn(4, '\0');
+    let (name, email, date, own) = (
+        fields.next().unwrap_or_default(),
+        fields.next().unwrap_or_default(),
+        fields.next().unwrap_or_default(),
+        fields.next().unwrap_or_default(),
+    );
+    git(&[
+        "commit-tree",
+        tree,
+        "-p",
+        parent,
+        "-m",
+        message.unwrap_or(own),
+    ])
+    .env("GIT_AUTHOR_NAME", name)
+    .env("GIT_AUTHOR_EMAIL", email)
+    .env("GIT_AUTHOR_DATE", date)
+    .out()
+    .ok_or(Fail::Soft)
+}
+
+/// Takes a pull rebased one level down into the level above, rebase-shaped:
+/// the pull commit <pull> onto <base>, where the level last took <inner> in,
+/// then the level's own commits from <base> to <tip> on top of it. Each one
+/// that changes <inner> gets that folder from the next of <rebased>, the
+/// commits rebased one level down, which share its author, date and message;
+/// the conflict was resolved there, so none comes up here. One the rebase
+/// below dropped, as already in, keeps the folder as it was. Returns the pull
+/// commit and the replayed commits.
+fn replay_onto_pull(
+    inner: &str,
+    base: &str,
+    tip: &str,
+    pull: &str,
+    rebased: &[String],
+    message: &str,
+) -> Res<(String, Vec<String>)> {
+    let state = |rev: &str| {
+        git(&[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("{rev}:{inner}/{STATE_FILE}"),
+        ])
+        .q()
+        .out()
+    };
+    let folder = |rev: &str| {
+        git(&[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("{rev}:{inner}"),
+        ])
+        .q()
+        .out()
+    };
+    let tree = reroot_tree(
+        inner,
+        Some(&format!("{pull}^{{tree}}")),
+        state(base).as_deref(),
+        base,
+    )?;
+    let new_pull = commit_like(&tree, base, pull, Some(message))?;
+    let mut below = rebased.iter().peekable();
+    let mut prev = new_pull.clone();
+    let mut replayed = Vec::new();
+    let commits = git(&[
+        "rev-list",
+        "--reverse",
+        "--first-parent",
+        &format!("{base}..{tip}"),
+    ])
+    .out()
+    .unwrap_or_default();
+    for commit in commits.lines() {
+        let spec = format!(":(top,literal){inner}");
+        let touches = !git(&[
+            "diff",
+            "--quiet",
+            &format!("{commit}^1"),
+            commit,
+            "--",
+            &spec,
+        ])
+        .q()
+        .ok();
+        let mut source = folder(&prev);
+        if touches {
+            if let Some(next) = below.next_if(|next| rebase_key(next) == rebase_key(commit)) {
+                source = Some(format!("{next}^{{tree}}"));
+            }
+        }
+        let tree = reroot_tree(inner, source.as_deref(), state(commit).as_deref(), commit)?;
+        // Nothing left of it, e.g. a change the pull had already.
+        if Some(&tree) == tree_of(&prev).as_ref() {
+            continue;
+        }
+        prev = commit_like(&tree, &prev, commit, None)?;
+        replayed.push(prev.clone());
+    }
+    Ok((new_pull, replayed))
+}
+
 /// Removes the worktree of the splice at <path> and its branch.
 fn remove_level(monorepo_branch: &str, path: &str) -> Res<()> {
     let dir = layer_dir(monorepo_branch, path)?;
@@ -354,6 +507,10 @@ impl Repo {
             ));
         }
         refuse_pending(branch)?;
+        // The monorepo rebases its own commits last: refuse before any work.
+        if self.merge_rebase {
+            self.rebase_root(&outermost, verb)?;
+        }
 
         // What each level's worktree stands in for, as a clone of its
         // upstream would be: on the branch the monorepo's branch maps to,
@@ -447,6 +604,9 @@ impl Repo {
             above_path = level.clone();
             above_stand = stands[made.len() - 1].clone();
             record_stand(branch, level, &above_stand);
+            if self.merge_rebase {
+                record_rebase(branch, level);
+            }
         }
 
         // The merge itself, one level down from the innermost splice above.
@@ -473,6 +633,9 @@ impl Repo {
         if self.merge_bump {
             args.push("--bump");
         }
+        if self.merge_rebase {
+            args.push("--rebase");
+        }
         if self.merge_no_fork_point {
             args.push("--no-fork-point");
         }
@@ -491,7 +654,7 @@ impl Repo {
         );
         print_lines(&out);
         if !ok {
-            if merge_in_progress(&above_dir) {
+            if merge_in_progress(&above_dir) || rebase_in_progress_in(&above_dir) {
                 log_err(pending_hint(branch).unwrap_or_default());
                 return Err(Fail::Soft);
             }
@@ -501,6 +664,120 @@ impl Repo {
             return Err(Fail::Soft);
         }
         self.continue_levels(branch)
+    }
+
+    /// Where the monorepo rebases its own commits onto a pull of the splice
+    /// at <path>: B, where the monorepo last took the upstream in. Refuses
+    /// as --rebase does, and when a pull since B merged local changes, which
+    /// leaves nothing with the upstream's files alone to rebase onto.
+    fn rebase_root(&mut self, path: &str, verb: &str) -> Res<String> {
+        let Some(base) = self.splice_start(path, "HEAD")? else {
+            return fail(format!(
+                "{path}: nothing to rebase onto -- {verb} without --rebase"
+            ));
+        };
+        let state = format!(":(top,literal){path}/{STATE_FILE}");
+        let since = git(&[
+            "log",
+            "--first-parent",
+            "--format=%H",
+            &format!("{base}..HEAD"),
+            "--",
+            &state,
+        ])
+        .out()
+        .unwrap_or_default();
+        if !since.is_empty() {
+            return fail(format!(
+                "{path}: a {verb} since {} merged local changes -- nothing to rebase onto; {verb} without --rebase",
+                short(&base)
+            ));
+        }
+        crate::merge::refuse_rewrite(path, &base, verb)?;
+        Ok(base)
+    }
+
+    /// Takes a pull rebased in the worktree of <level> up, level by level,
+    /// rebase-shaped: each level gets the pull commit where it last took the
+    /// splice below in, and its own commits replayed on top, the inner folder
+    /// from the level below; in the monorepo too, which then moves its branch
+    /// there. <start> is what the worktree started at, <tip> what the rebase
+    /// left; the pull commit is the first since both share.
+    fn take_up_rebased(&mut self, branch: &str, level: &str, start: &str, tip: &str) -> Res<()> {
+        let Some(shared) = git(&["merge-base", start, tip]).out() else {
+            return die(format!(
+                "{level}: the rebase in its worktree shares nothing with its start"
+            ));
+        };
+        let mut commits: Vec<String> = git(&[
+            "rev-list",
+            "--reverse",
+            "--first-parent",
+            &format!("{shared}..{tip}"),
+        ])
+        .out()
+        .unwrap_or_default()
+        .lines()
+        .map(str::to_string)
+        .collect();
+        if commits.is_empty() {
+            return die(format!("{level}: no pull came in, nothing to take up"));
+        }
+        let mut pull = commits.remove(0);
+        let mut rebased = commits;
+        let message = self.outer_message(level, &pull);
+        let mut level = level.to_string();
+        loop {
+            let pending = pending_levels(branch);
+            let above = pending
+                .iter()
+                .position(|path| *path == level)
+                .and_then(|at| at.checked_sub(1))
+                .map(|at| pending[at].clone());
+            let Some(above) = above else {
+                // Into the monorepo.
+                let base = self.rebase_root(&level, "pull")?;
+                let head = git(&["rev-parse", "HEAD"]).out().ok_or(Fail::Soft)?;
+                let (new_pull, replayed) =
+                    replay_onto_pull(&level, &base, &head, &pull, &rebased, &message)?;
+                let new_tip = replayed.last().unwrap_or(&new_pull).clone();
+                if !git(&["reset", "-q", "--keep", &new_tip]).ok() {
+                    return die(format!(
+                        "{level}: local changes are in the way of the rebased branch -- commit or stash them, then 'git splice pull --continue'"
+                    ));
+                }
+                remove_level(branch, &level)?;
+                let plural = if replayed.len() == 1 { "" } else { "s" };
+                log_ok(format!(
+                    "{level}: took the pull in, and rebased {} commit{plural} onto it",
+                    replayed.len()
+                ));
+                return Ok(());
+            };
+            let above_dir = layer_dir(branch, &above)?;
+            let inner = relative(&level, &above);
+            let (ok, out) = splice_in_dir(
+                &above_dir,
+                &recorded_stand(branch, &above),
+                &["boundary", &inner],
+                &inner,
+                &level,
+            );
+            let base = out.lines().last().unwrap_or_default().trim().to_string();
+            if !ok || commit_of(&base).is_none() {
+                print_lines(&out);
+                return die(format!(
+                    "{level}: no commit in {above} to rebase onto -- 'git splice pull --abort' gives up"
+                ));
+            }
+            let above_start = level_start(branch, &above).unwrap_or_default();
+            let (new_pull, replayed) =
+                replay_onto_pull(&inner, &base, &above_start, &pull, &rebased, &message)?;
+            remove_level(branch, &level)?;
+            pull = new_pull;
+            rebased = replayed;
+            level = above;
+        }
     }
 
     /// Takes the innermost level's commit one level up, until it's in the
@@ -520,6 +797,19 @@ impl Repo {
                     "{deepest}: {dir} still has conflicts -- resolve them, then 'git splice pull --continue'"
                 ));
             }
+            if rebase_in_progress_in(&dir)
+                && git(&["-C", &dir, "rebase", "--continue"])
+                    .env("GIT_EDITOR", "true")
+                    .q()
+                    .run()
+                    != 0
+            {
+                if rebase_in_progress_in(&dir) {
+                    log_err(pending_hint(branch).unwrap_or_default());
+                    return Err(Fail::Soft);
+                }
+                return die(format!("{deepest}: git rebase --continue failed in {dir}"));
+            }
             if merge_in_progress(&dir)
                 && git(&["-C", &dir, "commit", "--quiet", "--no-edit"]).run() != 0
             {
@@ -536,6 +826,10 @@ impl Repo {
                     remove_level(branch, level)?;
                 }
                 return Ok(());
+            }
+            if level_rebases(branch, &deepest) {
+                let start = level_start(branch, &deepest).unwrap_or_default();
+                return self.take_up_rebased(branch, &deepest, &start, &commit);
             }
             let message = self.outer_message(&deepest, &commit);
             // The level stays until its commit is taken up, or a conflict
