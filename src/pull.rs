@@ -8,7 +8,7 @@ use crate::util::*;
 pub const USAGE: &str = include_str!("usage/pull.txt");
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, MERGE_OPTIONS, argv)?;
+    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let mut repo = Repo::new(args);

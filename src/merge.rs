@@ -581,7 +581,8 @@ impl Repo {
     /// a splice goes before the ones below it, whose .splice its merge may
     /// change, and a failure stops them. Fails if anything was skipped or failed.
     pub fn merge_paths(&mut self, branch: &str, verb: &str, given: &[String]) -> Res<()> {
-        let paths = splices_in_order(false, given);
+        let mut paths = splices_in_order(false, given);
+        let recursive = self.args.has_flag("--recursive");
         let state_file_here = |path: &str| {
             git(&["cat-file", "-e", &format!("HEAD:{path}/{STATE_FILE}")])
                 .q()
@@ -595,7 +596,10 @@ impl Repo {
         let mut loaded: HashMap<String, Option<String>> = HashMap::new();
         let mut failures: Vec<String> = Vec::new();
         let mut skipped: Vec<String> = Vec::new();
-        for path in &paths {
+        let mut next = 0;
+        while next < paths.len() {
+            let path = &paths[next].clone();
+            next += 1;
             if splice_in_progress() {
                 skipped.push(path.clone());
                 continue;
@@ -649,6 +653,15 @@ impl Repo {
             }
             // The splices below a failed one are skipped anyway.
             if !splice_in_progress() && !failures.contains(path) {
+                if recursive {
+                    for added in self.discover_below(path)? {
+                        let at = paths
+                            .iter()
+                            .rposition(|known| added.starts_with(&format!("{known}/")))
+                            .map_or(paths.len(), |above| above + 1);
+                        paths.insert(at.max(next), added);
+                    }
+                }
                 self.read_below_again(
                     path,
                     branch,
