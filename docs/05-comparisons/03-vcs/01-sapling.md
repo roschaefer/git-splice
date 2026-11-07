@@ -234,7 +234,7 @@ eacfd6697aff lib commit 29
 Git's own `git log` stops at the import, and in the `git-splice` monorepo
 at the clone. There, the library's commits are fetched into the
 monorepo's repository, for `git log` on the library's history
-([bisecting into a pull](../02-third-party/02-josh.md#git-splice-the-culprit-is-the-pull)).
+([bisecting into a pull](../02-third-party/02-josh.md#with-git-splice-the-culprit-is-the-pull)).
 
 ## A squash merge drops the record
 
