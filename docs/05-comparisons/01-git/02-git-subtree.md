@@ -352,7 +352,8 @@ ok   git-subtree-rejoin-three.drawio.svg: 21 commits, 27 arrows, 1 boxes
 ```
 -->
 
-None of these merges says anything about the app.
+None of these merges says anything about the app. They're there so that
+`split` stays fast.
 
 ### With `git-splice`: the walk starts at B
 
