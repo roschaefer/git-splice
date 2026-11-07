@@ -1321,3 +1321,36 @@ pull_of_b_conflicts() {
   run splice status vendor/a/b
   [ "${lines[1]}" = "  up to date  vendor/a/b -> tags/v1" ]
 }
+
+@test "nested: pull --rebase of b keeps a monorepo commit that changes only a, as its own commit on top of the pull" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b upstream" main other.txt
+  commit_local "$monorepo" vendor/a "a local"
+  cd "$monorepo"
+  run splice pull --rebase vendor/a/b
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: took the pull in, and rebased 1 commit onto it"* ]]
+  [ "$(git log --format=%s -2 | tr '\n' '|')" = "a local|splice: pull vendor/a/b from main at $(git -C "$upstream_b" rev-parse --short main)|" ]
+  [ "$(git diff --name-only HEAD^ HEAD)" = "vendor/a/file.txt" ]
+}
+
+@test "nested: pull --rebase through three levels, whose --continue the monorepo refuses, keeps the resolution for a second --continue" {
+  scenario_three_levels "$monorepo" "$upstream"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c upstream"
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  cd "$monorepo"
+  run splice pull --rebase vendor/a/b/c
+  [ "$status" -eq 1 ]
+  layer_b="$(layer_of vendor/a/b)"
+  printf 'c seed\nc local\nc upstream\n' >"$layer_b/c/file.txt"
+  git -C "$layer_b" add c/file.txt
+  echo mine >vendor/a/b/c/file.txt
+  run splice pull --continue
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: local changes are in the way of the rebased branch"* ]]
+  git checkout -- vendor/a/b/c/file.txt
+  run splice pull --continue
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/b/c/file.txt)" = "$(printf 'c seed\nc local\nc upstream')" ]
+  [ "$(git worktree list | wc -l)" -eq 1 ]
+}
