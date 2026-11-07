@@ -1001,3 +1001,61 @@ order_of() {
   splice push vendor/a/b
   [ "$(git -C "$upstream_b" log --format=%s -1 main^2)" = "b upstream" ]
 }
+
+@test "nested: pull --recursive pulls the splices below too, the one above first" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: nothing to pull"* ]]
+  [[ "$(git log -2 --format=%s)" == "splice: pull vendor/a/b/c from main at "*$'\n'"splice: pull vendor/a/b from main at "* ]]
+  run splice status
+  [[ "$output" == *"up to date  vendor/a/b/c"* ]]
+}
+
+@test "nested: pull without --recursive leaves the splices below alone" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "add vendor/a" ]
+}
+
+@test "nested: pull --recursive also pulls a splice the pull above adds" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  local upstream_e="$BATS_TEST_TMPDIR/upstream-e.git"
+  make_bare_repo "$upstream_e"
+  seed_bare_repo "$upstream_e" "e seed"
+  work_in_upstream_a
+  splice clone "$upstream_e" e
+  git push -q origin HEAD:main
+  seed_bare_repo "$upstream_e" "e upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/e fetched"*"vendor/a/e: pulled"* ]]
+  [ "$(cat vendor/a/e/file.txt)" = "e seed"$'\n'"e upstream" ]
+}
+
+@test "nested: pull --recursive run again after a conflict pulls the splices it didn't get to" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  commit_local "$monorepo" vendor/a/b "b local"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Not pulled yet: vendor/a/b/c"* ]]
+  echo resolved >vendor/a/b/file.txt
+  git add vendor/a/b/file.txt
+  git commit -q --no-edit
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/b: nothing to pull"*"vendor/a/b/c: pulled"* ]]
+}

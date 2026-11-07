@@ -12,7 +12,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--recursive] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 ```
 
@@ -136,6 +136,21 @@ ok   vendor/pkg-b: pulled e81697a
 $ git log -1 --format=%s
 take pkg-b's fix for the release
 ```
+
+### `--recursive`
+
+```scrut
+$ git splice pull -h | check-help option --recursive
+        Also pulls every splice below each one given, and any a pull above
+        adds. A conflict stops it: resolve it, commit, and run it again,
+        which skips the splices already pulled.
+```
+
+For [nested splices](../03-concepts/04-nesting.md): each splice is
+pulled before the ones below it, which then start from what its
+upstream recorded for them. A splice its upstream added is fetched and
+pulled in the same run. A run stops at the first conflict, and the next
+one goes on from there ([a recursive pull](../09-scenarios/05-nested-splices/05-recursive-pull/README.md)).
 
 ## Order
 

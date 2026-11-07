@@ -1,29 +1,28 @@
-# Scenario: a recursive pull, by hand
+# Scenario: a recursive pull
 
-The pages here do by hand, with worktrees and plain Git, what a
-recursive pull through nested splices is meant to do one day: each
-splice is updated as if its upstream were cloned on its own, and each
-new commit then travels up. When `git-splice` does it, their code
-blocks shrink to one command, and their drawings show what changed.
+`git splice pull --recursive` updates nested splices as if each
+splice's upstream were cloned on its own: the splice above first, then
+each one inside it, down the tree.
 
 A splice and the splices inside it form a tree. Its root is the
 monorepo, every other node a splice, and the edge from a parent to a
 child is the child's `.splice` in the parent's folder: which upstream
 the child comes from, and at which commit, its synced commit. A pull
-goes through the tree three times:
+goes through the tree twice:
 
 | Pass | Does | Order | Conflicts |
 |---|---|---|---|
 | discover | fetches each upstream, and reads the `.splice` files in it for the ones inside | parent before its children | none |
 | merge | merges each upstream into its parent's version of the folder | parent before its children | at most one per node |
-| take up | puts each new commit into its parent's folder | children before their parent | none |
 
-The parent goes first in the merge, since its upstream records a version
-of each child: a newer base for the child's merge, which then doesn't
-ask a question the parent's merge already answered. The first conflict
-stops the pull, until it's resolved. A take-up can't conflict: the
-parent's folder hasn't changed since the child's merge started from it,
-which each take-up below checks.
+The parent goes first, since its upstream records a version of each
+child: a newer base for the child's merge, which then doesn't ask a
+question the parent's merge already answered. Each merge is a commit of
+the monorepo, where the parent's folder holds the child's: its new
+commit is in the parent at once, and nothing has to travel up. The
+first conflict stops the pull. Once it's resolved and committed, the
+same command again goes on from there: the splices pulled already have
+nothing left to pull.
 
 ## The tree
 
@@ -100,69 +99,31 @@ $ echo "a in the monorepo" >>vendor/a/file.txt &&
 >   git commit -q -m "m1: a and b in the monorepo"
 ```
 
-## 1. Discover
+## 1. The first run: a conflict in `vendor/a/`
 
-Each upstream fetched:
+The pull fetches each upstream, and the `.splice` files in them say what
+they have now:
+
+![The monorepo's tree, unchanged; next to it, what the upstreams have: a's at a2, outlined blue, records b/ at b1 with c/ at c1, d/ at d1 and a new e/ at e1; b's at b2, outlined blue, records c/ at c1; c's at c2, d's at d2, both outlined blue, and e's at e1](tree-discovered.drawio.svg)
+
+Then it merges `vendor/a/` first, which conflicts:
 
 ```scrut
-$ git splice fetch --all
+$ git splice pull --recursive vendor/a
 ok   vendor/a fetched (main moved 764d9c4..48a4171)
 ok   vendor/a/b fetched (main moved f815a3c..be68b59)
 ok   vendor/a/b/c fetched (main moved 8c169b6..94cad5e)
 ok   vendor/a/d fetched (main moved 2c64d15..36c850e)
-```
-
-What they have now:
-
-```scrut
-$ for x in a b c d; do git log -1 --format="$x: %s" "refs/splices/$x/heads/main"; done
-a: a2: a upstream
-b: b2: b upstream
-c: c2: c upstream
-d: d2: d upstream
-```
-
-`a`'s upstream has a new splice, `e/`. Its `.splice` says where it comes
-from:
-
-```scrut
-$ git ls-tree -r --name-only refs/splices/a/heads/main | grep '\.splice$'
-b/.splice
-b/c/.splice
-d/.splice
-e/.splice
-```
-
-```scrut
-$ git show refs/splices/a/heads/main:e/.splice
-[splice]
-	id = 6e204572c6004f25
-	commit = ad47a174fc75bf37498c8ef724e53a069a846589
-[upstream "origin"]
-	url = https://git.example.com/e.git
-```
-
-![The monorepo's tree, unchanged; next to it, what the upstreams have: a's at a2, outlined blue, records b/ at b1 with c/ at c1, d/ at d1 and a new e/ at e1; b's at b2, outlined blue, records c/ at c1; c's at c2, d's at d2, both outlined blue, and e's at e1](tree-discovered.drawio.svg)
-
-## 2. Merge `vendor/a/` into the monorepo: a conflict
-
-```scrut
-$ git splice pull vendor/a
-ok   vendor/a fetched
-ok   vendor/a/b fetched
-ok   vendor/a/b/c fetched
-ok   vendor/a/d fetched
 Auto-merging vendor/a/file.txt
 CONFLICT (content): Merge conflict in vendor/a/file.txt
 !!   vendor/a: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
 !!   vendor/a: pull failed
+!!   Not pulled yet: vendor/a/b vendor/a/b/c vendor/a/d -- resolve the conflict, run 'git commit', then re-run pull
 !!   Failed: vendor/a
 [1]
 ```
 
 ![The monorepo's tree, with vendor/a/ outlined red: a conflict waits](tree-a-conflicts.drawio.svg)
-
-The pull stops until the conflict is resolved:
 
 ```scrut
 $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
@@ -170,114 +131,67 @@ $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
 >   git commit -q --no-edit
 ```
 
-`vendor/a/e/` is a splice now. The pull stopped at the conflict before
-it fetched it, so that happens here. A recursive pull would have fetched
-it in the discover pass already
-([#429](https://github.com/roschaefer/git-splice/issues/429)).
+## 2. The second run: a conflict in `c/`
+
+`vendor/a/` has nothing left to pull. Its pull brought in `e/`, a splice
+now, at *e1*, the newest commit of its upstream. `b/` merges cleanly,
+and `c/` conflicts:
 
 ```scrut
-$ git splice fetch vendor/a/e
+$ git splice pull --recursive vendor/a
+ok   vendor/a fetched
+ok   vendor/a/b fetched
+ok   vendor/a/b/c fetched
+ok   vendor/a/d fetched
 ok   vendor/a/e fetched
-```
-
-![The monorepo's tree: vendor/a/ at a2 and the new e/ at e1, both outlined blue; b/, c/ and d/ unchanged](tree-a-merged.drawio.svg)
-
-## 3. Merge `b/` into `a`
-
-The rebuild of `vendor/a/`, `from/a`, checked out in a worktree: `a`'s repository,
-as the monorepo has it now. `b`'s upstream merges cleanly into it:
-
-```scrut
-$ git branch from/a "$(git splice rebuild vendor/a)" &&
->   git worktree add -q -b layer/a ../a-layer from/a &&
->   cd ../a-layer &&
->   git splice pull --branch main b
-ok   b fetched
-ok   b/c fetched
-ok   b: pulled be68b59
-```
-
-![The monorepo's tree as before; next to it a's worktree, with b/ at b2, outlined blue, c/ at c1, d/ at d1 and e/ at e1](tree-b-merged.drawio.svg)
-
-## 4. Merge `c/` into `b`: a conflict
-
-The rebuild of `b/` in `a`'s worktree, `from/b`, checked out in one of its own:
-
-```scrut
-$ git branch from/b "$(git splice rebuild b)" &&
->   git worktree add -q -b layer/b ../b-layer from/b &&
->   cd ../b-layer &&
->   git splice pull --branch main c
-ok   c fetched
-Auto-merging c/file.txt
-CONFLICT (content): Merge conflict in c/file.txt
-!!   c: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
-!!   c: pull failed
-!!   Failed: c
+ok   vendor/a: nothing to pull
+ok   vendor/a/b: pulled be68b59
+Auto-merging vendor/a/b/c/file.txt
+CONFLICT (content): Merge conflict in vendor/a/b/c/file.txt
+!!   vendor/a/b/c: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
+!!   vendor/a/b/c: pull failed
+!!   Not pulled yet: vendor/a/d vendor/a/e -- resolve the conflict, run 'git commit', then re-run pull
+!!   Failed: vendor/a/b/c
 [1]
 ```
 
-![The monorepo and a's worktree as before; next to them b's worktree, whose c/ is outlined red: a conflict waits](tree-c-conflicts.drawio.svg)
+![The monorepo's tree: vendor/a/ at a2, b/ at b2 and the new e/ at e1, outlined blue; c/ outlined red: a conflict waits; d/ at d1](tree-c-conflicts.drawio.svg)
 
 ```scrut
-$ printf "c1: c seed\nc in b's upstream\nc upstream\n" >c/file.txt &&
->   git add c/file.txt &&
+$ printf "c1: c seed\nc in b's upstream\nc upstream\n" >vendor/a/b/c/file.txt &&
+>   git add vendor/a/b/c/file.txt &&
 >   git commit -q --no-edit
 ```
 
-## 5. Merge `d/` into `a`
+## 3. The third run: the rest
 
-`a` never changed `d/`, so its upstream's new commit only moves it
-forward:
-
-```scrut
-$ cd ../a-layer &&
->   git splice pull --branch main d
-ok   d fetched
-ok   d: pulled 36c850e
-```
-
-`e/` came in with *e1*, the newest commit of its upstream, so it has
-nothing to merge. The merge pass is done.
-
-![The monorepo as before; in a's worktree, d/ at d2, outlined blue; in b's worktree, c/ at c2, outlined blue](tree-d-merged.drawio.svg)
-
-## 6. Take up
-
-`c`'s new commit goes into `a`'s worktree. `b/` there is what `b`'s
-worktree started from:
+`d/`, which no one but its upstream changed, only moves forward:
 
 ```scrut
-$ git diff --quiet from/b HEAD:b -- . ':!.splice' && echo "b/ unchanged"
-b/ unchanged
+$ git splice pull --recursive vendor/a
+ok   vendor/a fetched
+ok   vendor/a/b fetched
+ok   vendor/a/b/c fetched
+ok   vendor/a/d fetched
+ok   vendor/a/e fetched
+ok   vendor/a: nothing to pull
+ok   vendor/a/b: nothing to pull
+ok   vendor/a/b/c: nothing to pull
+ok   vendor/a/d: pulled 36c850e
+ok   vendor/a/e: nothing to pull
 ```
 
-```scrut
-$ git splice merge --rebuilt-commit layer/b b
-ok   b: merged 120838f
-```
+![The monorepo's tree with c/ at c2 and d/ at d2, outlined blue; vendor/a/ at a2, b/ at b2, e/ at e1](tree-pulled.drawio.svg)
 
-`a`'s new commit goes into the monorepo, whose `vendor/a/` is what `a`'s
-worktree started from:
+## 4. The result
 
-```scrut
-$ cd ../monorepo &&
->   git diff --quiet from/a HEAD:vendor/a -- . ':!.splice' && echo "vendor/a/ unchanged"
-vendor/a/ unchanged
-```
-
-```scrut
-$ git splice merge --rebuilt-commit layer/a vendor/a
-ok   vendor/a: merged 212b29a
-```
-
-![The monorepo's tree with b/ at b2, c/ at c2 and d/ at d2, outlined blue; in a's worktree, c/ at c2, outlined blue; b's worktree unchanged](tree-taken-up.drawio.svg)
-
-## 7. The result
+One commit per splice pulled:
 
 ```scrut
 $ git log --format=%s
-splice: merge 212b29a into vendor/a
+splice: pull vendor/a/d from main at 36c850e
+splice: pull vendor/a/b/c from main at 94cad5e
+splice: pull vendor/a/b from main at be68b59
 splice: pull vendor/a from main at 48a4171
 m1: a and b in the monorepo
 add vendor/a
@@ -288,25 +202,19 @@ initial commit
 $ git splice status
 On branch main
 
-  ahead 2, behind 1  vendor/a/b/c
-  ahead 3            vendor/a
-  ahead 2            vendor/a/b
+  ahead 5     vendor/a
+  ahead 3     vendor/a/b
+  ahead 2     vendor/a/b/c
 
-  up to date         vendor/a/d
-  up to date         vendor/a/e
+  up to date  vendor/a/d
+  up to date  vendor/a/e
 ```
 
-Every merge result arrived, but `c/` reads as behind its upstream, and
-isn't pushed. The last take-up moved the synced commits of `b/` and
-`c/` in one commit, and the rebuild of `c/` then takes its history from
-`b`'s upstream, the outer one, which wins a tie. That upstream doesn't
-have *c2* yet, so the rebuild lacks it. A recursive pull takes up all
-of a level's merges in one commit, so this gap has to be fixed first
-([#428](https://github.com/roschaefer/git-splice/issues/428)):
-
 ```scrut
-$ git splice push vendor/a/b/c
-!!   vendor/a/b/c: upstream has commits this branch lacks
-!!   Failed: vendor/a/b/c
-[1]
+$ git splice push --all
+ok   vendor/a/b/c: pushed fe91e6c to main
+ok   vendor/a/b: pushed d9079b7 to main
+ok   vendor/a/d: nothing to push
+ok   vendor/a/e: nothing to push
+ok   vendor/a: pushed b5e2028 to main
 ```

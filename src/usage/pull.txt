@@ -2,7 +2,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--recursive] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 
 DESCRIPTION
@@ -64,6 +64,13 @@ OPTIONS
         --help'.
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#-m
+
+    --recursive
+        Also pulls every splice below each one given, and any a pull above
+        adds. A conflict stops it: resolve it, commit, and run it again,
+        which skips the splices already pulled.
+
+        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#--recursive
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#options
 
