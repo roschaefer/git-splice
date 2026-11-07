@@ -256,9 +256,11 @@ $ git splice merge -h | check-help option --message-template
         {old} to {new}, merge commits left out: their number, and their
         subjects as 'git merge --log' lists them, at most 20. {{ and }} are
         literal braces. A placeholder the command has no value for, e.g.
-        {old} for clone, stops it before it writes anything. It doesn't go
-        with -m, nor with --rebuilt-commit, whose commit keeps the message
-        of the one it merges. Without it, the template is the default:
+        {old} for clone, stops it before it writes anything. A splice
+        without a synced commit, in a clone made between init and its push,
+        fails on {old}, {count} and {shortlog} like a refused splice. It
+        doesn't go with -m, nor with --rebuilt-commit, whose commit keeps
+        the message of the one it merges. Without it, the template is the default:
 
             splice: {command} {path} from {upstream} at {new}
 ```

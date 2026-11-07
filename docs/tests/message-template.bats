@@ -179,6 +179,26 @@ Upstream: $old..$new" ]
   [ "$(git log -1 --format=%B)" = "chore: init lib/a" ]
 }
 
+@test "message template: a splice with no synced commit yet, in a clone from before init's push, fails on {old} when its commit is due, as other refused splices do" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream"
+  local clone="$BATS_TEST_TMPDIR/clone" before
+  git clone -q "$monorepo" "$clone"
+  splice push lib/a
+  local work="$BATS_TEST_TMPDIR/work"
+  git clone -q "$upstream" "$work"
+  git -C "$work" -c user.name=Test -c user.email=test@example.com commit -q --allow-empty -m "upstream's change"
+  git -C "$work" push -q origin main
+  cd "$clone"
+  [ -z "$(splice_config lib/a commit)" ]
+  before="$(git rev-parse HEAD)"
+  run splice pull --message-template '{command} {path} from {old}' lib/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   lib/a: no value for {old} in --message-template -- give the commit a message with -m"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "message template: merge --rebuilt-commit refuses it, as the commit keeps the message of the one it merges, the way push keeps the messages of the commits it copies" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

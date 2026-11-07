@@ -34,38 +34,54 @@ pub struct Message<'a> {
 pub const KNOWN: Option<&str> = Some("");
 
 impl Message<'_> {
-    fn value(&self, name: &str) -> Option<String> {
-        let range = || Some(format!("{}..{}", self.old?, self.new?));
-        match name {
-            "command" => Some(self.command.to_string()),
-            "path" => Some(self.path.to_string()),
-            "upstream" => self.upstream.map(str::to_string),
-            "old" => self.old.map(|old| short(old).to_string()),
-            "new" => self.new.map(|new| short(new).to_string()),
-            "full-old" => self.old.map(str::to_string),
-            "full-new" => self.new.map(str::to_string),
-            "count" => {
-                let range = range()?;
-                Some(
-                    git(&["rev-list", "--count", "--no-merges", &range])
-                        .out()
-                        .unwrap_or_default(),
-                )
-            }
-            "shortlog" => Some(shortlog(&range()?)),
-            _ => None,
-        }
+    /// The value of placeholder <name>, which Template::missing found it has;
+    /// fails the splice if Git can't list the commits {count} and
+    /// {shortlog} need.
+    fn value(&self, name: &str) -> Res<String> {
+        let old = self.old.unwrap_or_default();
+        let new = self.new.unwrap_or_default();
+        let range = format!("{old}..{new}");
+        let listed = |output: Option<String>| match output {
+            Some(output) => Ok(output),
+            None => fail(format!(
+                "{}: can't list the commits {}..{} for {{{name}}}",
+                self.path,
+                short(old),
+                short(new)
+            )),
+        };
+        Ok(match name {
+            "command" => self.command.to_string(),
+            "path" => self.path.to_string(),
+            "upstream" => self.upstream.unwrap_or_default().to_string(),
+            "old" => short(old).to_string(),
+            "new" => short(new).to_string(),
+            "full-old" => old.to_string(),
+            "full-new" => new.to_string(),
+            "count" => listed(
+                git(&["rev-list", "--count", "--no-merges", &range])
+                    .q()
+                    .out(),
+            )?,
+            "shortlog" => shortlog(&listed(
+                git(&[
+                    "log",
+                    "--no-merges",
+                    "--format=%s",
+                    &format!("--max-count={}", SHORTLOG_LIMIT + 1),
+                    &range,
+                ])
+                .q()
+                .out(),
+            )?),
+            _ => String::new(),
+        })
     }
 }
 
-/// The commits in <range> as 'git merge --log' lists them: one subject per
-/// line, indented, newest first, without merge commits, and "..." after the
-/// first SHORTLOG_LIMIT.
-fn shortlog(range: &str) -> String {
-    let limit = format!("--max-count={}", SHORTLOG_LIMIT + 1);
-    let subjects = git(&["log", "--no-merges", "--format=%s", &limit, range])
-        .out()
-        .unwrap_or_default();
+/// <subjects>, newest first, as 'git merge --log' lists them: one per line,
+/// indented, and "..." after the first SHORTLOG_LIMIT.
+fn shortlog(subjects: &str) -> String {
     let mut lines: Vec<String> = subjects.lines().map(|s| format!("  {s}")).collect();
     if lines.len() > SHORTLOG_LIMIT {
         lines.truncate(SHORTLOG_LIMIT);
@@ -198,7 +214,7 @@ impl Template {
         for piece in &self.pieces {
             match piece {
                 Piece::Text(literal) => text.push_str(literal),
-                Piece::Placeholder(name) => text.push_str(&message.value(name).unwrap_or_default()),
+                Piece::Placeholder(name) => text.push_str(&message.value(name)?),
             }
         }
         Ok(text.trim_end().to_string())
@@ -263,6 +279,21 @@ mod tests {
             ..Message::default()
         };
         assert_eq!(render(DEFAULT_INIT, &init), "splice: init lib/a");
+    }
+
+    #[test]
+    fn count_and_shortlog_fail_if_git_cant_list_the_commits() {
+        let unknown = Message {
+            command: "pull",
+            path: "vendor/a",
+            upstream: Some("main"),
+            old: Some("0000000000000000000000000000000000000001"),
+            new: Some("0000000000000000000000000000000000000002"),
+        };
+        for template in ["{count}", "{shortlog}"] {
+            let template = Template::parse("test", template).ok().unwrap();
+            assert!(template.render(&unknown).is_err());
+        }
     }
 
     #[test]
