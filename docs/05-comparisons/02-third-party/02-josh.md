@@ -3,9 +3,10 @@
 [Josh](https://github.com/josh-project/josh), "Just One Single History",
 shows a folder of a monorepo as a repository of its own, by filtering the
 monorepo's history. Filtering a commit always gives the same commit, and
-filtering back gives the original. So the library's repository and Josh's
-view of the folder share commits, hash for hash, as long as the monorepo
-holds copies of the library's whole history.
+filtering a change back onto the monorepo's history, which has what the
+view leaves out, gives the monorepo's commit. So the library's repository
+and Josh's view of the folder share commits, hash for hash, as long as
+the monorepo holds copies of the library's whole history.
 
 `git-splice` keeps the two histories apart. This page runs both, Josh
 with `josh-filter` as its
@@ -135,8 +136,10 @@ ok   josh-splice-pushed.drawio.svg: 5 commits, 5 arrows, 2 boxes
 -->
 
 The library gets 5069701 from both: both copy author, committer, dates
-and message as `git subtree split` does, so the same change on the same
-library commit is the same commit. That holds without a signature or
+and message as `git subtree split` does, so the same change, with the
+same author, dates and message, on the same library commit is the same
+commit. Here the two monorepos' fixes match, since the example fixes the
+dates. That holds without a signature or
 other extra header: Josh keeps those, and a signature then no longer
 verifies; `git-splice` never signs. Neither remembers what it pushed: it
 computes it again.
@@ -231,7 +234,8 @@ $ git bisect start HEAD HEAD~4 >/dev/null &&
 ### With `git-splice`: the culprit is the pull
 
 The pull *x* brings all four commits at once. They stay in the library's
-history, between U(f) and U(x), the synced commits before and after:
+history, after *f'*, the fix as the monorepo pushed it, up to U(x), the
+synced commit after the pull:
 
 ```scrut
 $ cd ../splice-monorepo && git splice pull vendor/lib
@@ -241,7 +245,7 @@ ok   vendor/lib: pulled 612d462
 
 <div align="center">
 
-![The monorepo's f, a stack, and x, with HEAD at x; below, the library's k, a stack, then f prime, d, r, e and v; U(f) points at k, U(x) at v](josh-splice-release.drawio.svg)
+![The monorepo's f, a stack, and x, with HEAD at x; below, the library's k, a stack, then f prime, d, r, e and v, with U(x) at v](josh-splice-release.drawio.svg)
 
 </div>
 
@@ -251,7 +255,7 @@ $ check_drawing "$TESTDIR/josh-splice-release.drawio.svg" --alias HEAD=H \
 >   f=HEAD~1 x=HEAD k=refs/splices/lib/heads/main~5 \
 >   d=refs/splices/lib/heads/main~3 r=refs/splices/lib/heads/main~2 \
 >   e=refs/splices/lib/heads/main~1 v=refs/splices/lib/heads/main
-ok   josh-splice-release.drawio.svg: 8 commits, 9 arrows, 3 boxes
+ok   josh-splice-release.drawio.svg: 8 commits, 8 arrows, 2 boxes
 ```
 -->
 
@@ -265,16 +269,19 @@ $ git bisect start HEAD HEAD~1 >/dev/null &&
 # first 'bad' commit: [f85ff0501eca7cb3482ec7e84b7da5fd966724d5] splice: pull vendor/lib from main at 612d462
 ```
 
-To go deeper, bisect the library's history from U(f) to U(x). Its commits
-are fetched already, so a worktree can check them out, and a second,
-throwaway one runs the app's test:
+To go deeper, bisect the library's history from *f'* to U(x). *f'* is
+where the app last passed: the rebuild of the monorepo before the pull,
+which `git splice rebuild` prints there. U(f), the synced commit before
+the pull, is *k*, from before the fix, so the test fails there already.
+The library's commits are fetched, so a worktree can check them out, and
+a second, throwaway one runs the app's test:
 
 ```scrut
 $ git worktree add -q --detach ../app-bisect &&
->   git worktree add -q --detach ../lib-bisect &&
+>   git worktree add -q --detach ../lib-bisect HEAD~1 &&
 >   cd ../lib-bisect &&
->   bad="$(git config --blob HEAD:vendor/lib/.splice splice.commit)" &&
->   good="$(git config --blob HEAD~1:vendor/lib/.splice splice.commit)" &&
+>   good="$(git splice rebuild vendor/lib)" &&
+>   bad="$(git config --blob main:vendor/lib/.splice splice.commit)" &&
 >   git bisect start "$bad" "$good" >/dev/null
 ```
 
@@ -306,8 +313,8 @@ $ git bisect reset >/dev/null &&
 ```
 
 That's *r* itself, which Josh's `092b6b1` copies. Replacing the folder
-works because it had no changes of its own since U(f); unpushed changes
-would need to be merged in at each step.
+works because it had no changes of its own since *f'* was pushed;
+unpushed changes would need to be merged in at each step.
 
 ## Both sides move on
 
