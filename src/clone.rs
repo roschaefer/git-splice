@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::fetch::{fetch_by_id, fetch_upstream};
+use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -532,6 +533,12 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     require_usable_splice_path(&path, "choose another folder name")?;
 
     repo.open()?;
+    repo.require_message_template(Message {
+        command: "clone",
+        upstream: KNOWN,
+        new: KNOWN,
+        ..Message::default()
+    })?;
     let branch = current_branch()?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
@@ -609,10 +616,16 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     let folder = format!("{target}^{{tree}}");
     let tree = reroot_tree(&path, Some(&folder), Some(&blob), "HEAD").map_err(|_| Fail::Hard)?;
     refuse_monorepo_attributes(&path, &target, &tree)?;
-    let message = repo.commit_message(format!(
-        "splice: clone {path} from {upstream_branch} at {}",
-        short(&target)
-    ));
+    let message = repo.commit_message(
+        message::DEFAULT,
+        Message {
+            command: "clone",
+            path: &path,
+            upstream: Some(&upstream_branch),
+            new: Some(&target),
+            ..Message::default()
+        },
+    )?;
     // The merge base is an empty folder: the two sides share nothing.
     if splice_in(&path, None, None, &folder, &blob, &message).is_err() {
         return die(format!("{path}: clone failed"));
@@ -636,6 +649,11 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     require_usable_splice_path(&path, "rename the submodule's folder")?;
 
     repo.open()?;
+    repo.require_message_template(Message {
+        command: "clone",
+        new: KNOWN,
+        ..Message::default()
+    })?;
     current_branch()?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
@@ -844,10 +862,15 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         }
         must(git(&["add", "--", &gitmodules]).run())?;
     }
-    let message = repo.commit_message(format!(
-        "splice: clone {path} from submodule at {}",
-        short(&commit)
-    ));
+    let message = repo.commit_message(
+        message::DEFAULT_FROM_SUBMODULE,
+        Message {
+            command: "clone",
+            path: &path,
+            new: Some(&commit),
+            ..Message::default()
+        },
+    )?;
     if git(&["commit", "--quiet", "-m", &message]).run() != 0 {
         return die(format!(
             "{path}: 'git commit' failed -- the conversion stays staged"
@@ -888,6 +911,10 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         .bytes()
         .unwrap_or_default();
     let exe = std::env::current_exe().map_err(|_| Fail::Hard)?;
+    let mut options = vec!["clone", "--from-submodule", "--recursive"];
+    if !repo.args.message_template.is_empty() {
+        options.extend(["--message-template", &repo.args.message_template]);
+    }
     for entry in nul_fields(&entries) {
         let Some((fields, sub)) = entry.split_once('\t') else {
             continue;
@@ -898,7 +925,8 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         // A process each: every conversion discovers the splices anew, and a
         // refusal ends only that one.
         let converted = Command::new(&exe)
-            .args(["clone", "--from-submodule", "--recursive", "--", sub])
+            .args(&options)
+            .args(["--", sub])
             .status()
             .is_ok_and(|status| status.success());
         if converted {
@@ -908,8 +936,16 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         if path_mode("HEAD", sub) != "160000" {
             return Ok(1);
         }
+        let template = if repo.args.message_template.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "--message-template {} ",
+                shell_quote(&repo.args.message_template)
+            )
+        };
         return die(format!(
-            "{sub}: not converted -- {path} and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive {}'",
+            "{sub}: not converted -- {path} and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive {template}{}'",
             shell_quote(sub)
         ));
     }
@@ -917,7 +953,11 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
 }
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, "--merge --from-submodule --recursive -m", argv)?;
+    let args = parse_args(
+        USAGE,
+        "--merge --from-submodule --recursive -m --message-template",
+        argv,
+    )?;
     let recursive = args.has_flag("--recursive");
     let merge = args.has_flag("--merge");
     if args.has_flag("--from-submodule") {

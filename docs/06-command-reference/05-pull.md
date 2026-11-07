@@ -12,7 +12,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 ```
 
@@ -135,6 +135,36 @@ ok   vendor/pkg-b: pulled e81697a
 ```scrut
 $ git log -1 --format=%s
 take pkg-b's fix for the release
+```
+
+### `--message-template`
+
+```scrut
+$ git splice pull -h | check-help option --message-template
+        Gives each commit a message made from <template>, also with --all;
+        see 'git splice merge --help'.
+```
+
+It works as for [`merge`](04-merge.md#--message-template), and unlike
+`-m`, it takes `--all`:
+
+```scrut
+$ echo "pkg-b: speed up the feature" >>../pkg-b/file.txt &&
+>   git -C ../pkg-b commit -qam "pkg-b: speed up the feature" &&
+>   git -C ../pkg-b push -q
+```
+
+```scrut
+$ git splice pull --all --message-template 'chore(deps): {command} {path} to {new}'
+ok   vendor/pkg-a fetched
+ok   vendor/pkg-b fetched (main moved e81697a..24c1958)
+ok   vendor/pkg-a: nothing to pull
+ok   vendor/pkg-b: pulled 24c1958
+```
+
+```scrut
+$ git log -1 --format=%s
+chore(deps): pull vendor/pkg-b to 24c1958
 ```
 
 ## Order
