@@ -105,6 +105,7 @@ jobs:
   # time a target builds. Needs no tests: release-please attaches the
   # binaries once the tests pass.
   binaries:
+    name: binaries (${{ matrix.os }}, ${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
