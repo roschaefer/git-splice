@@ -354,6 +354,8 @@ pub fn run(argv: &[String]) -> Res<i32> {
     } else {
         repo.every_upstream_entry(&selected)?
     };
+    let mut entries = entries;
+    entries.extend(repo.used_upstream_entry(&repo.levels_to_fetch()));
     let fetch_failures = repo.fetch_all(&branch, &entries)?;
     let mut failures = fetch_failures.clone();
 

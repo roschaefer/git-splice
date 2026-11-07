@@ -44,20 +44,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
         .filter(|path| !selected.contains(path) && below(path, &direct) && !below(path, &through))
         .cloned()
         .collect();
-    // A splice above a nested one whose synced commit isn't here, e.g. in a
-    // fresh clone: its rebuild is checked out, to pull one level down.
-    let above: Vec<String> = repo
-        .all_paths
-        .iter()
-        .filter(|path| !selected.contains(path))
-        .filter(|path| {
-            through
-                .iter()
-                .any(|inner| inner.starts_with(&format!("{path}/")))
-        })
-        .filter(|path| !synced_commit_here(path))
-        .cloned()
-        .collect();
+    let above = repo.levels_to_fetch();
     // A pull above can move the synced commit of one below it, selected
     // itself or not, to one any of its upstreams may have. In a worktree of a
     // level, that pull above is the one in the monorepo, and moved it if the

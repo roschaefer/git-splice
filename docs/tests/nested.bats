@@ -1294,3 +1294,16 @@ pull_of_b_conflicts() {
   [ "$status" -eq 0 ]
   [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
 }
+
+@test "nested: in a fresh clone, fetch of b alone also fetches a above it, so a merge of b goes through its rebuild" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b change" main other.txt
+  git clone -q --no-local "$monorepo" "$BATS_TEST_TMPDIR/fresh"
+  cd "$BATS_TEST_TMPDIR/fresh"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  splice fetch vendor/a/b
+  run splice merge vendor/a/b
+  [ "$status" -eq 0 ]
+  git cat-file -e HEAD:vendor/a/b/other.txt
+}

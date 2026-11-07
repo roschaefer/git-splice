@@ -474,6 +474,23 @@ fn relative(path: &str, above: &str) -> String {
 }
 
 impl Repo {
+    /// The splices above a selected nested one, not selected themselves,
+    /// whose synced commit isn't here, e.g. in a fresh clone: a merge through
+    /// the levels checks out their rebuild, so fetch and pull fetch them.
+    pub fn levels_to_fetch(&self) -> Vec<String> {
+        self.all_paths
+            .iter()
+            .filter(|path| !self.selected.contains(path))
+            .filter(|path| {
+                self.selected
+                    .iter()
+                    .any(|inner| inner.starts_with(&format!("{path}/")))
+            })
+            .filter(|path| !crate::merge::synced_commit_here(path))
+            .cloned()
+            .collect()
+    }
+
     /// The message of <commit>, from the worktree of the splice at <level>,
     /// for the level above: a pull's default message names the splice as
     /// its level has it, and the monorepo's commit names its own path.
