@@ -363,8 +363,9 @@ $ git update-ref FILTERED_HEAD "$(git -C ../lib-view rev-parse HEAD)" &&
 151bbf6389edb01576588e515121f0c4beeb2698
 ```
 
-The release reaches the monorepo as a commit of its own, joined by the
-merge *j*:
+The release reaches the monorepo as a commit of its own, *w*, joined by
+the merge *j*. Josh's view, below, has the merge it started from, *j'*,
+and the library's own release, *w'*:
 
 ```scrut
 $ git log --oneline --graph -4
@@ -378,15 +379,17 @@ $ git log --oneline --graph -4
 
 <div align="center">
 
-![The monorepo's v, a stack, n on top of it, and w beside n; both are parents of j, with HEAD](josh-both-moved.drawio.svg)
+![The monorepo's v, a stack, n on top of it, and w beside n; both are parents of j, with HEAD; below, Josh's view: v prime, a stack, n prime and w prime, merged into j prime](josh-both-moved.drawio.svg)
 
 </div>
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/josh-both-moved.drawio.svg" --alias HEAD=H \
->   v=HEAD~2 n=HEAD^1 w=HEAD^2 j=HEAD
-ok   josh-both-moved.drawio.svg: 4 commits, 5 arrows, 1 boxes
+$ git branch -q -f josh/view "$(git -C ../lib-view rev-parse HEAD)" &&
+>   check_drawing "$TESTDIR/josh-both-moved.drawio.svg" --alias HEAD=H \
+>   v=HEAD~2 n=HEAD^1 w=HEAD^2 j=HEAD \
+>   "v'=josh/view~2" "n'=josh/view^1" "w'=josh/view^2" "j'=josh/view"
+ok   josh-both-moved.drawio.svg: 8 commits, 9 arrows, 1 boxes
 ```
 -->
 
