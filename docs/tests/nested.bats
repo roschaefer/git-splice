@@ -1272,3 +1272,14 @@ pull_of_b_conflicts() {
   [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
   splice push vendor/a/b
 }
+
+@test "nested: a pull of b goes through the levels when b's folder starts with a dash, which the command one level down doesn't read as an option" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" "b change" main other.txt
+  cd "$monorepo"
+  git mv vendor/a/b vendor/a/-b
+  git commit -q -m "b to -b"
+  run splice pull vendor/a/-b
+  [ "$status" -eq 0 ]
+  git cat-file -e HEAD:vendor/a/-b/other.txt
+}

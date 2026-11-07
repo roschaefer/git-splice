@@ -568,7 +568,7 @@ impl Repo {
                 let (ok, out) = splice_in_dir(
                     &above_dir,
                     &above_stand,
-                    &["rebuild", &inner],
+                    &["rebuild", "--", &inner],
                     &inner,
                     level,
                 );
@@ -639,7 +639,7 @@ impl Repo {
         if self.merge_no_fork_point {
             args.push("--no-fork-point");
         }
-        args.push(&inner);
+        args.extend(["--", &inner]);
         let rebuild = own_rebuild.and_then(|commit| {
             let head = git(&["-C", &above_dir, "rev-parse", "HEAD"]).out()?;
             Some(format!("{head} {commit} {inner}"))
@@ -759,7 +759,7 @@ impl Repo {
             let (ok, out) = splice_in_dir(
                 &above_dir,
                 &recorded_stand(branch, &above),
-                &["boundary", &inner],
+                &["boundary", "--", &inner],
                 &inner,
                 &level,
             );
@@ -841,7 +841,15 @@ impl Repo {
                     let (ok, out) = splice_in_dir(
                         &above_dir,
                         &recorded_stand(branch, above),
-                        &["merge", "--rebuilt-commit", &commit, "-m", &message, &inner],
+                        &[
+                            "merge",
+                            "--rebuilt-commit",
+                            &commit,
+                            "-m",
+                            &message,
+                            "--",
+                            &inner,
+                        ],
                         &inner,
                         &deepest,
                     );
