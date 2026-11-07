@@ -368,12 +368,11 @@ $ cd ../splice-monorepo &&
 ```
 
 `push` walks only the commits since B, the
-[boundary](../../03-concepts/02-sync-model.md#where-b-is): the newest
-commit that changed `.splice`, here the `clone` commit:
+[boundary](../../03-concepts/02-sync-model.md#where-b-is), here the
+`clone` commit:
 
 ```scrut
-$ boundary="$(git log -1 --format=%H -- vendor/lib/.splice)" &&
->   git log --first-parent --format=%s "$boundary"..HEAD
+$ git log --first-parent --format=%s "$(git splice boundary vendor/lib)"..HEAD
 lib fix 2
 app commit 42
 lib fix 1
@@ -505,8 +504,8 @@ commit matches which library commit. In the
 
 `git subtree` writes the pair into the message of *j*, which names *e*:
 carrier and named commit are two. `git-splice` writes U into
-`vendor/lib/.splice`, and B is the newest commit that changed it:
-carrier and boundary in one.
+`vendor/lib/.splice`, and B is a commit that changed it, usually the
+newest: carrier and boundary in one.
 
 ```scrut
 $ cd ../splice-monorepo && git config -f vendor/lib/.splice splice.commit
