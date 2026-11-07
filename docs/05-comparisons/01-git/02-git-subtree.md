@@ -10,9 +10,7 @@ commits that touched the folder back into library commits.
 because of the problems this page shows: without `--squash`, the
 library's whole history comes into the monorepo; with it, `split` walks
 the monorepo's whole history on every push; and the sync points that
-`--rejoin` adds against that are lines in commit messages. Each problem
-ends with the same steps in `git-splice`, and the page with where
-`git subtree` is the better tool.
+`--rejoin` adds against that are lines in commit messages.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits by
 three developers, and a monorepo with an app and 40 commits.
@@ -354,8 +352,7 @@ ok   git-subtree-rejoin-three.drawio.svg: 21 commits, 27 arrows, 1 boxes
 ```
 -->
 
-None of these merges says anything about the app. They're there so that
-`split` stays fast.
+None of these merges says anything about the app.
 
 ### With `git-splice`: the walk starts at B
 
@@ -381,9 +378,6 @@ app commit 42
 lib fix 1
 app commit 41
 ```
-
-It rebuilds the two that changed the library on top of the library's
-history:
 
 ```scrut
 $ git splice push vendor/lib
