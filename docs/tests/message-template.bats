@@ -60,6 +60,23 @@ Upstream: $old..$new" ]
   change 1" ]
 }
 
+@test "message template: log.showSignature doesn't put signature checks into {shortlog}" {
+  command -v ssh-keygen >/dev/null || skip "no ssh-keygen to sign a commit with"
+  scenario_up_to_date "$monorepo" "$upstream"
+  local work="$BATS_TEST_TMPDIR/work"
+  ssh-keygen -q -t ed25519 -N "" -f "$BATS_TEST_TMPDIR/key"
+  git clone -q "$upstream" "$work"
+  echo signed >"$work/signed.txt"
+  git -C "$work" add signed.txt
+  git -C "$work" -c user.name=Test -c user.email=test@example.com -c gpg.format=ssh \
+    -c user.signingKey="$BATS_TEST_TMPDIR/key.pub" commit -q -S -m "a signed change"
+  git -C "$work" push -q origin main
+  cd "$monorepo"
+  git config log.showSignature true
+  splice pull --message-template '{shortlog}' vendor/a
+  [ "$(git log -1 --no-show-signature --format=%B)" = "  a signed change" ]
+}
+
 @test "message template: {shortlog} stops after 20 commits with '...', as 'git merge --log' does, while {count} counts them all" {
   scenario_up_to_date "$monorepo" "$upstream"
   push_upstream_commits "$upstream" 24

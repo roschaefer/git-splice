@@ -66,6 +66,7 @@ impl Message<'_> {
             "shortlog" => shortlog(&listed(
                 git(&[
                     "log",
+                    "--no-show-signature",
                     "--no-merges",
                     "--format=%s",
                     &format!("--max-count={}", SHORTLOG_LIMIT + 1),
