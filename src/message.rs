@@ -1,5 +1,5 @@
-//! --message-template: the message of the commits clone, init, merge and pull
-//! write, with placeholders each commit fills in.
+//! --message-template and splice.messageTemplate: the message of the commits
+//! clone, init, merge and pull write, with placeholders each commit fills in.
 
 use crate::util::*;
 
@@ -10,6 +10,9 @@ pub const DEFAULT: &str = "splice: {command} {path} from {upstream} at {new}";
 pub const DEFAULT_FROM_SUBMODULE: &str = "splice: clone {path} from submodule at {new}";
 /// The default for init, which has no synced commit yet.
 pub const DEFAULT_INIT: &str = "splice: init {path}";
+/// The git config key with the template for commands given neither -m nor
+/// --message-template.
+pub const KEY: &str = "splice.messageTemplate";
 
 /// At most this many commits in {shortlog}, like 'git merge --log'.
 const SHORTLOG_LIMIT: usize = 20;
@@ -119,6 +122,22 @@ impl Template {
     pub fn default(text: &str) -> Res<Template> {
         Template::parse("default message", text)
             .or_else(|problem| die(format!("default message: {problem}")))
+    }
+
+    /// The template splice.messageTemplate sets, or nothing if it's unset.
+    pub fn configured() -> Res<Option<Template>> {
+        let Some(text) = git(&["config", "--get", KEY]).q().out() else {
+            return Ok(None);
+        };
+        if text.trim().is_empty() {
+            return die(format!(
+                "{KEY}: it's empty -- unset it for the default messages"
+            ));
+        }
+        match Template::parse(KEY, &text) {
+            Ok(template) => Ok(Some(template)),
+            Err(problem) => die(format!("{KEY}: {problem}")),
+        }
     }
 
     /// <text> as text and {placeholder}s; {{ and }} are literal braces.

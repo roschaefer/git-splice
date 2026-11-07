@@ -132,7 +132,12 @@ OPTIONS
         without a synced commit, in a clone made between init and its push,
         fails on {old}, {count} and {shortlog} like a refused splice. It
         doesn't go with -m, nor with --rebuilt-commit, whose commit keeps
-        the message of the one it merges. Without it, the template is the default:
+        the message of the one it merges.
+
+        Given neither -m nor --message-template, the commands use the
+        template the git config key splice.messageTemplate sets, also with
+        --global, except merge --rebuilt-commit; without the key, the
+        default:
 
             splice: {command} {path} from {upstream} at {new}
 

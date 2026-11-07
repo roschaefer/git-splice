@@ -232,3 +232,61 @@ Upstream: $old..$new" ]
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%B)" = "fix: the parser" ]
 }
+
+@test "message template: splice.messageTemplate, also set with --global, gives every commit its message without the flag" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  export GIT_CONFIG_GLOBAL="$BATS_TEST_TMPDIR/gitconfig"
+  git config --global splice.messageTemplate 'chore(deps): {command} {path} to {new}'
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%B)" = "chore(deps): pull vendor/a to $(git -C "$upstream" rev-parse --short=7 main)" ]
+}
+
+@test "message template: --message-template and -m win over splice.messageTemplate, which -m doesn't even read" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config splice.messageTemplate '{command} {path}'
+  splice pull --message-template 'given {path}' vendor/a
+  [ "$(git log -1 --format=%B)" = "given vendor/a" ]
+  git reset -q --hard HEAD~1
+  git config splice.messageTemplate '{nope}'
+  run splice pull -m "take the upstream change" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%B)" = "take the upstream change" ]
+}
+
+@test "message template: refuses a broken or empty splice.messageTemplate before pulling anything, naming the key" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  git config splice.messageTemplate '{comand} {path}'
+  run splice pull --all
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   splice.messageTemplate: unknown placeholder {comand} -- the placeholders are {command} {path} {upstream} {old} {new} {full-old} {full-new} {count} {shortlog}" ]
+  git config splice.messageTemplate ''
+  run splice pull vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   splice.messageTemplate: it's empty -- unset it for the default messages" ]
+  git config splice.messageTemplate '{command} {path}: {shortlog}'
+  run splice init lib/b "$upstream"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   splice.messageTemplate: init has no value for {shortlog} -- give the commit a message with -m" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "message template: merge --rebuilt-commit ignores splice.messageTemplate and keeps the message of the commit it merges" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  local rebuilt work="$BATS_TEST_TMPDIR/work"
+  rebuilt="$(splice rebuild vendor/a)"
+  git worktree add -q --detach "$work" "$rebuilt"
+  echo fix >"$work/fix.txt"
+  git -C "$work" add fix.txt
+  git -C "$work" commit -q -m "fix: the parser"
+  git config splice.messageTemplate '{command} {path}'
+  run splice merge --rebuilt-commit "$(git -C "$work" rev-parse HEAD)" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%B)" = "fix: the parser" ]
+}
