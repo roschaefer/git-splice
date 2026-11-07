@@ -911,6 +911,10 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         .bytes()
         .unwrap_or_default();
     let exe = std::env::current_exe().map_err(|_| Fail::Hard)?;
+    let mut options = vec!["clone", "--from-submodule", "--recursive"];
+    if !repo.args.message_template.is_empty() {
+        options.extend(["--message-template", &repo.args.message_template]);
+    }
     for entry in nul_fields(&entries) {
         let Some((fields, sub)) = entry.split_once('\t') else {
             continue;
@@ -921,7 +925,8 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         // A process each: every conversion discovers the splices anew, and a
         // refusal ends only that one.
         let converted = Command::new(&exe)
-            .args(["clone", "--from-submodule", "--recursive", "--", sub])
+            .args(&options)
+            .args(["--", sub])
             .status()
             .is_ok_and(|status| status.success());
         if converted {
@@ -931,8 +936,16 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         if path_mode("HEAD", sub) != "160000" {
             return Ok(1);
         }
+        let template = if repo.args.message_template.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "--message-template {} ",
+                shell_quote(&repo.args.message_template)
+            )
+        };
         return die(format!(
-            "{sub}: not converted -- {path} and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive {}'",
+            "{sub}: not converted -- {path} and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive {template}{}'",
             shell_quote(sub)
         ));
     }
