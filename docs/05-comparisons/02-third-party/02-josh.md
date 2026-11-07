@@ -136,8 +136,9 @@ ok   josh-splice-pushed.drawio.svg: 5 commits, 5 arrows, 2 boxes
 ```
 -->
 
-The library gets 5069701 from both. Like `git subtree split`, both keep
-the author, committer, dates and message, so the same change on the same
+Josh's view has the commit `git-splice` pushed, 5069701, so a push from
+Josh would send the same. Like `git subtree split`, both keep the
+author, committer, dates and message, so the same change on the same
 library commit is the same commit (the example fixes the dates). A
 signature or other extra header breaks that: Josh keeps it, so a
 signature no longer verifies, and `git-splice` drops it.
@@ -562,10 +563,11 @@ ok   josh-splice-merged.drawio.svg: 8 commits, 9 arrows, 2 boxes
 
 Below it, *y'* has the parents of *j'* in Josh's view, with another
 message: a merge that joins the library's history with the monorepo's
-changes belongs to the library, and both tools send it. A merge of the
-monorepo's branches is integration, and only Josh sends it. *g'* keeps
-the monorepo's message, `Merge branch 'parse-options'`; a squash merge,
-or a message written for the library, arrives as written.
+changes belongs to the library, and a push from either tool sends it. A
+merge of the monorepo's branches is integration, and only Josh's would
+send it. *g'* keeps the monorepo's message,
+`Merge branch 'parse-options'`; a squash merge, or a message written
+for the library, arrives as written.
 
 ## Where Josh is better
 
