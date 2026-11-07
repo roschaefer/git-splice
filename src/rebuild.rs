@@ -595,6 +595,17 @@ impl Repo {
                     {
                         continue;
                     }
+                    // The upstream above lacks the splice's own synced commit,
+                    // e.g. when one commit moved both.
+                    let recorded = splice_config(inner, "commit", &above_synced);
+                    if k == seg_paths.len() - 1
+                        && recorded != synced
+                        && commit_here(&synced)
+                        && commit_here(&recorded)
+                        && !is_ancestor(&synced, &recorded)
+                    {
+                        continue;
+                    }
                     best = Some((above, above_last, above_synced, k));
                 }
                 if best.is_some() {
