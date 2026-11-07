@@ -1283,3 +1283,14 @@ pull_of_b_conflicts() {
   [ "$status" -eq 0 ]
   git cat-file -e HEAD:vendor/a/-b/other.txt
 }
+
+@test "nested: a pull of b keeps b's own branch when the monorepo tracks another branch for a above it" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  git -C "$upstream" branch -q release main
+  seed_bare_repo "$upstream_b" "b change" main other.txt
+  cd "$monorepo"
+  splice fetch --branch release --track vendor/a
+  run splice pull vendor/a/b
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+}

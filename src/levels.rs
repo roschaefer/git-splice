@@ -532,15 +532,21 @@ impl Repo {
                 .collect();
             quietly(|| contained(self.use_upstreams(&upstream, &selected))).ok();
         }
+        // By the rule of the same name only: a branch --branch names or the
+        // monorepo tracks for a level is that splice's alone, and the splices
+        // below it keep theirs.
+        let on_default = branch == self.monorepo_default_branch();
         let stands: Vec<Stand> = levels
             .iter()
             .map(|level| {
-                (
-                    quietly(|| self.upstream_branch_for(level, branch, None))
-                        .unwrap_or_else(|_| branch.to_string()),
-                    quietly(|| self.splice_default_branch(level, None))
-                        .unwrap_or_else(|_| self.monorepo_default_branch()),
-                )
+                let default = quietly(|| self.splice_default_branch(level, None))
+                    .unwrap_or_else(|_| self.monorepo_default_branch());
+                let stand = if on_default {
+                    default.clone()
+                } else {
+                    branch.to_string()
+                };
+                (stand, default)
             })
             .collect();
 
