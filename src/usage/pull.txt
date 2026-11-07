@@ -2,7 +2,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 
 DESCRIPTION
@@ -64,6 +64,12 @@ OPTIONS
         --help'.
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#-m
+
+    --message-template <template>
+        Gives each commit a message made from <template>, also with --all;
+        see 'git splice merge --help'.
+
+        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#--message-template
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#options
 

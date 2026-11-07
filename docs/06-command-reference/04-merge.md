@@ -12,7 +12,7 @@ NAME
     git-splice-merge - Splice in fetched upstream changes
 
 SYNOPSIS
-    git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] (<path>... | --all)
+    git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
     git splice merge [-m <message>] --rebuilt-commit <commit> <path>
 ```
@@ -243,6 +243,52 @@ ok   vendor/pkg-a: merged 703b936
 $ git log -1 --format=%s
 pkg-a: take the second commit
 ```
+
+### `--message-template`
+
+```scrut
+$ git splice merge -h | check-help option --message-template
+        Gives each commit a message made from <template>, also with --all.
+        Its placeholders are {command} (clone, init, merge, pull or bump),
+        {path}, {upstream} (the upstream branch), {old} and {new} (the
+        synced commit before and after; {full-old} and {full-new}
+        unabbreviated), and {count} and {shortlog} for the commits from
+        {old} to {new}, merge commits left out: their number, and their
+        subjects as 'git merge --log' lists them, at most 20. {{ and }} are
+        literal braces. A placeholder the command has no value for, e.g.
+        {old} for clone, stops it before it writes anything. It doesn't go
+        with -m, nor with --rebuilt-commit, whose commit keeps the message
+        of the one it merges. Without it, the template is the default:
+
+            splice: {command} {path} from {upstream} at {new}
+```
+
+A monorepo that uses Conventional Commits can have a merge say so, and
+list what came in:
+
+<!--
+```scrut
+$ git reset -q --hard HEAD~1
+```
+-->
+
+```scrut
+$ git splice merge --message-template 'chore(deps): {command} {path} to {new}
+> 
+> {shortlog}' vendor/pkg-a
+ok   vendor/pkg-a: merged 703b936
+```
+
+```scrut
+$ git log -1 --format=%B
+chore(deps): merge vendor/pkg-a to 703b936
+
+  pkg-a: a second commit, after the clone
+
+```
+
+Unlike `-m`, it takes several splices or `--all`: each commit fills in
+its own values.
 
 ## Upstream branch
 

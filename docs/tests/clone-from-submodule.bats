@@ -321,6 +321,14 @@ add_nested_submodule_with_branch() {
   [ "$(splice_state vendor/a)" = push ]
 }
 
+@test "clone --from-submodule --recursive: --message-template gives the nested submodules' commits their message too" {
+  add_nested_submodule
+  run splice clone --from-submodule --recursive --message-template 'chore: {command} {path}' vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s HEAD^)" = "chore: clone vendor/a" ]
+  [ "$(git log -1 --format=%s)" = "chore: clone vendor/a/libs/inner" ]
+}
+
 @test "clone --from-submodule --recursive: the push turns the submodule into a splice upstream too" {
   add_nested_submodule
   local outer_pin
@@ -431,6 +439,21 @@ add_nested_submodule_with_branch() {
   [ "$status" -eq 0 ]
   [ "$(path_mode HEAD vendor/a/libs/inner)" = 040000 ]
   [ -z "$(git status --porcelain)" ]
+}
+
+@test "clone --from-submodule --recursive: the command to resume a refused nested submodule keeps --message-template" {
+  add_nested_submodule
+  local tmp="$BATS_TEST_TMPDIR/outer-work"
+  git clone -q "$upstream" "$tmp"
+  git -C "$tmp" -c protocol.file.allow=always submodule -q update --init
+  git -C "$tmp/libs/inner" commit -q --allow-empty -m "unpushed"
+  git -C "$tmp" commit -q -a -m "bump libs/inner"
+  git -C "$tmp" push -q origin main
+  git -C vendor/a pull -q origin main
+  git commit -q -a -m "bump vendor/a"
+  run splice clone --from-submodule --recursive --message-template 'chore: {command} {path}' vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"fix the above, then run 'git splice clone --from-submodule --recursive --message-template 'chore: {command} {path}' vendor/a/libs/inner'"* ]]
 }
 
 @test "clone: --recursive needs --from-submodule" {

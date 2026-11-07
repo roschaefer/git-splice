@@ -1,6 +1,7 @@
 //! git splice merge.
 
 use crate::args::parse_args;
+use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -65,6 +66,20 @@ impl Repo {
 
     /// Merges one splice from its already-fetched upstream branch. <verb> (merge
     /// or pull) only selects the wording of the messages.
+    /// What --message-template gets for <command>'s commit that syncs
+    /// <path> to <target>.
+    fn message_for<'a>(&'a self, command: &'a str, path: &'a str, target: &'a str) -> Message<'a> {
+        Message {
+            command,
+            path,
+            upstream: Some(&self.c.upstream_label),
+            old: Some(&self.c.synced)
+                .filter(|synced| !synced.is_empty())
+                .map(String::as_str),
+            new: Some(target),
+        }
+    }
+
     fn merge_one(&mut self, path: &str, branch: &str, verb: &str) -> Res<()> {
         self.classify_splice(path, branch)?;
         let option = self.upstream_option(path);
@@ -183,10 +198,8 @@ impl Repo {
         let base_folder = tree_of(&merge_base).ok_or(Fail::Soft)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
-        let message = self.commit_message(format!(
-            "splice: {verb} {path} from {label} at {}",
-            short(&target)
-        ));
+        let message =
+            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
         if splice_in(
             path,
             Some(&base_folder),
@@ -296,11 +309,8 @@ impl Repo {
             Some(&blob),
             &base,
         )?;
-        let message = self.commit_message(format!(
-            "splice: {verb} {path} from {} at {}",
-            c.upstream_label,
-            short(&target)
-        ));
+        let message =
+            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
         let pull = git(&["commit-tree", &tree, "-p", &base, "-m", &message])
             .out()
             .ok_or(Fail::Soft)?;
@@ -410,11 +420,8 @@ impl Repo {
         let folder = tree_of(&target).ok_or(Fail::Soft)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
-        let message = self.commit_message(format!(
-            "splice: {verb} {path} from {} at {}",
-            self.c.upstream_label,
-            short(&target)
-        ));
+        let message =
+            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
         if splice_in(
             path,
             Some(&folder),
@@ -458,11 +465,8 @@ impl Repo {
             .ok_or(Fail::Soft)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
-        let message = self.commit_message(format!(
-            "splice: bump {path} from {} at {}",
-            self.c.upstream_label,
-            short(&target)
-        ));
+        let message =
+            self.commit_message(message::DEFAULT, self.message_for("bump", path, &target))?;
         if splice_in(
             path,
             Some(&folder),
@@ -770,7 +774,8 @@ pub fn apply_merge_options(repo: &mut Repo) -> Res<()> {
     Ok(())
 }
 
-pub const MERGE_OPTIONS: &str = "--upstream --branch --track --bump --rebase --no-fork-point -m";
+pub const MERGE_OPTIONS: &str =
+    "--upstream --branch --track --bump --rebase --no-fork-point -m --message-template";
 
 impl Repo {
     /// For --rebuilt-commit: merges <commit>, which continues the splice's
@@ -819,7 +824,7 @@ impl Repo {
         } else {
             format!("splice: merge {} into {path}", short(&given))
         };
-        let message = self.commit_message(default);
+        let message = self.given_message_or(default);
         let blob = state_file_blob("HEAD", path).ok_or(Fail::Hard)?;
         let base_folder = tree_of(&base).ok_or(Fail::Hard)?;
         match splice_in(
@@ -895,6 +900,11 @@ pub fn run(argv: &[String]) -> Res<i32> {
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let rebuilt_commit = args.rebuilt_commit.clone();
+    if !rebuilt_commit.is_empty() && !args.message_template.is_empty() {
+        return die(
+            "--rebuilt-commit keeps the message of the commit it merges -- -m replaces it, --message-template doesn't go with it",
+        );
+    }
     if !rebuilt_commit.is_empty() {
         let given = [
             ("--upstream", !args.upstream.is_empty()),
@@ -926,6 +936,13 @@ pub fn run(argv: &[String]) -> Res<i32> {
         repo.merge_rebuilt_commit(&path, &rebuilt_commit)?;
         return Ok(0);
     }
+    repo.require_message_template(Message {
+        command: "merge",
+        upstream: KNOWN,
+        old: KNOWN,
+        new: KNOWN,
+        ..Message::default()
+    })?;
     repo.select_splices(Kind::Explicit, "merge")?;
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
