@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.20.0](https://github.com/roschaefer/git-splice/compare/v0.19.0...v0.20.0) (2026-11-07)
+
+
+### Features
+
+* **check-drawing:** check that each commit the prose names is shown on its page ([#398](https://github.com/roschaefer/git-splice/issues/398)) ([640b5ef](https://github.com/roschaefer/git-splice/commit/640b5efefef901c028862835d9dccbe9d80e2575)), closes [#394](https://github.com/roschaefer/git-splice/issues/394)
+* **check-drawing:** check that each drawing appears next to its check ([#399](https://github.com/roschaefer/git-splice/issues/399)) ([c8d0a29](https://github.com/roschaefer/git-splice/commit/c8d0a294bc7475d958fe525eb3618ad6f34080e9)), closes [#395](https://github.com/roschaefer/git-splice/issues/395)
+* **check-drawing:** draw a commit a committed file names as a dashed arrow ([#411](https://github.com/roschaefer/git-splice/issues/411)) ([b416eb9](https://github.com/roschaefer/git-splice/commit/b416eb9ff7d0ea43279ef1c17a99444c85db9474))
+* **check-drawing:** explain dashes and primes once, in a central legend ([#402](https://github.com/roschaefer/git-splice/issues/402)) ([b3bffdd](https://github.com/roschaefer/git-splice/commit/b3bffdde0b58546d47e69755105ae471d1b8e8ab))
+* **check-drawing:** outline blue every pull a drawing shows, at any level ([#401](https://github.com/roschaefer/git-splice/issues/401)) ([d18ab04](https://github.com/roschaefer/git-splice/commit/d18ab04ea77ef12f16b5b175f733e8c95eddceee))
+* **website:** count page views with GoatCounter ([#413](https://github.com/roschaefer/git-splice/issues/413)) ([963a400](https://github.com/roschaefer/git-splice/commit/963a400f0ac2e0a5f554b27696338a75a8028d79))
+
+
+### Bug Fixes
+
+* hash the empty tree from empty input instead of /dev/null ([#414](https://github.com/roschaefer/git-splice/issues/414)) ([cbb82dc](https://github.com/roschaefer/git-splice/commit/cbb82dcda053e734a10dc8a2bb076549c07c7faa))
+* **pager:** page on Unix only, and detect a terminal the portable way ([#423](https://github.com/roschaefer/git-splice/issues/423)) ([966405e](https://github.com/roschaefer/git-splice/commit/966405ee9aacc92e24d7e7bc67dc241bb54e4e95))
+* **pull:** say what a fresh clone hasn't fetched, not that the upstream lacks it ([#365](https://github.com/roschaefer/git-splice/issues/365)) ([022f615](https://github.com/roschaefer/git-splice/commit/022f615d94e458cf87c78afdf19d7c40963a70d3))
+* **push:** leave the user's SSH setup alone, as git push does ([#412](https://github.com/roschaefer/git-splice/issues/412)) ([54da867](https://github.com/roschaefer/git-splice/commit/54da86738e7557bbd94e75f8173ff2493d2a3b9e))
+* refuse a monorepo path or commit identity that isn't valid UTF-8 ([#416](https://github.com/roschaefer/git-splice/issues/416)) ([32983e2](https://github.com/roschaefer/git-splice/commit/32983e26cfae826a15f3bb525af29b52307ab779))
+* run git without sh for merged output, and read exit codes off Unix too ([#417](https://github.com/roschaefer/git-splice/issues/417)) ([e2d1ea7](https://github.com/roschaefer/git-splice/commit/e2d1ea7dec16b531684a8075e77584878444f1f4))
+
 ## [0.19.0](https://github.com/roschaefer/git-splice/compare/v0.18.0...v0.19.0) (2026-11-05)
 
 
