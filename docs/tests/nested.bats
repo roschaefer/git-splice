@@ -1307,3 +1307,17 @@ pull_of_b_conflicts() {
   [ "$status" -eq 0 ]
   git cat-file -e HEAD:vendor/a/b/other.txt
 }
+
+@test "nested: pull of a alone fetches the tag its pull pins b at, though b's upstream URL stays the same" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  git -C "$upstream_b" tag v1 main
+  work_in_upstream_a
+  git config --file b/.splice upstream.origin.default-pin v1
+  git commit -q -m "pin b at v1" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  run splice status vendor/a/b
+  [ "${lines[1]}" = "  up to date  vendor/a/b -> tags/v1" ]
+}

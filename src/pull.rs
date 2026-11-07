@@ -122,15 +122,17 @@ pub fn run(argv: &[String]) -> Res<i32> {
                 failures.push(path.clone());
                 continue;
             }
-            // The upstreams it names now, but didn't before; all of them if
-            // the synced commit isn't here, which any may have.
+            // The upstreams it names now, but didn't before, or whose
+            // default-pin isn't here; all of them if the synced commit isn't
+            // here, which any may have.
             let every = repo.every_upstream_entry(std::slice::from_ref(path))?;
             if synced_commit_here(path) {
-                entries.extend(
-                    every
-                        .into_iter()
-                        .filter(|(path, name)| !old_urls.contains(&repo.url_of(path, name))),
-                );
+                entries.extend(every.into_iter().filter(|(path, name)| {
+                    !old_urls.contains(&repo.url_of(path, name))
+                        || !upstream_config(path, name, "default-pin").is_empty()
+                            && quietly(|| repo.resolve_default_target(path, Some(name)))
+                                .map_or(true, |target| commit_of(&target.reference).is_none())
+                }));
             } else {
                 entries.extend(every);
             }
