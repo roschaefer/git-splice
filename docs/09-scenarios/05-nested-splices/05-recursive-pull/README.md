@@ -172,7 +172,8 @@ $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
 
 `vendor/a/e/` is a splice now. The pull stopped at the conflict before
 it fetched it, so that happens here. A recursive pull would have fetched
-it in the discover pass already.
+it in the discover pass already
+([#429](https://github.com/roschaefer/git-splice/issues/429)).
 
 ```scrut
 $ git splice fetch vendor/a/e
@@ -300,7 +301,8 @@ isn't pushed. The last take-up moved the synced commits of `b/` and
 `c/` in one commit, and the rebuild of `c/` then takes its history from
 `b`'s upstream, the outer one, which wins a tie. That upstream doesn't
 have *c2* yet, so the rebuild lacks it. A recursive pull takes up all
-of a level's merges in one commit, so this gap has to be fixed first:
+of a level's merges in one commit, so this gap has to be fixed first
+([#428](https://github.com/roschaefer/git-splice/issues/428)):
 
 ```scrut
 $ git splice push vendor/a/b/c
