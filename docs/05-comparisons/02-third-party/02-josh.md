@@ -135,14 +135,11 @@ ok   josh-splice-pushed.drawio.svg: 5 commits, 5 arrows, 2 boxes
 ```
 -->
 
-The library gets 5069701 from both: both copy author, committer, dates
-and message as `git subtree split` does, so the same change, with the
-same author, dates and message, on the same library commit is the same
-commit. Here the two monorepos' fixes match, since the example fixes the
-dates. That holds without a signature or
-other extra header: Josh keeps those, and a signature then no longer
-verifies; `git-splice` never signs. Neither remembers what it pushed: it
-computes it again.
+The library gets 5069701 from both. Like `git subtree split`, both keep
+the author, committer, dates and message, so the same change on the same
+library commit is the same commit (the example fixes the dates). A
+signature or other extra header breaks that: Josh keeps it, so a
+signature no longer verifies, and `git-splice` drops it.
 
 ## A release breaks the app: `git bisect`
 
@@ -269,11 +266,10 @@ $ git bisect start HEAD HEAD~1 >/dev/null &&
 # first 'bad' commit: [f85ff0501eca7cb3482ec7e84b7da5fd966724d5] splice: pull vendor/lib from main at 612d462
 ```
 
-To go deeper, bisect the library's history from *f'* to U(x). *f'* is
-where the app last passed: the rebuild of the monorepo before the pull,
-which `git splice rebuild` prints there. U(f), the synced commit before
-the pull, is *k*, from before the fix, so the test fails there already.
-The library's commits are fetched, so a worktree can check them out, and
+To go deeper, bisect the library's history from *f'*, where the app
+last passed, to U(x). `git splice rebuild` at *f* prints *f'*; U(f), the
+synced commit before the pull, won't do: it's *k*, from before the fix.
+The library's commits are fetched, so one worktree checks them out, and
 a second, throwaway one runs the app's test:
 
 ```scrut
@@ -560,13 +556,12 @@ ok   josh-splice-merged.drawio.svg: 8 commits, 9 arrows, 2 boxes
 ```
 -->
 
-Below it, both libraries have the same merge of the earlier pull, *y'*
-here, with the same parents and each tool's message: a merge that joins
-the library's history with the monorepo's changes belongs to the
-library, and both tools send it. A merge of the monorepo's branches is
-integration, and only Josh sends it. *g'* still has the monorepo's
-message, `Merge branch 'parse-options'`; a squash merge, or a message
-written for the library, arrives as written.
+Below it, *y'* has the parents of *j'* in Josh's view, with another
+message: a merge that joins the library's history with the monorepo's
+changes belongs to the library, and both tools send it. A merge of the
+monorepo's branches is integration, and only Josh sends it. *g'* keeps
+the monorepo's message, `Merge branch 'parse-options'`; a squash merge,
+or a message written for the library, arrives as written.
 
 ## Where Josh is better
 
@@ -625,6 +620,5 @@ written for the library, arrives as written.
 | A monorepo branch merged | a merge, with the branch's commits | one commit, with the merge's message |
 | Where both sides meet | commits of the filtered view that the library has | the synced commit in `.splice` |
 | An upstream commit pulled in | one monorepo commit for each, and a merge if both sides moved | one pull commit for all |
-| Merges a sync adds to the monorepo | one when both sides moved | none |
 | Implementation | Rust, gitoxide, a cache | Bash, the `git` command |
 | Best for | a monorepo that is the source of truth, served in parts | a library with its own repository, changed in the monorepo |
