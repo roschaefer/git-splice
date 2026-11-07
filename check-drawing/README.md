@@ -39,7 +39,9 @@ Otherwise it prints each difference, with what to change, and fails:
 A circle's label is the commit's subject, or its start up to a colon:
 *a* is `a: add vendor/a`. Another tool's commit, whose message you
 can't choose, gets a label given as `<label>=<rev>`, a revision of the
-monorepo: `a=HEAD~3`. A box's name
+monorepo: `a=HEAD~3`. A label drawn in several lanes, a different
+commit in each, is given for its lane, its folder in front:
+`vendor/a/b/r'=layer/b`. A box's name
 given that way points at that revision, e.g. a commit another tool
 records, as `parent=<rev>`.
 
