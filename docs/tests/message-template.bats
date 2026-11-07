@@ -31,16 +31,15 @@ push_upstream_commits() {
   rm -rf "$work"
 }
 
-@test "message template: pull fills in the command, path, upstream branch and both synced commits" {
+@test "message template: pull --all fills in the command, path, upstream branch and both synced commits" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local old new
   old="$(splice_config vendor/a commit)"
   new="$(git rev-parse "$(upstream_refs "$upstream")main")"
-  git config splice.messageTemplate 'chore(deps): {command} {path} from {upstream}, {old}..{new}
+  run splice pull --all --message-template 'chore(deps): {command} {path} from {upstream}, {old}..{new}
 
 Upstream: {full-old}..{full-new}'
-  run splice pull vendor/a
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%B)" = "chore(deps): pull vendor/a from main, ${old:0:7}..${new:0:7}
 
@@ -51,10 +50,9 @@ Upstream: $old..$new" ]
   scenario_up_to_date "$monorepo" "$upstream"
   push_upstream_commits "$upstream" 2
   cd "$monorepo"
-  git config splice.messageTemplate '{command} {path} ({count} commits)
+  splice pull --message-template '{command} {path} ({count} commits)
 
-{shortlog}'
-  splice pull vendor/a
+{shortlog}' vendor/a
   [ "$(git log -1 --format=%B)" = "pull vendor/a (3 commits)
 
   side work
@@ -66,10 +64,9 @@ Upstream: $old..$new" ]
   scenario_up_to_date "$monorepo" "$upstream"
   push_upstream_commits "$upstream" 24
   cd "$monorepo"
-  git config splice.messageTemplate '{count} commits
+  splice pull --message-template='{count} commits
 
-{shortlog}'
-  splice pull vendor/a
+{shortlog}' vendor/a
   local message
   message="$(git log -1 --format=%B)"
   [ "$(head -1 <<<"$message")" = "25 commits" ]
@@ -79,21 +76,15 @@ Upstream: $old..$new" ]
   [ "$(wc -l <<<"$message")" -eq 23 ]
 }
 
-@test "message template: -m wins over it" {
+@test "message template: refuses -m with it, as both give the message" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  git config splice.messageTemplate '{command} {path}'
-  run splice pull -m "take the upstream change" vendor/a
-  [ "$status" -eq 0 ]
-  [ "$(git log -1 --format=%B)" = "take the upstream change" ]
-}
-
-@test "message template: -m wins over a broken one, which isn't even read then" {
-  scenario_pull_ahead "$monorepo" "$upstream"
-  cd "$monorepo"
-  git config splice.messageTemplate '{nope}'
-  run splice pull -m "take the upstream change" vendor/a
-  [ "$status" -eq 0 ]
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull -m "take the upstream change" --message-template '{command} {path}' vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   -m and --message-template both give the message -- give one" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
 @test "message template: refuses an unknown placeholder, e.g. a typo, before pulling anything, and lists the known ones" {
@@ -101,36 +92,34 @@ Upstream: $old..$new" ]
   cd "$monorepo"
   local before
   before="$(git rev-parse HEAD)"
-  git config splice.messageTemplate '{comand} {path}'
-  run splice pull --all
+  run splice pull --all --message-template '{comand} {path}'
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   splice.messageTemplate: unknown placeholder {comand} -- the placeholders are {command} {path} {upstream} {old} {new} {full-old} {full-new} {count} {shortlog}" ]
+  [ "$output" = "!!   --message-template: unknown placeholder {comand} -- the placeholders are {command} {path} {upstream} {old} {new} {full-old} {full-new} {count} {shortlog}" ]
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
 @test "message template: refuses an unclosed or unopened brace, and {{ and }} write literal braces" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  git config splice.messageTemplate 'pull {path'
-  run splice pull vendor/a
+  run splice pull --message-template 'pull {path' vendor/a
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   splice.messageTemplate: '{path' has no closing '}' -- write '{{' for a literal '{'" ]
-  git config splice.messageTemplate 'pull } {path}'
-  run splice pull vendor/a
+  [ "$output" = "!!   --message-template: '{path' has no closing '}' -- write '{{' for a literal '{'" ]
+  run splice pull --message-template 'pull } {path}' vendor/a
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   splice.messageTemplate: '}' has no opening '{' -- write '}}' for a literal '}'" ]
-  git config splice.messageTemplate '{{{path}}}'
-  splice pull vendor/a
+  [ "$output" = "!!   --message-template: '}' has no opening '{' -- write '}}' for a literal '}'" ]
+  splice pull --message-template '{{{path}}}' vendor/a
   [ "$(git log -1 --format=%B)" = "{vendor/a}" ]
 }
 
 @test "message template: refuses an empty one" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
-  git config splice.messageTemplate ''
-  run splice pull vendor/a
+  run splice pull --message-template '' vendor/a
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   splice.messageTemplate: it's empty -- unset it for the default messages" ]
+  [ "$output" = "!!   --message-template needs a template" ]
+  run splice pull --message-template '  ' vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --message-template: it's empty" ]
 }
 
 @test "message template: pull --bump's commit names the command bump" {
@@ -138,8 +127,7 @@ Upstream: $old..$new" ]
   cd "$monorepo"
   commit_local "$monorepo" vendor/a "local change"
   splice push vendor/a
-  git config splice.messageTemplate '{command} {path} to {new}'
-  run splice pull --bump vendor/a
+  run splice pull --bump --message-template '{command} {path} to {new}' vendor/a
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%B)" = "bump vendor/a to $(git -C "$upstream" rev-parse --short=7 main)" ]
 }
@@ -148,8 +136,7 @@ Upstream: $old..$new" ]
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   commit_local "$monorepo" vendor/a "local change" local.txt
-  git config splice.messageTemplate '{command} {path} to {new}'
-  run splice merge --rebase vendor/a
+  run splice merge --rebase --message-template '{command} {path} to {new}' vendor/a
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%s HEAD^)" = "merge vendor/a to $(git -C "$upstream" rev-parse --short=7 main)" ]
   [ "$(git log -1 --format=%s)" = "local change" ]
@@ -160,8 +147,7 @@ Upstream: $old..$new" ]
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
   cd "$monorepo"
-  git config splice.messageTemplate '{command} {path} from {upstream} at {new}'
-  run splice clone "$upstream" vendor/a
+  run splice clone --message-template '{command} {path} from {upstream} at {new}' "$upstream" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%B)" = "clone vendor/a from main at $(git -C "$upstream" rev-parse --short=7 main)" ]
 }
@@ -171,10 +157,9 @@ Upstream: $old..$new" ]
   seed_bare_repo "$upstream" "seed"
   init_monorepo "$monorepo"
   cd "$monorepo"
-  git config splice.messageTemplate '{command} {path}: {shortlog}'
-  run splice clone "$upstream" vendor/a
+  run splice clone --message-template '{command} {path}: {shortlog}' "$upstream" vendor/a
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   splice.messageTemplate: clone has no value for {shortlog} -- give the commit a message with -m" ]
+  [ "$output" = "!!   --message-template: clone has no value for {shortlog} -- give the commit a message with -m" ]
   [ -z "$(git for-each-ref refs/splices/)" ]
   [ -z "$(git config --get-regexp '^splice\..*\.url$')" ]
   run splice clone -m "add vendor/a" "$upstream" vendor/a
@@ -186,17 +171,15 @@ Upstream: $old..$new" ]
   cd "$monorepo"
   local before
   before="$(git rev-parse HEAD)"
-  git config splice.messageTemplate '{command} {path} at {new}'
-  run splice init lib/a "$upstream"
+  run splice init --message-template '{command} {path} at {new}' lib/a "$upstream"
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   splice.messageTemplate: init has no value for {new} -- give the commit a message with -m" ]
+  [ "$output" = "!!   --message-template: init has no value for {new} -- give the commit a message with -m" ]
   [ "$(git rev-parse HEAD)" = "$before" ]
-  git config splice.messageTemplate 'chore: {command} {path}'
-  splice init lib/a "$upstream"
+  splice init --message-template 'chore: {command} {path}' lib/a "$upstream"
   [ "$(git log -1 --format=%B)" = "chore: init lib/a" ]
 }
 
-@test "message template: merge --rebuilt-commit keeps its own message, as push keeps the messages of the commits it copies" {
+@test "message template: merge --rebuilt-commit refuses it, as the commit keeps the message of the one it merges, the way push keeps the messages of the commits it copies" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
   local rebuilt work="$BATS_TEST_TMPDIR/work"
@@ -205,7 +188,9 @@ Upstream: $old..$new" ]
   echo fix >"$work/fix.txt"
   git -C "$work" add fix.txt
   git -C "$work" commit -q -m "fix: the parser"
-  git config splice.messageTemplate '{command} {path}'
+  run splice merge --message-template '{command} {path}' --rebuilt-commit "$(git -C "$work" rev-parse HEAD)" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --rebuilt-commit keeps the message of the commit it merges -- -m replaces it, --message-template doesn't go with it" ]
   run splice merge --rebuilt-commit "$(git -C "$work" rev-parse HEAD)" vendor/a
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%B)" = "fix: the parser" ]

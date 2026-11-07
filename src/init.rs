@@ -27,7 +27,7 @@ fn empty_upstream_default_branch(url: &str) -> String {
 }
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, "-m", argv)?;
+    let args = parse_args(USAGE, "-m --message-template", argv)?;
     args.require(USAGE, "init", 2, 2)?;
     if args.paths[0].is_empty() || args.paths[1].is_empty() {
         eprint_text(USAGE);

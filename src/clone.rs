@@ -943,7 +943,11 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
 }
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, "--merge --from-submodule --recursive -m", argv)?;
+    let args = parse_args(
+        USAGE,
+        "--merge --from-submodule --recursive -m --message-template",
+        argv,
+    )?;
     let recursive = args.has_flag("--recursive");
     let merge = args.has_flag("--merge");
     if args.has_flag("--from-submodule") {

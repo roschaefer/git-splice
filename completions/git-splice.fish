@@ -19,7 +19,7 @@ end
 
 # True while the word being completed is positional argument number $argv[2]
 # (counting from 0) of command $argv[1], options and the value after
-# --upstream, --branch or -m not counted.
+# --upstream, --branch, -m or --message-template not counted.
 function __git_splice_positional
     set -l seen 0
     set -l count 0
@@ -34,7 +34,7 @@ function __git_splice_positional
             continue
         end
         switch $token
-            case --upstream --branch -m --message
+            case --upstream --branch -m --message --message-template
                 set skip 1
             case '-*'
             case '*'
@@ -75,6 +75,7 @@ complete -c git-splice -n "__fish_seen_subcommand_from fetch merge pull push" -l
 complete -c git-splice -n "__fish_seen_subcommand_from fetch merge pull push" -l track -d 'track --branch on the current branch'
 complete -c git-splice -n "__fish_seen_subcommand_from fetch" -l no-track -d 'stop tracking an upstream branch on the current branch'
 complete -c git-splice -n "__fish_seen_subcommand_from clone init merge pull" -s m -l message -x -d 'commit message, instead of the default one'
+complete -c git-splice -n "__fish_seen_subcommand_from clone init merge pull" -l message-template -x -d 'commit message with placeholders, for each commit'
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l rebuilt-commit -x -a $branches -d 'push this commit instead of the rebuild'
 complete -c git-splice -n "__fish_seen_subcommand_from merge" -l rebuilt-commit -x -a $branches -d 'merge this commit, made on top of the rebuild'
 complete -c git-splice -n "__fish_seen_subcommand_from log" -l graph -d 'draw both sides as a graph'

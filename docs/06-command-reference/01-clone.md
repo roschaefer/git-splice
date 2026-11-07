@@ -12,8 +12,8 @@ NAME
     git-splice-clone - Splice an existing repository into the monorepo
 
 SYNOPSIS
-    git splice clone [--merge] [-m <message>] <url> [<path>]
-    git splice clone --from-submodule [--recursive | -m <message>] <path>
+    git splice clone [--merge] [-m <message> | --message-template <template>] <url> [<path>]
+    git splice clone --from-submodule [--recursive | -m <message>] [--message-template <template>] <path>
 ```
 ## Description
 
@@ -66,9 +66,12 @@ publish a folder of the monorepo to a new, empty repository, use
 $ git splice clone -h | check-help section options
     -m <message>
         Gives the commit this message instead of the default one, which
-        names the upstream branch and commit, or splice.messageTemplate's
-        (see 'git splice merge --help'). Nothing reads the message back:
-        .splice records them.
+        names the upstream branch and commit. Nothing reads the message
+        back: .splice records them.
+
+    --message-template <template>
+        Gives each commit a message made from <template>, also with
+        --recursive; see 'git splice merge --help'.
 ```
 
 ### `--merge`

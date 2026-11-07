@@ -12,7 +12,7 @@ NAME
     git-splice-init - Make an existing folder a splice of an empty repository
 
 SYNOPSIS
-    git splice init [-m <message>] <path> <url>
+    git splice init [-m <message> | --message-template <template>] <path> <url>
 ```
 ## Description
 
@@ -62,11 +62,21 @@ until the first `fetch`, a known bug
 
 ```scrut
 $ git splice init -h | check-help option -m
-        Gives the commit this message instead of the default one or
-        splice.messageTemplate's (see 'git splice merge --help').
+        Gives the commit this message instead of the default one.
 ```
 
 It works as for [`merge`](04-merge.md#-m).
+
+### `--message-template`
+
+```scrut
+$ git splice init -h | check-help option --message-template
+        Gives the commit a message made from <template>; see 'git splice
+        merge --help'.
+```
+
+It works as for [`merge`](04-merge.md#--message-template), with only
+`{command}` and `{path}`: there is no synced commit yet.
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
