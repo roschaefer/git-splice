@@ -141,7 +141,7 @@ commands, which copy the header along: `sl fold` keeps Sapling's record,
 and jj keeps the change id. Rewrites with Git, or a squash merge on a
 forge, lose it. Then Sapling's next merge starts from an older record,
 and a file the library removed
-[comes back](../05-comparisons/03-vcs/01-sapling.md#a-squash-merge-drops-the-record).
+[comes back](../05-comparisons/03-vcs/01-sapling.md#the-next-release-removes-the-file-again).
 `git-splice` works with plain Git and squash-merged pull requests, where
 only the files survive every rewrite. So the sync point is in a file.
 

@@ -1,19 +1,18 @@
 # Josh compared
 
 [Josh](https://github.com/josh-project/josh), "Just One Single History",
-shows a folder of a monorepo as a repository of its own by filtering the
-monorepo's history. Its filters are reversible: filtering a commit always
-gives the same commit, and filtering the result back gives the original.
-So the library's repository and Josh's filtered view of the monorepo share
-commits, hash for hash, but only if the monorepo holds the library's whole
-history, as copies of its commits.
+shows a folder of a monorepo as a repository of its own, by filtering the
+monorepo's history. Filtering a commit always gives the same commit, and
+filtering a change back onto the monorepo's history, which has what the
+view leaves out, gives the monorepo's commit. So the library's repository
+and Josh's view of the folder share commits, hash for hash, as long as
+the monorepo holds copies of the library's whole history.
 
-`git-splice` keeps the two histories apart. This page runs both on the same
-library and monorepo, with `josh-filter`, Josh's command-line front end to
-its filters, the way Josh's
+`git-splice` keeps the two histories apart. This page runs both, Josh
+with `josh-filter` as its
 [import guide](https://josh-project.github.io/josh/guide/importing.html)
-uses it. It shows that the library gets the same commits from both tools,
-and what the monorepo has to hold for that.
+does: the library gets the same commits from both, and the difference is
+what the monorepo holds.
 
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
 and a monorepo with an app. [How these pages run](../01-git/README.md).
@@ -31,8 +30,8 @@ Version: r26.05.08
 
 ## Import the library
 
-Josh imports the library by rewriting its history as if it had always been
-developed in `vendor/lib/`, and merging that into the monorepo:
+Josh rewrites the library's history as if it had always lived in
+`vendor/lib/`, and merges it into the monorepo:
 
 ```scrut
 $ git fetch -q https://git.example.com/lib.git main &&
@@ -42,7 +41,7 @@ aa49e1798265c0235945ab8c9597d4c5de166969
 ```
 
 The monorepo now has a copy of each of the library's 30 commits, with
-other hashes, since their trees have the files under `vendor/lib/`:
+other hashes, since their files are under `vendor/lib/`:
 
 ```scrut
 $ git log --oneline -2 FILTERED_HEAD
@@ -50,8 +49,7 @@ aa49e17 lib commit 30
 7934fd0 lib commit 29
 ```
 
-Filtering `vendor/lib/` out of the monorepo gives back the library's own
-commits:
+Filtering `vendor/lib/` out again gives back the library's own commits:
 
 ```scrut
 $ josh-filter ':/vendor/lib' && git rev-parse FILTERED_HEAD
@@ -64,18 +62,30 @@ $ git -C "$COMPARISON/upstream/lib.git" rev-parse main
 bafd496b1f4512a95b69464604f3da428aa9e33b
 ```
 
-## Fix the library: the same commit
+### With `git-splice`: one commit
 
-You fix the library and use the fix in the app, in one commit:
+The clone, *c*, brings in the library's files, but none of its history:
 
 ```scrut
-$ echo "fix" >>vendor/lib/src/parse.txt &&
+$ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
+===  vendor/lib: fetching https://git.example.com/lib.git
+ok   vendor/lib: cloned bafd496 from main
+```
+
+## Fix the library: the same commit
+
+You fix the library and use the fix in the app, in one commit, *f*. It
+sits on *i*, the import, which merged *k*, the copy of the library's
+newest commit, with *a*, the app's:
+
+```scrut
+$ cd ../monorepo &&
+>   echo "fix" >>vendor/lib/src/parse.txt &&
 >   echo "call parse()" >>app/main.txt &&
 >   git commit -q -a -m "fix parse() and call it"
 ```
 
-Filtered, it's a library commit on top of the library's `main`, which the
-library could take as a fast-forward:
+Filtered, it's a commit on top of the library's `main`, a fast-forward:
 
 ```scrut
 $ josh-filter ':/vendor/lib' && git log --oneline -2 FILTERED_HEAD
@@ -84,29 +94,54 @@ $ josh-filter ':/vendor/lib' && git log --oneline -2 FILTERED_HEAD
 bafd496 lib commit 30
 ```
 
-The same fix with `git-splice`, which brings in no history:
+<div align="center">
 
+![The monorepo's a, a stack of app commits, and k, a stack of the library's commits copied, both parents of i; f on top of i, with HEAD; below, the library as Josh's view: k prime, a stack, and f prime](josh-imported.drawio.svg)
+
+</div>
+
+<!--
 ```scrut
-$ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
-===  vendor/lib: fetching https://git.example.com/lib.git
-ok   vendor/lib: cloned bafd496 from main
+$ git branch -q -f josh/view FILTERED_HEAD &&
+>   check_drawing "$TESTDIR/josh-imported.drawio.svg" --alias HEAD=H \
+>   a=HEAD~1^1 k=HEAD~1^2 i=HEAD~1 f=HEAD "k'=josh/view~1" "f'=josh/view"
+ok   josh-imported.drawio.svg: 6 commits, 5 arrows, 1 boxes
 ```
+-->
+
+### With `git-splice`: the same commit
+
+The same fix, pushed:
 
 ```scrut
-$ echo "fix" >>vendor/lib/src/parse.txt &&
+$ cd ../splice-monorepo &&
+>   echo "fix" >>vendor/lib/src/parse.txt &&
 >   echo "call parse()" >>app/main.txt &&
 >   git commit -q -a -m "fix parse() and call it" &&
 >   git splice push vendor/lib
 ok   vendor/lib: pushed 5069701 to main
 ```
 
-The library gets 5069701 from both. Josh and `git-splice` copy a commit's
-author, committer, dates and message the way `git subtree split` does, so
-the same change on top of the same library commit is the same commit, as
-long as it has no signature or other extra header. Josh keeps such
-headers by default, a signature then no longer verifies, while `git-splice`
-copies only the fields above and never signs.
-Neither needs to remember which commits it pushed: it computes them again.
+<div align="center">
+
+![The monorepo's a, a stack of app commits, c and f, with HEAD at f; below, the library's k, a stack of its commits, and f prime, with main](josh-splice-pushed.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/josh-splice-pushed.drawio.svg" --alias HEAD=H \
+>   a=HEAD~2 c=HEAD~1 f=HEAD k=refs/splices/lib/heads/main~1
+ok   josh-splice-pushed.drawio.svg: 5 commits, 5 arrows, 2 boxes
+```
+-->
+
+Josh's view has the commit `git-splice` pushed, 5069701, so a push from
+Josh would send the same. Like `git subtree split`, both keep the
+author, committer, dates and message, so the same change on the same
+library commit is the same commit (the example fixes the dates). A
+signature or other extra header breaks that: Josh keeps it, so a
+signature no longer verifies, and `git-splice` drops it.
 
 ## A release breaks the app: `git bisect`
 
@@ -123,8 +158,8 @@ $ sh "$COMPARISON/test-app.sh" && echo pass
 pass
 ```
 
-The library gets four commits, and one of them renames the line the app
-relies on:
+The library gets four commits, *d*, *r*, *e* and *v*, and *r* renames the
+line the app relies on:
 
 ```scrut
 $ git clone -q https://git.example.com/lib.git ../lib-release &&
@@ -147,11 +182,9 @@ $ echo "example" >examples.txt &&
 >   cd ../splice-monorepo
 ```
 
-### Josh: the culprit is a monorepo commit
-
-The Josh monorepo hasn't changed the library since the fix, so the
-library's commits land on top of it. `--reverse` turns each into a
-monorepo commit, here into a ref that `main` then fast-forwards to:
+The Josh monorepo hasn't changed the library since the fix, so
+`--reverse` turns each of the library's commits into a monorepo commit,
+on a ref that `main` fast-forwards to:
 
 ```scrut
 $ cd ../monorepo &&
@@ -172,8 +205,25 @@ $ git log --oneline -5
 95dc6e0 fix parse() and call it
 ```
 
-The test fails now, and `git bisect` finds the library's commit among the
-monorepo's own:
+<div align="center">
+
+![The monorepo's f, a stack, then d, r, e and v in a line, with HEAD at v; below, the library as Josh's view: f prime, a stack, then d prime, r prime, e prime and v prime](josh-release.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ josh-filter ':/vendor/lib' >/dev/null &&
+>   git branch -q -f josh/view FILTERED_HEAD &&
+>   check_drawing "$TESTDIR/josh-release.drawio.svg" --alias HEAD=H \
+>   f=HEAD~4 d=HEAD~3 r=HEAD~2 e=HEAD~1 v=HEAD \
+>   "f'=josh/view~4" "d'=josh/view~3" "r'=josh/view~2" "e'=josh/view~1" "v'=josh/view"
+ok   josh-release.drawio.svg: 10 commits, 9 arrows, 1 boxes
+```
+-->
+
+The test fails now, and `git bisect` finds *r* among the monorepo's own
+commits:
 
 ```scrut
 $ git bisect start HEAD HEAD~4 >/dev/null &&
@@ -183,7 +233,11 @@ $ git bisect start HEAD HEAD~4 >/dev/null &&
 # first 'bad' commit: [092b6b1e37d8035965e55a4856c921988c941e39] parse: rename fix to fixed
 ```
 
-### `git-splice`: the culprit is the pull
+### With `git-splice`: the culprit is the pull
+
+The pull *x* brings all four commits at once. They stay in the library's
+history, after *f'*, the fix as the monorepo pushed it, up to U(x), the
+synced commit after the pull:
 
 ```scrut
 $ cd ../splice-monorepo && git splice pull vendor/lib
@@ -191,7 +245,23 @@ ok   vendor/lib fetched (main moved 5069701..612d462)
 ok   vendor/lib: pulled 612d462
 ```
 
-`git bisect` stops at the pull, which brought all four commits at once:
+<div align="center">
+
+![The monorepo's f, a stack, and x, with HEAD at x; below, the library's k, a stack, then f prime, d, r, e and v, with U(x) at v](josh-splice-release.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/josh-splice-release.drawio.svg" --alias HEAD=H \
+>   f=HEAD~1 x=HEAD k=refs/splices/lib/heads/main~5 \
+>   d=refs/splices/lib/heads/main~3 r=refs/splices/lib/heads/main~2 \
+>   e=refs/splices/lib/heads/main~1 v=refs/splices/lib/heads/main
+ok   josh-splice-release.drawio.svg: 8 commits, 8 arrows, 2 boxes
+```
+-->
+
+`git bisect` stops at the pull:
 
 ```scrut
 $ git bisect start HEAD HEAD~1 >/dev/null &&
@@ -201,23 +271,23 @@ $ git bisect start HEAD HEAD~1 >/dev/null &&
 # first 'bad' commit: [f85ff0501eca7cb3482ec7e84b7da5fd966724d5] splice: pull vendor/lib from main at 612d462
 ```
 
-To go deeper, bisect the library's history between the two synced
-commits, U(X^) and U(X), which `.splice` records before and after the pull *X*. Its
-commits are fetched into the monorepo already, so a worktree of the
-monorepo can check them out. A second, throwaway worktree runs the app's
-test, so your own checkout stays as it is:
+To go deeper, bisect the library's history from *f'*, where the app
+last passed, to U(x). `git splice rebuild` at *f* prints *f'*; U(f), the
+synced commit before the pull, won't do: it's *k*, from before the fix.
+The library's commits are fetched, so one worktree checks them out, and
+a second, throwaway one runs the app's test:
 
 ```scrut
 $ git worktree add -q --detach ../app-bisect &&
->   git worktree add -q --detach ../lib-bisect &&
+>   git worktree add -q --detach ../lib-bisect HEAD~1 &&
 >   cd ../lib-bisect &&
->   bad="$(git config --blob HEAD:vendor/lib/.splice splice.commit)" &&
->   good="$(git config --blob HEAD~1:vendor/lib/.splice splice.commit)" &&
+>   good="$(git splice rebuild vendor/lib)" &&
+>   bad="$(git config --blob main:vendor/lib/.splice splice.commit)" &&
 >   git bisect start "$bad" "$good" >/dev/null
 ```
 
-The library alone can't run the app's test, so each step replaces the
-throwaway worktree's folder with the library's files at that step:
+The library alone can't run the app's test, so each step copies the
+library's files into the throwaway worktree's folder:
 
 ```scrut
 $ cat >"$COMPARISON/bisect-step.sh" <<'EOF'
@@ -243,14 +313,13 @@ $ git bisect reset >/dev/null &&
 >   git worktree remove --force ../app-bisect
 ```
 
-That's the library's own commit, of which Josh's `092b6b1` is the
-monorepo's copy. Replacing the folder works here because it had no
-changes of its own since U(X^). With unpushed changes, each step would need
-them merged in.
+That's *r* itself, which Josh's `092b6b1` copies. Replacing the folder
+works because it had no changes of its own since *f'* was pushed;
+unpushed changes would need to be merged in at each step.
 
 ## Both sides move on
 
-The library gets a release:
+The library gets a release, *w*:
 
 ```scrut
 $ git clone -q https://git.example.com/lib.git ../lib-dev &&
@@ -259,7 +328,7 @@ $ git clone -q https://git.example.com/lib.git ../lib-dev &&
 >   git -C ../lib-dev push -q
 ```
 
-Meanwhile, each monorepo adds notes to the library:
+Meanwhile, each monorepo adds notes to the library, *n*:
 
 ```scrut
 $ echo "notes" >vendor/lib/NOTES &&
@@ -274,11 +343,8 @@ $ cd ../monorepo &&
 >   git commit -q -m "add notes to lib"
 ```
 
-### Josh: merge in the filtered history
-
-The release and the notes now diverge, and Josh merges them in the
-library's history, where both sides share commits. A worktree of the
-filtered history stands in for a checkout of Josh's view:
+Josh merges the two in the library's history, where both sides share
+commits. A worktree of the filtered history stands in for Josh's view:
 
 ```scrut
 $ git fetch -q https://git.example.com/lib.git main:refs/lib/main &&
@@ -288,8 +354,7 @@ $ git fetch -q https://git.example.com/lib.git main:refs/lib/main &&
 15560d75aab425a7d5cd9e9c4263dbd4c39412f3
 ```
 
-`--reverse` carries the merge back into the monorepo, here into a ref that
-`main` then fast-forwards to:
+`--reverse` carries the merge back into the monorepo:
 
 ```scrut
 $ git update-ref FILTERED_HEAD "$(git -C ../lib-view rev-parse HEAD)" &&
@@ -299,8 +364,9 @@ $ git update-ref FILTERED_HEAD "$(git -C ../lib-view rev-parse HEAD)" &&
 151bbf6389edb01576588e515121f0c4beeb2698
 ```
 
-The release reaches the monorepo as a commit of its own, joined by the
-merge:
+The release reaches the monorepo as a commit of its own, *w*, joined by
+the merge *j*. Josh's view, below, has the merge it started from, *j'*,
+and the library's own release, *w'*:
 
 ```scrut
 $ git log --oneline --graph -4
@@ -312,7 +378,23 @@ $ git log --oneline --graph -4
 * 99943ff release 1.2
 ```
 
-### `git-splice`: one pull commit
+<div align="center">
+
+![The monorepo's v, a stack, n on top of it, and w beside n; both are parents of j, with HEAD; below, the library as Josh's view: v prime, a stack, n prime and w prime, merged into j prime](josh-both-moved.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ git branch -q -f josh/view "$(git -C ../lib-view rev-parse HEAD)" &&
+>   check_drawing "$TESTDIR/josh-both-moved.drawio.svg" --alias HEAD=H \
+>   v=HEAD~2 n=HEAD^1 w=HEAD^2 j=HEAD \
+>   "v'=josh/view~2" "n'=josh/view^1" "w'=josh/view^2" "j'=josh/view"
+ok   josh-both-moved.drawio.svg: 8 commits, 9 arrows, 1 boxes
+```
+-->
+
+### With `git-splice`: one pull commit
 
 ```scrut
 $ cd ../splice-monorepo && git splice pull vendor/lib
@@ -327,8 +409,23 @@ $ git log --oneline --graph -3
 * f85ff05 splice: pull vendor/lib from main at 612d462
 ```
 
-The release stays in the library's history, in `refs/splices/lib/heads/main`.
-The monorepo's history counts its own commits only:
+The pull *y* records *w*, which stays in the library's history:
+
+<div align="center">
+
+![The monorepo's x, a stack, n and y, with HEAD at y; below, the library's v, a stack, and w; U(x) points at v, U(y) at w](josh-splice-both-moved.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/josh-splice-both-moved.drawio.svg" --alias HEAD=H \
+>   x=HEAD~2 n=HEAD~1 y=HEAD v=refs/splices/lib/heads/main~1 w=refs/splices/lib/heads/main
+ok   josh-splice-both-moved.drawio.svg: 5 commits, 6 arrows, 3 boxes
+```
+-->
+
+So the monorepo's history counts its own commits only:
 
 ```scrut
 $ git rev-list --count HEAD
@@ -343,13 +440,13 @@ $ git -C ../monorepo rev-list --count HEAD
 ## Whose history is it?
 
 With Josh, the library's history is a view of the monorepo's: one
-project, seen through a folder. With `git-splice`, the library has a history
-of its own, and the monorepo integrates it. The difference shows when the
-monorepo adopts a library change on a branch, glues it into the app, and
-merges the branch.
+project, seen through a folder. With `git-splice`, the library has a
+history of its own, which the monorepo integrates. It shows when a
+branch changes the library, *o*, adapts the app, *p*, and fixes a typo
+in the library change, *t*, while `main` bumps the app's dependencies,
+*b*, and then merges the branch, *g*.
 
-In the Josh monorepo, the branch changes the library, adapts the app, and
-fixes a typo in the library change:
+In the Josh monorepo:
 
 ```scrut
 $ cd ../monorepo &&
@@ -371,10 +468,9 @@ $ git switch -q main &&
 >   git merge -q --no-ff -m "Merge branch 'parse-options'" parse-options
 ```
 
-The library gets the monorepo's merge, with its branch name, and both of
-the branch's library commits, the typo fix included. Only the commits that
-didn't touch the library, the app's glue and the dependency bump, stay
-behind:
+Josh's view of the library gets the merge, *g'*, with the branch's name,
+and both library commits, *o'* and *t'*, the typo fix included; only *p*
+and *b* stay behind:
 
 ```scrut
 $ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
@@ -391,7 +487,25 @@ $ josh-filter ':/vendor/lib' && git log --oneline --graph -6 FILTERED_HEAD
 |/  
 ```
 
-The same branch and merge in the `git-splice` monorepo:
+<div align="center">
+
+![The monorepo's j, a stack, b and g on main, and o, p and t on parse-options, merged into g, with HEAD; below, the library as Josh's view: j prime, a stack, then o prime and t prime, merged into g prime](josh-view-merged.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ git branch -q -f josh/view FILTERED_HEAD &&
+>   check_drawing "$TESTDIR/josh-view-merged.drawio.svg" --alias HEAD=H \
+>   j=HEAD~2 b=HEAD^1 o=HEAD^2~2 p=HEAD^2~1 t=HEAD^2 g=HEAD \
+>   "j'=josh/view^1" "o'=josh/view^2~1" "t'=josh/view^2" "g'=josh/view"
+ok   josh-view-merged.drawio.svg: 10 commits, 11 arrows, 1 boxes
+```
+-->
+
+### With `git-splice`: the merge as one commit
+
+The same branch and merge:
 
 ```scrut
 $ cd ../splice-monorepo &&
@@ -414,7 +528,7 @@ $ git switch -q main &&
 ```
 
 A push follows the monorepo's first parents, so the merge reaches the
-library as one commit, with the library's half of the branch:
+library as one commit, *g'*, with the library's half of the branch:
 
 ```scrut
 $ git splice push vendor/lib
@@ -433,15 +547,27 @@ $ git -C "$COMPARISON/upstream/lib.git" log --oneline --graph -6 main
 * efa30d9 add examples
 ```
 
-Below it, both libraries have the same merge of the earlier pull: the same
-parents, `15560d7` and `bc443d9`, with Josh's message or `git-splice`'s.
-A merge that joins the library's own history with the monorepo's changes
-belongs to the library, and both tools send it. A merge of the monorepo's
-branches is integration, and only Josh sends it.
+<div align="center">
 
-The message is still the monorepo's: `Merge branch 'parse-options'`. A
-squash merge, or a merge message written for the library, reaches the
-library as written.
+![The monorepo's y, a stack, b and g on main, and o, p and t on parse-options, merged into g, with HEAD; below, the library's y prime, a stack, and g prime, with main](josh-splice-merged.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/josh-splice-merged.drawio.svg" --alias HEAD=H \
+>   y=HEAD~2 b=HEAD^1 o=HEAD^2~2 p=HEAD^2~1 t=HEAD^2 g=HEAD
+ok   josh-splice-merged.drawio.svg: 8 commits, 9 arrows, 2 boxes
+```
+-->
+
+Below it, *y'* has the parents of *j'* in Josh's view, with another
+message: a merge that joins the library's history with the monorepo's
+changes belongs to the library, and a push from either tool sends it. A
+merge of the monorepo's branches is integration, and only Josh's would
+send it. *g'* keeps the monorepo's message,
+`Merge branch 'parse-options'`; a squash merge, or a message written
+for the library, arrives as written.
 
 ## Where Josh is better
 
@@ -464,42 +590,31 @@ library as written.
 
 ## Where Josh is different
 
-- **History, not a sync point.** Josh needs no sync point: a commit's
-  filtered hash says where the two sides meet. `git-splice` records that
-  meeting point, the synced commit, in `.splice`, so it needs no shared
-  history. Josh's own design for repositories it didn't import, such as
-  `rust-lang/miri` next to `rust-lang/rust`, lists how to relate them at
-  their sync points as an
-  [open question](https://github.com/josh-project/josh/blob/master/rfcs/worktree.md#open-questions).
-  Today, the external
-  [`rustc-josh-sync`](https://github.com/rust-lang/josh-sync) keeps the
-  last synced commit in a `rust-version` file of the smaller repository.
-- **Git does less of the work.** Josh filters, walks history and merges
-  trees in Rust, on gitoxide, with a cache, so it can filter whole
-  histories quickly, and calls the `git` command for fetches and pushes.
-  `git-splice` calls Git for every step, and only walks history since the
+- **History, not a sync point.** A commit's filtered hash says where the
+  two sides meet; `git-splice` records that point, the synced commit, in
+  `.splice`, so it needs no shared history. For repositories Josh didn't
+  import, such as `rust-lang/miri` next to `rust-lang/rust`, its own
+  design lists that as an
+  [open question](https://github.com/josh-project/josh/blob/master/rfcs/worktree.md#open-questions);
+  today, [`rustc-josh-sync`](https://github.com/rust-lang/josh-sync) keeps
+  the last synced commit in a `rust-version` file.
+- **One project, or two owners.** With Josh, a monorepo branch reaches
+  the library with its commits and merge, which suits one team working in
+  one project. With `git-splice`, the library's maintainers review and
+  release in their own repository, and each history keeps the other's
+  commits out ([Whose history is it?](#whose-history-is-it)). miri has
+  its own maintainers too, but synced through Josh, its history has
+  copies of the Rust commits that changed it.
+- **Git does less of the work.** Josh filters, walks and merges in Rust,
+  on gitoxide, with a cache, and calls `git` to fetch and push.
+  `git-splice` calls Git for every step, and walks history only since the
   boundary.
-- **One project, or two owners.** With Josh, the library's history is the
-  monorepo's, filtered: a monorepo branch reaches the library with its
-  commits and merge, and pushing to a view lands in the monorepo. That
-  suits one team, or one owner, working in one project. `git-splice` keeps
-  two histories that meet at the synced commit: the library's maintainers
-  review and release in their own repository, the app's team integrates in
-  the monorepo, the monorepo's merges and app-only commits stay out of the
-  library's history, and the library's commits out of the monorepo's
-  ([Whose history is it?](#whose-history-is-it)). `rust-lang/miri` has its
-  own repository and maintainers too, but `rustc-josh-sync` syncs it with
-  `rust-lang/rust` through Josh, so miri's history has copies of the Rust
-  commits that changed it.
-- **Links are unreleased, and go one way.** `josh link`, experimental
-  and on Josh's `master` since September 2026 but in no release yet,
-  publishes a folder to a repository of its own. A link's id and the one
-  upstream branch it tracks live in a ref of the monorepo,
+- **Links are unreleased, and go one way.** `josh link`, experimental on
+  Josh's `master` since September 2026, publishes a folder to a
+  repository of its own. Its id and upstream branch live in a ref,
   `refs/josh/links/<id>`, not in the folder, and nothing comes back
-  through a link. A splice's id and synced commit are committed in its
-  folder, so they move along with `git mv`, and each monorepo branch syncs
-  with the upstream branch of its name, the default branch with the
-  upstream's.
+  through it. A splice's id and synced commit are committed in its
+  folder, so they move with `git mv`.
 
 ## In short
 
@@ -511,6 +626,5 @@ library as written.
 | A monorepo branch merged | a merge, with the branch's commits | one commit, with the merge's message |
 | Where both sides meet | commits of the filtered view that the library has | the synced commit in `.splice` |
 | An upstream commit pulled in | one monorepo commit for each, and a merge if both sides moved | one pull commit for all |
-| Merges a sync adds to the monorepo | one when both sides moved | none |
 | Implementation | Rust, gitoxide, a cache | Bash, the `git` command |
 | Best for | a monorepo that is the source of truth, served in parts | a library with its own repository, changed in the monorepo |
