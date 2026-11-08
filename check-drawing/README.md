@@ -222,8 +222,11 @@ between them: a summary claims no ancestry.
 - **Edge**: an arrow without a head (`endArrow=none`) from a parent's
   head to the child's solid circle, its synced commit, U(H). A splice's
   head is its R, or its synced commit where it has no R.
-- **R**: dashed, after the synced commit, with `…` between them and no
-  arrow, where the splice has commits of its own; none where it hasn't.
+- **R**: the circle after a text of dots, `…`, which follows the synced
+  commit, with no arrow between them, where the splice has commits of its
+  own; none where it hasn't. Dashed until an upstream branch has it, as
+  any commit. After an init, a splice has no synced commit: `…` and R
+  alone.
 - **Merged in with a conflict**: the commit the pull merges in, T,
   outlined red, `#D00000`, a color of the drawing's own, which its
   legend explains.

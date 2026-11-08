@@ -1613,7 +1613,7 @@ impl<'a> Checker<'a> {
             }
             if !r.is_empty() && r != u && !r_shown {
                 self.errors.push(format!(
-                    "{splice}/ has commits of its own: show R, dashed, after its synced commit"
+                    "{splice}/ has commits of its own: show R, after its synced commit and dots"
                 ));
             }
         }

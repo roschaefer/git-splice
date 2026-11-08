@@ -46,7 +46,7 @@ edit_drawing() {
   commit_local "$monorepo" vendor/a/b/c "c local"
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b/c/ has commits of its own: show R, dashed, after its synced commit"* ]]
+  [[ "$output" == *"!!   vendor/a/b/c/ has commits of its own: show R, after its synced commit and dots"* ]]
 }
 
 @test "drawing tree: a colored commit without a legend that explains it" {
@@ -71,7 +71,7 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@value="monorepo"]/mxGeometry/@x' -v 400
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   monorepo has 2 solid circles, but a row shows one synced commit: drop the others"* ]]
+  [[ "$output" == *"!!   monorepo has 2 circles before its dots, but a row shows one synced commit: drop the others"* ]]
 }
 
 @test "drawing tree: a label with a ' names a copy, not the commit itself" {
@@ -160,6 +160,7 @@ XML
 <mxfile><diagram name="t" id="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
 <mxCell id="h" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="0" y="0" width="36" height="36" as="geometry"/></mxCell>
 <mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
+<mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="0" y="60" width="20" height="36" as="geometry"/></mxCell>
 <mxCell id="r" parent="1" vertex="1" value="s'" style="ellipse;aspect=fixed;strokeWidth=2;dashed=1;"><mxGeometry x="30" y="60" width="36" height="36" as="geometry"/></mxCell>
 <mxCell id="at" parent="1" vertex="1" value="lib/a/" style="text;"><mxGeometry x="200" y="60" width="100" height="36" as="geometry"/></mxCell>
 <mxCell id="e" parent="1" edge="1" source="h" target="r" style="endArrow=none;"><mxGeometry relative="1" as="geometry"/></mxCell>
@@ -174,6 +175,7 @@ XML
   commit_local "$monorepo" vendor/a/b/c "c local"
   edit_drawing -u '//mxCell[@value="c1"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;dashed=1;" \
     -u '//mxCell[@value="c1"]/@value' -v cl
+  sed -i 's#</root>#<mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="85" y="180" width="20" height="36" as="geometry" /></mxCell></root>#' "$drawing"
   run check_drawing "$drawing" "${revs[@]}" "cl=$(splice rebuild vendor/a/b/c)"
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   vendor/a/b/c/ has a synced commit: show it, solid, on the edge into its row"* ]]
@@ -194,4 +196,39 @@ XML
   run check_drawing "$drawing" s=HEAD
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   lib/a is a splice of the monorepo, but has no row"* ]]
+}
+
+@test "drawing tree: R that an upstream has after a push, before a bump, is solid" {
+  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git" u1
+  scenario_init_new_upstream "$other" "$other_upstream"
+  cd "$other"
+  splice init lib/a "$other_upstream" >/dev/null
+  splice push lib/a >/dev/null
+  splice pull --bump lib/a >/dev/null
+  u1="$(git config --file lib/a/.splice splice.commit)"
+  commit_local "$other" lib/a "a local"
+  splice push lib/a >/dev/null
+  cat >"$drawing" <<'XML'
+<mxfile><diagram name="t" id="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
+<mxCell id="h" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="0" y="0" width="36" height="36" as="geometry"/></mxCell>
+<mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
+<mxCell id="u" parent="1" vertex="1" value="u1" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="30" y="60" width="36" height="36" as="geometry"/></mxCell>
+<mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="70" y="60" width="20" height="36" as="geometry"/></mxCell>
+<mxCell id="r" parent="1" vertex="1" value="a local'" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="100" y="60" width="36" height="36" as="geometry"/></mxCell>
+<mxCell id="at" parent="1" vertex="1" value="lib/a/" style="text;"><mxGeometry x="200" y="60" width="100" height="36" as="geometry"/></mxCell>
+<mxCell id="e" parent="1" edge="1" source="h" target="u" style="endArrow=none;"><mxGeometry relative="1" as="geometry"/></mxCell>
+</root></mxGraphModel></diagram></mxfile>
+XML
+  run check_drawing "$drawing" s=HEAD "u1=$u1"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing tree: a row whose edge starts in the row itself" {
+  local c1
+  c1="$(xmlstarlet sel -t -v '//mxCell[@value="c1"]/@id' "$drawing")"
+  edit_drawing -u "//mxCell[@edge=\"1\"][@target=\"$c1\"]/@source" -v "$c1"
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   c/ hangs from no row above it"* ]]
 }

@@ -16,8 +16,8 @@ pub fn is_tree(d: &Diagram) -> bool {
 }
 
 /// A row: the splice's path, relative to the monorepo, the row it hangs from,
-/// and its circles: its synced commit (the root's: HEAD), R, dashed, and what
-/// a conflicted pull merges in, outlined red, if drawn.
+/// and its circles: its synced commit (the root's: HEAD), R, after the dots,
+/// and what a conflicted pull merges in, outlined red, if drawn.
 struct Row {
     path: String,
     parent: Option<usize>,
@@ -39,11 +39,10 @@ fn stroke(style: &Style) -> String {
 /// the tree's shape goes to <errors>.
 fn rows(d: &Diagram, errors: &mut Vec<String>) -> Vec<Row> {
     let drawn = |c: usize| d.cells[c].parent == "1" && !d.cells[c].edge;
-    let mut texts: Vec<usize> = (0..d.cells.len())
+    let is_dots = |c: usize| d.cells[c].value.trim_matches(['.', '…', ' ']).is_empty();
+    let (dots, mut texts): (Vec<usize>, Vec<usize>) = (0..d.cells.len())
         .filter(|&c| drawn(c) && d.cells[c].style.is_text())
-        // The dots between a synced commit and R are no row.
-        .filter(|&c| !d.cells[c].value.trim_matches(['.', '…', ' ']).is_empty())
-        .collect();
+        .partition(|&c| is_dots(c));
     texts.sort_by(|a, b| d.cells[*a].y.total_cmp(&d.cells[*b].y));
     let circles: Vec<usize> = (0..d.cells.len())
         .filter(|&c| drawn(c) && d.cells[c].style.is_ellipse())
@@ -66,16 +65,29 @@ fn rows(d: &Diagram, errors: &mut Vec<String>) -> Vec<Row> {
             .filter(|&c| d.cells[c].x < d.cells[t].x)
             .collect();
         cs.sort_by(|a, b| d.cells[*a].x.total_cmp(&d.cells[*b].x));
-        let r = cs.iter().copied().find(|&c| d.cells[c].style.dashed());
+        // R is the circle after the dots; whether it's dashed is the lane
+        // checker's to say.
+        let dots_x = dots
+            .iter()
+            .find(|&&c| (center_y(d, c) - ty).abs() < d.cells[c].height / 2.0)
+            .map(|&c| d.cells[c].x);
         let theirs = cs
             .iter()
             .copied()
             .find(|&c| stroke(&d.cells[c].style) == RED);
-        let rest: Vec<usize> = cs
+        let (after, rest): (Vec<usize>, Vec<usize>) = cs
             .iter()
             .copied()
-            .filter(|&c| Some(c) != r && Some(c) != theirs)
-            .collect();
+            .filter(|&c| Some(c) != theirs)
+            .partition(|&c| dots_x.is_some_and(|x| d.cells[c].x > x));
+        if after.len() > 1 {
+            errors.push(format!(
+                "{} has {} circles after its dots, but a row shows one R: drop the others",
+                d.cells[t].value,
+                after.len()
+            ));
+        }
+        let r = after.first().copied();
         let folder = d.cells[t]
             .value
             .split_whitespace()
@@ -83,14 +95,10 @@ fn rows(d: &Diagram, errors: &mut Vec<String>) -> Vec<Row> {
             .unwrap_or("")
             .trim_end_matches('/')
             .to_string();
-        let index = out.len();
-        for &c in &cs {
-            row_of.insert(c, index);
-        }
         let root = d.cells[t].style.has("tree=1");
         if rest.len() > 1 {
             errors.push(format!(
-                "{} has {} solid circles, but a row shows one synced commit: drop the others",
+                "{} has {} circles before its dots, but a row shows one synced commit: drop the others",
                 d.cells[t].value,
                 rest.len()
             ));
@@ -135,6 +143,10 @@ fn rows(d: &Diagram, errors: &mut Vec<String>) -> Vec<Row> {
                     d.cells[t].value
                 )),
             }
+        }
+        // Only now: an edge from a circle of this row is from no row above.
+        for &c in &cs {
+            row_of.insert(c, out.len());
         }
         out.push(row);
     }
