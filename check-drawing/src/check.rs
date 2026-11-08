@@ -322,7 +322,7 @@ impl<'a> Checker<'a> {
         self.place_on_sides();
         self.load_truth();
         if self.summary {
-            self.check_r_shown();
+            self.check_rows_shown();
         }
         self.read_dashed_boxes();
         self.find_commits();
@@ -441,7 +441,8 @@ impl<'a> Checker<'a> {
                     .push(format!("the lane {value} isn't a splice of the monorepo"));
             }
         }
-        if !self.lanes.is_empty() {
+        // A tree has a row for every splice, even the only one.
+        if !self.lanes.is_empty() || self.summary {
             let drawn: Vec<String> = self.lane_splice.values().cloned().collect();
             for splice in &self.splices {
                 if !drawn.contains(splice) {
@@ -1587,22 +1588,30 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// Every parent link between two drawn commits of one lane is drawn.
-    /// In a summary, each lane shows R where the splice has commits of its
-    /// own: where its rebuild isn't its synced commit.
-    fn check_r_shown(&mut self) {
+    /// In a summary, each lane shows its synced commit, U(H), where it has
+    /// one, and R where the splice has commits of its own: where its rebuild
+    /// isn't its synced commit.
+    fn check_rows_shown(&mut self) {
         for &lane in &self.lanes.clone() {
             let Some(splice) = self.lane_splice.get(&lane).cloned() else {
                 continue;
             };
-            let truth = self.truth(&splice);
-            if truth.r.is_empty() || truth.r == truth.u {
-                continue;
+            let (u, r) = {
+                let truth = self.truth(&splice);
+                (truth.u.clone(), truth.r.clone())
+            };
+            let shown = |term: &str| {
+                self.boxes.iter().any(|&b| {
+                    self.lane_of(b) == splice && self.value(b).split(" = ").any(|t| t == term)
+                })
+            };
+            let (u_shown, r_shown) = (shown("U(H)"), shown("R"));
+            if !u.is_empty() && !u_shown {
+                self.errors.push(format!(
+                    "{splice}/ has a synced commit: show it, solid, on the edge into its lane"
+                ));
             }
-            let shown = self.boxes.iter().any(|&b| {
-                self.lane_of(b) == splice && self.value(b).split(" = ").any(|t| t == "R")
-            });
-            if !shown {
+            if !r.is_empty() && r != u && !r_shown {
                 self.errors.push(format!(
                     "{splice}/ has commits of its own: show R, dashed, after its synced commit"
                 ));
@@ -1610,6 +1619,7 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Every parent link between two drawn commits of one lane is drawn.
     fn check_parent_arrows_drawn(&mut self, drawn_edges: &HashSet<(usize, usize)>) {
         for &t in &self.commits {
             let child = self.commit(t);

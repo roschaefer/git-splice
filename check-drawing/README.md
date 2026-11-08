@@ -225,8 +225,8 @@ between them: a summary claims no ancestry.
 - **R**: dashed, after the synced commit, with `…` between them and no
   arrow, where the splice has commits of its own; none where it hasn't.
 - **Merged in with a conflict**: the commit the pull merges in, T,
-  outlined in a color of the drawing's own, e.g. red, `#D00000`, which
-  its legend explains.
+  outlined red, `#D00000`, a color of the drawing's own, which its
+  legend explains.
 - **Every splice** has a row, as every splice has a lane.
 
 ## Saving drawings
