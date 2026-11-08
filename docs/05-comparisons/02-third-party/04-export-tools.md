@@ -4,6 +4,10 @@ Copybara and Meta's ShipIt move changes between repositories while keeping
 a single source of truth. In these export workflows, that is an internal monorepo:
 public contributions must land there before they are exported back to GitHub.
 
+They can run from the command line, but need an export pipeline configured
+through [Copybara workflows](https://github.com/google/copybara#example) or
+[FBShipIt manifests, phases and filters](https://github.com/facebookarchive/fbshipit#using-fbshipit).
+
 ## Copybara
 
 [Copybara requires one authoritative repository](https://github.com/google/copybara#readme).
