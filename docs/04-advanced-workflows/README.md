@@ -14,7 +14,9 @@ branch". To bring it up to date, `feature` is rebased onto `main`.
 
 ## The rebase strategies
 
-Rebase in one repository, then carry the result across with `git-splice`:
+`git-splice` syncs with the upstream branch of the same name. Rebasing
+`feature` onto `main` is a separate Git operation: do it in one repository
+only, then carry the result across with `git-splice`:
 
 <div align="center">
 
@@ -22,10 +24,10 @@ Rebase in one repository, then carry the result across with `git-splice`:
 
 </div>
 
-| Strategy | When to use it |
-| --- | --- |
-| [Via upstream](01-rebase-strategies/README.md) | The simple default; GitHub's "Update branch" works here. |
-| [Via monorepo](01-rebase-strategies/01-rebase-via-monorepo.md) | Resolve conflicts with the whole monorepo to build and test. Rewrites both feature branches; use only when nobody else pushes to them. |
+| Strategy | How to use it | When to use it |
+| --- | --- | --- |
+| [Via upstream](01-rebase-strategies/README.md) | Click "Update branch" on GitHub, or rebase in a clone of the upstream, then `git splice pull` on `feature`. | The simple default. |
+| [Via monorepo](01-rebase-strategies/01-rebase-via-monorepo.md) | On `feature`, run `git rebase main`, then `git splice push --force`. | When GitHub can't rebase, resolve conflicts with the whole monorepo to build and test. Rewrites the monorepo's feature branch and overwrites the PR; use only when nobody else pushes to them. |
 
 **[Don't mix the strategies](01-rebase-strategies/02-dont-pull-the-old-commits.md)**: a rebase
 in the monorepo, then a pull of the PR that was never rebased, sends the

@@ -44,10 +44,33 @@ both, tested together; each repository keeps its own history, reviews and CI.
 [sandbox](docs/01-getting-started/01-sandbox.md), or follow the
 [walkthrough](docs/01-getting-started/02-walkthrough.md).
 
-Use it for libraries, services, or public folders in a private monorepo.
-Existing submodules can become folders with
-[`git splice clone --from-submodule`](docs/06-command-reference/01-clone.md).
-Only the folder's changes are published; the monorepo's history stays separate.
+## No shared history
+
+The monorepo and the library share no commits: only file changes cross
+the splice. `push` rebuilds yours as library commits, and `pull` brings
+theirs in as one monorepo commit. So you can compose repositories as you
+like, and everyone else keeps working in each one with plain `git`.
+
+It's worktree friendly, too. The library's own commits are fetched into
+the monorepo's repository, so a linked worktree can check them out: you
+work on two unrelated histories side by side, in one repository.
+
+## Not only libraries
+
+A splice works for any repositories you change together:
+
+- **Instead of submodules:** `git splice clone --from-submodule` turns a
+  submodule into a folder. No more gitlinks to bump, and a change across
+  the boundary is one commit.
+- **Services split across repositories:** change an API and its clients
+  in one commit, test them together, and push each part to its own
+  repository.
+- **Each repository keeps its pipeline:** your pushes arrive as ordinary
+  commits, so GitHub Actions, reviews and releases run in each repository
+  as before.
+- **Private monorepo, public folders:** open-source part of your code
+  as its own repository. `push` sends only the folder's changes, never
+  the monorepo's history, so the rest of the files stay private.
 
 ## How it works
 
@@ -66,7 +89,8 @@ ok   lib: cloned e849115 from main
 ```
 
 The folder's committed [`.splice` file](docs/03-concepts/README.md)
-records its upstream and last synced commit. Both sides can now change:
+records its upstream and last synced commit. Say you fix the library while
+working on the app, and the fork takes in an upstream release meanwhile:
 
 <!--
 ```scrut
@@ -98,10 +122,22 @@ to work directly on the library's history.
 
 ## Why not X?
 
-Compare the same workflow with
-[Git's own tools](docs/05-comparisons/01-git/README.md) and
-[third-party tools](docs/05-comparisons/02-third-party/README.md),
-including `git submodule`, `git subtree`, `git-subrepo` and Josh.
+The comparisons of [Git's own tools](docs/05-comparisons/01-git/README.md)
+and [third-party tools](docs/05-comparisons/02-third-party/README.md) take
+one example through each of these tools until it hits the tool's pain
+points, then show how `git-splice` handles them in the same example.
+
+- [`git submodule`](docs/05-comparisons/01-git/01-git-submodule.md): a checkout of the
+  monorepo is incomplete. The library stays a repository of its own inside
+  it, which every clone, `git status` and fix has to handle separately.
+- [`git subtree`](docs/05-comparisons/01-git/02-git-subtree.md): syncing pollutes your
+  history with merges, and can bring the library's whole history along.
+- [`git-subrepo`](docs/05-comparisons/02-third-party/01-git-subrepo.md): it records
+  each push in a commit of your monorepo, a redundant commit that a squash
+  merge or rebase makes invalid.
+- [Josh](docs/05-comparisons/02-third-party/02-josh.md): the library has to share
+  its history with the monorepo, so it fits repositories that are meant
+  to be one, not ones with histories of their own.
 
 ## Contribute
 
