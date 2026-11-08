@@ -9,7 +9,7 @@ use crate::util::*;
 pub const USAGE: &str = include_str!("usage/pull.txt");
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, MERGE_OPTIONS, argv)?;
+    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let mut repo = Repo::new(args);
@@ -72,13 +72,101 @@ pub fn run(argv: &[String]) -> Res<i32> {
         fetched.push(path.clone());
     }
 
+    // A recursive pull is one commit, made of its pulls once the last run
+    // ends without a conflict. A run that stops leaves where it started,
+    // which a later run goes on from only while HEAD still descends from
+    // it: not after the branch was reset past it, e.g. after an abort.
+    let fold = repo.args.has_flag("--recursive") && !repo.merge_rebase;
+    let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
+        .q()
+        .ok();
+    if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
+        return fail(format!("{START} couldn't be updated"));
+    }
     let mut status = 0;
     if !fetched.is_empty() && repo.merge_paths(&branch, "pull", &fetched).is_err() {
         status = 1;
+    }
+    if fold && !splice_in_progress() {
+        if status == 0 {
+            fold_pulls(&repo.args.paths)?;
+        }
+        if (status == 0 || !failures.is_empty()) && !git(&["update-ref", "-d", START]).ok() {
+            return fail(format!("{START} couldn't be updated"));
+        }
     }
     if !failures.is_empty() {
         log_err(format!("Not fetched: {}", failures.join(" ")));
         status = 1;
     }
     Ok(status)
+}
+
+const START: &str = "SPLICE_PULL_START";
+
+/// Makes the commits since the recursive pull started one commit, whose
+/// message lists them, if each is a pull: one that changed a .splice.
+fn fold_pulls(given: &[String]) -> Res<()> {
+    let range = format!("{START}..HEAD");
+    let commits: Vec<String> = git(&["rev-list", "--reverse", "--first-parent", &range])
+        .out()
+        .unwrap_or_default()
+        .lines()
+        .map(str::to_string)
+        .collect();
+    if commits.len() < 2 {
+        return Ok(());
+    }
+    for commit in &commits {
+        let changed = git(&[
+            "diff-tree",
+            "-z",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            commit,
+        ])
+        .bytes()
+        .unwrap_or_default();
+        if !nul_fields(&changed)
+            .iter()
+            .any(|file| file == STATE_FILE || file.ends_with(&format!("/{STATE_FILE}")))
+        {
+            log_warn(format!(
+                "{} isn't a pull -- the pulls since the recursive pull started stay separate commits",
+                short(commit)
+            ));
+            return Ok(());
+        }
+    }
+    let subjects = git(&["log", "--reverse", "--first-parent", "--format=%s", &range])
+        .out()
+        .unwrap_or_default();
+    let message = format!(
+        "splice: pull {} and the splices in it\n\n{subjects}\n",
+        given.join(" ")
+    );
+    let tree = format!("{}^{{tree}}", "HEAD");
+    let Some(folded) = git(&["commit-tree", &tree, "-p", START, "-m", &message]).out() else {
+        return fail("the pulls couldn't be made one commit");
+    };
+    let head = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
+    if !git(&[
+        "update-ref",
+        "-m",
+        "splice: fold a recursive pull",
+        "HEAD",
+        &folded,
+        &head,
+    ])
+    .ok()
+    {
+        return fail("the pulls couldn't be made one commit");
+    }
+    log_ok(format!(
+        "{} pulls made one commit, {}",
+        commits.len(),
+        short(&folded)
+    ));
+    Ok(())
 }

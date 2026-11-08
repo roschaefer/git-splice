@@ -558,3 +558,26 @@ fish_complete() {
   [ ! -e pwned ]
   [ "$output" = '[init][z$(touch${IFS}pwned)]' ]
 }
+
+@test "completion: --recursive for pull, not merge" {
+  run complete_words git-splice pull --recu
+  [ "$output" = "--recursive" ]
+  run complete_words git-splice merge --recu
+  [ -z "$output" ]
+}
+
+@test "zsh completion: --recursive for pull, not merge" {
+  require_shell zsh
+  run zsh_complete "git-splice pull --recu"
+  [[ "$output" == "--recursive"* ]]
+  run zsh_complete "git-splice merge --recu"
+  [ -z "$output" ]
+}
+
+@test "fish completion: --recursive for pull, not merge" {
+  require_shell fish
+  run fish_complete "git-splice pull --recu"
+  [ "$output" = "--recursive" ]
+  run fish_complete "git-splice merge --recu"
+  [ -z "$output" ]
+}
