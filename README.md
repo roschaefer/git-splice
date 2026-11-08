@@ -137,7 +137,8 @@ points, then show how `git-splice` handles them in the same example.
 
 ## Getting started
 
-[Install `git-splice`](docs/01-getting-started/README.md), try the
+Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/getting-started/)
+to [install `git-splice`](docs/01-getting-started/README.md), try it in a
 [sandbox](docs/01-getting-started/01-sandbox.md), or follow the
 [walkthrough](docs/01-getting-started/02-walkthrough.md).
 
