@@ -163,12 +163,12 @@ of that. Replaying *pb*, which brought `b`'s upstream's change to `c/`,
 stopped at `c`'s conflict. *m1* stopped at `a`'s, and *pd* came on top,
 since nothing since the last pull of `d/` changed it:
 
-![The monorepo's history pa, pc, pb, m1, pd, main at pd; the pulls outlined blue; pb and m1 filled red: each stopped at a conflict; in the lanes vendor/a/, vendor/a/b/, vendor/a/b/c/ and vendor/a/d/, the upstream commits a2, b2, c2 and d2, outlined blue](rebased-today.drawio.svg)
+![The monorepo's history s, pa, pc, pb, m1, pd, main at pd; the pulls outlined blue, pb and m1 filled red: each stopped at a conflict. Below, one lane per splice, nested as their folders: vendor/a/ has a1, ae and a2 from its upstream, then dashed copies pc', pb', m1', pd'; vendor/a/b/ has b1, then pc' on b1 and b2 on b1, both parents of pb', then m1'; vendor/a/b/c/ has c1, c2, then pb'; vendor/a/d/ has d1, d2. The upstream commits that came in, ae, a2, b2, c2, d2, are outlined blue, each with its upstream's main](rebased-today.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/rebased-today.drawio.svg" pa=main~4 pc=main~3 pb=main~2 pd=main
-ok   rebased-today.drawio.svg: 9 commits, 5 arrows, 1 boxes, 4 lanes
+$ check_drawing "$TESTDIR/rebased-today.drawio.svg" s=main~5 pa=main~4 pc=main~3 pb=main~2 pd=main ae=refs/splices/a/heads/main~1
+ok   rebased-today.drawio.svg: 23 commits, 24 arrows, 5 boxes, 4 lanes
 ```
 -->
 
@@ -235,23 +235,23 @@ $ git cherry-pick before >/dev/null 2>&1
 ```scrut
 $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
 >   git add vendor/a/file.txt &&
->   git cherry-pick --continue >/dev/null &&
->   git switch -q main
+>   git cherry-pick --continue >/dev/null
 ```
 
-![The branch model's history p, then m1; p outlined blue, both filled red: each stopped at a conflict; in the lanes, a2, b2, c2 and d2, outlined blue](rebased-by-level.drawio.svg)
+![The branch model's history s, p, m1, model at m1; p outlined blue, p and m1 filled red: each stopped at a conflict. Below, each lane continues from its upstream's main with dashed copies: vendor/a/ a1, ae, a2, then p', m1'; vendor/a/b/ b1, b2, then p', m1'; vendor/a/b/c/ c1, c2, then p'; vendor/a/d/ d1, d2 and nothing more. The upstream commits that came in are outlined blue, and so are the copies of p that move a synced commit, in vendor/a/ and vendor/a/b/](rebased-by-level.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/rebased-by-level.drawio.svg" p=model~1 m1=model
-ok   rebased-by-level.drawio.svg: 6 commits, 2 arrows, 1 boxes, 4 lanes
+$ check_drawing "$TESTDIR/rebased-by-level.drawio.svg" s=model~2 ae=refs/splices/a/heads/main~1
+ok   rebased-by-level.drawio.svg: 17 commits, 17 arrows, 5 boxes, 4 lanes
 ```
 -->
 
 Both end in the same files:
 
 ```scrut
-$ git diff --stat main model
+$ git switch -q main &&
+>   git diff --stat main model
 ```
 
 ## The difference
