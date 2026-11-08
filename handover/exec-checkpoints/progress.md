@@ -31,9 +31,10 @@ started. The original research and design files are historical context.
 - Normal conflicts still use Git's existing conflict state and a fresh rerun
   after resolution. No payload is promised for a failed underlying Git command
   or an abrupt process termination. `--rebase` is explicitly refused with exec.
-- Existing flags such as `--rebuilt-commit` have not been changed. Initial CLI
-  integration is for pull, including its fetch/merge/fold operations; standalone
-  clone, init, fetch, merge, push and rebuild do not yet accept these options.
+- Existing flags such as `--rebuilt-commit` have not been changed. CLI
+  integration now covers standalone fetch and pull, including pull's nested
+  fetch/merge/fold operations. Standalone clone, init, merge, push and rebuild
+  do not yet accept these options.
 - Help/reference pages and bash/zsh/fish completions are updated. jq was added
   to the dev shell and the older-Git compatibility test environment.
 - Serde and serde_json are new dependencies; Cargo.lock preserves existing
@@ -61,7 +62,7 @@ started. The original research and design files are historical context.
   because its upstream commit is unavailable before that fetch. The e1 circle
   is now solid and the SVG was regenerated with the drawing dev shell.
 
-## Verification status during implementation
+## Initial implementation verification
 
 - `just lint` and `just fmt-check` passed.
 - Rust workspace tests passed (44 unit tests).
@@ -110,3 +111,39 @@ started. The original research and design files are historical context.
   between concurrent member jobs.
 - Broader standalone operation integration, a rebuild handoff checkpoint, full
   LFS endpoint/configuration support, and recursive rebase remain future work.
+
+
+## Follow-up: standalone fetch and user-defined report
+
+The user requested a simple scenario demonstrating arbitrary script logic and
+asked for standalone fetch support, specifically for LFS. The extension adds:
+
+- `fetch --exec` / `fetch --continue-from` with `operation: "fetch"` and an
+  after-fetch checkpoint before tracking changes. Continuation finishes tracking
+  and failure reporting without repeating the fetch or stopped script.
+- Shared fetch planning and tracking helpers preserve ordinary fetch behaviour.
+  Payloads must be continued with their original operation; phase mismatches
+  are rejected. Fetch retains its ability to run during an existing conflict.
+- The new scenario `01-everyday-sync/05-exec-report` runs an external jq script
+  with fetch and pull. It appends path/commit entries only after actual merges,
+  demonstrating event selection and preventing duplicate report entries.
+- Five new Bats cases cover fetch continuation, tracking/no-track, failure
+  reporting, LFS download followed by a separate merge, and the report script.
+- The LFS test confirms standalone fetch changes no checked-out files; its
+  script populates the cache so the subsequent merge can materialize content.
+- Fetch help, shared payload documentation, shell completions, scenario inventory
+  and script lint/format checks are updated.
+
+The focused checkpoint, tracking and upstream suite passed (62 tests).
+Final verification for this follow-up:
+
+- 44 Rust tests and all 861 Bats tests passed. Continue to unset inherited pager
+  overrides when running `just test`, as described above.
+- `just lint` and `just fmt-check` passed, including the new report script.
+- `just docs-check` passed: 153 documents, 1,901 testcases, 172 prose-label pages
+  and 131 diagram placements. The full docs run used four jobs to limit load
+  while the test suite ran.
+- `nix flake check -L` passed on the current host, including the package smoke test.
+- Implementation commit: `c8755d9` (`feat(fetch): expose resumable execution checkpoints`).
+- Logs: `/tmp/git-splice-fetch-exec-tests.log`,
+  `/tmp/git-splice-fetch-exec-docs.log`, `/tmp/git-splice-fetch-exec-flake.log`.
