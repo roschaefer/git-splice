@@ -1,7 +1,7 @@
 # Export tools compared
 
 Copybara and Meta's ShipIt move changes between repositories while keeping
-one source of truth. In the workflows below, that is an internal monorepo:
+a single source of truth. In these export workflows, that is an internal monorepo:
 public contributions must land there before they are exported back to GitHub.
 
 ## Copybara
@@ -14,48 +14,34 @@ transformations can also change its diff.
 
 ## Meta's ShipIt
 
-We use the [fork workflow](../../04-advanced-workflows/02-fork.md) to contribute
-to [scrut](https://github.com/facebookincubator/scrut), which is spliced into
-this repository's `scrut/` folder. In [PR #61](https://github.com/facebookincubator/scrut/pull/61#issuecomment-6579502219),
-the maintainer explained that merging on GitHub before accepting the change internally could leave two
-conflicting sources of truth. They accept it internally first and let
-automation export the result.
+ShipIt keeps the internal repository as its single source of truth:
+changes are accepted there first to avoid accepting changes independently
+in two places. See scrut's [origin](https://github.com/facebookincubator/scrut)
+and [fork](https://github.com/roschaefer/scrut).
 
 <div align="center">
 
-![A GitHub pull request is imported into a private Meta review, lands on internal main, and is exported as a new commit on public main. The GitHub PR is closed rather than merged.](shipit-contribution.drawio.svg)
+![A public PR is imported into private review, accepted internally at the single source of truth, and exported to public main. The PR is closed rather than merged.](shipit-contribution.drawio.svg)
 
 </div>
 
-For contributors, the review link is private, and the result is a separate
-public commit rather than a GitHub merge. Both
-[#61](https://github.com/facebookincubator/scrut/pull/61) and
-[#84](https://github.com/facebookincubator/scrut/pull/84) were closed this way,
-with bot comments linking to the exported commits. Acceptance is visible;
-the internal review is not. The
-[exported commit for #84](https://github.com/facebookincubator/scrut/commit/929821d61933114c714b8ac2b2b51a38a6e161bf)
-keeps the contributor as author and records `Differential Revision` and
-`fbshipit-source-id` in its message: links back to the internal review and
-source commit ([sync points as text](../../08-going-forward/05-weak-parents.md)).
-
-The internal build also constrains public contributions. In
-[#84](https://github.com/facebookincubator/scrut/pull/84#issuecomment-6630592515),
-a crate upgrade needed Meta's internal dependency process and could affect
-more than scrut. The maintainer initially doubted it could land, but
-[ultimately accepted it](https://github.com/facebookincubator/scrut/pull/84#issuecomment-6637761960).
-When the repositories drift, a separate
-[re-sync PR](https://github.com/facebookincubator/scrut/pull/59) can require a
-GitHub merge with exports paused.
+The result is public, but the internal review is private and GitHub
+shows the PR as closed rather than merged.
 
 ## With git-splice
 
-The public library can instead be authoritative for its own code. The
-monorepo pulls a contributor's branch to test it with the app, without
-publishing anything. Maintainers merge the PR on GitHub, then the monorepo
-pulls the resulting `main`. Internal testing and dependency requirements
-still apply; the library's acceptance happens in public.
+The PR can merge directly into public `main`. The monorepo can pull from
+the PR branch to test it before the merge, or from `main` afterwards.
+Public acceptance does not have to wait for the internal review.
 
-The example below runs this workflow, not Copybara or ShipIt.
+<div align="center">
+
+![The same public and internal repositories, with additional routes: the PR can merge directly into public main, and the monorepo can import either the PR branch or public main.](splice-contribution.drawio.svg)
+
+</div>
+
+The example below tests a PR branch in the monorepo, merges it in public,
+then pulls public `main`.
 
 The setup: `https://git.example.com/lib.git`, a public library with 30
 commits, and a monorepo with an app. [How these pages run](../01-git/README.md).
