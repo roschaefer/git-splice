@@ -1094,7 +1094,7 @@ order_of() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"2 pulls made one commit"* ]]
   [ "$(git log -2 --format=%s)" = "splice: pull vendor/a and the splices in it"$'\n'"b local" ]
-  [ "$(git splice rebuild vendor/a/b/c)" = "$(git -C "$upstream_c" rev-parse main)" ]
+  [ "$(splice rebuild vendor/a/b/c)" = "$(git -C "$upstream_c" rev-parse main)" ]
   ! git rev-parse --quiet --verify SPLICE_PULL_START
 }
 
