@@ -1,24 +1,23 @@
 //! Paging for diff and log, the way Git pages its own commands.
 
 use crate::util::*;
-use std::os::fd::AsRawFd;
-use std::process::{Command, Stdio};
+use std::io::IsTerminal;
 
+#[cfg(unix)]
 extern "C" {
-    fn isatty(fd: i32) -> i32;
     fn dup(fd: i32) -> i32;
     fn dup2(from: i32, to: i32) -> i32;
     fn close(fd: i32) -> i32;
 }
 
 pub fn stdout_is_terminal() -> bool {
-    // SAFETY: isatty only reads the file descriptor's number.
-    unsafe { isatty(1) == 1 }
+    std::io::stdout().is_terminal()
 }
 
 /// The pager for this command. pager.splice takes precedence over an ordinary
 /// GIT_PAGER value, just as pager.log does for `git log`; the special
 /// GIT_PAGER=cat exported by `git --no-pager` still disables paging globally.
+#[cfg(unix)]
 fn splice_pager() -> String {
     let git_pager = || git(&["var", "GIT_PAGER"]).out().unwrap_or_default();
     let pager = if std::env::var("GIT_PAGER").as_deref() == Ok("cat") {
@@ -46,7 +45,10 @@ fn splice_pager() -> String {
 /// statuses. A producer SIGPIPE is normal when a successful pager quits early;
 /// a pager startup or runtime failure must still reach the caller: once it's
 /// gone, the producer's failure to write is a consequence, not the cause.
+#[cfg(unix)]
 fn pipe_to_pager(producer: impl FnOnce() -> i32, pager: &str) -> i32 {
+    use std::os::fd::AsRawFd;
+    use std::process::{Command, Stdio};
     std::env::set_var("GIT_PAGER_IN_USE", "true");
     if std::env::var_os("LESS").is_none() {
         std::env::set_var("LESS", "FRX");
@@ -93,10 +95,11 @@ fn pipe_to_pager(producer: impl FnOnce() -> i32, pager: &str) -> i32 {
 
 /// Runs a producer through Git's pager when stdout is a terminal. Redirected
 /// and piped output remains unpaged, as it does for Git's built-in commands.
+/// Not on Windows yet: it has no file descriptors to point stdout elsewhere.
 pub fn page_git_output(producer: impl FnOnce() -> i32) -> i32 {
+    #[cfg(unix)]
     if stdout_is_terminal() {
-        pipe_to_pager(producer, &splice_pager())
-    } else {
-        producer()
+        return pipe_to_pager(producer, &splice_pager());
     }
+    producer()
 }

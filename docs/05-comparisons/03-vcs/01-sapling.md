@@ -79,7 +79,9 @@ Subtree import from https://git.example.com/lib.git at bafd496b1f4512a95b6946460
 - Imported path root directory to vendor/lib
 ```
 
-`git-splice` writes the same facts into a file in the folder:
+### With `git-splice`: a file in the folder
+
+`git-splice` writes the same facts into `.splice`:
 
 ```scrut
 $ cd ../splice-monorepo && git splice clone https://git.example.com/lib.git vendor/lib
@@ -118,6 +120,8 @@ $ git clone -q https://git.example.com/lib.git ../lib-patch &&
 5069701 fix parse() and call it
 bafd496 lib commit 30
 ```
+
+### With `git-splice`: a push
 
 `git-splice` finds the commits since the last sync and pushes them:
 
@@ -161,8 +165,6 @@ $ cd ../monorepo &&
 >   git commit -q -m "add notes to lib"
 ```
 
-### Sapling: `sl subtree merge`
-
 `sl subtree merge --url` merges a commit of the library into the folder.
 It takes a commit id here: a branch name would be looked up in Sapling's
 cache, which still has `main` from the import.
@@ -199,7 +201,7 @@ $ git cat-file -p HEAD | grep '^test_subtree'
 test_subtree [{"v":1,"xmerges":[{"from_commit":"9a471d297ba8ec16f7c58d0b7c379b4c706a8664","from_path":"","to_path":"vendor/lib","url":"https://git.example.com/lib.git"}]}]
 ```
 
-### `git-splice`: `git splice pull`
+### With `git-splice`: one pull
 
 ```scrut
 $ cd ../splice-monorepo && git splice pull vendor/lib
@@ -231,10 +233,14 @@ bafd496b1f45 lib commit 30
 eacfd6697aff lib commit 29
 ```
 
-Git's own `git log` stops at the import, and in the `git-splice` monorepo
-at the clone. There, the library's commits are fetched into the
-monorepo's repository, for `git log` on the library's history
-([bisecting into a pull](../02-third-party/02-josh.md#git-splice-the-culprit-is-the-pull)).
+Git's own `git log` stops at the import.
+
+### With `git-splice`: `git log` on the library's history
+
+`git log` stops at the clone, too. The library's commits are fetched into
+the monorepo's repository, so `git log` can go on in the library's
+history
+([bisecting into a pull](../02-third-party/02-josh.md#with-git-splice-the-culprit-is-the-pull)).
 
 ## A squash merge drops the record
 
@@ -250,9 +256,7 @@ $ git -C ../lib-dev switch -q -c release-1.4 &&
 ```
 
 Each monorepo tries it on a branch of the same name, and squash-merges
-that branch into `main`, as a pull request on GitHub can.
-
-### Sapling: the header is gone
+that branch into `main`, as a pull request on GitHub can. First Sapling's:
 
 ```scrut
 $ git switch -q -c release-1.4 &&
@@ -277,7 +281,7 @@ $ sl subtree inspect
 no subtree metadata found for commit 289ff1b89a63
 ```
 
-### `git-splice`: the file stays
+### With `git-splice`: the file stays
 
 A pull on `release-1.4` follows the library's branch of that name:
 
@@ -302,7 +306,7 @@ $ git config --file vendor/lib/.splice splice.commit
 5bb77336f81e232ae81a98e1d4a741b22cefe476
 ```
 
-### The next release removes the file again
+## The next release removes the file again
 
 The library merges `release-1.4` and then drops the file in 1.5:
 
@@ -339,8 +343,13 @@ compat.txt
 parse.txt
 ```
 
-`git-splice` merges from the release that `.splice` names, 1.4, so the
-file goes:
+A plain `git rebase` drops the header too, since it writes new commits
+with the standard fields only. Sapling's own rewrites, such as `sl fold`,
+carry the record along.
+
+### With `git-splice`: the file goes
+
+`git-splice` merges from the release that `.splice` names, 1.4:
 
 ```scrut
 $ cd ../splice-monorepo && git splice pull vendor/lib
@@ -352,10 +361,6 @@ ok   vendor/lib: pulled d9ba6ce
 $ ls vendor/lib/src
 parse.txt
 ```
-
-A plain `git rebase` drops the header too, since it writes new commits
-with the standard fields only. Sapling's own rewrites, such as `sl fold`,
-carry the record along.
 
 ## Branch a folder
 
@@ -394,8 +399,9 @@ $ tail -n 1 app-stable/main.txt
 new feature
 ```
 
-`git-splice` has no equivalent: a splice is a folder with a repository of
-its own. Two folders of one monorepo, merged into each other, are
+### With `git-splice`: no equivalent
+
+A splice is a folder with a repository of its own. Two folders of one monorepo, merged into each other, are
 Sapling's case.
 
 ## `git-splice` next to `sl`

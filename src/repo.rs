@@ -1,6 +1,7 @@
 //! Discovery of the splices, their upstreams, keys and targets.
 
 use crate::args::Args;
+use crate::message::{Message, Template};
 use crate::util::*;
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
@@ -122,6 +123,7 @@ pub struct Repo {
     pub merge_bump: bool,
     pub merge_rebase: bool,
     pub merge_no_fork_point: bool,
+    message_template: Option<Template>,
     pub c: Classified,
     pub d: Compared,
 }
@@ -466,7 +468,14 @@ impl Repo {
         let Some(toplevel) = git(&["rev-parse", "--show-toplevel"]).q().bytes() else {
             return die("not inside a git repository");
         };
-        let toplevel = path_from_output(toplevel);
+        let toplevel = match path_from_output(toplevel) {
+            Ok(toplevel) => toplevel,
+            Err(lossy) => {
+                return die(format!(
+                    "'{lossy}' isn't supported as the repository's path -- rename the folder: its name isn't valid UTF-8"
+                ))
+            }
+        };
         if std::env::set_current_dir(&toplevel).is_err() {
             return die(format!("failed to cd to repo root: {}", toplevel.display()));
         }
@@ -1061,7 +1070,14 @@ impl Repo {
         let dir = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"])
             .bytes()
             .unwrap_or_default();
-        let lock = path_from_output(dir).join("splice-keys.lock");
+        let lock = match path_from_output(dir) {
+            Ok(dir) => dir.join("splice-keys.lock"),
+            Err(lossy) => {
+                return die(format!(
+                    "'{lossy}' isn't supported as the repository's Git directory -- rename the folder: its name isn't valid UTF-8"
+                ))
+            }
+        };
         for _ in 0..KEY_LOCK_TRIES {
             if std::fs::create_dir(&lock).is_ok() {
                 return Ok(KeyLock { path: lock });
@@ -1426,13 +1442,37 @@ impl Repo {
         }
     }
 
-    /// The message -m gave, else <default>: the message of the commit a command
-    /// writes.
-    pub fn commit_message(&self, default: String) -> String {
+    /// The message -m gave, else <default>, for a commit no template is for.
+    pub fn given_message_or(&self, default: String) -> String {
         if self.args.message.is_empty() {
             default
         } else {
             self.args.message.clone()
+        }
+    }
+
+    /// Loads the template --message-template gives, and ends the command
+    /// before it writes anything if the template is broken or needs a value
+    /// <known> doesn't have (see message::KNOWN).
+    pub fn require_message_template(&mut self, known: Message) -> Res<()> {
+        let Some(template) = Template::given(&self.args.message_template)? else {
+            return Ok(());
+        };
+        template.require(&known)?;
+        self.message_template = Some(template);
+        Ok(())
+    }
+
+    /// The message of the commit a command writes: the one -m gave, else
+    /// --message-template's, else the <default> template's, filled in with
+    /// <message>.
+    pub fn commit_message(&self, default: &str, message: Message) -> Res<String> {
+        if !self.args.message.is_empty() {
+            return Ok(self.args.message.clone());
+        }
+        match &self.message_template {
+            Some(template) => template.render(&message),
+            None => Template::default(default)?.render(&message),
         }
     }
 }
