@@ -40,12 +40,6 @@ Each repository keeps its own history, reviews and CI.
 
 </div>
 
-## Getting started
-
-[Install `git-splice`](docs/01-getting-started/README.md), try the
-[sandbox](docs/01-getting-started/01-sandbox.md), or follow the
-[walkthrough](docs/01-getting-started/02-walkthrough.md).
-
 ## No shared history
 
 The monorepo and the library share no commits: only file changes cross
@@ -140,6 +134,12 @@ points, then show how `git-splice` handles them in the same example.
 - [Josh](docs/05-comparisons/02-third-party/02-josh.md): the library has to share
   its history with the monorepo, so it fits repositories that are meant
   to be one, not ones with histories of their own.
+
+## Getting started
+
+[Install `git-splice`](docs/01-getting-started/README.md), try the
+[sandbox](docs/01-getting-started/01-sandbox.md), or follow the
+[walkthrough](docs/01-getting-started/02-walkthrough.md).
 
 ## Contribute
 
