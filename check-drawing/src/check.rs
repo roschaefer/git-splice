@@ -327,11 +327,17 @@ impl<'a> Checker<'a> {
         self.read_dashed_boxes();
         self.find_commits();
         self.check_lanes_of_commits();
-        self.check_dashes();
+        // A tree claims nothing about upstream branches: its R is dashed
+        // whether pushed or not.
+        if !self.summary {
+            self.check_dashes();
+        }
         self.check_colors();
         self.check_legend();
         let (drawn_edges, box_arrows, branch_tips) = self.check_arrows();
-        self.check_branches_off_t(&branch_tips);
+        if !self.summary {
+            self.check_branches_off_t(&branch_tips);
+        }
         for &cell in &self.boxes {
             let arrows = box_arrows.get(&cell).copied().unwrap_or(0);
             if arrows != 1 {

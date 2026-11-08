@@ -198,7 +198,7 @@ XML
   [[ "$output" == *"!!   lib/a is a splice of the monorepo, but has no row"* ]]
 }
 
-@test "drawing tree: R that an upstream has after a push, before a bump, is solid" {
+@test "drawing tree: R stays dashed after a push, as a tree says nothing about upstream branches" {
   load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git" u1
   scenario_init_new_upstream "$other" "$other_upstream"
@@ -215,7 +215,7 @@ XML
 <mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
 <mxCell id="u" parent="1" vertex="1" value="u1" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="30" y="60" width="36" height="36" as="geometry"/></mxCell>
 <mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="70" y="60" width="20" height="36" as="geometry"/></mxCell>
-<mxCell id="r" parent="1" vertex="1" value="a local'" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="100" y="60" width="36" height="36" as="geometry"/></mxCell>
+<mxCell id="r" parent="1" vertex="1" value="a local'" style="ellipse;aspect=fixed;strokeWidth=2;dashed=1;"><mxGeometry x="100" y="60" width="36" height="36" as="geometry"/></mxCell>
 <mxCell id="at" parent="1" vertex="1" value="lib/a/" style="text;"><mxGeometry x="200" y="60" width="100" height="36" as="geometry"/></mxCell>
 <mxCell id="e" parent="1" edge="1" source="h" target="u" style="endArrow=none;"><mxGeometry relative="1" as="geometry"/></mxCell>
 </root></mxGraphModel></diagram></mxfile>
@@ -231,4 +231,20 @@ XML
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   c/ hangs from no row above it"* ]]
+}
+
+@test "drawing tree: a solid R" {
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  sed -i 's#</root>#<mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="150" y="180" width="20" height="36" as="geometry" /></mxCell><mxCell id="r" parent="1" vertex="1" value="cl" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="180" y="180" width="36" height="36" as="geometry" /></mxCell></root>#' "$drawing"
+  edit_drawing -u '//mxCell[@value="c/"]/mxGeometry/@x' -v 240
+  run check_drawing "$drawing" "${revs[@]}" "cl=$(splice rebuild vendor/a/b/c)"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   cl is R, which a tree draws dashed, pushed or not: dash it"* ]]
+}
+
+@test "drawing tree: a dashed synced commit" {
+  edit_drawing -u '//mxCell[@value="c1"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;dashed=1;"
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   c1 is dashed, but in a tree only R is: draw it solid"* ]]
 }

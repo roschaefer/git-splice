@@ -88,6 +88,20 @@ fn rows(d: &Diagram, errors: &mut Vec<String>) -> Vec<Row> {
             ));
         }
         let r = after.first().copied();
+        for &c in &cs {
+            let dashed = d.cells[c].style.dashed();
+            if Some(c) == r && !dashed {
+                errors.push(format!(
+                    "{} is R, which a tree draws dashed, pushed or not: dash it",
+                    d.cells[c].value
+                ));
+            } else if Some(c) != r && dashed {
+                errors.push(format!(
+                    "{} is dashed, but in a tree only R is: draw it solid",
+                    d.cells[c].value
+                ));
+            }
+        }
         let folder = d.cells[t]
             .value
             .split_whitespace()

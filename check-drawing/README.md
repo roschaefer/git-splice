@@ -213,8 +213,10 @@ folders: one row per splice, the monorepo at the root. It's the one
 whose root text, `monorepo`, is styled `tree=1`. It summarizes the lane
 drawing, and is checked as one: each row becomes the splice's lane,
 nested as the rows hang, and each circle gets the box that says what it
-is. Every rule above applies, except that drawn commits need no arrows
-between them: a summary claims no ancestry.
+is. Every rule above applies, except those a tree makes no claim about:
+drawn commits need no arrows between them, as a tree claims no ancestry;
+and its outlines don't say which upstream branch has a commit, so dashes
+and boxes naming upstream branches are left to the lane drawing.
 
 - **Row**: a text with a splice's folder, relative to the row it hangs
   from (`vendor/a/`, then `b/` below it), and the circles left of it at
@@ -224,9 +226,8 @@ between them: a summary claims no ancestry.
   head is its R, or its synced commit where it has no R.
 - **R**: the circle after a text of dots, `…`, which follows the synced
   commit, with no arrow between them, where the splice has commits of its
-  own; none where it hasn't. Dashed until an upstream branch has it, as
-  any commit. After an init, a splice has no synced commit: `…` and R
-  alone.
+  own; none where it hasn't. Always dashed, every other circle solid.
+  After an init, a splice has no synced commit: `…` and R alone.
 - **Merged in with a conflict**: the commit the pull merges in, T,
   outlined red, `#D00000`, a color of the drawing's own, which its
   legend explains.
