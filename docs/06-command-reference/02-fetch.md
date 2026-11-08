@@ -96,7 +96,7 @@ old, new and synced commits. A script can choose its own work from that
 context: the [update report scenario](../09-scenarios/01-everyday-sync/05-exec-report/README.md)
 uses the same script with fetch and pull, recording only applied updates.
 
-This is also the boundary for an LFS script: run `git lfs fetch` with each
+This is also the boundary for an [LFS script](../09-scenarios/04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/with-exec.md): run `git lfs fetch` with each
 entry's upstream URL and required commits to download objects into the local
 cache. The target and synced versions can both be needed, including for a
 later push. A following `git splice merge` can then materialize updated files.

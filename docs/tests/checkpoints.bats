@@ -216,22 +216,7 @@ setup_lfs_checkpoint() {
   git remote add origin "file://$monorepo.git"
   GIT_LFS_SKIP_SMUDGE=1 splice clone "file://$upstream" vendor/a
   commit_lfs_file "$upstream" model.bin 'version two' 'update model'
-  export CAPTURE="$payload"
-  export CHECKPOINT_SCRIPT="$BATS_TEST_TMPDIR/lfs-checkpoint.sh"
-  cat >"$CHECKPOINT_SCRIPT" <<'SCRIPT'
-#!/usr/bin/env bash
-set -euo pipefail
-payload=$(cat)
-printf '%s\n' "$payload" >"$CAPTURE"
-if [[ $(jq -r .event.checkpoint <<<"$payload") == after-fetch ]]; then
-  jq -r '.event.fetched[] | select(.failed == false) | . as $entry |
-    [.new, .synced] | unique[] | select(. != null and . != "") |
-    [$entry.url, .] | @tsv' <<<"$payload" |
-    while IFS=$'\t' read -r url commit; do
-      git lfs fetch "$url" "$commit" >&2 || exit 1
-    done
-fi
-SCRIPT
+  export CHECKPOINT_SCRIPT="$BATS_TEST_DIRNAME/../09-scenarios/04-upstreams/08-lfs-upstream/lfs-fetch.sh"
 
 }
 
@@ -374,4 +359,23 @@ SCRIPT
   run splice pull --exec 'sh "$REPORT_SCRIPT"' vendor/a
   [ "$status" -eq 0 ]
   [ "$(wc -l <../updated-splices.txt)" -eq 1 ]
+}
+
+
+@test "checkpoints: failed LFS download emits continuation and leaves the update unapplied" {
+  setup_lfs_checkpoint
+  local head
+  head="$(git rev-parse HEAD)"
+  mv "$upstream/lfs" "$upstream/lfs.offline"
+  run pull_checkpoint --exec 'bash "$CHECKPOINT_SCRIPT"' vendor/a
+  [ "$status" -eq 1 ]
+  jq -e '.operation == "pull" and .event.checkpoint == "after-fetch" and .version == 1' "$payload"
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  git diff --quiet
+  git diff --cached --quiet
+  cp -a "$upstream/lfs.offline/." "$upstream/lfs"
+  bash "$CHECKPOINT_SCRIPT" <"$payload"
+  run splice pull --continue-from "$payload" --exec 'bash "$CHECKPOINT_SCRIPT"'
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/model.bin)" = 'version two' ]
 }
