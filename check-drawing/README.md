@@ -280,9 +280,9 @@ What no drawing has needed yet, it doesn't handle:
 - **Old sync points**: a commit reachable only from an earlier `.splice`
   value is found by its label only when given as `<label>=<rev>`.
 - **Pulls next to a move**: blue compares each `.splice` with its
-  parent's at the same path, so a commit that moves or swaps splice
-  folders reads as a pull, and a pull in the same commit as a move goes
-  unseen.
+  parent's at the same path, in lanes and trees alike, so a commit that
+  moves or swaps splice folders reads as a pull, and a pull in the same
+  commit as a move goes unseen.
 
 ## Tests
 

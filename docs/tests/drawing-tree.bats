@@ -130,3 +130,31 @@ XML
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   b1 is drawn as merged into vendor/a/b/ with a conflict, but the pull in progress doesn't move it"* ]]
 }
+
+@test "drawing tree: a row hanging from the commit a conflicted pull merges in" {
+  commit_local "$monorepo" vendor/a/b "b local"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-b.git" "b upstream"
+  run splice pull vendor/a/b
+  [ "$status" -ne 0 ]
+  local b1 c1 y
+  b1="$(xmlstarlet sel -t -v '//mxCell[@value="b1"]/@id' "$drawing")"
+  c1="$(xmlstarlet sel -t -v '//mxCell[@value="c1"]/@id' "$drawing")"
+  y="$(xmlstarlet sel -t -v "//mxCell[@id=\"$b1\"]/mxGeometry/@y" "$drawing")"
+  sed -i "s#</root>#<mxCell id=\"t\" parent=\"1\" vertex=\"1\" value=\"b2\" style=\"ellipse;aspect=fixed;strokeWidth=3;strokeColor=\#D00000;\"><mxGeometry x=\"200\" y=\"$y\" width=\"36\" height=\"36\" as=\"geometry\" /></mxCell><mxCell id=\"tt\" parent=\"1\" edge=\"1\" source=\"t\" target=\"$b1\" style=\"dashed=1;strokeColor=\#D00000;\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
+  edit_drawing -u '//mxCell[@value="b/"]/mxGeometry/@x' -v 300 \
+    -u "//mxCell[@edge=\"1\"][@target=\"$c1\"]/@source" -v t
+  run check_drawing "$drawing" "${revs[@]}" b2=refs/splices/upstream-b/heads/main
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b/c/ hangs from b2, but its parent's head is b1: draw the edge from the head"* ]]
+}
+
+@test "drawing tree: a merge that brings a splice's changes in is carried over" {
+  git switch -q -c side
+  commit_local "$monorepo" vendor/a/b/c "c on a side branch"
+  git switch -q main
+  git merge -q --no-ff --no-edit side
+  sed -i 's#</root>#<mxCell id="lg" parent="1" vertex="1" value="" style="rounded=1;fillColor=none;legend=1;"><mxGeometry x="0" y="400" width="200" height="40" as="geometry" /></mxCell><mxCell id="lgo" parent="lg" vertex="1" value="" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=\#E07000;"><mxGeometry x="10" y="8" width="24" height="24" as="geometry" /></mxCell></root>#' "$drawing"
+  edit_drawing -u '//mxCell[@value="s"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;strokeColor=#E07000;"
+  run check_drawing "$drawing" "${revs[@]}"
+  [[ "$output" != *"s should be outlined black"* ]]
+}

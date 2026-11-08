@@ -244,9 +244,7 @@ impl Tree<'_> {
                 continue;
             }
             let from = connector_into(synced).unwrap();
-            let parent = out
-                .iter()
-                .find(|p| p.synced == Some(from) || p.r == Some(from));
+            let parent = out.iter().find(|p| p.circles.contains(&from));
             if let Some(parent) = parent {
                 if parent.head() != Some(from) {
                     self.errors.push(format!(
@@ -458,7 +456,8 @@ impl Tree<'_> {
     /// Whether the monorepo's head changed a splice's folder, which the
     /// rebuilds carry over.
     fn carried_over(&self) -> bool {
-        let changed = git(&["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"])
+        // Against the first parent, as the rebuild walks it, a merge too.
+        let changed = git(&["diff-tree", "--name-only", "-r", "HEAD^1", "HEAD"])
             .q()
             .out()
             .unwrap_or_default();
