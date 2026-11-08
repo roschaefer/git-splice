@@ -218,3 +218,28 @@ Checkpoint/LFS source and tests are unchanged by this rebase. Lint, formatting,
 and all 44 Rust tests passed on the new base. All 1,913 executable
 documentation testcases and all 31 focused drawing/checkpoint Bats tests also
 passed.
+
+## Follow-up: push LFS changes to the splice upstreams
+
+The user requested explicit upload coverage for the respective splice repos.
+No production code or checkpoint script changes were needed: uploads already
+use Git LFS's ordinary pre-push hook on the git push invoked by git-splice.
+
+- The existing with-exec.md page now changes model.bin locally, commits it,
+  runs `git splice push vendor/a`, and verifies version 3 in a fresh upstream
+  clone. This tests new content, not a no-op push of objects upstream had already.
+- New shared scenario:
+  `docs/09-scenarios/04-upstreams/08-lfs-upstream/02-push-to-upstreams/`.
+  Two upstreams each own a different model. After checkpoint-driven downloads,
+  both models are edited locally and `git splice push --all` sends each change
+  to its own upstream. Separate fresh clones verify distinct contents and no
+  monorepo prefix/other-splice files. A monorepo push and plain colleague clone
+  verify both models on that remote too.
+- Both existing positive LFS checkpoint tests (pull and fetch followed by merge)
+  now commit another local model change, push it upstream and verify a fresh
+  clone. An additional test uses the new two-splice fixture.
+- Validation: all 19 checkpoint Bats tests passed; `just lint` and
+  `just fmt-check` passed; `just docs-check` passed for 155 documents and 1,925
+  testcases, including 174 prose-label pages and 131 diagram placements.
+- No Rust code changed. The full core test suite was not rerun for this
+  scenario/test-only extension.
