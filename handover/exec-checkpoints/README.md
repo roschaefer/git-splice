@@ -11,8 +11,10 @@ that this knowledge be committed and will keep it out of main.
 - Worktree: `/home/robert/Development/tools-sub-repos/git-splice/exec-checkpoints`
 - Branch: `feat/exec-checkpoints`
 - Base: `pile/recursion`, commit `8d56103` (the `recursion-pile` worktree).
-- Implementation has NOT started. Only the worktree/branch and this handover
-  have been created. No tests, dependency changes, commits of code, or PRs.
+- Implementation is now in progress. See [current progress](progress.md) for
+  the code and verification added after the original handover at `06130ff`.
+- Draft PR: https://github.com/roschaefer/git-splice/pull/446, targeting
+  `pile/recursion`. Keep it draft; the handover folder must stay off main.
 - Continue implementation here rather than modifying one of the many existing
   worktrees. The parent directory is a bare Git repository, not a worktree.
 
