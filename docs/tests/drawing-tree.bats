@@ -55,3 +55,28 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   b1 should be outlined black"* ]]
 }
+
+@test "drawing tree: a commit that changes only what a .splice says besides its commit isn't a pull" {
+  git config --file vendor/a/.splice upstream.origin.pushurl https://git.example.com/a-push.git
+  git commit -q -am "a's push URL"
+  sed -i 's#</root>#<mxCell id="lg" parent="1" vertex="1" value="" style="rounded=1;fillColor=none;legend=1;"><mxGeometry x="0" y="400" width="200" height="40" as="geometry" /></mxCell><mxCell id="lgb" parent="lg" vertex="1" value="" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=\#0070E0;"><mxGeometry x="10" y="8" width="24" height="24" as="geometry" /></mxCell></root>#' "$drawing"
+  edit_drawing -u '//mxCell[@value="s"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   s should be outlined black"* ]]
+}
+
+@test "drawing tree: a circle in a row that's neither its synced commit, R nor what a pull merges in" {
+  sed -i 's#</root>#<mxCell id="x" parent="1" vertex="1" value="x" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="300" y="0" width="36" height="36" as="geometry" /></mxCell></root>#' "$drawing"
+  edit_drawing -u '//mxCell[@value="monorepo"]/mxGeometry/@x' -v 400
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   x is in the row of the monorepo, but is neither its head"* ]]
+}
+
+@test "drawing tree: a label with a ' names a copy, not the commit itself" {
+  edit_drawing -u '//mxCell[@value="c1"]/@value' -v "c seed'"
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   c seed' is vendor/a/b/c/'s synced commit, but the code says"* ]]
+}

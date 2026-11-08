@@ -22,6 +22,7 @@ pub fn is_tree(d: &Diagram) -> bool {
 struct Row {
     path: String,
     text: usize,
+    circles: Vec<usize>,
     synced: Option<usize>,
     r: Option<usize>,
     theirs: Option<usize>,
@@ -68,7 +69,14 @@ impl Tree<'_> {
                 return original != commit
                     && self.git.copy_key(&original) == self.git.copy_key(commit);
             }
-            return subject_has_label(&self.subject(commit), original);
+            // Labelled by subject: a commit with that subject, another one,
+            // with the same copy key.
+            let key = self.git.copy_key(commit);
+            return self.git.log(&["--all".to_string()]).iter().any(|c| {
+                c.hash != commit
+                    && subject_has_label(&c.subject, original)
+                    && self.git.copy_key(&c.hash) == key
+            });
         }
         subject_has_label(&self.subject(commit), label)
     }
@@ -105,20 +113,29 @@ impl Tree<'_> {
     /// Whether commit <commit> records another synced commit for a splice
     /// inside it than its first parent does: a pull.
     fn records_pull(&self, commit: &str) -> bool {
+        let parent = format!("{commit}^1");
         git(&[
             "diff-tree",
             "--no-commit-id",
             "--name-only",
             "-r",
-            "-m",
-            "--first-parent",
+            &parent,
             commit,
         ])
         .q()
         .out()
         .unwrap_or_default()
         .lines()
-        .any(|file| file == ".splice" || file.ends_with("/.splice"))
+        .filter(|file| *file == ".splice" || file.ends_with("/.splice"))
+        .any(|file| {
+            let before = self
+                .git
+                .config(&format!("{parent}:{file}"), "splice.commit");
+            let after = self
+                .git
+                .config(&format!("{commit}:{file}"), "splice.commit");
+            !before.is_empty() && before != after
+        })
     }
 
     /// The rows, by their folder texts, and the circles at the same height.
@@ -186,6 +203,7 @@ impl Tree<'_> {
                     out.push(Row {
                         path: String::new(),
                         text: *t,
+                        circles: cs.clone(),
                         synced: cs.first().copied(),
                         r: None,
                         theirs: None,
@@ -222,6 +240,7 @@ impl Tree<'_> {
                 out.push(Row {
                     path,
                     text: *t,
+                    circles: cs.clone(),
                     synced: Some(synced),
                     r,
                     theirs,
@@ -262,6 +281,26 @@ impl Tree<'_> {
 
     fn check(&mut self) {
         let rows = self.rows();
+        for row in &rows {
+            let roles = [row.synced, row.r, row.theirs];
+            for &c in &row.circles {
+                if roles.contains(&Some(c)) {
+                    continue;
+                }
+                let (whose, roles) = if row.path.is_empty() {
+                    ("the monorepo".to_string(), "its head")
+                } else {
+                    (
+                        format!("{}/", row.path),
+                        "its synced commit, R, nor what a conflicted pull merges in",
+                    )
+                };
+                self.errors.push(format!(
+                    "{} is in the row of {whose}, but is neither {roles}: drop it",
+                    self.d.cells[c].value
+                ));
+            }
+        }
         let splices: Vec<String> = self.git.splices();
         let base = self
             .git
