@@ -8,7 +8,8 @@ commit each conflict comes up.
 - **Today**, `pull --rebase --recursive` rebases the monorepo's commits
   since each splice's last pull onto the new one, splice by splice.
   Those can be pulls of the splices above it: `b`'s pull changed `c/`,
-  so `c`'s pull goes below it, and `b`'s pull is replayed on top.
+  so `c`'s pull goes below it, and `b`'s pull is replayed on top
+  ([#437](https://github.com/roschaefer/git-splice/issues/437)).
 - **One level at a time**, as in
   [rebased level by level](../01-nested-splices/02-three-levels/rebased-level-by-level.md):
   each splice takes its children's pulls in, and only its own commits
