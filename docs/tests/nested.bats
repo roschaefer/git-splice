@@ -114,6 +114,22 @@ b_changed_in_upstream_a() {
   [ "$(splice rebuild vendor/a/b/c)" = "$(git -C "$upstream_c" rev-parse main)" ]
 }
 
+@test "nested: c's own new synced commit wins over b's upstream when one commit moves both" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  splice pull vendor/a/b
+  splice pull vendor/a/b/c
+  git reset -q --soft HEAD~2
+  git commit -q -m "pull b and c"
+  [ "$(splice rebuild vendor/a/b/c)" = "$(git -C "$upstream_c" rev-parse main)" ]
+  run splice status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"up to date  vendor/a/b/c"* ]]
+}
+
 @test "nested: b's history isn't taken from a's upstream once that has another splice at b/" {
   scenario_nested_splices "$monorepo" "$upstream"
   local upstream_b2="$BATS_TEST_TMPDIR/upstream-b2.git"
