@@ -149,3 +149,23 @@ XML
   run check_drawing "$drawing" "${revs[@]/#s=HEAD/s=v1}"
   [ "$status" -eq 0 ]
 }
+
+@test "drawing tree: a splice after an init has no synced commit, only R" {
+  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git"
+  scenario_init_new_upstream "$other" "$other_upstream"
+  cd "$other"
+  splice init lib/a "$other_upstream" >/dev/null
+  cat >"$drawing" <<'XML'
+<mxfile><diagram name="t" id="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
+<mxCell id="h" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="0" y="0" width="36" height="36" as="geometry"/></mxCell>
+<mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
+<mxCell id="r" parent="1" vertex="1" value="s'" style="ellipse;aspect=fixed;strokeWidth=2;dashed=1;"><mxGeometry x="30" y="60" width="36" height="36" as="geometry"/></mxCell>
+<mxCell id="at" parent="1" vertex="1" value="lib/a/" style="text;"><mxGeometry x="200" y="60" width="100" height="36" as="geometry"/></mxCell>
+<mxCell id="e" parent="1" edge="1" source="h" target="r" style="endArrow=none;"><mxGeometry relative="1" as="geometry"/></mxCell>
+</root></mxGraphModel></diagram></mxfile>
+XML
+  run check_drawing "$drawing" s=HEAD
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   tree.drawio: a tree of 2 rows" ]
+}

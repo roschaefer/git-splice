@@ -105,7 +105,9 @@ fn rows(d: &Diagram, errors: &mut Vec<String>) -> Vec<Row> {
             depth: 0,
         };
         if !root {
-            let from = synced.and_then(connector_into);
+            // Into the synced commit; into R for a splice that has none
+            // yet, after an init.
+            let from = synced.or(r).and_then(connector_into);
             match from.and_then(|f| row_of.get(&f).copied()) {
                 Some(p) => {
                     let parent = &out[p];
