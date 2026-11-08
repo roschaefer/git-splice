@@ -54,14 +54,14 @@ $ git clone -q https://git.example.com/d.git ../d-work &&
 >   git -C ../d-work push -q origin main
 ```
 
-`a`'s splices `e` in:
+`a`'s splices `e` in, in the same commit:
 
 ```scrut
 $ git clone -q https://git.example.com/a.git ../a-work &&
 >   cd ../a-work &&
 >   git splice clone https://git.example.com/e.git e &&
 >   echo "a upstream" >>file.txt &&
->   git commit -q -am "a2: a upstream" &&
+>   git commit -q --amend -am "a2: a upstream, and e spliced in" &&
 >   git push -q origin main &&
 >   cd ../monorepo
 ===  e: fetching https://git.example.com/e.git
@@ -87,7 +87,7 @@ $ git branch before
 
 ```scrut
 $ git splice pull --rebase --recursive vendor/a
-ok   vendor/a fetched (main moved 764d9c4..48a4171)
+ok   vendor/a fetched (main moved 764d9c4..6d12ed8)
 ok   vendor/a/b fetched (main moved f815a3c..be68b59)
 ok   vendor/a/b/c fetched (main moved 8c169b6..94cad5e)
 ok   vendor/a/d fetched (main moved 2c64d15..36c850e)
@@ -118,8 +118,8 @@ ok   vendor/a: nothing to pull
 ok   vendor/a/b: pulled be68b59, and rebased 1 commit onto it
 Auto-merging vendor/a/b/c/file.txt
 CONFLICT (content): Merge conflict in vendor/a/b/c/file.txt
-error: could not apply 1d4506e... splice: pull vendor/a/b from main at be68b59
-Could not apply 1d4506e... # splice: pull vendor/a/b from main at be68b59
+error: could not apply dfda30e... splice: pull vendor/a/b from main at be68b59
+Could not apply dfda30e... # splice: pull vendor/a/b from main at be68b59
 !!   vendor/a/b/c: conflict while rebasing onto the pull -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)
 !!   Not pulled yet: vendor/a/d vendor/a/e -- resolve the conflict, run 'git rebase --continue', then re-run pull
 !!   Failed: vendor/a/b/c
@@ -152,7 +152,7 @@ splice: pull vendor/a/d from main at 36c850e
 m1: a and b in the monorepo
 splice: pull vendor/a/b from main at be68b59
 splice: pull vendor/a/b/c from main at 94cad5e
-splice: pull vendor/a from main at 48a4171
+splice: pull vendor/a from main at 6d12ed8
 add vendor/a
 initial commit
 ```
@@ -163,12 +163,12 @@ of that. Replaying *pb*, which brought `b`'s upstream's change to `c/`,
 stopped at `c`'s conflict. *m1* stopped at `a`'s, and *pd* came on top,
 since nothing since the last pull of `d/` changed it:
 
-![The monorepo's history s, pa, pc, pb, m1, pd, main at pd; the pulls outlined blue, pb and m1 filled red: each stopped at a conflict. Below, one lane per splice, nested as their folders: vendor/a/ has a1, ae and a2 from its upstream, then dashed copies pc', pb', m1', pd'; vendor/a/b/ has b1, then pc' on b1 and b2 on b1, both parents of pb', then m1'; vendor/a/b/c/ has c1, c2, then pb'; vendor/a/d/ has d1, d2. The upstream commits that came in, ae, a2, b2, c2, d2, are outlined blue, each with its upstream's main](rebased-today.drawio.svg)
+![The monorepo's history s, pa, pc, pb, m1, pd, main at pd; the pulls outlined blue, pb and m1 filled red: each stopped at a conflict. Below, one lane per splice, nested as their folders: vendor/a/ has a1 and a2 from its upstream, then dashed copies pc', pb', m1', pd'; vendor/a/b/ has b1, then pc' on b1 and b2 on b1, both parents of pb', then m1'; vendor/a/b/c/ has c1, c2, then pb'; vendor/a/d/ has d1, d2. vendor/a/e/ has e1, which came in with a2. The upstream commits that came in, a2, b2, c2, d2, are outlined blue, each with its upstream's main](rebased-today.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/rebased-today.drawio.svg" s=main~5 pa=main~4 pc=main~3 pb=main~2 pd=main ae=refs/splices/a/heads/main~1
-ok   rebased-today.drawio.svg: 23 commits, 24 arrows, 5 boxes, 4 lanes
+$ check_drawing "$TESTDIR/rebased-today.drawio.svg" s=main~5 pa=main~4 pc=main~3 pb=main~2 pd=main
+ok   rebased-today.drawio.svg: 23 commits, 24 arrows, 6 boxes, 5 lanes
 ```
 -->
 
@@ -185,7 +185,7 @@ ok   vendor/a fetched
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
 ok   vendor/a/d fetched
-ok   vendor/a: pulled 48a4171
+ok   vendor/a: pulled 6d12ed8
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
 ok   vendor/a/b: pulled be68b59
@@ -238,12 +238,12 @@ $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
 >   git cherry-pick --continue >/dev/null
 ```
 
-![The branch model's history s, p, m1, model at m1; p outlined blue, p and m1 filled red: each stopped at a conflict. Below, each lane continues from its upstream's main with dashed copies: vendor/a/ a1, ae, a2, then p', m1'; vendor/a/b/ b1, b2, then p', m1'; vendor/a/b/c/ c1, c2, then p'; vendor/a/d/ d1, d2 and nothing more. The upstream commits that came in are outlined blue, and so are the copies of p that move a synced commit, in vendor/a/ and vendor/a/b/](rebased-by-level.drawio.svg)
+![The branch model's history s, p, m1, model at m1; p outlined blue, p and m1 filled red: each stopped at a conflict. Below, each lane continues from its upstream's main with dashed copies: vendor/a/ a1, a2, then p', m1'; vendor/a/b/ b1, b2, then p', m1'; vendor/a/b/c/ c1, c2, then p'; vendor/a/d/ d1, d2 and nothing more; vendor/a/e/ e1. The upstream commits that came in are outlined blue, and so are the copies of p that move a synced commit, in vendor/a/ and vendor/a/b/](rebased-by-level.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/rebased-by-level.drawio.svg" s=model~2 ae=refs/splices/a/heads/main~1
-ok   rebased-by-level.drawio.svg: 17 commits, 17 arrows, 5 boxes, 4 lanes
+$ check_drawing "$TESTDIR/rebased-by-level.drawio.svg" s=model~2
+ok   rebased-by-level.drawio.svg: 17 commits, 17 arrows, 6 boxes, 5 lanes
 ```
 -->
 
