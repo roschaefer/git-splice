@@ -3,8 +3,9 @@
 These scenarios are experiments. They show how `git-splice` is meant to
 pull through [nested splices](../../../03-concepts/04-nesting.md): as
 if each splice's upstream were cloned on its own, updated there, and
-the result handed up to the splice around it. They do it by hand, with
-worktrees and plain Git. As the tool takes over, their code blocks
+the result handed up to the splice around it. Some pages do it by hand,
+with worktrees and plain Git; others with `git splice pull --recursive`,
+which does part of it already. As the tool takes over, their code blocks
 shrink to its commands, and their drawings change with them.
 
 ## The tree
@@ -55,3 +56,7 @@ A pull through E splices, with C commits of the monorepo's own on top:
   three levels, where every upstream changed the folder of the splice
   inside it: one conflict per edge, each resolved in the parent of the
   two, and each take-up conflict-free.
+- [a recursive pull](01-recursive-pull/README.md): a tree with branches,
+  `vendor/a/` with `b/`, `c/` in it, `d/` and `e/`, pulled with three
+  runs of `pull --recursive`, each to the next conflict, and one commit
+  for all of it.
