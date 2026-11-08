@@ -120,7 +120,7 @@ repositories use them today:
   That's all three facts a splice needs ([below](#what-a-splice-would-need)).
 - **jj** writes a `change-id` header in every commit, the identity a
   change keeps across rewrites. This is change identity, not a folder's sync
-  point. Separate [repository-composition proposals](03-jj.md#upstream-proposals)
+  point. Separate [repository-composition proposals](03-jj.md#proposals-and-experiments)
   explore working across histories.
 
 A header is half a weak parent: it's in the commit, and `log`,

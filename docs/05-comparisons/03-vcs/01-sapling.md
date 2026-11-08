@@ -22,7 +22,7 @@ can discard it. `.splice` is part of the tree and survives the squash.
 | | Sapling `sl subtree` | `git-splice` |
 | --- | --- | --- |
 | Library history in the monorepo | none, one commit per import or merge | none, one commit per sync |
-| Where the merge base is recorded | the commit's metadata, an extra header to Git | `.splice`, a file in the folder |
+| Where the sync point is recorded | the commit's metadata, an extra header to Git | `.splice`, a file in the folder |
 | After a squash merge or `git rebase` | gone, an older record is used, or the merge aborts if there's none | kept |
 | Changes back to the library | by hand, a patch per commit | `git splice push` |
 | `log` and `blame` into the library | `sl log`, `sl blame`, from the import | a second `git log` on the library's history |
