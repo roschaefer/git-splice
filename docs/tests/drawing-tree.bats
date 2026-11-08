@@ -158,3 +158,9 @@ XML
   run check_drawing "$drawing" "${revs[@]}"
   [[ "$output" != *"s should be outlined black"* ]]
 }
+
+@test "drawing tree: a label given as an annotated tag names the commit it tags" {
+  git tag -a -m "the start" v1
+  run check_drawing "$drawing" "${revs[@]/#s=HEAD/s=v1}"
+  [ "$status" -eq 0 ]
+}

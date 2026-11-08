@@ -61,11 +61,11 @@ impl Tree<'_> {
             return false;
         }
         if let Some(rev) = self.labels.revs.get(label) {
-            return self.git.rev_parse(rev).as_deref() == Some(commit);
+            return self.git.commit(rev).as_deref() == Some(commit);
         }
         if let Some(original) = label.strip_suffix('\'') {
             if let Some(rev) = self.labels.revs.get(original) {
-                let Some(original) = self.git.rev_parse(rev) else {
+                let Some(original) = self.git.commit(rev) else {
                     return false;
                 };
                 return original != commit
