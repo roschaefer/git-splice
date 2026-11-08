@@ -43,9 +43,10 @@ Each repository keeps its own history, reviews and CI.
 ## No shared history
 
 The monorepo and the library share no commits: only file changes cross
-the splice. `push` rebuilds yours as library commits, and `pull` brings
-theirs in as one monorepo commit. So you can compose repositories as you
-like, and everyone else keeps working in each one with plain `git`.
+the splice. `git splice push` rebuilds yours as library commits, and
+`git splice pull` brings theirs in as one monorepo commit. So you can
+compose repositories as you like, and everyone else keeps working in each
+one with plain `git`.
 
 It's worktree friendly, too. The library's own commits are fetched into
 the monorepo's repository, so a linked worktree can check them out: you
@@ -65,8 +66,8 @@ A splice works for any repositories you change together:
   commits, so GitHub Actions, reviews and releases run in each repository
   as before.
 - **Private monorepo, public folders:** open-source part of your code
-  as its own repository. `push` sends only the folder's changes, never
-  the monorepo's history, so the rest of the files stay private.
+  as its own repository. `git splice push` sends only the folder's changes,
+  never the monorepo's history, so the rest of the files stay private.
 
 ## How it works
 
@@ -100,8 +101,9 @@ $ source "$TESTDIR/docs/readme/both-sides-move-on.sh"
 
 </div>
 
-`push` rebuilds only the commits that changed `lib/`, in the library's
-layout. `status` compares that rebuild with the fetched upstream:
+`git splice push` rebuilds only the commits that changed `lib/`, in the
+library's layout. `git splice status` compares that rebuild with the
+fetched upstream:
 
 ```scrut
 $ git splice status
