@@ -12,8 +12,9 @@ commit each conflict comes up.
 - **One level at a time**, as in
   [rebased level by level](../01-nested-splices/02-three-levels/rebased-level-by-level.md):
   each splice takes its children's pulls in, and only its own commits
-  come on top, rebased. The pulls stay in order, top-down, and the
-  monorepo's own commit, *m1*, is replayed once, on top of all of them.
+  come on top, rebased. As without `--rebase`, the monorepo gets one
+  commit for the whole pull, *p*, and its own commit, *m1*, is replayed
+  once, on top of it.
 
 ## Output
 
@@ -216,7 +217,15 @@ ok   vendor/a/d fetched
 ok   vendor/a/d: pulled 36c850e
 ```
 
-`a`'s comes up when *m1* is replayed:
+The four pulls become one commit, as `pull --recursive` makes them
+without `--rebase`:
+
+```scrut
+$ git reset -q --soft before~1 &&
+>   git commit -q -m "p: pull vendor/a and the splices in it"
+```
+
+`a`'s conflict comes up when *m1* is replayed:
 
 ```scrut
 $ git cherry-pick before >/dev/null 2>&1
@@ -230,12 +239,12 @@ $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
 >   git switch -q main
 ```
 
-![The branch model's history pa, pb, pc, pd, m1; the pulls outlined blue; pc and m1 filled red: each stopped at a conflict; in the lanes, a2, b2, c2 and d2, outlined blue](rebased-by-level.drawio.svg)
+![The branch model's history p, then m1; p outlined blue, both filled red: each stopped at a conflict; in the lanes, a2, b2, c2 and d2, outlined blue](rebased-by-level.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/rebased-by-level.drawio.svg" pa=model~4 pb=model~3 pc=model~2 pd=model~1 m1=model
-ok   rebased-by-level.drawio.svg: 9 commits, 5 arrows, 1 boxes, 4 lanes
+$ check_drawing "$TESTDIR/rebased-by-level.drawio.svg" p=model~1 m1=model
+ok   rebased-by-level.drawio.svg: 6 commits, 2 arrows, 1 boxes, 4 lanes
 ```
 -->
 
@@ -249,6 +258,6 @@ $ git diff --stat main model
 
 | | Today | One level at a time |
 |---|---|---|
-| order of the pulls | `c/` below `b/`, `d/` above *m1* | top-down, all below *m1* |
+| the monorepo's history | four pulls, `c/` below `b/`, `d/` above *m1* | one pull, *p*, below *m1* |
 | replayed | `b`'s pull and *m1* | *m1* only |
 | `c`'s conflict | replaying `b`'s pull | in `c`'s pull itself |
