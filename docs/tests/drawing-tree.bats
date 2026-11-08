@@ -31,29 +31,29 @@ edit_drawing() {
 @test "drawing tree: a synced commit the parent doesn't record" {
   run check_drawing "$drawing" "${revs[@]/#c1=*/c1=HEAD}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   c1 is vendor/a/b/c/'s synced commit, but the code says "* ]]
+  [[ "$output" == *"!!   U(H) points at c1, the code says "* ]]
 }
 
 @test "drawing tree: a row for a folder that isn't a splice" {
   edit_drawing -u '//mxCell[@value="c/"]/@value' -v x/
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b/x/ isn't a splice of the monorepo"* ]]
-  [[ "$output" == *"!!   vendor/a/b/c is a splice of the monorepo, but has no row: draw one, so the tree shows every splice"* ]]
+  [[ "$output" == *"!!   the row vendor/a/b/x/ isn't a splice of the monorepo"* ]]
+  [[ "$output" == *"!!   vendor/a/b/c is a splice of the monorepo, but has no row"* ]]
 }
 
 @test "drawing tree: a splice with commits of its own, without R" {
   commit_local "$monorepo" vendor/a/b/c "c local"
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b/c/ has commits of its own: draw R, c local ("* ]]
+  [[ "$output" == *"!!   vendor/a/b/c/ has commits of its own: show R, dashed, after its synced commit"* ]]
 }
 
 @test "drawing tree: a colored commit without a legend that explains it" {
   edit_drawing -u '//mxCell[@value="b1"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   b1 should be outlined black"* ]]
+  [[ "$output" == *"!!   b1 is outlined blue, but it neither records a pull nor came in with one: outline it black"* ]]
 }
 
 @test "drawing tree: a commit that changes only what a .splice says besides its commit isn't a pull" {
@@ -63,7 +63,7 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@value="s"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   s should be outlined black"* ]]
+  [[ "$output" == *"!!   s is outlined blue, but it neither records a pull nor came in with one: outline it black"* ]]
 }
 
 @test "drawing tree: a circle in a row that's neither its synced commit, R nor what a pull merges in" {
@@ -71,14 +71,14 @@ edit_drawing() {
   edit_drawing -u '//mxCell[@value="monorepo"]/mxGeometry/@x' -v 400
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   x is in the row of the monorepo, but is neither its head"* ]]
+  [[ "$output" == *"!!   monorepo has 2 solid circles, but a row shows one synced commit: drop the others"* ]]
 }
 
 @test "drawing tree: a label with a ' names a copy, not the commit itself" {
   edit_drawing -u '//mxCell[@value="c1"]/@value' -v "c seed'"
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   c seed' is vendor/a/b/c/'s synced commit, but the code says"* ]]
+  [[ "$output" == *"!!   c seed': no such commit"* ]]
 }
 
 @test "drawing tree: the first pull after an init is a pull" {
@@ -113,22 +113,7 @@ XML
     -u '//mxCell[@value="b/"]/@value' -v vendor/a/b/
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b/ hangs from the monorepo, but the splice around it is vendor/a/: draw its row below that one's"* ]]
-}
-
-@test "drawing tree: a commit drawn as merged in with a conflict into a splice the pull doesn't move" {
-  commit_local "$monorepo" vendor/a/b/c "c local"
-  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c upstream"
-  run splice pull vendor/a/b/c
-  [ "$status" -ne 0 ]
-  local b1 y
-  b1="$(xmlstarlet sel -t -v '//mxCell[@value="b1"]/@id' "$drawing")"
-  y="$(xmlstarlet sel -t -v "//mxCell[@id=\"$b1\"]/mxGeometry/@y" "$drawing")"
-  sed -i "s#</root>#<mxCell id=\"t\" parent=\"1\" vertex=\"1\" value=\"b1\" style=\"ellipse;aspect=fixed;strokeWidth=3;strokeColor=\#D00000;\"><mxGeometry x=\"200\" y=\"$y\" width=\"36\" height=\"36\" as=\"geometry\" /></mxCell><mxCell id=\"tt\" parent=\"1\" edge=\"1\" source=\"t\" target=\"$b1\" style=\"dashed=1;strokeColor=\#D00000;\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
-  edit_drawing -u '//mxCell[@value="b/"]/mxGeometry/@x' -v 300
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   b1 is drawn as merged into vendor/a/b/ with a conflict, but the pull in progress doesn't move it"* ]]
+  [[ "$output" == *"!!   the row vendor/a/b/ is a folder inside vendor/a/: draw it inside that row"* ]]
 }
 
 @test "drawing tree: a row hanging from the commit a conflicted pull merges in" {
@@ -145,7 +130,7 @@ XML
     -u "//mxCell[@edge=\"1\"][@target=\"$c1\"]/@source" -v t
   run check_drawing "$drawing" "${revs[@]}" b2=refs/splices/upstream-b/heads/main
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b/c/ hangs from b2, but its parent's head is b1: draw the edge from the head"* ]]
+  [[ "$output" == *"!!   c/ hangs from b2, but its parent's head is b1: draw the edge from the head"* ]]
 }
 
 @test "drawing tree: a merge that brings a splice's changes in is carried over" {

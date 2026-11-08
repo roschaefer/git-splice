@@ -165,11 +165,16 @@ impl Diagram {
                 height: at("height"),
             });
         }
+        Ok(Diagram::from_cells(cells))
+    }
+
+    /// A diagram of cells <cells>, e.g. one made from another drawing.
+    pub fn from_cells(cells: Vec<Cell>) -> Diagram {
         let mut by_id = HashMap::new();
         for (index, cell) in cells.iter().enumerate() {
             by_id.insert(cell.id.clone(), index);
         }
-        Ok(Diagram { cells, by_id })
+        Diagram { cells, by_id }
     }
 
     pub fn index_of(&self, id: &str) -> Option<usize> {

@@ -209,31 +209,25 @@ which lane a shape is in.
 ## Splice trees
 
 A second kind of drawing shows the tree of splices, as `tree` prints
-folders: one row per splice, and the monorepo at the root. It's the one
-whose root text, `monorepo`, is styled `tree=1`.
+folders: one row per splice, the monorepo at the root. It's the one
+whose root text, `monorepo`, is styled `tree=1`. It summarizes the lane
+drawing, and is checked as one: each row becomes the splice's lane,
+nested as the rows hang, and each circle gets the box that says what it
+is. Every rule above applies, except that drawn commits need no arrows
+between them: a summary claims no ancestry.
 
 - **Row**: a text with a splice's folder, relative to the row it hangs
   from (`vendor/a/`, then `b/` below it), and the circles left of it at
-  the same height. The root's one circle is `HEAD`.
-- **Edge**: an arrow without a head (`endArrow=none`) from a parent's head
-  to a child's synced commit: the commit the parent's `.splice` records.
-  A splice's head is its R, or its synced commit where it has no R.
-- **R**: dashed, with a dashed arrow from the synced commit, where the
-  splice has commits of its own, i.e. its rebuild isn't its synced
-  commit; none where it is.
-- **Merged in with a conflict**: outlined red, `#D00000`, with a dashed
-  arrow into the head: the commit the conflicted pull, in progress,
-  merges in for that splice.
-- **Every splice** has a row.
-- **Colors**, with a sample in a `legend=1` legend: blue for a synced
-  commit the pull moved since it started (`SPLICE_PULL_START`, else
-  since `HEAD`'s first parent), and for the root or an R that records a
-  pull below it; orange for an R, and the root where it changed a
-  splice's folder, which the rebuilds carry over. Blue wins where both
-  apply.
-
-Labels work as above: a subject's start, `<label>=<rev>`, or a trailing
-`'` for a copy.
+  the same height. The root's one circle is H.
+- **Edge**: an arrow without a head (`endArrow=none`) from a parent's
+  head to the child's solid circle, its synced commit, U(H). A splice's
+  head is its R, or its synced commit where it has no R.
+- **R**: dashed, after the synced commit, with `…` between them and no
+  arrow, where the splice has commits of its own; none where it hasn't.
+- **Merged in with a conflict**: the commit the pull merges in, T,
+  outlined in a color of the drawing's own, e.g. red, `#D00000`, which
+  its legend explains.
+- **Every splice** has a row, as every splice has a lane.
 
 ## Saving drawings
 

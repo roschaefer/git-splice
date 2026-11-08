@@ -139,7 +139,7 @@ fn names_commit_on_line(message: &str, label: &str, named: &str) -> bool {
 
 /// Whether subject <subject> is labelled <label>: all of it, or its start up
 /// to a colon.
-pub fn subject_has_label(subject: &str, label: &str) -> bool {
+fn subject_has_label(subject: &str, label: &str) -> bool {
     let subject = subject.split('\t').next().unwrap_or("");
     subject == label || subject.starts_with(&format!("{label}: "))
 }
@@ -150,6 +150,9 @@ fn file_name(path: &str) -> &str {
 
 pub struct Checker<'a> {
     name: String,
+    /// A summary of a drawing, e.g. a splice tree: it shows some commits, and
+    /// claims no ancestry between them.
+    summary: bool,
     d: &'a Diagram,
     labels: &'a Labels,
     git: History,
@@ -254,12 +257,25 @@ impl<'a> Checker<'a> {
         if crate::tree::is_tree(&d) {
             return crate::tree::run(&name, &d, labels);
         }
+        Checker::check_diagram(&name, &d, labels, false, Vec::new())
+    }
+
+    /// Checks diagram <d>, named <name>, as a summary if <summary>, with
+    /// <errors> found before already.
+    pub fn check_diagram(
+        name: &str,
+        d: &Diagram,
+        labels: &Labels,
+        summary: bool,
+        errors: Vec<String>,
+    ) -> bool {
         let mut checker = Checker {
-            name,
-            d: &d,
+            name: name.to_string(),
+            summary,
+            d,
             labels,
             git: History::default(),
-            errors: Vec::new(),
+            errors,
             kind: HashMap::new(),
             commits: Vec::new(),
             edges: Vec::new(),
@@ -305,6 +321,9 @@ impl<'a> Checker<'a> {
         }
         self.place_on_sides();
         self.load_truth();
+        if self.summary {
+            self.check_r_shown();
+        }
         self.read_dashed_boxes();
         self.find_commits();
         self.check_lanes_of_commits();
@@ -322,13 +341,29 @@ impl<'a> Checker<'a> {
                 ));
             }
         }
-        self.check_parent_arrows_drawn(&drawn_edges);
+        if !self.summary {
+            self.check_parent_arrows_drawn(&drawn_edges);
+        }
 
         if !self.errors.is_empty() {
             for error in &self.errors {
+                // A summary's lanes are a tree's rows.
+                let error = if self.summary {
+                    error.replace("lanes", "rows").replace("lane", "row")
+                } else {
+                    error.clone()
+                };
                 println!("!!   {error}");
             }
             return false;
+        }
+        if self.summary {
+            println!(
+                "ok   {}: a tree of {} rows",
+                self.name,
+                self.lanes.len() + 1
+            );
+            return true;
         }
         let mut line = format!(
             "ok   {}: {} commits, {} arrows, {} boxes",
@@ -1553,6 +1588,28 @@ impl<'a> Checker<'a> {
     }
 
     /// Every parent link between two drawn commits of one lane is drawn.
+    /// In a summary, each lane shows R where the splice has commits of its
+    /// own: where its rebuild isn't its synced commit.
+    fn check_r_shown(&mut self) {
+        for &lane in &self.lanes.clone() {
+            let Some(splice) = self.lane_splice.get(&lane).cloned() else {
+                continue;
+            };
+            let truth = self.truth(&splice);
+            if truth.r.is_empty() || truth.r == truth.u {
+                continue;
+            }
+            let shown = self.boxes.iter().any(|&b| {
+                self.lane_of(b) == splice && self.value(b).split(" = ").any(|t| t == "R")
+            });
+            if !shown {
+                self.errors.push(format!(
+                    "{splice}/ has commits of its own: show R, dashed, after its synced commit"
+                ));
+            }
+        }
+    }
+
     fn check_parent_arrows_drawn(&mut self, drawn_edges: &HashSet<(usize, usize)>) {
         for &t in &self.commits {
             let child = self.commit(t);
