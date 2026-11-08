@@ -252,7 +252,7 @@ impl<'a> Checker<'a> {
             return false;
         };
         if crate::tree::is_tree(&d) {
-            return crate::tree::run(&name, &d, labels);
+            return crate::tree::run(path, &name, &d, labels);
         }
         let mut checker = Checker {
             name,

@@ -102,7 +102,7 @@ const SVG_NAMESPACE: &str = "http://www.w3.org/2000/svg";
 
 /// The diagram's XML: the `content` attribute of a `.drawio.svg`, or a
 /// `.drawio` file as it is.
-fn diagram_xml(path: &str) -> Result<String, NoDiagram> {
+pub fn diagram_xml(path: &str) -> Result<String, NoDiagram> {
     let text = std::fs::read_to_string(path).map_err(|_| NoDiagram)?;
     if !path.ends_with(".svg") {
         return Ok(text);
@@ -120,6 +120,44 @@ fn diagram_xml(path: &str) -> Result<String, NoDiagram> {
     root.attribute("content")
         .map(str::to_string)
         .ok_or(NoDiagram)
+}
+
+/// Each cell of draw.io's XML <xml>, by id, with every attribute of it and
+/// of its geometry, in one line: two drawings with the same lines draw the
+/// same, however draw.io wrote them. A position or size draw.io leaves out
+/// is 0.
+pub fn cell_lines(xml: &str) -> Result<HashMap<String, String>, NoDiagram> {
+    let document = roxmltree::Document::parse(xml).map_err(|_| NoDiagram)?;
+    let mut lines = HashMap::new();
+    for node in document.descendants().filter(|n| n.has_tag_name("mxCell")) {
+        let Some(id) = node.attribute("id") else {
+            continue;
+        };
+        let mut parts: Vec<String> = node
+            .attributes()
+            .filter(|a| a.name() != "id")
+            .map(|a| format!("{}={:?}", a.name(), a.value()))
+            .collect();
+        if let Some(geometry) = node.children().find(|n| n.has_tag_name("mxGeometry")) {
+            for name in ["x", "y", "width", "height"] {
+                parts.push(format!("{name}={}", number(geometry.attribute(name))));
+            }
+            parts.extend(
+                geometry
+                    .attributes()
+                    .filter(|a| !["x", "y", "width", "height"].contains(&a.name()))
+                    .map(|a| format!("geometry.{}={:?}", a.name(), a.value())),
+            );
+            let points = geometry
+                .descendants()
+                .filter(|n| n.has_tag_name("mxPoint"))
+                .count();
+            parts.push(format!("points={points}"));
+        }
+        parts.sort();
+        lines.insert(id.to_string(), parts.join(" "));
+    }
+    Ok(lines)
 }
 
 fn number(text: Option<&str>) -> f64 {

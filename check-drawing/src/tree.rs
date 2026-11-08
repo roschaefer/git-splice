@@ -4,7 +4,7 @@
 //! See README.md.
 
 use crate::check::Labels;
-use crate::diagram::{Cell, Diagram};
+use crate::diagram::{cell_lines, diagram_xml, Diagram};
 use crate::history::History;
 use std::collections::HashMap;
 
@@ -368,18 +368,10 @@ pub fn generate(labels: &Labels, marks: &Marks) -> bool {
     }
 }
 
-/// What a cell shows, written the same however draw.io wrote the cell.
-fn shown(c: &Cell) -> String {
-    format!(
-        "{} {} {}->{} at {},{} {}x{}, in {}",
-        c.value, c.style.0, c.source, c.target, c.x, c.y, c.width, c.height, c.parent
-    )
-}
-
-/// Checks tree <d>, from drawing <name>: that it's the tree the repository
-/// gives, with the marks its legend has samples of; prints each cell that
-/// differs.
-pub fn run(name: &str, d: &Diagram, labels: &Labels) -> bool {
+/// Checks tree <d>, from drawing <path>, named <name>: that it's the tree
+/// the repository gives, with the marks its legend has samples of; prints
+/// each cell that differs.
+pub fn run(path: &str, name: &str, d: &Diagram, labels: &Labels) -> bool {
     let marks = Marks::of(d);
     let rows = match rows(&History::default(), labels, &marks) {
         Ok(rows) => rows,
@@ -390,11 +382,8 @@ pub fn run(name: &str, d: &Diagram, labels: &Labels) -> bool {
             return false;
         }
     };
-    let given = Diagram::parse(&render(&rows, &marks)).unwrap_or_else(|_| unreachable!());
-    let by_id = |d: &Diagram| -> HashMap<String, String> {
-        d.cells.iter().map(|c| (c.id.clone(), shown(c))).collect()
-    };
-    let (drawn, given) = (by_id(d), by_id(&given));
+    let lines = |xml: Result<String, _>| xml.and_then(|xml| cell_lines(&xml)).unwrap_or_default();
+    let (drawn, given) = (lines(diagram_xml(path)), lines(Ok(render(&rows, &marks))));
     let mut ids: Vec<&String> = drawn.keys().chain(given.keys()).collect();
     ids.sort();
     ids.dedup();

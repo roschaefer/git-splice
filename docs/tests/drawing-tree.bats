@@ -41,7 +41,14 @@ cell() {
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   tree.drawio isn't the tree the repository gives: write it with \`check-drawing tree a1=refs/splices/upstream/heads/main b1="* ]]
-  [[ "$output" == *'!!   s3: drawn "x '*'given "c1 '* ]]
+  [[ "$output" == *'!!   s3: drawn '*'value="x"'*', given '*'value="c1"'* ]]
+}
+
+@test "drawing tree: a line that's no longer an edge, though nothing else about it changed" {
+  xmlstarlet ed -L -d '//mxCell[@id="c2"]/@edge' "$drawing"
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   c2: drawn "* ]]
 }
 
 @test "drawing tree: a row per splice, each hanging from the one around it" {
