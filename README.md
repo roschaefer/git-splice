@@ -30,8 +30,9 @@ versioned and tested with the app that needs it.
 
 ## The solution
 
-Work on the library as a folder next to the app. One commit can change
-both, tested together; each repository keeps its own history, reviews and CI.
+Keep the fork, but work on it from the monorepo. The library becomes a
+folder next to the app: one commit can change both, tested together.
+Each repository keeps its own history, reviews and CI.
 
 <div align="center">
 
