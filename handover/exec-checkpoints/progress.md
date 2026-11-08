@@ -147,3 +147,37 @@ Final verification for this follow-up:
 - Implementation commit: `c8755d9` (`feat(fetch): expose resumable execution checkpoints`).
 - Logs: `/tmp/git-splice-fetch-exec-tests.log`,
   `/tmp/git-splice-fetch-exec-docs.log`, `/tmp/git-splice-fetch-exec-flake.log`.
+
+## Follow-up: executable LFS proof of concept
+
+The user asked to spike LFS support through the new interface and show the
+impact of --exec in a scenario. No Rust/runtime changes were needed.
+
+- Shared opt-in script: `docs/09-scenarios/04-upstreams/08-lfs-upstream/lfs-fetch.sh`.
+  It ignores other events, downloads target and synced versions from each
+  successful fetched entry's URL, and sends progress to stderr. Fetch include
+  and exclude restrictions are cleared for these downloads. URL arguments are
+  separated from options with `--`.
+- A failed pipeline emits the complete original payload on stdout and exits 1.
+  It does not invent a third hook outcome or retry automatically on continuation.
+- Executable page:
+  `docs/09-scenarios/04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/with-exec.md`.
+  It starts from the existing retrained-upstream fixture, shows plain pull's
+  smudge failure, restores the files, then shows LFS fetching between Git fetch
+  and merge. Version 2, clean status, normal push and a colleague's ordinary
+  clone are verified. The existing known-bug page links to this opt-in example.
+- The two existing LFS checkpoint tests now use this actual script instead of
+  generating a separate inline implementation. An additional test removes the
+  upstream LFS objects, checks the emitted payload and unchanged HEAD/index,
+  restores the objects, explicitly reruns the downloader, and resumes the pull.
+- The local LFS backend recreates an empty lfs/ directory during a missing-object
+  request. The test restores by copying backup contents into it; moving the
+  backup directory would nest it and leave the objects unavailable.
+- Validation: all 18 checkpoint Bats tests passed, including the final failure
+  test recheck; `just lint` and `just fmt-check` passed; `just docs-check` passed
+  for 154 documents and 1,913 testcases (173 label pages, 131 placements).
+  The complete 861-test Bats suite from the prior follow-up was not rerun for
+  this script/docs-only change. There is now one additional Bats test.
+- The prototype remains limited to ordinary upstream URL configuration. It does
+  not add clone hooks, handle nested `.lfsconfig` endpoint selection, or perform
+  a complete historical LFS-object migration.
