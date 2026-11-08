@@ -35,6 +35,15 @@ edit_drawing() {
   [ "$output" = "!!   the monorepo has 2 splices: draw a lane for each one the drawing shows, labelled with its folder, e.g. vendor/a/" ]
 }
 
+@test "drawing lanes: a splice without a lane, where the others have one" {
+  make_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c seed"
+  add_splice "$monorepo" "$BATS_TEST_TMPDIR/upstream-c.git" vendor/c
+  run check_drawing "$drawing" "${revs[@]/#a=HEAD/a=HEAD~1}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/c is a splice of the monorepo, but has no lane: draw one, labelled vendor/c/, so the drawing shows every splice"* ]]
+}
+
 @test "drawing lanes: a lane that names no splice" {
   edit_drawing -u '//mxCell[@id="lane_b"]/@value' -v vendor/x/
   run check_drawing "$drawing" "${revs[@]}"
