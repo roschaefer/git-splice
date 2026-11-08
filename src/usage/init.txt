@@ -2,7 +2,7 @@ NAME
     git-splice-init - Make an existing folder a splice of an empty repository
 
 SYNOPSIS
-    git splice init [-m <message>] <path> <url>
+    git splice init [-m <message> | --message-template <template>] <path> <url>
 
 DESCRIPTION
     Makes the existing folder <path> a splice, to be published to <url>: an
@@ -24,5 +24,11 @@ OPTIONS
         Gives the commit this message instead of the default one.
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/init/#-m
+
+    --message-template <template>
+        Gives the commit a message made from <template> instead of the
+        default 'splice: init {path}'; see 'git splice merge --help'.
+
+        See also: https://roschaefer.github.io/git-splice/docs/command-reference/init/#--message-template
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/init/#options
