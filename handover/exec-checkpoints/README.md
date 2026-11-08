@@ -10,7 +10,8 @@ that this knowledge be committed and will keep it out of main.
 - Task: https://github.com/roschaefer/git-splice/issues/445
 - Worktree: `/home/robert/Development/tools-sub-repos/git-splice/exec-checkpoints`
 - Branch: `feat/exec-checkpoints`
-- Base: `pile/recursion`, commit `8d56103` (the `recursion-pile` worktree).
+- Base: `pile/recursion`, rebased onto `60bdde9` (the `recursion-pile` worktree).
+  The original base was `8d56103`; see the rebase note in progress.md.
 - Implementation is now in progress. See [current progress](progress.md) for
   the code and verification added after the original handover at `06130ff`.
 - Draft PR: https://github.com/roschaefer/git-splice/pull/446, targeting

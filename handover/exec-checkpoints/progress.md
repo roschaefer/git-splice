@@ -181,3 +181,40 @@ impact of --exec in a scenario. No Rust/runtime changes were needed.
 - The prototype remains limited to ordinary upstream URL configuration. It does
   not add clone hooks, handle nested `.lfsconfig` endpoint selection, or perform
   a complete historical LFS-object migration.
+
+
+## Rebase after the pile was rewritten
+
+While the LFS prototype was being finished, pile/recursion was rewritten onto
+`a6e89fc`. The draft PR consequently included old stack history. Only our seven
+commits were replayed with `rebase --onto pile/recursion 8d56103`.
+
+- Backup of the tested pre-rebase tip: local branch
+  `backup/exec-checkpoints-lfs-spike` at `eb10885`.
+- The sole conflict was `step-a.drawio.svg`: the new pile had independently
+  made e1 solid. Both diagrams had the same semantic node style; the pile's
+  already-exported SVG was retained.
+- Rebased implementation commits are `155e9df` (pull), `f06bfa4` (fetch), and
+  `a4698a3` (LFS prototype). Earlier hashes in this historical log refer to the
+  backup history. Handover updates remain separate commits.
+- All `src/`, checkpoint tests, and LFS scenario files are byte-identical to
+  the tested pre-rebase tip. The base differences concern the drawing checker,
+  drawing tests and recursion prose; no checkpoint/LFS code was changed.
+- Lint, formatting and all 44 Rust tests passed after rebasing. Full executable
+  documentation also passed against the updated drawing checker: 154 documents
+  and 1,913 testcases.
+
+
+## Requested rebase onto 60bdde9
+
+PR #446 was subsequently rebased cleanly onto pile commit `60bdde9` by replaying
+only its eight commits after `a6e89fc`. Range-diff matched all eight patches
+before refreshing these handover notes. The pre-rebase tip is preserved as
+`backup/exec-checkpoints-before-60bdde9` at `35001a3`.
+
+Current implementation commits are `9bd8db7` (pull), `6033f73` (fetch), and
+`04384f4` (LFS prototype). Earlier hashes above describe prior branch history.
+Checkpoint/LFS source and tests are unchanged by this rebase. Lint, formatting,
+and all 44 Rust tests passed on the new base. All 1,913 executable
+documentation testcases and all 31 focused drawing/checkpoint Bats tests also
+passed.
