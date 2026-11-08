@@ -150,9 +150,6 @@ fn file_name(path: &str) -> &str {
 
 pub struct Checker<'a> {
     name: String,
-    /// A summary of a drawing, e.g. a splice tree: it shows some commits, and
-    /// claims no ancestry between them.
-    summary: bool,
     d: &'a Diagram,
     labels: &'a Labels,
     git: History,
@@ -257,25 +254,12 @@ impl<'a> Checker<'a> {
         if crate::tree::is_tree(&d) {
             return crate::tree::run(&name, &d, labels);
         }
-        Checker::check_diagram(&name, &d, labels, false, Vec::new())
-    }
-
-    /// Checks diagram <d>, named <name>, as a summary if <summary>, with
-    /// <errors> found before already.
-    pub fn check_diagram(
-        name: &str,
-        d: &Diagram,
-        labels: &Labels,
-        summary: bool,
-        errors: Vec<String>,
-    ) -> bool {
         let mut checker = Checker {
-            name: name.to_string(),
-            summary,
-            d,
+            name,
+            d: &d,
             labels,
             git: History::default(),
-            errors,
+            errors: Vec::new(),
             kind: HashMap::new(),
             commits: Vec::new(),
             edges: Vec::new(),
@@ -321,23 +305,14 @@ impl<'a> Checker<'a> {
         }
         self.place_on_sides();
         self.load_truth();
-        if self.summary {
-            self.check_rows_shown();
-        }
         self.read_dashed_boxes();
         self.find_commits();
         self.check_lanes_of_commits();
-        // A tree claims nothing about upstream branches: its R is dashed
-        // whether pushed or not.
-        if !self.summary {
-            self.check_dashes();
-        }
+        self.check_dashes();
         self.check_colors();
         self.check_legend();
         let (drawn_edges, box_arrows, branch_tips) = self.check_arrows();
-        if !self.summary {
-            self.check_branches_off_t(&branch_tips);
-        }
+        self.check_branches_off_t(&branch_tips);
         for &cell in &self.boxes {
             let arrows = box_arrows.get(&cell).copied().unwrap_or(0);
             if arrows != 1 {
@@ -347,29 +322,13 @@ impl<'a> Checker<'a> {
                 ));
             }
         }
-        if !self.summary {
-            self.check_parent_arrows_drawn(&drawn_edges);
-        }
+        self.check_parent_arrows_drawn(&drawn_edges);
 
         if !self.errors.is_empty() {
             for error in &self.errors {
-                // A summary's lanes are a tree's rows.
-                let error = if self.summary {
-                    error.replace("lanes", "rows").replace("lane", "row")
-                } else {
-                    error.clone()
-                };
                 println!("!!   {error}");
             }
             return false;
-        }
-        if self.summary {
-            println!(
-                "ok   {}: a tree of {} rows",
-                self.name,
-                self.lanes.len() + 1
-            );
-            return true;
         }
         let mut line = format!(
             "ok   {}: {} commits, {} arrows, {} boxes",
@@ -447,8 +406,7 @@ impl<'a> Checker<'a> {
                     .push(format!("the lane {value} isn't a splice of the monorepo"));
             }
         }
-        // A tree has a row for every splice, even the only one.
-        if !self.lanes.is_empty() || self.summary {
+        if !self.lanes.is_empty() {
             let drawn: Vec<String> = self.lane_splice.values().cloned().collect();
             for splice in &self.splices {
                 if !drawn.contains(splice) {
@@ -972,33 +930,12 @@ impl<'a> Checker<'a> {
     /// Every other commit is outlined black and white inside. Without
     /// splices, e.g. in a drawing of git subtree, none is checked.
     fn check_colors(&mut self) {
-        let mut walked: HashSet<String> = HashSet::new();
-        let mut copied: HashSet<String> = HashSet::new();
-        for splice in &self.splices {
-            let Some(truth) = self.truth.get(splice) else {
-                continue;
-            };
-            if truth.b.is_empty() {
-                continue;
-            }
-            if !truth.r.is_empty() {
-                let mut range = vec![truth.r.clone()];
-                if !truth.s.is_empty() {
-                    range.push(format!("^{}", truth.s));
-                }
-                for commit in self.git.log_with_copy_keys(&range).iter() {
-                    copied.insert(self.git.copy_key(commit));
-                }
-            }
-            walked.extend(self.git.first_parent_since(&truth.b));
-            // Where the splice starts, the rebuild walks B too, and copies it,
-            // e.g. right after init.
-            if copied.contains(&self.git.copy_key(&truth.b)) {
-                walked.insert(truth.b.clone());
-            }
-        }
+        let (walked, copied) = self
+            .git
+            .walked_and_copied(self.splices.iter().filter_map(|s| self.truth.get(s)));
+        let drawn: Vec<String> = self.commits.iter().map(|&c| self.commit(c)).collect();
+        let (pulls, brought) = self.git.pulls_among(&drawn);
         // Whether the legend has a sample of <color> as <attr>.
-        let (pulls, brought) = self.pulls();
         let explained = |attr: &str, plain: &str, color: &str| {
             self.legend_samples
                 .iter()
@@ -1124,44 +1061,6 @@ impl<'a> Checker<'a> {
                 }
             }
         }
-    }
-
-    /// The pulls the drawing shows, at any level, so a pulled commit can be
-    /// followed out through the splices around it: each drawn commit whose
-    /// .splice for a splice inside it records another synced commit than its
-    /// first parent's, and the upstream commits each brought in, in the new
-    /// synced commit's history but not the old one's, or all of it after an
-    /// init, which recorded none. A commit that adds a .splice, like a
-    /// clone's, records no pull. Copies of the pulling repository's own
-    /// commits, on its first-parent history, came back from a push, not in
-    /// with the pull.
-    fn pulls(&self) -> (HashSet<String>, HashSet<String>) {
-        let (mut pulls, mut brought) = (HashSet::new(), HashSet::new());
-        for &cell in &self.commits {
-            let commit = self.commit(cell);
-            let Some(parent) = self.git.parents_of(&commit).first().cloned() else {
-                continue;
-            };
-            for (_, before, now) in self.git.pulls_in(&commit) {
-                pulls.insert(commit.clone());
-                let own: HashSet<String> = self
-                    .git
-                    .log_with_copy_keys(&["--first-parent".to_string(), parent.clone()])
-                    .iter()
-                    .map(|commit| self.git.copy_key(commit))
-                    .collect();
-                let mut range = vec![now];
-                if !before.is_empty() {
-                    range.push(format!("^{before}"));
-                }
-                for subject in self.git.log(&range).iter() {
-                    if !own.contains(&self.git.copy_key(&subject.hash)) {
-                        brought.insert(subject.hash.clone());
-                    }
-                }
-            }
-        }
-        (pulls, brought)
     }
 
     /// The legend explains each mark the drawing's commits use, by a sample
@@ -1591,37 +1490,6 @@ impl<'a> Checker<'a> {
                 "{} is on an upstream branch, but not T's: draw a box for the branch, e.g. {branch}",
                 self.value(cell)
             ));
-        }
-    }
-
-    /// In a summary, each lane shows its synced commit, U(H), where it has
-    /// one, and R where the splice has commits of its own: where its rebuild
-    /// isn't its synced commit.
-    fn check_rows_shown(&mut self) {
-        for &lane in &self.lanes.clone() {
-            let Some(splice) = self.lane_splice.get(&lane).cloned() else {
-                continue;
-            };
-            let (u, r) = {
-                let truth = self.truth(&splice);
-                (truth.u.clone(), truth.r.clone())
-            };
-            let shown = |term: &str| {
-                self.boxes.iter().any(|&b| {
-                    self.lane_of(b) == splice && self.value(b).split(" = ").any(|t| t == term)
-                })
-            };
-            let (u_shown, r_shown) = (shown("U(H)"), shown("R"));
-            if !u.is_empty() && !u_shown {
-                self.errors.push(format!(
-                    "{splice}/ has a synced commit: show it, solid, on the edge into its lane"
-                ));
-            }
-            if !r.is_empty() && r != u && !r_shown {
-                self.errors.push(format!(
-                    "{splice}/ has commits of its own: show R, after its synced commit and dots"
-                ));
-            }
         }
     }
 

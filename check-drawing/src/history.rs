@@ -579,6 +579,73 @@ impl History {
         pulls
     }
 
+    /// What the next rebuilds of the splices with facts <truths> do: the
+    /// monorepo commits they walk, on the first-parent history since each
+    /// B, and the copy keys of the commits they copy, since each S.
+    pub fn walked_and_copied<'t>(
+        &self,
+        truths: impl Iterator<Item = &'t Truth>,
+    ) -> (HashSet<String>, HashSet<String>) {
+        let (mut walked, mut copied) = (HashSet::new(), HashSet::new());
+        for truth in truths {
+            if truth.b.is_empty() {
+                continue;
+            }
+            if !truth.r.is_empty() {
+                let mut range = vec![truth.r.clone()];
+                if !truth.s.is_empty() {
+                    range.push(format!("^{}", truth.s));
+                }
+                for commit in self.log_with_copy_keys(&range).iter() {
+                    copied.insert(self.copy_key(commit));
+                }
+            }
+            walked.extend(self.first_parent_since(&truth.b));
+            // Where the splice starts, the rebuild walks B too, and copies it,
+            // e.g. right after init.
+            if copied.contains(&self.copy_key(&truth.b)) {
+                walked.insert(truth.b.clone());
+            }
+        }
+        (walked, copied)
+    }
+
+    /// The pulls among commits <commits>, at any level, so a pulled commit
+    /// can be followed out through the splices around it: each commit whose
+    /// .splice for a splice inside it records another synced commit than its
+    /// first parent's, and the upstream commits each brought in, in the new
+    /// synced commit's history but not the old one's, or all of it after an
+    /// init, which recorded none. A commit that adds a .splice, like a
+    /// clone's, records no pull. Copies of the pulling repository's own
+    /// commits, on its first-parent history, came back from a push, not in
+    /// with the pull.
+    pub fn pulls_among(&self, commits: &[String]) -> (HashSet<String>, HashSet<String>) {
+        let (mut pulls, mut brought) = (HashSet::new(), HashSet::new());
+        for commit in commits {
+            let Some(parent) = self.parents_of(commit).first().cloned() else {
+                continue;
+            };
+            for (_, before, now) in self.pulls_in(commit) {
+                pulls.insert(commit.clone());
+                let own: HashSet<String> = self
+                    .log_with_copy_keys(&["--first-parent".to_string(), parent.clone()])
+                    .iter()
+                    .map(|commit| self.copy_key(commit))
+                    .collect();
+                let mut range = vec![now];
+                if !before.is_empty() {
+                    range.push(format!("^{before}"));
+                }
+                for subject in self.log(&range).iter() {
+                    if !own.contains(&self.copy_key(&subject.hash)) {
+                        brought.insert(subject.hash.clone());
+                    }
+                }
+            }
+        }
+        (pulls, brought)
+    }
+
     pub fn head(&self) -> String {
         self.rev_parse("HEAD").unwrap_or_default()
     }

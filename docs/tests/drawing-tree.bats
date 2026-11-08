@@ -1,5 +1,6 @@
-# check_drawing on a splice tree, a drawing whose root text is styled
-# tree=1, against the three-levels scenario's tree.
+# check-drawing tree, which writes the tree of splices from the repository,
+# and check_drawing on a tree, which compares it with what the repository
+# gives, against the three-levels scenario.
 
 setup() {
   load 'helpers/fixtures'
@@ -16,10 +17,17 @@ setup() {
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/tree.drawio.svg" >"$drawing" 2>/dev/null
   revs=(s=HEAD a1=refs/splices/upstream/heads/main b1=refs/splices/upstream-b/heads/main c1=refs/splices/upstream-c/heads/main)
+  written="$BATS_TEST_TMPDIR/written.drawio"
 }
 
-edit_drawing() {
-  xmlstarlet ed -L "$@" "$drawing"
+# write_tree [--mark <mark>]... [<label>=<rev>...]: the tree, into $written.
+write_tree() {
+  "$CHECK_DRAWING_TOOL" tree "$@" >"$written"
+}
+
+# cell <id> <attribute>: the attribute of the written tree's cell <id>.
+cell() {
+  xmlstarlet sel -t -v "//mxCell[@id='$1']/@$2" "$written"
 }
 
 @test "drawing tree: the committed one matches its scenario" {
@@ -28,126 +36,87 @@ edit_drawing() {
   [ "$output" = "ok   tree.drawio: a tree of 4 rows" ]
 }
 
-@test "drawing tree: a synced commit the parent doesn't record" {
-  run check_drawing "$drawing" "${revs[@]/#c1=*/c1=HEAD}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   U(H) points at c1, the code says "* ]]
-}
-
-@test "drawing tree: a row for a folder that isn't a splice" {
-  edit_drawing -u '//mxCell[@value="c/"]/@value' -v x/
+@test "drawing tree: one that isn't what the repository gives names each cell that differs, and how to write it" {
+  xmlstarlet ed -L -u '//mxCell[@value="c1"]/@value' -v x "$drawing"
   run check_drawing "$drawing" "${revs[@]}"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   the row vendor/a/b/x/ isn't a splice of the monorepo"* ]]
-  [[ "$output" == *"!!   vendor/a/b/c is a splice of the monorepo, but has no row"* ]]
+  [[ "$output" == *"!!   tree.drawio isn't the tree the repository gives: write it with \`check-drawing tree a1=refs/splices/upstream/heads/main b1="* ]]
+  [[ "$output" == *'!!   s3: drawn "x '*'given "c1 '* ]]
 }
 
-@test "drawing tree: a splice with commits of its own, without R" {
+@test "drawing tree: a row per splice, each hanging from the one around it" {
+  write_tree "${revs[@]}"
+  [ "$(cell f0 value)" = monorepo ]
+  [ "$(cell f1 value)" = vendor/a/ ]
+  [ "$(cell f2 value)" = b/ ]
+  [ "$(cell f3 value)" = c/ ]
+  [ "$(cell c3 source)" = s2 ]
+  [ "$(cell c3 target)" = s3 ]
+}
+
+@test "drawing tree: without a label, a commit is named by its subject, up to a colon" {
+  write_tree
+  [ "$(cell s0 value)" = "$(git log -1 --format=%s | sed 's/: .*//')" ]
+}
+
+@test "drawing tree: R after the dots, dashed, named after the commit it copies, with a '" {
   commit_local "$monorepo" vendor/a/b/c "c local"
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b/c/ has commits of its own: show R, after its synced commit and dots"* ]]
+  write_tree m=HEAD
+  [ "$(cell r3 value)" = "m'" ]
+  [[ "$(cell r3 style)" == *"dashed=1;"* ]]
+  [ "$(cell dots3 value)" = "…" ]
+  [ "$(cell r1 value)" = "m'" ]
+  [ "$(cell c3 source)" = r2 ]
 }
 
-@test "drawing tree: a colored commit without a legend that explains it" {
-  edit_drawing -u '//mxCell[@value="b1"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   b1 is outlined blue, but it neither records a pull nor came in with one: outline it black"* ]]
-}
-
-@test "drawing tree: a commit that changes only what a .splice says besides its commit isn't a pull" {
-  git config --file vendor/a/.splice upstream.origin.pushurl https://git.example.com/a-push.git
-  git commit -q -am "a's push URL"
-  sed -i 's#</root>#<mxCell id="lg" parent="1" vertex="1" value="" style="rounded=1;fillColor=none;legend=1;"><mxGeometry x="0" y="400" width="200" height="40" as="geometry" /></mxCell><mxCell id="lgb" parent="lg" vertex="1" value="" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=\#0070E0;"><mxGeometry x="10" y="8" width="24" height="24" as="geometry" /></mxCell></root>#' "$drawing"
-  edit_drawing -u '//mxCell[@value="s"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   s is outlined blue, but it neither records a pull nor came in with one: outline it black"* ]]
-}
-
-@test "drawing tree: a circle in a row that's neither its synced commit, R nor what a pull merges in" {
-  sed -i 's#</root>#<mxCell id="x" parent="1" vertex="1" value="x" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="300" y="0" width="36" height="36" as="geometry" /></mxCell></root>#' "$drawing"
-  edit_drawing -u '//mxCell[@value="monorepo"]/mxGeometry/@x' -v 400
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   monorepo has 2 circles before its dots, but a row shows one synced commit: drop the others"* ]]
-}
-
-@test "drawing tree: a label with a ' names a copy, not the commit itself" {
-  edit_drawing -u '//mxCell[@value="c1"]/@value' -v "c seed'"
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   c seed': no such commit"* ]]
-}
-
-@test "drawing tree: the first pull after an init is a pull" {
-  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
-  local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git"
-  scenario_init_new_upstream "$other" "$other_upstream"
-  cd "$other"
-  splice init lib/a "$other_upstream" >/dev/null
-  splice push lib/a >/dev/null
-  seed_bare_repo "$other_upstream" "u2: upstream" main lib-file.txt
-  splice pull lib/a >/dev/null
-  cat >"$drawing" <<'XML'
-<mxfile><diagram name="t" id="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
-<mxCell id="h" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"><mxGeometry x="0" y="0" width="36" height="36" as="geometry"/></mxCell>
-<mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
-<mxCell id="a" parent="1" vertex="1" value="u2" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"><mxGeometry x="30" y="60" width="36" height="36" as="geometry"/></mxCell>
-<mxCell id="at" parent="1" vertex="1" value="lib/a/" style="text;"><mxGeometry x="200" y="60" width="100" height="36" as="geometry"/></mxCell>
-<mxCell id="e" parent="1" edge="1" source="h" target="a" style="endArrow=none;"><mxGeometry relative="1" as="geometry"/></mxCell>
-<mxCell id="lg" parent="1" vertex="1" value="" style="rounded=1;fillColor=none;legend=1;"><mxGeometry x="0" y="200" width="200" height="40" as="geometry"/></mxCell>
-<mxCell id="lgb" parent="lg" vertex="1" value="" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"><mxGeometry x="10" y="8" width="24" height="24" as="geometry"/></mxCell>
-</root></mxGraphModel></diagram></mxfile>
-XML
-  run check_drawing "$drawing" s=HEAD
-  [[ "$output" != *"s should be outlined black"* ]]
-}
-
-@test "drawing tree: a row that hangs from a splice further out than the one around it" {
-  local s b1
-  s="$(xmlstarlet sel -t -v '//mxCell[@value="s"]/@id' "$drawing")"
-  b1="$(xmlstarlet sel -t -v '//mxCell[@value="b1"]/@id' "$drawing")"
-  edit_drawing -u "//mxCell[@edge=\"1\"][@target=\"$b1\"]/@source" -v "$s" \
-    -u '//mxCell[@value="b/"]/@value' -v vendor/a/b/
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   the row vendor/a/b/ is a folder inside vendor/a/: draw it inside that row"* ]]
-}
-
-@test "drawing tree: a row hanging from the commit a conflicted pull merges in" {
+@test "drawing tree: the commit a conflicted pull merges in, outlined red, and the row says so" {
   commit_local "$monorepo" vendor/a/b "b local"
-  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-b.git" "b upstream"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-b.git" "b2: b upstream"
   run splice pull vendor/a/b
   [ "$status" -ne 0 ]
-  local b1 c1 y
-  b1="$(xmlstarlet sel -t -v '//mxCell[@value="b1"]/@id' "$drawing")"
-  c1="$(xmlstarlet sel -t -v '//mxCell[@value="c1"]/@id' "$drawing")"
-  y="$(xmlstarlet sel -t -v "//mxCell[@id=\"$b1\"]/mxGeometry/@y" "$drawing")"
-  sed -i "s#</root>#<mxCell id=\"t\" parent=\"1\" vertex=\"1\" value=\"b2\" style=\"ellipse;aspect=fixed;strokeWidth=3;strokeColor=\#D00000;\"><mxGeometry x=\"200\" y=\"$y\" width=\"36\" height=\"36\" as=\"geometry\" /></mxCell><mxCell id=\"tt\" parent=\"1\" edge=\"1\" source=\"t\" target=\"$b1\" style=\"dashed=1;strokeColor=\#D00000;\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
-  edit_drawing -u '//mxCell[@value="b/"]/mxGeometry/@x' -v 300 \
-    -u "//mxCell[@edge=\"1\"][@target=\"$c1\"]/@source" -v t
-  run check_drawing "$drawing" "${revs[@]}" b2=refs/splices/upstream-b/heads/main
+  write_tree
+  [ "$(cell t2 value)" = b2 ]
+  [[ "$(cell t2 style)" == *"strokeColor=#D00000;"* ]]
+  [ "$(cell f2 value)" = "b/   conflict" ]
+  [ "$(cell lt0 value)" = "merged in, conflicts" ]
+}
+
+@test "drawing tree: with --mark pulled, a pull and what it brought in are outlined blue" {
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c2: c upstream"
+  splice pull vendor/a/b/c >/dev/null
+  write_tree --mark pulled
+  [[ "$(cell s0 style)" == *"strokeColor=#0070E0;"* ]]
+  [[ "$(cell s3 style)" == *"strokeColor=#0070E0;"* ]]
+  [[ "$(cell s1 style)" != *"strokeColor="* ]]
+  [ "$(cell lt0 value)" = pulled ]
+}
+
+@test "drawing tree: with --mark carried, what the next rebuild copies is outlined orange" {
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  write_tree --mark carried
+  [[ "$(cell s0 style)" == *"strokeColor=#E07000;"* ]]
+  [[ "$(cell r3 style)" == *"strokeColor=#E07000;"* ]]
+  [[ "$(cell s3 style)" != *"strokeColor="* ]]
+  [ "$(cell lt0 value)" = "carried over" ]
+}
+
+@test "drawing tree: one commit can't be both pulled and carried over" {
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c2: c upstream"
+  splice pull vendor/a/b/c >/dev/null
+  run "$CHECK_DRAWING_TOOL" tree --mark pulled --mark carried p=HEAD
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   c/ hangs from b2, but its parent's head is b1: draw the edge from the head"* ]]
+  [[ "$output" == *"!!   p is both pulled and carried over, and one outline can't show both: leave out --mark pulled or --mark carried"* ]]
 }
 
-@test "drawing tree: a merge that brings a splice's changes in is carried over" {
-  git switch -q -c side
-  commit_local "$monorepo" vendor/a/b/c "c on a side branch"
-  git switch -q main
-  git merge -q --no-ff --no-edit side
-  sed -i 's#</root>#<mxCell id="lg" parent="1" vertex="1" value="" style="rounded=1;fillColor=none;legend=1;"><mxGeometry x="0" y="400" width="200" height="40" as="geometry" /></mxCell><mxCell id="lgo" parent="lg" vertex="1" value="" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=\#E07000;"><mxGeometry x="10" y="8" width="24" height="24" as="geometry" /></mxCell></root>#' "$drawing"
-  edit_drawing -u '//mxCell[@value="s"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;strokeColor=#E07000;"
-  run check_drawing "$drawing" "${revs[@]}"
-  [[ "$output" != *"s should be outlined black"* ]]
-}
-
-@test "drawing tree: a label given as an annotated tag names the commit it tags" {
-  git tag -a -m "the start" v1
-  run check_drawing "$drawing" "${revs[@]/#s=HEAD/s=v1}"
+@test "drawing tree: the marks it's checked with are the ones its legend has" {
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  write_tree --mark carried m=HEAD
+  run check_drawing "$written" m=HEAD
   [ "$status" -eq 0 ]
+  sed -i 's/#E07000/#0070E0/g' "$written"
+  run check_drawing "$written" m=HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"write it with \`check-drawing tree --mark pulled m=HEAD\`"* ]]
 }
 
 @test "drawing tree: a splice after an init has no synced commit, only R" {
@@ -156,95 +125,14 @@ XML
   scenario_init_new_upstream "$other" "$other_upstream"
   cd "$other"
   splice init lib/a "$other_upstream" >/dev/null
-  cat >"$drawing" <<'XML'
-<mxfile><diagram name="t" id="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
-<mxCell id="h" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="0" y="0" width="36" height="36" as="geometry"/></mxCell>
-<mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
-<mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="0" y="60" width="20" height="36" as="geometry"/></mxCell>
-<mxCell id="r" parent="1" vertex="1" value="s'" style="ellipse;aspect=fixed;strokeWidth=2;dashed=1;"><mxGeometry x="30" y="60" width="36" height="36" as="geometry"/></mxCell>
-<mxCell id="at" parent="1" vertex="1" value="lib/a/" style="text;"><mxGeometry x="200" y="60" width="100" height="36" as="geometry"/></mxCell>
-<mxCell id="e" parent="1" edge="1" source="h" target="r" style="endArrow=none;"><mxGeometry relative="1" as="geometry"/></mxCell>
-</root></mxGraphModel></diagram></mxfile>
-XML
-  run check_drawing "$drawing" s=HEAD
+  write_tree s=HEAD
+  [ "$(cell r1 value)" = "s'" ]
+  [ -z "$(cell s1 value)" ]
+  [ "$(cell c1 target)" = r1 ]
+}
+
+@test "drawing tree: a label given as an annotated tag names the commit it tags" {
+  git tag -a -m "the start" v1
+  run check_drawing "$drawing" "${revs[@]/#s=HEAD/s=v1}"
   [ "$status" -eq 0 ]
-  [ "$output" = "ok   tree.drawio: a tree of 2 rows" ]
-}
-
-@test "drawing tree: a splice with a synced commit, drawn with only R" {
-  commit_local "$monorepo" vendor/a/b/c "c local"
-  edit_drawing -u '//mxCell[@value="c1"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;dashed=1;" \
-    -u '//mxCell[@value="c1"]/@value' -v cl
-  sed -i 's#</root>#<mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="85" y="180" width="20" height="36" as="geometry" /></mxCell></root>#' "$drawing"
-  run check_drawing "$drawing" "${revs[@]}" "cl=$(splice rebuild vendor/a/b/c)"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a/b/c/ has a synced commit: show it, solid, on the edge into its row"* ]]
-}
-
-@test "drawing tree: the only splice has a row too" {
-  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
-  local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git"
-  scenario_init_new_upstream "$other" "$other_upstream"
-  cd "$other"
-  splice init lib/a "$other_upstream" >/dev/null
-  cat >"$drawing" <<'XML'
-<mxfile><diagram name="t" id="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
-<mxCell id="h" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="0" y="0" width="36" height="36" as="geometry"/></mxCell>
-<mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
-</root></mxGraphModel></diagram></mxfile>
-XML
-  run check_drawing "$drawing" s=HEAD
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   lib/a is a splice of the monorepo, but has no row"* ]]
-}
-
-@test "drawing tree: R stays dashed after a push, as a tree says nothing about upstream branches" {
-  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
-  local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git" u1
-  scenario_init_new_upstream "$other" "$other_upstream"
-  cd "$other"
-  splice init lib/a "$other_upstream" >/dev/null
-  splice push lib/a >/dev/null
-  splice pull --bump lib/a >/dev/null
-  u1="$(git config --file lib/a/.splice splice.commit)"
-  commit_local "$other" lib/a "a local"
-  splice push lib/a >/dev/null
-  cat >"$drawing" <<'XML'
-<mxfile><diagram name="t" id="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
-<mxCell id="h" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="0" y="0" width="36" height="36" as="geometry"/></mxCell>
-<mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
-<mxCell id="u" parent="1" vertex="1" value="u1" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="30" y="60" width="36" height="36" as="geometry"/></mxCell>
-<mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="70" y="60" width="20" height="36" as="geometry"/></mxCell>
-<mxCell id="r" parent="1" vertex="1" value="a local'" style="ellipse;aspect=fixed;strokeWidth=2;dashed=1;"><mxGeometry x="100" y="60" width="36" height="36" as="geometry"/></mxCell>
-<mxCell id="at" parent="1" vertex="1" value="lib/a/" style="text;"><mxGeometry x="200" y="60" width="100" height="36" as="geometry"/></mxCell>
-<mxCell id="e" parent="1" edge="1" source="h" target="u" style="endArrow=none;"><mxGeometry relative="1" as="geometry"/></mxCell>
-</root></mxGraphModel></diagram></mxfile>
-XML
-  run check_drawing "$drawing" s=HEAD "u1=$u1"
-  [ "$status" -eq 0 ]
-}
-
-@test "drawing tree: a row whose edge starts in the row itself" {
-  local c1
-  c1="$(xmlstarlet sel -t -v '//mxCell[@value="c1"]/@id' "$drawing")"
-  edit_drawing -u "//mxCell[@edge=\"1\"][@target=\"$c1\"]/@source" -v "$c1"
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   c/ hangs from no row above it"* ]]
-}
-
-@test "drawing tree: a solid R" {
-  commit_local "$monorepo" vendor/a/b/c "c local"
-  sed -i 's#</root>#<mxCell id="dots" parent="1" vertex="1" value="…" style="text;"><mxGeometry x="150" y="180" width="20" height="36" as="geometry" /></mxCell><mxCell id="r" parent="1" vertex="1" value="cl" style="ellipse;aspect=fixed;strokeWidth=2;"><mxGeometry x="180" y="180" width="36" height="36" as="geometry" /></mxCell></root>#' "$drawing"
-  edit_drawing -u '//mxCell[@value="c/"]/mxGeometry/@x' -v 240
-  run check_drawing "$drawing" "${revs[@]}" "cl=$(splice rebuild vendor/a/b/c)"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   cl is R, which a tree draws dashed, pushed or not: dash it"* ]]
-}
-
-@test "drawing tree: a dashed synced commit" {
-  edit_drawing -u '//mxCell[@value="c1"]/@style' -v "ellipse;aspect=fixed;strokeWidth=2;dashed=1;"
-  run check_drawing "$drawing" "${revs[@]}"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   c1 is dashed, but in a tree only R is: draw it solid"* ]]
 }

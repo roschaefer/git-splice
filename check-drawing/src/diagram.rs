@@ -130,8 +130,12 @@ fn number(text: Option<&str>) -> f64 {
 impl Diagram {
     /// Reads the one uncompressed diagram in drawing <path>.
     pub fn read(path: &str) -> Result<Diagram, NoDiagram> {
-        let xml = diagram_xml(path)?;
-        let document = roxmltree::Document::parse(&xml).map_err(|_| NoDiagram)?;
+        Diagram::parse(&diagram_xml(path)?)
+    }
+
+    /// The one diagram in draw.io's XML <xml>.
+    pub fn parse(xml: &str) -> Result<Diagram, NoDiagram> {
+        let document = roxmltree::Document::parse(xml).map_err(|_| NoDiagram)?;
         let models = document
             .descendants()
             .filter(|node| node.has_tag_name("mxGraphModel"))
@@ -165,16 +169,11 @@ impl Diagram {
                 height: at("height"),
             });
         }
-        Ok(Diagram::from_cells(cells))
-    }
-
-    /// A diagram of cells <cells>, e.g. one made from another drawing.
-    pub fn from_cells(cells: Vec<Cell>) -> Diagram {
         let mut by_id = HashMap::new();
         for (index, cell) in cells.iter().enumerate() {
             by_id.insert(cell.id.clone(), index);
         }
-        Diagram { cells, by_id }
+        Ok(Diagram { cells, by_id })
     }
 
     pub fn index_of(&self, id: &str) -> Option<usize> {
