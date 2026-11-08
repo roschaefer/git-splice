@@ -688,7 +688,15 @@ impl<'a> Checker<'a> {
             let splice = self.splice_of(cell);
             let side_key = self.side_key(cell);
             let revs = &self.labels.revs;
-            let mut hash = if let Some(rev) = revs.get(&label).or_else(|| revs.get(&base)) {
+            // Given for its lane, e.g. vendor/a/b/r'=<rev>: one label, drawn
+            // in several lanes, names another commit in each.
+            let in_lane = format!("{splice}/{label}");
+            let given = (!splice.is_empty())
+                .then(|| revs.get(&in_lane))
+                .flatten()
+                .or_else(|| revs.get(&label));
+            let given_in_full = given.is_some();
+            let mut hash = if let Some(rev) = given.or_else(|| revs.get(&base)) {
                 // A copy given in full, e.g. b'=<rev>: several copies of b can
                 // look alike, e.g. a pushed one and R's after a 'git rebase'.
                 self.git.commit(rev).unwrap_or_default()
@@ -722,7 +730,7 @@ impl<'a> Checker<'a> {
                 }
                 hash
             };
-            if !hash.is_empty() && primed && !self.labels.revs.contains_key(&label) {
+            if !hash.is_empty() && primed && !given_in_full {
                 if splice.is_empty() {
                     self.errors.push(format!(
                         "{label} is in no lane: draw it in the lane of the splice it's rebuilt for"
