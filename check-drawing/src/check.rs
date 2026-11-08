@@ -251,6 +251,9 @@ impl<'a> Checker<'a> {
             println!("!!   {name}: no diagram inside, or a compressed one: save it with File > Properties > Compressed off");
             return false;
         };
+        if crate::tree::is_tree(&d) {
+            return crate::tree::run(path, &name, &d, labels);
+        }
         let mut checker = Checker {
             name,
             d: &d,
@@ -401,6 +404,16 @@ impl<'a> Checker<'a> {
             } else {
                 self.errors
                     .push(format!("the lane {value} isn't a splice of the monorepo"));
+            }
+        }
+        if !self.lanes.is_empty() {
+            let drawn: Vec<String> = self.lane_splice.values().cloned().collect();
+            for splice in &self.splices {
+                if !drawn.contains(splice) {
+                    self.errors.push(format!(
+                        "{splice} is a splice of the monorepo, but has no lane: draw one, labelled {splice}/, so the drawing shows every splice"
+                    ));
+                }
             }
         }
         if self.splices.len() == 1 {
@@ -917,33 +930,12 @@ impl<'a> Checker<'a> {
     /// Every other commit is outlined black and white inside. Without
     /// splices, e.g. in a drawing of git subtree, none is checked.
     fn check_colors(&mut self) {
-        let mut walked: HashSet<String> = HashSet::new();
-        let mut copied: HashSet<String> = HashSet::new();
-        for splice in &self.splices {
-            let Some(truth) = self.truth.get(splice) else {
-                continue;
-            };
-            if truth.b.is_empty() {
-                continue;
-            }
-            if !truth.r.is_empty() {
-                let mut range = vec![truth.r.clone()];
-                if !truth.s.is_empty() {
-                    range.push(format!("^{}", truth.s));
-                }
-                for commit in self.git.log_with_copy_keys(&range).iter() {
-                    copied.insert(self.git.copy_key(commit));
-                }
-            }
-            walked.extend(self.git.first_parent_since(&truth.b));
-            // Where the splice starts, the rebuild walks B too, and copies it,
-            // e.g. right after init.
-            if copied.contains(&self.git.copy_key(&truth.b)) {
-                walked.insert(truth.b.clone());
-            }
-        }
+        let (walked, copied) = self
+            .git
+            .walked_and_copied(self.splices.iter().filter_map(|s| self.truth.get(s)));
+        let drawn: Vec<String> = self.commits.iter().map(|&c| self.commit(c)).collect();
+        let (pulls, brought) = self.git.pulls_among(&drawn);
         // Whether the legend has a sample of <color> as <attr>.
-        let (pulls, brought) = self.pulls();
         let explained = |attr: &str, plain: &str, color: &str| {
             self.legend_samples
                 .iter()
@@ -1069,55 +1061,6 @@ impl<'a> Checker<'a> {
                 }
             }
         }
-    }
-
-    /// The pulls the drawing shows, at any level, so a pulled commit can be
-    /// followed out through the splices around it: each drawn commit whose
-    /// .splice for a splice inside it records another synced commit than its
-    /// first parent's, and the upstream commits each brought in, in the new
-    /// synced commit's history but not the old one's, or all of it after an
-    /// init, which recorded none. A commit that adds a .splice, like a
-    /// clone's, records no pull. Copies of the pulling repository's own
-    /// commits, on its first-parent history, came back from a push, not in
-    /// with the pull.
-    fn pulls(&self) -> (HashSet<String>, HashSet<String>) {
-        let (mut pulls, mut brought) = (HashSet::new(), HashSet::new());
-        for &cell in &self.commits {
-            let commit = self.commit(cell);
-            let Some(parent) = self.git.parents_of(&commit).first().cloned() else {
-                continue;
-            };
-            for file in self.git.state_files(&commit).iter() {
-                let now = self
-                    .git
-                    .config(&format!("{commit}:{file}"), "splice.commit");
-                let earlier = format!("{parent}:{file}");
-                if now.is_empty() || self.git.rev_parse(&earlier).is_none() {
-                    continue;
-                }
-                let before = self.git.config(&earlier, "splice.commit");
-                if before == now {
-                    continue;
-                }
-                pulls.insert(commit.clone());
-                let own: HashSet<String> = self
-                    .git
-                    .log_with_copy_keys(&["--first-parent".to_string(), parent.clone()])
-                    .iter()
-                    .map(|commit| self.git.copy_key(commit))
-                    .collect();
-                let mut range = vec![now];
-                if !before.is_empty() {
-                    range.push(format!("^{before}"));
-                }
-                for subject in self.git.log(&range).iter() {
-                    if !own.contains(&self.git.copy_key(&subject.hash)) {
-                        brought.insert(subject.hash.clone());
-                    }
-                }
-            }
-        }
-        (pulls, brought)
     }
 
     /// The legend explains each mark the drawing's commits use, by a sample
