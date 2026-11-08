@@ -71,7 +71,7 @@ _git-splice() {
   ((CURRENT--))
   case $cmd in
     fetch)
-      _arguments '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch to track]:upstream branch:' '(--no-track)--track[track --branch on the current branch]' '(--track)--no-track[stop tracking an upstream branch on the current branch]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      _arguments '--exec=[run a script with a checkpoint payload]:command:' '--continue-from=[continue from a saved checkpoint payload]:file:_files' '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch to track]:upstream branch:' '(--no-track)--track[track --branch on the current branch]' '(--track)--no-track[stop tracking an upstream branch on the current branch]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     log)
       _arguments '--upstream=[upstream named in .splice]:upstream name:' '--graph[draw both sides as a graph]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'

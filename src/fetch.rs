@@ -361,10 +361,22 @@ impl Repo {
 }
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, "--upstream --branch --track --no-track", argv)?;
+    let args = parse_args(
+        USAGE,
+        "--upstream --branch --track --no-track --exec --continue-from",
+        argv,
+    )?;
+    if !args.exec.is_empty() || !args.continue_from.is_empty() {
+        return crate::checkpoint::run("fetch", args);
+    }
     args.require_branch_for_track()?;
     let mut repo = Repo::new(args);
     repo.open()?;
+    let (branch, failures) = fetch_for_command(&mut repo)?;
+    finish_fetch(&mut repo, &branch, &failures)
+}
+
+pub(crate) fn fetch_for_command(repo: &mut Repo) -> Res<(String, FetchFailures)> {
     repo.select_paths(Kind::Overview, "fetch")?;
     let branch = current_branch()?;
     let selected = repo.selected.clone();
@@ -380,7 +392,14 @@ pub fn run(argv: &[String]) -> Res<i32> {
         repo.every_upstream_entry(&selected)?
     };
     let fetch_failures = repo.fetch_all(&branch, &entries)?;
-    let mut failures = fetch_failures.clone();
+    Ok((branch, fetch_failures))
+}
+
+pub(crate) fn finish_fetch(repo: &mut Repo, branch: &str, fetch_failures: &[String]) -> Res<i32> {
+    let selected = repo.selected.clone();
+    let track = repo.args.has_flag("--track");
+    let no_track = repo.args.has_flag("--no-track");
+    let mut failures = fetch_failures.to_vec();
 
     for path in &selected {
         if fetch_failures.contains(path) {
@@ -393,7 +412,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
                 .q()
                 .ok()
             {
-                match repo.track_branch(path, &branch, &wanted) {
+                match repo.track_branch(path, branch, &wanted) {
                     Err(Fail::Hard) => return Err(Fail::Hard),
                     Err(_) => failures.push(path.clone()),
                     Ok(()) => {}
@@ -405,7 +424,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
                 failures.push(path.clone());
             }
         } else if no_track {
-            match repo.untrack_branch(path, &branch) {
+            match repo.untrack_branch(path, branch) {
                 Err(Fail::Hard) => return Err(Fail::Hard),
                 Err(_) => failures.push(path.clone()),
                 Ok(()) => {}

@@ -2,7 +2,8 @@ NAME
     git-splice-fetch - Fetch splice upstreams
 
 SYNOPSIS
-    git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [path...]
+    git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [--exec <command>] [path...]
+    git splice fetch --continue-from <file> --exec <command>
 
 DESCRIPTION
     Fetches every branch of each splice's upstreams, in parallel and each
@@ -35,6 +36,24 @@ OPTIONS
         the current one again.
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#branch-tracking
+
+    --exec <command>
+        Runs <command> through sh from the repository root after the fetch
+        batch, before any tracking changes. Sends the same versioned JSON
+        payload as pull, with operation "fetch" and event "after-fetch".
+        Zero continues; nonzero stops with the fetched refs still updated.
+        Normal output goes to stderr; stdout belongs to the script.
+
+        See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#--exec
+
+    --continue-from <file>
+        Continues from a saved JSON payload; - reads stdin. Supply --exec
+        again, with no other options or paths. Finishes tracking and failure
+        reporting without fetching again or retrying the stopped script.
+        Requires the same repository, worktree, branch, fetched refs and Git
+        configuration. A pull payload must be continued with pull instead.
+
+        See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#--continue-from
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#options
 

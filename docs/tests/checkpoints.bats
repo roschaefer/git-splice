@@ -204,7 +204,7 @@ continue_checkpoint() {
   [[ "$output" == *'splice configuration changed'* ]]
 }
 
-@test "checkpoints: LFS script fetches missing objects from the splice upstream before checkout" {
+setup_lfs_checkpoint() {
   git lfs version >/dev/null 2>&1 || skip 'Git LFS is not installed'
   export GIT_CONFIG_GLOBAL="$BATS_TEST_TMPDIR/gitconfig"
   git lfs install --skip-repo >/dev/null
@@ -232,6 +232,11 @@ if [[ $(jq -r .event.checkpoint <<<"$payload") == after-fetch ]]; then
     done
 fi
 SCRIPT
+
+}
+
+@test "checkpoints: LFS script fetches missing objects from the splice upstream before checkout" {
+  setup_lfs_checkpoint
   run splice pull --exec 'bash "$CHECKPOINT_SCRIPT"' vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/model.bin)" = 'version two' ]
@@ -294,4 +299,79 @@ SCRIPT
   [ "$status" -eq 1 ]
   [[ "$output" == *'do not support --rebase yet'* ]]
   [ "$(git show-ref)" = "$before" ]
+}
+
+
+@test "checkpoints: standalone fetch resumes after its script without fetching again or changing HEAD" {
+  scenario_three_levels "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" 'b update'
+  cd "$monorepo"
+  local head fetched
+  head="$(git rev-parse HEAD)"
+  run bash -c '"$1" fetch --exec "cat; exit 1" vendor/a/b >"$2"' _ "$ENTRYPOINT" "$payload"
+  [ "$status" -eq 1 ]
+  jq -e '.operation == "fetch" and .event.checkpoint == "after-fetch" and .sequence == 1' "$payload"
+  fetched="$(jq -r '.event.fetched[0].new' "$payload")"
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  seed_bare_repo "$upstream_b" 'b later'
+  run splice pull --continue-from "$payload" --exec true
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'unsupported continuation version or operation'* ]]
+  run splice fetch --continue-from "$payload" --exec 'exit 99'
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  [ "$(git rev-parse "refs/splices/$(splice key vendor/a/b)/heads/main")" = "$fetched" ]
+}
+
+@test "checkpoints: standalone fetch continues tracking after the checkpoint" {
+  scenario_three_levels "$monorepo" "$upstream"
+  seed_bare_repo "$upstream_b" 'stable update' stable
+  cd "$monorepo"
+  run bash -c '"$1" fetch --branch stable --track --exec "cat; exit 1" vendor/a/b >"$2"' _ "$ENTRYPOINT" "$payload"
+  [ "$status" -eq 1 ]
+  ! git config --get-all branch.main.splice
+  run splice fetch --continue-from "$payload" --exec true
+  [ "$status" -eq 0 ]
+  [ "$(git config --get-all branch.main.splice)" = "$(splice key vendor/a/b):stable" ]
+  run splice fetch --no-track --exec true vendor/a/b
+  [ "$status" -eq 0 ]
+  ! git config --get-all branch.main.splice
+}
+
+@test "checkpoints: standalone fetch reports failures even when its script succeeds" {
+  scenario_three_levels "$monorepo" "$upstream"
+  cd "$monorepo"
+  mv "$upstream_b" "$upstream_b.offline"
+  run splice fetch --exec true vendor/a/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'Failed: vendor/a/b'* ]]
+}
+
+@test "checkpoints: fetch can download LFS objects before a separate merge checks them out" {
+  setup_lfs_checkpoint
+  local head
+  head="$(git rev-parse HEAD)"
+  run splice fetch --exec 'bash "$CHECKPOINT_SCRIPT"' vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  [[ "$(cat vendor/a/model.bin)" == 'version https://git-lfs.github.com/spec/v1'* ]]
+  run splice merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/model.bin)" = 'version two' ]
+}
+
+@test "checkpoints: user-defined reporting ignores fetches and records only applied updates" {
+  load '../09-scenarios/01-everyday-sync/05-exec-report/setup'
+  scenario_exec_report "$monorepo" "$upstream"
+  export REPORT_SCRIPT="$BATS_TEST_DIRNAME/../09-scenarios/01-everyday-sync/05-exec-report/report-updates.sh"
+  cd "$monorepo"
+  run splice fetch --exec 'sh "$REPORT_SCRIPT"' vendor/a
+  [ "$status" -eq 0 ]
+  [ ! -s ../updated-splices.txt ]
+  run splice pull --exec 'sh "$REPORT_SCRIPT"' vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat ../updated-splices.txt)" = "vendor/a: $(git -C "$upstream" rev-parse --short=7 main)" ]
+  run splice pull --exec 'sh "$REPORT_SCRIPT"' vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(wc -l <../updated-splices.txt)" -eq 1 ]
 }

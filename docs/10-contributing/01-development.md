@@ -28,7 +28,7 @@ the command's `run`. Git operations use the `git` CLI, so
 |---|---|
 | `src/util.rs` | Logging, failures (`Fail`) and running git. |
 | `src/args.rs` | Argument parsing. |
-| `src/checkpoint.rs` | Pull checkpoints, script payloads and caller-owned continuation. |
+| `src/checkpoint.rs` | Fetch/pull checkpoints, script payloads and caller-owned continuation. |
 | `src/repo.rs` | `Repo`: discovery, path selection, reading `.splice`, upstreams, keys and what a splice syncs with. |
 | `src/rebuild.rs` | The push rebuild: `rebuild_splice`, `splice_start` (B) and the commit loop `rebuild_walk`. |
 | `src/state.rs` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone`. |

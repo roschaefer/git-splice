@@ -203,7 +203,7 @@ $ git splice pull -h | check-help option --exec
 ```
 
 The payload has `version`, `operation`, `sequence`, `event`, `repository`,
-and `continuation` fields. Version 1 supports `pull`. `event.checkpoint` is
+and `continuation` fields. Version 1 supports `pull` and `fetch`. `event.checkpoint` is
 `after-fetch`, `after-merge`, `before-fold` or `after-fold`.
 
 An `after-fetch` event includes `fetched`, a list of entries with `path`,
@@ -218,7 +218,9 @@ synced commits, `target`, `rebuilt_commit`, `head_before` and `head_after`.
 A splice that changes nothing gets no merge checkpoint. The fold events have
 no additional fields.
 
-A script can inspect `event.checkpoint` with `jq` and choose its work. To
+A script can inspect `event.checkpoint` with `jq` and choose its work. The
+[update report scenario](../09-scenarios/01-everyday-sync/05-exec-report/README.md)
+shows a small script that records only the splices that actually changed. To
 find the first applied update that breaks a build, run `make` only at
 `after-merge`; fetching alone does not change checked-out source. To fetch
 LFS objects, act at `after-fetch`, using each successful entry's upstream URL

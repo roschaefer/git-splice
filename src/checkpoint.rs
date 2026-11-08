@@ -1,4 +1,4 @@
-//! Script checkpoints and caller-owned continuation for pull.
+//! Script checkpoints and caller-owned continuation for fetch and pull.
 
 use crate::args::Args;
 use crate::merge::{apply_merge_options, MergeProgress};
@@ -91,6 +91,7 @@ impl Discovery {
 #[serde(rename_all = "kebab-case")]
 enum Phase {
     Merging,
+    Tracking,
     Fold,
     Done,
 }
@@ -155,14 +156,14 @@ impl Repository {
             return die("continuation belongs to another repository, worktree or branch");
         }
         if self.fetched_refs != now.fetched_refs || self.fold_start != now.fold_start {
-            return die("fetched refs or SPLICE_PULL_START changed since the checkpoint -- start a new pull");
+            return die("fetched refs or SPLICE_PULL_START changed since the checkpoint -- start a new operation");
         }
         if self.config != now.config {
-            return die("Git configuration changed since the checkpoint -- start a new pull");
+            return die("Git configuration changed since the checkpoint -- start a new operation");
         }
         if self.head != now.head {
             if !is_ancestor(&self.head, &now.head) {
-                return die("HEAD no longer descends from the checkpoint -- start a new pull");
+                return die("HEAD no longer descends from the checkpoint -- start a new operation");
             }
             let changed = git(&["diff", "--name-only", "-z", &self.head, &now.head])
                 .bytes()
@@ -172,7 +173,7 @@ impl Repository {
                 .any(|p| p == STATE_FILE || p.ends_with(&format!("/{STATE_FILE}")))
             {
                 return die(
-                    "splice configuration changed since the checkpoint -- start a new pull",
+                    "splice configuration changed since the checkpoint -- start a new operation",
                 );
             }
         }
@@ -220,47 +221,62 @@ fn hook(command: &str, payload: &Payload) -> Res<()> {
         }
     }
     payload.repository.validate()?;
-    require_no_splice_in_progress()
+    if payload.operation == "pull" {
+        require_no_splice_in_progress()
+    } else {
+        Ok(())
+    }
 }
 
-pub fn run(args: Args) -> Res<i32> {
+pub fn run(operation: &str, args: Args) -> Res<i32> {
     crate::util::checkpoint_output(true);
-    let result = run_inner(args);
+    let result = run_inner(operation, args);
     crate::util::checkpoint_output(false);
     result
 }
 
-fn prepare(args: Args) -> Res<Repo> {
+fn prepare(operation: &str, args: Args) -> Res<Repo> {
     if args.has_flag("--rebase") {
         return die("--exec and --continue-from do not support --rebase yet");
     }
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let mut repo = Repo::new(args);
-    apply_merge_options(&mut repo)?;
+    if operation == "pull" {
+        apply_merge_options(&mut repo)?;
+    }
     repo.open()?;
-    require_no_splice_in_progress()?;
-    repo.require_message_template(Message {
-        command: "pull",
-        upstream: KNOWN,
-        old: KNOWN,
-        new: KNOWN,
-        ..Message::default()
-    })?;
+    if operation == "pull" {
+        require_no_splice_in_progress()?;
+        repo.require_message_template(Message {
+            command: "pull",
+            upstream: KNOWN,
+            old: KNOWN,
+            new: KNOWN,
+            ..Message::default()
+        })?;
+    }
     Ok(repo)
 }
 
-fn run_inner(args: Args) -> Res<i32> {
+fn run_inner(operation: &str, args: Args) -> Res<i32> {
     if args.exec.is_empty() {
         return die("--continue-from needs --exec; the payload never supplies a script to execute");
     }
     let command = args.exec.clone();
     let (mut repo, mut state, mut sequence, first_event) = if args.continue_from.is_empty() {
-        let mut repo = prepare(args)?;
-        repo.select_splices(Kind::Explicit, "pull")?;
-        let branch = repo.monorepo_branch.clone();
-        let (fetched, failures) = crate::pull::fetch_for_pull(&mut repo)?;
-        let fold_start = if repo.args.has_flag("--recursive") {
+        let mut repo = prepare(operation, args)?;
+        let (branch, fetched, failures, phase) = if operation == "fetch" {
+            let (branch, failures) = crate::fetch::fetch_for_command(&mut repo)?;
+            repo.monorepo_branch = branch.clone();
+            (branch, Vec::new(), failures, Phase::Tracking)
+        } else {
+            repo.select_splices(Kind::Explicit, "pull")?;
+            let branch = repo.monorepo_branch.clone();
+            let (fetched, failures) = crate::pull::fetch_for_pull(&mut repo)?;
+            (branch, fetched, failures, Phase::Merging)
+        };
+        let fold_start = if operation == "pull" && repo.args.has_flag("--recursive") {
             if commit_of("SPLICE_PULL_START").is_none()
                 && !git(&["update-ref", "SPLICE_PULL_START", "HEAD"]).ok()
             {
@@ -279,7 +295,7 @@ fn run_inner(args: Args) -> Res<i32> {
             fold_start,
             fetch_failures: failures,
             merges: MergeProgress::new(&fetched),
-            phase: Phase::Merging,
+            phase,
             discovery: Discovery::capture(&repo),
         };
         (repo, state, 0, Some(event))
@@ -293,7 +309,7 @@ fn run_inner(args: Args) -> Res<i32> {
             || !args.flags.is_empty()
         {
             return die(
-                "--continue-from restores the pull's options -- only --exec may be supplied again",
+                "--continue-from restores the operation's options -- only --exec may be supplied again",
             );
         }
         let mut bytes = Vec::new();
@@ -318,12 +334,15 @@ fn run_inner(args: Args) -> Res<i32> {
             Ok(payload) => payload,
             Err(error) => return die(format!("invalid continuation payload: {error}")),
         };
-        if payload.version != 1 || payload.operation != "pull" {
+        if payload.version != 1 || payload.operation != operation {
             return die("unsupported continuation version or operation");
+        }
+        if (operation == "fetch") != matches!(payload.continuation.phase, Phase::Tracking) {
+            return die("inconsistent continuation phase for operation");
         }
         let mut saved_args = payload.continuation.args.clone();
         saved_args.exec = command.clone();
-        let mut repo = prepare(saved_args)?;
+        let mut repo = prepare(operation, saved_args)?;
         payload.repository.validate()?;
         if payload.continuation.branch != payload.repository.branch
             || (payload.continuation.args.has_flag("--recursive")
@@ -343,7 +362,7 @@ fn run_inner(args: Args) -> Res<i32> {
             state.discovery = Discovery::capture(&repo);
             let payload = Payload {
                 version: 1,
-                operation: "pull".into(),
+                operation: operation.into(),
                 sequence,
                 event,
                 repository: Repository::capture()?,
@@ -354,6 +373,12 @@ fn run_inner(args: Args) -> Res<i32> {
             repo.content_tree_cache.clear();
         }
         match state.phase {
+            Phase::Tracking => {
+                if operation != "fetch" {
+                    return die("inconsistent continuation phase for pull");
+                }
+                return crate::fetch::finish_fetch(&mut repo, &state.branch, &state.fetch_failures);
+            }
             Phase::Merging => {
                 if !state.merges.done() {
                     event = state.merges.advance(&mut repo, &state.branch, "pull")?;

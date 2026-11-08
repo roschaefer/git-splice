@@ -15,7 +15,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
         argv,
     )?;
     if !args.exec.is_empty() || !args.continue_from.is_empty() {
-        return crate::checkpoint::run(args);
+        return crate::checkpoint::run("pull", args);
     }
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;

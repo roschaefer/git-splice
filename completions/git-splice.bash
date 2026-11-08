@@ -105,18 +105,18 @@ _git_splice() {
   for option in --upstream --branch -m --message --message-template --exec; do
     ! __git_splice_completing_value "$option" || return 0
   done
+  if [[ "$cmd" == fetch || "$cmd" == pull ]] && __git_splice_completing_value --continue-from; then
+    __git_splice_reply "$value_prefix" < <(compgen -f -- "$value_prefix")
+    return
+  fi
   case "$cmd" in
     fetch)
-      __git_splice_paths_or_options "$cur" --upstream --branch --track --no-track -h --help
+      __git_splice_paths_or_options "$cur" --upstream --branch --track --no-track --exec --continue-from -h --help
       ;;
     log)
       __git_splice_paths_or_options "$cur" --upstream --graph -h --help
       ;;
     merge | pull)
-      if [[ "$cmd" == pull ]] && __git_splice_completing_value --continue-from; then
-        __git_splice_reply "$value_prefix" < <(compgen -f -- "$value_prefix")
-        return
-      fi
       if [[ "$cmd" == merge ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == merge ]]; then
