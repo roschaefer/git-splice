@@ -588,7 +588,32 @@ impl Repo {
                 self.selected.push(path);
             }
         }
+        if self.args.has_flag("--recursive") {
+            for path in self.all_paths.clone() {
+                if !self.selected.contains(&path) && first_above(&path, &self.selected).is_some() {
+                    self.selected.push(path);
+                }
+            }
+        }
         Ok(())
+    }
+
+    /// The splices below <path> in HEAD that weren't splices when the command
+    /// started, e.g. one a pull of <path> added: known from now on.
+    pub fn discover_below(&mut self, path: &str) -> Res<Vec<String>> {
+        let prefix = format!("{path}/");
+        let mut found = Vec::new();
+        for file in self.state_files("HEAD") {
+            let Some(below) = file.strip_suffix(&format!("/{STATE_FILE}")) else {
+                continue;
+            };
+            if below.starts_with(&prefix) && !self.all_paths.iter().any(|known| known == below) {
+                require_usable_splice_path(below, "rename the folder")?;
+                self.all_paths.push(below.to_string());
+                found.push(below.to_string());
+            }
+        }
+        Ok(found)
     }
 
     /// Selects the splices, makes each use the upstream --upstream names, or

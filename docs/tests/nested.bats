@@ -1017,3 +1017,118 @@ order_of() {
   splice push vendor/a/b
   [ "$(git -C "$upstream_b" log --format=%s -1 main^2)" = "b upstream" ]
 }
+
+@test "nested: pull --recursive pulls the splices below too, the one above first" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: nothing to pull"* ]]
+  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a and the splices in it" ]
+  [[ "$(git log -1 --format=%b)" == "splice: pull vendor/a/b from main at "*$'\n'"splice: pull vendor/a/b/c from main at "* ]]
+  [ "$(git log -1 --format=%s HEAD~1)" = "add vendor/a" ]
+  run splice status
+  [[ "$output" == *"up to date  vendor/a/b/c"* ]]
+}
+
+@test "nested: pull without --recursive leaves the splices below alone" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "add vendor/a" ]
+}
+
+@test "nested: pull --recursive also pulls a splice the pull above adds" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  local upstream_e="$BATS_TEST_TMPDIR/upstream-e.git"
+  make_bare_repo "$upstream_e"
+  seed_bare_repo "$upstream_e" "e seed"
+  work_in_upstream_a
+  splice clone "$upstream_e" e
+  git push -q origin HEAD:main
+  seed_bare_repo "$upstream_e" "e upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/e fetched"*"vendor/a/e: pulled"* ]]
+  [ "$(cat vendor/a/e/file.txt)" = "e seed"$'\n'"e upstream" ]
+}
+
+@test "nested: pull --recursive run again after a conflict pulls the splices it didn't get to" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  commit_local "$monorepo" vendor/a/b "b local"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Not pulled yet: vendor/a/b/c"* ]]
+  echo resolved >vendor/a/b/file.txt
+  git add vendor/a/b/file.txt
+  git commit -q --no-edit
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/b: nothing to pull"*"vendor/a/b/c: pulled"* ]]
+}
+
+@test "nested: pull --recursive makes one commit of the pulls of all its runs" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  commit_local "$monorepo" vendor/a/b "b local"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -ne 0 ]
+  echo resolved >vendor/a/b/file.txt
+  git add vendor/a/b/file.txt
+  git commit -q --no-edit
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"2 pulls made one commit"* ]]
+  [ "$(git log -2 --format=%s)" = "splice: pull vendor/a and the splices in it"$'\n'"b local" ]
+  [ "$(splice rebuild vendor/a/b/c)" = "$(git -C "$upstream_c" rev-parse main)" ]
+  ! git rev-parse --quiet --verify SPLICE_PULL_START
+}
+
+@test "nested: pull --recursive leaves its pulls separate when another commit came in between" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  commit_local "$monorepo" vendor/a/b "b local"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -ne 0 ]
+  echo resolved >vendor/a/b/file.txt
+  git add vendor/a/b/file.txt
+  git commit -q --no-edit
+  echo other >other.txt
+  git add other.txt
+  git commit -q -m "something else"
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"isn't a pull -- the pulls since the recursive pull started stay separate commits"* ]]
+  [[ "$(git log -1 --format=%s)" == "splice: pull vendor/a/b/c from main at "* ]]
+  ! git rev-parse --quiet --verify SPLICE_PULL_START
+}
+
+@test "nested: pull --recursive says which pull removed a splice below" {
+  scenario_three_levels "$monorepo" "$upstream"
+  work_in_upstream_a
+  git rm -q -r b
+  git commit -q -m "drop b"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/b: removed by the pull of vendor/a"* ]]
+  [[ "$output" == *"vendor/a/b/c: removed by the pull of vendor/a"* ]]
+}
