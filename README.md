@@ -18,8 +18,9 @@ all you get is its releases.
 
 ## The common workaround
 
-A fork lets you send fixes back, but leaves the library outside the
-monorepo where you build and test the app.
+Fork the library and point your package manager at the fork. But now you
+maintain two repositories: the fix lives outside the monorepo, not
+versioned and tested with the app that needs it.
 
 <div align="center">
 
