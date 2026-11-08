@@ -80,3 +80,53 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   c seed' is vendor/a/b/c/'s synced commit, but the code says"* ]]
 }
+
+@test "drawing tree: the first pull after an init is a pull" {
+  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git"
+  scenario_init_new_upstream "$other" "$other_upstream"
+  cd "$other"
+  splice init lib/a "$other_upstream" >/dev/null
+  splice push lib/a >/dev/null
+  seed_bare_repo "$other_upstream" "u2: upstream" main lib-file.txt
+  splice pull lib/a >/dev/null
+  cat >"$drawing" <<'XML'
+<mxfile><diagram name="t" id="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
+<mxCell id="h" parent="1" vertex="1" value="s" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"><mxGeometry x="0" y="0" width="36" height="36" as="geometry"/></mxCell>
+<mxCell id="ht" parent="1" vertex="1" value="monorepo" style="text;tree=1;"><mxGeometry x="50" y="0" width="100" height="36" as="geometry"/></mxCell>
+<mxCell id="a" parent="1" vertex="1" value="u2" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"><mxGeometry x="30" y="60" width="36" height="36" as="geometry"/></mxCell>
+<mxCell id="at" parent="1" vertex="1" value="lib/a/" style="text;"><mxGeometry x="200" y="60" width="100" height="36" as="geometry"/></mxCell>
+<mxCell id="e" parent="1" edge="1" source="h" target="a" style="endArrow=none;"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="lg" parent="1" vertex="1" value="" style="rounded=1;fillColor=none;legend=1;"><mxGeometry x="0" y="200" width="200" height="40" as="geometry"/></mxCell>
+<mxCell id="lgb" parent="lg" vertex="1" value="" style="ellipse;aspect=fixed;strokeWidth=2;strokeColor=#0070E0;"><mxGeometry x="10" y="8" width="24" height="24" as="geometry"/></mxCell>
+</root></mxGraphModel></diagram></mxfile>
+XML
+  run check_drawing "$drawing" s=HEAD
+  [[ "$output" != *"s should be outlined black"* ]]
+}
+
+@test "drawing tree: a row that hangs from a splice further out than the one around it" {
+  local s b1
+  s="$(xmlstarlet sel -t -v '//mxCell[@value="s"]/@id' "$drawing")"
+  b1="$(xmlstarlet sel -t -v '//mxCell[@value="b1"]/@id' "$drawing")"
+  edit_drawing -u "//mxCell[@edge=\"1\"][@target=\"$b1\"]/@source" -v "$s" \
+    -u '//mxCell[@value="b/"]/@value' -v vendor/a/b/
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b/ hangs from the monorepo, but the splice around it is vendor/a/: draw its row below that one's"* ]]
+}
+
+@test "drawing tree: a commit drawn as merged in with a conflict into a splice the pull doesn't move" {
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c upstream"
+  run splice pull vendor/a/b/c
+  [ "$status" -ne 0 ]
+  local b1 y
+  b1="$(xmlstarlet sel -t -v '//mxCell[@value="b1"]/@id' "$drawing")"
+  y="$(xmlstarlet sel -t -v "//mxCell[@id=\"$b1\"]/mxGeometry/@y" "$drawing")"
+  sed -i "s#</root>#<mxCell id=\"t\" parent=\"1\" vertex=\"1\" value=\"b1\" style=\"ellipse;aspect=fixed;strokeWidth=3;strokeColor=\#D00000;\"><mxGeometry x=\"200\" y=\"$y\" width=\"36\" height=\"36\" as=\"geometry\" /></mxCell><mxCell id=\"tt\" parent=\"1\" edge=\"1\" source=\"t\" target=\"$b1\" style=\"dashed=1;strokeColor=\#D00000;\"><mxGeometry relative=\"1\" as=\"geometry\" /></mxCell></root>#" "$drawing"
+  edit_drawing -u '//mxCell[@value="b/"]/mxGeometry/@x' -v 300
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   b1 is drawn as merged into vendor/a/b/ with a conflict, but the pull in progress doesn't move it"* ]]
+}

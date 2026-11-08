@@ -21,6 +21,8 @@ pub fn is_tree(d: &Diagram) -> bool {
 
 struct Row {
     path: String,
+    /// The path of the row it hangs from.
+    parent: String,
     text: usize,
     circles: Vec<usize>,
     synced: Option<usize>,
@@ -113,29 +115,7 @@ impl Tree<'_> {
     /// Whether commit <commit> records another synced commit for a splice
     /// inside it than its first parent does: a pull.
     fn records_pull(&self, commit: &str) -> bool {
-        let parent = format!("{commit}^1");
-        git(&[
-            "diff-tree",
-            "--no-commit-id",
-            "--name-only",
-            "-r",
-            &parent,
-            commit,
-        ])
-        .q()
-        .out()
-        .unwrap_or_default()
-        .lines()
-        .filter(|file| *file == ".splice" || file.ends_with("/.splice"))
-        .any(|file| {
-            let before = self
-                .git
-                .config(&format!("{parent}:{file}"), "splice.commit");
-            let after = self
-                .git
-                .config(&format!("{commit}:{file}"), "splice.commit");
-            !before.is_empty() && before != after
-        })
+        !self.git.pulls_in(commit).is_empty()
     }
 
     /// The rows, by their folder texts, and the circles at the same height.
@@ -202,6 +182,7 @@ impl Tree<'_> {
                     path_of.insert(i, String::new());
                     out.push(Row {
                         path: String::new(),
+                        parent: String::new(),
                         text: *t,
                         circles: cs.clone(),
                         synced: cs.first().copied(),
@@ -219,7 +200,7 @@ impl Tree<'_> {
                 let Some(parent_row) = row_of_circle.get(&from) else {
                     return true;
                 };
-                let Some(parent_path) = path_of.get(parent_row) else {
+                let Some(parent_path) = path_of.get(parent_row).cloned() else {
                     return true;
                 };
                 let path = if parent_path.is_empty() {
@@ -238,6 +219,7 @@ impl Tree<'_> {
                     .find(|&c| c != synced && Some(c) != r && arrow(c, head, true));
                 path_of.insert(i, path.clone());
                 out.push(Row {
+                    parent: parent_path.clone(),
                     path,
                     text: *t,
                     circles: cs.clone(),
@@ -336,6 +318,28 @@ impl Tree<'_> {
                     .push(format!("{}/ isn't a splice of the monorepo", row.path));
                 continue;
             }
+            // The splice directly around it, or the monorepo.
+            let around = splices
+                .iter()
+                .filter(|s| row.path.starts_with(&format!("{s}/")))
+                .max_by_key(|s| s.len())
+                .cloned()
+                .unwrap_or_default();
+            if row.parent != around {
+                let name = |p: &str| {
+                    if p.is_empty() {
+                        "the monorepo".to_string()
+                    } else {
+                        format!("{p}/")
+                    }
+                };
+                self.errors.push(format!(
+                    "{}/ hangs from {}, but the splice around it is {}: draw its row below that one's",
+                    row.path,
+                    name(&row.parent),
+                    name(&around)
+                ));
+            }
             let synced = self
                 .git
                 .config(&format!("HEAD:{}/.splice", row.path), "splice.commit");
@@ -379,11 +383,18 @@ impl Tree<'_> {
                             .config(&format!("{h}:{}/.splice", row.path), "splice.commit")
                     })
                     .unwrap_or_default();
-                self.expect(
-                    c,
-                    &merged,
-                    &format!("what {}/'s conflicted pull merges in", row.path),
-                );
+                if merged.is_empty() || merged == synced {
+                    self.errors.push(format!(
+                        "{} is drawn as merged into {}/ with a conflict, but the pull in progress doesn't move it",
+                        d.cells[c].value, row.path
+                    ));
+                } else {
+                    self.expect(
+                        c,
+                        &merged,
+                        &format!("what {}/'s conflicted pull merges in", row.path),
+                    );
+                }
                 if stroke(&d.cells[c].style) != RED {
                     self.errors.push(format!(
                         "{}, merged in with a conflict, isn't outlined red",

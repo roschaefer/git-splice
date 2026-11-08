@@ -1092,18 +1092,7 @@ impl<'a> Checker<'a> {
             let Some(parent) = self.git.parents_of(&commit).first().cloned() else {
                 continue;
             };
-            for file in self.git.state_files(&commit).iter() {
-                let now = self
-                    .git
-                    .config(&format!("{commit}:{file}"), "splice.commit");
-                let earlier = format!("{parent}:{file}");
-                if now.is_empty() || self.git.rev_parse(&earlier).is_none() {
-                    continue;
-                }
-                let before = self.git.config(&earlier, "splice.commit");
-                if before == now {
-                    continue;
-                }
+            for (_, before, now) in self.git.pulls_in(&commit) {
                 pulls.insert(commit.clone());
                 let own: HashSet<String> = self
                     .git

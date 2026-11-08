@@ -556,6 +556,29 @@ impl History {
         truth
     }
 
+    /// The pulls commit <commit> records: each state file, with the synced
+    /// commit its first parent records and its own, where they differ. A
+    /// state file the parent lacks, as after a clone, records none; one
+    /// whose parent records no synced commit yet, as after an init, does.
+    pub fn pulls_in(&self, commit: &str) -> Vec<(String, String, String)> {
+        let Some(parent) = self.parents_of(commit).first().cloned() else {
+            return Vec::new();
+        };
+        let mut pulls = Vec::new();
+        for file in self.state_files(commit).iter() {
+            let now = self.config(&format!("{commit}:{file}"), "splice.commit");
+            let earlier = format!("{parent}:{file}");
+            if now.is_empty() || self.rev_parse(&earlier).is_none() {
+                continue;
+            }
+            let before = self.config(&earlier, "splice.commit");
+            if before != now {
+                pulls.push((file.clone(), before, now));
+            }
+        }
+        pulls
+    }
+
     pub fn head(&self) -> String {
         self.rev_parse("HEAD").unwrap_or_default()
     }
