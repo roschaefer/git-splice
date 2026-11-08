@@ -125,3 +125,18 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "!!   B outside every lane doesn't say which splice's boundary it is: with several splices, leave B out" ]
 }
+
+@test "drawing lanes: a label given for its lane, <lane>/<label>=<rev>, names another commit in each lane it's drawn in" {
+  edit_drawing -u '//mxCell[@id="k"]/@value' -v x -u '//mxCell[@id="m"]/@value' -v x
+  run check_drawing "$drawing" a=HEAD l=refs/splices/upstream/heads/main \
+    vendor/a/x=refs/splices/upstream/heads/main~1 vendor/a/b/x=refs/splices/upstream-b/heads/main
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   nested-splices.drawio: 4 commits, 5 arrows, 4 boxes, 2 lanes" ]
+}
+
+@test "drawing lanes: a label given without its lane names the same commit in every lane" {
+  edit_drawing -u '//mxCell[@id="k"]/@value' -v x -u '//mxCell[@id="m"]/@value' -v x
+  run check_drawing "$drawing" a=HEAD l=refs/splices/upstream/heads/main x=refs/splices/upstream/heads/main~1
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   x is in the lane vendor/a/b/, but isn't in that splice's upstream history or R"* ]]
+}
