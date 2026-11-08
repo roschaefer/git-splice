@@ -73,15 +73,14 @@ pub fn run(argv: &[String]) -> Res<i32> {
     }
 
     // A recursive pull is one commit, made of its pulls once the last run
-    // ends without a conflict. A run that stops leaves where it started.
+    // ends without a conflict. A run that stops leaves where it started,
+    // which a later run goes on from only while HEAD still descends from
+    // it: not after the branch was reset past it, e.g. after an abort.
     let fold = repo.args.has_flag("--recursive") && !repo.merge_rebase;
-    if fold
-        && git(&["rev-parse", "--quiet", "--verify", START])
-            .q()
-            .out()
-            .is_none()
-        && !git(&["update-ref", START, "HEAD"]).ok()
-    {
+    let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
+        .q()
+        .ok();
+    if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
         return fail(format!("{START} couldn't be updated"));
     }
     let mut status = 0;
@@ -119,11 +118,18 @@ fn fold_pulls(given: &[String]) -> Res<()> {
         return Ok(());
     }
     for commit in &commits {
-        let changed = git(&["diff-tree", "--no-commit-id", "--name-only", "-r", commit])
-            .out()
-            .unwrap_or_default();
-        if !changed
-            .lines()
+        let changed = git(&[
+            "diff-tree",
+            "-z",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            commit,
+        ])
+        .bytes()
+        .unwrap_or_default();
+        if !nul_fields(&changed)
+            .iter()
             .any(|file| file == STATE_FILE || file.ends_with(&format!("/{STATE_FILE}")))
         {
             log_warn(format!(

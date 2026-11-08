@@ -665,6 +665,11 @@ impl Repo {
             if !splice_in_progress() && !failures.contains(path) {
                 if recursive {
                     for added in self.discover_below(path)? {
+                        // Below a selected splice, as the ones found before
+                        // the pull: --branch names its upstream branch too.
+                        if self.selected.contains(path) && !self.selected.contains(&added) {
+                            self.selected.push(added.clone());
+                        }
                         let at = paths
                             .iter()
                             .rposition(|known| added.starts_with(&format!("{known}/")))

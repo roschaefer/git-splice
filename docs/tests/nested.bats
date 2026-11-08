@@ -1132,3 +1132,60 @@ order_of() {
   [[ "$output" == *"vendor/a/b: removed by the pull of vendor/a"* ]]
   [[ "$output" == *"vendor/a/b/c: removed by the pull of vendor/a"* ]]
 }
+
+@test "nested: pull --recursive starts again after the branch was reset past where an aborted run started" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git" dropped
+  commit_local "$monorepo" vendor/a/b "b local"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  dropped="$(git rev-parse HEAD)"
+  run splice pull --recursive vendor/a
+  [ "$status" -ne 0 ]
+  git cherry-pick --abort
+  git reset -q --hard HEAD~1
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  ! git merge-base --is-ancestor "$dropped" HEAD
+}
+
+@test "nested: pull --recursive --branch pulls that branch for a splice the pull above adds too" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  local upstream_e="$BATS_TEST_TMPDIR/upstream-e.git"
+  make_bare_repo "$upstream_e"
+  seed_bare_repo "$upstream_e" "e seed"
+  seed_bare_repo "$upstream_e" "e release" release
+  seed_bare_repo "$upstream_b" "b release" release
+  work_in_upstream_a
+  splice clone "$upstream_e" e
+  git push -q origin HEAD:main HEAD:release
+  seed_bare_repo "$upstream_e" "e upstream"
+  cd "$monorepo"
+  run splice pull --recursive --branch release vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/e/file.txt)" = "e seed"$'\n'"e release" ]
+}
+
+@test "nested: pull --recursive makes one commit of pulls of a splice whose path isn't ASCII" {
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git" work
+  make_bare_repo "$upstream_c"
+  seed_bare_repo "$upstream_c" "c seed"
+  make_bare_repo "$upstream_b"
+  seed_bare_repo "$upstream_b" "b seed"
+  work="$BATS_TEST_TMPDIR/b-work"
+  git clone -q "$upstream_b" "$work"
+  git -C "$work" config user.name "Test"
+  git -C "$work" config user.email "test@example.com"
+  add_splice "$work" "$upstream_c" é
+  git -C "$work" push -q origin HEAD:main
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream_b" vendor/b
+  fetch_splice "$monorepo" "$upstream_c"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_c" "c upstream"
+  cd "$monorepo"
+  run splice pull --recursive vendor/b
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"2 pulls made one commit"* ]]
+}
