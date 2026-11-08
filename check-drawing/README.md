@@ -129,8 +129,9 @@ does.
   are joined by ` = `, e.g. `U(H) = U(B)`: each must name that commit.
 - **Lane**: a shape labelled with a splice's folder, e.g. `vendor/a/`,
   holds that splice's upstream commits and boxes.
-  - A monorepo with several splices needs one per splice it draws. With
-    one splice, lanes are optional. Without splices, e.g. in a drawing
+  - A monorepo with several splices needs a lane for each of them, so a
+    reader sees every splice there is. With one splice, lanes are
+    optional. Without splices, e.g. in a drawing
     of what `git subtree` makes, there are none: commits and their
     arrows are checked in the monorepo alone.
   - A shape belongs to the innermost lane it lies wholly inside. A nested
