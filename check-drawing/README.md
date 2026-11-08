@@ -204,6 +204,35 @@ does.
 What a drawing shows is checked, not where: positions only matter for
 which lane a shape is in.
 
+## Splice trees
+
+A second kind of drawing shows the tree of splices, as `tree` prints
+folders: one row per splice, and the monorepo at the root. It's the one
+whose root text, `monorepo`, is styled `tree=1`.
+
+- **Row**: a text with a splice's folder, relative to the row it hangs
+  from (`vendor/a/`, then `b/` below it), and the circles left of it at
+  the same height. The root's one circle is `HEAD`.
+- **Edge**: an arrow without a head (`endArrow=none`) from a parent's head
+  to a child's synced commit: the commit the parent's `.splice` records.
+  A splice's head is its R, or its synced commit where it has no R.
+- **R**: dashed, with a dashed arrow from the synced commit, where the
+  splice has commits of its own, i.e. its rebuild isn't its synced
+  commit; none where it is.
+- **Merged in with a conflict**: outlined red, `#D00000`, with a dashed
+  arrow into the head: the commit the conflicted pull, in progress,
+  merges in for that splice.
+- **Every splice** has a row.
+- **Colors**, with a sample in a `legend=1` legend: blue for a synced
+  commit the pull moved since it started (`SPLICE_PULL_START`, else
+  since `HEAD`'s first parent), and for the root or an R that records a
+  pull below it; orange for an R, and the root where it changed a
+  splice's folder, which the rebuilds carry over. Blue wins where both
+  apply.
+
+Labels work as above: a subject's start, `<label>=<rev>`, or a trailing
+`'` for a copy.
+
 ## Saving drawings
 
 Draw with [draw.io](https://www.drawio.com/) desktop, and save as an
@@ -261,7 +290,8 @@ In `git-splice`, [`docs/tests/drawing.bats`](../docs/tests/drawing.bats) and
 [`docs/tests/drawing-lanes.bats`](../docs/tests/drawing-lanes.bats) and
 [`docs/tests/drawing-upstreams.bats`](../docs/tests/drawing-upstreams.bats) and
 [`docs/tests/drawing-tracked.bats`](../docs/tests/drawing-tracked.bats) and
-[`docs/tests/drawing-local-branch.bats`](../docs/tests/drawing-local-branch.bats) run it against
+[`docs/tests/drawing-local-branch.bats`](../docs/tests/drawing-local-branch.bats) and
+[`docs/tests/drawing-tree.bats`](../docs/tests/drawing-tree.bats) run it against
 `git-splice`'s test scenarios, and each [scenario](../docs/09-scenarios/)
 with a drawing checks it in its README. [`docs/tests/drawing-export.bats`](../docs/tests/drawing-export.bats)
 tests `check-export`, with draw.io.

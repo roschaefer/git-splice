@@ -11,6 +11,7 @@ mod diagram;
 mod history;
 mod labels;
 mod placement;
+mod tree;
 
 use check::{Checker, Labels};
 use std::process::ExitCode;

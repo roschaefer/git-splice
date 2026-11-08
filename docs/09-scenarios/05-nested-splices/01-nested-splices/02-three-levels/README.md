@@ -38,6 +38,18 @@ $ source "$TESTDIR/../../../readme-setup.sh" && export GIT_CONFIG_COUNT=4 GIT_CO
 $ build_scenario scenario_three_levels https://git.example.com/b.git https://git.example.com/c.git
 ```
 
+As a tree, each splice with the commit the one around it records for
+it, its synced commit:
+
+![The tree: the monorepo at s; vendor/a/ at a1; in it, b/ at b1, with c/ at c1 in it](tree.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/tree.drawio.svg" s=HEAD a1=refs/splices/upstream/heads/main b1=refs/splices/b/heads/main c1=refs/splices/c/heads/main
+ok   tree.drawio.svg: a tree of 4 rows
+```
+-->
+
 The monorepo changes `vendor/a/b/c/` and pushes all three, bottom-up:
 
 ```scrut
