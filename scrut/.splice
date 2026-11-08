@@ -1,6 +1,6 @@
 [splice]
 	id = 68163f34d1b20df3
-	commit = 35d8ea11cd417ca2248ed5e7e3724079c604143a
+	commit = 1378f3aecc7501299e227162a3d285699b414486
 	default-upstream = fork
 [upstream "origin"]
 	url = https://github.com/facebookincubator/scrut

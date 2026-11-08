@@ -182,31 +182,335 @@ impl Args {
             style(tests.len()).bold()
         ));
 
-        run_in_parallel(
-            tests,
-            self.jobs.get(),
-            |test| {
-                self.run_document(
-                    test,
-                    &parser,
-                    &document_config,
-                    &testcase_config,
-                    &current_directory,
-                    &pw,
-                )
-            },
-            |run| {
-                for message in run.messages {
-                    pw.println(message);
+        let run_document = |mut test: ParsedTestFile| -> Result<DocumentRun> {
+            let mut run = DocumentRun::default();
+            pw.inc(1);
+            pw.set_message(format!(
+                "👀 {}",
+                style(test.path.to_string_lossy()).yellow()
+            ));
+
+            // prefix append and prepend in document config with directory where test is
+            let test_directory = &test.path.parent().unwrap_or(&current_directory);
+            test.config.append = prefix_with_directory(test_directory, &test.config.append);
+            test.config.prepend = prefix_with_directory(test_directory, &test.config.prepend);
+
+            // compile configuration from test file and parameters
+            let config: DocumentConfig = test.config.with_overrides_from(&document_config);
+
+            // initialize environment in which test will run
+            let shell_path = canonical_shell(config.shell.as_ref().map(|p| p as &Path))?;
+            let mut test_environment = TestEnvironment::new(
+                &shell_path,
+                self.global.work_directory.as_deref(),
+                self.global.keep_temporary_directories,
+            )?;
+
+            let span = debug_span!("test", path = %&test.path.display(), env = ?&test_environment);
+            let _s = span.enter();
+
+            // extract test cases from content ..
+            debug!(
+                format = %&test.parser_type,
+                num_cases = &test.testcases.len(),
+                config = %&config,
+                "running tests",
+            );
+
+            // compile prepended and appended tests, based on both command line
+            // parameters and the inline per-document configuration
+            let prepend_tests = if !config.prepend.is_empty() {
+                parser.find_and_parse(
+                    "prepend test",
+                    &config
+                        .prepend
+                        .iter()
+                        .map(|p| p as &Path)
+                        .collect::<Vec<_>>(),
+                    self.global.cram_compat,
+                )?
+            } else {
+                vec![]
+            };
+            let append_tests = if !config.append.is_empty() {
+                parser.find_and_parse(
+                    "append test",
+                    &config.append.iter().map(|p| p as &Path).collect::<Vec<_>>(),
+                    self.global.cram_compat,
+                )?
+            } else {
+                vec![]
+            };
+
+            // gather executions from prepended, test file and appended
+            let mut testcases = prepend_tests
+                .iter()
+                .flat_map(|parsed| parsed.testcases.clone())
+                .collect::<Vec<_>>();
+            testcases.extend(test.testcases.clone());
+            testcases.extend(append_tests.iter().flat_map(|test| test.testcases.clone()));
+
+            // setup testing environment
+            let cram_compat = test.parser_type == ParserType::Cram || self.global.cram_compat;
+            let (test_work_directory, env_vars) =
+                test_environment.init_test_file(&test.path, cram_compat)?;
+
+            // update testcase configuration from command line parameters
+            let env_vars =
+                BTreeMap::from_iter(env_vars.iter().map(|(k, v)| (k as &str, v as &str)));
+            let testcases = testcases
+                .iter_mut()
+                .map(|testcase| {
+                    testcase.config = testcase
+                        .config
+                        .with_overrides_from(&testcase_config)
+                        .with_environment(&env_vars);
+                    trace!(testcase = %&testcase, "running test case");
+                    testcase as &TestCase
+                })
+                .collect::<Vec<_>>();
+
+            // get the appropriate or requested executor
+            let executor = make_executor(&test_environment.shell, cram_compat)?;
+
+            // determine output escaping
+            let escaping = self.global.output_escaping(Some(test.parser_type));
+
+            // run all testcases from the file and gather output ..
+            let outputs = executor.execute_all(
+                testcases.as_slice(),
+                &ContextBuilder::default()
+                    .work_directory(PathBuf::from(&test_work_directory))
+                    .temp_directory(test_environment.tmp_directory.as_path_buf())
+                    .file(test.path.clone())
+                    .config(config.clone())
+                    .build()
+                    .context("failed to build execution context")?,
+            );
+            match outputs {
+                // test execution failed ...
+                Err(err) => match err {
+                    // ... because test was skipped
+                    ExecutionError::Skipped(idx) => {
+                        run.count_skipped += 1;
+                        run.outcomes
+                            .extend(testcases.iter().map(|testcase| Outcome {
+                                location: Some(test.path.display().to_string()),
+                                testcase: (*testcase).clone(),
+                                output: ("", "", None).into(),
+                                escaping: escaping.clone(),
+                                format: test.parser_type,
+                                result: Err(TestCaseError::Skipped),
+                            }));
+                        run.messages.push(format!(
+                            "⏩ {}: skipped, because testcase #{} ended in exit code {}",
+                            style(test.path.to_string_lossy()).blue(),
+                            idx + 1,
+                            testcases.get(idx).map_or(DEFAULT_SKIP_DOCUMENT_CODE, |t| t
+                                .config
+                                .get_skip_document_code())
+                        ));
+                        return Ok(run);
+                    }
+
+                    // ... because test timed out
+                    ExecutionError::Timeout(timeout, outputs) => {
+                        handle_early_termination(
+                            &outputs,
+                            &testcases,
+                            &mut run,
+                            test.path.display().to_string(),
+                            escaping.clone(),
+                            test.parser_type,
+                            |output, testcase| {
+                                if matches!(output.exit_code, ExitStatus::Timeout(_)) {
+                                    Err(TestCaseError::Timeout)
+                                } else {
+                                    testcase.validate(output)
+                                }
+                            },
+                        );
+
+                        let (location, timeout) = match timeout {
+                            ExecutionTimeout::Index(idx) => (
+                                format!("per-testcase timeout in testcase #{}", idx + 1),
+                                testcases[idx].config.timeout,
+                            ),
+                            ExecutionTimeout::Total => {
+                                ("per-document timeout".to_string(), config.total_timeout)
+                            }
+                        };
+                        run.messages.push(format!(
+                            "⌛️ {}: execution timed out after {} at {}",
+                            style(test.path.to_string_lossy()).red(),
+                            timeout.map_or_else(
+                                || "<undef>".to_string(), // this should never happen
+                                |t| format_duration(t).to_string()
+                            ),
+                            location,
+                        ));
+                        return Ok(run);
+                    }
+
+                    // ... because test failed with fail_fast enabled
+                    ExecutionError::Failed(idx, outputs) => {
+                        handle_early_termination(
+                            &outputs,
+                            &testcases,
+                            &mut run,
+                            test.path.display().to_string(),
+                            escaping.clone(),
+                            test.parser_type,
+                            |output, testcase| testcase.validate(output),
+                        );
+
+                        run.messages.push(format!(
+                            "⚡ {}: stopped at testcase #{} due to fail_fast",
+                            style(test.path.to_string_lossy()).red(),
+                            idx + 1,
+                        ));
+                        return Ok(run);
+                    }
+
+                    // ... because interactive test failed
+                    ExecutionError::Interactive(index, error, outputs) => {
+                        // validate outputs for testcases that ran before the failure
+                        handle_early_termination(
+                            &outputs,
+                            &testcases,
+                            &mut run,
+                            test.path.display().to_string(),
+                            escaping.clone(),
+                            test.parser_type,
+                            |output, testcase| testcase.validate(output),
+                        );
+
+                        // the failed interactive testcase itself
+                        match error {
+                            InteractiveError::DirectivesFailed(diff) => {
+                                run.count_failed += 1;
+                                run.outcomes.push(Outcome {
+                                    location: Some(test.path.display().to_string()),
+                                    testcase: testcases[index].clone(),
+                                    output: ("", "", None).into(),
+                                    escaping: escaping.clone(),
+                                    format: test.parser_type,
+                                    result: Err(TestCaseError::ValidationFailed(
+                                        ValidationFailure::InteractiveFailed(diff),
+                                    )),
+                                });
+                            }
+                            InteractiveError::Internal(msg) => {
+                                run.count_failed += 1;
+                                run.outcomes.push(Outcome {
+                                    location: Some(test.path.display().to_string()),
+                                    testcase: testcases[index].clone(),
+                                    output: ("", "", None).into(),
+                                    escaping: escaping.clone(),
+                                    format: test.parser_type,
+                                    result: Err(TestCaseError::InternalError(anyhow::anyhow!(
+                                        "{}", msg
+                                    ))),
+                                });
+                            }
+                        }
+
+                        // mark remaining testcases as skipped
+                        let remaining = testcases.len() - (outputs.len() + 1);
+                        if remaining > 0 {
+                            run.outcomes
+                                .extend(testcases.iter().skip(outputs.len() + 1).map(|testcase| {
+                                    Outcome {
+                                        location: Some(test.path.display().to_string()),
+                                        testcase: (*testcase).clone(),
+                                        output: ("", "", None).into(),
+                                        escaping: escaping.clone(),
+                                        format: test.parser_type,
+                                        result: Err(TestCaseError::Skipped),
+                                    }
+                                }));
+                            run.count_skipped += remaining;
+                        }
+
+                        run.messages.push(format!(
+                            "❌ {}: interactive test #{} failed",
+                            style(test.path.to_string_lossy()).red(),
+                            index + 1,
+                        ));
+                        return Ok(run);
+                    }
+                    _ => bail!("failing in {:?}: {}", test.path, err),
+                },
+
+                // test execution succeeded
+                Ok(outputs) => {
+                    if self.debug {
+                        debug_testcases(&test.testcases, &test.path, &outputs);
+                    }
+
+                    // .. to compare the outputs with testcases and gather that
+                    //    outcome for later rendering
+                    let (mut failed, mut success) = (0, 0);
+                    for (testcase, output) in testcases.into_iter().zip(outputs) {
+                        if output.exit_code == ExitStatus::Detached {
+                            run.count_detached += 1;
+                            if let Some(ref detached_process) = output.detached_process {
+                                kill_detached_process(&mut run.messages, detached_process)?;
+                            }
+                            continue;
+                        }
+
+                        let result = testcase.validate(&output);
+                        if result.is_err() {
+                            failed += 1;
+                        } else {
+                            success += 1;
+                        }
+                        run.outcomes.push(Outcome {
+                            location: Some(test.path.display().to_string()),
+                            testcase: testcase.clone(),
+                            output,
+                            escaping: escaping.clone(),
+                            format: test.parser_type,
+                            result,
+                        });
+                    }
+                    run.count_failed += failed;
+                    run.count_success += success;
+                    let total = failed + success;
+
+                    if failed > 0 {
+                        run.messages.push(format!(
+                            "❌ {}: failed {} out of {} testcase{}",
+                            style(test.path.to_string_lossy()).red(),
+                            style(failed).red().bold(),
+                            style(total).bold(),
+                            if total == 1 { "" } else { "s" },
+                        ));
+                    } else if self.verbose {
+                        run.messages.push(format!(
+                            "✅ {}: passed {} testcase{}",
+                            style(test.path.to_string_lossy()).green(),
+                            style(success).green().bold(),
+                            if success == 1 { "" } else { "s" },
+                        ));
+                    }
                 }
-                outcomes.extend(run.outcomes);
-                count_success += run.count_success;
-                count_skipped += run.count_skipped;
-                count_failed += run.count_failed;
-                count_detached += run.count_detached;
-                Ok(())
-            },
-        )?;
+            }
+            Ok(run)
+        };
+
+        run_in_parallel(tests, self.jobs.get(), run_document, |run| {
+            for message in run.messages {
+                pw.println(message);
+            }
+            outcomes.extend(run.outcomes);
+            count_success += run.count_success;
+            count_skipped += run.count_skipped;
+            count_failed += run.count_failed;
+            count_detached += run.count_detached;
+            Ok(())
+        })?;
         pw.println("");
         pw.finish_and_clear();
 
@@ -248,332 +552,6 @@ impl Args {
         } else {
             Ok(())
         }
-    }
-
-    /// Runs the test cases of one document and validates their output
-    fn run_document(
-        &self,
-        mut test: ParsedTestFile,
-        parser: &FileParser,
-        document_config: &DocumentConfig,
-        testcase_config: &TestCaseConfig,
-        current_directory: &Path,
-        pw: &ProgressWriter,
-    ) -> Result<DocumentRun> {
-        let mut run = DocumentRun::default();
-        pw.inc(1);
-        pw.set_message(format!(
-            "👀 {}",
-            style(test.path.to_string_lossy()).yellow()
-        ));
-
-        // prefix append and prepend in document config with directory where test is
-        let test_directory = &test.path.parent().unwrap_or(current_directory);
-        test.config.append = prefix_with_directory(test_directory, &test.config.append);
-        test.config.prepend = prefix_with_directory(test_directory, &test.config.prepend);
-
-        // compile configuration from test file and parameters
-        let config: DocumentConfig = test.config.with_overrides_from(document_config);
-
-        // initialize environment in which test will run
-        let shell_path = canonical_shell(config.shell.as_ref().map(|p| p as &Path))?;
-        let mut test_environment = TestEnvironment::new(
-            &shell_path,
-            self.global.work_directory.as_deref(),
-            self.global.keep_temporary_directories,
-        )?;
-
-        let span = debug_span!("test", path = %&test.path.display(), env = ?&test_environment);
-        let _s = span.enter();
-
-        // extract test cases from content ..
-        debug!(
-            format = %&test.parser_type,
-            num_cases = &test.testcases.len(),
-            config = %&config,
-            "running tests",
-        );
-
-        // compile prepended and appended tests, based on both command line
-        // parameters and the inline per-document configuration
-        let prepend_tests = if !config.prepend.is_empty() {
-            parser.find_and_parse(
-                "prepend test",
-                &config
-                    .prepend
-                    .iter()
-                    .map(|p| p as &Path)
-                    .collect::<Vec<_>>(),
-                self.global.cram_compat,
-            )?
-        } else {
-            vec![]
-        };
-        let append_tests = if !config.append.is_empty() {
-            parser.find_and_parse(
-                "append test",
-                &config.append.iter().map(|p| p as &Path).collect::<Vec<_>>(),
-                self.global.cram_compat,
-            )?
-        } else {
-            vec![]
-        };
-
-        // gather executions from prepended, test file and appended
-        let mut testcases = prepend_tests
-            .iter()
-            .flat_map(|parsed| parsed.testcases.clone())
-            .collect::<Vec<_>>();
-        testcases.extend(test.testcases.clone());
-        testcases.extend(append_tests.iter().flat_map(|test| test.testcases.clone()));
-
-        // setup testing environment
-        let cram_compat = test.parser_type == ParserType::Cram || self.global.cram_compat;
-        let (test_work_directory, env_vars) =
-            test_environment.init_test_file(&test.path, cram_compat)?;
-
-        // update testcase configuration from command line parameters
-        let env_vars = BTreeMap::from_iter(env_vars.iter().map(|(k, v)| (k as &str, v as &str)));
-        let testcases = testcases
-            .iter_mut()
-            .map(|testcase| {
-                testcase.config = testcase
-                    .config
-                    .with_overrides_from(testcase_config)
-                    .with_environment(&env_vars);
-                trace!(testcase = %&testcase, "running test case");
-                testcase as &TestCase
-            })
-            .collect::<Vec<_>>();
-
-        // get the appropriate or requested executor
-        let executor = make_executor(&test_environment.shell, cram_compat)?;
-
-        // determine output escaping
-        let escaping = self.global.output_escaping(Some(test.parser_type));
-
-        // run all testcases from the file and gather output ..
-        let outputs = executor.execute_all(
-            testcases.as_slice(),
-            &ContextBuilder::default()
-                .work_directory(PathBuf::from(&test_work_directory))
-                .temp_directory(test_environment.tmp_directory.as_path_buf())
-                .file(test.path.clone())
-                .config(config.clone())
-                .build()
-                .context("failed to build execution context")?,
-        );
-        match outputs {
-            // test execution failed ...
-            Err(err) => match err {
-                // ... because test was skipped
-                ExecutionError::Skipped(idx) => {
-                    run.count_skipped += 1;
-                    run.outcomes
-                        .extend(testcases.iter().map(|testcase| Outcome {
-                            location: Some(test.path.display().to_string()),
-                            testcase: (*testcase).clone(),
-                            output: ("", "", None).into(),
-                            escaping: escaping.clone(),
-                            format: test.parser_type,
-                            result: Err(TestCaseError::Skipped),
-                        }));
-                    run.messages.push(format!(
-                        "⏩ {}: skipped, because testcase #{} ended in exit code {}",
-                        style(test.path.to_string_lossy()).blue(),
-                        idx + 1,
-                        testcases.get(idx).map_or(DEFAULT_SKIP_DOCUMENT_CODE, |t| t
-                            .config
-                            .get_skip_document_code())
-                    ));
-                    return Ok(run);
-                }
-
-                // ... because test timed out
-                ExecutionError::Timeout(timeout, outputs) => {
-                    handle_early_termination(
-                        &outputs,
-                        &testcases,
-                        &mut run,
-                        test.path.display().to_string(),
-                        escaping.clone(),
-                        test.parser_type,
-                        |output, testcase| {
-                            if matches!(output.exit_code, ExitStatus::Timeout(_)) {
-                                Err(TestCaseError::Timeout)
-                            } else {
-                                testcase.validate(output)
-                            }
-                        },
-                    );
-
-                    let (location, timeout) = match timeout {
-                        ExecutionTimeout::Index(idx) => (
-                            format!("per-testcase timeout in testcase #{}", idx + 1),
-                            testcases[idx].config.timeout,
-                        ),
-                        ExecutionTimeout::Total => {
-                            ("per-document timeout".to_string(), config.total_timeout)
-                        }
-                    };
-                    run.messages.push(format!(
-                        "⌛️ {}: execution timed out after {} at {}",
-                        style(test.path.to_string_lossy()).red(),
-                        timeout.map_or_else(
-                            || "<undef>".to_string(), // this should never happen
-                            |t| format_duration(t).to_string()
-                        ),
-                        location,
-                    ));
-                    return Ok(run);
-                }
-
-                // ... because test failed with fail_fast enabled
-                ExecutionError::Failed(idx, outputs) => {
-                    handle_early_termination(
-                        &outputs,
-                        &testcases,
-                        &mut run,
-                        test.path.display().to_string(),
-                        escaping.clone(),
-                        test.parser_type,
-                        |output, testcase| testcase.validate(output),
-                    );
-
-                    run.messages.push(format!(
-                        "⚡ {}: stopped at testcase #{} due to fail_fast",
-                        style(test.path.to_string_lossy()).red(),
-                        idx + 1,
-                    ));
-                    return Ok(run);
-                }
-
-                // ... because interactive test failed
-                ExecutionError::Interactive(index, error, outputs) => {
-                    // validate outputs for testcases that ran before the failure
-                    handle_early_termination(
-                        &outputs,
-                        &testcases,
-                        &mut run,
-                        test.path.display().to_string(),
-                        escaping.clone(),
-                        test.parser_type,
-                        |output, testcase| testcase.validate(output),
-                    );
-
-                    // the failed interactive testcase itself
-                    match error {
-                        InteractiveError::DirectivesFailed(diff) => {
-                            run.count_failed += 1;
-                            run.outcomes.push(Outcome {
-                                location: Some(test.path.display().to_string()),
-                                testcase: testcases[index].clone(),
-                                output: ("", "", None).into(),
-                                escaping: escaping.clone(),
-                                format: test.parser_type,
-                                result: Err(TestCaseError::ValidationFailed(
-                                    ValidationFailure::InteractiveFailed(diff),
-                                )),
-                            });
-                        }
-                        InteractiveError::Internal(msg) => {
-                            run.count_failed += 1;
-                            run.outcomes.push(Outcome {
-                                location: Some(test.path.display().to_string()),
-                                testcase: testcases[index].clone(),
-                                output: ("", "", None).into(),
-                                escaping: escaping.clone(),
-                                format: test.parser_type,
-                                result: Err(TestCaseError::InternalError(anyhow::anyhow!(
-                                    "{}", msg
-                                ))),
-                            });
-                        }
-                    }
-
-                    // mark remaining testcases as skipped
-                    let remaining = testcases.len() - (outputs.len() + 1);
-                    if remaining > 0 {
-                        run.outcomes
-                            .extend(testcases.iter().skip(outputs.len() + 1).map(|testcase| {
-                                Outcome {
-                                    location: Some(test.path.display().to_string()),
-                                    testcase: (*testcase).clone(),
-                                    output: ("", "", None).into(),
-                                    escaping: escaping.clone(),
-                                    format: test.parser_type,
-                                    result: Err(TestCaseError::Skipped),
-                                }
-                            }));
-                        run.count_skipped += remaining;
-                    }
-
-                    run.messages.push(format!(
-                        "❌ {}: interactive test #{} failed",
-                        style(test.path.to_string_lossy()).red(),
-                        index + 1,
-                    ));
-                    return Ok(run);
-                }
-                _ => bail!("failing in {:?}: {}", test.path, err),
-            },
-
-            // test execution succeeded
-            Ok(outputs) => {
-                if self.debug {
-                    debug_testcases(&test.testcases, &test.path, &outputs);
-                }
-
-                // .. to compare the outputs with testcases and gather that
-                //    outcome for later rendering
-                let (mut failed, mut success) = (0, 0);
-                for (testcase, output) in testcases.into_iter().zip(outputs) {
-                    if output.exit_code == ExitStatus::Detached {
-                        run.count_detached += 1;
-                        if let Some(ref detached_process) = output.detached_process {
-                            kill_detached_process(&mut run.messages, detached_process)?;
-                        }
-                        continue;
-                    }
-
-                    let result = testcase.validate(&output);
-                    if result.is_err() {
-                        failed += 1;
-                    } else {
-                        success += 1;
-                    }
-                    run.outcomes.push(Outcome {
-                        location: Some(test.path.display().to_string()),
-                        testcase: testcase.clone(),
-                        output,
-                        escaping: escaping.clone(),
-                        format: test.parser_type,
-                        result,
-                    });
-                }
-                run.count_failed += failed;
-                run.count_success += success;
-                let total = failed + success;
-
-                if failed > 0 {
-                    run.messages.push(format!(
-                        "❌ {}: failed {} out of {} testcase{}",
-                        style(test.path.to_string_lossy()).red(),
-                        style(failed).red().bold(),
-                        style(total).bold(),
-                        if total == 1 { "" } else { "s" },
-                    ));
-                } else if self.verbose {
-                    run.messages.push(format!(
-                        "✅ {}: passed {} testcase{}",
-                        style(test.path.to_string_lossy()).green(),
-                        style(success).green().bold(),
-                        if success == 1 { "" } else { "s" },
-                    ));
-                }
-            }
-        }
-        Ok(run)
     }
 
     /// Translates command line arguments into a document config, that has only
