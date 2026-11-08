@@ -98,6 +98,7 @@ pub struct Compared {
 
 #[derive(Default)]
 pub struct Repo {
+    pub(crate) fetch_checkpoint: Vec<crate::checkpoint::Fetched>,
     pub args: Args,
     pub all_paths: Vec<String>,
     pub upstream_lists: HashMap<String, Vec<String>>,

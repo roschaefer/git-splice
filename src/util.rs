@@ -40,6 +40,11 @@ pub fn contained<T>(result: Res<T>) -> Res<T> {
 
 /// Stderr of everything is off while set: the command's own messages and git's.
 static QUIET: AtomicBool = AtomicBool::new(false);
+static CHECKPOINT_OUTPUT: AtomicBool = AtomicBool::new(false);
+
+pub(crate) fn checkpoint_output(enabled: bool) {
+    CHECKPOINT_OUTPUT.store(enabled, Ordering::Relaxed);
+}
 
 /// Runs `step` without any message on stderr.
 pub fn quietly<T>(step: impl FnOnce() -> T) -> T {
@@ -58,6 +63,10 @@ fn eprint_line(line: &str) {
 /// Prints to stdout. A reader that's gone, e.g. a pager that was quit, isn't an
 /// error here: the git commands that write to it next end on it.
 pub fn say(line: impl AsRef<str>) {
+    if CHECKPOINT_OUTPUT.load(Ordering::Relaxed) {
+        eprint_line(line.as_ref());
+        return;
+    }
     let mut out = std::io::stdout();
     let _ = writeln!(out, "{}", line.as_ref());
     let _ = out.flush();
@@ -210,6 +219,9 @@ impl Git {
     pub fn run(mut self) -> i32 {
         let stderr = self.stderr();
         self.command.stderr(stderr);
+        if CHECKPOINT_OUTPUT.load(Ordering::Relaxed) {
+            self.command.stdout(Stdio::from(std::io::stderr()));
+        }
         self.capture_status().map_or(1, status_code)
     }
 

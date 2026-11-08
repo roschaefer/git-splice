@@ -214,6 +214,7 @@
           packages = [
             git
             pkgs.bats
+            pkgs.jq
             pkgs.util-linux
             # Build the port from bash, src/.
             pkgs.cargo

@@ -311,6 +311,31 @@ impl Repo {
                 self.forget_upstream_key(key)?;
             }
         }
+        if !self.args.exec.is_empty() {
+            for (key, url, _, members) in &jobs {
+                for member in members {
+                    let (path, name) = &entries[member.index];
+                    let pin = upstream_config(path, name, "default-pin");
+                    let reference = if !member.target_ref.is_empty() {
+                        member.target_ref.clone()
+                    } else if is_commit_id(&pin) {
+                        pin
+                    } else {
+                        format!("refs/splices/{key}/tags/{pin}")
+                    };
+                    self.fetch_checkpoint.push(crate::checkpoint::Fetched {
+                        path: path.clone(),
+                        upstream: name.clone(),
+                        url: url.clone(),
+                        reference: reference.clone(),
+                        old: member.old_sha.clone(),
+                        new: commit_of(&reference),
+                        synced: splice_config(path, "commit", "HEAD"),
+                        failed: reports[member.index].failed,
+                    });
+                }
+            }
+        }
         Ok(failures)
     }
 
