@@ -1,29 +1,10 @@
 # Scenario: a recursive pull, by hand
 
-The pages here do by hand, with worktrees and plain Git, what a
-recursive pull through nested splices is meant to do one day: each
-splice is updated as if its upstream were cloned on its own, and each
-new commit then travels up. When `git-splice` does it, their code
-blocks shrink to one command, and their drawings show what changed.
-
-A splice and the splices inside it form a tree. Its root is the
-monorepo, every other node a splice, and the edge from a parent to a
-child is the child's `.splice` in the parent's folder: which upstream
-the child comes from, and at which commit, its synced commit. A pull
-goes through the tree three times:
-
-| Pass | Does | Order | Conflicts |
-|---|---|---|---|
-| discover | fetches each upstream, and reads the `.splice` files in it for the ones inside | parent before its children | none |
-| merge | merges each upstream into its parent's version of the folder | parent before its children | at most one per node |
-| take up | puts each new commit into its parent's folder | children before their parent | none |
-
-The parent goes first in the merge, since its upstream records a version
-of each child: a newer base for the child's merge, which then doesn't
-ask a question the parent's merge already answered. The first conflict
-stops the pull, until it's resolved. A take-up can't conflict: the
-parent's folder hasn't changed since the child's merge started from it,
-which each take-up below checks.
+This page does by hand what [this chapter](../README.md) describes:
+each splice updated top-down, in a worktree of its parent, and each new
+commit taken up into the parent. Before each take-up, it checks that
+the parent's folder is still what the child's merge started from, the
+reason a take-up can't conflict.
 
 ## The tree
 
@@ -43,7 +24,7 @@ moves forward.
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=8 GIT_CONFIG_KEY_0="url.$UPSTREAM-a.git.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/a.git GIT_CONFIG_KEY_1="url.$UPSTREAM-b.git.insteadOf" GIT_CONFIG_VALUE_1=https://git.example.com/b.git GIT_CONFIG_KEY_2="url.$UPSTREAM-c.git.insteadOf" GIT_CONFIG_VALUE_2=https://git.example.com/c.git GIT_CONFIG_KEY_3="url.$UPSTREAM-d.git.insteadOf" GIT_CONFIG_VALUE_3=https://git.example.com/d.git GIT_CONFIG_KEY_4="url.$UPSTREAM-e.git.insteadOf" GIT_CONFIG_VALUE_4=https://git.example.com/e.git GIT_CONFIG_KEY_5=user.name GIT_CONFIG_VALUE_5=Test GIT_CONFIG_KEY_6=user.email GIT_CONFIG_VALUE_6=test@example.com GIT_CONFIG_KEY_7=core.editor GIT_CONFIG_VALUE_7=true
+$ source "$TESTDIR/../../../readme-setup.sh" && export GIT_CONFIG_COUNT=8 GIT_CONFIG_KEY_0="url.$UPSTREAM-a.git.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/a.git GIT_CONFIG_KEY_1="url.$UPSTREAM-b.git.insteadOf" GIT_CONFIG_VALUE_1=https://git.example.com/b.git GIT_CONFIG_KEY_2="url.$UPSTREAM-c.git.insteadOf" GIT_CONFIG_VALUE_2=https://git.example.com/c.git GIT_CONFIG_KEY_3="url.$UPSTREAM-d.git.insteadOf" GIT_CONFIG_VALUE_3=https://git.example.com/d.git GIT_CONFIG_KEY_4="url.$UPSTREAM-e.git.insteadOf" GIT_CONFIG_VALUE_4=https://git.example.com/e.git GIT_CONFIG_KEY_5=user.name GIT_CONFIG_VALUE_5=Test GIT_CONFIG_KEY_6=user.email GIT_CONFIG_VALUE_6=test@example.com GIT_CONFIG_KEY_7=core.editor GIT_CONFIG_VALUE_7=true
 ```
 -->
 
