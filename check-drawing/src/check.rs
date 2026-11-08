@@ -403,6 +403,16 @@ impl<'a> Checker<'a> {
                     .push(format!("the lane {value} isn't a splice of the monorepo"));
             }
         }
+        if !self.lanes.is_empty() {
+            let drawn: Vec<String> = self.lane_splice.values().cloned().collect();
+            for splice in &self.splices {
+                if !drawn.contains(splice) {
+                    self.errors.push(format!(
+                        "{splice} is a splice of the monorepo, but has no lane: draw one, labelled {splice}/, so the drawing shows every splice"
+                    ));
+                }
+            }
+        }
         if self.splices.len() == 1 {
             self.default = self.splices[0].clone();
         } else if self.splices.len() > 1 && self.lanes.is_empty() {
