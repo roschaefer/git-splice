@@ -9,6 +9,7 @@ pub struct Args {
     pub rebuilt_commit: String,
     pub branch: String,
     pub message: String,
+    pub message_template: String,
     pub paths: Vec<String>,
     pub flags: Vec<String>,
 }
@@ -77,9 +78,14 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                 args.paths.extend_from_slice(&argv[i + 1..]);
                 break;
             }
-            _ if ["--upstream", "--rebuilt-commit", "--branch"]
-                .iter()
-                .any(|o| arg == *o || arg.starts_with(&format!("{o}="))) =>
+            _ if [
+                "--upstream",
+                "--rebuilt-commit",
+                "--branch",
+                "--message-template",
+            ]
+            .iter()
+            .any(|o| arg == *o || arg.starts_with(&format!("{o}="))) =>
             {
                 let option = arg.split('=').next().unwrap_or(arg);
                 refuse(option)?;
@@ -101,6 +107,12 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                             return die("--rebuilt-commit needs a commit");
                         }
                         args.rebuilt_commit = value;
+                    }
+                    "--message-template" => {
+                        if value.is_empty() {
+                            return die("--message-template needs a template");
+                        }
+                        args.message_template = value;
                     }
                     _ => {
                         if value.is_empty() {
@@ -146,6 +158,9 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
             _ => args.paths.push(arg.to_string()),
         }
         i += 1;
+    }
+    if !args.message.is_empty() && !args.message_template.is_empty() {
+        return die("-m and --message-template both give the message -- give one");
     }
     Ok(args)
 }

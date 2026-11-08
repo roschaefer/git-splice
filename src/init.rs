@@ -1,6 +1,7 @@
 //! git splice init.
 
 use crate::args::parse_args;
+use crate::message::{self, Message};
 use crate::repo::*;
 use crate::state::*;
 use crate::util::*;
@@ -26,7 +27,7 @@ fn empty_upstream_default_branch(url: &str) -> String {
 }
 
 pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, "-m", argv)?;
+    let args = parse_args(USAGE, "-m --message-template", argv)?;
     args.require(USAGE, "init", 2, 2)?;
     if args.paths[0].is_empty() || args.paths[1].is_empty() {
         eprint_text(USAGE);
@@ -38,6 +39,10 @@ pub fn run(argv: &[String]) -> Res<i32> {
 
     let mut repo = Repo::new(args);
     repo.open()?;
+    repo.require_message_template(Message {
+        command: "init",
+        ..Message::default()
+    })?;
     current_branch()?;
     require_no_splice_in_progress()?;
     if repo.is_splice_path(&path) {
@@ -166,7 +171,14 @@ pub fn run(argv: &[String]) -> Res<i32> {
         let blob = state_blob_in(inner, "HEAD", &settings).map_err(|_| Fail::Hard)?;
         files.push((format!("{inner}/{STATE_FILE}"), blob));
     }
-    let message = repo.commit_message(format!("splice: init {path}"));
+    let message = repo.commit_message(
+        message::DEFAULT_INIT,
+        Message {
+            command: "init",
+            path: &path,
+            ..Message::default()
+        },
+    )?;
     if commit_state_files(&files, &message).is_err() {
         return fail(format!("{path}: init failed"));
     }

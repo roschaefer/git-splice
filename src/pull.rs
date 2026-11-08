@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::merge::{apply_merge_options, MERGE_OPTIONS};
+use crate::message::{Message, KNOWN};
 use crate::repo::*;
 use crate::util::*;
 
@@ -14,6 +15,13 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let mut repo = Repo::new(args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
+    repo.require_message_template(Message {
+        command: "pull",
+        upstream: KNOWN,
+        old: KNOWN,
+        new: KNOWN,
+        ..Message::default()
+    })?;
     // Before select_splices: a rebase in progress has detached HEAD.
     require_no_splice_in_progress()?;
     repo.select_splices(Kind::Explicit, "pull")?;

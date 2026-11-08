@@ -104,11 +104,12 @@ complete_words() {
   done
 }
 
-@test "completion: -m only for the commands that commit, nothing for the message, and the message is no path" {
+@test "completion: -m and --message-template only for the commands that commit, nothing for their values, and a value is no path" {
   local command
   for command in clone init merge pull; do
     run complete_words git-splice "$command" --mes
-    [ "$output" = "--message" ]
+    [ "$output" = "--message
+--message-template" ]
   done
   run complete_words git-splice push --mes
   [ -z "$output" ]
@@ -124,6 +125,10 @@ complete_words() {
   run complete_words git-splice pull --message = ven
   [ -z "$output" ]
   run complete_words git-splice pull --upstream = ven
+  [ -z "$output" ]
+  run complete_words git-splice init --message-template '{path}' vend
+  [ "$output" = "vendor" ]
+  run complete_words git-splice pull --message-template = ven
   [ -z "$output" ]
 }
 
@@ -397,6 +402,9 @@ fish_complete() {
   [[ "$output" == *"vendor/"* ]]
   run zsh_complete "git-splice pull -m one --mes"
   [[ "$output" == *"--message"* ]]
+  [[ "$output" != *"--message-template"* ]]
+  run zsh_complete "git-splice init --message-template '{path}' vend"
+  [[ "$output" == *"vendor/"* ]]
 }
 
 @test "fish completion: commands" {
@@ -511,8 +519,11 @@ fish_complete() {
 @test "fish completion: init completes --message, and the path after its message" {
   require_shell fish
   run fish_complete "git-splice init --mes"
-  [ "$output" = "--message" ]
+  [ "$output" = "--message
+--message-template" ]
   run fish_complete "git-splice init -m msg vend"
+  [[ "$output" == *"vendor/"* ]]
+  run fish_complete "git-splice init --message-template '{path}' vend"
   [[ "$output" == *"vendor/"* ]]
 }
 
