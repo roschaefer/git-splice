@@ -26,10 +26,11 @@ rebuilt from the monorepo's, has that commit on top of its own.
 
 ## The tree
 
-![The monorepo with vendor/a/ at a1; in it, b/ at b1, with c/ at c1 in it, and d/ at d1](tree-before.drawio.svg)
-
-Each box is a folder, and the circle next to it the synced commit its
-parent's `.splice` records for it.
+The drawings below show the tree, one row per splice, as `tree` prints
+folders. On the edge into a folder is its synced commit, the one its
+parent records. Where the splice has commits of its own, its rebuild R
+follows, dashed, as no upstream has it yet. A splice's children hang
+from its head: R, or its synced commit if it has none.
 
 Every upstream moved on, and the one above `vendor/a/` added a splice,
 `e/`. The monorepo changed `vendor/a/` and `b/` in it, so two merges
@@ -76,14 +77,14 @@ $ git clone -q https://git.example.com/d.git ../d-work &&
 >   git -C ../d-work push -q origin main
 ```
 
-`a`'s splices `e` in, at *e1*:
+`a`'s splices `e` in, at *e1*, in the same commit:
 
 ```scrut
 $ git clone -q https://git.example.com/a.git ../a-work &&
 >   cd ../a-work &&
 >   git splice clone https://git.example.com/e.git e &&
 >   echo "a upstream" >>file.txt &&
->   git commit -q -am "a2: a upstream" &&
+>   git commit -q --amend -am "a2: a upstream, and e spliced in" &&
 >   git push -q origin main &&
 >   cd ../monorepo
 ===  e: fetching https://git.example.com/e.git
@@ -99,18 +100,23 @@ $ echo "a in the monorepo" >>vendor/a/file.txt &&
 >   git commit -q -m "m1: a and b in the monorepo"
 ```
 
+![The tree: the monorepo at m1, outlined orange; vendor/a/ at a1, then dashed m1', outlined orange; in it, b/ at b1, then dashed m1', outlined orange, with c/ at c1 in it; and d/ at d1](tree-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/tree-before.drawio.svg"
+ok   tree-before.drawio.svg: a tree of 5 rows
+```
+-->
+
 ## 1. The first run: a conflict in `vendor/a/`
 
-The pull fetches each upstream, and the `.splice` files in them say what
-they have now:
-
-![The monorepo's tree, unchanged; next to it, what the upstreams have: a's at a2, outlined blue, records b/ at b1 with c/ at c1, d/ at d1 and a new e/ at e1; b's at b2, outlined blue, records c/ at c1; c's at c2, d's at d2, both outlined blue, and e's at e1](tree-discovered.drawio.svg)
-
-Then it merges `vendor/a/` first, which conflicts:
+The pull fetches each upstream, and merges `vendor/a/` first, which
+conflicts: *a2* meets the monorepo's own change to it, *m1'*:
 
 ```scrut
 $ git splice pull --recursive vendor/a
-ok   vendor/a fetched (main moved 764d9c4..48a4171)
+ok   vendor/a fetched (main moved 764d9c4..6d12ed8)
 ok   vendor/a/b fetched (main moved f815a3c..be68b59)
 ok   vendor/a/b/c fetched (main moved 8c169b6..94cad5e)
 ok   vendor/a/d fetched (main moved 2c64d15..36c850e)
@@ -123,7 +129,14 @@ CONFLICT (content): Merge conflict in vendor/a/file.txt
 [1]
 ```
 
-![The monorepo's tree, with vendor/a/ outlined red: a conflict waits](tree-a-conflicts.drawio.svg)
+![The tree as before, without colors, and a2, outlined red, with a red dashed arrow into vendor/a/'s m1': merged in, it conflicts](tree-a-conflicts.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/tree-a-conflicts.drawio.svg"
+ok   tree-a-conflicts.drawio.svg: a tree of 5 rows
+```
+-->
 
 ```scrut
 $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
@@ -155,7 +168,16 @@ CONFLICT (content): Merge conflict in vendor/a/b/c/file.txt
 [1]
 ```
 
-![The monorepo's tree: vendor/a/ at a2, b/ at b2 and the new e/ at e1, outlined blue; c/ outlined red: a conflict waits; d/ at d1](tree-c-conflicts.drawio.svg)
+In `c/`, b's upstream's change, the copy *b2'*, meets *c2*:
+
+![The tree: the monorepo at pb, outlined blue; vendor/a/ at a2, outlined blue, then dashed pb', outlined blue; b/ at b2, outlined blue, then dashed pb'; c/ at c1, then dashed b2', and c2, outlined red, with a red dashed arrow into b2'; d/ at d1; and the new e/ at e1, outlined blue](tree-c-conflicts.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/tree-c-conflicts.drawio.svg" pb=HEAD
+ok   tree-c-conflicts.drawio.svg: a tree of 6 rows
+```
+-->
 
 ```scrut
 $ printf "c1: c seed\nc in b's upstream\nc upstream\n" >vendor/a/b/c/file.txt &&
@@ -179,10 +201,17 @@ ok   vendor/a/b: nothing to pull
 ok   vendor/a/b/c: nothing to pull
 ok   vendor/a/d: pulled 36c850e
 ok   vendor/a/e: nothing to pull
-ok   4 pulls made one commit, 3369d33
+ok   4 pulls made one commit, f325a40
 ```
 
-![The monorepo's tree with c/ at c2 and d/ at d2, outlined blue; vendor/a/ at a2, b/ at b2, e/ at e1](tree-pulled.drawio.svg)
+![The tree: the monorepo at p, the one commit for the whole pull; vendor/a/ at a2, then dashed p'; b/ at b2, then dashed p'; c/ at c2, then dashed p'; d/ at d2; e/ at e1; every synced commit, p and the copies of p that move a synced commit below them outlined blue](tree-pulled.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/tree-pulled.drawio.svg" p=HEAD
+ok   tree-pulled.drawio.svg: a tree of 6 rows
+```
+-->
 
 ## 4. The result
 
@@ -192,7 +221,7 @@ One commit for the whole pull, whose message lists each pull in it:
 $ git log --format=%B
 splice: pull vendor/a and the splices in it
 
-splice: pull vendor/a from main at 48a4171
+splice: pull vendor/a from main at 6d12ed8
 splice: pull vendor/a/b from main at be68b59
 splice: pull vendor/a/b/c from main at 94cad5e
 splice: pull vendor/a/d from main at 36c850e
@@ -219,9 +248,9 @@ On branch main
 
 ```scrut
 $ git splice push --all
-ok   vendor/a/b/c: pushed c08c874 to main
-ok   vendor/a/b: pushed 654f4fe to main
+ok   vendor/a/b/c: pushed 0429c46 to main
+ok   vendor/a/b: pushed f700e5a to main
 ok   vendor/a/d: nothing to push
 ok   vendor/a/e: nothing to push
-ok   vendor/a: pushed 9b66348 to main
+ok   vendor/a: pushed 1bedf5a to main
 ```

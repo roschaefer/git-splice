@@ -139,7 +139,7 @@ fn names_commit_on_line(message: &str, label: &str, named: &str) -> bool {
 
 /// Whether subject <subject> is labelled <label>: all of it, or its start up
 /// to a colon.
-fn subject_has_label(subject: &str, label: &str) -> bool {
+pub fn subject_has_label(subject: &str, label: &str) -> bool {
     let subject = subject.split('\t').next().unwrap_or("");
     subject == label || subject.starts_with(&format!("{label}: "))
 }
@@ -251,6 +251,9 @@ impl<'a> Checker<'a> {
             println!("!!   {name}: no diagram inside, or a compressed one: save it with File > Properties > Compressed off");
             return false;
         };
+        if crate::tree::is_tree(&d) {
+            return crate::tree::run(&name, &d, labels);
+        }
         let mut checker = Checker {
             name,
             d: &d,
