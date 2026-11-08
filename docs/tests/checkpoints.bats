@@ -220,6 +220,16 @@ setup_lfs_checkpoint() {
 
 }
 
+assert_local_lfs_change_reaches_upstream() {
+  printf 'version three, trained locally\n' >vendor/a/model.bin
+  git add vendor/a/model.bin
+  git commit -qm 'train model locally'
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  git clone -q "file://$upstream" "$BATS_TEST_TMPDIR/upstream-colleague"
+  [ "$(cat "$BATS_TEST_TMPDIR/upstream-colleague/model.bin")" = 'version three, trained locally' ]
+}
+
 @test "checkpoints: LFS script fetches missing objects from the splice upstream before checkout" {
   setup_lfs_checkpoint
   run splice pull --exec 'bash "$CHECKPOINT_SCRIPT"' vendor/a
@@ -228,6 +238,7 @@ setup_lfs_checkpoint() {
   git push -q origin main
   git clone -q "file://$monorepo.git" "$BATS_TEST_TMPDIR/colleague"
   [ "$(cat "$BATS_TEST_TMPDIR/colleague/vendor/a/model.bin")" = 'version two' ]
+  assert_local_lfs_change_reaches_upstream
 }
 
 @test "checkpoints: scripts run at the repository root and continuation notices configuration or branch changes" {
@@ -343,6 +354,7 @@ setup_lfs_checkpoint() {
   run splice merge vendor/a
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/model.bin)" = 'version two' ]
+  assert_local_lfs_change_reaches_upstream
 }
 
 @test "checkpoints: user-defined reporting ignores fetches and records only applied updates" {
@@ -378,4 +390,36 @@ setup_lfs_checkpoint() {
   run splice pull --continue-from "$payload" --exec 'bash "$CHECKPOINT_SCRIPT"'
   [ "$status" -eq 0 ]
   [ "$(cat vendor/a/model.bin)" = 'version two' ]
+}
+
+
+@test "checkpoints: each splice pushes its new LFS model to its own upstream after checkpoint downloads" {
+  git lfs version >/dev/null 2>&1 || skip 'Git LFS is not installed'
+  load '../09-scenarios/04-upstreams/08-lfs-upstream/02-push-to-upstreams/setup'
+  export GIT_CONFIG_GLOBAL="$BATS_TEST_TMPDIR/gitconfig"
+  export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.file://$monorepo.git.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/monorepo.git
+  git lfs install --skip-repo >/dev/null
+  scenario_push_to_upstreams "$monorepo" "$upstream"
+  export CHECKPOINT_SCRIPT="$BATS_TEST_DIRNAME/../09-scenarios/04-upstreams/08-lfs-upstream/lfs-fetch.sh"
+  cd "$monorepo"
+  run splice pull --all --exec 'bash "$CHECKPOINT_SCRIPT"'
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/model.bin)" = 'weights, version 2' ]
+  [ "$(cat vendor/b/model.bin)" = 'b weights, version 2' ]
+  printf 'a weights, trained locally\n' >vendor/a/model.bin
+  printf 'b weights, trained locally\n' >vendor/b/model.bin
+  git add vendor/a/model.bin vendor/b/model.bin
+  git commit -qm 'train both models locally'
+  run splice push --all
+  [ "$status" -eq 0 ]
+  git clone -q "file://$upstream" "$BATS_TEST_TMPDIR/a-clone"
+  git clone -q "file://$upstream-b.git" "$BATS_TEST_TMPDIR/b-clone"
+  [ "$(cat "$BATS_TEST_TMPDIR/a-clone/model.bin")" = 'a weights, trained locally' ]
+  [ "$(cat "$BATS_TEST_TMPDIR/b-clone/model.bin")" = 'b weights, trained locally' ]
+  [ "$(git -C "$BATS_TEST_TMPDIR/a-clone" ls-tree --name-only HEAD)" = $'.gitattributes\nmodel.bin' ]
+  [ "$(git -C "$BATS_TEST_TMPDIR/b-clone" ls-tree --name-only HEAD)" = $'.gitattributes\nmodel.bin' ]
+  git push -q origin main
+  git clone -q https://git.example.com/monorepo.git "$BATS_TEST_TMPDIR/colleague"
+  [ "$(cat "$BATS_TEST_TMPDIR/colleague/vendor/a/model.bin")" = 'a weights, trained locally' ]
+  [ "$(cat "$BATS_TEST_TMPDIR/colleague/vendor/b/model.bin")" = 'b weights, trained locally' ]
 }

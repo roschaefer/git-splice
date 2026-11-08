@@ -117,6 +117,34 @@ $ git clone -q https://git.example.com/monorepo.git ../colleague && cat ../colle
 weights, version 2
 ```
 
+## Push a local model back upstream
+
+Train the model locally and commit it. This new content does not exist on
+upstream yet:
+
+```scrut
+$ printf 'weights, version 3, trained locally\n' >vendor/a/model.bin && git add vendor/a/model.bin && git commit -qm 'train the model locally'
+```
+
+`git splice push` uploads the new LFS content through Git LFS's ordinary
+`pre-push` hook, together with the splice's rebuilt history:
+
+```scrut
+$ git splice push vendor/a
+ok   vendor/a: pushed d940207 to main
+```
+
+A fresh clone of the splice repository receives the actual model, not just
+its pointer:
+
+```scrut
+$ git clone -q "file://$UPSTREAM" ../upstream-colleague && cat ../upstream-colleague/model.bin
+weights, version 3, trained locally
+```
+
+[Two splices with separate upstreams](../../02-push-to-upstreams/README.md)
+show the same round trip for both models using `git splice push --all`.
+
 The same script works with `git splice fetch --exec 'bash "$LFS_SCRIPT"'`
 followed by `git splice merge`: fetch populates the cache without changing
 checked-out files; merge materializes the update.
