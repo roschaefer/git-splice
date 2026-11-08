@@ -15,6 +15,30 @@ runs both on the same library and monorepo, with Sapling working directly
 in the monorepo's Git repository. It shows where each one keeps the record,
 what that means for a squash merge, and which way changes can go.
 
+The main distinction is where the sync record lives. Sapling understands
+its commit metadata and preserves it through its own rewrites; a Git squash
+can discard it. `.splice` is part of the tree and survives the squash.
+
+| | Sapling `sl subtree` | `git-splice` |
+| --- | --- | --- |
+| Library history in the monorepo | none, one commit per import or merge | none, one commit per sync |
+| Where the sync point is recorded | the commit's metadata, an extra header to Git | `.splice`, a file in the folder |
+| After a squash merge or `git rebase` | gone, an older record is used, or the merge aborts if there's none | kept |
+| Changes back to the library | by hand, a patch per commit | `git splice push` |
+| `log` and `blame` into the library | `sl log`, `sl blame`, from the import | a second `git log` on the library's history |
+| Two folders of one repository | `sl subtree copy` and `merge` | not supported |
+| Tools | Sapling | Git |
+
+Sapling also supports branching folders within one repository and following
+history across those copies with `sl log` and `sl blame`. A splice connects
+a folder to a separate repository. Sapling's metadata avoids conflicts in
+a sync-state file; it does not prevent conflicts in the code.
+
+The commands below use the Sapling version pinned in
+[`flake.nix`](../../../flake.nix). External `merge --url` and `graft --url`
+are experimental in that version. Native integration ideas are in
+[Going forward](../../08-going-forward/04-sapling.md).
+
 The setup: `https://git.example.com/lib.git`, a library with 30 commits,
 and a monorepo with an app. [How these pages run](../01-git/README.md).
 
@@ -425,8 +449,7 @@ On branch main
 ```
 
 `sl amend` leaves Git's index behind: Git still has the file as it was
-before the amend, staged
-([sapling#1316](https://github.com/facebook/sapling/issues/1316)):
+before the amend, staged:
 
 ```scrut
 $ echo "more" >>vendor/lib/src/parse.txt && sl amend -q && git status --short
@@ -467,50 +490,3 @@ On branch main
 
   up to date  vendor/lib
 ```
-
-## Where Sapling is better
-
-- **Folders of one repository branch and merge.** A stable copy of a
-  folder, merged forward later, needs no second repository
-  ([Branch a folder](#branch-a-folder)).
-- **`sl log` and `sl blame` reach the library's commits** from the import,
-  without the library's history in the monorepo
-  ([`sl log`](#sl-log-reaches-the-librarys-commits)).
-- **Nothing to conflict on.** Two branches that each merge the library
-  record it in their own commits. `.splice` is a file, so two branches
-  that pull different library commits conflict in it.
-- **Cherry-picks across the boundary.** `sl subtree graft` brings
-  single commits from another folder, and, marked experimental, from the
-  external repository.
-
-## Where Sapling is different
-
-- **In the commit, not in the tree.** The record is commit metadata, which
-  Git keeps as an extra header. That's the
-  [weak parent](../../08-going-forward/05-weak-parents.md) that Git
-  lacks, with the library's URL and the folder included. Sapling's own
-  rewrites carry it along, but a squash merge or a `git rebase` drops it.
-- **Changes come in, they don't go out.** There's no `push`: sending a fix
-  back is a patch, by hand, for each commit. Meta's post announces a
-  "soft link" to external Git repositories as future work.
-- **External repositories are experimental.** `sl subtree merge --url`
-  and `sl subtree graft --url` are marked experimental in Sapling's help;
-  `import` isn't.
-- **Searching for the record.** A merge walks back through the folder's
-  history to find the newest record. `git-splice` reads one file.
-- **Sapling, not Git.** The records are written by `sl`, in a Sapling
-  repository or, as here, in a Git repository that `sl` works in. Plain
-  Git can't create or read them.
-
-## In short
-
-| | Sapling `sl subtree` | `git-splice` |
-| --- | --- | --- |
-| Library history in the monorepo | none, one commit per import or merge | none, one commit per sync |
-| Where the merge base is recorded | the commit's metadata, an extra header to Git | `.splice`, a file in the folder |
-| After a squash merge or `git rebase` | gone, an older record is used, or the merge aborts if there's none | kept |
-| Changes back to the library | by hand, a patch per commit | `git splice push` |
-| `log` and `blame` into the library | `sl log`, `sl blame`, from the import | a second `git log` on the library's history |
-| Two folders of one repository | `sl subtree copy` and `merge` | not supported |
-| Tools | Sapling | Git |
-| Best for | branching folders in a monorepo, vendoring code that rarely goes back | a library with its own repository, changed in the monorepo |
