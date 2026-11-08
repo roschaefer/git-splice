@@ -1,61 +1,61 @@
 # Export tools compared
 
-Copybara and Meta's ShipIt are export tools: one repository is the
-source of truth, usually an internal monorepo. A public pull request is
-imported and submitted there, and the change comes back to the public
-repository as a different commit. The pull request is closed rather than
-marked as merged.
+Copybara and Meta's ShipIt move changes between repositories while keeping
+one source of truth. In the workflows below, that is an internal monorepo:
+public contributions must land there before they are exported back to GitHub.
 
 ## Copybara
 
-[Copybara requires one repository to be authoritative](https://github.com/google/copybara#readme).
-For example, XLA's
-[Copybara notes](https://github.com/openxla/xla/blob/main/docs/copybara.md#pr-merge-status-and-diff-inconsistencies)
-explain that the original pull request is closed, while a separate commit
-is applied publicly.
+[Copybara requires one authoritative repository](https://github.com/google/copybara#readme).
+XLA's [contribution notes](https://github.com/openxla/xla/blob/main/docs/copybara.md#pr-merge-status-and-diff-inconsistencies)
+explain the consequence: a pull request is tested and submitted internally,
+then exported as a separate commit. GitHub shows the PR as closed, not merged;
+transformations can also change its diff.
 
 ## Meta's ShipIt
 
-This repository splices
-[scrut](https://github.com/facebookincubator/scrut) into `scrut/`, so we
-see Meta's tools from outside:
+We use the [fork workflow](../../04-advanced-workflows/02-fork.md) to contribute
+to [scrut](https://github.com/facebookincubator/scrut), which is spliced into
+this repository's `scrut/` folder. In [PR #61](https://github.com/facebookincubator/scrut/pull/61#issuecomment-6579502219),
+the maintainer explained that merging on GitHub before accepting the change internally could leave two
+conflicting sources of truth. They accept it internally first and let
+automation export the result.
 
-- **The source of truth is internal.** scrut's commit messages name a
-  `scrut/BUCK` file and dependencies in `fbsource//third-party`, which
-  aren't on GitHub, and say that `Cargo.toml` is generated from them.
-- **Public commits are exports**, except for the re-syncs below. They
-  end with `Differential Revision: D…`, an internal review, and
-  `fbshipit-source-id: …`, the internal commit it came from. The committer
-  is a bot, `meta-codesync`, and the author keeps their name.
-- **A contributor's pull request is imported, not merged.** The bot
-  comments that the pull request was "imported" into an internal review,
-  and later "merged this pull request in" a new commit, with
-  `Pull Request resolved: …/pull/48` in its message
-  ([#48](https://github.com/facebookincubator/scrut/pull/48)). On GitHub,
-  the pull request is closed.
-- **Drift is fixed by hand.** When the two sides differ, the bot opens a
-  pull request to "re-sync with internal repository", to be merged on
-  GitHub with the export turned off
-  ([#59](https://github.com/facebookincubator/scrut/pull/59)).
+<div align="center">
 
-The tool behind this was [FBShipIt](https://github.com/facebook/fbshipit),
-now archived: it maps a folder of the internal repository to the
-public one and leaves out internal files. `meta-codesync` likely
-continues it. The internal repository is likely on
-[Sapling](../03-vcs/01-sapling.md), Meta's version control system, whose own
-public commits are exported the same way. `fbshipit-source-id` is a sync
-point as text in the commit message, like `cherry-pick -x`
-([weak parents](../../08-going-forward/05-weak-parents.md)).
+![A GitHub pull request is imported into a private Meta review, lands on internal main, and is exported as a new commit on public main. The GitHub PR is closed rather than merged.](shipit-contribution.drawio.svg)
 
-A contribution to scrut that adds a Rust dependency also needs one in
-Meta's `third-party` folder.
+</div>
+
+For contributors, the review link is private, and the result is a separate
+public commit rather than a GitHub merge. Both
+[#61](https://github.com/facebookincubator/scrut/pull/61) and
+[#84](https://github.com/facebookincubator/scrut/pull/84) were closed this way,
+with bot comments linking to the exported commits. Acceptance is visible;
+the internal review is not. The
+[exported commit for #84](https://github.com/facebookincubator/scrut/commit/929821d61933114c714b8ac2b2b51a38a6e161bf)
+keeps the contributor as author and records `Differential Revision` and
+`fbshipit-source-id` in its message: links back to the internal review and
+source commit ([sync points as text](../../08-going-forward/05-weak-parents.md)).
+
+The internal build also constrains public contributions. In
+[#84](https://github.com/facebookincubator/scrut/pull/84#issuecomment-6630592515),
+a crate upgrade needed Meta's internal dependency process and could affect
+more than scrut. The maintainer initially doubted it could land, but
+[ultimately accepted it](https://github.com/facebookincubator/scrut/pull/84#issuecomment-6637761960).
+When the repositories drift, a separate
+[re-sync PR](https://github.com/facebookincubator/scrut/pull/59) can require a
+GitHub merge with exports paused.
 
 ## With git-splice
 
-The monorepo can pull the contributor's branch for its own tests without
-publishing anything. The maintainers then merge the pull request in the
-public repository, and the monorepo pulls the resulting `main`. This page
-shows that workflow; it doesn't run Copybara or ShipIt.
+The public library can instead be authoritative for its own code. The
+monorepo pulls a contributor's branch to test it with the app, without
+publishing anything. Maintainers merge the PR on GitHub, then the monorepo
+pulls the resulting `main`. Internal testing and dependency requirements
+still apply; the library's acceptance happens in public.
+
+The example below runs this workflow, not Copybara or ShipIt.
 
 The setup: `https://git.example.com/lib.git`, a public library with 30
 commits, and a monorepo with an app. [How these pages run](../01-git/README.md).
