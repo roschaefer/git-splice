@@ -68,8 +68,7 @@ On branch feature
   unchanged, no upstream branch  vendor/pkg-a
 ```
 
-The monorepo's `feature` branch has moved ahead of `main`. Rebuilding the
-changed splice would put that change on top of upstream `main`:
+The changed splice is ready to publish:
 
 <div align="center">
 
@@ -92,6 +91,5 @@ ok   vendor/pkg-b: pushed 5023101 to feature
 
 </div>
 
-The monorepo's feature branch can therefore carry changes across several
-repositories. Each upstream gets a matching feature branch only when it
-needs one.
+See [branch scenarios](../09-scenarios/03-branches-and-teamwork/02-feature-branch-from-main/README.md)
+for squash merges, shared branches and tracked branches.

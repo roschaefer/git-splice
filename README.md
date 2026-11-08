@@ -18,11 +18,8 @@ all you get is its releases.
 
 ## The common workaround
 
-Fork the library and point your package manager at the fork. The fix goes
-back to the library as a pull request, and its releases come in through
-the fork. But now you maintain two repositories: the fix lives outside the
-monorepo, not versioned and tested with the app that needs it. Submodules
-and side-by-side checkouts split the work the same way.
+A fork lets you send fixes back, but leaves the library outside the
+monorepo where you build and test the app.
 
 <div align="center">
 
@@ -32,11 +29,8 @@ and side-by-side checkouts split the work the same way.
 
 ## The solution
 
-Keep the fork, but work on it from the monorepo. The library becomes a
-folder next to the app: one commit can change both, tested together.
-`git splice push` sends the library's part of your commits to the fork,
-and `git splice pull` merges the fork's releases back in. The fork and the
-original keep their own histories, reviews and CI.
+Work on the library as a folder next to the app. One commit can change
+both, tested together; each repository keeps its own history, reviews and CI.
 
 <div align="center">
 
@@ -44,33 +38,16 @@ original keep their own histories, reviews and CI.
 
 </div>
 
-## No shared history
+## Getting started
 
-The monorepo and the library share no commits: only file changes cross
-the splice. `push` rebuilds yours as library commits, and `pull` brings
-theirs in as one monorepo commit. So you can compose repositories as you
-like, and everyone else keeps working in each one with plain `git`.
+[Install `git-splice`](docs/01-getting-started/README.md), try the
+[sandbox](docs/01-getting-started/01-sandbox.md), or follow the
+[walkthrough](docs/01-getting-started/02-walkthrough.md).
 
-It's worktree friendly, too. The library's own commits are fetched into
-the monorepo's repository, so a linked worktree can check them out: you
-work on two unrelated histories side by side, in one repository.
-
-## Not only libraries
-
-A splice works for any repositories you change together:
-
-- **Instead of submodules:** `git splice clone --from-submodule` turns a
-  submodule into a folder. No more gitlinks to bump, and a change across
-  the boundary is one commit.
-- **Services split across repositories:** change an API and its clients
-  in one commit, test them together, and push each part to its own
-  repository.
-- **Each repository keeps its pipeline:** your pushes arrive as ordinary
-  commits, so GitHub Actions, reviews and releases run in each repository
-  as before.
-- **Private monorepo, public folders:** open-source part of your code
-  as its own repository. `push` sends only the folder's changes, never
-  the monorepo's history, so the rest of the files stay private.
+Use it for libraries, services, or public folders in a private monorepo.
+Existing submodules can become folders with
+[`git splice clone --from-submodule`](docs/06-command-reference/01-clone.md).
+Only the folder's changes are published; the monorepo's history stays separate.
 
 ## How it works
 
@@ -88,12 +65,8 @@ $ git splice clone 'https://github.com/<you>/lib.git' lib
 ok   lib: cloned e849115 from main
 ```
 
-The folder is now a splice: a folder of the monorepo that is also the
-library. A committed `.splice` file inside it records which repository,
-and the library commit the folder last matched.
-
-From there, both sides move on. Say you fix a bug in the library while working
-on the app, and the fork takes in a release of the original meanwhile:
+The folder's committed [`.splice` file](docs/03-concepts/README.md)
+records its upstream and last synced commit. Both sides can now change:
 
 <!--
 ```scrut
@@ -107,10 +80,8 @@ $ source "$TESTDIR/docs/readme/both-sides-move-on.sh"
 
 </div>
 
-At *a*, the *boundary*, you spliced in *k* (`e849115`). To splice out,
-`git-splice` rebuilds the commits since *a* on top of *k*. *c* never touched
-`lib/`, so it's left out. The result is *d'*, *ours*, a library commit
-ready for an ordinary three-way merge with *theirs* from their *base*:
+`push` rebuilds only the commits that changed `lib/`, in the library's
+layout. `status` compares that rebuild with the fetched upstream:
 
 ```scrut
 $ git splice status
@@ -119,34 +90,18 @@ On branch main
   ahead 2, behind 3  lib
 ```
 
-`git splice pull lib` merges *l*, *m* and *n* in, as one ordinary monorepo
-commit. Then `git splice push lib` sends *b'* and *d'*, and the pull,
-rebuilt as their merge with *n*.
+`git splice pull lib` merges upstream changes into one monorepo commit;
+`git splice push lib` publishes the rebuilt library history.
+See the [sync model](docs/03-concepts/02-sync-model.md) for the details,
+and [upstream worktrees](docs/06-command-reference/02-fetch.md#looking-at-an-upstream)
+to work directly on the library's history.
 
 ## Why not X?
 
-The comparisons of [Git's own tools](docs/05-comparisons/01-git/README.md)
-and [third-party tools](docs/05-comparisons/02-third-party/README.md) take
-one example through each of these tools until it hits the tool's pain
-points, then show how `git-splice` handles them in the same example.
-
-- [`git submodule`](docs/05-comparisons/01-git/01-git-submodule.md): a checkout of the
-  monorepo is incomplete. The library stays a repository of its own inside
-  it, which every clone, `git status` and fix has to handle separately.
-- [`git subtree`](docs/05-comparisons/01-git/02-git-subtree.md): syncing pollutes your
-  history with merges, and can bring the library's whole history along.
-- [`git-subrepo`](docs/05-comparisons/02-third-party/01-git-subrepo.md): it records
-  each push in a commit of your monorepo, a redundant commit that a squash
-  merge or rebase makes invalid.
-- [Josh](docs/05-comparisons/02-third-party/02-josh.md): the library has to share
-  its history with the monorepo, so it fits repositories that are meant
-  to be one, not ones with histories of their own.
-
-## Getting started
-
-Head over to the [documentation](https://roschaefer.github.io/git-splice/docs/getting-started/)
-to install `git-splice`, try it in a sandbox, and walk through every
-command.
+Compare the same workflow with
+[Git's own tools](docs/05-comparisons/01-git/README.md) and
+[third-party tools](docs/05-comparisons/02-third-party/README.md),
+including `git submodule`, `git subtree`, `git-subrepo` and Josh.
 
 ## Contribute
 
