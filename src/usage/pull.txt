@@ -67,8 +67,9 @@ OPTIONS
 
     --recursive
         Also pulls every splice below each one given, and any a pull above
-        adds. A conflict stops it: resolve it, commit, and run it again,
-        which skips the splices already pulled.
+        adds, and makes one commit of all these pulls. A conflict stops it:
+        resolve it, commit, and run it again, which skips the splices
+        already pulled.
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#--recursive
 

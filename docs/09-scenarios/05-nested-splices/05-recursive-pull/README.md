@@ -17,12 +17,12 @@ goes through the tree twice:
 
 The parent goes first, since its upstream records a version of each
 child: a newer base for the child's merge, which then doesn't ask a
-question the parent's merge already answered. Each merge is a commit of
-the monorepo, where the parent's folder holds the child's: its new
-commit is in the parent at once, and nothing has to travel up. The
-first conflict stops the pull. Once it's resolved and committed, the
-same command again goes on from there: the splices pulled already have
-nothing left to pull.
+question the parent's merge already answered. The first conflict stops
+the pull. Once it's resolved and committed, the same command again goes
+on from there: the splices pulled already have nothing left to pull.
+When it's done, the monorepo gets one commit for the whole pull: the
+change to `vendor/a/`, with everything below it. Each splice's history,
+rebuilt from the monorepo's, has that commit on top of its own.
 
 ## The tree
 
@@ -179,32 +179,39 @@ ok   vendor/a/b: nothing to pull
 ok   vendor/a/b/c: nothing to pull
 ok   vendor/a/d: pulled 36c850e
 ok   vendor/a/e: nothing to pull
+ok   4 pulls made one commit, 3369d33
 ```
 
 ![The monorepo's tree with c/ at c2 and d/ at d2, outlined blue; vendor/a/ at a2, b/ at b2, e/ at e1](tree-pulled.drawio.svg)
 
 ## 4. The result
 
-One commit per splice pulled:
+One commit for the whole pull, whose message lists each pull in it:
 
 ```scrut
-$ git log --format=%s
-splice: pull vendor/a/d from main at 36c850e
-splice: pull vendor/a/b/c from main at 94cad5e
-splice: pull vendor/a/b from main at be68b59
+$ git log --format=%B
+splice: pull vendor/a and the splices in it
+
 splice: pull vendor/a from main at 48a4171
+splice: pull vendor/a/b from main at be68b59
+splice: pull vendor/a/b/c from main at 94cad5e
+splice: pull vendor/a/d from main at 36c850e
+
 m1: a and b in the monorepo
+
 add vendor/a
+
 initial commit
+
 ```
 
 ```scrut
 $ git splice status
 On branch main
 
-  ahead 5     vendor/a
-  ahead 3     vendor/a/b
-  ahead 2     vendor/a/b/c
+  ahead 2     vendor/a
+  ahead 2     vendor/a/b
+  ahead 1     vendor/a/b/c
 
   up to date  vendor/a/d
   up to date  vendor/a/e
@@ -212,9 +219,9 @@ On branch main
 
 ```scrut
 $ git splice push --all
-ok   vendor/a/b/c: pushed fe91e6c to main
-ok   vendor/a/b: pushed d9079b7 to main
+ok   vendor/a/b/c: pushed c08c874 to main
+ok   vendor/a/b: pushed 654f4fe to main
 ok   vendor/a/d: nothing to push
 ok   vendor/a/e: nothing to push
-ok   vendor/a: pushed b5e2028 to main
+ok   vendor/a: pushed 9b66348 to main
 ```
