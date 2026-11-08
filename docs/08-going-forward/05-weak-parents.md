@@ -116,7 +116,7 @@ repositories use them today:
 
 - **Sapling** records each `sl subtree` import and merge in a header,
   `test_subtree`, with the library's URL, its commit and the folder
-  ([Sapling compared](../05-comparisons/03-vcs/01-sapling.md#import-the-library)).
+  ([Sapling compared](../05-comparisons/03-vcs/01-sapling.md#where-the-sync-record-lives)).
   That's all three facts a splice needs ([below](#what-a-splice-would-need)).
 - **jj** writes a `change-id` header in every commit, the identity a
   change keeps across rewrites. This is change identity, not a folder's sync
@@ -141,7 +141,7 @@ commands, which copy the header along: `sl fold` keeps Sapling's record,
 and jj keeps the change id. Rewrites with Git, or a squash merge on a
 forge, lose it. Then Sapling's next merge starts from an older record,
 and a file the library removed
-[comes back](../05-comparisons/03-vcs/01-sapling.md#the-next-release-removes-the-file-again).
+[comes back](../09-scenarios/09-vcs-compatibility/01-sapling-metadata/README.md).
 `git-splice` works with plain Git and squash-merged pull requests, where
 only the files survive every rewrite. So the sync point is in a file.
 
