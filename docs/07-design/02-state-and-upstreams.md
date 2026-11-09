@@ -37,12 +37,17 @@ unfinished edit cannot silently change the relationship they use.
 
 ### References must survive moves and rewrites
 
-A stored folder path would need updating whenever the folder moves;
-a stored monorepo commit ID would become stale when that history is
-rewritten. The file therefore travels with the folder and records an
-upstream commit instead. The nesting principle also rules out storing
-a path or commit specific to the outermost monorepo: that reference would
-lose its meaning in a standalone clone of the enclosing upstream.
+The minimum-state principle applies to paths too: `.splice` already
+identifies its folder by living inside it. Recording that path separately,
+as `.gitmodules` does for submodules, creates another value to keep in sync.
+A move can leave that record stale. Keeping `.splice` inside the splice
+lets ordinary folder moves carry the relationship without a second update.
+
+A stored monorepo commit ID would likewise become stale when history is
+rewritten, so the file records an upstream commit instead. The nesting
+principle also rules out storing a path or commit specific to the outermost
+monorepo: that reference would lose its meaning in a standalone clone of
+the enclosing upstream.
 
 ### Reuse an available, established config format
 
