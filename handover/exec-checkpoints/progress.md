@@ -369,3 +369,34 @@ execution policy, option precedence, recursive scope, incoming-source lookup,
 continuation queue and verification. The implementation commit is `2503c47`.
 This deliberately supersedes #435's original "only data" proposal, as requested
 by the user, without adding new hook phases or a built-in LFS command.
+
+## Configured LFS walkthrough and structured logging
+
+The user requested updating the LFS prototype to exercise committed hooks,
+adding a logging scenario, and linking all relevant foundations and scenarios
+from the PR for later extraction of smaller changes. Implementation/documentation
+commit: `e6e59fb`.
+
+- Both LFS walkthroughs copy the downloader to `.splice-hooks/lfs-fetch.sh` and
+  commit it with root `.spliceconfig`. Pull/push no longer repeat --exec.
+- The single-splice walkthrough also publishes version 4 from a fresh upstream
+  clone, demonstrates plain fetch leaving version 3 checked out, then plain
+  merge materializing version 4. The colleague clone contains the handler and
+  committed default. Test author identity is explicit for the upstream commit.
+- The automatic-LFS Bats test now copies the handler into the repository and
+  unsets CHECKPOINT_SCRIPT before pull/push, checking independence from the
+  scenario-only script-path environment variable.
+- `05-exec-report/logging.md` appends full payloads as JSON lines across fetch,
+  pull and push, showing five events and per-invocation sequence numbers. A
+  Bats regression checks event ordering, repository/continuation fields,
+  successful publication and a clean worktree. No core Rust changed.
+- The complete code/scenario navigation map is saved in `review-map.md` and
+  added to the PR description using stable e6e59fb permalinks. It identifies
+  context first-argument entrypoints, the context type, payload/event/result
+  types, separate operation-progress queues, config implementation, LFS,
+  logging/report/history-edit examples, and the live pause/tree-check/resume
+  walkthrough (including its intermediate and final diagrams).
+- Verification: both targeted Bats cases passed; full documentation checks
+  passed for 154 documents / 1,869 testcases, 180 label pages and 117 placements.
+  Full core tests were not rerun for these documentation/scenario-only changes.
+  Documentation log: `/tmp/git-splice-hook-scenarios-docs.log`.
