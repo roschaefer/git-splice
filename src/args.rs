@@ -2,8 +2,15 @@
 
 use crate::util::*;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Args {
+    #[serde(default)]
+    pub configuration: Option<crate::config::Invocation>,
+    #[serde(skip)]
+    pub exec: String,
+    #[serde(skip)]
+    pub continue_from: String,
     pub all: bool,
     pub upstream: String,
     pub rebuilt_commit: String,
@@ -56,6 +63,11 @@ impl Args {
 /// e.g. "--merge -m". -h and --help print <usage> and end the command.
 /// Everything after `--` is a path.
 pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
+    let cli = parse_cli_args(usage, allowed, argv)?;
+    crate::config::initialize(usage, allowed, cli)
+}
+
+pub(crate) fn parse_cli_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
     let allowed: Vec<&str> = allowed.split_whitespace().collect();
     let refuse = |option: &str| -> Res<()> {
         if allowed.contains(&option) {
@@ -83,6 +95,8 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                 "--rebuilt-commit",
                 "--branch",
                 "--message-template",
+                "--exec",
+                "--continue-from",
             ]
             .iter()
             .any(|o| arg == *o || arg.starts_with(&format!("{o}="))) =>
@@ -96,6 +110,16 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                     argv.get(i).cloned().unwrap_or_default()
                 };
                 match option {
+                    "--exec" | "--continue-from" => {
+                        if value.is_empty() {
+                            return die(format!("{option} needs a value"));
+                        }
+                        if option == "--exec" {
+                            args.exec = value;
+                        } else {
+                            args.continue_from = value;
+                        }
+                    }
                     "--upstream" => {
                         if value.is_empty() {
                             return die("--upstream needs an upstream's name");

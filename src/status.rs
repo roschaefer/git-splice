@@ -1,6 +1,7 @@
 //! git splice status.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::repo::*;
 use crate::util::*;
 
@@ -203,8 +204,8 @@ fn print_rows(rows: &[Row]) {
     }
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
-    let mut repo = Repo::new(parse_args(USAGE, "--upstream", argv)?);
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
+    let mut repo = Repo::new(context, parse_args(USAGE, "--upstream", argv)?);
     repo.open()?;
     if repo.all_paths.is_empty() && repo.args.paths.is_empty() {
         log_ok("no splices -- 'git splice clone <url> <path>' adds one");

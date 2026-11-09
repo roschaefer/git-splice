@@ -1,6 +1,7 @@
 //! git splice fetch.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::repo::*;
 use crate::util::*;
 
@@ -192,13 +193,14 @@ fn fetch_shared_upstream(
 /// Paths whose fetch failed.
 pub type FetchFailures = Vec<String>;
 
-impl Repo {
+impl Repo<'_> {
     /// Fetches the upstreams of every given (distinct) entry in parallel, each
     /// (path, name) of an upstream of a splice, and each upstream once: splices
     /// with the same URL share their fetched refs, and two fetches into the
     /// same refs would fail on each other's locks. Prints what there is to say
     /// about each entry, in their order, and returns the paths that failed.
     pub fn fetch_all(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchFailures> {
+        let original_args = self.args.clone();
         // Before the fetches start in parallel, which would race to record keys.
         let mut groups: Vec<(String, String, Vec<usize>)> = Vec::new();
         let mut new_keys = Vec::new();
@@ -230,6 +232,7 @@ impl Repo {
             let mut members = Vec::new();
             for index in indexes {
                 let (path, name) = &entries[index];
+                self.configure(path)?;
                 let from = if self.several_upstreams(path) {
                     format!(" from {name}")
                 } else {
@@ -294,6 +297,30 @@ impl Repo {
             }
         });
 
+        if self.context.checkpointing {
+            if let Some(invocation) = self.args.configuration.clone() {
+                for (key, _, _, members) in &jobs {
+                    for member in members {
+                        let (path, name) = &entries[member.index];
+                        let pin = upstream_config(path, name, "default-pin");
+                        let reference = if !member.target_ref.is_empty() {
+                            member.target_ref.clone()
+                        } else if is_commit_id(&pin) {
+                            pin
+                        } else {
+                            format!("refs/splices/{key}/tags/{pin}")
+                        };
+                        if self
+                            .context
+                            .configuration
+                            .has_hooks(&invocation, &reference)?
+                        {
+                            crate::util::checkpoint_output(true);
+                        }
+                    }
+                }
+            }
+        }
         let mut failures = Vec::new();
         for ((path, _), report) in entries.iter().zip(&reports) {
             if !report.out.is_empty() {
@@ -311,6 +338,32 @@ impl Repo {
                 self.forget_upstream_key(key)?;
             }
         }
+        if self.context.checkpointing {
+            for (key, url, _, members) in &jobs {
+                for member in members {
+                    let (path, name) = &entries[member.index];
+                    let pin = upstream_config(path, name, "default-pin");
+                    let reference = if !member.target_ref.is_empty() {
+                        member.target_ref.clone()
+                    } else if is_commit_id(&pin) {
+                        pin
+                    } else {
+                        format!("refs/splices/{key}/tags/{pin}")
+                    };
+                    self.fetch_checkpoint.push(crate::checkpoint::Fetched {
+                        path: path.clone(),
+                        upstream: name.clone(),
+                        url: url.clone(),
+                        reference: reference.clone(),
+                        old: member.old_sha.clone(),
+                        new: commit_of(&reference),
+                        synced: splice_config(path, "commit", "HEAD"),
+                        failed: reports[member.index].failed,
+                    });
+                }
+            }
+        }
+        self.args = original_args;
         Ok(failures)
     }
 
@@ -335,29 +388,51 @@ impl Repo {
     }
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, "--upstream --branch --track --no-track", argv)?;
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
+    let args = parse_args(
+        USAGE,
+        "--upstream --branch --track --no-track --exec --continue-from",
+        argv,
+    )?;
+    if !args.has_flag("--rebase") || !args.exec.is_empty() || !args.continue_from.is_empty() {
+        return crate::checkpoint::run(context, "fetch", args);
+    }
     args.require_branch_for_track()?;
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     repo.open()?;
+    let (branch, failures) = fetch_for_command(&mut repo)?;
+    finish_fetch(&mut repo, &branch, &failures)
+}
+
+pub(crate) fn fetch_for_command(repo: &mut Repo) -> Res<(String, FetchFailures)> {
     repo.select_paths(Kind::Overview, "fetch")?;
     let branch = current_branch()?;
     let selected = repo.selected.clone();
-    let track = repo.args.has_flag("--track");
-    let no_track = repo.args.has_flag("--no-track");
-    let upstream = repo.args.upstream.clone();
-
-    // Tracking is per upstream in use, so only that one is fetched.
-    let entries = if !upstream.is_empty() || track || no_track {
-        repo.use_upstreams(&upstream, &selected)?;
-        repo.used_upstream_entry(&selected)
-    } else {
-        repo.every_upstream_entry(&selected)?
-    };
+    let mut entries = Vec::new();
+    for path in &selected {
+        repo.configure(path)?;
+        let upstream = repo.args.upstream.clone();
+        if !upstream.is_empty() || repo.args.has_flag("--track") || repo.args.has_flag("--no-track")
+        {
+            repo.use_upstreams(&upstream, &[path.to_string()])?;
+            entries.extend(repo.used_upstream_entry(&[path.to_string()]));
+        } else {
+            entries.extend(repo.every_upstream_entry(&[path.to_string()])?);
+        }
+    }
+    repo.configure("")?;
     let fetch_failures = repo.fetch_all(&branch, &entries)?;
-    let mut failures = fetch_failures.clone();
+    Ok((branch, fetch_failures))
+}
+
+pub(crate) fn finish_fetch(repo: &mut Repo, branch: &str, fetch_failures: &[String]) -> Res<i32> {
+    let selected = repo.selected.clone();
+    let mut failures = fetch_failures.to_vec();
 
     for path in &selected {
+        repo.configure(path)?;
+        let track = repo.args.has_flag("--track");
+        let no_track = repo.args.has_flag("--no-track");
         if fetch_failures.contains(path) {
             continue;
         }
@@ -368,7 +443,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
                 .q()
                 .ok()
             {
-                match repo.track_branch(path, &branch, &wanted) {
+                match repo.track_branch(path, branch, &wanted) {
                     Err(Fail::Hard) => return Err(Fail::Hard),
                     Err(_) => failures.push(path.clone()),
                     Ok(()) => {}
@@ -380,7 +455,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
                 failures.push(path.clone());
             }
         } else if no_track {
-            match repo.untrack_branch(path, &branch) {
+            match repo.untrack_branch(path, branch) {
                 Err(Fail::Hard) => return Err(Fail::Hard),
                 Err(_) => failures.push(path.clone()),
                 Ok(()) => {}

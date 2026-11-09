@@ -1,6 +1,7 @@
 //! git splice clone.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::fetch::{fetch_by_id, fetch_upstream};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
@@ -67,7 +68,7 @@ fn fetch_new(url: &str, prefix: &str, path: &str) -> Res<()> {
     Ok(())
 }
 
-impl Repo {
+impl Repo<'_> {
     /// Fetches <url>, a new upstream of a splice to be created at <path>, and
     /// registers it as that splice's default upstream.
     fn register_new_upstream(&mut self, path: &str, url: &str) -> Res<()> {
@@ -516,7 +517,7 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
     ))
 }
 
-fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
+fn clone_url(repo: &mut Repo) -> Res<i32> {
     let url = repo.args.paths[0].clone();
     if url.is_empty() {
         eprint_text(USAGE);
@@ -533,6 +534,8 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     require_usable_splice_path(&path, "choose another folder name")?;
 
     repo.open()?;
+    repo.configure(&path)?;
+    let merge = repo.args.has_flag("--merge");
     repo.require_message_template(Message {
         command: "clone",
         upstream: KNOWN,
@@ -656,6 +659,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     require_usable_splice_path(&path, "rename the submodule's folder")?;
 
     repo.open()?;
+    repo.configure(&path)?;
     repo.require_message_template(Message {
         command: "clone",
         new: KNOWN,
@@ -959,7 +963,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     Ok(0)
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(
         USAGE,
         "--merge --from-submodule --recursive -m --message-template",
@@ -976,7 +980,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
             return die("-m names one commit, and --recursive makes one per submodule");
         }
         let path = args.paths[0].clone();
-        return clone_from_submodule(&mut Repo::new(args), &path, recursive);
+        return clone_from_submodule(&mut Repo::new(context, args), &path, recursive);
     }
     if recursive {
         return die(
@@ -984,5 +988,5 @@ pub fn run(argv: &[String]) -> Res<i32> {
         );
     }
     args.require(USAGE, "clone", 1, 2)?;
-    clone_url(&mut Repo::new(args), merge)
+    clone_url(&mut Repo::new(context, args))
 }

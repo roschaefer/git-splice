@@ -28,6 +28,8 @@ ref:
 ```scrut
 $ sed -n 's/.*trace: built-in: //p' ../trace
 git version
+git rev-parse --verify --quiet 'HEAD^{commit}'
+git rev-parse --verify 5b7d989573dd8141ae93e66e345f9aed47fcda03:.spliceconfig
 git rev-parse --show-toplevel
 git rev-parse --quiet --verify 'HEAD^{commit}'
 git hash-object -t tree --stdin
@@ -38,11 +40,16 @@ git config --local -z --get-regexp '^splice\..*\.url$'
 git check-ref-format refs/splices/lib/heads/main
 git symbolic-ref --quiet --short HEAD
 git config --local --get-all branch.main.splice
+git rev-parse --verify --quiet 'HEAD^{commit}'
+git rev-parse --verify 5b7d989573dd8141ae93e66e345f9aed47fcda03:.spliceconfig
+git rev-parse --verify 5b7d989573dd8141ae93e66e345f9aed47fcda03:lib/.spliceconfig
 git symbolic-ref --quiet --short refs/remotes/origin/HEAD
 git config --get init.defaultBranch
 git config --blob HEAD:lib/.splice --get upstream.origin.default-pin
 git config --blob HEAD:lib/.splice --get upstream.origin.default-branch
+git rev-parse --verify --quiet 'HEAD^{commit}'
 git status --porcelain -z --no-renames --untracked-files=normal -- ':(top,literal)lib'
+git rev-parse --verify --quiet 'HEAD^{commit}'
 git config --blob HEAD:lib/.splice --get upstream.origin.default-pin
 git config --blob HEAD:lib/.splice --get upstream.origin.default-branch
 git config --blob HEAD:lib/.splice --get splice.commit

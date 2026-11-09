@@ -1,6 +1,7 @@
 //! git splice init.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::message::{self, Message};
 use crate::repo::*;
 use crate::state::*;
@@ -26,7 +27,7 @@ fn empty_upstream_default_branch(url: &str) -> String {
         .unwrap_or_default()
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(USAGE, "-m --message-template", argv)?;
     args.require(USAGE, "init", 2, 2)?;
     if args.paths[0].is_empty() || args.paths[1].is_empty() {
@@ -37,8 +38,9 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let url = args.paths[1].clone();
     require_usable_splice_path(&path, "rename the folder")?;
 
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     repo.open()?;
+    repo.configure(&path)?;
     repo.require_message_template(Message {
         command: "init",
         ..Message::default()

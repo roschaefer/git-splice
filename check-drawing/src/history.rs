@@ -75,7 +75,8 @@ fn is_hash(rev: &str) -> bool {
 /// runs one command, without its messages: what fails is nothing.
 fn splice_step<T>(step: impl FnOnce(&mut Repo) -> Res<T>) -> Option<T> {
     quietly(|| {
-        let mut repo = Repo::default();
+        let mut context = git_splice::context::ExecutionContext::new();
+        let mut repo = Repo::new(&mut context, Default::default());
         repo.open().ok()?;
         step(&mut repo).ok()
     })
@@ -354,7 +355,8 @@ impl History {
         if let Some(known) = self.state_files.borrow().get(commit) {
             return known.clone();
         }
-        let files = Rc::new(Repo::default().state_files(commit));
+        let mut context = git_splice::context::ExecutionContext::new();
+        let files = Rc::new(Repo::new(&mut context, Default::default()).state_files(commit));
         self.state_files
             .borrow_mut()
             .insert(commit.to_string(), files.clone());

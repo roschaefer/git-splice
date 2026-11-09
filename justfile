@@ -11,18 +11,18 @@ lint:
     shellcheck docs/tests/walkthrough/setup.sh
     shellcheck completions/git-splice.bash
     shellcheck bench/setup.sh bench/run.sh
-    shellcheck -x check-drawing/check-drawing check-drawing/check-export
+    shellcheck -x check-drawing/check-drawing check-drawing/check-export docs/09-scenarios/01-everyday-sync/05-exec-report/report-updates.sh docs/09-scenarios/04-upstreams/08-lfs-upstream/lfs-fetch.sh docs/09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/reword-push.sh
     shellcheck -x docs/tests/walkthrough/scrut-setup.sh docs/09-scenarios/readme-setup.sh docs/readme/scrut-setup.sh docs/readme/both-sides-move-on.sh docs/05-comparisons/scrut-setup.sh docs/01-getting-started/sandbox.sh
 
 # Format with shfmt and rustfmt
 fmt:
     cargo fmt --all
-    shfmt -w -i 2 -ci docs/07-design/*.sh docs/tests/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh docs/tests/walkthrough/scrut-setup.sh docs/09-scenarios/readme-setup.sh docs/readme/scrut-setup.sh docs/readme/both-sides-move-on.sh docs/05-comparisons/scrut-setup.sh docs/01-getting-started/sandbox.sh check-drawing/check-drawing check-drawing/check-export
+    shfmt -w -i 2 -ci docs/07-design/*.sh docs/tests/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh docs/tests/walkthrough/scrut-setup.sh docs/09-scenarios/readme-setup.sh docs/readme/scrut-setup.sh docs/readme/both-sides-move-on.sh docs/05-comparisons/scrut-setup.sh docs/01-getting-started/sandbox.sh check-drawing/check-drawing check-drawing/check-export docs/09-scenarios/01-everyday-sync/05-exec-report/report-updates.sh docs/09-scenarios/04-upstreams/08-lfs-upstream/lfs-fetch.sh docs/09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/reword-push.sh
 
 # Check formatting with shfmt and rustfmt
 fmt-check:
     cargo fmt --all --check
-    shfmt -d -i 2 -ci docs/07-design/*.sh docs/tests/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh docs/tests/walkthrough/scrut-setup.sh docs/09-scenarios/readme-setup.sh docs/readme/scrut-setup.sh docs/readme/both-sides-move-on.sh docs/05-comparisons/scrut-setup.sh docs/01-getting-started/sandbox.sh check-drawing/check-drawing check-drawing/check-export
+    shfmt -d -i 2 -ci docs/07-design/*.sh docs/tests/walkthrough/setup.sh completions/git-splice.bash bench/setup.sh bench/run.sh docs/tests/walkthrough/scrut-setup.sh docs/09-scenarios/readme-setup.sh docs/readme/scrut-setup.sh docs/readme/both-sides-move-on.sh docs/05-comparisons/scrut-setup.sh docs/01-getting-started/sandbox.sh check-drawing/check-drawing check-drawing/check-export docs/09-scenarios/01-everyday-sync/05-exec-report/report-updates.sh docs/09-scenarios/04-upstreams/08-lfs-upstream/lfs-fetch.sh docs/09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/reword-push.sh
 
 # Run the Rust unit tests, then the bats tests, one job per CPU
 test: build

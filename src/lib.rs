@@ -2,7 +2,10 @@
 //! checks drawings against what it does.
 
 pub mod args;
+pub mod checkpoint;
 pub mod clone;
+pub mod config;
+pub mod context;
 pub mod diff;
 pub mod fetch;
 pub mod init;

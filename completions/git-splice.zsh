@@ -71,7 +71,7 @@ _git-splice() {
   ((CURRENT--))
   case $cmd in
     fetch)
-      _arguments '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch to track]:upstream branch:' '(--no-track)--track[track --branch on the current branch]' '(--track)--no-track[stop tracking an upstream branch on the current branch]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      _arguments '--exec=[run a script with a checkpoint payload]:command:' '--continue-from=[continue from a saved checkpoint payload]:file:_files' '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch to track]:upstream branch:' '(--no-track)--track[track --branch on the current branch]' '(--track)--no-track[stop tracking an upstream branch on the current branch]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     log)
       _arguments '--upstream=[upstream named in .splice]:upstream name:' '--graph[draw both sides as a graph]' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
@@ -80,7 +80,7 @@ _git-splice() {
       _arguments '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch, for this command only]:upstream branch:' '--track[track --branch on the current branch]' '--all[every splice]' '(--rebase)--bump[move the synced commit up to the upstream branch]' '(--bump)--rebase[rebase onto the upstream branch instead of merging]' '--no-fork-point[merge a rewritten upstream branch from the merge base]' '--rebuilt-commit=[merge this commit, made on top of the rebuild]:commit:__git_splice_branches' '(--message-template)*'{-m+,--message=}'[commit message, instead of the default one]:message:' '(-m --message)--message-template=[commit message with placeholders, for each commit]:template:' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     pull)
-      _arguments '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch, for this command only]:upstream branch:' '--track[track --branch on the current branch]' '--all[every splice]' '(--rebase)--bump[move the synced commit up to the upstream branch]' '(--bump)--rebase[rebase onto the upstream branch instead of merging]' '--no-fork-point[merge a rewritten upstream branch from the merge base]' '--recursive[also pull every splice below, in one commit]' '(--message-template)*'{-m+,--message=}'[commit message, instead of the default one]:message:' '(-m --message)--message-template=[commit message with placeholders, for each commit]:template:' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
+      _arguments '--recursive[pull nested splices too and fold their commits]' '--exec=[run a script with a checkpoint payload]:command:' '--continue-from=[continue from a saved checkpoint payload]:file:_files' '--upstream=[upstream named in .splice]:upstream name:' '--branch=[upstream branch, for this command only]:upstream branch:' '--track[track --branch on the current branch]' '--all[every splice]' '(--rebase)--bump[move the synced commit up to the upstream branch]' '(--bump)--rebase[rebase onto the upstream branch instead of merging]' '--no-fork-point[merge a rewritten upstream branch from the merge base]' '(--message-template)*'{-m+,--message=}'[commit message, instead of the default one]:message:' '(-m --message)--message-template=[commit message with placeholders, for each commit]:template:' '(-h --help)'{-h,--help}'[show usage]' '*:splice:__git_splice_paths'
       ;;
     status | diff)
       _arguments \
@@ -90,6 +90,8 @@ _git-splice() {
       ;;
     push)
       _arguments \
+        '--exec=[run a script with a checkpoint payload]:command:' \
+        '--continue-from=[continue from a saved checkpoint payload]:file:_files' \
         '--upstream=[upstream named in .splice]:upstream name:' \
         '--branch=[upstream branch, for this command only]:upstream branch:' \
         '--track[track --branch on the current branch]' \

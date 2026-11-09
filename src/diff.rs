@@ -1,6 +1,7 @@
 //! git splice diff.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::repo::*;
 use crate::util::*;
 
@@ -96,8 +97,8 @@ pub fn run_each_splice(repo: &mut Repo, step: fn(&mut Repo, &str, &str) -> Res<(
     0
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
-    let mut repo = Repo::new(parse_args(USAGE, "--stat --upstream", argv)?);
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
+    let mut repo = Repo::new(context, parse_args(USAGE, "--stat --upstream", argv)?);
     repo.open()?;
     repo.select_splices(Kind::Overview, "diff")?;
     Ok(crate::pager::page_git_output(|| {

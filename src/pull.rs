@@ -1,6 +1,7 @@
 //! git splice pull.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::merge::{apply_merge_options, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
 use crate::repo::*;
@@ -8,11 +9,18 @@ use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/pull.txt");
 
-pub fn run(argv: &[String]) -> Res<i32> {
-    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive"), argv)?;
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
+    let args = parse_args(
+        USAGE,
+        &format!("{MERGE_OPTIONS} --recursive --exec --continue-from"),
+        argv,
+    )?;
+    if crate::config::use_checkpoints(context, &args)? {
+        return crate::checkpoint::run(context, "pull", args);
+    }
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
     repo.require_message_template(Message {
@@ -25,6 +33,42 @@ pub fn run(argv: &[String]) -> Res<i32> {
     // Before select_splices: a rebase in progress has detached HEAD.
     require_no_splice_in_progress()?;
     repo.select_splices(Kind::Explicit, "pull")?;
+    let branch = repo.monorepo_branch.clone();
+    let (fetched, failures) = fetch_for_pull(&mut repo)?;
+
+    // A recursive pull is one commit per splice it starts from, made of its
+    // pulls once the last run ends without a conflict; pull --all starts
+    // from each splice no other is around. A run that stops leaves where it
+    // started, which a later run goes on from only while HEAD still descends
+    // from it: not after the branch was reset past it, e.g. after an abort.
+    let fold = (repo.args.has_flag("--recursive") || repo.args.all) && !repo.merge_rebase;
+    let tops = fold_roots(&repo);
+    let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
+        .q()
+        .ok();
+    if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
+        return fail(format!("{START} couldn't be updated"));
+    }
+    let mut status = 0;
+    if !fetched.is_empty() && repo.merge_paths(&branch, "pull", &fetched).is_err() {
+        status = 1;
+    }
+    if fold && !splice_in_progress() {
+        if status == 0 {
+            fold_pulls(&tops)?;
+        }
+        if (status == 0 || !failures.is_empty()) && !git(&["update-ref", "-d", START]).ok() {
+            return fail(format!("{START} couldn't be updated"));
+        }
+    }
+    if !failures.is_empty() {
+        log_err(format!("Not fetched: {}", failures.join(" ")));
+        status = 1;
+    }
+    Ok(status)
+}
+
+pub(crate) fn fetch_for_pull(repo: &mut Repo) -> Res<(Vec<String>, Vec<String>)> {
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
 
@@ -72,13 +116,22 @@ pub fn run(argv: &[String]) -> Res<i32> {
         fetched.push(path.clone());
     }
 
-    // A recursive pull is one commit per splice it starts from, made of its
-    // pulls once the last run ends without a conflict; pull --all starts
-    // from each splice no other is around. A run that stops leaves where it
-    // started, which a later run goes on from only while HEAD still descends
-    // from it: not after the branch was reset past it, e.g. after an abort.
-    let fold = (repo.args.has_flag("--recursive") || repo.args.all) && !repo.merge_rebase;
-    let tops: Vec<String> = if repo.args.all {
+    Ok((fetched, failures))
+}
+
+pub(crate) fn should_fold(repo: &mut Repo) -> Res<bool> {
+    let mut fold = repo.args.all || repo.args.has_flag("--recursive");
+    let roots = fold_roots(repo);
+    for root in roots {
+        repo.configure(&root)?;
+        fold |= repo.args.has_flag("--recursive");
+    }
+    repo.configure("")?;
+    Ok(fold && !repo.merge_rebase)
+}
+
+pub(crate) fn fold_roots(repo: &Repo) -> Vec<String> {
+    if repo.args.all {
         repo.all_paths
             .iter()
             .filter(|path| first_above(path, &repo.all_paths).is_none())
@@ -90,30 +143,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
             .iter()
             .map(|path| normalize_path(path))
             .collect()
-    };
-    let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
-        .q()
-        .ok();
-    if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
-        return fail(format!("{START} couldn't be updated"));
     }
-    let mut status = 0;
-    if !fetched.is_empty() && repo.merge_paths(&branch, "pull", &fetched).is_err() {
-        status = 1;
-    }
-    if fold && !splice_in_progress() {
-        if status == 0 {
-            fold_pulls(&tops)?;
-        }
-        if (status == 0 || !failures.is_empty()) && !git(&["update-ref", "-d", START]).ok() {
-            return fail(format!("{START} couldn't be updated"));
-        }
-    }
-    if !failures.is_empty() {
-        log_err(format!("Not fetched: {}", failures.join(" ")));
-        status = 1;
-    }
-    Ok(status)
 }
 
 const START: &str = "SPLICE_PULL_START";
@@ -161,7 +191,7 @@ fn without_conflicts(message: &str) -> String {
 /// every commit since is such a pull, and the pulls of each come one after
 /// another. Its message is the message of that splice's own pull, followed
 /// by the messages of the pulls below it.
-fn fold_pulls(tops: &[String]) -> Res<()> {
+pub(crate) fn fold_pulls(tops: &[String]) -> Res<()> {
     let range = format!("{START}..HEAD");
     let commits: Vec<String> = git(&["rev-list", "--reverse", "--first-parent", &range])
         .out()

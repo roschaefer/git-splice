@@ -1,5 +1,8 @@
 # push
 
+Command defaults and inherited hooks can be committed in
+[`.spliceconfig`](12-configuration.md).
+
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
@@ -12,8 +15,9 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] (<path>... | --all)
-    git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
+    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] [--exec <command>] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force] [--exec <command>] --rebuilt-commit <commit> <path>
+    git splice push --continue-from <file> [--exec <command>]
 ```
 
 ## Description
@@ -188,6 +192,62 @@ Why pull right away, and what `push` checks:
 
 The other way round, [`merge --rebuilt-commit`](04-merge.md#--rebuilt-commit)
 brings work committed in such a worktree into the monorepo.
+
+### `--exec`
+
+```scrut
+$ git splice push -h | check-help option --exec
+        Runs <command> through sh from the repository root after rebuilding
+        each splice, before uploading it, and after a successful push and
+        its tracking changes. Sends a versioned JSON payload on stdin.
+        Zero continues; nonzero stops with completed work applied. No-op
+        pushes have no checkpoints. Normal output goes to stderr; stdout
+        belongs to the script.
+```
+
+The payload uses `operation: "push"`. Both events include `path`, `upstream`
+(name), `url`, `branch` (upstream branch), `label`, `old` (the fetched target
+commit or null), `synced` and `rebuilt_commit`.
+
+`after-rebuild` means the checks and rebuild are complete, but the commit
+has not been pushed. `after-push` means the upload and local recording have
+completed and tracking has been attempted. A failed follow-up script cannot
+undo that upload; continuation moves on to the next splice. Splices are
+processed bottom-up, and failed uploads block their ancestors as usual.
+
+### `--continue-from`
+
+```scrut
+$ git splice push -h | check-help option --continue-from
+        Continues from a saved payload; - reads stdin. Supply --exec again
+        only for a command-line hook, with no other options or paths.
+        Configured hooks resume their saved chain. Continues without
+        rebuilding or repeating completed pushes. Requires unchanged
+        HEAD, branch, fetched refs and Git configuration in the same worktree.
+        At after-rebuild, result.rebuilt_commit may supply an edited commit,
+        checked by the same rules as --rebuilt-commit, for one named splice.
+        Other fields are passed back unchanged; results are refused at other
+        checkpoints.
+```
+
+To edit the prepared history, emit the payload with `result.rebuilt_commit`
+set to the edited commit and exit nonzero. Feed that payload back to push.
+Supply a replacement for one explicitly named splice, without `--all`, as
+with `--rebuilt-commit`. The replacement must have the folder's committed
+files and satisfy the existing [rebuilt-commit checks](#--rebuilt-commit). A force decision must be
+part of the original invocation. A zero-returning script leaves the prepared
+commit unchanged; stdout is not automatically interpreted as a result.
+
+The [edited rebuild scenario](../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/edit-with-exec.md)
+shows a script rewording a rebuilt commit and returning it through the payload.
+Other fields, including the opaque continuation, should be returned unchanged.
+An unchanged payload resumes with the originally prepared commit. Resume uses
+that commit even if a ref used by `--rebuilt-commit` has since moved.
+
+Push requires unchanged HEAD on continuation; commit file changes in the
+monorepo and start a new push if the content needs changing. Normal Git push
+still checks concurrent upstream changes. A payload is not a crash-recovery
+log for a process interrupted during an upload.
 
 ## Upstream branch
 

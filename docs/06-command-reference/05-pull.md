@@ -1,5 +1,8 @@
 # pull
 
+Command defaults and inherited hooks can be committed in
+[`.spliceconfig`](12-configuration.md).
+
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
@@ -12,8 +15,9 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
+    git splice pull --continue-from <file> [--exec <command>]
 ```
 
 ## Description
@@ -187,6 +191,81 @@ commit per splice given: the message of that splice's own pull, from
 below it. Each splice's history has it on top of its own commits. `--all`
 pulls each splice the monorepo has in the same way
 ([a recursive pull](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/README.md)).
+
+### `--exec`
+
+```scrut
+$ git splice pull -h | check-help option --exec
+        Runs <command> through sh from the repository root after each fetch
+        batch, after each merge that changes HEAD, and before and after the
+        recursive pull's fold. Sends a versioned JSON payload on stdin with
+        the event, repository state and continuation. Zero continues; any
+        nonzero status stops the pull with the completed work still applied.
+        With --exec, normal output goes to stderr; stdout belongs to the
+        script. Does not support --rebase yet.
+```
+
+The payload has `version`, `operation`, `sequence`, `event`, `repository`,
+and `continuation` fields, plus a `result` object. Version 1 supports `pull`,
+`fetch` and `push`. For pull, `event.checkpoint` is
+`after-fetch`, `after-merge`, `before-fold` or `after-fold`.
+
+An `after-fetch` event includes `fetched`, a list of entries with `path`,
+`upstream` (its name), `url`, `reference`, `old`, `new`, `synced` and `failed`.
+`old` and `new` are commit IDs or null. Fetches of shared URLs run together;
+all entries in a batch finish before its checkpoint. Changed nested upstreams
+and newly discovered splices get additional fetch checkpoints before their
+merges.
+
+An `after-merge` event includes `path`, `upstream`, `url`, `old` and `new`
+synced commits, `target`, `rebuilt_commit`, `head_before` and `head_after`.
+A splice that changes nothing gets no merge checkpoint. The fold events have
+no additional fields.
+
+A script can inspect `event.checkpoint` with `jq` and choose its work. The
+[update report scenario](../09-scenarios/01-everyday-sync/05-exec-report/README.md)
+shows a small script that records only the splices that actually changed. The
+[logging example](../09-scenarios/01-everyday-sync/05-exec-report/logging.md)
+records every payload as JSON lines across fetch, pull and push. To
+find the first applied update that breaks a build, run `make` only at
+`after-merge`; fetching alone does not change checked-out source. To fetch
+LFS objects, act at `after-fetch`, using each successful entry's upstream URL
+and target commit before the next checkout. Custom LFS endpoints need their
+own configuration; this interface does not configure Git LFS automatically.
+
+For pull and fetch, leave `result.rebuilt_commit` null. Only a push's
+[`after-rebuild` checkpoint](07-push.md#--continue-from) accepts that result;
+it supplies an edited history for validation before upload.
+
+### `--continue-from`
+
+```scrut
+$ git splice pull -h | check-help option --continue-from
+        Continues from a JSON payload saved by the script; - reads stdin.
+        Supply --exec again only for a command-line hook, with no other
+        options or paths. Configured hooks resume their saved chain. Resumes
+        after the stopped handler, without retrying it or repeating
+        completed fetches or merges. Fix and verify a failed check first.
+        Requires the same repository, worktree, branch, fetched refs and Git
+        configuration. Repair commits may extend HEAD without changing
+        .splice or .spliceconfig files.
+```
+
+For stepping, a script can simply run `cat; exit 1`. Redirect its output to
+a file outside the worktree. On each continuation, use a different output
+file: redirecting to the input file would truncate it before it is read.
+The [recursive pull walkthrough](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/discovered-top-down.md#a-recursive-pull)
+uses this to check the real intermediate states against diagrams.
+
+Pass the whole payload back unchanged. `continuation` holds the remaining
+work, original options, discovery state and fold start; it is not a command
+for the script to execute. The script itself is never taken from the payload.
+The format is versioned, and unknown versions are refused.
+
+Continuation consumes the stopped checkpoint. If a download or build failed,
+complete and verify it before continuing. A failed Git operation or conflict
+still follows the normal conflict instructions below; a checkpoint payload
+is not a recovery log for a process killed midway through an operation.
 
 ## Order
 

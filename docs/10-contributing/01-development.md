@@ -20,7 +20,16 @@ release.
 ## Code map
 
 `src/main.rs` checks the Git version and dispatches `git splice <command>` to
-the command's `run`. The tool only runs the `git` CLI, so
+the command's `run(context, argv)`, starting with an empty `ExecutionContext`.
+Each `Repo` borrows that context, so recursive rebuilds and nested operations
+share content-tree calculations and validated supplied rebuilt commits, together with parsed configuration.
+Repository discovery, classification and working-tree observations are read
+for each operation; immutable tree calculations survive hook checkpoints.
+Continuation restores operation progress and validated supplied commits through
+the same context. Context caches currently live for one process; they are not
+persisted in the payload or on disk.
+
+Git operations use the `git` CLI, so
 `GIT_TRACE=<absolute file> git splice <command>` lists every git command it runs
 ([how](../07-design/05-git-trace.md)).
 
@@ -28,6 +37,9 @@ the command's `run`. The tool only runs the `git` CLI, so
 |---|---|
 | `src/util.rs` | Logging, failures (`Fail`) and running git. |
 | `src/args.rs` | Argument parsing. |
+| `src/config.rs` | Committed defaults, recursive scope, and handlers resolved from committed sources. |
+| `src/context.rs` | Shared execution context: immutable content-tree results and supplied rebuilt commits. |
+| `src/checkpoint.rs` | Fetch/pull/push checkpoints, script payloads and caller-owned continuation. |
 | `src/repo.rs` | `Repo`: discovery, path selection, reading `.splice`, upstreams, keys and what a splice syncs with. |
 | `src/rebuild.rs` | The push rebuild: `rebuild_splice`, `splice_start` (B) and the commit loop `rebuild_walk`. |
 | `src/state.rs` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone`. |
