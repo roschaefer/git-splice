@@ -75,7 +75,7 @@ built as part of the monorepo.
 ## Explicit branches
 
 What a splice asks for is implicit today: the upstream branch named like
-the monorepo's current branch ([design](../07-design/README.md#branches)).
+the monorepo's current branch ([design](../07-design/01-state-and-upstreams.md#branches)).
 A package manager writes it down, as a range in `package.json`. A splice
 could do the same, with a branch in `.splice` or a `--branch` per
 command.

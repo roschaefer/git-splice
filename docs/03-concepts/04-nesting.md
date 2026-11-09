@@ -62,7 +62,7 @@ together in three ways:
   the splice below. So `merge` and `pull` take the splice above first.
 - **Push bottom-up.** Pushing the splice above sends the nested
   `.splice`, which must not name a commit its own upstream doesn't have
-  yet ([why](../07-design/README.md#splicing-in-merge-and-pull--fetch--merge)).
+  yet ([why](../07-design/02-splicing-in.md#splicing-in-merge-and-pull--fetch--merge)).
 - **History from above.** The splice above came in squashed, so the
   monorepo lacks the older history of the splice below. A push takes it
   from the upstream above

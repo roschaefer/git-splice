@@ -93,7 +93,7 @@ Once the monorepo is pushed, the `i/` splices sync with a version that
 has every level so far, so a pull nests them all once more. The copies
 of the nested `.splice` files then conflict, as both sides pulled them
 to different commits (the first of the
-[design's limits](../../../07-design/README.md#limits)).
+[design's limits](../../../07-design/04-safety-and-limits.md#limits)).
 
 ### The monorepo pushes to itself
 

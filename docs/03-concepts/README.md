@@ -9,10 +9,10 @@ synced commit U(H) of the [sync model](02-sync-model.md).
 - `pull` updates the synced commit. `push` publishes the folder without
   its own `.splice`, because the file describes the relationship from
   the monorepo side
-  ([why](../07-design/README.md#splicing-out-push-and-the-rebuild)).
+  ([why](../07-design/03-splicing-out.md#splicing-out-push-and-the-rebuild)).
 - Upstreams use private refs instead of Git remotes, so a plain `git push`
   cannot publish the monorepo to one by mistake
-  ([why](../07-design/02-accidental-monorepo-push.md)).
+  ([why](../07-design/04-safety-and-limits.md)).
 
 ```text
 [splice]

@@ -165,7 +165,7 @@ $ git -C "$UPSTREAM-b.git" log --graph --format=%s main
 
 If the monorepo had pulled `vendor/a/b/` as well, to a different commit,
 the pull of `vendor/a/` would have conflicted: see
-[Limits](../../../07-design/README.md#limits).
+[Limits](../../../07-design/04-safety-and-limits.md#limits).
 
 Once the monorepo has pushed a change in `vendor/a/b/`, another monorepo
 that splices the outer upstream in rebuilds the inner splice's history up

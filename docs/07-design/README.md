@@ -10,7 +10,7 @@ switches the branch every folder syncs with.
   `.splice`, refs under `refs/splices/`, and rebuilt commits that always come
   out the same. The docs write out the Git commands and run them against real
   output. And the tool only runs the `git` CLI, not a library, so
-  [`GIT_TRACE` lists all it does](03-git-trace.md).
+  [`GIT_TRACE` lists all it does](05-git-trace.md).
 - **Let Git do the work.** Wherever Git can do a job, the tool calls Git: `git config` parses the state file,
   `cherry-pick` merges, `commit-tree` rebuilds, `log --left-right` compares.
   The tool's own code connects these, and stays small.
@@ -122,6 +122,8 @@ creating Git remotes that could receive the whole monorepo by mistake.
 [State and upstreams](01-state-and-upstreams.md#refs-instead-of-remotes)
 explains the key mapping and ref layout.
 
+The same chapter explains [branch mapping](01-state-and-upstreams.md#branches).
+
 ## How the commands work
 
 Which splices a command acts on depends on what it does:
@@ -136,262 +138,32 @@ Splicing in writes a commit into the monorepo, and splicing out publishes
 commits upstream. Both should name their target, as `git push <remote>`
 does. An overview such as `status` is only useful if it's complete.
 
-### Starting a splice: `clone` and `init`
-
-| Situation | Command |
-|---|---|
-| Upstream exists, the folder doesn't | `git splice clone <url> [<path>]` |
-| The folder exists, upstream is new or empty | `git splice init <path> <url>` |
-| Both exist with the same content | `git splice clone <url> <path>`: only writes `.splice`, since nothing can be lost |
-| Both exist and differ | `git splice clone --merge <url> <path>` |
-
-- `clone` refuses a folder that exists and differs from upstream, like
-  `git clone` refuses a non-empty directory. The message names `--merge`.
-- `--merge` runs the same mechanism as `merge` (below), with an empty
-  folder as the merge base. Every file that differs becomes an add/add
-  conflict, and nothing is lost. Deleting the folder on a branch,
-  re-cloning it there and merging `main` back **isn't** a substitute: the
-  merge base still has the folder, so Git takes upstream's side wholesale
-  and drops local-only files.
-- To replace the folder with upstream's version instead, `git rm` it in one
-  commit, then `clone` into the empty spot.
-- `init` refuses an upstream that already has commits, and points to
-  `clone --merge`. It writes `.splice` without a synced commit, and the
-  first push creates the upstream branch starting at the init commit,
-  followed by any commits after it, also on a feature branch where the
-  folder didn't change. The folder's history before it isn't
-  published: it was written
-  for the monorepo, and may hold what was removed before anyone decided
-  to publish the folder
-  ([example](../09-scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)).
-- The name `add` is avoided on purpose: it suggests `git add`.
-
-### Splicing in: `merge`, and `pull` = `fetch` + `merge`
+## Splicing in
 
 `merge` turns already fetched upstream changes into **one ordinary
-commit** in the monorepo, and never touches the network. The problem it
-solves: upstream's commits have the splice's content at their root, while
-the monorepo has it at `<path>/`, and they share no history, so Git can't
-merge them directly. `git subtree` solves that by putting upstream's
-history into the monorepo's. `merge` instead supplies the merge base
-explicitly:
+commit** in the monorepo, and never touches the network.
+[Splicing in](02-splicing-in.md) explains starting a splice, re-rooting
+upstream trees and merging with Git's normal conflict handling.
 
-1. Build two throwaway commits whose trees have the monorepo's layout
-   (`reroot_tree`, using a temporary index):
-   - **base:** `HEAD`'s tree, with `<path>/` replaced by the merge base's
-     tree and HEAD's `.splice`.
-   - **theirs:** `HEAD`'s tree, with `<path>/` replaced by the upstream branch's
-     tree and a `.splice` that records its commit. Its parent is base.
-2. Run `git cherry-pick theirs`. That's a three-way merge of `HEAD` (ours)
-   and theirs, with base as the merge base. Only `<path>/` differs between
-   base and theirs, so only the splice can conflict. Local edits are kept, and the
-   `.splice` update comes along in the same commit. Git's ort merge does
-   the work, including rename detection.
-
-The merge base is `git merge-base R T`
-([why](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)).
-
-**The same files, another history:** if the folder already has T's
-files, there's nothing to merge. But if T isn't part of R's history,
-`merge` still records T as U(H), in a commit that only changes `.splice`.
-That happens when the upstream rewrote its history to the same files
-([example](../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/README.md)),
-squash-merged what was pushed, or got R edited before the push
-([example](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md)).
-Without the record, R would keep the monorepo's original commits, and
-the next push would publish them. Right after an ordinary push, R is T,
-and nothing is recorded. Once the folder changes again, it's too late:
-the splice reads as diverged, or as unrelated history.
-
-- **On a conflict:** resolve it, then run `git commit`, which finishes the
-  cherry-pick and keeps the prepared message. Abort with
-  `git cherry-pick --abort`. `git status` says "cherry-picking" although
-  you ran `merge`, so `merge` names both commands when it stops.
-- **base and theirs are never referenced** and get garbage-collected. Upstream
-  commits stay in `refs/splices/` and never become ancestors of `HEAD`.
-- **Nested splices:** a pull of a splice brings in the `.splice` files
-  below it as its upstream has them, and becomes the last sync of those
-  splices. If its upstream moved the synced commit of a splice below, the
-  rebuild joins that splice's unpushed commits with the new one, as after
-  a pull of a divergence. `pull` fetches the splices below too, so their
-  new synced commit is there.
-  - **Top-down:** `merge` and `pull` take a splice before the ones below
-    it. Pulling the one below first, to a commit newer than the one the
-    upstream above records, would make the pull above conflict. A pull
-    that removed a `.splice` below ends that splice, and its pull is
-    skipped. A failed fetch stops the pull of the splices above and below
-    it, and a failed merge the merges below it.
-  - **Bottom-up:** `push` takes a splice before the ones above it, whose
-    push publishes its `.splice`, and a failed push stops them. Otherwise
-    the upstream above would record content the upstream below doesn't
-    have.
-
-### Splicing out: `push` and the rebuild
+## Splicing out
 
 A push sends the splice's history since the last sync, rebuilt as upstream
-commits. `rebuild_splice` is a function of `HEAD` alone:
+commits. [Splicing out](03-splicing-out.md) explains the rebuild, followed
+by how `status`, `diff` and `log` use its result.
 
-1. **Find the last sync.** *L* is
-   `git log --first-parent -1 -- <path>/.splice`. Every `clone`, `init`
-   and pull writes such a commit, and no rebase or squash merge can remove
-   all of them. U(L) is the synced commit recorded at *L*. A `git mv` of
-   the whole folder that leaves `.splice` as it was isn't a last sync:
-   the rebuild follows the folder to its old path, by its id.
-2. **Start at U(L).** If *L*'s folder (without `.splice`) equals U(L)'s
-   tree, *L* is B, and the rebuild continues from U(L). Otherwise a pull
-   merged a divergence, or a squash merge mixed local edits into *L*, and
-   *L* is rebuilt too, on the parents the
-   [sync model](../03-concepts/02-sync-model.md#parents-of-rebuilt-commits)
-   picks, back to [B](../03-concepts/02-sync-model.md#where-b-is)
-   ([scenario](../09-scenarios/01-everyday-sync/02-up-to-date/03-diverged-then-pulled/README.md)).
-   Without U(L), e.g. after `init`, the rebuild starts at the mount, as a
-   root commit.
-3. **Copy each commit.** For each commit in
-   `git rev-list --reverse --first-parent L..HEAD -- <path>` whose folder
-   changed, `git commit-tree` with the folder's tree minus `.splice`.
-   Author and committer are copied, **including their dates**, as
-   `git subtree split`'s `copy_commit` does. The message is read with
-   `--pretty=format:%B`, not `--format=`, which would add a newline.
-   Commits are never signed: a signature would differ from run to run.
+## Safety and limits
 
-**First parent only:** a merge in the monorepo, e.g. `git merge main` on a
-feature branch, becomes **one ordinary commit** upstream, with the merge's
-message. Upstream doesn't know the monorepo's side branches, so a faithful
-merge shape would add nothing, and leaving it out avoids the
-parent-mapping problems `split` spent years fixing.
+`git-splice` has no Git remotes for its upstreams.
+[Safety and limits](04-safety-and-limits.md) explains why, the alternatives
+considered, and the design's accepted limits.
 
-**Only this splice's history:** a splice's history starts at its
-*mount*, the newest first-parent commit whose first parent had no
-`.splice` at the path, or one with another `id`. Before the
-mount, the folder was no splice, or another one, so nothing from there is
-published, with or without a synced commit. That covers a folder's
-history from before `init`
-([example](../09-scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)),
-two splices that swap paths
-([example](../09-scenarios/07-moved-folders/02-swapped-splices/README.md)), and a splice
-removed and spliced in again
-([example](../09-scenarios/02-starting-a-splice/04-init-new-upstream/02-unspliced-then-cloned-again/README.md)).
-A `git mv` keeps it too: the rebuild follows the folder back to the path
-whose `.splice` had the same `id` in the commit before, also when two
-splices swap paths, or a new folder takes the old one.
-A new upstream URL keeps the history: the `id` stays
-([example](../09-scenarios/04-upstreams/04-upstream-moved/README.md)).
+## Checking what it runs
 
-**A nested splice's history up to the splice above's last sync** comes
-from that splice's upstream, at its synced commit
-([nesting](../03-concepts/04-nesting.md),
-[example](../09-scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md)).
-Of the splices above, it takes the one with the newest last sync, and on
-a tie the outermost: a push writes nothing to the monorepo, so the
-`.splice` of the splice in between may name a commit from before the
-change, while the outermost upstream has it
-([three levels](../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md)).
-Only if the upstream above has the same splice there, by its `id`
-([replaced above](../09-scenarios/05-nested-splices/01-nested-splices/replaced-above.md)).
-And the monorepo's own commits before the last sync are joined in even if
-the folder's files equal that rebuild, so a commit pushed straight to
-the splice's upstream stays in its history
-([pushed and made above](../09-scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
+Everything `git-splice` does to a repository, it does by running the `git`
+command line. [Checking what it runs](05-git-trace.md) shows how to inspect
+those commands with `GIT_TRACE`, and what the trace doesn't show.
 
-**Costs** O(commits since B), not O(all history). The commit loop
-reads all commit metadata with one `git log` and all folder trees with one
-`git cat-file --batch-check`, so it spawns about one process per commit.
+## Why the name "splice"
 
-**Never writes to the monorepo**
-([why](../03-concepts/02-sync-model.md#r-is-computed-not-stored)).
-
-**A new upstream branch** is created only if R has commits that
-upstream's default branch lacks, which a PR from the new branch would
-show. So starting a feature branch doesn't create empty branches on every
-upstream, while commits the default branch lacks always count: the ones
-the feature branch got from the branch it was cut from, and the first
-push of a splice made by `init`, which has no upstream branch at all.
-Whether the folder changed on this branch doesn't matter. A branch
-stacked on one upstream has already gets its own branch upstream too,
-with nothing new
-([scenario](../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/01-stacked-branch/README.md)).
-
-### `status`: the sync state
-
-`classify_splice` works the state out each time, from R and T, as the
-[sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)
-describes. It compares the files first: when they're equal, nothing
-needs rebuilding. Before that, it checks there's something to compare:
-without `refs/splices/<key>/*`, and with U(H) recorded but not available
-locally, as in a fresh clone of the monorepo, the splice was never
-fetched.
-
-### `diff` and `log`
-
-- **`diff`** shows the file changes a push would send: `git diff T R`, or,
-  for a missing upstream branch, from the merge base of R and upstream's
-  default branch, as a PR from the new branch would show them.
-- **`log`** shows commits in both directions:
-
-  ```
-  git log --left-right --cherry-mark R...refs/splices/<key>/heads/<branch>
-  ```
-
-  `<` is on the left (local) side only, so a push sends it; `>` is on the
-  upstream side only, so a pull brings it; `=` is a commit upstream already
-  applied by cherry-pick or rebase. Ours on the left, theirs on the right,
-  as in Git's conflict markers. The format shows the author, because a
-  push publishes it and it may be a private identity.
-
-### Branches
-
-- Each splice syncs with the upstream branch named like the monorepo's
-  current branch, for every command. Switching branches switches every
-  splice.
-- The monorepo's default branch maps to upstream's default branch
-  (the upstream's `default-branch` in `.splice` if the names differ). Every other branch
-  keeps its name on both sides.
-- The monorepo's default branch is `origin/HEAD`, else
-  `init.defaultBranch`.
-- If upstream has no branch named like the current one, every command
-  compares with upstream's default branch instead, as a PR from that
-  branch would, and `push` creates it only as described
-  [above](#splicing-out-push-and-the-rebuild). Which branch it was cut
-  from doesn't matter: Git doesn't record it, and commits from there
-  that upstream lacks have to get there somehow, e.g. through a PR.
-
-## Limits
-
-These are known and accepted, each to keep the design simple:
-
-- **A nested splice pulled on both sides:** if the monorepo and the
-  upstream of the splice above each pull the splice below, the next pull
-  of the splice above conflicts in the folder below, since each side
-  brought in a different upstream commit. If the monorepo has no unpushed
-  changes there, keep the upstream's side:
-  `git checkout --theirs -- <above>/<below>`, then `git add` and
-  `git commit`. Pushing the splice above right after pulling the one below
-  avoids the conflict.
-- **An upstream that keeps its submodules:** after
-  `clone --from-submodule --recursive`, `pull` refuses every commit of
-  theirs that moves one
-  ([`clone`](../06-command-reference/01-clone.md#--recursive),
-  [#153](https://github.com/roschaefer/git-splice/issues/153)).
-- **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
-- **Names that aren't valid UTF-8** are refused: a splice's folder, an
-  argument, the folder the monorepo is in, and the author or committer of
-  a commit that a rebuild copies. Windows has no such paths, and its
-  environment variables, which carry names and dates to
-  `git commit-tree`, are text: so every platform rebuilds the same
-  commits. Commit messages may have any bytes. Rename the folder,
-  or rewrite the commit before it reaches a shared branch; if that's not
-  possible for you, please open an issue.
-- **Upstream URLs that differ only in letter case**, e.g.
-  `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
-  on case-insensitive file systems, like macOS's default one: fetching one
-  overwrites the other's. And a URL component that is too long once
-  escaped, e.g. many spaces, fails with "File name too long". Until
-  [#51](https://github.com/roschaefer/git-splice/issues/51), avoid
-  upstreams whose URLs differ only in case, and long path components.
-- **No pager on Windows:** `log` and `diff` print straight to the
-  terminal there, as if `--no-pager` were given. Pipe them to a pager by
-  hand, e.g. `git splice log | less`.
-- **A splice made by `init`** has no synced commit until its first pull, so
-  until then every rebuild walks the folder's history since `init`.
-- **Rare edge cases** each have an issue labelled
-  [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22).
+[Why the name "splice"](06-name.md) explains the rope, RNA and JavaScript
+analogies behind the name.

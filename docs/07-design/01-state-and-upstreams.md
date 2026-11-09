@@ -20,7 +20,7 @@ monorepo commit. The other choices:
   splices of different upstreams mounted at the same path on branches
   from the same commit still get different ids. The rebuild uses it to
   tell this splice from another one that had the same path before
-  ([push design](README.md#splicing-out-push-and-the-rebuild)).
+  ([push design](03-splicing-out.md#splicing-out-push-and-the-rebuild)).
 - **`default-branch` is recorded once**, by `clone` and `init`, and only
   when it differs. That keeps it stable if the upstream later renames its
   default branch, and visible to anyone wondering why `main` syncs with
@@ -78,7 +78,7 @@ folder:
 - Splices with equal URLs share refs, which is fine, since refs only
   describe the upstream. `fetch` fetches each upstream once.
 - No Git remote exists, so nothing can push the monorepo there by mistake.
-  [Why that matters](02-accidental-monorepo-push.md).
+  [Why that matters](04-safety-and-limits.md).
 - `url.<base>.insteadOf` and `pushInsteadOf` still apply, since they work
   on URLs.
 - `push` goes to the URL, and then updates `refs/splices/<key>/heads/<branch>`
@@ -100,3 +100,20 @@ Two rules follow from the layout:
 - **A splice's path must work in a ref name** (`git check-ref-format`),
   which applies to the whole path: no spaces, no component ending in
   `.lock`, and so on.
+
+## Branches
+
+- Each splice syncs with the upstream branch named like the monorepo's
+  current branch, for every command. Switching branches switches every
+  splice.
+- The monorepo's default branch maps to upstream's default branch
+  (the upstream's `default-branch` in `.splice` if the names differ). Every other branch
+  keeps its name on both sides.
+- The monorepo's default branch is `origin/HEAD`, else
+  `init.defaultBranch`.
+- If upstream has no branch named like the current one, every command
+  compares with upstream's default branch instead, as a PR from that
+  branch would, and `push` creates it only as described
+  [in the push design](03-splicing-out.md#splicing-out-push-and-the-rebuild). Which branch it was cut
+  from doesn't matter: Git doesn't record it, and commits from there
+  that upstream lacks have to get there somehow, e.g. through a PR.
