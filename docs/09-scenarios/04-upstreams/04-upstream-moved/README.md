@@ -16,7 +16,7 @@ names the splice, not its upstream, so a new URL keeps it, and the
 commits before the change still belong to the splice. Compare
 [two splices that swap paths](../../07-moved-folders/02-swapped-splices/README.md), where
 the id changes, and so does the history. See
-[the design notes](../../../07-design/03-splicing-out.md#splicing-out-push-and-the-rebuild).
+[the design notes](../../../07-design/04-splicing-out.md#splicing-out-push-and-the-rebuild).
 
 ## Output
 

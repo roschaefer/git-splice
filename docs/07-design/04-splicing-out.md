@@ -100,7 +100,7 @@ starting point.
 
 - **Create branches for proposed changes, not for every monorepo branch.**
 
-  The [PR workflow](01-state-and-upstreams.md#matching-branch-names-keep-a-feature-together)
+  The [PR workflow](02-state-and-upstreams.md#matching-branch-names-keep-a-feature-together)
   needs a branch only where there is something to submit. A push therefore
   creates a missing feature branch only if R contains commits the upstream's
   default target lacks. This avoids branches for unaffected splices while

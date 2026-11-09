@@ -29,22 +29,22 @@ explicitly reconsider the affected principle and its rationale.
   Derive what existing history and configuration already tell us instead
   of storing it again. This avoids the redundant bookkeeping that motivated
   the departure from `git-subrepo`
-  ([state rationale](01-state-and-upstreams.md#derive-state-instead-of-storing-redundant-records)).
+  ([state rationale](02-state-and-upstreams.md#derive-state-instead-of-storing-redundant-records)).
 - **Nesting should not change a splice's meaning.** Given equivalent
   history, upstream state and settings, syncing `vendor/a/b/` should produce
   the same result for that splice as syncing `b/` in a standalone clone
   of `vendor/a`'s repository. A project should not need a different dependency workflow
   because it is embedded in another repository. This governs
-  [portable state and defaults](01-state-and-upstreams.md#sync-state-belongs-in-versioned-files)
-  and [inherited history](03-splicing-out.md#history-inherited-through-nesting).
+  [portable state and defaults](02-state-and-upstreams.md#sync-state-belongs-in-versioned-files)
+  and [inherited history](04-splicing-out.md#history-inherited-through-nesting).
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
   monorepo commit recording the earlier push
-  ([rebuild rationale](03-splicing-out.md#deterministic-metadata)).
+  ([rebuild rationale](04-splicing-out.md#deterministic-metadata)).
 - **Keep repeated syncs scalable.** An advancing sync point lets rebuilds
   skip history already accounted for, rather than revisit an ever-growing
   history on every sync
-  ([rebuild cost](03-splicing-out.md#advancing-sync-points-bounds-repeated-work)).
+  ([rebuild cost](04-splicing-out.md#advancing-sync-points-bounds-repeated-work)).
 - **Ask “what would Git do?”** Git has much more experience solving
   version-control problems. Where its solution works well, implement the
   closest equivalent:
@@ -52,7 +52,7 @@ explicitly reconsider the affected principle and its rationale.
   and [reflogs](../09-scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)
   are examples. Problems and bugs caused by a Git design are reasons not
   to adopt it: examples are the global tag namespace and Git submodules
-  ([state choices](01-state-and-upstreams.md),
+  ([state choices](02-state-and-upstreams.md),
   [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
 - **Take advantage of Git's full power.** Git already provides flexible
   tools to shape history, such as [rebasing](../04-advanced-workflows/README.md)
@@ -68,7 +68,7 @@ explicitly reconsider the affected principle and its rationale.
   library such as gitoxide would substitute another implementation and
   lose that direct Git command trace. This is a deliberate design choice,
   not merely a debugging convenience
-  ([rationale and tracing examples](05-git-trace.md)).
+  ([rationale and tracing examples](06-git-trace.md)).
 - **Make information easy to discover and side effects deliberate.**
   Requiring users to enumerate splices before inspecting them can hide the
   very changes they need to discover. Applying that same broad default to
@@ -80,11 +80,11 @@ explicitly reconsider the affected principle and its rationale.
   connect its changes to the corresponding upstream PRs. The upstream
   default branch supplies the comparison target before a feature branch
   exists; create that branch only when there are commits to submit
-  ([branch rationale](01-state-and-upstreams.md#matching-branch-names-keep-a-feature-together)).
+  ([branch rationale](02-state-and-upstreams.md#matching-branch-names-keep-a-feature-together)).
 - **Prefer a visible refusal to a guess that can lose work.** When the
   history or target is ambiguous, guessing can discard changes or publish
   to the wrong place. Supporting every rare case also adds complexity to
-  ordinary syncs; explicit [limits](04-safety-and-limits.md#limits) keep
+  ordinary syncs; explicit [limits](05-safety-and-limits.md#limits) keep
   those tradeoffs visible rather than hiding them behind automatic choices.
 
 ## Architecture
@@ -95,11 +95,12 @@ explicitly reconsider the affected principle and its rationale.
 
 </div>
 
-The subchapters develop the rationale for [state and upstreams](01-state-and-upstreams.md),
-[splicing in](02-splicing-in.md), [splicing out](03-splicing-out.md),
-[safety and limits](04-safety-and-limits.md), and
-[using the user's Git](05-git-trace.md).
-[Why the name "splice"](06-name.md) explains the terminology and naming
-motivations. [Going forward](07-going-forward/README.md) explores potential
-features and open questions, including directions that are out of scope;
-these proposals do not describe released behaviour or promise an implementation.
+[Why the name "splice"](01-name.md) introduces the terminology, including
+“splicing in” and “splicing out”, and the naming motivations. The following
+chapters develop the rationale for [state and upstreams](02-state-and-upstreams.md),
+[splicing in](03-splicing-in.md), [splicing out](04-splicing-out.md),
+[safety and limits](05-safety-and-limits.md), and
+[using the user's Git](06-git-trace.md).
+[Going forward](07-going-forward/README.md) explores potential features and
+open questions, including directions that are out of scope; these proposals
+do not describe released behaviour or promise an implementation.

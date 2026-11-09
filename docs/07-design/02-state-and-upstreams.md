@@ -94,7 +94,7 @@ Registering an upstream as a remote makes it available to plain Git push,
 branch tracking and IDE sync actions, any of which can send monorepo
 history. Fetching by URL into private refs keeps upstream objects usable
 by ordinary Git commands without adding that accidental push target.
-[Safety and limits](04-safety-and-limits.md) compares the rejected guards
+[Safety and limits](05-safety-and-limits.md) compares the rejected guards
 and explains the remaining risk of an explicit push by URL.
 
 ### Exact URLs identify upstreams without guessing equivalence
@@ -156,7 +156,7 @@ mapping where default branch names differ. Deriving the prospective
 changes from that target lets inspection show what a PR would contain.
 Only upstreams with commits to submit need a feature branch; eagerly
 creating one in every upstream would leave branches with no corresponding
-PR work ([push design](03-splicing-out.md#new-upstream-branches)).
+PR work ([push design](04-splicing-out.md#new-upstream-branches)).
 
 ### Recorded defaults prevent silent retargeting
 

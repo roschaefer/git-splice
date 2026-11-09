@@ -10,18 +10,6 @@ A [splice](https://en.wikipedia.org/wiki/Splice) joins two things into
 one: ropes, film, tape, wires, optical fibres, wooden beams, genes. The
 name `git-splice` borrows from all of them.
 
-## Rope splicing
-
-A [long splice](https://en.wikipedia.org/wiki/Rope_splicing) unlays the
-strands of two ropes and weaves each into the other. Unlike a knot, or
-even a short splice, it adds no lump: the joint has nearly the rope's own
-diameter and runs through a pulley like the rest of the rope.
-
-`git-splice` works the same way. The upstream's files are woven into the
-monorepo as an ordinary folder, with no submodule pointer (gitlink) and
-nothing extra to check out. You see the joint only as one small file,
-`<path>/.splice`, which records the upstream.
-
 ## Noun and verb
 
 As a noun, a splice is the joint: here, the folder together with its
@@ -35,6 +23,18 @@ As a verb, you splice something in or out:
 - **splice out**: publish the monorepo's changes upstream, with `push`.
 
 [Concepts](../03-concepts/README.md) defines these and the other terms.
+
+## Rope splicing
+
+A [long splice](https://en.wikipedia.org/wiki/Rope_splicing) unlays the
+strands of two ropes and weaves each into the other. Unlike a knot, or
+even a short splice, it adds no lump: the joint has nearly the rope's own
+diameter and runs through a pulley like the rest of the rope.
+
+`git-splice` works the same way. The upstream's files are woven into the
+monorepo as an ordinary folder, with no submodule pointer (gitlink) and
+nothing extra to check out. You see the joint only as one small file,
+`<path>/.splice`, which records the upstream.
 
 ## RNA splicing
 

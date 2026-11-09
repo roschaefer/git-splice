@@ -10,7 +10,7 @@ another implementation inside `git-splice`. Even equivalent results would
 not preserve the ability to observe the operations as commands executed
 by the user's Git. We deliberately keep that property instead of replacing
 Git with a library. Reusing Git's implementation also avoids maintaining
-our own configuration parser, [merge machinery](02-splicing-in.md#reuse-gits-merge-without-joining-histories),
+our own configuration parser, [merge machinery](03-splicing-in.md#reuse-gits-merge-without-joining-histories),
 commit writer or transport.
 
 The examples below demonstrate the tracing this choice enables and where

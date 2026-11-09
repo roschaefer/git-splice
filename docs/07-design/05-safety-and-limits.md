@@ -29,7 +29,7 @@ is to avoid adding a subfolder remote in the first place.
 ### Remove the accidental target
 
 Upstreams are fetched and pushed by URL from `.splice`, using
-[private refs](01-state-and-upstreams.md#private-refs-avoid-an-accidental-push-target).
+[private refs](02-state-and-upstreams.md#private-refs-avoid-an-accidental-push-target).
 Git's remote selection, branch tracking and GUI remote pickers therefore
 have no subfolder remote to choose. No hook, helper or unusual URL is
 required in each clone. A plain `git push vendor/a main` fails because
@@ -40,7 +40,7 @@ upstream URL into a plain Git push remains possible: this design removes
 accidental remote selection, not Git's ability to push by URL.
 
 The rebuild also limits what the intended push publishes: the splice's
-own history begins at its [mount](03-splicing-out.md#history-scope).
+own history begins at its [mount](04-splicing-out.md#history-scope).
 It excludes the folder's history before `init` and follows splice identity
 across moves, so another splice's old history is not treated as its own.
 

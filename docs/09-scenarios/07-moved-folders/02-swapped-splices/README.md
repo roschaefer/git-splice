@@ -18,7 +18,7 @@ before the swap and those of the splice of `$UPSTREAM-b` after it. Their
 ids can: each splice got its own when it was cloned or initialized, and
 it moves with the `.splice`. So the rebuild follows each splice back to
 the path where its id was before the swap, and continues there. See
-[the design notes](../../../07-design/03-splicing-out.md#splicing-out-push-and-the-rebuild).
+[the design notes](../../../07-design/04-splicing-out.md#splicing-out-push-and-the-rebuild).
 
 ## Output
 
