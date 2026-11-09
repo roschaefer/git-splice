@@ -14,7 +14,8 @@ a cycle is an endless tree of folders. The repeated
       └─────┘   A's upstream splices M in at i/
 ```
 
-**Not prevented yet.** Nothing refuses a cycle
+**Not prevented yet.** A recursive pull, and `pull --all`, stops at a
+copy of a splice it's inside, but nothing refuses a cycle
 ([#86](https://github.com/roschaefer/git-splice/issues/86)). The plan:
 `clone`, `merge` and `pull` refuse to commit a `.splice` with the id of
 one above it. That comes one level late, since the monorepo has no
@@ -64,9 +65,10 @@ vendor/a/i/vendor/a/.splice: id = 224f2c2563d3b6f7
 
 `vendor/a/i/vendor/a/` has the id of `vendor/a/`, above it: the cycle.
 
-Each pull terminates: it reads which splices to pull once, before it
-merges anything, so a `.splice` that a merge brings in is fetched, but
-pulled only by the next run. And each run finds a deeper one:
+`pull --all` goes down the tree, pulling each splice below the one
+above it, and stops at a copy of a splice it's inside: pulling
+`vendor/a/i/vendor/a/` would bring in another copy below it, and that
+one the next. So the pull ends, and the tree stays as deep as it is:
 
 ```scrut
 $ git splice pull --all
@@ -75,9 +77,7 @@ ok   vendor/a/i fetched
 ok   vendor/a/i/vendor/a fetched
 ok   vendor/a: nothing to pull
 ok   vendor/a/i: nothing to pull
-ok   vendor/a/i/vendor/a: pulled 885fc31
-ok   vendor/a/i/vendor/a/i fetched
-ok   vendor/a/i/vendor/a/i/vendor/a fetched
+ok   vendor/a/i/vendor/a: a copy of vendor/a, which it's inside -- not pulled
 ```
 
 ```scrut
@@ -85,8 +85,6 @@ $ git grep 'id = ' -- '*/.splice' | tr '\t' ' '
 vendor/a/.splice: id = 224f2c2563d3b6f7
 vendor/a/i/.splice: id = 0ceff458bb3bb1f7
 vendor/a/i/vendor/a/.splice: id = 224f2c2563d3b6f7
-vendor/a/i/vendor/a/i/.splice: id = 0ceff458bb3bb1f7
-vendor/a/i/vendor/a/i/vendor/a/.splice: id = 224f2c2563d3b6f7
 ```
 
 Once the monorepo is pushed, the `i/` splices sync with a version that
@@ -109,7 +107,7 @@ $ echo "note" >vendor/a/i/note.txt &&
 
 ```scrut
 $ git splice push vendor/a/i
-ok   vendor/a/i: pushed 298b249 to main
+ok   vendor/a/i: pushed a8eb2b9 to main
 ```
 
 Nobody pushed the monorepo since the setup, so this was a fast-forward.
@@ -119,7 +117,6 @@ monorepo's history nor its tree:
 ```scrut
 $ git -C "$UPSTREAM-m" log --format=%s main
 note in i
-splice: pull vendor/a/i/vendor/a from main at 885fc31
 add vendor/a
 initial commit
 ```

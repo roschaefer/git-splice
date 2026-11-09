@@ -89,22 +89,23 @@ ok   vendor/a/b fetched from origin
 ok   vendor/a/b fetched from fork
 ok   vendor/a: pulled 1b1cea6
 ok   vendor/a/b: pulled d5d5b62
+ok   vendor/a: 2 pulls made one commit, [0-9a-f]{7} (regex)
 ```
 
 ```scrut
 $ git splice status --upstream fork
 On branch main
 
-  ahead 3  vendor/a -> fork/main
-  ahead 2  vendor/a/b -> fork/main
+  ahead 2  vendor/a -> fork/main
+  ahead 1  vendor/a/b -> fork/main
 ```
 
 ```scrut
 $ git splice status
 On branch main
 
-  ahead 4  vendor/a -> origin/main
-  ahead 3  vendor/a/b -> origin/main
+  ahead 3  vendor/a -> origin/main
+  ahead 2  vendor/a/b -> origin/main
 ```
 
 ### The default travels with the `.splice`
@@ -115,7 +116,7 @@ its folder. Its `default-upstream` goes along, so in the outer upstream,
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: pushed e824c9c to origin/main
+ok   vendor/a: pushed e49458b to origin/main
 ```
 
 ```scrut

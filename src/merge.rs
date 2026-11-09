@@ -586,7 +586,8 @@ impl Repo {
     /// change, and a failure stops them. Fails if anything was skipped or failed.
     pub fn merge_paths(&mut self, branch: &str, verb: &str, given: &[String]) -> Res<()> {
         let mut paths = splices_in_order(false, given);
-        let recursive = self.args.has_flag("--recursive");
+        // pull --all reaches the splices below each through the one above.
+        let recursive = self.args.has_flag("--recursive") || (verb == "pull" && self.args.all);
         let state_file_here = |path: &str| {
             git(&["cat-file", "-e", &format!("HEAD:{path}/{STATE_FILE}")])
                 .q()
@@ -647,6 +648,24 @@ impl Repo {
                     )),
                 }
                 continue;
+            }
+            // A copy of a splice it's inside, by its id: pulling it brings in
+            // another copy below, and that one the next, so recursion ends.
+            let named = self.args.paths.iter().any(|p| normalize_path(p) == *path);
+            let id = splice_config(path, "id", "HEAD");
+            if recursive && !named && !id.is_empty() {
+                let copied = self
+                    .all_paths
+                    .iter()
+                    .filter(|above| path.starts_with(&format!("{above}/")))
+                    .find(|above| splice_config(above, "id", "HEAD") == id);
+                if let Some(above) = copied {
+                    log_ok(format!(
+                        "{path}: a copy of {above}, which it's inside -- not {}",
+                        past_tense(verb)
+                    ));
+                    continue;
+                }
             }
             match self.merge_one(path, branch, verb) {
                 Err(Fail::Hard) => return Err(Fail::Hard),

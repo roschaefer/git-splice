@@ -179,7 +179,7 @@ ok   vendor/a/b: nothing to pull
 ok   vendor/a/b/c: nothing to pull
 ok   vendor/a/d: pulled 36c850e
 ok   vendor/a/e: nothing to pull
-ok   4 pulls made one commit, f325a40
+ok   vendor/a: 4 pulls made one commit, 9252b9b
 ```
 
 ![The tree: the monorepo at p, the one commit for the whole pull; vendor/a/ at a2, then dashed p'; b/ at b2, then dashed p'; c/ at c2, then dashed p'; d/ at d2; e/ at e1; every synced commit, p and the copies of p that move a synced commit below them outlined blue](tree-pulled.drawio.svg)
@@ -193,13 +193,13 @@ ok   tree-pulled.drawio.svg: a tree of 6 rows
 
 ## 4. The result
 
-One commit for the whole pull, whose message lists each pull in it:
+One commit for the whole pull: the message of `vendor/a`'s own pull,
+then of each pull below it:
 
 ```scrut
 $ git log --format=%B
-splice: pull vendor/a and the splices in it
-
 splice: pull vendor/a from main at 6d12ed8
+
 splice: pull vendor/a/b from main at be68b59
 splice: pull vendor/a/b/c from main at 94cad5e
 splice: pull vendor/a/d from main at 36c850e
@@ -226,9 +226,9 @@ On branch main
 
 ```scrut
 $ git splice push --all
-ok   vendor/a/b/c: pushed 0429c46 to main
-ok   vendor/a/b: pushed f700e5a to main
+ok   vendor/a/b/c: pushed 6b6b08c to main
+ok   vendor/a/b: pushed 9acbcb5 to main
 ok   vendor/a/d: nothing to push
 ok   vendor/a/e: nothing to push
-ok   vendor/a: pushed 1bedf5a to main
+ok   vendor/a: pushed ed012a8 to main
 ```
