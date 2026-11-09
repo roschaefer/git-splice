@@ -32,9 +32,9 @@ started. The original research and design files are historical context.
   after resolution. No payload is promised for a failed underlying Git command
   or an abrupt process termination. `--rebase` is explicitly refused with exec.
 - Existing flags such as `--rebuilt-commit` have not been changed. CLI
-  integration now covers standalone fetch and pull, including pull's nested
-  fetch/merge/fold operations. Standalone clone, init, merge, push and rebuild
-  do not yet accept these options.
+  integration now covers fetch, pull and push, including pull's nested
+  fetch/merge/fold operations and push's rebuild/upload stages. Standalone
+  clone, init, merge and rebuild do not yet accept these options.
 - Help/reference pages and bash/zsh/fish completions are updated. jq was added
   to the dev shell and the older-Git compatibility test environment.
 - Serde and serde_json are new dependencies; Cargo.lock preserves existing
@@ -243,3 +243,60 @@ use Git LFS's ordinary pre-push hook on the git push invoked by git-splice.
   testcases, including 174 prose-label pages and 131 diagram placements.
 - No Rust code changed. The full core test suite was not rerun for this
   scenario/test-only extension.
+
+
+## Follow-up: push checkpoints and edited rebuilt-commit results
+
+The user explicitly authorized extending PR #446 with push support and is
+willing to tidy the larger PR later.
+
+- `push --exec` / `push --continue-from` use the same runner and payload.
+  `after-rebuild` exposes a prepared commit before upload; `after-push` follows
+  upload, fetched-ref recording and attempted tracking. No-op pushes have no
+  checkpoints. The queue remains bottom-up and failures block ancestors while
+  independent splices continue.
+- `src/push.rs::PushProgress` owns rebuild/publish phases, remaining paths,
+  failures and supplied-history state. Ordinary push also uses this loop.
+  `prepare_push` retains classification/rebuild checks; `publish_push` retains
+  the ordinary native git push, LFS hooks, ref recording and bump reminder.
+- The payload now has `result: {"rebuilt_commit": null}` (defaulted when absent
+  for older payloads). At push's after-rebuild checkpoint, a script may emit a
+  modified payload with a commit/ref in that field and exit nonzero. Continue
+  resolves and validates it via the existing `give_rebuild` implementation.
+  A zero-returning script does not replace the commit; stdout remains the
+  script's own stream, not an automatically interpreted response channel.
+- Replacement files must match committed splice content. Synced ancestry is
+  required unless --force was in the original invocation; the existing checks
+  against unrecordable/old history remain. Replacements are restricted to one
+  explicitly named splice, like --rebuilt-commit, without --all. In particular,
+  edited child history still needs the existing pull --bump handoff before
+  proceeding with further work; the interface does not silently rewrite .splice.
+- Push continuation requires exactly unchanged HEAD as well as the existing
+  repository/worktree, branch, config and fetched-ref guards. The prepared commit
+  stays pinned even if a ref originally passed with --rebuilt-commit moves.
+  Results at other checkpoints/operations are refused. After-push pauses consume
+  completed uploads, rather than replaying them.
+- Event context exposes path, upstream name, URL, upstream branch, label, old
+  fetched target, synced commit and rebuilt_commit. Push continuation is stored
+  separately from merge progress in the shared continuation.
+- Shared executable script/example:
+  `docs/09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/reword-push.sh`
+  and `edit-with-exec.md`. It edits the message of one rebuilt commit through
+  commit-tree, returns result.rebuilt_commit, continues the push, and records
+  the edited history with pull --bump. The test uses the actual example script.
+- `docs/tests/push-checkpoints.bats` covers stepping before/after uploads,
+  no duplicate push after pause, successful/invalid history replacement,
+  force, no-ops, remote advancement, strict HEAD, results at wrong phases,
+  dependent failures, tracking, pinned --rebuilt-commit refs, and single-splice
+  replacement constraints.
+- Existing LFS push scenarios and tests now invoke push --exec with the shared
+  LFS script. It intentionally ignores push events; native pre-push uploads
+  still work. CLI help/reference, common payload docs, shell completions and
+  example-script lint/format checks are updated.
+
+Verification passed: 873 Bats tests and 44 Rust tests; documentation checks
+covered 156 documents, 1,939 testcases, 175 label pages and 131 placements.
+Lint, formatting and `nix flake check -L` passed (current system).
+Unset GIT_PAGER and PAGER for regression tests to avoid overriding pager fixtures.
+Logs: `/tmp/git-splice-push-exec-final-tests.log`,
+`/tmp/git-splice-push-exec-docs.log`, `/tmp/git-splice-push-exec-flake.log`.
