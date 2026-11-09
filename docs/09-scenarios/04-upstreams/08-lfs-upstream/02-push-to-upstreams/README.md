@@ -55,10 +55,11 @@ $ printf 'a weights, trained locally\n' >vendor/a/model.bin && printf 'b weights
 `push --all` sends each splice's rebuilt history to its own upstream. Git
 LFS's existing `pre-push` hook uploads the new content to the corresponding
 LFS server. The checkpoint script is needed for downloading before merge;
-uploads use that ordinary hook:
+uploads use that ordinary hook. The same script is passed to push, where it
+ignores the `after-rebuild` and `after-push` checkpoints:
 
 ```scrut
-$ git splice push --all
+$ git splice push --all --exec 'bash "$LFS_SCRIPT"'
 ok   vendor/a: pushed 28493f7 to main
 ok   vendor/b: pushed 27024cd to main
 ```

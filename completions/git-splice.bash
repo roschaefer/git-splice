@@ -105,7 +105,7 @@ _git_splice() {
   for option in --upstream --branch -m --message --message-template --exec; do
     ! __git_splice_completing_value "$option" || return 0
   done
-  if [[ "$cmd" == fetch || "$cmd" == pull ]] && __git_splice_completing_value --continue-from; then
+  if [[ "$cmd" == fetch || "$cmd" == pull || "$cmd" == push ]] && __git_splice_completing_value --continue-from; then
     __git_splice_reply "$value_prefix" < <(compgen -f -- "$value_prefix")
     return
   fi
@@ -129,7 +129,7 @@ _git_splice() {
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit --exec --continue-from -h --help
       else
         __git_splice_paths_or_options "$cur" --upstream -h --help
       fi

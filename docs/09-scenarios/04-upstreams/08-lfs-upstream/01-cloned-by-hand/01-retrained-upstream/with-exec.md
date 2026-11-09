@@ -127,10 +127,11 @@ $ printf 'weights, version 3, trained locally\n' >vendor/a/model.bin && git add 
 ```
 
 `git splice push` uploads the new LFS content through Git LFS's ordinary
-`pre-push` hook, together with the splice's rebuilt history:
+`pre-push` hook, together with the splice's rebuilt history. The checkpoint
+script ignores `after-rebuild` and `after-push`; uploads use the native hook:
 
 ```scrut
-$ git splice push vendor/a
+$ git splice push --exec 'bash "$LFS_SCRIPT"' vendor/a
 ok   vendor/a: pushed d940207 to main
 ```
 

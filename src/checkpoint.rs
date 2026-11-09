@@ -1,4 +1,4 @@
-//! Script checkpoints and caller-owned continuation for fetch and pull.
+//! Script checkpoints and caller-owned continuation for fetch, pull and push.
 
 use crate::args::Args;
 use crate::merge::{apply_merge_options, MergeProgress};
@@ -40,6 +40,8 @@ pub(crate) enum Event {
         head_before: String,
         head_after: String,
     },
+    AfterRebuild(crate::push::PreparedPush),
+    AfterPush(crate::push::PreparedPush),
     BeforeFold,
     AfterFold,
 }
@@ -91,6 +93,7 @@ impl Discovery {
 #[serde(rename_all = "kebab-case")]
 enum Phase {
     Merging,
+    Pushing,
     Tracking,
     Fold,
     Done,
@@ -106,6 +109,8 @@ struct Continuation {
     merges: MergeProgress,
     phase: Phase,
     discovery: Discovery,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pushes: Option<crate::push::PushProgress>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -150,7 +155,7 @@ impl Repository {
         })
     }
 
-    fn validate(&self) -> Res<()> {
+    fn validate(&self, operation: &str) -> Res<()> {
         let now = Self::capture()?;
         if self.root != now.root || self.git_dir != now.git_dir || self.branch != now.branch {
             return die("continuation belongs to another repository, worktree or branch");
@@ -162,6 +167,9 @@ impl Repository {
             return die("Git configuration changed since the checkpoint -- start a new operation");
         }
         if self.head != now.head {
+            if operation == "push" {
+                return die("HEAD changed since the push checkpoint -- start a new push");
+            }
             if !is_ancestor(&self.head, &now.head) {
                 return die("HEAD no longer descends from the checkpoint -- start a new operation");
             }
@@ -181,6 +189,12 @@ impl Repository {
     }
 }
 
+#[derive(Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct ExecResult {
+    rebuilt_commit: Option<String>,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Payload {
@@ -190,6 +204,8 @@ struct Payload {
     event: Event,
     repository: Repository,
     continuation: Continuation,
+    #[serde(default)]
+    result: ExecResult,
 }
 
 fn hook(command: &str, payload: &Payload) -> Res<()> {
@@ -209,9 +225,12 @@ fn hook(command: &str, payload: &Payload) -> Res<()> {
     let written = writer.join().map_err(|_| Fail::Hard)?;
     if !status.success() {
         log_err(format!("--exec stopped at checkpoint {} -- save its payload and use --continue-from to continue", payload.sequence));
-        let remaining = payload.continuation.merges.remaining();
+        let (verb, remaining) = match &payload.continuation.pushes {
+            Some(pushes) => ("pushed", pushes.remaining()),
+            None => ("pulled", payload.continuation.merges.remaining()),
+        };
         if !remaining.is_empty() {
-            log_err(format!("Not pulled yet: {}", remaining.join(" ")));
+            log_err(format!("Not {verb} yet: {}", remaining.join(" ")));
         }
         return Err(Fail::Hard);
     }
@@ -220,7 +239,7 @@ fn hook(command: &str, payload: &Payload) -> Res<()> {
             return die(format!("--exec: could not send payload: {error}"));
         }
     }
-    payload.repository.validate()?;
+    payload.repository.validate(&payload.operation)?;
     if payload.operation == "pull" {
         require_no_splice_in_progress()
     } else {
@@ -266,7 +285,16 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
     let command = args.exec.clone();
     let (mut repo, mut state, mut sequence, first_event) = if args.continue_from.is_empty() {
         let mut repo = prepare(operation, args)?;
-        let (branch, fetched, failures, phase) = if operation == "fetch" {
+        let mut pushes = None;
+        let (branch, fetched, failures, phase) = if operation == "push" {
+            pushes = Some(crate::push::PushProgress::new(&mut repo)?);
+            (
+                repo.monorepo_branch.clone(),
+                Vec::new(),
+                Vec::new(),
+                Phase::Pushing,
+            )
+        } else if operation == "fetch" {
             let (branch, failures) = crate::fetch::fetch_for_command(&mut repo)?;
             repo.monorepo_branch = branch.clone();
             (branch, Vec::new(), failures, Phase::Tracking)
@@ -286,9 +314,9 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
         } else {
             None
         };
-        let event = Event::AfterFetch {
+        let event = (operation != "push").then(|| Event::AfterFetch {
             fetched: std::mem::take(&mut repo.fetch_checkpoint),
-        };
+        });
         let state = Continuation {
             args: repo.args.clone(),
             branch,
@@ -297,8 +325,9 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
             merges: MergeProgress::new(&fetched),
             phase,
             discovery: Discovery::capture(&repo),
+            pushes,
         };
-        (repo, state, 0, Some(event))
+        (repo, state, 0, event)
     } else {
         if args.all
             || !args.paths.is_empty()
@@ -306,6 +335,7 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
             || !args.branch.is_empty()
             || !args.message.is_empty()
             || !args.message_template.is_empty()
+            || !args.rebuilt_commit.is_empty()
             || !args.flags.is_empty()
         {
             return die(
@@ -337,13 +367,21 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
         if payload.version != 1 || payload.operation != operation {
             return die("unsupported continuation version or operation");
         }
-        if (operation == "fetch") != matches!(payload.continuation.phase, Phase::Tracking) {
+        if (operation == "fetch") != matches!(payload.continuation.phase, Phase::Tracking)
+            || (operation == "push") != matches!(payload.continuation.phase, Phase::Pushing)
+            || (operation == "push") != payload.continuation.pushes.is_some()
+        {
             return die("inconsistent continuation phase for operation");
+        }
+        if payload.result.rebuilt_commit.is_some()
+            && (operation != "push" || !matches!(payload.event, Event::AfterRebuild(_)))
+        {
+            return die("rebuilt_commit result requires a push after-rebuild checkpoint");
         }
         let mut saved_args = payload.continuation.args.clone();
         saved_args.exec = command.clone();
         let mut repo = prepare(operation, saved_args)?;
-        payload.repository.validate()?;
+        payload.repository.validate(&payload.operation)?;
         if payload.continuation.branch != payload.repository.branch
             || (payload.continuation.args.has_flag("--recursive")
                 && payload.continuation.fold_start != payload.repository.fold_start)
@@ -352,7 +390,15 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
         }
         repo.monorepo_branch = payload.continuation.branch.clone();
         payload.continuation.discovery.clone().restore(&mut repo);
-        (repo, payload.continuation, payload.sequence, None)
+        let mut state = payload.continuation;
+        if let Some(commit) = payload.result.rebuilt_commit {
+            state
+                .pushes
+                .as_mut()
+                .ok_or(Fail::Hard)?
+                .replace_rebuild(&mut repo, &commit)?;
+        }
+        (repo, state, payload.sequence, None)
     };
 
     let mut event = first_event;
@@ -367,12 +413,20 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
                 event,
                 repository: Repository::capture()?,
                 continuation: state.clone(),
+                result: ExecResult::default(),
             };
             hook(&command, &payload)?;
             repo.uncommitted.clear();
             repo.content_tree_cache.clear();
         }
         match state.phase {
+            Phase::Pushing => {
+                let pushes = state.pushes.as_mut().ok_or(Fail::Hard)?;
+                if pushes.done() {
+                    return pushes.finish();
+                }
+                event = pushes.advance(&mut repo, &state.branch)?;
+            }
             Phase::Tracking => {
                 if operation != "fetch" {
                     return die("inconsistent continuation phase for pull");

@@ -2,8 +2,9 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] (<path>... | --all)
-    git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
+    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] [--exec <command>] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force] [--exec <command>] --rebuilt-commit <commit> <path>
+    git splice push --continue-from <file> --exec <command>
 
 DESCRIPTION
     Publishes each splice's local changes: rebuilds the commits that changed
@@ -62,6 +63,28 @@ OPTIONS
         synced commit before the next change, as push reminds you.
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/push/#--rebuilt-commit
+
+    --exec <command>
+        Runs <command> through sh from the repository root after rebuilding
+        each splice, before uploading it, and after a successful push and
+        its tracking changes. Sends a versioned JSON payload on stdin.
+        Zero continues; nonzero stops with completed work applied. No-op
+        pushes have no checkpoints. Normal output goes to stderr; stdout
+        belongs to the script.
+
+        See also: https://roschaefer.github.io/git-splice/docs/command-reference/push/#--exec
+
+    --continue-from <file>
+        Continues from a saved payload; - reads stdin. Supply --exec again,
+        with no other options or paths. Resumes after the stopped checkpoint
+        without rebuilding or repeating completed pushes. Requires unchanged
+        HEAD, branch, fetched refs and Git configuration in the same worktree.
+        At after-rebuild, result.rebuilt_commit may supply an edited commit,
+        checked by the same rules as --rebuilt-commit, for one named splice.
+        Other fields are passed back unchanged; results are refused at other
+        checkpoints.
+
+        See also: https://roschaefer.github.io/git-splice/docs/command-reference/push/#--continue-from
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/push/#options
 

@@ -90,6 +90,8 @@ _git-splice() {
       ;;
     push)
       _arguments \
+        '--exec=[run a script with a checkpoint payload]:command:' \
+        '--continue-from=[continue from a saved checkpoint payload]:file:_files' \
         '--upstream=[upstream named in .splice]:upstream name:' \
         '--branch=[upstream branch, for this command only]:upstream branch:' \
         '--track[track --branch on the current branch]' \

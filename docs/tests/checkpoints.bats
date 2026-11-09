@@ -224,7 +224,7 @@ assert_local_lfs_change_reaches_upstream() {
   printf 'version three, trained locally\n' >vendor/a/model.bin
   git add vendor/a/model.bin
   git commit -qm 'train model locally'
-  run splice push vendor/a
+  run splice push --exec 'bash "$CHECKPOINT_SCRIPT"' vendor/a
   [ "$status" -eq 0 ]
   git clone -q "file://$upstream" "$BATS_TEST_TMPDIR/upstream-colleague"
   [ "$(cat "$BATS_TEST_TMPDIR/upstream-colleague/model.bin")" = 'version three, trained locally' ]
@@ -410,7 +410,7 @@ assert_local_lfs_change_reaches_upstream() {
   printf 'b weights, trained locally\n' >vendor/b/model.bin
   git add vendor/a/model.bin vendor/b/model.bin
   git commit -qm 'train both models locally'
-  run splice push --all
+  run splice push --all --exec 'bash "$CHECKPOINT_SCRIPT"'
   [ "$status" -eq 0 ]
   git clone -q "file://$upstream" "$BATS_TEST_TMPDIR/a-clone"
   git clone -q "file://$upstream-b.git" "$BATS_TEST_TMPDIR/b-clone"

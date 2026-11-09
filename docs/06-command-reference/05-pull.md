@@ -203,7 +203,8 @@ $ git splice pull -h | check-help option --exec
 ```
 
 The payload has `version`, `operation`, `sequence`, `event`, `repository`,
-and `continuation` fields. Version 1 supports `pull` and `fetch`. `event.checkpoint` is
+and `continuation` fields, plus a `result` object. Version 1 supports `pull`,
+`fetch` and `push`. For pull, `event.checkpoint` is
 `after-fetch`, `after-merge`, `before-fold` or `after-fold`.
 
 An `after-fetch` event includes `fetched`, a list of entries with `path`,
@@ -226,6 +227,10 @@ find the first applied update that breaks a build, run `make` only at
 LFS objects, act at `after-fetch`, using each successful entry's upstream URL
 and target commit before the next checkout. Custom LFS endpoints need their
 own configuration; this interface does not configure Git LFS automatically.
+
+For pull and fetch, leave `result.rebuilt_commit` null. Only a push's
+[`after-rebuild` checkpoint](07-push.md#--continue-from) accepts that result;
+it supplies an edited history for validation before upload.
 
 ### `--continue-from`
 
