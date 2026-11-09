@@ -305,7 +305,9 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
             (branch, fetched, failures, Phase::Merging)
         };
         let fold_start = if operation == "pull" && repo.args.has_flag("--recursive") {
-            if commit_of("SPLICE_PULL_START").is_none()
+            if !git(&["merge-base", "--is-ancestor", "SPLICE_PULL_START", "HEAD"])
+                .q()
+                .ok()
                 && !git(&["update-ref", "SPLICE_PULL_START", "HEAD"]).ok()
             {
                 return die("SPLICE_PULL_START couldn't be updated");

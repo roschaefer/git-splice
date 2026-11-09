@@ -91,6 +91,5 @@ complete -c git-splice -n "__git_splice_positional rebuild 0" -a "(__git_splice_
 complete -c git-splice -n "__git_splice_positional key 0" -a "(__git_splice_paths)" -d splice
 complete -c git-splice -n "__fish_seen_subcommand_from key fetch merge pull push status diff log" -l upstream -x -d 'upstream named in .splice'
 
-complete -c git-splice -n "__fish_seen_subcommand_from pull" -l recursive -d 'pull nested splices too and fold their commits'
 complete -c git-splice -n "__fish_seen_subcommand_from fetch pull push" -l exec -x -d 'run a script with a checkpoint payload'
 complete -c git-splice -n "__fish_seen_subcommand_from fetch pull push" -l continue-from -r -F -d 'continue from a saved checkpoint payload'
