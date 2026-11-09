@@ -60,9 +60,16 @@ are computed from that state and the monorepo's history.
 
 ## State and upstreams
 
-[State and upstreams](01-state-and-upstreams.md) explains why `.splice`
-uses Git's config format, why refs belong to URLs rather than paths, and
-why branch defaults are portable while tracking overrides stay local.
+- **Commit the relationship; keep fetch state local.** Shared state must
+  survive clones and history rewrites without committing per-clone choices.
+- **Use Git's config format and private refs.** Reuse Git's tools without
+  introducing an upstream remote that a plain push could select.
+- **Identify upstreams by URL, not folder path.** Moves preserve fetched
+  history; splices sharing an upstream can share its refs.
+- **Commit shared defaults; keep tracking overrides local.** A personal
+  branch choice should not change the team's upstream target.
+
+[State and upstreams](01-state-and-upstreams.md) develops these decisions.
 
 ## Why reads are broad and writes explicit
 

@@ -7,13 +7,21 @@ folder and an empty upstream. The
 [command reference](../06-command-reference/01-clone.md) covers their syntax.
 The design choices are about preserving existing work:
 
-- An existing folder that matches upstream needs only `.splice`. If the
+- **Preserve existing files.**
+
+  An existing folder that matches upstream needs only `.splice`. If the
   files differ, `clone` refuses and names `--merge` instead of overwriting.
-- `clone --merge` uses an empty folder as the three-way merge base. Files
+
+- **Merge without losing local-only files.**
+
+  `clone --merge` uses an empty folder as the three-way merge base. Files
   changed on both sides become add/add conflicts; local-only files survive.
   Deleting and re-cloning on a branch is different: the later Git merge's
   base still contains the old folder and can discard local-only files.
-- `init` records no synced commit yet. The first push begins with the
+
+- **Publish only history since init.**
+
+  `init` records no synced commit yet. The first push begins with the
   folder at `init`, not its earlier monorepo history, which may contain
   material never intended for publication
   ([example](../09-scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)).
@@ -50,29 +58,37 @@ stays separate from the monorepo's ancestry.
 
 ### The same files, another history
 
-Matching files do not always mean no commit is needed. If upstream
-rewrote or squash-merged the published history, or accepted an edited
-rebuild, a pull must record that upstream commit even when only `.splice`
-changes. Otherwise a later rebuild can publish the original commits again
-([rewritten history](../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/README.md),
-[edited rebuild](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md)).
-After an ordinary push, R already equals T and no recording commit is needed.
+- **Record history changes even when files match.**
+
+  Matching files do not always mean no commit is needed. If upstream
+  rewrote or squash-merged the published history, or accepted an edited
+  rebuild, a pull must record that upstream commit even when only `.splice`
+  changes. Otherwise a later rebuild can publish the original commits again
+  ([rewritten history](../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/README.md),
+  [edited rebuild](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md)).
+  After an ordinary push, R already equals T and no recording commit is needed.
 
 ### Conflicts and nested splices
 
-Using a Git cherry-pick also leaves conflicts in a familiar, recoverable
-state instead of requiring a separate recovery protocol. The command must
-name the available recovery actions when it stops; their usage belongs in
-[conflicts](../06-command-reference/05-pull.md#conflicts).
+- **Use Git's conflict recovery.**
 
-An outer pull can change the inner `.splice` files. For that reason,
-merges run top-down and pulls also fetch the splices below, including
-ones the pull introduces. Fetching them makes their newly recorded
-commits available; pulling them is a separate choice. `pull --recursive`
-also pulls the descendants and folds the result into one commit
-([recursive pull](../06-command-reference/05-pull.md#--recursive)).
+  Using a Git cherry-pick also leaves conflicts in a familiar, recoverable
+  state instead of requiring a separate recovery protocol. The command must
+  name the available recovery actions when it stops; their usage belongs in
+  [conflicts](../06-command-reference/05-pull.md#conflicts).
 
-A failed fetch blocks dependent pulls above and below it; a failed merge
-blocks merges below it. Pushes run bottom-up, so an outer push cannot
-publish a nested sync point whose upstream commit has not been published.
-A failed inner push blocks pushes above it.
+- **Merge from the outside in.**
+
+  An outer pull can change the inner `.splice` files. For that reason,
+  merges run top-down and pulls also fetch the splices below, including
+  ones the pull introduces. Fetching them makes their newly recorded
+  commits available; pulling them is a separate choice. `pull --recursive`
+  also pulls the descendants and folds the result into one commit
+  ([recursive pull](../06-command-reference/05-pull.md#--recursive)).
+
+- **Respect publication dependencies.**
+
+  A failed fetch blocks dependent pulls above and below it; a failed merge
+  blocks merges below it. Pushes run bottom-up, so an outer push cannot
+  publish a nested sync point whose upstream commit has not been published.
+  A failed inner push blocks pushes above it.

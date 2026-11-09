@@ -27,11 +27,13 @@ this page explains why publication uses a deterministic, bounded rebuild.
 
 ### Deterministic metadata
 
-Each copy excludes the splice's own `.splice` and keeps author, committer,
-both dates and message. Message bytes pass through without an added
-newline; NUL separators keep the batched log's record framing out of the
-message. Copies are not signed, because signatures would make repeated
-rebuilds differ.
+- **Preserve metadata deterministically.**
+
+  Each copy excludes the splice's own `.splice` and keeps author, committer,
+  both dates and message. Message bytes pass through without an added
+  newline; NUL separators keep the batched log's record framing out of the
+  message. Copies are not signed, because signatures would make repeated
+  rebuilds differ.
 
 This follows `git subtree split`'s metadata copying, but deliberately
 uses first-parent history. The
@@ -41,42 +43,52 @@ approved differences.
 
 ## History scope
 
-A splice's history starts at its *mount*, the newest first-parent start
-whose parent had no `.splice` of the same ID, after following moves to
-their old paths. It excludes the folder's earlier monorepo history and any
-different splice that previously occupied the path.
-Moving the folder or changing its upstream URL preserves the ID and does
-not create a new mount
-([before init](../09-scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md),
-[swapped paths](../09-scenarios/07-moved-folders/02-swapped-splices/README.md),
-[replaced splice](../09-scenarios/02-starting-a-splice/04-init-new-upstream/02-unspliced-then-cloned-again/README.md)).
+- **Bound history by splice identity.**
+
+  A splice's history starts at its *mount*, the newest first-parent start
+  whose parent had no `.splice` of the same ID, after following moves to
+  their old paths. It excludes the folder's earlier monorepo history and any
+  different splice that previously occupied the path.
+  Moving the folder or changing its upstream URL preserves the ID and does
+  not create a new mount
+  ([before init](../09-scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md),
+  [swapped paths](../09-scenarios/07-moved-folders/02-swapped-splices/README.md),
+  [replaced splice](../09-scenarios/02-starting-a-splice/04-init-new-upstream/02-unspliced-then-cloned-again/README.md)).
 
 ### History inherited through nesting
 
-A nested splice may have history squashed into the monorepo by an outer
-clone or pull. Rebuilding recovers that history from the enclosing upstream,
-provided it contains the same splice ID. Among enclosing splices it chooses
-the newest last sync, taking the outermost on a tie: an intermediate
-`.splice` can lag behind changes already pushed further out. It must also
-preserve a separately updated inner synced commit.
+- **Recover history through enclosing splices.**
 
-Local history from before that outer sync is joined in even when its
-files match the inherited rebuild, so commits pushed directly to the inner
-upstream are not lost
-([inherited history](../09-scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md),
-[three levels](../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md),
-[joined history](../09-scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
+  A nested splice may have history squashed into the monorepo by an outer
+  clone or pull. Rebuilding recovers that history from the enclosing upstream,
+  provided it contains the same splice ID. Among enclosing splices it chooses
+  the newest last sync, taking the outermost on a tie: an intermediate
+  `.splice` can lag behind changes already pushed further out. It must also
+  preserve a separately updated inner synced commit.
 
-The commit walk is bounded by the selected boundary. Metadata and folder
-trees are read in batches with `git log` and `git cat-file --batch-check`;
-creating the copies still needs `commit-tree` calls.
-[`pull --bump`](../04-advanced-workflows/03-bump.md) can shorten later rebuilds.
+- **Keep directly published history.**
+
+  Local history from before that outer sync is joined in even when its
+  files match the inherited rebuild, so commits pushed directly to the inner
+  upstream are not lost
+  ([inherited history](../09-scenarios/05-nested-splices/01-nested-splices/spliced-elsewhere.md),
+  [three levels](../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md),
+  [joined history](../09-scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
+
+- **Bound and batch the work.**
+
+  The commit walk is bounded by the selected boundary. Metadata and folder
+  trees are read in batches with `git log` and `git cat-file --batch-check`;
+  creating the copies still needs `commit-tree` calls.
+  [`pull --bump`](../04-advanced-workflows/03-bump.md) can shorten later rebuilds.
 
 ## New upstream branches
 
-A push creates a missing feature branch only if R contains commits the
-upstream's default target lacks, as a PR would show. Starting a monorepo
-feature branch therefore does not create empty branches in every upstream.
+- **Create upstream branches only when needed.**
+
+  A push creates a missing feature branch only if R contains commits the
+  upstream's default target lacks, as a PR would show. Starting a monorepo
+  feature branch therefore does not create empty branches in every upstream.
 
 Commits inherited from a stacked feature branch still count, even if
 nothing new changed in this splice. The first push after `init` also counts:
@@ -85,18 +97,24 @@ there is no upstream branch yet
 
 ## Inspection should predict publication
 
-Inspection and publication must agree on what would cross the splice.
-`status`, `diff` and `log` therefore compare the same rebuilt history with
-the fetched upstream target, rather than inventing a second interpretation
-of local changes. A missing feature branch should still give a useful PR
-comparison against its default target.
+- **Inspect what would be published.**
 
-Equal file trees can avoid an expensive rebuild when classifying sync
-state. Missing fetched objects must instead remain distinguishable from
-an up-to-date splice: absence of evidence is not evidence of equality.
-The [sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)
-defines those states.
+  Inspection and publication must agree on what would cross the splice.
+  `status`, `diff` and `log` therefore compare the same rebuilt history with
+  the fetched upstream target, rather than inventing a second interpretation
+  of local changes. A missing feature branch should still give a useful PR
+  comparison against its default target.
 
-The presentation follows Git's ours/theirs convention and shows commit
-authors because publishing history also publishes identity. Exact output
-and options belong in the [command reference](../06-command-reference/README.md).
+- **Avoid unnecessary rebuilds without hiding missing data.**
+
+  Equal file trees can avoid an expensive rebuild when classifying sync
+  state. Missing fetched objects must instead remain distinguishable from
+  an up-to-date splice: absence of evidence is not evidence of equality.
+  The [sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)
+  defines those states.
+
+- **Use familiar comparisons and show authorship.**
+
+  The presentation follows Git's ours/theirs convention and shows commit
+  authors because publishing history also publishes identity. Exact output
+  and options belong in the [command reference](../06-command-reference/README.md).
