@@ -140,15 +140,17 @@ fn changed_state_files(commit: &str) -> Vec<String> {
 /// commit made with --no-edit after a conflict keeps. Other lines starting
 /// with '#' are the message's own, e.g. from a template.
 fn without_conflicts(message: &str) -> String {
+    let all: Vec<&str> = message.lines().collect();
     let mut lines = Vec::new();
     let mut in_list = false;
-    for line in message.lines() {
-        if line == "# Conflicts:" {
+    for (i, line) in all.iter().enumerate() {
+        let lists_files = all.get(i + 1).is_some_and(|next| next.starts_with("#\t"));
+        if *line == "# Conflicts:" && lists_files {
             in_list = true;
-        } else if in_list && (line == "#" || line.starts_with("#\t")) {
+        } else if in_list && (*line == "#" || line.starts_with("#\t")) {
         } else {
             in_list = false;
-            lines.push(line);
+            lines.push(*line);
         }
     }
     lines.join("\n").trim().to_string()
@@ -274,6 +276,12 @@ mod tests {
     #[test]
     fn keeps_other_lines_starting_with_a_hash() {
         let message = "#123: pull c\n\n# Changes\n- c2";
+        assert_eq!(without_conflicts(message), message);
+    }
+
+    #[test]
+    fn keeps_a_conflicts_heading_without_files_listed() {
+        let message = "splice: pull c\n\n# Conflicts:\nnone, c2 merged cleanly";
         assert_eq!(without_conflicts(message), message);
     }
 }
