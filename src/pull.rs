@@ -136,6 +136,24 @@ fn changed_state_files(commit: &str) -> Vec<String> {
         .collect()
 }
 
+/// <message> without the list of conflicted files Git adds to it, which a
+/// commit made with --no-edit after a conflict keeps. Other lines starting
+/// with '#' are the message's own, e.g. from a template.
+fn without_conflicts(message: &str) -> String {
+    let mut lines = Vec::new();
+    let mut in_list = false;
+    for line in message.lines() {
+        if line == "# Conflicts:" {
+            in_list = true;
+        } else if in_list && (line == "#" || line.starts_with("#\t")) {
+        } else {
+            in_list = false;
+            lines.push(line);
+        }
+    }
+    lines.join("\n").trim().to_string()
+}
+
 /// Makes the pulls since the recursive pull started one commit per splice
 /// in <tops> it started from, each made of the pulls in and below it, if
 /// every commit since is such a pull, and the pulls of each come one after
@@ -179,17 +197,12 @@ fn fold_pulls(tops: &[String]) -> Res<()> {
     if groups.iter().all(|(_, group)| group.len() < 2) {
         return Ok(());
     }
-    // Without the comments a commit after a conflict keeps, e.g. "#
-    // Conflicts:", as `git commit` strips them when it cleans up.
     let message_of = |commit: &str| {
-        let message = git(&["log", "-1", "--format=%B", commit])
-            .out()
-            .unwrap_or_default();
-        let lines: Vec<&str> = message
-            .lines()
-            .filter(|line| !line.starts_with('#'))
-            .collect();
-        lines.join("\n").trim().to_string()
+        without_conflicts(
+            &git(&["log", "-1", "--format=%B", commit])
+                .out()
+                .unwrap_or_default(),
+        )
     };
     let Some(mut parent) = git(&["rev-parse", START]).out() else {
         return fail(format!("{START} couldn't be read"));
@@ -246,4 +259,21 @@ fn fold_pulls(tops: &[String]) -> Res<()> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drops_the_conflicts_git_lists_after_a_conflict() {
+        let message = "splice: pull c\n\n# Conflicts:\n#\tc/file.txt\n#\tc/other.txt\n";
+        assert_eq!(without_conflicts(message), "splice: pull c");
+    }
+
+    #[test]
+    fn keeps_other_lines_starting_with_a_hash() {
+        let message = "#123: pull c\n\n# Changes\n- c2";
+        assert_eq!(without_conflicts(message), message);
+    }
 }
