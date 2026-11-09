@@ -1310,3 +1310,146 @@ e_added_in_upstream_a() {
   [[ "$output" == *"vendor/a/i/vendor/a: a copy of vendor/a, which it's inside -- not pulled"* ]]
   ! git cat-file -e HEAD:vendor/a/i/vendor/a/i/.splice
 }
+
+# The monorepo's own commit since the last pull: notes in vendor/a/b,
+# which no upstream changes.
+commit_m1() {
+  echo "m1" >vendor/a/b/notes.txt
+  git add vendor/a/b/notes.txt
+  git commit -q -m "m1: notes in b"
+}
+
+@test "nested: pull --rebase --recursive pulls first, then rebases the monorepo's own commits onto the pulls once" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "a upstream"
+  seed_bare_repo "$upstream_b" "b upstream"
+  cd "$monorepo"
+  commit_m1
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: 2 pulls made one commit"*"rebased 1 commit of 'main' onto the pull"* ]]
+  [ "$(git symbolic-ref --short HEAD)" = main ]
+  [ "$(git log -1 --format=%s)" = "m1: notes in b" ]
+  [[ "$(git log -1 --format=%s HEAD~1)" == "splice: pull vendor/a from main at "* ]]
+  [ "$(git cat-file -p HEAD:vendor/a/b/notes.txt)" = m1 ]
+}
+
+@test "nested: pull --rebase --recursive stopped by a conflict in a pull leaves the branch as it was, and goes on when run again" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  b_changed_in_upstream_a
+  seed_bare_repo "$upstream_b" "b upstream"
+  cd "$monorepo"
+  commit_m1
+  local before
+  before="$(git rev-parse main)"
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/b: conflict -- resolve it, then 'git commit'"* ]]
+  [[ "$output" == *"The pulls are on a detached HEAD, 'main' is as it was"* ]]
+  [ "$(git rev-parse main)" = "$before" ]
+  echo resolved >vendor/a/b/file.txt
+  git add vendor/a/b/file.txt
+  git commit -q --no-edit
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git symbolic-ref --short HEAD)" = main ]
+  [ "$(git log -1 --format=%s)" = "m1: notes in b" ]
+  [ "$(git cat-file -p HEAD:vendor/a/b/file.txt)" = resolved ]
+}
+
+@test "nested: a pull --rebase --recursive given up with git switch is forgotten" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  b_changed_in_upstream_a
+  seed_bare_repo "$upstream_b" "b upstream"
+  cd "$monorepo"
+  commit_m1
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 1 ]
+  git cherry-pick --abort
+  git switch -q main
+  run splice pull --recursive vendor/a
+  [[ "$output" != *"under way"* ]]
+  [[ "$output" == *"vendor/a: pulled"* ]]
+}
+
+@test "nested: pull --recursive without --rebase refuses while a pull --rebase --recursive is under way" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  b_changed_in_upstream_a
+  seed_bare_repo "$upstream_b" "b upstream"
+  cd "$monorepo"
+  commit_m1
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 1 ]
+  git commit -q -a --no-edit
+  run splice pull --recursive vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"a 'pull --rebase --recursive' is under way for 'main' -- re-run it, or 'git switch main' to give up"* ]]
+}
+
+@test "nested: pull --rebase --recursive refuses a merge commit since the last pull, and changes nothing" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "a upstream"
+  cd "$monorepo"
+  git switch -q -c side
+  commit_m1
+  git switch -q main
+  git merge -q --no-ff -m "merge side" side
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"there's a merge commit since the last pull"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ "$(git symbolic-ref --short HEAD)" = main ]
+}
+
+@test "nested: pull --rebase --recursive refuses changes in the work tree, and changes nothing" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "a upstream"
+  cd "$monorepo"
+  commit_m1
+  echo "uncommitted" >>vendor/a/b/notes.txt
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"the work tree has changes"* ]]
+  [ "$(git symbolic-ref --short HEAD)" = main ]
+  [ "$(cat vendor/a/b/notes.txt)" = "m1
+uncommitted" ]
+}
+
+@test "nested: pull --rebase --recursive with nothing to pull leaves the branch's commits as they are" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_m1
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ "$(git symbolic-ref --short HEAD)" = main ]
+}
+
+@test "nested: pull --rebase --recursive with nothing to pull says so, even with published commits since the last pull" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_m1
+  git update-ref refs/remotes/origin/main HEAD
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: nothing to pull"*"vendor/a/b: nothing to pull"* ]]
+}
+
+@test "nested: pull --rebase --recursive refuses, as --rebase does, when the upstream branch lacks the synced commit and its reflog doesn't show it had it" {
+  load '../09-scenarios/06-rewritten-history/04-patch-branch-rebased/setup'
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/clone"
+  cd "$BATS_TEST_TMPDIR/clone"
+  local before synced
+  before="$(git rev-parse HEAD)"
+  synced="$(splice_config vendor/a commit)"
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: 'patches' lacks the synced commit ${synced:0:7}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  git symbolic-ref -q HEAD
+}

@@ -75,7 +75,10 @@ OPTIONS
         Also pulls every splice below each one given, and any a pull above
         adds, and makes one commit of each given splice's pulls, with the
         message of its own pull. A conflict stops it: resolve it, commit,
-        and run it again, which skips the splices already pulled.
+        and run it again, which skips the splices already pulled. With
+        --rebase, the pulls come first, on a detached HEAD at the last
+        pull, and the branch's own commits since are rebased onto them
+        once.
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#--recursive
 
@@ -92,7 +95,9 @@ ORDER
 CONFLICTS
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
     --abort' to give up), then re-run pull for any splices left. With
-    --rebase, it's 'git rebase --continue' (or 'git rebase --abort').
+    --rebase, it's 'git rebase --continue' (or 'git rebase --abort'); with
+    --rebase --recursive, only for the branch's own commits, and 'git
+    switch <branch>' gives up before.
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#conflicts
 

@@ -635,7 +635,9 @@ impl Repo {
         let upstream = self.args.upstream.clone();
         let selected = self.selected.clone();
         self.use_upstreams(&upstream, &selected)?;
-        self.monorepo_branch = current_branch()?;
+        if self.monorepo_branch.is_empty() {
+            self.monorepo_branch = current_branch()?;
+        }
         let branch = self.monorepo_branch.clone();
         self.load_tracked_branches(&branch);
         for path in &selected {

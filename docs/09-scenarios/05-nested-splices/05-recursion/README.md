@@ -41,8 +41,7 @@ A pull through E splices, with C commits of the monorepo's own on top:
 | | At most | Why |
 |---|---|---|
 | merge | E | one merge per splice: base its synced commit, ours its head, theirs its upstream |
-| `--rebase`, one level at a time | E + C | the pulls, top-down, then each commit of the monorepo's own, replayed once |
-| `--rebase`, today | more | the pull commits of the splices above are replayed too ([#437](https://github.com/roschaefer/git-splice/issues/437)) |
+| `--rebase` | E + C | the pulls, top-down, then each commit of the monorepo's own, replayed once |
 
 ## The scenarios
 
@@ -63,3 +62,6 @@ A pull through E splices, with C commits of the monorepo's own on top:
 - [discovered top-down](01-recursive-pull/discovered-top-down.md): why
   the splice above goes first: its pull drops `d/` and adds `e/`, so
   naming `vendor/a/d` beside it means nothing definite.
+- [rebased](01-recursive-pull/rebased.md): the recursive pull with
+  `--rebase`: the pulls first, as one commit, then the monorepo's own
+  commit, rebased onto it once.

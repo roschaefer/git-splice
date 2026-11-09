@@ -24,6 +24,19 @@ pub fn run(argv: &[String]) -> Res<i32> {
     })?;
     // Before select_splices: a rebase in progress has detached HEAD.
     require_no_splice_in_progress()?;
+    let recursive = repo.args.has_flag("--recursive") || repo.args.all;
+    let rebase_tree = recursive && repo.merge_rebase;
+    let resumed = rebase_under_way()?;
+    if let Some(branch) = &resumed {
+        if !rebase_tree {
+            return die(format!(
+                "a 'pull --rebase --recursive' is under way for '{branch}' -- re-run it, or 'git switch {branch}' to give up"
+            ));
+        }
+        repo.monorepo_branch = branch.clone();
+    }
+    // The splices pull below, top-down, rather than rebasing onto each pull.
+    repo.merge_rebase = repo.merge_rebase && !recursive;
     repo.select_splices(Kind::Explicit, "pull")?;
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
@@ -77,7 +90,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
     // from each splice no other is around. A run that stops leaves where it
     // started, which a later run goes on from only while HEAD still descends
     // from it: not after the branch was reset past it, e.g. after an abort.
-    let fold = (repo.args.has_flag("--recursive") || repo.args.all) && !repo.merge_rebase;
+    let fold = recursive;
     let tops: Vec<String> = if repo.args.all {
         repo.all_paths
             .iter()
@@ -94,9 +107,20 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
         .q()
         .ok();
-    if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
+    let mut rewinds = false;
+    if rebase_tree && resumed.is_none() {
+        for path in &fetched {
+            if repo.pull_to_rebase(path, &branch)? {
+                rewinds = true;
+            }
+        }
+    }
+    if rewinds {
+        rewind_to_last_pull(&tops, &branch)?;
+    } else if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
         return fail(format!("{START} couldn't be updated"));
     }
+    let rebasing = rebase_under_way()?.is_some();
     let mut status = 0;
     if !fetched.is_empty() && repo.merge_paths(&branch, "pull", &fetched).is_err() {
         status = 1;
@@ -105,9 +129,20 @@ pub fn run(argv: &[String]) -> Res<i32> {
         if status == 0 {
             fold_pulls(&tops)?;
         }
-        if (status == 0 || !failures.is_empty()) && !git(&["update-ref", "-d", START]).ok() {
-            return fail(format!("{START} couldn't be updated"));
+        if status == 0 || !failures.is_empty() {
+            if rebasing {
+                if !replay_own_commits(&branch)? {
+                    status = 1;
+                }
+            } else if !git(&["update-ref", "-d", START]).ok() {
+                return fail(format!("{START} couldn't be updated"));
+            }
         }
+    }
+    if rebasing && rebase_under_way()?.is_some() {
+        log_err(format!(
+            "The pulls are on a detached HEAD, '{branch}' is as it was -- re-run pull to go on, or 'git switch {branch}' to give up"
+        ));
     }
     if !failures.is_empty() {
         log_err(format!("Not fetched: {}", failures.join(" ")));
@@ -117,6 +152,163 @@ pub fn run(argv: &[String]) -> Res<i32> {
 }
 
 const START: &str = "SPLICE_PULL_START";
+/// The branch a pull --rebase --recursive rebases once the pulls are done,
+/// while they're made on a detached HEAD.
+const REBASING: &str = "SPLICE_PULL_BRANCH";
+
+/// The branch whose pull --rebase --recursive goes on: its pulls are on a
+/// detached HEAD that still descends from where they started. Forgets one
+/// that doesn't, e.g. after 'git switch' gave it up.
+fn rebase_under_way() -> Res<Option<String>> {
+    let Some(branch) = git(&["symbolic-ref", "--quiet", "--short", REBASING])
+        .q()
+        .out()
+    else {
+        return Ok(None);
+    };
+    let detached = git(&["symbolic-ref", "--quiet", "HEAD"])
+        .q()
+        .out()
+        .is_none();
+    let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
+        .q()
+        .ok();
+    if detached && goes_on {
+        return Ok(Some(branch));
+    }
+    forget_rebase()?;
+    Ok(None)
+}
+
+fn forget_rebase() -> Res<()> {
+    let _ = git(&["symbolic-ref", "--delete", REBASING]).q().ok();
+    if git(&["rev-parse", "--quiet", "--verify", START]).q().ok()
+        && !git(&["update-ref", "-d", START]).ok()
+    {
+        return fail(format!("{START} couldn't be updated"));
+    }
+    Ok(())
+}
+
+/// For pull --rebase --recursive: detaches HEAD at the newest first-parent
+/// commit that changed a .splice in or below <tops>, so the pulls go there,
+/// and the commits since, the monorepo's own, are rebased onto them once.
+/// Rebasing onto each pull instead would replay the pulls of the splices
+/// above it too.
+fn rewind_to_last_pull(tops: &[String], branch: &str) -> Res<()> {
+    let mut args = vec![
+        "log".to_string(),
+        "--first-parent".to_string(),
+        "-1".to_string(),
+        "--format=%H".to_string(),
+        "--".to_string(),
+    ];
+    for top in tops {
+        args.push(format!(":(glob){top}/**/{STATE_FILE}"));
+    }
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let Some(base) = git(&args).out().filter(|base| !base.is_empty()) else {
+        return fail("no pull to rebase onto");
+    };
+    let head = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
+    if base == head {
+        return if git(&["update-ref", START, "HEAD"]).ok() {
+            Ok(())
+        } else {
+            fail(format!("{START} couldn't be updated"))
+        };
+    }
+    let since = format!("{base}..HEAD");
+    let merges = git(&["rev-list", "--min-parents=2", "--count", &since])
+        .out()
+        .unwrap_or_default();
+    if merges != "0" {
+        return fail(format!(
+            "there's a merge commit since the last pull, {}, whose own changes --rebase would drop -- pull without --rebase",
+            short(&base)
+        ));
+    }
+    let commits = git(&["rev-list", &since]).out().unwrap_or_default();
+    let oldest = commits.lines().last().unwrap_or("");
+    let published = git(&[
+        "for-each-ref",
+        "--count=1",
+        "--contains",
+        oldest,
+        "--format=%(refname:short)",
+        "refs/remotes/",
+    ])
+    .out()
+    .unwrap_or_default();
+    if !published.is_empty() {
+        return fail(format!(
+            "'{published}' has commits since the last pull, {}, which --rebase would rewrite -- pull on a branch nobody else has, e.g. a pull request's",
+            short(&base)
+        ));
+    }
+    if !git(&["diff-index", "--quiet", "HEAD", "--"]).ok() {
+        return fail("the work tree has changes -- commit or stash them, then pull --rebase");
+    }
+    if !git(&["update-ref", START, &base]).ok()
+        || !git(&["symbolic-ref", REBASING, &format!("refs/heads/{branch}")]).ok()
+    {
+        return fail(format!("{START} couldn't be updated"));
+    }
+    if !git(&["checkout", "-q", "--detach", &base]).ok() {
+        forget_rebase()?;
+        return fail(format!("HEAD couldn't be detached at {}", short(&base)));
+    }
+    Ok(())
+}
+
+/// Rebases <branch>'s commits since the pulls started onto the pulls, and
+/// checks it out. False if the rebase stopped at a conflict.
+fn replay_own_commits(branch: &str) -> Res<bool> {
+    let Some(base) = git(&["rev-parse", START]).out() else {
+        return fail(format!("{START} couldn't be read"));
+    };
+    let pulled = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
+    forget_rebase()?;
+    let count = git(&["rev-list", "--count", &format!("{base}..{branch}")])
+        .out()
+        .unwrap_or_default();
+    if pulled == base {
+        if !git(&["checkout", "-q", branch]).ok() {
+            return fail(format!("'{branch}' couldn't be checked out"));
+        }
+        return Ok(true);
+    }
+    let rebased = git(&[
+        "-c",
+        "advice.mergeConflict=false",
+        "rebase",
+        "-q",
+        "--no-update-refs",
+        "--no-autostash",
+        "--onto",
+        &pulled,
+        &base,
+        branch,
+    ])
+    .run();
+    if rebased != 0 {
+        if rebase_in_progress() {
+            log_err(
+                "conflict while rebasing onto the pull -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)",
+            );
+            return Ok(false);
+        }
+        return fail(format!(
+            "git rebase didn't start, see above -- the pulls are at {}",
+            short(&pulled)
+        ));
+    }
+    let plural = if count == "1" { "" } else { "s" };
+    log_ok(format!(
+        "rebased {count} commit{plural} of '{branch}' onto the pull"
+    ));
+    Ok(true)
+}
 
 /// The .splice files commit <commit> changes.
 fn changed_state_files(commit: &str) -> Vec<String> {
