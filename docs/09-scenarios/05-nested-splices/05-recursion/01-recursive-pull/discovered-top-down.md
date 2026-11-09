@@ -6,7 +6,7 @@ monorepo knew before its pull is gone. So a pull has to go top-down:
 only after the splice above is pulled is it known what's below it.
 
 Here, `a`'s upstream drops `d/` and splices `e/` in, in one commit,
-*a2*. `d`'s own upstream moves on all the same.
+*a2*. `d`'s and `e`'s own upstreams move on all the same.
 
 ## Output
 
@@ -31,12 +31,7 @@ ok   removed-before.drawio.svg: a tree of 5 rows
 ```
 -->
 
-```scrut
-$ git clone -q https://git.example.com/d.git ../d-work &&
->   echo "d upstream" >>../d-work/file.txt &&
->   git -C ../d-work commit -q -am "d2: d upstream" &&
->   git -C ../d-work push -q origin main
-```
+`a`'s upstream drops `d/` and splices `e/` in, at *e1*:
 
 ```scrut
 $ git clone -q https://git.example.com/a.git ../a-work &&
@@ -50,34 +45,67 @@ $ git clone -q https://git.example.com/a.git ../a-work &&
 >   cd ../monorepo
 ```
 
+Then `d`'s upstream moves on to *d2*, and `e`'s to *e2*:
+
+```scrut
+$ git clone -q https://git.example.com/d.git ../d-work &&
+>   echo "d upstream" >>../d-work/file.txt &&
+>   git -C ../d-work commit -q -am "d2: d upstream" &&
+>   git -C ../d-work push -q origin main
+```
+
+```scrut
+$ git clone -q https://git.example.com/e.git ../e-work &&
+>   echo "e upstream" >>../e-work/file.txt &&
+>   git -C ../e-work commit -q -am "e2: e upstream" &&
+>   git -C ../e-work push -q origin main
+```
+
 ## Naming a splice and one inside it
 
 `pull vendor/a vendor/a/d` names `vendor/a/d` as the monorepo knows it
-now. By the time it gets there, `a`'s pull has dropped it, and the
-command succeeds without pulling it
-([#438](https://github.com/roschaefer/git-splice/issues/438)). On a
-branch, to keep `main` as it is:
+now, but `a`'s pull decides whether it's still there, and what is. The
+command refuses:
 
 ```scrut
-$ git switch -q -c both &&
->   git splice pull --branch main vendor/a vendor/a/d
+$ git splice pull vendor/a vendor/a/d
+!!   vendor/a/d is inside vendor/a, whose pull decides what's there -- pull vendor/a with --recursive, or vendor/a/d in a command of its own
+[1]
+```
+
+## The step in between: `a`'s pull
+
+`vendor/a`'s pull alone, on a branch to keep `main` as it is:
+
+```scrut
+$ git switch -q -c step &&
+>   git splice pull --branch main vendor/a
 ok   vendor/a fetched (main moved 764d9c4..04072ca)
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
-ok   vendor/a/d fetched (main moved 2c64d15..36c850e)
+ok   vendor/a/d fetched
 ok   vendor/a: pulled 04072ca
-ok   vendor/a/d: not a splice any more -- nothing to pull
 ```
 
-Had `a`'s upstream put another splice at `d/`, the second half would
-have reported on that one instead. Naming a splice and one inside it
-can't mean anything definite, so `git-splice` should refuse it.
+`d/` is gone. `e/` is a splice now, at *e1*, the commit `a`'s upstream
+records for it, and no farther: *e2* takes a pull of `vendor/a/e` too,
+which this command wasn't asked for.
+
+![The tree: the monorepo at pa, outlined blue; vendor/a/ at a2, outlined blue; in it, b/ at b1, with c/ at c1 in it, and the new e/ at e1; no d/](removed-step.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/removed-step.drawio.svg" pa=HEAD "e1=$(git config --file vendor/a/e/.splice splice.commit)"
+ok   removed-step.drawio.svg: a tree of 5 rows
+```
+-->
 
 ## A recursive pull
 
-`pull --recursive` names only `vendor/a`, and reads what's inside it
-from the result of its pull: `e/` is pulled, and `d/`, selected when it
-was still there, was removed by the pull of `vendor/a`.
+`pull --recursive vendor/a` takes that step, then reads what's inside
+`vendor/a` from its result: `e/` is fetched and pulled, up to *e2*, and
+`d/`, selected while it was still there, was removed by the pull of
+`vendor/a`. The two pulls make one commit, *p*:
 
 ```scrut
 $ git switch -q main &&
@@ -88,13 +116,14 @@ ok   vendor/a/b/c fetched
 ok   vendor/a/d fetched
 ok   vendor/a: pulled 04072ca
 ok   vendor/a/e fetched
-ok   vendor/a/e: nothing to pull
+ok   vendor/a/e: pulled 68b88a4
 ok   vendor/a/b: nothing to pull
 ok   vendor/a/b/c: nothing to pull
 ok   vendor/a/d: removed by the pull of vendor/a
+ok   2 pulls made one commit, d95b8f5
 ```
 
-![The tree: the monorepo at p, outlined blue; vendor/a/ at a2, outlined blue; in it, b/ at b1, with c/ at c1 in it, and the new e/ at e1, outlined blue; no d/](removed-after.drawio.svg)
+![The tree: the monorepo at p, outlined blue; vendor/a/ at a2, outlined blue, then dashed p', outlined blue; in it, b/ at b1, with c/ at c1 in it, and e/ at e2, outlined blue; no d/](removed-after.drawio.svg)
 
 <!--
 ```scrut
@@ -102,3 +131,6 @@ $ check_drawing "$TESTDIR/removed-after.drawio.svg" p=HEAD
 ok   removed-after.drawio.svg: a tree of 5 rows
 ```
 -->
+
+`vendor/a/` has *p'* on top of *a2* now: the pull of `e/` inside it,
+which its upstream doesn't have yet.
