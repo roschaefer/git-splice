@@ -23,6 +23,7 @@ use regex::Regex;
 
 use super::context::Context as ExecutionContext;
 use crate::executors::SHELL_PATH;
+use crate::executors::util::start_one_at_a_time;
 use crate::interactive::InteractiveDiff;
 use crate::interactive::InteractiveDiffLine;
 use crate::interactive::InteractiveDirective;
@@ -127,9 +128,10 @@ pub fn execute_interactive(
     };
 
     // Spawn the PTY session
-    let mut session = scrutty::TtySession::spawn(command, &["-c", expression], cwd, env)
-        .context("failed to spawn interactive PTY session")
-        .map_err(|err| InteractiveError::Internal(err.to_string()))?;
+    let mut session =
+        start_one_at_a_time(|| scrutty::TtySession::spawn(command, &["-c", expression], cwd, env))
+            .context("failed to spawn interactive PTY session")
+            .map_err(|err| InteractiveError::Internal(err.to_string()))?;
 
     // Execute each directive sequentially, collecting results
     let mut diff_lines = Vec::with_capacity(directives.len());
