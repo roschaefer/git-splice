@@ -1,4 +1,6 @@
-# Accidentally pushing the monorepo to a subfolder's remote
+# Safety and limits
+
+## Accidentally pushing the monorepo to a subfolder's remote
 
 `git-splice` has no Git remotes for its upstreams. This document explains
 why: a remote that points to a subfolder's repository is one mistyped
@@ -18,7 +20,7 @@ meantime has a copy
 ([an example with ~4000 commits pushed by mistake](https://github.com/orgs/community/discussions/21995)).
 So this shouldn't be left to the user being careful.
 
-## How the monorepo ends up on a subtree remote
+### How the monorepo ends up on a subtree remote
 
 Typing `git push vendor/foo main` by mistake is the obvious way, but not
 the only one. These cases were checked with Git 2.55 on a monorepo with a
@@ -57,12 +59,12 @@ When the remote already has the branch, a plain push is usually rejected
 as non-fast-forward. The dangerous cases are **new branches** and
 **`--force`**.
 
-## Options that keep the remotes
+### Options that keep the remotes
 
 These assume a wrapper around `git subtree` that names each remote like
 its folder and pushes with `git subtree push`.
 
-### 1. A pre-push hook that checks content
+#### 1. A pre-push hook that checks content
 
 The wrapper installs a `pre-push` hook that refuses any pushed commit that
 has a folder named like the remote it's pushed to: if remote names equal
@@ -79,7 +81,7 @@ Limits:
 - A false alarm when a subtree has a folder named like its own path
   (`lib/lib/`).
 
-### 2. A push URL that can't be pushed to
+#### 2. A push URL that can't be pushed to
 
 The well-known trick for a fetch-only remote is
 `git remote set-url --push <remote> no_push`
@@ -103,7 +105,7 @@ then push to the fetch URL explicitly:
   ([github/vscode-github-actions#298](https://github.com/github/vscode-github-actions/issues/298),
   open since March 2024).
 
-### 3. A custom remote protocol that marks the remote
+#### 3. A custom remote protocol that marks the remote
 
 Git runs `git-remote-<scheme>` for a URL `<scheme>::<address>`
 ([gitremote-helpers](https://git-scm.com/docs/gitremote-helpers)). The
@@ -147,7 +149,7 @@ Concerns:
   wanted a remote helper that maps a subtree to a remote
   (`subtree::<dir>::on::<branch>::from::<url>`). It was never finished.
 
-### 4. On the server
+#### 4. On the server
 
 A server-side rule on the subtree's repository (e.g. GitHub push rulesets
 that restrict file paths) would hold no matter which client pushes. Still
@@ -155,7 +157,7 @@ open: whether push rulesets are available for the repositories and plans
 this matters for (public repositories in particular), and whether a rule
 can be phrased without knowing the monorepo's folder names.
 
-## Prior art: exporting parts of a private monorepo
+### Prior art: exporting parts of a private monorepo
 
 Large companies publish parts of private monorepos all the time, but not
 with `git subtree`. Google uses [Copybara](https://github.com/google/copybara)
@@ -181,13 +183,13 @@ Small setups are invisible from the outside: a correct `git subtree split`
 leaves no trace in the public repository, so we can't tell how others with
 a private monorepo avoid this, or how often it goes wrong.
 
-## What `git-splice` does instead
+### What `git-splice` does instead
 
 Like the large exporters, `git-splice` leaves nothing to mistype: Git
 remotes should only point to repositories of the whole monorepo, never to
 a subfolder's. Upstreams are fetched and pushed by URL, from the committed
 `.splice` file, into private refs
-([Refs instead of remotes](README.md#refs-instead-of-remotes)):
+([Refs instead of remotes](01-state-and-upstreams.md#refs-instead-of-remotes)):
 
 - With no remote, `push.autoSetupRemote`, `remote.pushDefault`, tracking
   branches, `git switch <name>`, LazyGit's suggestion, `--all` and
@@ -205,10 +207,51 @@ which is hard to do by accident.
 `git splice push` itself can publish too much on a smaller scale: it sends
 the history the rebuild assigns to the folder. So the rebuild leaves out
 what never belonged to the splice: everything before the splice's
-[mount](README.md#splicing-out-push-and-the-rebuild), the commit where the
+[mount](03-splicing-out.md#splicing-out-push-and-the-rebuild), the commit where the
 folder became this splice. A folder's history from before it got its
 `.splice` stays in the monorepo
 ([example](../09-scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)),
 and so does another splice's, e.g. after two splices swapped paths
 ([example](../09-scenarios/07-moved-folders/02-swapped-splices/README.md),
 [#73](https://github.com/roschaefer/git-splice/issues/73)).
+
+## Limits
+
+These are known and accepted, each to keep the design simple:
+
+- **A nested splice pulled on both sides:** if the monorepo and the
+  upstream of the splice above each pull the splice below, the next pull
+  of the splice above conflicts in the folder below, since each side
+  brought in a different upstream commit. If the monorepo has no unpushed
+  changes there, keep the upstream's side:
+  `git checkout --theirs -- <above>/<below>`, then `git add` and
+  `git commit`. Pushing the splice above right after pulling the one below
+  avoids the conflict.
+- **An upstream that keeps its submodules:** after
+  `clone --from-submodule --recursive`, `pull` refuses every commit of
+  theirs that moves one
+  ([`clone`](../06-command-reference/01-clone.md#--recursive),
+  [#153](https://github.com/roschaefer/git-splice/issues/153)).
+- **Paths that aren't valid in ref names**, e.g. with spaces, are refused.
+- **Names that aren't valid UTF-8** are refused: a splice's folder, an
+  argument, the folder the monorepo is in, and the author or committer of
+  a commit that a rebuild copies. Windows has no such paths, and its
+  environment variables, which carry names and dates to
+  `git commit-tree`, are text: so every platform rebuilds the same
+  commits. Commit messages may have any bytes. Rename the folder,
+  or rewrite the commit before it reaches a shared branch; if that's not
+  possible for you, please open an issue.
+- **Upstream URLs that differ only in letter case**, e.g.
+  `ssh://host/Org/lib` and `ssh://host/org/lib`, share their fetched refs
+  on case-insensitive file systems, like macOS's default one: fetching one
+  overwrites the other's. And a URL component that is too long once
+  escaped, e.g. many spaces, fails with "File name too long". Until
+  [#51](https://github.com/roschaefer/git-splice/issues/51), avoid
+  upstreams whose URLs differ only in case, and long path components.
+- **No pager on Windows:** `log` and `diff` print straight to the
+  terminal there, as if `--no-pager` were given. Pipe them to a pager by
+  hand, e.g. `git splice log | less`.
+- **A splice made by `init`** has no synced commit until its first pull, so
+  until then every rebuild walks the folder's history since `init`.
+- **Rare edge cases** each have an issue labelled
+  [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22).
