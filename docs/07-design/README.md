@@ -55,11 +55,13 @@ explicitly reconsider the affected principle and its rationale.
   namespace or adopting the submodule model
   ([state choices](01-state-and-upstreams.md),
   [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
-- **Reuse Git's implementation to avoid maintaining a second one.**
-  Delegating configuration, [merging](02-splicing-in.md#reuse-gits-merge-without-joining-histories),
-  commit creation and transport to Git
-  reduces the code and compatibility work in `git-splice`. It also makes
-  repository operations [inspectable with Git's tracing](05-git-trace.md).
+- **Use the user's Git so repository operations remain observable.**
+  Running the installed `git` uses the user's version and lets them follow
+  and log the commands executed on their machine. Replacing it with a
+  library such as gitoxide would substitute another implementation and
+  lose that direct Git command trace. This is a deliberate design choice,
+  not merely a debugging convenience
+  ([rationale and tracing examples](05-git-trace.md)).
 - **Make information easy to discover and side effects deliberate.**
   Requiring users to enumerate splices before inspecting them can hide the
   very changes they need to discover. Applying that same broad default to
@@ -86,46 +88,11 @@ explicitly reconsider the affected principle and its rationale.
 
 </div>
 
-The relationship is committed in `.splice`. Fetched refs, upstream keys
-and branch-tracking overrides are local Git data. B, R and the sync state
-are computed from that state and the monorepo's history.
-[Development](../10-contributing/01-development.md#code-map) maps this onto the code.
-
-## State and upstreams
-
-- **Commit the relationship; keep fetch state local.** Shared state must
-  survive history rewrites and use by other VCS tools without depending
-  on their commit metadata.
-- **Use Git's config format and private refs.** Reuse Git's tools without
-  introducing an upstream remote that a plain push could select.
-- **Identify upstreams by URL, not folder path.** Moves preserve fetched
-  history; splices sharing an upstream can share its refs.
-- **Commit shared defaults; keep tracking overrides local.** A personal
-  branch choice stays local, following Git's branch-tracking model.
-
-[State and upstreams](01-state-and-upstreams.md) develops these decisions.
-
-## Safety and limits
-
-A mistaken ordinary Git push can expose monorepo history to an upstream.
-Avoiding that accidental target is more reliable than requiring every
-clone and client to install a guard. [Safety and limits](04-safety-and-limits.md)
-compares the alternatives and their remaining risks.
-
-## Checking what it runs
-
-[Checking what it runs](05-git-trace.md) shows how to capture Git commands
-with `GIT_TRACE`: evidence for the principle that repository operations
-should remain inspectable through Git, along with that approach's limits.
-
-## Why the name "splice"
-
-[Why the name "splice"](06-name.md) explains the rope, RNA and JavaScript
-analogies behind the name.
-
-## Going forward
-
-[Going forward](07-going-forward/README.md) explores potential features,
-open design questions and directions that are out of scope or constrained
-by Git. These proposals develop the principles above; they do not describe
-released behaviour or promise an implementation.
+The subchapters develop the rationale for [state and upstreams](01-state-and-upstreams.md),
+[splicing in](02-splicing-in.md), [splicing out](03-splicing-out.md),
+[safety and limits](04-safety-and-limits.md), and
+[using the user's Git](05-git-trace.md).
+[Why the name "splice"](06-name.md) explains the terminology and naming
+motivations. [Going forward](07-going-forward/README.md) explores potential
+features and open questions, including directions that are out of scope;
+these proposals do not describe released behaviour or promise an implementation.

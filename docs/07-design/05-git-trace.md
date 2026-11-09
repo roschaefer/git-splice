@@ -1,10 +1,20 @@
-# Checking what it runs
+# Why run the user's Git
 
-Delegating repository operations to Git makes them inspectable with
-Git's own tracing. A user should be able to verify what a sync publishes
-without trusting an opaque second implementation of Git. The examples
-below demonstrate that property and its limits; they also provide a way
-to check it when the implementation changes.
+Repository operations run through the user's installed `git`, so its
+version determines their behaviour. The user can follow and log the
+commands executed on their machine with Git's own tracing, and inspect
+what a sync publishes without reading `git-splice`'s implementation.
+
+Using a library such as gitoxide would replace that Git version with
+another implementation inside `git-splice`. Even equivalent results would
+not preserve the ability to observe the operations as commands executed
+by the user's Git. We deliberately keep that property instead of replacing
+Git with a library. Reusing Git's implementation also avoids maintaining
+our own configuration parser, [merge machinery](02-splicing-in.md#reuse-gits-merge-without-joining-histories),
+commit writer or transport.
+
+The examples below demonstrate the tracing this choice enables and where
+it has limits.
 
 <!-- See `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
