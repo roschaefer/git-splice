@@ -242,7 +242,9 @@ command that writes it.
   legend. One commit can't be both.
 
 A circle is labelled as a `<label>=<rev>` names its commit, else by its
-subject, up to a colon, as in the lanes.
+subject, up to a colon, as in the lanes. A synced commit that a push
+made, a copy of one of the monorepo's commits, is labelled after that
+commit, with a `'`, as R is.
 
 ## Saving drawings
 

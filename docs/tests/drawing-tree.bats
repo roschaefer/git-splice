@@ -76,6 +76,15 @@ cell() {
   [ "$(cell c3 source)" = r2 ]
 }
 
+@test "drawing tree: a synced commit a push made is named after the monorepo's commit it copies, with a '" {
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  splice push vendor/a/b/c >/dev/null
+  splice pull --bump vendor/a/b/c >/dev/null
+  write_tree m=HEAD~1
+  [ "$(cell s3 value)" = "m'" ]
+  [[ "$(cell s3 style)" != *"dashed=1;"* ]]
+}
+
 @test "drawing tree: the commit a conflicted pull merges in, outlined red, and the row says so" {
   commit_local "$monorepo" vendor/a/b "b local"
   seed_bare_repo "$BATS_TEST_TMPDIR/upstream-b.git" "b2: b upstream"
