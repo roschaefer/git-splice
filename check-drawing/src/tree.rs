@@ -96,11 +96,16 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
 
     // The first label, by name, that names a commit.
     let mut given: HashMap<String, String> = HashMap::new();
+    // Labels of commits the monorepo doesn't have, e.g. a synced commit no
+    // fetch got yet, by the start of their hash.
+    let mut unfetched: Vec<(String, String)> = Vec::new();
     let mut names: Vec<(&String, &String)> = labels.revs.iter().collect();
     names.sort();
     for (label, rev) in names.into_iter().rev() {
         if let Some(commit) = git.commit(rev) {
             given.insert(commit, label.clone());
+        } else if rev.len() >= 7 && rev.chars().all(|c| c.is_ascii_hexdigit()) {
+            unfetched.push((rev.to_ascii_lowercase(), label.clone()));
         }
     }
     // Each commit of the monorepo's history, by what its copies share with it.
@@ -117,12 +122,21 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
             .unwrap_or_default();
         match subject.split_once(": ") {
             Some((label, _)) => label.to_string(),
+            None if subject.is_empty() => commit.chars().take(7).collect(),
             None => subject,
         }
     };
     let label = |commit: &str| {
         given
             .get(commit)
+            .or_else(|| {
+                // Pushed in reverse, as the labels above: the first by name wins.
+                unfetched
+                    .iter()
+                    .rev()
+                    .find(|(hash, _)| commit.starts_with(hash.as_str()))
+                    .map(|(_, label)| label)
+            })
             .cloned()
             .unwrap_or_else(|| by_subject(commit))
     };

@@ -143,3 +143,17 @@ cell() {
   run check_drawing "$drawing" "${revs[@]/#s=HEAD/s=v1}"
   [ "$status" -eq 0 ]
 }
+
+@test "drawing tree: a commit the monorepo hasn't fetched is labelled by its hash, or as a label names its hash" {
+  local c2
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c2: c upstream"
+  c2="$(git -C "$BATS_TEST_TMPDIR/upstream-c.git" rev-parse main)"
+  git config --file vendor/a/b/c/.splice splice.commit "$c2"
+  git commit -q -am "c at c2, not fetched"
+  write_tree
+  [ "$(cell s3 value)" = "${c2:0:7}" ]
+  write_tree "c2=$c2"
+  [ "$(cell s3 value)" = c2 ]
+  write_tree "z=$c2" "c2=$c2"
+  [ "$(cell s3 value)" = c2 ]
+}
