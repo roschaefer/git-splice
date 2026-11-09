@@ -1,6 +1,6 @@
 # Scenario: lfs-upstream
 
-> **Known bug, [#407](https://github.com/roschaefer/git-splice/issues/407).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../08-known-bugs.md).
+> **Known bug, [#407](https://github.com/roschaefer/git-splice/issues/407).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
 
 The upstream stores a file in [Git LFS](https://git-lfs.com/), and
 `clone` fails: Git LFS looks for the file's content on the monorepo's

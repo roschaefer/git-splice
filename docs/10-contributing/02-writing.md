@@ -196,6 +196,9 @@ ok   central-legend.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 The folders in `docs/` are the sidebar. The numbers in their names set
 its order, and the site leaves them out of the URLs.
 
+Keep Known bugs last under Scenarios. Its `99-` prefix is reserved;
+give new scenario chapters lower numbers.
+
 A page that would be alone in its folder is a file instead, named like
 the folder. A folder with several pages has a `README.md`, the page
 GitHub shows first. The site lists it first too, as "Overview", and names the folder

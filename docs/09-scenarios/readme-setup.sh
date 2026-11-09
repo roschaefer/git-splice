@@ -83,22 +83,22 @@ check_scenario_setups() {
   done < <(find "$TESTDIR" -mindepth 2 -name setup.bash | sed 's#/setup\.bash$##' | LC_ALL=C sort)
 }
 
-# Used by 08-known-bugs.md to list every document with a known-bug banner,
+# Used by 99-known-bugs.md to list every document with a known-bug banner,
 # the line right after its title, and its issue. Fails if the banner
-# doesn't link to 08-known-bugs.md, or if the table's rows, document and
+# doesn't link to 99-known-bugs.md, or if the table's rows, document and
 # issue, aren't exactly the banners' pairs. An issue only counts as
 # "[#N](.../issues/N)", with the same N twice.
 check_known_bugs() {
   local document relative banner issue listed found=
   local link='\[(#[0-9]+)\]\(https://github\.com/roschaefer/git-splice/issues/([0-9]+)\)'
-  listed="$(grep -E '^\| \[' "$TESTDIR/08-known-bugs.md" |
+  listed="$(grep -E '^\| \[' "$TESTDIR/99-known-bugs.md" |
     sed -E "s@^\| \[[^]]*\]\(([^)]*)\) \| $link \|.*@\1 \2 \3@" | LC_ALL=C sort)"
   while IFS= read -r document; do
     relative="${document#"$TESTDIR/"}"
     banner="$(sed -n 3p "$document")"
     [[ "$banner" == '> **Known bug, ['* ]] || continue
     issue="$(sed -E "s@^> \*\*Known bug, $link\.\*\*.*@\1 \2@" <<<"$banner")"
-    [[ "$banner" == *"[all known bugs]($(realpath --relative-to="$(dirname "$document")" "$TESTDIR/08-known-bugs.md"))." ]] || return
+    [[ "$banner" == *"[all known bugs]($(realpath --relative-to="$(dirname "$document")" "$TESTDIR/99-known-bugs.md"))." ]] || return
     printf 'ok %s %s\n' "$relative" "${issue% *}"
     found+="$relative $issue"$'\n'
   done < <(find "$TESTDIR" -mindepth 2 -name '*.md' | LC_ALL=C sort)
