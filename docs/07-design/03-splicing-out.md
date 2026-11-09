@@ -6,7 +6,7 @@
 without writing a monorepo commit. R is derived from committed history,
 so the same input rebuilds to the same commit IDs. The
 [sync model](../03-concepts/02-sync-model.md) explains B, U(B), R and T;
-this page explains the implementation choices.
+this page explains why publication uses a deterministic, bounded rebuild.
 
 `rebuild_splice` follows three steps:
 
@@ -83,20 +83,20 @@ nothing new changed in this splice. The first push after `init` also counts:
 there is no upstream branch yet
 ([stacked branch](../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/01-stacked-branch/README.md)).
 
-## `status`: the sync state
+## Inspection should predict publication
 
-`classify_splice` compares R with the fetched target T. Equal file trees
-can establish `up to date` without rebuilding. A fresh clone can instead
-be `never fetched`: `.splice` is present, but the referenced upstream
-objects and fetched refs are not
-([sync states](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)).
+Inspection and publication must agree on what would cross the splice.
+`status`, `diff` and `log` therefore compare the same rebuilt history with
+the fetched upstream target, rather than inventing a second interpretation
+of local changes. A missing feature branch should still give a useful PR
+comparison against its default target.
 
-## `diff` and `log`
+Equal file trees can avoid an expensive rebuild when classifying sync
+state. Missing fetched objects must instead remain distinguishable from
+an up-to-date splice: absence of evidence is not evidence of equality.
+The [sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)
+defines those states.
 
-`diff` shows `git diff T R`. For a missing upstream branch it compares
-against the merge base with the default target, as a PR would.
-
-`log` uses `git log --left-right --cherry-mark R...T`: `<` marks local
-commits, `>` upstream commits, and `=` patches already applied by cherry-pick
-or rebase. Ours stays on the left, theirs on the right. It includes the
-author because publishing a commit also publishes that identity.
+The presentation follows Git's ours/theirs convention and shows commit
+authors because publishing history also publishes identity. Exact output
+and options belong in the [command reference](../06-command-reference/README.md).

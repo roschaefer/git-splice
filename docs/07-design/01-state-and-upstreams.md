@@ -58,11 +58,13 @@ shared by its worktrees:
 	url = https://github.com/x/lib.git
 ```
 
-The candidate names are `lib`, `x-lib`, then `github.com-x-lib`; a numeric
-suffix resolves remaining collisions. Keys are lower-case, ref-safe and
-at most 64 characters. Allocation takes a lock so simultaneous fetches
-cannot claim the same key. Conflicting or invalid hand-edited mappings
-are refused.
+Short, recognisable keys keep Git refs readable without embedding an
+arbitrary URL in a ref name. Lower-case, ref-safe, bounded names avoid
+filesystem case collisions and path-length growth. Allocation takes a lock
+so simultaneous fetches cannot claim the same key; ambiguous hand-edited
+mappings must be refused rather than mixing repositories' objects.
+The [key reference](../06-command-reference/11-key.md) documents naming
+and collision rules.
 
 URL equality is exact, before `insteadOf` expansion: `host:lib` and
 `ssh://host/lib` can mean different repositories. The generated key makes
@@ -85,26 +87,26 @@ key, moving its refs and tracking settings with it.
 
 ## Branches
 
-The monorepo's default branch is `origin/HEAD`, falling back to
-`init.defaultBranch`. Ordinarily it maps to the upstream's default branch,
-and other branches keep the same name on both sides.
+One monorepo feature branch can carry changes across several repositories.
+Matching upstream branch names let the user work on that feature without
+managing a checkout per splice. Default branches need a mapping because
+repositories can name them differently. Missing feature branches use the
+default target for comparison, so inspection can show the prospective PR
+before publication creates a branch
+([push design](03-splicing-out.md#new-upstream-branches)).
 
-Two explicit choices override that mapping: `--branch` selects a target
-for the command, and `--track` stores a branch-to-upstream-key mapping in
-local Git config for later commands. `--branch` takes precedence over the
-stored tracking choice. Without either override, a committed `default-pin`
-selects a tag or commit on the default branch and refuses a push there;
-feature branches still follow named upstream branches. See
+Committed defaults and pins express a shared upstream choice; tracking
+overrides express a developer's local workflow. Keeping the latter in Git
+config avoids changing everyone's target to accommodate one checkout.
+An explicit command-line choice takes precedence so a stored preference
+does not prevent a deliberate one-off operation. A pin names an immutable
+target, so it cannot be treated as a branch to publish to. The exact
+selection rules belong with
 [tracking](../03-concepts/01-upstreams.md#tracking-another-upstream-branch-locally)
 and [pins](../09-scenarios/04-upstreams/06-default-pin/README.md).
 
-If an ordinary feature branch does not exist upstream, comparison uses
-the upstream's default target, as a PR would. A push creates the branch
-only if it has commits the default target lacks
-([push design](03-splicing-out.md#new-upstream-branches)).
-
-A nested splice inherits an unspecified default branch from its enclosing
-splice, so its `.splice` means the same in a clone of that upstream.
-An enclosing pin requires a `default-branch` below it. Differing defaults
-among enclosing upstreams need a chosen upstream or an explicit default
-branch ([nesting](../03-concepts/04-nesting.md#settings-come-from-the-splice-above)).
+Nested defaults come from the enclosing splice so the same committed
+`.splice` has the same meaning when its upstream is cloned independently.
+When a pin or differing enclosing defaults leave no unambiguous branch to
+inherit, an explicit choice is needed rather than a guess
+([nesting](../03-concepts/04-nesting.md#settings-come-from-the-splice-above)).

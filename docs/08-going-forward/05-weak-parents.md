@@ -104,7 +104,7 @@ A submodule's gitlink is a weak link that Git has: a commit id in the
 tree that the repository doesn't need to have. Like `.splice`, it's in
 the tree, not in the commit, so it survives a rebase. Unlike `.splice`,
 it says what to check out, not where the folder's files came from
-([the sync point](../07-design/README.md#the-sync-point)).
+([the sync point](../07-design/README.md#why-record-a-sync-point)).
 
 ### Extra commit headers: Sapling and jj
 

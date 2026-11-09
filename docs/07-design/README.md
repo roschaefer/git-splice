@@ -1,8 +1,14 @@
 # Design
 
-`git-splice` keeps folders of a monorepo in sync with their own upstream
-repositories. The files are ordinary files; the histories stay separate.
-This chapter explains the choices behind the [sync model](../03-concepts/02-sync-model.md).
+The preceding chapters explain what `git-splice` does and how to use it.
+Design explains why: the principles, tradeoffs and constraints behind that
+behaviour. Mechanisms appear here where they explain a choice; the
+[sync model](../03-concepts/02-sync-model.md) defines the behaviour itself.
+
+These principles also guide future features. Contributors, including AI
+agents, should use them to evaluate proposed behaviour, not just to describe
+the current implementation. A change that needs a different tradeoff should
+explicitly reconsider the affected principle and its rationale.
 
 ## Principles
 
@@ -29,20 +35,15 @@ This chapter explains the choices behind the [sync model](../03-concepts/02-sync
   documented rather than complicating the ordinary workflow
   ([limits](04-safety-and-limits.md#limits)).
 
-## The sync point
+## Why record a sync point?
 
-Like a subtree, a splice's files live directly in the monorepo. Like a
-submodule, it records an upstream commit. But that commit is a sync point,
-not an instruction to check out another repository: local commits can
-change the folder while the sync point stays put.
-
-## Vocabulary
-
-A splice is the folder and its connection to an upstream. **Splicing in**
-brings upstream content into the monorepo; **splicing out** publishes the
-folder's changes upstream. The [sync model](../03-concepts/02-sync-model.md)
-defines H, B, T, R and U(H); [Concepts](../03-concepts/README.md) explains
-the state file, upstreams and identity.
+A folder must remain editable with ordinary Git commands between syncs.
+Recording the last upstream commit gives the next merge a shared reference
+without making that commit an instruction to check out another repository.
+This combines files living directly in the monorepo with an explicit
+upstream relationship. [Concepts](../03-concepts/README.md) defines the
+state file, upstreams and identity; the
+[sync model](../03-concepts/02-sync-model.md) defines H, B, T, R and U(H).
 
 ## Architecture
 
@@ -61,14 +62,15 @@ are computed from that state and the monorepo's history.
 
 [State and upstreams](01-state-and-upstreams.md) explains why `.splice`
 uses Git's config format, why refs belong to URLs rather than paths, and
-how branches and pins map between repositories.
+why branch defaults are portable while tracking overrides stay local.
 
-## How the commands work
+## Why reads are broad and writes explicit
 
-Commands that change the monorepo or publish upstream changes require an
-explicit target. `status`, `diff`, `log` and `fetch` cover all splices
-unless paths narrow the selection. `clone` and `init` start one splice.
-This keeps an overview complete and a write deliberate.
+Inspection should reveal changes across the monorepo without making the
+user remember every splice. Publishing or changing committed files should
+require a deliberate selection. New commands should preserve that
+asymmetry; the [command reference](../06-command-reference/README.md)
+documents each command's targets and defaults.
 
 ## Splicing in
 
@@ -81,8 +83,8 @@ then keeps local edits and records the new sync point in one commit.
 
 `git splice push` rebuilds the folder's history as upstream commits,
 without writing to the monorepo. [Splicing out](03-splicing-out.md)
-explains history boundaries, deterministic metadata and how `status`,
-`diff` and `log` use the result.
+explains why history boundaries and deterministic metadata matter, and
+why inspection uses the same rebuilt history as publication.
 
 ## Safety and limits
 
@@ -93,7 +95,8 @@ explains that choice, the rejected alternatives and the remaining limits.
 ## Checking what it runs
 
 [Checking what it runs](05-git-trace.md) shows how to capture Git commands
-with `GIT_TRACE` and where tracing has limits.
+with `GIT_TRACE`: evidence for the principle that repository operations
+should remain inspectable through Git, along with that approach's limits.
 
 ## Why the name "splice"
 

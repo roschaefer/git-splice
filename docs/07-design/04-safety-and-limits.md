@@ -26,7 +26,7 @@ Git documents [push hooks](https://git-scm.com/docs/githooks#_pre_push),
 [remote helpers](https://git-scm.com/docs/gitremote-helpers). The choice here
 is to avoid adding a subfolder remote in the first place.
 
-### What git-splice does instead
+### Remove the accidental target
 
 Upstreams are fetched and pushed by URL from `.splice`, using
 [private refs](01-state-and-upstreams.md#refs-instead-of-remotes).
@@ -49,8 +49,11 @@ For the different tradeoffs of a centrally operated export pipeline, see
 
 ## Limits
 
-These restrictions keep the design bounded. Reproductions and unresolved
-bugs belong in [Scenarios](../09-scenarios/README.md) and
+A bounded design needs to distinguish deliberate tradeoffs from current
+implementation gaps. The limits below are not all principles to preserve:
+removing one should be judged against the principles it affects, with tests
+for the newly supported case. Reproductions and unresolved bugs belong in
+[Scenarios](../09-scenarios/README.md) and
 [Known bugs](../09-scenarios/99-known-bugs.md).
 
 - **Nested pulls can conflict.** If both the monorepo and the enclosing

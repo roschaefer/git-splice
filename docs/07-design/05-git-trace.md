@@ -1,7 +1,10 @@
 # Checking what it runs
 
-Git can list the commands `git-splice` runs. Capture them in a file to
-inspect the actual repository operations without reading the implementation.
+Delegating repository operations to Git makes them inspectable with
+Git's own tracing. A user should be able to verify what a sync publishes
+without trusting an opaque second implementation of Git. The examples
+below demonstrate that property and its limits; they also provide a way
+to check it when the implementation changes.
 
 <!-- See `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}

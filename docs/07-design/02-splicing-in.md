@@ -1,6 +1,6 @@
 # Splicing in
 
-## Starting a splice: `clone` and `init`
+## Preserve existing work when starting a splice
 
 `clone` starts from an existing upstream; `init` starts from an existing
 folder and an empty upstream. The
@@ -20,7 +20,7 @@ The design choices are about preserving existing work:
 
 The command name `add` is avoided because it already means `git add`.
 
-## Splicing in: `merge`, and `pull` = `fetch` + `merge`
+## Reuse Git's merge without joining histories
 
 `git splice merge` combines fetched upstream changes with the current
 folder as one ordinary monorepo commit. Upstream trees have the library
@@ -60,9 +60,10 @@ After an ordinary push, R already equals T and no recording commit is needed.
 
 ### Conflicts and nested splices
 
-The conflict is a Git cherry-pick: resolve it and `git commit`, or abort
-with `git cherry-pick --abort`. The command names those recovery actions
-when it stops ([conflicts](../06-command-reference/05-pull.md#conflicts)).
+Using a Git cherry-pick also leaves conflicts in a familiar, recoverable
+state instead of requiring a separate recovery protocol. The command must
+name the available recovery actions when it stops; their usage belongs in
+[conflicts](../06-command-reference/05-pull.md#conflicts).
 
 An outer pull can change the inner `.splice` files. For that reason,
 merges run top-down and pulls also fetch the splices below, including

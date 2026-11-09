@@ -3,6 +3,29 @@
 Run `just docs-check` to test every page. After an intended change, run
 `just docs-check --write` to update their output.
 
+## What belongs where
+
+The chapters before Design explain what the tool does and how to use it.
+Include a reason there when it helps a reader use a feature correctly;
+keep the full justification in Design and link to it. Concepts defines
+behaviour, the command reference gives syntax and output, and scenarios
+can explain detailed workflows and edge cases.
+
+Design records why: principles, tradeoffs, rejected alternatives and
+mechanisms needed to explain a decision. Its overview states the
+principles; subchapters develop their rationale rather than repeat usage.
+Behaviour details belong there only when they are needed to understand
+the choice, with links to their user-facing definitions.
+
+For a feature or behaviour change, contributors and AI agents should read
+the relevant [Design](../07-design/README.md) principles first. Explain how
+the proposal fits them. If it requires a different tradeoff, explicitly
+revisit the principle and rationale in the same change; update behaviour
+documentation and tests to match. Design guides future work, but is not a
+claim that every current implementation detail must remain permanent.
+
+## Markup
+
 Markup in running text tells a reader what kind of thing a word names:
 the commit *a*, not the English word "a". Each kind gets one markup,
 everywhere.

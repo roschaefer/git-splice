@@ -34,8 +34,7 @@ As a verb, you splice something in or out:
   `merge` and `pull`.
 - **splice out**: publish the monorepo's changes upstream, with `push`.
 
-The [vocabulary](README.md#vocabulary) defines these and the
-other terms.
+[Concepts](../03-concepts/README.md) defines these and the other terms.
 
 ## RNA splicing
 
