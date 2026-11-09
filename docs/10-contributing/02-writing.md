@@ -24,8 +24,10 @@ under an imperative heading does not explain its rationale.
 
 For a feature or behaviour change, contributors and AI agents should read
 the relevant [Design](../07-design/README.md) principles first. Explain how
-the proposal fits them. If it requires a different tradeoff, explicitly
-revisit the principle and rationale in the same change; update behaviour
+the proposal fits them. Ask how Git solves the equivalent problem and
+follow that model closely where it works well; explain a deliberate
+alternative where it does not. If a proposal requires a different tradeoff,
+explicitly revisit the principle and rationale in the same change; update behaviour
 documentation and tests to match. For changes to nested state, target
 selection or rebuilding, compare the nested workflow with the equivalent
 workflow in a standalone clone of the enclosing upstream. Account for

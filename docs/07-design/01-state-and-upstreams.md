@@ -1,17 +1,20 @@
 # State and upstreams
 
 Sync state lives in the versioned `.splice` file alongside the spliced
-files so it survives monorepo history rewrites. Fetched upstream refs and
+files so history rewrites and other VCS tools can preserve it without
+understanding special commit metadata. Fetched upstream refs and
 per-clone preferences stay in local Git data
 ([architecture](README.md#architecture)).
 
 ## The `.splice` file
 
-- **Store sync state with the files so rewriting history preserves it.**
+- **Store sync state in ordinary files so other VCS tools can preserve it too.**
 
-  A rebase or squash can discard commit messages or metadata that record
-  a sync. `.splice` is part of the worktree's versioned contents, so those
-  operations carry the sync state with the files. This avoids depending on
+  Extra commit metadata ties the relationship to tools that understand and
+  preserve it. Keeping `.splice` in the worktree's versioned contents lets
+  other VCS tools carry that state as an ordinary file, even when they use
+  their own extra metadata. A rebase or squash likewise need not understand
+  a special sync record to preserve it. This avoids depending on
   special handling of commit metadata, as
   [Sapling does](../05-comparisons/03-vcs/01-sapling.md), or sync records in
   [commit messages](../05-comparisons/01-git/02-git-subtree.md#problem-3-the-sync-points-are-in-commit-messages),
@@ -31,10 +34,11 @@ per-clone preferences stay in local Git data
 
 - **Reuse Git's config parser without executing repository content.**
 
-  A separate parser would add another format implementation to maintain.
-  Sourcing the file as a script would let committed configuration execute
-  commands. Git's config format provides sections and values through Git's
-  own reader and writer, without treating the file as code.
+  Every `git-splice` user already needs Git installed, so its config reader
+  and writer are available without another dependency. Its established
+  format provides sections and values without a parser of our own to
+  maintain. Sourcing the file as a script would instead let committed
+  configuration execute commands.
 
 - **Use a distinct filename to avoid interfering with the project's tools.**
 
@@ -115,6 +119,21 @@ per-clone preferences stay in local Git data
   one upstream overwrite another's refs. Read-only commands do not allocate
   keys, so inspecting a checkout does not silently create local state.
 
+- **Keep reflogs because Git already solves the problem of remembering branch movement.**
+
+  A fetched branch can be rewritten, leaving its previous tip unreachable
+  from the new one. Like Git's remote-tracking refs, splice refs keep
+  reflogs, so a merge can look for a rewritten branch's fork point. Reusing
+  Git's record of ref updates avoids inventing a separate history of fetches.
+
+- **Keep upstream tags separate because equal names need not mean equal releases.**
+
+  Unrelated repositories commonly reuse names such as `v1.0`. Importing
+  their tags into one `refs/tags/` namespace would make them collide.
+  Ordinary fetches therefore skip tags; a tag needed for a pin is fetched
+  under its upstream's private refs. Following Git's successful patterns
+  does not mean repeating its shared tag namespace across repositories.
+
 - **Keep fetched refs consistent with the upstream changes the tool knows about.**
 
   Pruning removes deleted branches without a separate maintenance command.
@@ -137,9 +156,12 @@ per-clone preferences stay in local Git data
 
 - **Separate shared dependency choices from personal branch choices.**
 
-  Defaults and pins describe the relationship the team checks out together.
-  Tracking overrides describe one developer's workflow; committing them
-  would retarget everyone else. A command-line choice takes precedence so
+  Git keeps the choice of which upstream branch a local branch tracks in
+  local config. Splice tracking follows that established model rather than
+  introducing a different scope for the same kind of choice. Defaults and
+  pins describe the relationship the team checks out together; tracking
+  overrides describe one developer's workflow, so committing them would
+  retarget everyone else. A command-line choice takes precedence so
   a stored preference cannot prevent a deliberate one-off operation.
   An immutable pin cannot serve as a publication branch. The selection
   rules are defined with

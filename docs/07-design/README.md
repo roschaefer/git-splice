@@ -17,7 +17,8 @@ explicitly reconsider the affected principle and its rationale.
   not become part of upstream history.
 - **Version the relationship, derive the rest.** `.splice` moves and
   branches with its folder. It records an upstream commit, never a
-  monorepo commit ID that rebasing could invalidate.
+  monorepo commit ID that rebasing could invalidate. Keeping sync state
+  in versioned files also avoids depending on VCS-specific commit metadata.
 - **Nesting should not change a splice's meaning.** Given equivalent
   history, upstream state and settings, syncing `vendor/a/b/` should produce
   the same result for that splice as syncing `b/` in a standalone clone
@@ -28,6 +29,14 @@ explicitly reconsider the affected principle and its rationale.
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
   monorepo commit recording the earlier push.
+- **Ask “what would Git do?”** Git has much more experience solving
+  version-control problems. Where its solution works well, implement the
+  closest equivalent: local branch-tracking settings and reflogs are
+  examples. This is a starting point for design decisions, not a reason to
+  repeat known problems such as mixing unrelated repositories' tags in one
+  namespace or adopting the submodule model
+  ([state choices](01-state-and-upstreams.md),
+  [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
 - **Let Git do the work.** Git parses the configuration, merges trees,
   creates commits and transfers objects. Its commands are
   [inspectable](05-git-trace.md).
@@ -68,13 +77,14 @@ are computed from that state and the monorepo's history.
 ## State and upstreams
 
 - **Commit the relationship; keep fetch state local.** Shared state must
-  survive clones and history rewrites without committing per-clone choices.
+  survive history rewrites and use by other VCS tools without depending
+  on their commit metadata.
 - **Use Git's config format and private refs.** Reuse Git's tools without
   introducing an upstream remote that a plain push could select.
 - **Identify upstreams by URL, not folder path.** Moves preserve fetched
   history; splices sharing an upstream can share its refs.
 - **Commit shared defaults; keep tracking overrides local.** A personal
-  branch choice should not change the team's upstream target.
+  branch choice stays local, following Git's branch-tracking model.
 
 [State and upstreams](01-state-and-upstreams.md) develops these decisions.
 
