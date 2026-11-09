@@ -1,100 +1,91 @@
 # Splicing in
 
-## Preserve existing work when starting a splice
-
-`clone` starts from an existing upstream; `init` starts from an existing
-folder and an empty upstream. The
-[command reference](../06-command-reference/01-clone.md) covers their syntax.
-The design choices are about preserving existing work:
-
-- **Preserve existing files.**
-
-  An existing folder that matches upstream needs only `.splice`. If the
-  files differ, `clone` refuses and names `--merge` instead of overwriting.
-
-- **Merge without losing local-only files.**
-
-  `clone --merge` uses an empty folder as the three-way merge base. Files
-  changed on both sides become add/add conflicts; local-only files survive.
-  Deleting and re-cloning on a branch is different: the later Git merge's
-  base still contains the old folder and can discard local-only files.
-
-- **Publish only history since init.**
-
-  `init` records no synced commit yet. The first push begins with the
-  folder at `init`, not its earlier monorepo history, which may contain
-  material never intended for publication
-  ([example](../09-scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)).
-
-The command name `add` is avoided because it already means `git add`.
+Git already knows how to reconcile changes with a three-way merge. The
+design problem is to make that machinery work across repositories whose
+histories stay separate and whose files live at different paths.
 
 ## Reuse Git's merge without joining histories
 
-`git splice merge` combines fetched upstream changes with the current
-folder as one ordinary monorepo commit. Upstream trees have the library
-at their root; the monorepo has it under `<path>/`. They share no commit
-ancestry, so the tool supplies a three-way merge base explicitly.
+Merging the upstream branch directly would bring its ancestry into the
+monorepo, and its root files would not line up with the splice's folder.
+Copying its latest files would instead overwrite local edits. Neither
+preserves both the independence of the repositories and the changes made
+on each side.
 
-`reroot_tree` uses a temporary index to construct base and theirs in the
-monorepo's layout, keeping everything outside the splice equal to `HEAD`:
-
-<div align="center">
-
-![Base, ours and theirs all retain HEAD's files outside the splice. Base uses the merge-base folder and old .splice; ours is HEAD; theirs uses the fetched upstream folder and records its commit. Cherry-picking theirs merges only the splice into one monorepo commit.](splicing-in.drawio.svg)
-
-</div>
-
-The temporary theirs commit has base as its parent. Running
-`git cherry-pick theirs` then merges ours (`HEAD`) with theirs using that
-base. Git's ort merge handles edits and renames; only the splice can
-conflict, and its sync-point update travels with the files.
-
-The ordinary merge base comes from R and T, not necessarily the commit
-recorded in `.splice`. Rewritten upstream history can use the fetched
-branch's fork point
+Rebuilding the folder's commits in the upstream's layout gives those
+changes an upstream history R. Git can compare R with the fetched upstream
+tip T and find the history they share. This matters after a push: the
+shared history can be newer than the recorded sync point, so using that
+older point would treat already-published changes as new ones. After an
+upstream rewrite, the branch's reflog can supply its previous fork point
 ([sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)).
-The temporary commits gain no lasting refs; the fetched upstream history
-stays separate from the monorepo's ancestry.
 
-### The same files, another history
+To bring the resulting upstream changes into the monorepo, we construct
+temporary commits for the base and upstream tip in the monorepo's layout.
+Both keep everything outside the splice equal to `HEAD`; their difference
+is confined to the folder and its sync state. Making one the parent of the
+other lets `git cherry-pick` apply that change with Git's three-way merge.
+These commits adapt the changes to the receiving repository without
+joining the upstream ancestry to it.
 
-- **Record history changes even when files match.**
+The purpose of rebuilding is therefore broader than preparing a push:
+it gives Git a shared history for reasoning about changes across the
+repositories. Git remains responsible for merging, rename detection and
+conflicts. Using its cherry-pick also provides familiar recovery tools
+instead of requiring a separate conflict protocol
+([conflict recovery](../06-command-reference/05-pull.md#conflicts)).
 
-  Matching files do not always mean no commit is needed. If upstream
-  rewrote or squash-merged the published history, or accepted an edited
-  rebuild, a pull must record that upstream commit even when only `.splice`
-  changes. Otherwise a later rebuild can publish the original commits again
-  ([rewritten history](../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/README.md),
-  [edited rebuild](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md)).
-  After an ordinary push, R already equals T and no recording commit is needed.
+## Record accepted history even when the files match
 
-### Conflicts and nested splices
+File equality alone cannot tell us which history has been accepted.
+Upstream may squash or rewrite published commits, or accept an edited
+rebuild with the same files. Without recording that accepted upstream
+commit, a later rebuild could publish the original commits again.
+This is why a pull can need a state-only commit
+([rewritten history](../09-scenarios/06-rewritten-history/02-upstream-rewritten-equal-tree/README.md),
+[edited rebuild](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md)).
 
-- **Use Git's conflict recovery.**
+Including the sync-state update in the same merge as the files keeps the
+recorded relationship tied to the result the user accepts. An ordinary
+push needs no such recording commit: R and T already agree.
 
-  Using a Git cherry-pick also leaves conflicts in a familiar, recoverable
-  state instead of requiring a separate recovery protocol. The command must
-  name the available recovery actions when it stops; their usage belongs in
-  [conflicts](../06-command-reference/05-pull.md#conflicts).
+## Preserve existing work without inventing shared history
 
-- **Merge from the outside in.**
+When an existing folder differs from upstream, overwriting it would lose
+local work. But treating its old contents as a shared base would also be
+an assumption: those files may never have come from that upstream.
+`clone --merge` therefore uses an empty folder as the base. Git then keeps
+local-only files and exposes competing additions as conflicts for the user
+to resolve.
 
-  A standalone clone would see the inner relationship recorded by its
-  own history. To preserve that meaning when nested, an outer pull must
-  establish the enclosing state before an inner merge uses it: the outer
-  pull can change the inner `.splice` files. Merges therefore run top-down
-  and pulls also fetch the splices below, including
-  ones the pull introduces. Fetching them makes their newly recorded
-  commits available; pulling them is a separate choice. `pull --recursive`
-  also pulls the descendants and folds the result into one commit
-  ([recursive pull](../06-command-reference/05-pull.md#--recursive)).
+Deleting and re-cloning on a branch is not equivalent. The later Git merge
+still has the old folder in its base and can discard local-only files.
+Refusing a differing folder unless `--merge` is requested avoids making
+that decision implicitly. The command names also preserve Git's existing
+vocabulary: `add` already means staging changes.
 
-- **Respect publication dependencies.**
+Starting an upstream from an existing folder poses a separate question:
+which earlier monorepo changes were intended for publication? `init`
+cannot infer that intent, so the publication history starts there, rather
+than exposing everything that previously occupied the folder
+([history before init](../09-scenarios/02-starting-a-splice/04-init-new-upstream/01-removed-before-init/README.md)).
 
-  A standalone clone of an enclosing upstream must be able to fetch the
-  inner commits its `.splice` records. Pushes therefore run bottom-up:
-  publishing the enclosing state first could leave that clone referring to
-  an unavailable inner commit. Failures must block dependent operations,
-  rather than publishing a relationship whose prerequisites failed. A failed
-  fetch blocks dependent pulls above and below it; a failed merge blocks
-  merges below it; a failed inner push blocks pushes above it.
+## Respect the dependencies between nested relationships
+
+An outer pull can change the inner `.splice`, including which upstream
+commit it records. Merging the inner splice first would use a relationship
+that the outer merge may replace. Top-down merging establishes the
+containing state first, preserving the meaning that the inner splice
+would have in a standalone clone of its enclosing upstream.
+
+The same reasoning requires fetching newly referenced inner commits:
+a complete outer pull must leave its nested state inspectable. Fetching
+those commits does not imply choosing to merge further inner changes;
+that choice remains explicit
+([recursive pull](../06-command-reference/05-pull.md#--recursive)).
+
+Publication has the reverse dependency. An enclosing upstream must not
+record an inner commit that a standalone clone cannot fetch. Inner commits
+must therefore be published before the enclosing relationship. A failed
+prerequisite blocks dependent operations rather than allowing a partial
+sync to claim a relationship it could not establish.
