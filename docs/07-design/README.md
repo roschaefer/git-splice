@@ -98,7 +98,7 @@ explicitly reconsider the affected principle and its rationale.
 [Why the name "splice"](01-name.md) introduces the terminology, including
 “splicing in” and “splicing out”, and the naming motivations. The following
 chapters develop the rationale for [state and upstreams](02-state-and-upstreams.md),
-[splicing in](03-splicing-in.md), [splicing out](04-splicing-out.md),
+[splicing out](04-splicing-out.md),
 [safety and limits](05-safety-and-limits.md), and
 [using the user's Git](06-git-trace.md).
 [Going forward](07-going-forward/README.md) explores potential features and

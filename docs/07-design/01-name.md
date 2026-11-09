@@ -18,7 +18,7 @@ folder `vendor/a/` and the upstream it syncs with.
 
 As a verb, you splice something in or out:
 
-- **[splice in](03-splicing-in.md)**: bring upstream content into the monorepo, with `clone`,
+- **[splice in](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)**: bring upstream content into the monorepo, with `clone`,
   `merge` and `pull`.
 - **[splice out](04-splicing-out.md)**: publish the monorepo's changes upstream, with `push`.
 
