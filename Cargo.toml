@@ -1,6 +1,6 @@
 [package]
 name = "git-splice"
-version = "0.20.0"
+version = "0.21.0"
 edition = "2021"
 license = "MIT"
 description = "Keep folders of a monorepo in sync with their own repositories, in both directions"
