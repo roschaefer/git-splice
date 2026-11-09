@@ -50,9 +50,8 @@ explicitly reconsider the affected principle and its rationale.
   closest equivalent:
   [local branch-tracking settings](../09-scenarios/03-branches-and-teamwork/07-tracked-branch/README.md)
   and [reflogs](../09-scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)
-  are examples. This is a starting point for design decisions, not a reason to
-  repeat known problems such as mixing unrelated repositories' tags in one
-  namespace or adopting the submodule model
+  are examples. Problems and bugs caused by a Git design are reasons not
+  to adopt it: examples are the global tag namespace and Git submodules
   ([state choices](01-state-and-upstreams.md),
   [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
 - **Take advantage of Git's full power.** Git already provides flexible
