@@ -7,6 +7,8 @@ use crate::diagram::{is_box_label, is_lane_label, Cell, Diagram};
 use crate::history::{History, Truth};
 use std::collections::{HashMap, HashSet};
 
+mod arrows;
+
 const CARRIED_OUTLINE: &str = "#E07000";
 const WALKED_FILL: &str = "#E0E0E0";
 const PULLED_OUTLINE: &str = "#0070E0";
@@ -233,6 +235,12 @@ impl<'a> Checker<'a> {
         self.truth.get(splice).unwrap_or(&self.no_truth)
     }
 
+    /// Whether it's a drawing of another tool, e.g. git subtree: the
+    /// monorepo has no splices, so nothing of a rebuild's is checked.
+    fn other_tool(&self) -> bool {
+        self.splices.is_empty()
+    }
+
     fn splice_of(&self, cell: usize) -> String {
         self.splice_of.get(&cell).cloned().unwrap_or_default()
     }
@@ -311,18 +319,18 @@ impl<'a> Checker<'a> {
         self.check_dashes();
         self.check_colors();
         self.check_legend();
-        let (drawn_edges, box_arrows, branch_tips) = self.check_arrows();
-        self.check_branches_off_t(&branch_tips);
+        let arrows = self.check_arrows();
+        self.check_branches_off_t(&arrows.branch_tips);
         for &cell in &self.boxes {
-            let arrows = box_arrows.get(&cell).copied().unwrap_or(0);
-            if arrows != 1 {
+            let count = arrows.box_arrows.get(&cell).copied().unwrap_or(0);
+            if count != 1 {
                 self.errors.push(format!(
-                    "{} has {arrows} arrows, not one: draw one from the box to its commit",
+                    "{} has {count} arrows, not one: draw one from the box to its commit",
                     self.value(cell)
                 ));
             }
         }
-        self.check_parent_arrows_drawn(&drawn_edges);
+        self.check_parent_arrows_drawn(&arrows.drawn_edges);
 
         if !self.errors.is_empty() {
             for error in &self.errors {
@@ -855,7 +863,7 @@ impl<'a> Checker<'a> {
                 continue;
             }
             let value = self.value(cell);
-            if self.splices.is_empty() {
+            if self.other_tool() {
                 if !self.in_monorepo(&commit) {
                     self.errors.push(format!(
                         "{value} isn't a commit of the monorepo, which has no splices"
@@ -952,7 +960,7 @@ impl<'a> Checker<'a> {
         }
         for &cell in &self.commits {
             let commit = self.commit(cell);
-            if commit.is_empty() || self.splices.is_empty() {
+            if commit.is_empty() || self.other_tool() {
                 continue;
             }
             let value = self.value(cell);
@@ -1066,7 +1074,7 @@ impl<'a> Checker<'a> {
     /// The legend explains each mark the drawing's commits use, by a sample
     /// commit with that mark next to the words for it, and no other mark.
     fn check_legend(&mut self) {
-        if self.splices.is_empty() {
+        if self.other_tool() {
             return;
         }
         // The central legend, in writing.md, explains these for every drawing.
@@ -1196,261 +1204,6 @@ impl<'a> Checker<'a> {
                         .config(&format!("{commit}:{folder}/.splice"), "splice.commit")
                 }
             },
-        }
-    }
-
-    /// Arrows: between commits, parent to child; from a box, to its commit;
-    /// styled message=1, from a commit to one its message names by hash;
-    /// styled config=<file>:<key>, from a commit to the one its <file> names
-    /// under <key>.
-    #[allow(clippy::type_complexity)]
-    fn check_arrows(
-        &mut self,
-    ) -> (
-        HashSet<(usize, usize)>,
-        HashMap<usize, usize>,
-        HashMap<(String, String), Vec<String>>,
-    ) {
-        let mut drawn_edges = HashSet::new();
-        let mut box_arrows: HashMap<usize, usize> = HashMap::new();
-        let mut branch_tips: HashMap<(String, String), Vec<String>> = HashMap::new();
-        for edge in self.edges.clone() {
-            let cell = &self.d.cells[edge];
-            let (source_id, target_id) = (cell.source.as_str(), cell.target.as_str());
-            if !source_id.is_empty() && self.kind_of(source_id) == Some(Kind::Box) {
-                if let Some(s) = self.d.index_of(source_id) {
-                    *box_arrows.entry(s).or_default() += 1;
-                }
-            }
-            if source_id.is_empty() || target_id.is_empty() {
-                self.errors.push(format!(
-                    "an arrow ({}) isn't attached at both ends: drag its ends onto shapes",
-                    cell.id
-                ));
-                continue;
-            }
-            let (source_kind, target_kind) = (self.kind_of(source_id), self.kind_of(target_id));
-            let s = self.d.index_of(source_id).unwrap_or(usize::MAX);
-            let t = self.d.index_of(target_id).unwrap_or(usize::MAX);
-            let value_of = |i: usize| self.d.cells.get(i).map_or("", |c| c.value.as_str());
-            let (vs, vt) = (value_of(s).to_string(), value_of(t).to_string());
-            if cell.style.has("message=1") {
-                if source_kind != Some(Kind::Commit) || target_kind != Some(Kind::Commit) {
-                    self.errors.push(format!("a message arrow ({}) doesn't join two commits: draw it from a commit to the one its message names", cell.id));
-                } else {
-                    let (cs, ct) = (self.commit(s), self.commit(t));
-                    let label = cell.value.trim();
-                    if !cs.is_empty() && !ct.is_empty() {
-                        let message = self.git.message(&cs);
-                        if !names_commit(&message, &ct) {
-                            self.errors.push(format!(
-                                "{vs}'s message doesn't name {vt}: point the message arrow at the commit it names"
-                            ));
-                        } else if !label.is_empty() && !names_commit_on_line(&message, label, &ct) {
-                            self.errors.push(format!(
-                                "{vs}'s message names {vt}, but not on a line {label}: label the message arrow with the line's start"
-                            ));
-                        }
-                    }
-                }
-                continue;
-            }
-            if let Some(config) = cell.style.value("config") {
-                let Some((file, key)) = config.split_once(':') else {
-                    self.errors.push(format!(
-                        "a config arrow ({}) names no key: style it config=<file>:<key>",
-                        cell.id
-                    ));
-                    continue;
-                };
-                let label = cell.value.trim();
-                let short_key = key.rsplit('.').next().unwrap_or(key);
-                if !label.is_empty() && label != short_key {
-                    self.errors.push(format!("a config arrow ({}) is labelled {label}, not {short_key}: label it with its key", cell.id));
-                }
-                if source_kind != Some(Kind::Commit) || target_kind != Some(Kind::Commit) {
-                    self.errors.push(format!("a config arrow ({}) doesn't join two commits: draw it from a commit to the one its {file} names", cell.id));
-                } else {
-                    let (cs, ct) = (self.commit(s), self.commit(t));
-                    let named = self.git.config(&format!("{cs}:{file}"), key);
-                    if !cs.is_empty()
-                        && !ct.is_empty()
-                        && (named.is_empty() || !ct.starts_with(&named))
-                    {
-                        self.errors.push(format!(
-                            "{vs}'s {file} doesn't name {vt} as {key}: point the config arrow at the commit it names"
-                        ));
-                    }
-                }
-                continue;
-            }
-            if source_kind == Some(Kind::Box) {
-                if target_kind != Some(Kind::Commit) {
-                    self.errors
-                        .push(format!("{vs} points at something other than a commit"));
-                    continue;
-                }
-                // A box sits with the commit it points at: in its lane, or
-                // outside every lane, like H and B with their monorepo
-                // commits.
-                let (lane_s, lane_t) = (self.lane_of(s), self.lane_of(t));
-                if lane_s != lane_t {
-                    if lane_t.is_empty() {
-                        self.errors.push(format!("{vs} points at {vt}, which is outside every lane: draw the box outside every lane too"));
-                    } else {
-                        self.errors.push(format!(
-                            "{vs} points at {vt}, in the lane {}: draw the box in that lane",
-                            self.place(t).label
-                        ));
-                    }
-                    continue;
-                }
-                let (side_s, side_t) = (self.side_name(s), self.side_name(t));
-                if side_s != side_t {
-                    let side = if side_t.is_empty() { "other" } else { &side_t };
-                    self.errors.push(format!(
-                        "{vs} points at {vt}, on the {side} side: draw the box on that side"
-                    ));
-                    continue;
-                }
-                self.check_box(s, t, &mut branch_tips);
-                continue;
-            }
-            if target_kind == Some(Kind::Box) {
-                self.errors.push(format!(
-                    "an arrow from {vs} points at the box {vt}: draw it from the box to its commit"
-                ));
-                continue;
-            }
-            if source_kind != Some(Kind::Commit) || target_kind != Some(Kind::Commit) {
-                continue;
-            }
-            if self.lane_of(s) != self.lane_of(t) {
-                self.errors.push(format!(
-                    "{vs} -> {vt} crosses lanes: draw a parent and its child in one lane"
-                ));
-                continue;
-            }
-            if self.side_name(s) != self.side_name(t) {
-                self.errors.push(format!(
-                    "{vs} -> {vt} crosses the separator: draw the parent on {vt}'s side too"
-                ));
-                continue;
-            }
-            let (cs, ct) = (self.commit(s), self.commit(t));
-            if cs.is_empty() || ct.is_empty() {
-                continue;
-            }
-            drawn_edges.insert((s, t));
-            let dashed = self.dashed(edge);
-            if !self.git.parents_of(&ct).contains(&cs) {
-                self.errors
-                    .push(format!("{vs} -> {vt}: {vs} isn't a parent of {vt}"));
-            } else if self.not_upstream(&ct, &self.splice_of(t), &self.side_key(t)) {
-                if !dashed {
-                    self.errors.push(format!(
-                        "{vs} -> {vt} is solid, but no upstream branch has {vt}: dash it"
-                    ));
-                }
-            } else if dashed {
-                self.errors.push(format!(
-                    "{vs} -> {vt} is dashed, but an upstream branch has {vt}: draw it solid"
-                ));
-            }
-        }
-        (drawn_edges, box_arrows, branch_tips)
-    }
-
-    /// Box <s> points at commit <t>: each name in it must name that commit.
-    fn check_box(
-        &mut self,
-        s: usize,
-        t: usize,
-        branch_tips: &mut HashMap<(String, String), Vec<String>>,
-    ) {
-        let splice = self.splice_of(s);
-        let (vs, vt) = (self.value(s).to_string(), self.value(t).to_string());
-        let target = self.commit(t);
-        let aliases = &self.labels.aliases;
-        for shown in vs.split(" = ") {
-            let mut term = aliases.get(shown).cloned().unwrap_or(shown.to_string());
-            if is_term(&term, "U") {
-                let k = argument(&term, "U");
-                term = format!("U({})", aliases.get(k).map_or(k, String::as_str));
-            }
-            // With several splices, only a lane says whose B is.
-            if term == "B" && splice.is_empty() {
-                self.errors.push("B outside every lane doesn't say which splice's boundary it is: with several splices, leave B out".to_string());
-                continue;
-            }
-            if is_term(&term, "U") {
-                let k = argument(&term, "U");
-                if k != "H" && k != "B" {
-                    let drawn = self
-                        .id_of_label
-                        .get(k)
-                        .is_some_and(|&c| !self.commit(c).is_empty());
-                    if !drawn {
-                        self.errors.push(format!(
-                            "{shown} points at {vt}, but no commit {k} is drawn"
-                        ));
-                        continue;
-                    }
-                    let count = self.label_count.get(k).copied().unwrap_or(0);
-                    if count > 1 {
-                        self.errors.push(format!(
-                            "{shown} points at {vt}, but {count} commits are labelled {k}: label them apart"
-                        ));
-                        continue;
-                    }
-                }
-            }
-            let named = if let Some(rev) = self.labels.revs.get(shown) {
-                self.git.commit(rev).unwrap_or_default()
-            } else if self.dashed(s) {
-                // Checked before: a branch of the monorepo.
-                match self.git.commit(&format!("refs/heads/{term}")) {
-                    Some(named) => named,
-                    None => continue,
-                }
-            } else if !self.lane_of(s).is_empty()
-                && is_branch_term(&term)
-                && self.git.rev_parse(&format!("refs/heads/{term}")).is_some()
-                && !target.is_empty()
-                && self.git.is_ancestor(&target, &format!("refs/heads/{term}"))
-                && self.not_upstream_of(&target, &splice)
-            {
-                self.errors.push(format!(
-                    "{shown} is a branch of the monorepo, which the upstream doesn't have: dash the box"
-                ));
-                continue;
-            } else {
-                let named = self.resolve_term(&term, &splice, &self.side_key(s), &target);
-                if (is_branch_term(&term) || is_term(&term, "tracked"))
-                    && !named.is_empty()
-                    && !self.in_monorepo(&named)
-                {
-                    branch_tips
-                        .entry((splice.clone(), self.side_name(s)))
-                        .or_default()
-                        .push(named.clone());
-                }
-                named
-            };
-            if named.is_empty() {
-                self.errors
-                    .push(format!("{shown} points at {vt}, but there's no {shown}"));
-            } else if target != named {
-                let label = match self.label_of.get(&named) {
-                    Some(label) => label.clone(),
-                    None => format!(
-                        "{}, which isn't drawn",
-                        named.chars().take(7).collect::<String>()
-                    ),
-                };
-                self.errors
-                    .push(format!("{shown} points at {vt}, the code says {label}"));
-            }
         }
     }
 
