@@ -238,13 +238,7 @@ impl Repo {
                 "{path}: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; {verb} without --rebase"
             ));
         }
-        if self.lacks_synced_by_reflog() {
-            return fail(format!(
-                "{path}: '{}' lacks the synced commit {}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes",
-                c.upstream_label,
-                short(&c.synced)
-            ));
-        }
+        self.refuse_lacking_synced(path)?;
         let synced_tree = tree_of(&c.synced);
         let mut base = None;
         let history = git(&["rev-list", "--first-parent", "HEAD"])
@@ -345,6 +339,29 @@ impl Repo {
             past_tense(verb),
             short(&target)
         ));
+        Ok(())
+    }
+
+    /// For pull --rebase --recursive, before it moves anywhere: whether splice
+    /// <path> has something to pull. Refuses as --rebase of the splice alone
+    /// would when its upstream branch lacks the synced commit.
+    pub fn pull_to_rebase(&mut self, path: &str, branch: &str) -> Res<bool> {
+        self.classify_splice(path, branch)?;
+        if !matches!(self.c.state, State::Pull | State::Diverged) {
+            return Ok(false);
+        }
+        self.refuse_lacking_synced(path)?;
+        Ok(true)
+    }
+
+    fn refuse_lacking_synced(&self, path: &str) -> Res<()> {
+        if self.lacks_synced_by_reflog() {
+            return fail(format!(
+                "{path}: '{}' lacks the synced commit {}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes",
+                self.c.upstream_label,
+                short(&self.c.synced)
+            ));
+        }
         Ok(())
     }
 

@@ -1428,3 +1428,28 @@ uncommitted" ]
   [ "$(git rev-parse HEAD)" = "$before" ]
   [ "$(git symbolic-ref --short HEAD)" = main ]
 }
+
+@test "nested: pull --rebase --recursive with nothing to pull says so, even with published commits since the last pull" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_m1
+  git update-ref refs/remotes/origin/main HEAD
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: nothing to pull"*"vendor/a/b: nothing to pull"* ]]
+}
+
+@test "nested: pull --rebase --recursive refuses, as --rebase does, when the upstream branch lacks the synced commit and its reflog doesn't show it had it" {
+  load '../09-scenarios/06-rewritten-history/04-patch-branch-rebased/setup'
+  scenario_patch_branch_rebased "$monorepo" "$upstream"
+  git clone -q "$monorepo" "$BATS_TEST_TMPDIR/clone"
+  cd "$BATS_TEST_TMPDIR/clone"
+  local before synced
+  before="$(git rev-parse HEAD)"
+  synced="$(splice_config vendor/a commit)"
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: 'patches' lacks the synced commit ${synced:0:7}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  git symbolic-ref -q HEAD
+}

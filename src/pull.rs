@@ -107,7 +107,14 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
         .q()
         .ok();
-    let rewinds = rebase_tree && resumed.is_none() && !fetched.is_empty();
+    let mut rewinds = false;
+    if rebase_tree && resumed.is_none() {
+        for path in &fetched {
+            if repo.pull_to_rebase(path, &branch)? {
+                rewinds = true;
+            }
+        }
+    }
     if rewinds {
         rewind_to_last_pull(&tops, &branch)?;
     } else if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
