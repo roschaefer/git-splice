@@ -1,6 +1,6 @@
 # Scenario: init-then-cloned
 
-> **Known bug, [#11](https://github.com/roschaefer/git-splice/issues/11).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../08-known-bugs.md).
+> **Known bug, [#11](https://github.com/roschaefer/git-splice/issues/11).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
 
 A splice made by `init` was published, and a colleague clones the
 monorepo. Until the clone fetches, `status`, `log` and `diff` treat the

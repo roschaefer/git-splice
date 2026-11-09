@@ -5,7 +5,7 @@ upstream can be in, or a situation a command has to handle. A folder may
 contain several Markdown documents, but each document explains and executes
 one problem. `status`'s [sync states](../06-command-reference/README.md#output)
 link to them as examples. Some show a bug as it is today; [Known
-bugs](08-known-bugs.md) lists them.
+bugs](99-known-bugs.md) lists them.
 
 The scenarios are grouped into numbered chapters by topic, from the
 situations every user meets to the edge cases: everyday sync, starting a

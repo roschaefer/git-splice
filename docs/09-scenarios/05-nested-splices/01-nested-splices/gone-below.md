@@ -1,6 +1,6 @@
 # Scenario: nested-splices, a pull retried after the synced commit below is gone
 
-> **Known bug, [#274](https://github.com/roschaefer/git-splice/issues/274).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../08-known-bugs.md).
+> **Known bug, [#274](https://github.com/roschaefer/git-splice/issues/274).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
 
 As in [dropped below](dropped-below.md), a pull of `vendor/a/` moves
 `vendor/a/b/` to a synced commit the inner upstream dropped from its
