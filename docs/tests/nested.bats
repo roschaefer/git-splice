@@ -669,7 +669,7 @@ swap_splice_files() {
   git push -q origin main
   seed_bare_repo "$upstream_b" "b change 2" main other.txt
   cd "$monorepo"
-  run splice pull vendor/a/b vendor/a
+  run splice pull --recursive vendor/a
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a: pulled"*"vendor/a/b: pulled"* ]]
   [ "$(git show HEAD:vendor/a/b/other.txt)" = $'b change 1\nb change 2' ]
@@ -788,19 +788,19 @@ order_of() {
 
 @test "nested: top-down puts each splice after the ones above it, bottom-up before them, and keeps the order given otherwise" {
   add_splices_at deep/x deep/x/y other z
-  [ "$(order_of merge deep/x/y other deep/x z)" = "deep/x deep/x/y other z" ]
+  [ "$(order_of merge --all)" = "deep/x deep/x/y other z" ]
   [ "$(order_of push deep/x/y other deep/x z)" = "deep/x/y deep/x other z" ]
 }
 
 @test "nested: subtrees under the same splice keep the order of their first path too" {
   add_splices_at a a/b a/b/d a/c
-  [ "$(order_of merge a/b/d a/c a/b a)" = "a a/b a/b/d a/c" ]
+  [ "$(order_of merge --all)" = "a a/b a/b/d a/c" ]
   [ "$(order_of push a/b/d a/c a/b a)" = "a/b/d a/b a/c a" ]
 }
 
 @test "nested: a splice goes below the nearest splice given above it, also across folders that aren't splices, and a path given twice comes once" {
   add_splices_at a a/b a/b/c/d x
-  [ "$(order_of merge a/b/c/d x a/b a/b/c/d a)" = "a a/b a/b/c/d x" ]
+  [ "$(order_of merge --all)" = "a a/b a/b/c/d x" ]
   [ "$(order_of push a/b/c/d x a/b a/b/c/d a)" = "a/b/c/d a/b a x" ]
 }
 
@@ -871,7 +871,7 @@ order_of() {
   [ "$(splice_state vendor/a/b)" = "pull" ]
 }
 
-@test "nested: pull of a and c follows the default branch b's new .splice names, after a's pull renames b's upstream" {
+@test "nested: pull --recursive of a follows the default branch b's new .splice names, after a's pull renames b's upstream" {
   scenario_three_levels "$monorepo" "$upstream"
   upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
   seed_bare_repo "$upstream_c" "c dev" dev other.txt
@@ -881,7 +881,7 @@ order_of() {
   git commit -q -m "b: fork, on dev" -- b/.splice
   git push -q origin main
   cd "$monorepo"
-  splice pull vendor/a vendor/a/b/c
+  splice pull --recursive vendor/a
   [ "$(git show HEAD:vendor/a/b/c/other.txt)" = "c dev" ]
 }
 
@@ -909,7 +909,7 @@ order_of() {
   [ "$(git diff --name-only --diff-filter=U)" = "vendor/a/b/file.txt" ]
 }
 
-@test "nested: pull of a and b doesn't merge b from an upstream fetched before, when a's pull names it and fetching it fails" {
+@test "nested: pull --recursive of a doesn't merge b from an upstream fetched before, when a's pull names it and fetching it fails" {
   scenario_nested_splices "$monorepo" "$upstream"
   upstream_b2="$BATS_TEST_TMPDIR/upstream-b2.git"
   git clone -q --bare "$upstream_b" "$upstream_b2"
@@ -930,7 +930,7 @@ order_of() {
   git push -q origin main
   mv "$upstream_b2" "$upstream_b2.gone"
   cd "$monorepo"
-  run splice pull vendor/a vendor/a/b
+  run splice pull --recursive vendor/a
   [ "$status" -ne 0 ]
   [[ "$output" == *"vendor/a/b: not pulled, since its .splice from a merge above failed to load"* ]]
   [[ "$output" == *"Failed: vendor/a/b"* ]]
@@ -1188,4 +1188,18 @@ order_of() {
   run splice pull --recursive vendor/b
   [ "$status" -eq 0 ]
   [[ "$output" == *"2 pulls made one commit"* ]]
+}
+
+@test "nested: pull and merge refuse a splice and one inside it, whose pull decides what's there" {
+  scenario_three_levels "$monorepo" "$upstream"
+  cd "$monorepo"
+  for command in pull merge; do
+    run splice "$command" vendor/a vendor/a/b/c
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"vendor/a/b/c is inside vendor/a, whose $command decides what's there -- $command vendor/a with --recursive, or vendor/a/b/c in a command of its own"* ]]
+  done
+  run splice pull --recursive vendor/a/b/c vendor/a
+  [ "$status" -ne 0 ]
+  run splice push vendor/a vendor/a/b/c
+  [ "$status" -eq 0 ]
 }
