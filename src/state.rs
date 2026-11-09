@@ -3,7 +3,7 @@
 use crate::repo::*;
 use crate::util::*;
 
-impl Repo {
+impl Repo<'_> {
     /// Classifies the splice's sync state while the monorepo is on <branch>,
     /// into `c`. Status, merge, push, diff and log all need it.
     pub fn classify_splice(&mut self, path: &str, branch: &str) -> Res<()> {
@@ -59,7 +59,7 @@ impl Repo {
         let remote_tree = tree_of(&c.target_ref);
         // A commit given with push --rebuilt-commit differs in its history,
         // not its files: only comparing commits tells whether it's there yet.
-        if !self.rebuild_given.contains_key(path)
+        if !self.context.supplied_rebuilds.contains_key(path)
             && local_tree.is_some()
             && local_tree == remote_tree
         {

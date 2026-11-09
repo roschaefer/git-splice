@@ -1,6 +1,7 @@
 //! Script checkpoints and caller-owned continuation for fetch, pull and push.
 
 use crate::args::Args;
+use crate::context::ExecutionContext;
 use crate::merge::{apply_merge_options, MergeProgress};
 use crate::message::{Message, KNOWN};
 use crate::repo::*;
@@ -247,20 +248,24 @@ fn hook(command: &str, payload: &Payload) -> Res<()> {
     }
 }
 
-pub fn run(operation: &str, args: Args) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, operation: &str, args: Args) -> Res<i32> {
     crate::util::checkpoint_output(true);
-    let result = run_inner(operation, args);
+    let result = run_inner(context, operation, args);
     crate::util::checkpoint_output(false);
     result
 }
 
-fn prepare(operation: &str, args: Args) -> Res<Repo> {
+fn prepare<'context>(
+    context: &'context mut ExecutionContext,
+    operation: &str,
+    args: Args,
+) -> Res<Repo<'context>> {
     if args.has_flag("--rebase") {
         return die("--exec and --continue-from do not support --rebase yet");
     }
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     if operation == "pull" {
         apply_merge_options(&mut repo)?;
     }
@@ -278,13 +283,13 @@ fn prepare(operation: &str, args: Args) -> Res<Repo> {
     Ok(repo)
 }
 
-fn run_inner(operation: &str, args: Args) -> Res<i32> {
+fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res<i32> {
     if args.exec.is_empty() {
         return die("--continue-from needs --exec; the payload never supplies a script to execute");
     }
     let command = args.exec.clone();
     let (mut repo, mut state, mut sequence, first_event) = if args.continue_from.is_empty() {
-        let mut repo = prepare(operation, args)?;
+        let mut repo = prepare(context, operation, args)?;
         let mut pushes = None;
         let (branch, fetched, failures, phase) = if operation == "push" {
             pushes = Some(crate::push::PushProgress::new(&mut repo)?);
@@ -382,7 +387,7 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
         }
         let mut saved_args = payload.continuation.args.clone();
         saved_args.exec = command.clone();
-        let mut repo = prepare(operation, saved_args)?;
+        let mut repo = prepare(context, operation, saved_args)?;
         payload.repository.validate(&payload.operation)?;
         if payload.continuation.branch != payload.repository.branch
             || (payload.continuation.args.has_flag("--recursive")
@@ -419,7 +424,6 @@ fn run_inner(operation: &str, args: Args) -> Res<i32> {
             };
             hook(&command, &payload)?;
             repo.uncommitted.clear();
-            repo.content_tree_cache.clear();
         }
         match state.phase {
             Phase::Pushing => {

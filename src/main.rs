@@ -7,6 +7,7 @@
 //! docs/07-design/README.md.
 
 use git_splice::args::parse_args;
+use git_splice::context::ExecutionContext;
 use git_splice::repo::Repo;
 use git_splice::util::*;
 use git_splice::{clone, diff, fetch, init, key, log, merge, pull, push, status};
@@ -31,11 +32,11 @@ fn require_git_version() -> Res<()> {
     Ok(())
 }
 
-fn run_rebuild(argv: &[String]) -> Res<i32> {
+fn run_rebuild(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(USAGE_REBUILD, "", argv)?;
     args.require(USAGE_REBUILD, "rebuild", 1, 1)?;
     let path = normalize_path(&args.paths[0]);
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     repo.open()?;
     repo.require_splice(&path)?;
     match repo.rebuild_splice(&path, "HEAD")? {
@@ -47,11 +48,11 @@ fn run_rebuild(argv: &[String]) -> Res<i32> {
     }
 }
 
-fn run_boundary(argv: &[String]) -> Res<i32> {
+fn run_boundary(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(USAGE_BOUNDARY, "", argv)?;
     args.require(USAGE_BOUNDARY, "boundary", 1, 1)?;
     let path = normalize_path(&args.paths[0]);
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     repo.open()?;
     repo.require_splice(&path)?;
     if let Some(start) = repo.splice_start(&path, "HEAD")? {
@@ -67,6 +68,7 @@ fn dispatch(argv: &[String]) -> Res<i32> {
         return Ok(1);
     };
     let rest = &argv[1..];
+    let context = &mut ExecutionContext::new();
     match command.as_str() {
         "-h" | "--help" => {
             say(USAGE.trim_end_matches('\n'));
@@ -76,18 +78,18 @@ fn dispatch(argv: &[String]) -> Res<i32> {
             say(format!("git splice version {}", env!("CARGO_PKG_VERSION")));
             Ok(0)
         }
-        "status" => status::run(rest),
-        "diff" => diff::run(rest),
-        "log" => log::run(rest),
-        "key" => key::run(rest),
-        "clone" => clone::run(rest),
-        "init" => init::run(rest),
-        "push" => push::run(rest),
-        "fetch" => fetch::run(rest),
-        "merge" => merge::run(rest),
-        "pull" => pull::run(rest),
-        "rebuild" => run_rebuild(rest),
-        "boundary" => run_boundary(rest),
+        "status" => status::run(context, rest),
+        "diff" => diff::run(context, rest),
+        "log" => log::run(context, rest),
+        "key" => key::run(context, rest),
+        "clone" => clone::run(context, rest),
+        "init" => init::run(context, rest),
+        "push" => push::run(context, rest),
+        "fetch" => fetch::run(context, rest),
+        "merge" => merge::run(context, rest),
+        "pull" => pull::run(context, rest),
+        "rebuild" => run_rebuild(context, rest),
+        "boundary" => run_boundary(context, rest),
         _ => {
             log_err(format!("unknown command: {command}"));
             eprint_text(USAGE);

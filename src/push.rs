@@ -1,13 +1,14 @@
 //! git splice push.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::merge::EqualTree;
 use crate::repo::*;
 use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/push.txt");
 
-impl Repo {
+impl Repo<'_> {
     /// Prepares one splice's push.
     fn prepare_push(&mut self, path: &str, branch: &str, force: bool) -> Res<Option<PreparedPush>> {
         match self.has_uncommitted_changes(path) {
@@ -92,7 +93,7 @@ impl Repo {
                 // upstream's default branch has it: it was asked for, and needs
                 // recording.
                 if !rebuilt.is_empty()
-                    && !self.rebuild_given.contains_key(path)
+                    && !self.context.supplied_rebuilds.contains_key(path)
                     && self.d.no_changes
                 {
                     log_ok(format!(
@@ -172,7 +173,7 @@ impl Repo {
     /// after a retry that finds it upstream: the earlier push may have gone
     /// through without its reminder.
     fn remind_pull(&mut self, path: &str, selection: &str) -> Res<()> {
-        let Some(given) = self.rebuild_given.get(path).cloned() else {
+        let Some(given) = self.context.supplied_rebuilds.get(path).cloned() else {
             return Ok(());
         };
         if !self.given_is_rebuild(path, &given)? {
@@ -245,12 +246,14 @@ impl Repo {
                 ));
             }
         }
-        self.rebuild_given.insert(path.to_string(), rebuilt);
+        self.context
+            .supplied_rebuilds
+            .insert(path.to_string(), rebuilt);
         Ok(())
     }
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(
         USAGE,
         "--force --upstream --branch --track --rebuilt-commit --exec --continue-from",
@@ -258,9 +261,9 @@ pub fn run(argv: &[String]) -> Res<i32> {
     )?;
     args.require_branch_for_track()?;
     if !args.exec.is_empty() || !args.continue_from.is_empty() {
-        return crate::checkpoint::run("push", args);
+        return crate::checkpoint::run(context, "push", args);
     }
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     repo.open()?;
     let mut progress = PushProgress::new(&mut repo)?;
     let branch = repo.monorepo_branch.clone();
@@ -319,7 +322,7 @@ impl PushProgress {
         repo.load_uncommitted_changes(&selected);
         Ok(Self {
             paths: splices_in_order(true, &selected),
-            given: repo.rebuild_given.clone(),
+            given: repo.context.supplied_rebuilds.clone(),
             ..Self::default()
         })
     }
@@ -344,10 +347,10 @@ impl PushProgress {
         let PushPhase::Publish { prepared } = &mut self.phase else {
             return die("rebuilt_commit result requires an after-rebuild checkpoint");
         };
-        repo.rebuild_given = self.given.clone();
+        repo.context.supplied_rebuilds = self.given.clone();
         repo.give_rebuild(&prepared.path, commit, repo.args.has_flag("--force"))?;
-        prepared.rebuilt_commit = repo.rebuild_given[&prepared.path].clone();
-        self.given = repo.rebuild_given.clone();
+        prepared.rebuilt_commit = repo.context.supplied_rebuilds[&prepared.path].clone();
+        self.given = repo.context.supplied_rebuilds.clone();
         Ok(())
     }
 
@@ -378,7 +381,7 @@ impl PushProgress {
         branch: &str,
     ) -> Res<Option<crate::checkpoint::Event>> {
         use crate::checkpoint::Event;
-        repo.rebuild_given = self.given.clone();
+        repo.context.supplied_rebuilds = self.given.clone();
         let force = repo.args.has_flag("--force");
         match self.phase.clone() {
             PushPhase::Done => Ok(None),

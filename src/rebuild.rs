@@ -407,11 +407,11 @@ pub fn splice_lineage_to_mount(path: &str, upper: &str) -> MountLineage {
     }
 }
 
-impl Repo {
+impl Repo<'_> {
     /// Folder tree <tree> without its state file. The same folder tree recurs
     /// in every commit that doesn't touch it.
     fn strip_state_tree(&mut self, tree: &str) -> Res<String> {
-        if let Some(stripped) = self.content_tree_cache.get(tree) {
+        if let Some(stripped) = self.context.content_trees.get(tree) {
             return Ok(stripped.clone());
         }
         // NUL-separated throughout: a file name may contain anything but NUL.
@@ -438,7 +438,8 @@ impl Repo {
         } else {
             tree.to_string()
         };
-        self.content_tree_cache
+        self.context
+            .content_trees
             .insert(tree.to_string(), result.clone());
         Ok(result)
     }
@@ -455,7 +456,7 @@ impl Repo {
     /// The rebuild push sends for the splice at HEAD: the commit given with
     /// push --rebuilt-commit, if any, else its own.
     pub fn splice_rebuild(&mut self, path: &str) -> Res<Option<String>> {
-        if let Some(given) = self.rebuild_given.get(path) {
+        if let Some(given) = self.context.supplied_rebuilds.get(path) {
             return Ok(Some(given.clone()));
         }
         self.rebuild_splice(path, "HEAD")

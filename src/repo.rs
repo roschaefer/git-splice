@@ -1,6 +1,7 @@
 //! Discovery of the splices, their upstreams, keys and targets.
 
 use crate::args::Args;
+use crate::context::ExecutionContext;
 use crate::message::{Message, Template};
 use crate::util::*;
 use std::cell::OnceCell;
@@ -96,8 +97,8 @@ pub struct Compared {
     pub no_changes: bool,
 }
 
-#[derive(Default)]
-pub struct Repo {
+pub struct Repo<'context> {
+    pub context: &'context mut ExecutionContext,
     pub(crate) fetch_checkpoint: Vec<crate::checkpoint::Fetched>,
     pub args: Args,
     pub all_paths: Vec<String>,
@@ -117,8 +118,6 @@ pub struct Repo {
     monorepo_default: OnceCell<String>,
     empty_tree: OnceCell<String>,
     pub uncommitted: HashMap<String, Uncommitted>,
-    pub content_tree_cache: HashMap<String, String>,
-    pub rebuild_given: HashMap<String, String>,
     pub rebuild_without_synced: bool,
     pub joins_rewritten: bool,
     pub merge_bump: bool,
@@ -455,11 +454,37 @@ pub fn current_branch() -> Res<String> {
     }
 }
 
-impl Repo {
-    pub fn new(args: Args) -> Repo {
-        Repo {
+impl<'context> Repo<'context> {
+    pub fn new(context: &'context mut ExecutionContext, args: Args) -> Self {
+        Self {
+            context,
             args,
-            ..Repo::default()
+            fetch_checkpoint: Default::default(),
+            all_paths: Default::default(),
+            upstream_lists: Default::default(),
+            upstream_urls: Default::default(),
+            default_upstreams: Default::default(),
+            upstream_names: Default::default(),
+            urls: Default::default(),
+            keys: Default::default(),
+            selected: Default::default(),
+            monorepo_branch: Default::default(),
+            tracked: Default::default(),
+            tracked_for: Default::default(),
+            key_of_url: Default::default(),
+            url_of_key: Default::default(),
+            keys_loaded: Default::default(),
+            monorepo_default: Default::default(),
+            empty_tree: Default::default(),
+            uncommitted: Default::default(),
+            rebuild_without_synced: Default::default(),
+            joins_rewritten: Default::default(),
+            merge_bump: Default::default(),
+            merge_rebase: Default::default(),
+            merge_no_fork_point: Default::default(),
+            message_template: Default::default(),
+            c: Default::default(),
+            d: Default::default(),
         }
     }
 

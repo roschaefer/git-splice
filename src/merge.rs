@@ -1,6 +1,7 @@
 //! git splice merge.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
@@ -47,7 +48,7 @@ fn state_file_blob(rev: &str, path: &str) -> Option<String> {
     .out()
 }
 
-impl Repo {
+impl Repo<'_> {
     /// record_equal_tree's choice, which push --rebuilt-commit asks too.
     pub fn equal_tree_outcome(&mut self, path: &str, target: &str) -> Res<EqualTree> {
         let synced = splice_config(path, "commit", "HEAD");
@@ -882,7 +883,7 @@ pub fn apply_merge_options(repo: &mut Repo) -> Res<()> {
 pub const MERGE_OPTIONS: &str =
     "--upstream --branch --track --bump --rebase --no-fork-point -m --message-template";
 
-impl Repo {
+impl Repo<'_> {
     /// For --rebuilt-commit: merges <commit>, which continues the splice's
     /// rebuild, e.g. with a pull made in a worktree of it, into the folder.
     /// A three-way merge from where <commit> left the rebuild, as one
@@ -955,7 +956,7 @@ impl Repo {
     }
 }
 
-impl Repo {
+impl Repo<'_> {
     /// --rebuilt-commit merges <commit> as the monorepo's own work and keeps
     /// the synced commit. A commit of the splice's upstream in <commit> that
     /// the rebuild lacks, e.g. from a pull in a worktree of it, would come in
@@ -1000,7 +1001,7 @@ impl Repo {
     }
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --rebuilt-commit"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
@@ -1025,7 +1026,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
             ));
         }
     }
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
     // Before select_splices: a rebase in progress has detached HEAD.

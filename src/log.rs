@@ -1,6 +1,7 @@
 //! git splice log.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::diff::run_each_splice;
 use crate::repo::*;
 use crate::util::*;
@@ -176,8 +177,8 @@ fn log_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
     )
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
-    let mut repo = Repo::new(parse_args(USAGE, "--graph --upstream", argv)?);
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
+    let mut repo = Repo::new(context, parse_args(USAGE, "--graph --upstream", argv)?);
     repo.open()?;
     repo.select_splices(Kind::Overview, "log")?;
     Ok(crate::pager::page_git_output(|| {
