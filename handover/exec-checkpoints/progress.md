@@ -355,3 +355,9 @@ including read-only commands such as status. Implemented in `bddcffb`.
 - The remote pile moved from 070e2ef to 710522e during this task, with substantial
   unrelated changes. This refactor remains on the previously verified 070e2ef
   base; it has not been rebased onto the newer pile during this task.
+
+## Rebase onto main
+
+See [main-rebase.md](main-rebase.md) for the exact base, backup, affected main
+changes, dropped redundant fix, compatibility adaptations and verification.
+This supersedes the previous note about remaining on the old pile base.
