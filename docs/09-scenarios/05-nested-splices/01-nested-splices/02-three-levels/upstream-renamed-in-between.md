@@ -112,4 +112,5 @@ ok   vendor/a/b/c fetched
 ok   vendor/a: nothing to pull
 ok   vendor/a/b: nothing to pull
 ok   vendor/a/b/c: nothing to pull
+ok   vendor/a: 2 pulls made one commit, [0-9a-f]{7} (regex)
 ```

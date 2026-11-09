@@ -131,7 +131,7 @@ ok   vendor/a/e: pulled 68b88a4
 ok   vendor/a/b: nothing to pull
 ok   vendor/a/b/c: nothing to pull
 ok   vendor/a/d: removed by the pull of vendor/a
-ok   2 pulls made one commit, d95b8f5
+ok   vendor/a: 2 pulls made one commit, e0ed735
 ```
 
 ![The tree: the monorepo at p, outlined blue; vendor/a/ at a2, outlined blue, then dashed p', outlined blue; in it, b/ at b1, with c/ at c1 in it, and e/ at e2, outlined blue; no d/](removed-after.drawio.svg)

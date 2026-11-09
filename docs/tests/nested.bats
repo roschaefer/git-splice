@@ -648,7 +648,7 @@ swap_splice_files() {
   [ "${lines[2]}" = "  up to date  vendor/a/b" ]
 }
 
-@test "nested: pull --all skips b if the pull of a removed it" {
+@test "nested: pull --all says the pull of a removed b" {
   scenario_nested_splices "$monorepo" "$upstream"
   work_in_upstream_a
   git rm -q b/.splice
@@ -657,7 +657,7 @@ swap_splice_files() {
   cd "$monorepo"
   run splice pull --all
   [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a/b: not a splice any more -- nothing to pull"* ]]
+  [[ "$output" == *"vendor/a/b: removed by the pull of vendor/a"* ]]
   ! git cat-file -e HEAD:vendor/a/b/.splice
 }
 
@@ -1255,4 +1255,58 @@ e_added_in_upstream_a() {
   [[ "$output" == *"vendor/x: cloned"* ]]
   [[ "$output" == *"vendor/x/b"* ]]
   git cat-file -e HEAD:vendor/x/b/.splice
+}
+
+@test "nested: pull --all pulls a splice the pull above adds, like --recursive" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/e fetched"*"vendor/a/e: pulled"* ]]
+  [ "$(cat vendor/a/e/file.txt)" = "e seed"$'\n'"e upstream" ]
+}
+
+@test "nested: pull --all makes one commit per splice it starts from, of its own pull and the ones below" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  local upstream_x="$BATS_TEST_TMPDIR/upstream-x.git"
+  make_bare_repo "$upstream_x"
+  seed_bare_repo "$upstream_x" "x seed"
+  add_splice "$monorepo" "$upstream_x" vendor/x
+  seed_bare_repo "$upstream" "a upstream"
+  seed_bare_repo "$upstream_b" "b upstream"
+  seed_bare_repo "$upstream_x" "x upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: 2 pulls made one commit"* ]]
+  [ "$(git rev-list --count "$before..HEAD")" = 2 ]
+  [[ "$(git log -1 --format=%s HEAD~1)" == "splice: pull vendor/a from main at "* ]]
+  [[ "$(git log -1 --format=%b HEAD~1)" == "splice: pull vendor/a/b from main at "* ]]
+  [[ "$(git log -1 --format=%s)" == "splice: pull vendor/x from main at "* ]]
+}
+
+@test "nested: a recursive pull's commit takes its message from the template, for its own pull and the ones below" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "a upstream"
+  seed_bare_repo "$upstream_b" "b upstream"
+  cd "$monorepo"
+  run splice pull --recursive --message-template 'chore(deps): pull {path} to {new}
+
+{shortlog}' vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$(git log -1 --format=%s)" == "chore(deps): pull vendor/a to "* ]]
+  [[ "$(git log -1 --format=%B)" == *"chore(deps): pull vendor/a/b to "*"b upstream"* ]]
+}
+
+@test "nested: pull --all stops at a copy of a splice it's inside, which would bring in the next copy" {
+  load '../09-scenarios/05-nested-splices/04-cycle/setup'
+  scenario_cycle "$monorepo" "$BATS_TEST_TMPDIR/up"
+  cd "$monorepo"
+  splice pull vendor/a >/dev/null
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/i/vendor/a: a copy of vendor/a, which it's inside -- not pulled"* ]]
+  ! git cat-file -e HEAD:vendor/a/i/vendor/a/i/.splice
 }
