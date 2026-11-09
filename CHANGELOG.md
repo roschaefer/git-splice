@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.21.0](https://github.com/roschaefer/git-splice/compare/v0.20.0...v0.21.0) (2026-11-09)
+
+
+### Features
+
+* **check-drawing:** a drawing with lanes has one for every splice ([#442](https://github.com/roschaefer/git-splice/issues/442)) ([584c3b8](https://github.com/roschaefer/git-splice/commit/584c3b803ae710740686e0ee4e3e2ac859df335c))
+* **check-drawing:** splice trees, written from the repository ([#440](https://github.com/roschaefer/git-splice/issues/440)) ([8eb07e5](https://github.com/roschaefer/git-splice/commit/8eb07e56b8cda049ae79d83af5b80e02b9c15241))
+* make the message of the commits git-splice writes from a template with --message-template ([#422](https://github.com/roschaefer/git-splice/issues/422)) ([1442a19](https://github.com/roschaefer/git-splice/commit/1442a1957d0935ba668a11bbfdbed4f965f6f3e0))
+* **pull:** --recursive pulls a splice and every splice below it, as one commit ([#451](https://github.com/roschaefer/git-splice/issues/451)) ([c418501](https://github.com/roschaefer/git-splice/commit/c418501228b374320b2c9b54479395577a882699))
+
+
+### Bug Fixes
+
+* **pull:** refuse a splice and one inside it, whose pull decides what's there ([#454](https://github.com/roschaefer/git-splice/issues/454)) ([961cad2](https://github.com/roschaefer/git-splice/commit/961cad26081c08a91f413147c84411d40af80b1b))
+* **rebuild:** a nested splice's own new synced commit wins over the upstream above ([#430](https://github.com/roschaefer/git-splice/issues/430)) ([e2daebc](https://github.com/roschaefer/git-splice/commit/e2daebc9a38f2414d19ece4c50238aee7c6734a8)), closes [#428](https://github.com/roschaefer/git-splice/issues/428)
+
 ## [0.20.0](https://github.com/roschaefer/git-splice/compare/v0.19.0...v0.20.0) (2026-11-07)
 
 
