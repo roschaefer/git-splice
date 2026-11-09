@@ -66,6 +66,7 @@ $ git init -q -b main ../other &&
 $ git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
 ok   vendor/a: cloned 924e6e3 from main
+ok   vendor/a/b fetched
 ```
 
 ```scrut

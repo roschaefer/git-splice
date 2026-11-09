@@ -190,14 +190,16 @@ history has it on top of its own commits
 
 ```scrut
 $ git splice pull -h | check-help section order
-    Also fetches the splices below each: pulling a splice can move their
-    synced commits. Top-down: a splice is pulled before the ones below it,
-    and a failed fetch stops the splices above and below it.
+    Also fetches the splices below each, and any its pull brings in:
+    pulling a splice can move their synced commits. Top-down: a splice is
+    pulled before the ones below it, and a failed fetch stops the splices
+    above and below it.
 ```
 
-`pull` also fetches the splices below the ones it pulls, since pulling
-the splice above can move their synced commits
-([nesting](../03-concepts/04-nesting.md)).
+`pull` also fetches the splices below the ones it pulls, and the ones
+its pull brings in, since pulling the splice above can move their synced
+commits ([nesting](../03-concepts/04-nesting.md)). It doesn't pull a
+splice it brings in: `--recursive` does.
 
 ## Conflicts
 

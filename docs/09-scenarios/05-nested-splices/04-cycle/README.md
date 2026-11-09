@@ -51,6 +51,8 @@ with `vendor/a/` in it:
 $ git splice pull vendor/a
 ok   vendor/a fetched (main moved bde4164..885fc31)
 ok   vendor/a: pulled 885fc31
+ok   vendor/a/i fetched
+ok   vendor/a/i/vendor/a fetched
 ```
 
 ```scrut
@@ -62,9 +64,9 @@ vendor/a/i/vendor/a/.splice: id = 224f2c2563d3b6f7
 
 `vendor/a/i/vendor/a/` has the id of `vendor/a/`, above it: the cycle.
 
-Each pull terminates: it reads which splices there are once, before it
-merges anything, so a `.splice` that a merge brings in is pulled only by
-the next run. But each run finds a deeper one:
+Each pull terminates: it reads which splices to pull once, before it
+merges anything, so a `.splice` that a merge brings in is fetched, but
+pulled only by the next run. And each run finds a deeper one:
 
 ```scrut
 $ git splice pull --all
@@ -74,6 +76,8 @@ ok   vendor/a/i/vendor/a fetched
 ok   vendor/a: nothing to pull
 ok   vendor/a/i: nothing to pull
 ok   vendor/a/i/vendor/a: pulled 885fc31
+ok   vendor/a/i/vendor/a/i fetched
+ok   vendor/a/i/vendor/a/i/vendor/a fetched
 ```
 
 ```scrut

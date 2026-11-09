@@ -22,19 +22,19 @@ The app's upstream has its library at `c/`, with a `c/.splice`. One
 $ git splice clone https://git.example.com/a.git a
 ===  a: fetching https://git.example.com/a.git
 ok   a: cloned 6962bd0 from main
+ok   a/c fetched
 ```
 
 ```scrut
 $ git splice status
 On branch main
 
-  ?? never fetched  a/c  run 'git splice fetch a/c'
-
-  up to date        a
+  up to date  a
+  up to date  a/c
 ```
 
-`a/c/` is a splice now. `clone` fetched only the app's upstream, so the
-library's upstream waits for a [`fetch`](../06-command-reference/02-fetch.md).
+`a/c/` is a splice now, and `clone` fetched the library's upstream too,
+as it does for every splice that comes along: both are ready to sync.
 
 ## Each splice syncs with the monorepo
 

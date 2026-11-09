@@ -75,51 +75,52 @@ $ git splice pull vendor/a vendor/a/d
 
 ## The step in between: `a`'s pull
 
-`vendor/a`'s pull alone, on a branch to keep `main` as it is:
+`vendor/a`'s pull alone:
 
 ```scrut
-$ git switch -q -c step &&
->   git splice pull --branch main vendor/a
+$ git splice pull vendor/a
 ok   vendor/a fetched (main moved 764d9c4..04072ca)
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
-ok   vendor/a/d fetched
+ok   vendor/a/d fetched (main moved 2c64d15..36c850e)
 ok   vendor/a: pulled 04072ca
+ok   vendor/a/e fetched
 ```
 
 `d/` is gone. `e/` is a splice now, at *e1*, the commit `a`'s upstream
 records for it, and no farther: *e2* takes a pull of `vendor/a/e` too,
 which this command wasn't asked for.
 
-Nothing has fetched `e`'s upstream yet, so the monorepo knows *e1* only
-by its hash ([#335](https://github.com/roschaefer/git-splice/issues/335)):
+The pull fetched `e`'s upstream, though, as it does for every splice
+its merge brings in, so `status` knows what's left:
 
 ```scrut
 $ git splice status vendor/a/e
-On branch step
+On branch main
 
-  ?? never fetched  vendor/a/e  run 'git splice fetch vendor/a/e'
+  behind 1  vendor/a/e
 ```
 
 ![The tree: the monorepo at pa, outlined blue; vendor/a/ at a2, outlined blue; in it, b/ at b1, with c/ at c1 in it, and the new e/ at e1; no d/](removed-step.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/removed-step.drawio.svg" pa=HEAD "e1=$(git config --file vendor/a/e/.splice splice.commit)"
+$ check_drawing "$TESTDIR/removed-step.drawio.svg" pa=HEAD
 ok   removed-step.drawio.svg: a tree of 5 rows
 ```
 -->
 
 ## A recursive pull
 
-`pull --recursive vendor/a` takes that step, then reads what's inside
+Back at the commit before it, on a branch, `pull --recursive vendor/a`
+takes that step, then reads what's inside
 `vendor/a` from its result: `e/` is fetched and pulled, up to *e2*, and
 `d/`, selected while it was still there, was removed by the pull of
 `vendor/a`. The two pulls make one commit, *p*:
 
 ```scrut
-$ git switch -q main &&
->   git splice pull --recursive vendor/a
+$ git switch -q -c recursive HEAD~1 &&
+>   git splice pull --recursive --branch main vendor/a
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched

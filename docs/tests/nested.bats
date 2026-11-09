@@ -437,15 +437,15 @@ swap_splice_files() {
   [[ "$(splice status vendor/a/e)" == *"vendor/a/e -> master"* ]]
 }
 
-@test "nested: cloning an upstream that contains a .splice makes its folder a splice" {
+@test "nested: cloning an upstream that contains a .splice makes its folder a splice, fetched too" {
   scenario_nested_splices "$BATS_TEST_TMPDIR/first" "$upstream"
   init_monorepo "$monorepo"
   cd "$monorepo"
   splice clone "$upstream" lib
   [ "$(git show HEAD:lib/b/.splice)" = "$(git -C "$upstream" show main:b/.splice)" ]
   run splice status
-  [ "${lines[1]}" = "  ?? never fetched  lib/b  run 'git splice fetch lib/b'" ]
-  [ "${lines[2]}" = "  up to date        lib" ]
+  [ "${lines[1]}" = "  up to date  lib" ]
+  [ "${lines[2]}" = "  up to date  lib/b" ]
 }
 
 @test "nested: a merge brings in a .splice the upstream added, and the folder becomes a splice" {
@@ -1202,4 +1202,57 @@ order_of() {
   [ "$status" -ne 0 ]
   run splice push vendor/a vendor/a/b/c
   [ "$status" -eq 0 ]
+}
+
+# a's upstream splices e in at e/, at "e seed"; then e's upstream moves on.
+e_added_in_upstream_a() {
+  upstream_e="$BATS_TEST_TMPDIR/upstream-e.git"
+  make_bare_repo "$upstream_e"
+  seed_bare_repo "$upstream_e" "e seed"
+  work_in_upstream_a
+  splice clone "$upstream_e" e >/dev/null
+  git push -q origin HEAD:main
+  seed_bare_repo "$upstream_e" "e upstream"
+  cd "$monorepo"
+}
+
+@test "nested: pull fetches a splice its merge brings in, and leaves pulling it to the next pull" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: pulled"*"vendor/a/e fetched"* ]]
+  [[ "$output" != *"vendor/a/e: pulled"* ]]
+  [ "$(splice_state vendor/a/e)" = "pull" ]
+}
+
+@test "nested: pull whose fetch of a splice it brings in fails keeps its commit and says so" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  mv "$upstream_e" "$upstream_e.gone"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: pulled"* ]]
+  [[ "$output" == *"Failed: vendor/a/e"* ]]
+  git cat-file -e HEAD:vendor/a/e/.splice
+}
+
+@test "nested: clone fetches the splices the upstream has inside it" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice clone "$upstream" vendor/x
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/x: cloned"*"vendor/x/b fetched"* ]]
+  [ "$(splice_state vendor/x/b)" = "up-to-date" ]
+}
+
+@test "nested: clone whose fetch of a splice inside fails keeps the clone" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  mv "$upstream_b" "$upstream_b.gone"
+  cd "$monorepo"
+  run splice clone "$upstream" vendor/x
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/x: cloned"* ]]
+  [[ "$output" == *"vendor/x/b"* ]]
+  git cat-file -e HEAD:vendor/x/b/.splice
 }

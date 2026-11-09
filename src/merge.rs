@@ -663,8 +663,15 @@ impl Repo {
             }
             // The splices below a failed one are skipped anyway.
             if !splice_in_progress() && !failures.contains(path) {
+                // A splice its pull added is known from now on, so the
+                // reading below fetches it; a recursive pull pulls it too.
+                let added = if recursive || verb == "pull" {
+                    self.discover_below(path)?
+                } else {
+                    Vec::new()
+                };
                 if recursive {
-                    for added in self.discover_below(path)? {
+                    for added in added {
                         // Below a selected splice, as the ones found before
                         // the pull: --branch names its upstream branch too.
                         if self.selected.contains(path) && !self.selected.contains(&added) {

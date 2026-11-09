@@ -48,12 +48,14 @@ $ build_scenario scenario_diamond
 $ git splice clone https://git.example.com/a.git a
 ===  a: fetching https://git.example.com/a.git
 ok   a: cloned 6962bd0 from main
+ok   a/c fetched
 ```
 
 ```scrut
 $ git splice clone https://git.example.com/b.git b
 ===  b: fetching https://git.example.com/b.git
 ok   b: cloned 8333d5f from main
+ok   b/c fetched
 ```
 
 ```scrut
