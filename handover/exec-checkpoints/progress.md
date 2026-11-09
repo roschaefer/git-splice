@@ -300,3 +300,19 @@ Lint, formatting and `nix flake check -L` passed (current system).
 Unset GIT_PAGER and PAGER for regression tests to avoid overriding pager fixtures.
 Logs: `/tmp/git-splice-push-exec-final-tests.log`,
 `/tmp/git-splice-push-exec-docs.log`, `/tmp/git-splice-push-exec-flake.log`.
+
+Rebased onto pile commit `070e2ef` after the pile was rewritten again. Backup:
+`backup/exec-checkpoints-before-070e2ef`. Preserved propagation of selected nested
+paths and the stale SPLICE_PULL_START ancestry guard; applied the latter to
+checkpoint pulls too. Removed a duplicate fish recursive completion introduced
+by combining the two branches. Rebased verification logs use the prefix
+`/tmp/git-splice-push-exec-rebased-`.
+
+Final verification after the rebase passed: 879 Bats tests, 44 Rust tests,
+lint, formatting, current-system Nix flake checks, and 155 documents with
+1,927 successful testcases (175 label pages, 131 diagram placements).
+The pile's Unicode-path folding fix also needed restoring after conflict
+resolution; its new regression test caught the omission and now passes.
+Implementation commits after rebase: `9cb7d9d` (push), `0a0f3e1` (stale fold
+boundary integration), `cd83387` (Unicode folding integration). Prior tested
+feature tip is retained by the backup branch above.
