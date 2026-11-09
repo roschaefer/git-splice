@@ -20,8 +20,9 @@ SYNOPSIS
 ```scrut
 $ git splice clone -h | check-help section description
     Splices an existing upstream repository into <path> (default: the
-    repository's name), as one ordinary commit with a new <path>/.splice.
-    With --from-submodule, it turns a submodule into a splice instead.
+    repository's name), as one ordinary commit with a new <path>/.splice,
+    and fetches the splices the upstream has inside it. With
+    --from-submodule, it turns a submodule into a splice instead.
 ```
 
 In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `pkg-b.git` isn't spliced in yet:

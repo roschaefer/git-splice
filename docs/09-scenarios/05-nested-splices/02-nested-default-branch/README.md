@@ -67,6 +67,7 @@ from the monorepo's:
 $ git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
 ok   vendor/a: cloned ddf42f3 from master
+ok   vendor/a/b fetched
 ```
 
 ```scrut

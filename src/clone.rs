@@ -634,6 +634,13 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         "{path}: cloned {} from {upstream_branch}",
         short(&target)
     ));
+    // The splices the upstream has inside it came along: fetched, so their
+    // synced commits are here. A fetch that fails leaves the clone as it is.
+    let nested = repo.discover_below(&path)?;
+    if !nested.is_empty() {
+        let entries = repo.every_upstream_entry(&nested)?;
+        repo.fetch_all(&branch, &entries)?;
+    }
     Ok(0)
 }
 

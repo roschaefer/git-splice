@@ -82,9 +82,10 @@ OPTIONS
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#options
 
 ORDER
-    Also fetches the splices below each: pulling a splice can move their
-    synced commits. Top-down: a splice is pulled before the ones below it,
-    and a failed fetch stops the splices above and below it.
+    Also fetches the splices below each, and any its pull brings in:
+    pulling a splice can move their synced commits. Top-down: a splice is
+    pulled before the ones below it, and a failed fetch stops the splices
+    above and below it.
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#order
 
