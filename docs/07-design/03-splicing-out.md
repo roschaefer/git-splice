@@ -78,12 +78,23 @@ approved differences.
   [three levels](../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/README.md),
   [joined history](../09-scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
 
-- **Bound and batch the work.**
+### Advancing sync points bounds repeated work
 
-  The commit walk is bounded by the selected boundary. Metadata and folder
-  trees are read in batches with `git log` and `git cat-file --batch-check`;
-  creating the copies still needs `commit-tree` calls.
-  [`pull --bump`](../04-advanced-workflows/03-bump.md) can shorten later rebuilds.
+A sync point must be able to advance so later rebuilds can skip history
+already accounted for. Otherwise the history walk grows with the lifetime
+of the monorepo, even when each sync publishes only a small change.
+[`git subtree split --squash`](../05-comparisons/01-git/02-git-subtree.md#problem-2-with---squash-split-walks-everything)
+illustrates that cost; its `--rejoin` workaround adds a merge to record a
+new starting point.
+
+The recorded sync point lets `git-splice` derive a rebuild boundary B
+without that merge. A pull can advance it;
+[`pull --bump`](../04-advanced-workflows/03-bump.md) can record the published
+state to shorten later rebuilds. A push alone leaves the monorepo unchanged.
+Metadata and folder trees are read in batches with `git log` and
+`git cat-file --batch-check`; creating the copies still needs `commit-tree`
+calls. Batching reduces that work, but does not replace an advancing
+starting point.
 
 ## New upstream branches
 

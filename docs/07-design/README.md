@@ -38,6 +38,10 @@ explicitly reconsider the affected principle and its rationale.
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
   monorepo commit recording the earlier push.
+- **Keep repeated syncs scalable.** An advancing sync point lets rebuilds
+  skip history already accounted for, rather than revisit an ever-growing
+  history on every sync
+  ([rebuild cost](03-splicing-out.md#advancing-sync-points-bounds-repeated-work)).
 - **Ask “what would Git do?”** Git has much more experience solving
   version-control problems. Where its solution works well, implement the
   closest equivalent:
@@ -64,16 +68,6 @@ explicitly reconsider the affected principle and its rationale.
   and unsupported paths stop with an explanation. Rare cases can be
   documented rather than complicating the ordinary workflow
   ([limits](04-safety-and-limits.md#limits)).
-
-## Why record a sync point?
-
-A folder must remain editable with ordinary Git commands between syncs.
-Recording the last upstream commit gives the next merge a shared reference
-without making that commit an instruction to check out another repository.
-This combines files living directly in the monorepo with an explicit
-upstream relationship. [Concepts](../03-concepts/README.md) defines the
-state file, upstreams and identity; the
-[sync model](../03-concepts/02-sync-model.md) defines H, B, T, R and U(H).
 
 ## Architecture
 
