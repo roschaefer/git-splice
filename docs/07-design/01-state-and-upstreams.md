@@ -1,19 +1,24 @@
 # State and upstreams
 
-The storage boundary should let ordinary Git operations carry a splice's
-meaning with its files, while each clone fetches and inspects upstreams
-independently. The [architecture](README.md#architecture) shows that boundary;
-[Concepts](../03-concepts/README.md) defines the stored state.
+Sync state lives in the versioned `.splice` file alongside the spliced
+files so it survives monorepo history rewrites. Fetched upstream refs and
+per-clone preferences stay in local Git data
+([architecture](README.md#architecture)).
 
 ## The `.splice` file
 
-- **Keep the relationship with the files so ordinary Git can manage it.**
+- **Store sync state with the files so rewriting history preserves it.**
 
-  A local-only registry would make a fresh clone incomplete and require
-  separate machinery to switch or merge splice relationships between
-  branches. Committing `.splice` lets Git carry those choices with the
-  folder. Reading the committed version keeps sync decisions tied to
-  recorded history rather than an unfinished edit to the relationship.
+  A rebase or squash can discard commit messages or metadata that record
+  a sync. `.splice` is part of the worktree's versioned contents, so those
+  operations carry the sync state with the files. This avoids depending on
+  special handling of commit metadata, as
+  [Sapling does](../05-comparisons/03-vcs/01-sapling.md), or sync records in
+  [commit messages](../05-comparisons/01-git/02-git-subtree.md#problem-3-the-sync-points-are-in-commit-messages),
+  as `git subtree` does. Committing the file also makes the relationship
+  available in a fresh clone and lets ordinary Git switch and merge it
+  between branches. Sync commands read its committed version so an
+  unfinished edit cannot silently change the relationship they use.
 
 - **Avoid references that a move or rebase would invalidate.**
 
