@@ -187,7 +187,7 @@ Like the large exporters, `git-splice` leaves nothing to mistype: Git
 remotes should only point to repositories of the whole monorepo, never to
 a subfolder's. Upstreams are fetched and pushed by URL, from the committed
 `.splice` file, into private refs
-([Refs instead of remotes](README.md#refs-instead-of-remotes)):
+([Refs instead of remotes](01-state-and-upstreams.md#refs-instead-of-remotes)):
 
 - With no remote, `push.autoSetupRemote`, `remote.pushDefault`, tracking
   branches, `git switch <name>`, LazyGit's suggestion, `--all` and

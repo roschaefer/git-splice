@@ -17,7 +17,7 @@ Each push sends its folder without its own `.splice`. So the push of
 `vendor/a/` sends `vendor/a/b/.splice` with the inner splice's files, and
 in the outer upstream, `b/` stays a splice that `git-splice` can pull and
 push there.
-[The design](../../../07-design/README.md#refs-instead-of-remotes)
+[The design](../../../07-design/01-state-and-upstreams.md#refs-instead-of-remotes)
 explains why both repositories agree on the inner splice's state.
 
 *l*'s `b/.splice` and the monorepo's `vendor/a/b/.splice` record the

@@ -12,7 +12,7 @@ from and pushes to. Its name and URL live inside the splice folder, in
 
 Unlike a Git remote, it is fetched into private refs without creating an
 entry under `git remote`
-([why](../07-design/README.md#refs-instead-of-remotes)).
+([why](../07-design/01-state-and-upstreams.md#refs-instead-of-remotes)).
 
 ## A fork and the original
 
