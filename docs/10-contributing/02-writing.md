@@ -17,6 +17,11 @@ principles; subchapters develop their rationale rather than repeat usage.
 Behaviour details belong there only when they are needed to understand
 the choice, with links to their user-facing definitions.
 
+A decision's bullet should make its purpose clear when skimmed. Its
+explanation should say which problem or alternative led to the choice and
+what would go wrong if that constraint were ignored. Restating a behaviour
+under an imperative heading does not explain its rationale.
+
 For a feature or behaviour change, contributors and AI agents should read
 the relevant [Design](../07-design/README.md) principles first. Explain how
 the proposal fits them. If it requires a different tradeoff, explicitly

@@ -1,136 +1,150 @@
 # State and upstreams
 
-Portable splice state belongs in the committed folder. Fetch state and
-per-clone choices belong in local Git refs and configuration
-([architecture](README.md#architecture)).
+The storage boundary should let ordinary Git operations carry a splice's
+meaning with its files, while each clone fetches and inspects upstreams
+independently. The [architecture](README.md#architecture) shows that boundary;
+[Concepts](../03-concepts/README.md) defines the stored state.
 
 ## The `.splice` file
 
-- **Read committed state.**
+- **Keep the relationship with the files so ordinary Git can manage it.**
 
-  Only the `.splice` committed in `HEAD` counts. It identifies the splice,
-  names its upstreams and records the upstream commit the folder last
-  matched. It stores no path or monorepo commit ID: moves carry the file,
-  and history rewrites do not invalidate its recorded upstream commit.
-  [Concepts](../03-concepts/README.md) shows the format. An upstream with a
-  root `.splice` is refused because it would replace the file describing
-  the outer relationship.
+  A local-only registry would make a fresh clone incomplete and require
+  separate machinery to switch or merge splice relationships between
+  branches. Committing `.splice` lets Git carry those choices with the
+  folder. Reading the committed version keeps sync decisions tied to
+  recorded history rather than an unfinished edit to the relationship.
 
-- **Use Git's config format.**
+- **Avoid references that a move or rebase would invalidate.**
 
-  Git reads and writes its own config format; there is no separate parser,
-  and the file is never sourced as code.
+  A stored folder path would need updating whenever the folder moves;
+  a stored monorepo commit ID would become stale when that history is
+  rewritten. The file therefore travels with the folder and records an
+  upstream commit instead. This also lets a nested splice mean the same
+  thing in the monorepo and in a standalone clone of its enclosing upstream.
 
-- **Follow identity through moves and replacements.**
+- **Reuse Git's config parser without executing repository content.**
 
-  Its `id` is derived from the path,
-  `HEAD`, upstream URL and imported commit, so the same operation produces
-  the same ID. Different upstreams at the same path still get different IDs.
-  The ID lets the rebuild follow a move and distinguish a replacement splice
+  A separate parser would add another format implementation to maintain.
+  Sourcing the file as a script would let committed configuration execute
+  commands. Git's config format provides sections and values through Git's
+  own reader and writer, without treating the file as code.
+
+- **Use a distinct filename to avoid interfering with the project's tools.**
+
+  Spliced files remain part of the monorepo's normal build and packaging
+  inputs. `.splice` was chosen to clash with no known configuration file,
+  so tools discovering files do not mistake the relationship for their own
+  configuration.
+
+- **Derive identity so repeatable operations do not invent new history.**
+
+  A random ID would make otherwise identical initialisations differ. Path
+  alone cannot distinguish a moved splice from a replacement at its old
+  location. Deriving the ID from the path, `HEAD`, upstream URL and imported
+  commit makes the same operation repeatable while distinguishing different
+  upstreams introduced at the same path. Keeping that ID through moves lets
+  the rebuild recover the right history
   ([identity](../03-concepts/03-splice-identity.md)).
 
-- **Commit shared defaults.**
+- **Record upstream defaults so a remote rename cannot silently retarget a sync.**
 
-  `clone` and `init` record `default-branch` when it differs from the
-  containing repository's default. It belongs to each upstream: a fork and
-  its origin may use different names. Committing the choice keeps it stable
-  if the upstream later renames its default branch. A `default-pin` can
-  instead select a tag or complete commit ID.
+  Rediscovering the default branch on every operation would let an upstream
+  rename change the meaning of an existing checkout. Recording differing
+  defaults makes that choice stable and reviewable. It belongs to each
+  upstream because a fork and its origin can use different branch names.
 
-- **Do not guess the sync point.**
+- **Leave conflicting sync points for a deliberate merge decision.**
 
-  Concurrent pulls can conflict in `.splice`. There is no automatic merge
-  driver: choosing a sync point can require deciding which upstream state
-  the merged folder actually contains
+  Choosing either `.splice` mechanically can claim that a merged folder
+  contains an upstream state it does not actually contain. There is no
+  automatic merge driver today; adding one would need to establish that
+  relationship, not merely resolve the configuration text
   ([concurrent pulls](../09-scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).
+  An upstream with a root `.splice` is likewise refused because importing
+  it would overwrite the file defining the outer relationship.
 
 ## Refs instead of remotes
 
-The ordinary branch fetch is:
+- **Make accidental publication harder without requiring per-clone guards.**
 
-```text
-git fetch --prune --no-tags <url> '+refs/heads/*:refs/splices/<key>/heads/*'
-```
+  Registering an upstream as a remote makes it available to plain Git push,
+  branch tracking and IDE sync actions, any of which can send monorepo
+  history. Fetching by URL into private refs keeps upstream objects usable
+  by ordinary Git commands without adding that accidental push target.
+  [Safety and limits](04-safety-and-limits.md) compares the rejected guards
+  and explains the remaining risk of an explicit push by URL.
 
-- **Keep upstreams out of remote selection.**
+- **Key fetched state by upstream URL so moves and branch switches cannot mix it up.**
 
-  A configured tag pin is fetched explicitly as well. Git can read these
-  refs and check them out in worktrees, without registering the upstream as
-  a remote that a plain push could select
-  ([why that matters](04-safety-and-limits.md)). Deleted upstream branches
-  are pruned; a successful `git splice push` updates the fetched branch ref
-  itself so status sees what was published. Failure to update that ref is
-  reported even if the upstream push already succeeded.
+  A folder can move, and the same path can name different upstreams on
+  different branches. Keying refs by path would lose the former's fetched
+  state or confuse the latter's. URL keys also let several splices share
+  one fetch while retaining independent committed sync points. The registry
+  belongs in local Git config, shared with worktrees just as the refs are;
+  committing it would impose one clone's naming choices on everyone.
 
 ### Keys belong to URLs
 
-The first fetch records a short key in the repository's local config,
-shared by its worktrees:
+- **Use exact URLs rather than guessing repository equivalence.**
 
-```text
-[splice "lib"]
-	url = https://github.com/x/lib.git
-```
+  Similar spellings can identify different repositories: `host:lib` is
+  relative to the remote home folder, while `ssh://host/lib` is not.
+  Merging their fetched state would be incorrect. Identity is therefore
+  decided before local `insteadOf` expansion; URL rewrites remain transport
+  preferences rather than changes to the committed relationship.
 
-- **Use short, safe keys.**
+- **Use short, safe keys rather than embedding URLs in ref paths.**
 
-  Recognisable keys keep Git refs readable without embedding an
-  arbitrary URL in a ref name. Lower-case, ref-safe, bounded names avoid
-  filesystem case collisions and path-length growth. Allocation takes a lock
-  so simultaneous fetches cannot claim the same key; ambiguous hand-edited
-  mappings must be refused rather than mixing repositories' objects.
-  The [key reference](../06-command-reference/11-key.md) documents naming
-  and collision rules.
+  URLs can contain characters and lengths unsuitable for ref names.
+  Lower-case, bounded keys avoid case collisions and path-length growth,
+  while recognisable names keep refs usable in ordinary Git commands.
+  [Key naming](../06-command-reference/11-key.md#keys) gives the exact rules.
 
-- **Identify upstreams by their exact URLs.**
+- **Allocate keys under a lock so concurrent fetches cannot claim the same refs.**
 
-  URL equality is exact, before `insteadOf` expansion: `host:lib` and
-  `ssh://host/lib` can mean different repositories. The generated key makes
-  that URL safe for refs; it is not the URL escaped into a path. This also
-  keeps URLs differing only in case from colliding on case-insensitive file
-  systems. Each clone may choose different keys.
+  Worktrees share this registry. Checking and writing independently would
+  let simultaneous commands choose the same free key for different URLs.
+  Conflicting hand-edited mappings must also be refused rather than letting
+  one upstream overwrite another's refs. Read-only commands do not allocate
+  keys, so inspecting a checkout does not silently create local state.
 
-This separation has useful consequences:
+- **Keep fetched refs consistent with the upstream changes the tool knows about.**
 
-- Moving a splice keeps its refs; replacing its upstream at the same
-  path does not reuse another upstream's refs.
-- Splices naming the same URL share fetched refs, so the URL is fetched
-  once, while their committed sync points remain independent.
-- `insteadOf` and `pushInsteadOf` still apply to the fetch and push URLs.
-- Read-only commands do not allocate keys; an unallocated upstream has
-  not been fetched here.
-
-[`git splice key`](../06-command-reference/11-key.md) prints or renames a
-key, moving its refs and tracking settings with it.
+  Pruning removes deleted branches without a separate maintenance command.
+  Updating the fetched ref after publication lets inspection see the push
+  immediately. If that update fails, the command must report it even though
+  publication has succeeded: otherwise a successful-looking operation would
+  leave a misleading local view.
 
 ## Branches
 
-- **Follow one feature across repositories.**
+- **Follow one feature across repositories without managing separate checkouts.**
 
-  One monorepo feature branch can carry changes across several repositories.
-  Matching upstream branch names let the user work on that feature without
-  managing a checkout per splice. Default branches need a mapping because
-  repositories can name them differently. Missing feature branches use the
-  default target for comparison, so inspection can show the prospective PR
-  before publication creates a branch
+  Matching feature branch names let a monorepo branch carry coordinated
+  changes across upstreams. Default branches need a mapping because their
+  names can differ. Comparing a missing feature branch with the upstream's
+  default target makes the prospective PR visible before publication;
+  creating branches only when there is something to publish avoids empty
+  branches in unrelated upstreams
   ([push design](03-splicing-out.md#new-upstream-branches)).
 
-- **Keep personal overrides local.**
+- **Separate shared dependency choices from personal branch choices.**
 
-  Committed defaults and pins express a shared upstream choice; tracking
-  overrides express a developer's local workflow. Keeping the latter in Git
-  config avoids changing everyone's target to accommodate one checkout.
-  An explicit command-line choice takes precedence so a stored preference
-  does not prevent a deliberate one-off operation. A pin names an immutable
-  target, so it cannot be treated as a branch to publish to. The exact
-  selection rules belong with
+  Defaults and pins describe the relationship the team checks out together.
+  Tracking overrides describe one developer's workflow; committing them
+  would retarget everyone else. A command-line choice takes precedence so
+  a stored preference cannot prevent a deliberate one-off operation.
+  An immutable pin cannot serve as a publication branch. The selection
+  rules are defined with
   [tracking](../03-concepts/01-upstreams.md#tracking-another-upstream-branch-locally)
   and [pins](../09-scenarios/04-upstreams/06-default-pin/README.md).
 
-- **Keep nested state portable.**
+- **Inherit nested defaults from their enclosing repository to preserve meaning across clones.**
 
-  Nested defaults come from the enclosing splice so the same committed
-  `.splice` has the same meaning when its upstream is cloned independently.
-  When a pin or differing enclosing defaults leave no unambiguous branch to
-  inherit, an explicit choice is needed rather than a guess
+  Falling back to the outermost monorepo would make the same nested
+  `.splice` mean something different when its enclosing upstream is cloned
+  independently. When an enclosing pin or differing defaults leave no
+  unambiguous branch to inherit, requiring an explicit choice is safer than
+  silently selecting a different target
   ([nesting](../03-concepts/04-nesting.md#settings-come-from-the-splice-above)).
