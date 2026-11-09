@@ -155,12 +155,12 @@ $ for round in 1 2 3; do
 ok   vendor/a: bumped the synced commit to 4670b0f
 ok   vendor/a/b: bumped the synced commit to a93646e
 ok   vendor/a/b/c: bumped the synced commit to cb1574f
-ok   vendor/a/b: pushed 883a06a to main
-ok   vendor/a: pushed b870bf3 to main
-ok   vendor/a: bumped the synced commit to b870bf3
-ok   vendor/a/b: bumped the synced commit to 883a06a
-ok   vendor/a: pushed d919382 to main
-ok   vendor/a: bumped the synced commit to d919382
+ok   vendor/a/b: pushed 5f2e171 to main
+ok   vendor/a: pushed 1389aac to main
+ok   vendor/a: bumped the synced commit to 1389aac
+ok   vendor/a/b: bumped the synced commit to 5f2e171
+ok   vendor/a: pushed 8a87708 to main
+ok   vendor/a: bumped the synced commit to 8a87708
 ```
 
 Then every upstream records what the one inside it has again:
@@ -170,6 +170,6 @@ $ for edge in "a b" "b c"; do
 >   set -- $edge
 >   echo "$1's upstream records $2 at $(git -C "$UPSTREAM-$1.git" show "main:$2/.splice" | git config --file - splice.commit | cut -c1-7), $2's upstream is at $(git -C "$UPSTREAM-$2.git" rev-parse --short main)"
 > done
-a's upstream records b at 883a06a, b's upstream is at 883a06a
+a's upstream records b at 5f2e171, b's upstream is at 5f2e171
 b's upstream records c at cb1574f, c's upstream is at cb1574f
 ```
