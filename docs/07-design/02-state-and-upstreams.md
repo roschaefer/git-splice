@@ -35,7 +35,7 @@ Committing the file also makes the relationship available in a fresh clone
 and lets ordinary Git switch and merge it between branches. Sync commands read its committed version so an
 unfinished edit cannot silently change the relationship they use.
 
-### References must survive moves and rewrites
+### Keep state inside the folder to avoid a redundant path
 
 The minimum-state principle applies to paths too: `.splice` already
 identifies its folder by living inside it. Recording that path separately,
@@ -43,7 +43,9 @@ as `.gitmodules` does for submodules, creates another value to keep in sync.
 A move can leave that record stale. Keeping `.splice` inside the splice
 lets ordinary folder moves carry the relationship without a second update.
 
-A stored monorepo commit ID would likewise become stale when history is
+### Recorded references must survive history rewrites
+
+A stored monorepo commit ID would become stale when history is
 rewritten, so the file records an upstream commit instead. The nesting
 principle also rules out storing a path or commit specific to the outermost
 monorepo: that reference would lose its meaning in a standalone clone of
