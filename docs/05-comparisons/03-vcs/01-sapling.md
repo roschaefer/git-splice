@@ -60,4 +60,4 @@ shows these states and how to return to a named Git branch.
 The scenarios use the version pinned in [`flake.nix`](../../../flake.nix).
 A native Sapling clone without a Git working copy is outside `git-splice`'s
 scope. Ideas for closer integration are under
-[Going forward](../../08-going-forward/04-sapling.md).
+[Going forward](../../07-design/07-going-forward/04-sapling.md).

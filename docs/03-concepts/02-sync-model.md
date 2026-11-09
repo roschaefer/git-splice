@@ -233,4 +233,4 @@ Rebuilding walks every commit since B, pushed or not;
 matters.
 
 A pull could have been a merge, with U(H) as its second parent:
-[weak parents](../08-going-forward/05-weak-parents.md) compares the two.
+[weak parents](../07-design/07-going-forward/05-weak-parents.md) compares the two.

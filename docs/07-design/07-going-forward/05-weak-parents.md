@@ -7,12 +7,12 @@ here changes how `git-splice` works.
 ## The sync point is a parent, written into the tree
 
 A pull, the commit that wrote U(H) into `lib/.splice`
-([sync model](../03-concepts/02-sync-model.md)), could have
+([sync model](../../03-concepts/02-sync-model.md)), could have
 been a merge instead, with two parents: the monorepo's previous commit,
 and U(H). Its tree would be the same as the pull's: U(H)'s files in `lib/`, merged
 with the folder's changes since the last sync, if there are any. That's
 the commit `git subtree add` and `git subtree pull` create without
-`--squash` ([`git subtree` compared](../05-comparisons/01-git/02-git-subtree.md)).
+`--squash` ([`git subtree` compared](../../05-comparisons/01-git/02-git-subtree.md)).
 With `--squash`, the second parent is a new commit with U(H)'s files, and
 U(H) isn't in the history at all.
 
@@ -104,7 +104,7 @@ A submodule's gitlink is a weak link that Git has: a commit id in the
 tree that the repository doesn't need to have. Like `.splice`, it's in
 the tree, not in the commit, so it survives a rebase. Unlike `.splice`,
 it says what to check out, not where the folder's files came from
-([the sync point](../07-design/README.md#why-record-a-sync-point)).
+([the sync point](../README.md#why-record-a-sync-point)).
 
 ### Extra commit headers: Sapling and jj
 
@@ -116,7 +116,7 @@ repositories use them today:
 
 - **Sapling** records each `sl subtree` import and merge in a header,
   `test_subtree`, with the library's URL, its commit and the folder
-  ([Sapling compared](../05-comparisons/03-vcs/01-sapling.md#where-the-sync-record-lives)).
+  ([Sapling compared](../../05-comparisons/03-vcs/01-sapling.md#where-the-sync-record-lives)).
   That's all three facts a splice needs ([below](#what-a-splice-would-need)).
 - **jj** writes a `change-id` header in every commit, the identity a
   change keeps across rewrites. This is change identity, not a folder's sync
@@ -141,7 +141,7 @@ commands, which copy the header along: `sl fold` keeps Sapling's record,
 and jj keeps the change id. Rewrites with Git, or a squash merge on a
 forge, lose it. Then Sapling's next merge starts from an older record,
 and a file the library removed
-[comes back](../09-scenarios/09-vcs-compatibility/01-sapling-metadata/README.md).
+[comes back](../../09-scenarios/09-vcs-compatibility/01-sapling-metadata/README.md).
 `git-splice` works with plain Git and squash-merged pull requests, where
 only the files survive every rewrite. So the sync point is in a file.
 

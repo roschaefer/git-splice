@@ -3,7 +3,7 @@
 Two paths with the same [id](../../../03-concepts/03-splice-identity.md)
 are mirrors, meant to have the same files. Here `vendor/a/` gets a mirror,
 and `third_party/a/`, cloned from the same upstream, stays independent.
-[What mirrors would need](../../../08-going-forward/02-mirrors.md) from
+[What mirrors would need](../../../07-design/07-going-forward/02-mirrors.md) from
 `git-splice` is a separate page.
 
 ## Output
@@ -164,7 +164,7 @@ Nothing in the monorepo tells this swap apart from edits that make one
 splice look like the other
 ([#193](https://github.com/roschaefer/git-splice/issues/193)). To avoid
 it, keep mirrors alike: push one, and pull the others right away
-([mirrors](../../../08-going-forward/02-mirrors.md#meanwhile-discipline)).
+([mirrors](../../../07-design/07-going-forward/02-mirrors.md#meanwhile-discipline)).
 
 ### Which mirror a move came from
 

@@ -9,19 +9,19 @@ maps, and what doesn't.
 
 | Package manager | `git-splice` |
 |---|---|
-| package name | upstream ([upstreams](../03-concepts/01-upstreams.md)) |
+| package name | upstream ([upstreams](../../03-concepts/01-upstreams.md)) |
 | what you ask for: a version range or tag, e.g. `^1.2` (a *descriptor* in Yarn) | the upstream branch a splice syncs with |
 | what you got: the exact version in the lockfile (a *locator* in Yarn) | the synced commit U(H) |
-| a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../03-concepts/04-nesting.md)) |
-| registries and mirror servers | several upstreams per splice ([several-upstreams](../09-scenarios/04-upstreams/02-several-upstreams/README.md)) |
-| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../03-concepts/01-upstreams.md#the-same-library-at-different-versions)) |
+| a dependency declaring its own dependencies | a nested `.splice`, which travels with the upstream above ([nesting](../../03-concepts/04-nesting.md)) |
+| registries and mirror servers | several upstreams per splice ([several-upstreams](../../09-scenarios/04-upstreams/02-several-upstreams/README.md)) |
+| two versions of one package in the tree | independent splices of one upstream, at two versions ([upstreams](../../03-concepts/01-upstreams.md#the-same-library-at-different-versions)) |
 | one package, deduplicated | mirrors: splices with the same `id` ([mirrors](02-mirrors.md)) |
 | `yarn dedupe --check` | a report of mirrors that drifted, not yet |
-| — | the [`id`](../03-concepts/03-splice-identity.md): which copies are one splice, history included. A package can't be edited in place, so its name and version say that already |
+| — | the [`id`](../../03-concepts/03-splice-identity.md): which copies are one splice, history included. A package can't be edited in place, so its name and version say that already |
 
 A package name is one identity in a registry. A URL is only a location:
 two URLs of one repository are two upstreams to the monorepo
-([upstreams](../03-concepts/01-upstreams.md#urls-keys-and-refs)).
+([upstreams](../../03-concepts/01-upstreams.md#urls-keys-and-refs)).
 
 ## What doesn't: reference versus containment
 
@@ -38,9 +38,9 @@ A splice **contains** its files, and a nested splice is part of the
 files of the splice above. So:
 
 - **Diamonds** get a copy per path, which can be at different versions
-  ([diamond](../09-scenarios/05-nested-splices/03-diamond/README.md)).
+  ([diamond](../../09-scenarios/05-nested-splices/03-diamond/README.md)).
 - **Cycles** never end, and aren't supported, though not prevented yet
-  ([cycle](../09-scenarios/05-nested-splices/04-cycle/README.md)).
+  ([cycle](../../09-scenarios/05-nested-splices/04-cycle/README.md)).
 
 Containment is the point of `git-splice`, not an accident: a splice's
 upstream is complete on its own, and anyone can clone it without git
@@ -62,7 +62,7 @@ with `push`. A package manager can only patch a package (`yarn patch`,
 Yarn's *zero installs* commit the package cache, so a fresh clone runs
 without an install step. A splice has that already: its files are
 committed in the monorepo, and a clone of the monorepo has them, with no
-fetch ([splice-refs](../09-scenarios/04-upstreams/05-splice-refs/README.md#a-clone-of-the-monorepo-has-no-splice-refs)).
+fetch ([splice-refs](../../09-scenarios/04-upstreams/05-splice-refs/README.md#a-clone-of-the-monorepo-has-no-splice-refs)).
 
 The difference is what's committed. Yarn commits one compressed archive
 per package version, deduplicated across the graph, plus a map of where
@@ -75,7 +75,7 @@ built as part of the monorepo.
 ## Explicit branches
 
 What a splice asks for is implicit today: the upstream branch named like
-the monorepo's current branch ([design](../07-design/01-state-and-upstreams.md#branch-selection-follows-the-project)).
+the monorepo's current branch ([design](../01-state-and-upstreams.md#branch-selection-follows-the-project)).
 A package manager writes it down, as a range in `package.json`. A splice
 could do the same, with a branch in `.splice` or a `--branch` per
 command.

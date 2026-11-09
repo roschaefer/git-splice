@@ -2,7 +2,7 @@
 
 [Sapling](https://sapling-scm.com/) (`sl`) can work in a Git repository,
 and `git-splice` runs next to it there
-([comparison](../05-comparisons/03-vcs/01-sapling.md)). Its `sl subtree`
+([comparison](../../05-comparisons/03-vcs/01-sapling.md)). Its `sl subtree`
 also records sync points, in the commit instead of a file. This page says
 what `git-splice` could do about both. None of it is planned yet.
 
@@ -15,7 +15,7 @@ what `git-splice` could do about both. None of it is planned yet.
   answers would do.
 - **Git's index after `sl amend`.** Git keeps the file as it was before
   the amend, staged, and `git-splice` warns about uncommitted changes.
-  The [scenario](../09-scenarios/09-vcs-compatibility/02-sapling-git-index/README.md)
+  The [scenario](../../09-scenarios/09-vcs-compatibility/02-sapling-git-index/README.md)
   reproduces this with the pinned Sapling version.
   `git-splice` shouldn't reset the index, since staged changes are the
   user's.
@@ -39,7 +39,7 @@ so the format may still change.
   the sync point, the folder and the URL. They could take them from the
   newest Sapling record, so a folder imported with `sl` syncs both ways
   without a `.splice`. A squash merge
-  [drops the record](../09-scenarios/09-vcs-compatibility/01-sapling-metadata/README.md),
+  [drops the record](../../09-scenarios/09-vcs-compatibility/01-sapling-metadata/README.md),
   and an older one would give the wrong sync point, so `git-splice`
   would have to refuse where Sapling falls back.
 - **Write the record too.** A pull could add the header to its commit,

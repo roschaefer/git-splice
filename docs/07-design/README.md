@@ -1,9 +1,10 @@
 # Design
 
-The preceding chapters explain what `git-splice` does and how to use it.
-Design explains why: the principles, tradeoffs and constraints behind that
-behaviour. Mechanisms appear here where they explain a choice; the
-[sync model](../03-concepts/02-sync-model.md) defines the behaviour itself.
+The other documentation chapters explain what `git-splice` does and how
+to use it: getting started, concepts, workflows, comparisons, the command
+reference and scenarios. Design explains why: the principles, tradeoffs
+and constraints behind that behaviour. Mechanisms appear here where they
+explain a choice; behaviour and usage belong in the relevant chapters.
 
 These principles also guide future features. Contributors, including AI
 agents, should use them to evaluate proposed behaviour, not just to describe
@@ -126,3 +127,10 @@ should remain inspectable through Git, along with that approach's limits.
 
 [Why the name "splice"](06-name.md) explains the rope, RNA and JavaScript
 analogies behind the name.
+
+## Going forward
+
+[Going forward](07-going-forward/README.md) explores potential features,
+open design questions and directions that are out of scope or constrained
+by Git. These proposals develop the principles above; they do not describe
+released behaviour or promise an implementation.

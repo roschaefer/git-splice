@@ -253,5 +253,5 @@ the same files
 
 `git-splice` compares each copy only with its own upstream, not the
 copies with each other. Copies with one id,
-[mirrors](../../../08-going-forward/02-mirrors.md), are meant to stay
+[mirrors](../../../07-design/07-going-forward/02-mirrors.md), are meant to stay
 alike; these three aren't.
