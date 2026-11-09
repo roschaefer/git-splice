@@ -1,6 +1,6 @@
 # Scenario: nested-splices, the two splices swap their `.splice`
 
-> **Known bug, [#174](https://github.com/roschaefer/git-splice/issues/174).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../08-known-bugs.md).
+> **Known bug, [#174](https://github.com/roschaefer/git-splice/issues/174).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
 
 The outer splice contains the inner one, as in the [README](README.md).
 Then the two `.splice` files trade places, ids and URLs included: the

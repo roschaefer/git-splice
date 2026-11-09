@@ -1,6 +1,6 @@
 # `push --force` undoes the rewrite
 
-> **Known bug, [#38](https://github.com/roschaefer/git-splice/issues/38).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../08-known-bugs.md).
+> **Known bug, [#38](https://github.com/roschaefer/git-splice/issues/38).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
 
 In the [same state](README.md), after a local change made before a
 `merge` or `pull` recorded the rewritten commit, `git splice push

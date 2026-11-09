@@ -5,12 +5,12 @@ upstream can be in, or a situation a command has to handle. A folder may
 contain several Markdown documents, but each document explains and executes
 one problem. `status`'s [sync states](../06-command-reference/README.md#output)
 link to them as examples. Some show a bug as it is today; [Known
-bugs](08-known-bugs.md) lists them.
+bugs](99-known-bugs.md) lists them.
 
 The scenarios are grouped into numbered chapters by topic, from the
 situations every user meets to the edge cases: everyday sync, starting a
 splice, branches and teamwork, upstreams, nested splices, rewritten
-history, and moved and copied folders. Within a chapter, the numbers order the
+history, moved and copied folders, and VCS compatibility. Within a chapter, the numbers order the
 scenarios the same way. The site drops the numbers from its URLs, and
 takes a chapter's name from its `_category_.json`.
 
@@ -113,6 +113,10 @@ ok 06-rewritten-history/04-patch-branch-rebased/02-squash-merged (1 document)
 ok 07-moved-folders/01-moved-with-unpushed-commits (2 documents)
 ok 07-moved-folders/02-swapped-splices (1 document)
 ok 07-moved-folders/03-mirrors (1 document)
+ok 09-vcs-compatibility (1 document)
+ok 09-vcs-compatibility/01-sapling-metadata (1 document)
+ok 09-vcs-compatibility/02-sapling-git-index (1 document)
+ok 09-vcs-compatibility/03-jujutsu-named-branch (1 document)
 ```
 
 ## Scenario output
