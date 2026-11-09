@@ -361,3 +361,11 @@ including read-only commands such as status. Implemented in `bddcffb`.
 See [main-rebase.md](main-rebase.md) for the exact base, backup, affected main
 changes, dropped redundant fix, compatibility adaptations and verification.
 This supersedes the previous note about remaining on the old pile base.
+
+## Recursive executable .spliceconfig
+
+See [shared-configuration.md](shared-configuration.md) for the authorized
+execution policy, option precedence, recursive scope, incoming-source lookup,
+continuation queue and verification. The implementation commit is `2503c47`.
+This deliberately supersedes #435's original "only data" proposal, as requested
+by the user, without adding new hook phases or a built-in LFS command.
