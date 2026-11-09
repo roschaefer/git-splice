@@ -118,7 +118,7 @@ _git_splice() {
       elif [[ "$cmd" == merge ]]; then
         __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --rebuilt-commit -m --message --message-template -h --help
       else
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point -m --message --message-template -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --recursive -m --message --message-template -h --help
       fi
       ;;
     push | status | diff)

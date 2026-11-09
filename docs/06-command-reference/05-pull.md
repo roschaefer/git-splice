@@ -12,7 +12,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 ```
 
@@ -166,6 +166,25 @@ ok   vendor/pkg-b: pulled 24c1958
 $ git log -1 --format=%s
 chore(deps): pull vendor/pkg-b to 24c1958
 ```
+
+### `--recursive`
+
+```scrut
+$ git splice pull -h | check-help option --recursive
+        Also pulls every splice below each one given, and any a pull above
+        adds, and makes one commit of all these pulls. A conflict stops it:
+        resolve it, commit, and run it again, which skips the splices
+        already pulled.
+```
+
+For [nested splices](../03-concepts/04-nesting.md): each splice is
+pulled before the ones below it, which then start from what its
+upstream recorded for them. A splice its upstream added is fetched and
+pulled in the same run. A run stops at the first conflict, and the next
+one goes on from there. When the last run ends, the monorepo gets one
+commit for all of it, whose message lists each pull, and each splice's
+history has it on top of its own commits
+([a recursive pull](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/README.md)).
 
 ## Order
 
