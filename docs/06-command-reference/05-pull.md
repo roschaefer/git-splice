@@ -248,7 +248,7 @@ $ git splice pull -h | check-help option --continue-from
 For stepping, a script can simply run `cat; exit 1`. Redirect its output to
 a file outside the worktree. On each continuation, use a different output
 file: redirecting to the input file would truncate it before it is read.
-The [step-by-step recursive pull](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/step-by-step.md)
+The [recursive pull walkthrough](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/discovered-top-down.md#a-recursive-pull)
 uses this to check the real intermediate states against diagrams.
 
 Pass the whole payload back unchanged. `continuation` holds the remaining

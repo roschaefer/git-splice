@@ -42,19 +42,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     // started, which a later run goes on from only while HEAD still descends
     // from it: not after the branch was reset past it, e.g. after an abort.
     let fold = (repo.args.has_flag("--recursive") || repo.args.all) && !repo.merge_rebase;
-    let tops: Vec<String> = if repo.args.all {
-        repo.all_paths
-            .iter()
-            .filter(|path| first_above(path, &repo.all_paths).is_none())
-            .cloned()
-            .collect()
-    } else {
-        repo.args
-            .paths
-            .iter()
-            .map(|path| normalize_path(path))
-            .collect()
-    };
+    let tops = fold_roots(&repo);
     let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
         .q()
         .ok();
@@ -129,6 +117,22 @@ pub(crate) fn fetch_for_pull(repo: &mut Repo) -> Res<(Vec<String>, Vec<String>)>
     }
 
     Ok((fetched, failures))
+}
+
+pub(crate) fn fold_roots(repo: &Repo) -> Vec<String> {
+    if repo.args.all {
+        repo.all_paths
+            .iter()
+            .filter(|path| first_above(path, &repo.all_paths).is_none())
+            .cloned()
+            .collect()
+    } else {
+        repo.args
+            .paths
+            .iter()
+            .map(|path| normalize_path(path))
+            .collect()
+    }
 }
 
 const START: &str = "SPLICE_PULL_START";

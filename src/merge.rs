@@ -758,24 +758,24 @@ impl MergeProgress {
                     }
                     return Ok(None);
                 }
-            // A copy of a splice it's inside, by its id: pulling it brings in
-            // another copy below, and that one the next, so recursion ends.
-            let named = repo.args.paths.iter().any(|p| normalize_path(p) == path);
-            let id = splice_config(&path, "id", "HEAD");
-            if recursive && !named && !id.is_empty() {
-                let copied = repo
-                    .all_paths
-                    .iter()
-                    .filter(|above| path.starts_with(&format!("{above}/")))
-                    .find(|above| splice_config(above, "id", "HEAD") == id);
-                if let Some(above) = copied {
-                    log_ok(format!(
-                        "{path}: a copy of {above}, which it's inside -- not {}",
-                        past_tense(verb)
-                    ));
-                    return Ok(None);
+                // A copy of a splice it's inside, by its id: pulling it brings in
+                // another copy below, and that one the next, so recursion ends.
+                let named = repo.args.paths.iter().any(|p| normalize_path(p) == path);
+                let id = splice_config(&path, "id", "HEAD");
+                if recursive && !named && !id.is_empty() {
+                    let copied = repo
+                        .all_paths
+                        .iter()
+                        .filter(|above| path.starts_with(&format!("{above}/")))
+                        .find(|above| splice_config(above, "id", "HEAD") == id);
+                    if let Some(above) = copied {
+                        log_ok(format!(
+                            "{path}: a copy of {above}, which it's inside -- not {}",
+                            past_tense(verb)
+                        ));
+                        return Ok(None);
+                    }
                 }
-            }
                 let checkpoint = (!repo.args.exec.is_empty()).then(|| {
                     (
                         splice_config(&path, "commit", "HEAD"),

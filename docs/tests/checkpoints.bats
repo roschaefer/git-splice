@@ -423,3 +423,79 @@ assert_local_lfs_change_reaches_upstream() {
   [ "$(cat "$BATS_TEST_TMPDIR/colleague/vendor/a/model.bin")" = 'a weights, trained locally' ]
   [ "$(cat "$BATS_TEST_TMPDIR/colleague/vendor/b/model.bin")" = 'b weights, trained locally' ]
 }
+
+@test "checkpoints: pull all resumes folding each top-level splice like an ordinary pull" {
+  scenario_three_levels "$monorepo" "$upstream"
+  add_splice "$monorepo" "$upstream_c" vendor/z
+  seed_bare_repo "$upstream_b" 'b update'
+  seed_bare_repo "$upstream_c" 'c update'
+  cd "$monorepo"
+  local start expected_tree expected_messages
+  start="$(git rev-parse HEAD)"
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  expected_tree="$(git rev-parse 'HEAD^{tree}')"
+  expected_messages="$(git log --reverse --format=%B "$start..HEAD")"
+  [ "$(git rev-list --count "$start..HEAD")" = 2 ]
+  git reset -q --hard "$start"
+  run pull_checkpoint --all --exec 'cat; exit 1'
+  [ "$status" -eq 1 ]
+  jq -e '.continuation.fold_roots == ["vendor/a", "vendor/z"]' "$payload"
+  local event
+  for event in vendor/a/b vendor/a/b/c vendor/z; do
+    run continue_checkpoint
+    [ "$status" -eq 1 ]
+    [ "$(jq -r .event.path "$payload")" = "$event" ]
+  done
+  run continue_checkpoint
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .event.checkpoint "$payload")" = before-fold ]
+  run continue_checkpoint
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .event.checkpoint "$payload")" = after-fold ]
+  [ "$(git rev-parse 'HEAD^{tree}')" = "$expected_tree" ]
+  [ "$(git log --reverse --format=%B "$start..HEAD")" = "$expected_messages" ]
+  [ "$(git rev-list --count "$start..HEAD")" = 2 ]
+  run continue_checkpoint
+  [ "$status" -eq 0 ]
+}
+
+@test "checkpoints: a nonrecursive pull fetches introduced splices without pulling them" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local extra="$BATS_TEST_TMPDIR/extra.git" work="$BATS_TEST_TMPDIR/work"
+  make_bare_repo "$extra"
+  seed_bare_repo "$extra" 'extra seed'
+  git clone -q "$upstream" "$work"
+  git -C "$work" config user.name Test
+  git -C "$work" config user.email test@example.com
+  (cd "$work" && splice clone "$extra" e && git push -q origin main)
+  seed_bare_repo "$extra" 'extra update'
+  cd "$monorepo"
+  run pull_checkpoint --exec 'cat; exit 1' vendor/a
+  [ "$status" -eq 1 ]
+  run continue_checkpoint
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .event.path "$payload")" = vendor/a ]
+  run continue_checkpoint
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .event.checkpoint "$payload")" = after-fetch ]
+  [ "$(jq -r '.event.fetched[0].path' "$payload")" = vendor/a/e ]
+  run continue_checkpoint
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/e/file.txt)" = 'extra seed' ]
+  run splice status vendor/a/e
+  [[ "$output" == *'behind 1'* ]]
+}
+
+@test "checkpoints: fetch all preserves an unrelated recursive pull boundary" {
+  scenario_three_levels "$monorepo" "$upstream"
+  cd "$monorepo"
+  git update-ref SPLICE_PULL_START HEAD
+  local start
+  start="$(git rev-parse SPLICE_PULL_START)"
+  run bash -c '"$1" fetch --all --exec "cat; exit 1" >"$2"' _ "$ENTRYPOINT" "$payload"
+  [ "$status" -eq 1 ]
+  run splice fetch --continue-from "$payload" --exec true
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse SPLICE_PULL_START)" = "$start" ]
+}

@@ -33,3 +33,16 @@ scenario_recursive_pull() {
     fetch_splice "$monorepo" "https://git.example.com/$x.git"
   done
 }
+
+# Keep the previous payload intact while continuation reads it.
+pause_pull() {
+  local payload="$1" status=0
+  shift
+  "$@" >"$payload.next" || status=$?
+  if [[ -s "$payload.next" ]]; then mv "$payload.next" "$payload"; fi
+  return "$status"
+}
+
+continue_pull() {
+  pause_pull "$1" command git splice pull --continue-from "$1" --exec 'cat; exit 1'
+}

@@ -106,6 +106,8 @@ struct Continuation {
     args: Args,
     branch: String,
     fold_start: Option<String>,
+    #[serde(default)]
+    fold_roots: Vec<String>,
     fetch_failures: Vec<String>,
     merges: MergeProgress,
     phase: Phase,
@@ -309,18 +311,19 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
             let (fetched, failures) = crate::pull::fetch_for_pull(&mut repo)?;
             (branch, fetched, failures, Phase::Merging)
         };
-        let fold_start = if operation == "pull" && repo.args.has_flag("--recursive") {
-            if !git(&["merge-base", "--is-ancestor", "SPLICE_PULL_START", "HEAD"])
-                .q()
-                .ok()
-                && !git(&["update-ref", "SPLICE_PULL_START", "HEAD"]).ok()
-            {
-                return die("SPLICE_PULL_START couldn't be updated");
-            }
-            commit_of("SPLICE_PULL_START")
-        } else {
-            None
-        };
+        let fold_start =
+            if operation == "pull" && (repo.args.has_flag("--recursive") || repo.args.all) {
+                if !git(&["merge-base", "--is-ancestor", "SPLICE_PULL_START", "HEAD"])
+                    .q()
+                    .ok()
+                    && !git(&["update-ref", "SPLICE_PULL_START", "HEAD"]).ok()
+                {
+                    return die("SPLICE_PULL_START couldn't be updated");
+                }
+                commit_of("SPLICE_PULL_START")
+            } else {
+                None
+            };
         let event = (operation != "push").then(|| Event::AfterFetch {
             fetched: std::mem::take(&mut repo.fetch_checkpoint),
         });
@@ -328,6 +331,7 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
             args: repo.args.clone(),
             branch,
             fold_start,
+            fold_roots: crate::pull::fold_roots(&repo),
             fetch_failures: failures,
             merges: MergeProgress::new(&fetched),
             phase,
@@ -390,7 +394,9 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
         let mut repo = prepare(context, operation, saved_args)?;
         payload.repository.validate(&payload.operation)?;
         if payload.continuation.branch != payload.repository.branch
-            || (payload.continuation.args.has_flag("--recursive")
+            || (operation == "pull"
+                && (payload.continuation.args.has_flag("--recursive")
+                    || payload.continuation.args.all)
                 && payload.continuation.fold_start != payload.repository.fold_start)
         {
             return die("inconsistent continuation payload");
@@ -398,6 +404,9 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
         repo.monorepo_branch = payload.continuation.branch.clone();
         payload.continuation.discovery.clone().restore(&mut repo);
         let mut state = payload.continuation;
+        if state.fold_roots.is_empty() {
+            state.fold_roots = crate::pull::fold_roots(&repo);
+        }
         if let Some(commit) = payload.result.rebuilt_commit {
             state
                 .pushes
@@ -457,7 +466,7 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
                 }
             }
             Phase::Fold => {
-                crate::pull::fold_pulls(&state.args.paths)?;
+                crate::pull::fold_pulls(&state.fold_roots)?;
                 if !git(&["update-ref", "-d", "SPLICE_PULL_START"]).ok() {
                     return die("SPLICE_PULL_START couldn't be removed");
                 }

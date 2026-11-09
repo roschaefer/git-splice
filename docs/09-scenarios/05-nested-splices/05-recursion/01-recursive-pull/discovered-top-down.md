@@ -118,21 +118,89 @@ takes that step, then reads what's inside
 `d/`, selected while it was still there, was removed by the pull of
 `vendor/a`. The two pulls make one commit, *p*:
 
+Use `--exec` to pause at the actual intermediate states. The script emits its
+payload and exits nonzero. Each continuation consumes that checkpoint and
+runs until the next one; the setup helpers save the next payload separately
+before replacing the previous file.
+
 ```scrut
 $ git switch -q -c recursive HEAD~1 &&
->   git splice pull --recursive --branch main vendor/a
-ok   vendor/a fetched
-ok   vendor/a/b fetched
-ok   vendor/a/b/c fetched
-ok   vendor/a/d fetched
-ok   vendor/a: pulled 04072ca
-ok   vendor/a/e fetched
-ok   vendor/a/e: pulled 68b88a4
-ok   vendor/a/b: nothing to pull
-ok   vendor/a/b/c: nothing to pull
-ok   vendor/a/d: removed by the pull of vendor/a
-ok   vendor/a: 2 pulls made one commit, e0ed735
+>   pause_pull ../checkpoint.json command git splice pull --recursive --branch main --exec 'cat; exit 1' vendor/a 2>../checkpoint.log
+[1]
 ```
+
+```scrut
+$ jq -r .event.checkpoint ../checkpoint.json
+after-fetch
+```
+
+```scrut
+$ continue_pull ../checkpoint.json 2>../checkpoint.log
+[1]
+```
+
+```scrut
+$ jq -r .event.path ../checkpoint.json
+vendor/a
+```
+
+At this pause, `a` has been pulled and `e` is still at *e1*. Check the same
+intermediate diagram against this paused repository:
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/removed-step.drawio.svg" pa=HEAD
+ok   removed-step.drawio.svg: a tree of 5 rows
+```
+-->
+
+Continue through fetching and pulling `e`, then folding:
+
+```scrut
+$ continue_pull ../checkpoint.json 2>../checkpoint.log
+[1]
+```
+
+```scrut
+$ jq -r '.event.checkpoint, .event.fetched[0].path' ../checkpoint.json
+after-fetch
+vendor/a/e
+```
+
+```scrut
+$ continue_pull ../checkpoint.json 2>../checkpoint.log
+[1]
+```
+
+```scrut
+$ jq -r .event.path ../checkpoint.json
+vendor/a/e
+```
+
+```scrut
+$ continue_pull ../checkpoint.json 2>../checkpoint.log
+[1]
+```
+
+```scrut
+$ jq -r .event.checkpoint ../checkpoint.json
+before-fold
+```
+
+```scrut
+$ continue_pull ../checkpoint.json 2>../checkpoint.log
+[1]
+```
+
+```scrut
+$ jq -r .event.checkpoint ../checkpoint.json
+after-fold
+```
+
+```scrut
+$ continue_pull ../checkpoint.json 2>../checkpoint.log
+```
+
 
 ![The tree: the monorepo at p, outlined blue; vendor/a/ at a2, outlined blue, then dashed p', outlined blue; in it, b/ at b1, with c/ at c1 in it, and e/ at e2, outlined blue; no d/](removed-after.drawio.svg)
 
