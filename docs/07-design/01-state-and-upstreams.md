@@ -20,8 +20,9 @@ independently. The [architecture](README.md#architecture) shows that boundary;
   A stored folder path would need updating whenever the folder moves;
   a stored monorepo commit ID would become stale when that history is
   rewritten. The file therefore travels with the folder and records an
-  upstream commit instead. This also lets a nested splice mean the same
-  thing in the monorepo and in a standalone clone of its enclosing upstream.
+  upstream commit instead. The nesting principle also rules out storing
+  a path or commit specific to the outermost monorepo: that reference would
+  lose its meaning in a standalone clone of the enclosing upstream.
 
 - **Reuse Git's config parser without executing repository content.**
 
@@ -142,7 +143,9 @@ independently. The [architecture](README.md#architecture) shows that boundary;
 
 - **Inherit nested defaults from their enclosing repository to preserve meaning across clones.**
 
-  Falling back to the outermost monorepo would make the same nested
+  The [nesting principle](README.md#principles) makes the enclosing
+  repository the source of inherited settings. Falling back to the outermost
+  monorepo would make the same nested
   `.splice` mean something different when its enclosing upstream is cloned
   independently. When an enclosing pin or differing defaults leave no
   unambiguous branch to inherit, requiring an explicit choice is safer than

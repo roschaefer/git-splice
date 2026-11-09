@@ -18,6 +18,13 @@ explicitly reconsider the affected principle and its rationale.
 - **Version the relationship, derive the rest.** `.splice` moves and
   branches with its folder. It records an upstream commit, never a
   monorepo commit ID that rebasing could invalidate.
+- **Nesting should not change a splice's meaning.** Given equivalent
+  history, upstream state and settings, syncing `vendor/a/b/` should produce
+  the same result for that splice as syncing `b/` in a standalone clone
+  of `vendor/a`'s repository. A project should not need a different dependency workflow
+  because it is embedded in another repository. This governs
+  [portable state and defaults](01-state-and-upstreams.md#the-splice-file)
+  and [inherited history](03-splicing-out.md#history-inherited-through-nesting).
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
   monorepo commit recording the earlier push.

@@ -59,9 +59,12 @@ approved differences.
 
 - **Recover history through enclosing splices.**
 
-  A nested splice may have history squashed into the monorepo by an outer
-  clone or pull. Rebuilding recovers that history from the enclosing upstream,
-  provided it contains the same splice ID. Among enclosing splices it chooses
+  Looking only at monorepo commits would lose inner history squashed by
+  an outer clone or pull. That would make the rebuild differ from one run
+  in a standalone clone of the enclosing upstream. The
+  [nesting principle](README.md#principles) therefore requires recovering
+  that history from the enclosing upstream, provided it contains the same
+  splice ID. Among enclosing splices the rebuild chooses
   the newest last sync, taking the outermost on a tie: an intermediate
   `.splice` can lag behind changes already pushed further out. It must also
   preserve a separately updated inner synced commit.

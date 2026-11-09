@@ -26,8 +26,14 @@ For a feature or behaviour change, contributors and AI agents should read
 the relevant [Design](../07-design/README.md) principles first. Explain how
 the proposal fits them. If it requires a different tradeoff, explicitly
 revisit the principle and rationale in the same change; update behaviour
-documentation and tests to match. Design guides future work, but is not a
-claim that every current implementation detail must remain permanent.
+documentation and tests to match. For changes to nested state, target
+selection or rebuilding, compare the nested workflow with the equivalent
+workflow in a standalone clone of the enclosing upstream. Account for
+history, fetched state and local overrides when comparing results; an
+extra enclosing repository alone should not change the outcome.
+
+Design guides future work, but is not a claim that every current
+implementation detail must remain permanent.
 
 ## Markup
 

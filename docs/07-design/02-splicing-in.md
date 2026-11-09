@@ -79,8 +79,11 @@ stays separate from the monorepo's ancestry.
 
 - **Merge from the outside in.**
 
-  An outer pull can change the inner `.splice` files. For that reason,
-  merges run top-down and pulls also fetch the splices below, including
+  A standalone clone would see the inner relationship recorded by its
+  own history. To preserve that meaning when nested, an outer pull must
+  establish the enclosing state before an inner merge uses it: the outer
+  pull can change the inner `.splice` files. Merges therefore run top-down
+  and pulls also fetch the splices below, including
   ones the pull introduces. Fetching them makes their newly recorded
   commits available; pulling them is a separate choice. `pull --recursive`
   also pulls the descendants and folds the result into one commit
@@ -88,7 +91,10 @@ stays separate from the monorepo's ancestry.
 
 - **Respect publication dependencies.**
 
-  A failed fetch blocks dependent pulls above and below it; a failed merge
-  blocks merges below it. Pushes run bottom-up, so an outer push cannot
-  publish a nested sync point whose upstream commit has not been published.
-  A failed inner push blocks pushes above it.
+  A standalone clone of an enclosing upstream must be able to fetch the
+  inner commits its `.splice` records. Pushes therefore run bottom-up:
+  publishing the enclosing state first could leave that clone referring to
+  an unavailable inner commit. Failures must block dependent operations,
+  rather than publishing a relationship whose prerequisites failed. A failed
+  fetch blocks dependent pulls above and below it; a failed merge blocks
+  merges below it; a failed inner push blocks pushes above it.
