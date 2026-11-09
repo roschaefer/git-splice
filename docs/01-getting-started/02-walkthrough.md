@@ -40,7 +40,7 @@ Each of them only runs the `git` command line, and
 
 `merge`, `pull` and `push` need paths or `--all`; `status`, `diff`,
 `log` and `fetch` cover every splice unless you name some
-([why](../07-design/README.md#why-reads-are-broad-and-writes-explicit)). `status`,
+([why](../07-design/README.md#principles)). `status`,
 `diff`, `log` and `merge` only use what was last fetched. With several
 [upstreams](../03-concepts/01-upstreams.md), `--upstream <name>` picks
 one. Run `git splice <command> --help` for options.

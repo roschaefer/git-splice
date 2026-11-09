@@ -19,9 +19,11 @@ explicitly reconsider the affected principle and its rationale.
 
 ## Principles
 
-- **Changes cross the splice, commits don't.** Upstream history does not
-  become part of the monorepo's ancestry, and monorepo side branches do
-  not become part of upstream history.
+- **Keep each repository's history relevant to its users.** Importing a
+  library does not require importing its entire history into the monorepo;
+  publishing a library change does not require exposing the monorepo's
+  unrelated work. This is why changes cross the splice while the histories
+  stay separate.
 - **Store as little state as possible.** Redundant records can disagree,
   and every update becomes another opportunity to leave them inconsistent.
   Derive what existing history and configuration already tell us instead
@@ -37,7 +39,8 @@ explicitly reconsider the affected principle and its rationale.
   and [inherited history](03-splicing-out.md#history-inherited-through-nesting).
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
-  monorepo commit recording the earlier push.
+  monorepo commit recording the earlier push
+  ([rebuild rationale](03-splicing-out.md#deterministic-metadata)).
 - **Keep repeated syncs scalable.** An advancing sync point lets rebuilds
   skip history already accounted for, rather than revisit an ever-growing
   history on every sync
@@ -52,22 +55,28 @@ explicitly reconsider the affected principle and its rationale.
   namespace or adopting the submodule model
   ([state choices](01-state-and-upstreams.md),
   [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
-- **Let Git do the work.** Git parses the configuration, merges trees,
-  creates commits and transfers objects. Its commands are
-  [inspectable](05-git-trace.md).
-- **Name the target when writing, show everything when looking.** Sync
-  commands need paths or `--all`; inspection and fetch commands cover
-  every splice by default. Familiar Git command names keep their meaning.
+- **Reuse Git's implementation to avoid maintaining a second one.**
+  Delegating configuration, [merging](02-splicing-in.md#reuse-gits-merge-without-joining-histories),
+  commit creation and transport to Git
+  reduces the code and compatibility work in `git-splice`. It also makes
+  repository operations [inspectable with Git's tracing](05-git-trace.md).
+- **Make information easy to discover and side effects deliberate.**
+  Requiring users to enumerate splices before inspecting them can hide the
+  very changes they need to discover. Applying that same broad default to
+  writes risks changing or publishing unrelated work. This difference in
+  the cost of a wrong scope motivates broad inspection and explicit write
+  targets.
 - **Design for pull requests across repositories.** A monorepo feature
   branch represents work to submit upstream, so matching branch names
   connect its changes to the corresponding upstream PRs. The upstream
   default branch supplies the comparison target before a feature branch
   exists; create that branch only when there are commits to submit
   ([branch rationale](01-state-and-upstreams.md#matching-branch-names-keep-a-feature-together)).
-- **Refuse ambiguity and keep the design bounded.** Unrelated histories
-  and unsupported paths stop with an explanation. Rare cases can be
-  documented rather than complicating the ordinary workflow
-  ([limits](04-safety-and-limits.md#limits)).
+- **Prefer a visible refusal to a guess that can lose work.** When the
+  history or target is ambiguous, guessing can discard changes or publish
+  to the wrong place. Supporting every rare case also adds complexity to
+  ordinary syncs; explicit [limits](04-safety-and-limits.md#limits) keep
+  those tradeoffs visible rather than hiding them behind automatic choices.
 
 ## Architecture
 
@@ -96,33 +105,12 @@ are computed from that state and the monorepo's history.
 
 [State and upstreams](01-state-and-upstreams.md) develops these decisions.
 
-## Why reads are broad and writes explicit
-
-Inspection should reveal changes across the monorepo without making the
-user remember every splice. Publishing or changing committed files should
-require a deliberate selection. New commands should preserve that
-asymmetry; the [command reference](../06-command-reference/README.md)
-documents each command's targets and defaults.
-
-## Splicing in
-
-`git splice merge` supplies a three-way merge base explicitly, after
-re-rooting upstream trees into the monorepo's layout. Git's cherry-pick
-then keeps local edits and records the new sync point in one commit.
-[Splicing in](02-splicing-in.md) explains the mechanism and nested ordering.
-
-## Splicing out
-
-`git splice push` rebuilds the folder's history as upstream commits,
-without writing to the monorepo. [Splicing out](03-splicing-out.md)
-explains why history boundaries and deterministic metadata matter, and
-why inspection uses the same rebuilt history as publication.
-
 ## Safety and limits
 
-Upstreams use private refs instead of Git remotes, so a plain Git push
-cannot select them as a remote. [Safety and limits](04-safety-and-limits.md)
-explains that choice, the rejected alternatives and the remaining limits.
+A mistaken ordinary Git push can expose monorepo history to an upstream.
+Avoiding that accidental target is more reliable than requiring every
+clone and client to install a guard. [Safety and limits](04-safety-and-limits.md)
+compares the alternatives and their remaining risks.
 
 ## Checking what it runs
 
