@@ -316,3 +316,42 @@ resolution; its new regression test caught the omission and now passes.
 Implementation commits after rebase: `9cb7d9d` (push), `0a0f3e1` (stale fold
 boundary integration), `cd83387` (Unicode folding integration). Prior tested
 feature tip is retained by the backup branch above.
+
+## Follow-up: explicit execution context
+
+The user authorized refactoring all command signatures to pass execution context,
+including read-only commands such as status. Implemented in `bddcffb`.
+
+- `src/context.rs::ExecutionContext` starts empty at CLI dispatch. All command
+  entrypoints take `&mut ExecutionContext` as their first argument.
+- `Repo<'context>` borrows that context via `Repo::new(context, args)` instead of
+  constructing its own calculation/override state. Its methods and recursive
+  rebuild calls therefore share the same context without a second mutable borrow
+  of it in every method signature. Drawing-checker call sites use explicit
+  contexts too; Repo no longer implements Default.
+- The context currently owns the existing immutable content-tree cache and
+  validated supplied rebuilds. Both --rebuilt-commit and edited checkpoint
+  results populate the latter through the existing validation path.
+- Tree cache entries are keyed by the input Git tree ID, so hook checkpoints no
+  longer clear them. Mutable working-tree observations are still cleared after
+  hooks. A new Repo rereads command-specific discovery/configuration and owns
+  its own classification and working-tree observations.
+- Context lifetime is one execution; no disk cache, serialized cache, new hook
+  phases, or status --exec was added. Existing continuation progress and JSON
+  remain unchanged. Persistent rebuild caching still needs explicit input keys,
+  object availability handling and repository scoping. Content-tree equality
+  alone does not identify a history-producing rebuild: rewording can change
+  rebuilt commits with the same tree. Classification already has its equal-tree
+  fast path, which remains intact.
+- The new shared-context Rust test exercises actual Git commits: an empty commit
+  reuses tree results and the rebuild, changed content gets a new result, amended
+  history with the same tree gets a different rebuild while retaining tree cache
+  entries, status accepts the same context, and worktree checks are fresh across
+  Repo handles.
+- Verification: 879 Bats tests and 45 Rust tests passed; lint, formatting and
+  current-system Nix flake checks passed. Documentation checks passed for 155
+  documents and 1,927 testcases, plus 175 label pages and 131 placements.
+  Logs use `/tmp/git-splice-context-{tests,docs,flake}.log`.
+- The remote pile moved from 070e2ef to 710522e during this task, with substantial
+  unrelated changes. This refactor remains on the previously verified 070e2ef
+  base; it has not been rebased onto the newer pile during this task.
