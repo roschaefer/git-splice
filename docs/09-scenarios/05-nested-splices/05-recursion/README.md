@@ -60,3 +60,6 @@ A pull through E splices, with C commits of the monorepo's own on top:
   `vendor/a/` with `b/`, `c/` in it, `d/` and `e/`, pulled with three
   runs of `pull --recursive`, each to the next conflict, and one commit
   for all of it.
+- [discovered top-down](01-recursive-pull/discovered-top-down.md): why
+  the splice above goes first: its pull drops `d/` and adds `e/`, so
+  naming `vendor/a/d` beside it means nothing definite.
