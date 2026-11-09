@@ -108,7 +108,7 @@ CONFLICT (content): Merge conflict in b/file.txt
 $ printf 'b seed\nb local\nb upstream\n' >b/file.txt &&
 >   git add b/file.txt &&
 >   git cherry-pick --continue
-[layer/a 6582d33] splice: pull b from main at 66aab4e
+[layer/a 81d0234] splice: pull b from main at 66aab4e
  Date: Thu Jan 1 00:00:00 2026 +0000
  2 files changed, 2 insertions(+), 1 deletion(-)
 ```

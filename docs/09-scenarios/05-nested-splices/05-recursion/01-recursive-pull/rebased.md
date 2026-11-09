@@ -155,6 +155,8 @@ initial commit
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/rebased-pulled.drawio.svg" s=main~2 p=main~1
-ok   rebased-pulled.drawio.svg: 17 commits, 17 arrows, 6 boxes, 5 lanes
+!!   m1' is a commit that records a pull: outline it blue, #0070E0
+!!   m1' is a commit that records a pull: outline it blue, #0070E0
+[1]
 ```
 -->

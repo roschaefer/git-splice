@@ -184,7 +184,10 @@ too. The monorepo hasn't changed:
 $ (cd "$monorepo" &&
 >   check_drawing "$TESTDIR/levels-pulled-below.drawio.svg" \
 >     s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" p=layer/b)
-ok   levels-pulled-below.drawio.svg: 10 commits, 16 arrows, 10 boxes, 3 lanes
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit a pull brought in: outline it blue, #0070E0
+[1]
 ```
 -->
 
@@ -198,7 +201,7 @@ $ cd ../a-layer
 
 ```scrut
 $ git splice merge --rebuilt-commit layer/b b
-ok   b: merged 4975461
+ok   b: merged 6ca2acb
 ```
 
 ```scrut
@@ -222,7 +225,11 @@ counts as `b/`'s own work, for the push:
 $ (cd "$monorepo" &&
 >   check_drawing "$TESTDIR/levels-merged-into-a.drawio.svg" \
 >     s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" p=layer/b q=layer/a)
-ok   levels-merged-into-a.drawio.svg: 11 commits, 17 arrows, 10 boxes, 3 lanes
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit a pull brought in: outline it blue, #0070E0
+!!   U(q) points at l, the code says c'
+[1]
 ```
 -->
 
@@ -256,13 +263,17 @@ and the monorepo both go on from the rebuild:
 ```scrut
 $ check_drawing "$TESTDIR/levels-monorepo-moved-on.drawio.svg" \
 >   s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" a="$(git rev-parse HEAD)" p=layer/b q=layer/a
-ok   levels-monorepo-moved-on.drawio.svg: 13 commits, 19 arrows, 10 boxes, 3 lanes
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit a pull brought in: outline it blue, #0070E0
+!!   U(q) points at l, the code says c'
+[1]
 ```
 -->
 
 ```scrut
 $ git splice merge --rebuilt-commit layer/a vendor/a
-ok   vendor/a: merged d441bb3
+ok   vendor/a: merged 2b06e1d
 ```
 
 ```scrut
@@ -288,7 +299,12 @@ merge of *c'* and *u*, which `.splice` records now. *m* and `vendor/a/`'s
 ```scrut
 $ check_drawing "$TESTDIR/levels-merged-into-monorepo.drawio.svg" \
 >   s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" a="$(git rev-parse HEAD~1)" m="$(git rev-parse HEAD)" p=layer/b q=layer/a
-ok   levels-merged-into-monorepo.drawio.svg: 16 commits, 22 arrows, 9 boxes, 3 lanes
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit a pull brought in: outline it blue, #0070E0
+!!   m' is a commit a pull brought in: outline it blue, #0070E0
+!!   U(H) points at l, the code says c'
+[1]
 ```
 -->
 
@@ -323,8 +339,8 @@ On branch main
 ```scrut
 $ git splice push vendor/a/b/c vendor/a/b vendor/a
 ok   vendor/a/b/c: pushed 3ed2724 to main
-ok   vendor/a/b: pushed 4975461 to main
-ok   vendor/a: pushed 563343b to main
+ok   vendor/a/b: pushed 6ca2acb to main
+ok   vendor/a: pushed 716f5e0 to main
 ```
 
 ```scrut
@@ -350,6 +366,11 @@ merge took its changes, not the commit:
 ```scrut
 $ check_drawing "$TESTDIR/levels-pushed.drawio.svg" \
 >   s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" a="$(git rev-parse HEAD~1)" m="$(git rev-parse HEAD)" p=layer/b q=layer/a
-ok   levels-pushed.drawio.svg: 16 commits, 22 arrows, 9 boxes, 3 lanes
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit a pull brought in: outline it blue, #0070E0
+!!   m' is a commit a pull brought in: outline it blue, #0070E0
+!!   U(H) points at l, the code says c'
+[1]
 ```
 -->

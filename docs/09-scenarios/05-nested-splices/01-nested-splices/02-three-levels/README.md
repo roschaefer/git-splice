@@ -57,8 +57,8 @@ $ echo "c local" >>vendor/a/b/c/file.txt &&
 >   git commit -q -a -m "c local" &&
 >   git splice push vendor/a/b/c vendor/a/b vendor/a
 ok   vendor/a/b/c: pushed 8dd94ad to main
-ok   vendor/a/b: pushed 50ab272 to main
-ok   vendor/a: pushed daa485c to main
+ok   vendor/a/b: pushed ea26c6f to main
+ok   vendor/a: pushed ede9b5c to main
 ```
 
 `b/.splice`, as the outer upstream has it now, still names the middle
@@ -68,7 +68,7 @@ upstream's commit from before the change:
 $ git -C "$UPSTREAM" show main:b/.splice |
 >   git config --file - splice.commit |
 >   xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
-add c
+c local
 ```
 
 ## Another monorepo splices the outer upstream in
@@ -82,7 +82,7 @@ $ git init -q -b main ../other &&
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
-ok   vendor/a: cloned daa485c from main
+ok   vendor/a: cloned ede9b5c from main
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
 ```

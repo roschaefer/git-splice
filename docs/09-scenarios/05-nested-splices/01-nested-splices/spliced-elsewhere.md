@@ -39,7 +39,7 @@ $ echo "b local" >>vendor/a/b/file.txt &&
 >   git commit -q -a -m "b local" &&
 >   git splice push vendor/a/b vendor/a
 ok   vendor/a/b: pushed f47c373 to main
-ok   vendor/a: pushed 924e6e3 to main
+ok   vendor/a: pushed 9946cf2 to main
 ```
 
 `vendor/a/b/.splice` still names the synced commit from before the
@@ -51,7 +51,7 @@ upstream:
 $ git -C "$UPSTREAM" show main:b/.splice |
 >   git config --file - splice.commit |
 >   xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
-b seed
+b local
 ```
 
 ## Another monorepo splices the outer upstream in
@@ -65,7 +65,7 @@ $ git init -q -b main ../other &&
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
-ok   vendor/a: cloned 924e6e3 from main
+ok   vendor/a: cloned 9946cf2 from main
 ok   vendor/a/b fetched
 ```
 
@@ -81,7 +81,7 @@ of `vendor/a/b/` there already have `b local`, but its `.splice` names
 
 ```scrut
 $ git log --format=%s
-splice: clone vendor/a from main at 924e6e3
+splice: clone vendor/a from main at 9946cf2
 other monorepo
 ```
 
@@ -93,7 +93,7 @@ b local
 
 ```scrut
 $ git log -1 --format=%s "$(git config --file vendor/a/b/.splice splice.commit)"
-b seed
+b local
 ```
 
 Up to date, since the inner splice's files match the inner upstream:

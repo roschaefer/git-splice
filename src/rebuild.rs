@@ -5,6 +5,7 @@
 //! docs/07-design/README.md.
 
 use crate::repo::*;
+use crate::state::state_blob_in;
 use crate::util::*;
 use std::io::{BufRead, BufReader};
 use std::process::Stdio;
@@ -443,6 +444,50 @@ impl Repo {
         Ok(result)
     }
 
+    /// Folder tree <tree> of splice <path> at monorepo commit <rev>, with each
+    /// splice inside it recorded at its own rebuild as of <rev>, rather than
+    /// at the synced commit the monorepo recorded: what its upstream gets
+    /// with the same push.
+    fn record_children(&mut self, path: &str, rev: &str, tree: &str) -> Res<String> {
+        let names = git(&["ls-tree", "-r", "-z", "--name-only", tree])
+            .bytes()
+            .unwrap_or_default();
+        let suffix = format!("/{STATE_FILE}");
+        let mut updates = Vec::new();
+        for name in nul_fields(&names) {
+            let Some(dir) = name.strip_suffix(&suffix) else {
+                continue;
+            };
+            let child = format!("{path}/{dir}");
+            let recorded = splice_config(&child, "commit", rev);
+            let Ok(Some(rebuilt)) = self.rebuild_splice(&child, rev) else {
+                continue;
+            };
+            if rebuilt == recorded {
+                continue;
+            }
+            let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {
+                continue;
+            };
+            updates.push((name.clone(), blob));
+        }
+        if updates.is_empty() {
+            return Ok(tree.to_string());
+        }
+        let index = Temp::new();
+        let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
+        if !indexed(&["read-tree", tree]).ok() {
+            return Err(Fail::Soft);
+        }
+        for (name, blob) in &updates {
+            let info = format!("100644,{blob},{name}");
+            if !indexed(&["update-index", "--add", "--cacheinfo", &info]).ok() {
+                return Err(Fail::Soft);
+            }
+        }
+        indexed(&["write-tree"]).out().ok_or(Fail::Soft)
+    }
+
     /// The tree of splice <path> in commit <rev>, without its state file, if
     /// the folder exists there.
     pub fn content_tree(&mut self, rev: &str, path: &str) -> Res<Option<String>> {
@@ -813,6 +858,7 @@ impl Repo {
                 continue;
             };
             let tree = self.strip_state_tree(folder)?;
+            let tree = self.record_children(path, &hash_of(commit), &tree)?;
             if Some(&tree) == prev_tree.as_ref() {
                 continue;
             }
