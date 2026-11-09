@@ -1,5 +1,7 @@
 # Scenario: status and push through the tree
 
+> **Known bug, [#458](https://github.com/roschaefer/git-splice/issues/458).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../99-known-bugs.md).
+
 A pull goes down the tree: a splice's upstream decides which splices are
 inside it, so the parent goes first. A push goes up. A parent's upstream
 has a `.splice` for each child, which records a commit of the child's
