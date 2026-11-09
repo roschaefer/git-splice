@@ -173,6 +173,9 @@ chore(deps): pull vendor/pkg-b to 24c1958
 
 ### `--recursive`
 
+See also the [shared recursive reference](13-shared-options/03-recursive.md),
+which compares pull with recursive submodule conversion.
+
 ```scrut
 $ git splice pull -h | check-help option --recursive
         Also pulls every splice below each one given, and any a pull above
@@ -205,37 +208,12 @@ $ git splice pull -h | check-help option --exec
         script. Does not support --rebase yet.
 ```
 
-The payload has `version`, `operation`, `sequence`, `event`, `repository`,
-and `continuation` fields, plus a `result` object. Version 1 supports `pull`,
-`fetch` and `push`. For pull, `event.checkpoint` is
-`after-fetch`, `after-merge`, `before-fold` or `after-fold`.
-
-An `after-fetch` event includes `fetched`, a list of entries with `path`,
-`upstream` (its name), `url`, `reference`, `old`, `new`, `synced` and `failed`.
-`old` and `new` are commit IDs or null. Fetches of shared URLs run together;
-all entries in a batch finish before its checkpoint. Changed nested upstreams
-and newly discovered splices get additional fetch checkpoints before their
-merges.
-
-An `after-merge` event includes `path`, `upstream`, `url`, `old` and `new`
-synced commits, `target`, `rebuilt_commit`, `head_before` and `head_after`.
-A splice that changes nothing gets no merge checkpoint. The fold events have
-no additional fields.
-
-A script can inspect `event.checkpoint` with `jq` and choose its work. The
-[update report scenario](../09-scenarios/01-everyday-sync/05-exec-report/README.md)
-shows a small script that records only the splices that actually changed. The
-[logging example](../09-scenarios/01-everyday-sync/05-exec-report/logging.md)
-records every payload as JSON lines across fetch, pull and push. To
-find the first applied update that breaks a build, run `make` only at
-`after-merge`; fetching alone does not change checked-out source. To fetch
-LFS objects, act at `after-fetch`, using each successful entry's upstream URL
-and target commit before the next checkout. Custom LFS endpoints need their
-own configuration; this interface does not configure Git LFS automatically.
-
-For pull and fetch, leave `result.rebuilt_commit` null. Only a push's
-[`after-rebuild` checkpoint](07-push.md#--continue-from) accepts that result;
-it supplies an edited history for validation before upload.
+The shared [`--exec` chapter](13-shared-options/01-exec/README.md) explains
+handler exit status, checkpoint ordering, scoped configuration and examples.
+Its [JSON payload reference](13-shared-options/01-exec/01-json-payload.md)
+documents every event and the supported result field. The
+[payload scenario](../09-scenarios/01-everyday-sync/05-exec-report/payload.md)
+captures real fetch/merge JSON and resumes from the complete saved object.
 
 ### `--continue-from`
 
@@ -251,21 +229,11 @@ $ git splice pull -h | check-help option --continue-from
         .splice or .spliceconfig files.
 ```
 
-For stepping, a script can simply run `cat; exit 1`. Redirect its output to
-a file outside the worktree. On each continuation, use a different output
-file: redirecting to the input file would truncate it before it is read.
-The [recursive pull walkthrough](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/discovered-top-down.md#a-recursive-pull)
-uses this to check the real intermediate states against diagrams.
-
-Pass the whole payload back unchanged. `continuation` holds the remaining
-work, original options, discovery state and fold start; it is not a command
-for the script to execute. The script itself is never taken from the payload.
-The format is versioned, and unknown versions are refused.
-
-Continuation consumes the stopped checkpoint. If a download or build failed,
-complete and verify it before continuing. A failed Git operation or conflict
-still follows the normal conflict instructions below; a checkpoint payload
-is not a recovery log for a process killed midway through an operation.
+See the shared [continuation reference](13-shared-options/01-exec/02-continue-from.md)
+for saved files, remaining handlers and repository validation. The
+[recursive walkthrough](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/discovered-top-down.md#a-recursive-pull)
+pauses the algorithm, checks a tree diagram against the real repository, and
+continues through subsequent checkpoints.
 
 ## Order
 

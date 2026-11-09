@@ -94,7 +94,8 @@ $ git splice fetch -h | check-help option --exec
         Normal output goes to stderr; stdout belongs to the script.
 ```
 
-The [payload format](05-pull.md#--exec) includes the upstream URLs and the
+The [shared --exec reference](13-shared-options/01-exec/README.md) describes the
+handler contract. Its [payload format](13-shared-options/01-exec/01-json-payload.md) includes the upstream URLs and the
 old, new and synced commits. A script can choose its own work from that
 context: the [update report scenario](../09-scenarios/01-everyday-sync/05-exec-report/README.md)
 uses the same script with fetch and pull, recording only applied updates.
@@ -124,7 +125,9 @@ $ git splice fetch -h | check-help option --continue-from
 ```
 
 A script can echo its payload and exit nonzero. Save stdout to a file, then
-pass that file to `git splice fetch --continue-from` with `--exec` again.
+pass that file to `git splice fetch --continue-from`. CLI handlers need
+`--exec` again; configured handlers restore their saved chain. See the shared
+[continuation reference](13-shared-options/01-exec/02-continue-from.md).
 The completed fetch stays applied; continuing does not fetch newer remote
 commits or rerun the stopped script. Complete and verify a failed download
 or other check before continuing.

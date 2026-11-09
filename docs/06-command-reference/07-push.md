@@ -120,6 +120,9 @@ keeps the monorepo's
 
 ### `--rebuilt-commit`
 
+The [shared rebuilt-commit reference](13-shared-options/02-rebuilt-commit.md)
+compares publishing edited history with bringing content back through merge.
+
 ```scrut
 $ git splice push -h | check-help option --rebuilt-commit
         Pushes <commit> instead of the rebuild, e.g. one whose history was
@@ -205,15 +208,11 @@ $ git splice push -h | check-help option --exec
         belongs to the script.
 ```
 
-The payload uses `operation: "push"`. Both events include `path`, `upstream`
-(name), `url`, `branch` (upstream branch), `label`, `old` (the fetched target
-commit or null), `synced` and `rebuilt_commit`.
-
-`after-rebuild` means the checks and rebuild are complete, but the commit
-has not been pushed. `after-push` means the upload and local recording have
-completed and tracking has been attempted. A failed follow-up script cannot
-undo that upload; continuation moves on to the next splice. Splices are
-processed bottom-up, and failed uploads block their ancestors as usual.
+The shared [`--exec` chapter](13-shared-options/01-exec/README.md) covers the
+handler protocol and its [push payload fields](13-shared-options/01-exec/01-json-payload.md#push-events).
+`after-rebuild` is before upload; `after-push` is after upload and local
+bookkeeping. A failed handler cannot undo publication, and continuation does
+not repeat the completed push.
 
 ### `--continue-from`
 
@@ -229,6 +228,11 @@ $ git splice push -h | check-help option --continue-from
         Other fields are passed back unchanged; results are refused at other
         checkpoints.
 ```
+
+The shared [continuation reference](13-shared-options/01-exec/02-continue-from.md)
+explains file handling and validation. The
+[result contract](13-shared-options/01-exec/01-json-payload.md#result) defines
+what a handler can change.
 
 To edit the prepared history, emit the payload with `result.rebuilt_commit`
 set to the edited commit and exit nonzero. Feed that payload back to push.

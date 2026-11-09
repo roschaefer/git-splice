@@ -148,6 +148,9 @@ splice: clone vendor/pkg-b from submodule at 9b3cb02
 
 ### `--recursive`
 
+The [shared recursive reference](13-shared-options/03-recursive.md) compares
+submodule conversion with pulling nested splices.
+
 ```scrut
 $ git splice clone -h | check-help option --recursive
         With --from-submodule, converts a submodule whose commit has

@@ -185,6 +185,9 @@ See [rewritten upstream branches](#rewritten-upstream-branches).
 
 ### `--rebuilt-commit`
 
+The [shared rebuilt-commit reference](13-shared-options/02-rebuilt-commit.md)
+compares this content merge with publishing edited history through push.
+
 ```scrut
 $ git splice merge -h | check-help option --rebuilt-commit
         Merges <commit> instead of an upstream branch: one made on top of

@@ -59,7 +59,7 @@ when needed before proceeding with the children.
 ## Configured hooks
 
 `exec` uses the same JSON checkpoint interface as
-[`--exec`](05-pull.md#--exec). It is supported by fetch, pull and push.
+[`--exec`](13-shared-options/01-exec/README.md). It is supported by fetch, pull and push.
 Configured hooks run automatically; no CLI `--exec` is needed.
 
 - Inherited handlers run outermost first, then handlers from inner directories.

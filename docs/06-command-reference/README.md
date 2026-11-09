@@ -2,6 +2,8 @@
 
 Command defaults and inherited hooks can be committed in
 [`.spliceconfig`](12-configuration.md).
+Flags used by several commands have a [shared reference](13-shared-options/README.md),
+including [execution hooks and their JSON payload](13-shared-options/01-exec/README.md).
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
