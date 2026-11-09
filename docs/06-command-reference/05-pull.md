@@ -174,7 +174,10 @@ $ git splice pull -h | check-help option --recursive
         Also pulls every splice below each one given, and any a pull above
         adds, and makes one commit of each given splice's pulls, with the
         message of its own pull. A conflict stops it: resolve it, commit,
-        and run it again, which skips the splices already pulled.
+        and run it again, which skips the splices already pulled. With
+        --rebase, the pulls come first, on a detached HEAD at the last
+        pull, and the branch's own commits since are rebased onto them
+        once.
 ```
 
 For [nested splices](../03-concepts/04-nesting.md): each splice is
@@ -187,6 +190,13 @@ commit per splice given: the message of that splice's own pull, from
 below it. Each splice's history has it on top of its own commits. `--all`
 pulls each splice the monorepo has in the same way
 ([a recursive pull](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/README.md)).
+
+With `--rebase`, the pulls go at the newest commit that changed a
+`.splice` in the tree, on a detached `HEAD`, so the branch stays where it
+was until they're done. Then the branch's own commits since are rebased
+onto their commit once. Rebasing onto each pull would replay the pulls
+of the splices above it too
+([rebased](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/rebased.md)).
 
 ## Order
 
@@ -209,7 +219,9 @@ splice it brings in: `--recursive` does.
 $ git splice pull -h | check-help section conflicts
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
     --abort' to give up), then re-run pull for any splices left. With
-    --rebase, it's 'git rebase --continue' (or 'git rebase --abort').
+    --rebase, it's 'git rebase --continue' (or 'git rebase --abort'); with
+    --rebase --recursive, only for the branch's own commits, and 'git
+    switch <branch>' gives up before.
 ```
 
 When both sides changed the same lines, the pull stops at a conflict;
