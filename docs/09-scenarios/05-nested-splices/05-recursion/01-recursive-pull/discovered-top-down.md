@@ -91,6 +91,16 @@ ok   vendor/a: pulled 04072ca
 records for it, and no farther: *e2* takes a pull of `vendor/a/e` too,
 which this command wasn't asked for.
 
+Nothing has fetched `e`'s upstream yet, so the monorepo knows *e1* only
+by its hash ([#335](https://github.com/roschaefer/git-splice/issues/335)):
+
+```scrut
+$ git splice status vendor/a/e
+On branch step
+
+  ?? never fetched  vendor/a/e  run 'git splice fetch vendor/a/e'
+```
+
 ![The tree: the monorepo at pa, outlined blue; vendor/a/ at a2, outlined blue; in it, b/ at b1, with c/ at c1 in it, and the new e/ at e1; no d/](removed-step.drawio.svg)
 
 <!--
