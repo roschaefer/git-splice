@@ -40,8 +40,10 @@ explicitly reconsider the affected principle and its rationale.
   monorepo commit recording the earlier push.
 - **Ask “what would Git do?”** Git has much more experience solving
   version-control problems. Where its solution works well, implement the
-  closest equivalent: local branch-tracking settings and reflogs are
-  examples. This is a starting point for design decisions, not a reason to
+  closest equivalent:
+  [local branch-tracking settings](../09-scenarios/03-branches-and-teamwork/07-tracked-branch/README.md)
+  and [reflogs](../09-scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)
+  are examples. This is a starting point for design decisions, not a reason to
   repeat known problems such as mixing unrelated repositories' tags in one
   namespace or adopting the submodule model
   ([state choices](01-state-and-upstreams.md),
