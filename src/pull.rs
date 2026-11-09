@@ -153,11 +153,19 @@ const REBASING: &str = "SPLICE_PULL_BRANCH";
 /// detached HEAD that still descends from where they started. Forgets one
 /// that doesn't, e.g. after 'git switch' gave it up.
 fn rebase_under_way() -> Res<Option<String>> {
-    let Some(branch) = git(&["symbolic-ref", "--quiet", "--short", REBASING]).q().out() else {
+    let Some(branch) = git(&["symbolic-ref", "--quiet", "--short", REBASING])
+        .q()
+        .out()
+    else {
         return Ok(None);
     };
-    let detached = git(&["symbolic-ref", "--quiet", "HEAD"]).q().out().is_none();
-    let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"]).q().ok();
+    let detached = git(&["symbolic-ref", "--quiet", "HEAD"])
+        .q()
+        .out()
+        .is_none();
+    let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
+        .q()
+        .ok();
     if detached && goes_on {
         return Ok(Some(branch));
     }
@@ -289,7 +297,9 @@ fn replay_own_commits(branch: &str) -> Res<bool> {
         ));
     }
     let plural = if count == "1" { "" } else { "s" };
-    log_ok(format!("rebased {count} commit{plural} of '{branch}' onto the pull"));
+    log_ok(format!(
+        "rebased {count} commit{plural} of '{branch}' onto the pull"
+    ));
     Ok(true)
 }
 
