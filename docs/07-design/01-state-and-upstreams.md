@@ -145,13 +145,18 @@ leave a misleading local view.
 
 ### Matching branch names keep a feature together
 
-Matching feature branch names let a monorepo branch carry coordinated
-changes across upstreams. Default branches need a mapping because their
-names can differ. Comparing a missing feature branch with the upstream's
-default target makes the prospective PR visible before publication;
-creating branches only when there is something to publish avoids empty
-branches in unrelated upstreams
-([push design](03-splicing-out.md#new-upstream-branches)).
+The intended workflow is to develop a feature on a monorepo branch and
+submit its changes through PRs in the affected upstream repositories.
+Assuming the same feature branch name on both sides connects that work
+without requiring a separate branch choice for every splice.
+
+A PR needs a target to compare against before its source branch has been
+published. The upstream's default branch supplies that target, with a
+mapping where default branch names differ. Deriving the prospective
+changes from that target lets inspection show what a PR would contain.
+Only upstreams with commits to submit need a feature branch; eagerly
+creating one in every upstream would leave branches with no corresponding
+PR work ([push design](03-splicing-out.md#new-upstream-branches)).
 
 ### Recorded defaults prevent silent retargeting
 

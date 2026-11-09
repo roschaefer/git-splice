@@ -54,9 +54,12 @@ explicitly reconsider the affected principle and its rationale.
 - **Name the target when writing, show everything when looking.** Sync
   commands need paths or `--all`; inspection and fetch commands cover
   every splice by default. Familiar Git command names keep their meaning.
-- **Follow the monorepo's branch by default.** Branch mapping, tracking
-  overrides and pins choose the upstream target without a separate
-  checkout per splice.
+- **Design for pull requests across repositories.** A monorepo feature
+  branch represents work to submit upstream, so matching branch names
+  connect its changes to the corresponding upstream PRs. The upstream
+  default branch supplies the comparison target before a feature branch
+  exists; create that branch only when there are commits to submit
+  ([branch rationale](01-state-and-upstreams.md#matching-branch-names-keep-a-feature-together)).
 - **Refuse ambiguity and keep the design bounded.** Unrelated histories
   and unsupported paths stop with an explanation. Rare cases can be
   documented rather than complicating the ordinary workflow

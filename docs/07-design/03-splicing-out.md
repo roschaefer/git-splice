@@ -87,11 +87,13 @@ approved differences.
 
 ## New upstream branches
 
-- **Create upstream branches only when needed.**
+- **Create branches for proposed changes, not for every monorepo branch.**
 
-  A push creates a missing feature branch only if R contains commits the
-  upstream's default target lacks, as a PR would show. Starting a monorepo
-  feature branch therefore does not create empty branches in every upstream.
+  The [PR workflow](01-state-and-upstreams.md#matching-branch-names-keep-a-feature-together)
+  needs a branch only where there is something to submit. A push therefore
+  creates a missing feature branch only if R contains commits the upstream's
+  default target lacks. This avoids branches for unaffected splices while
+  letting inspection derive the prospective PR before publication.
 
 Commits inherited from a stacked feature branch still count, even if
 nothing new changed in this splice. The first push after `init` also counts:
