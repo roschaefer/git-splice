@@ -5,6 +5,20 @@ tools. Fetched upstream state and personal branch choices can stay local,
 following Git's model. The [architecture](README.md#architecture) shows
 where each belongs.
 
+## Derive state instead of storing redundant records
+
+Every stored value creates work to keep it consistent. Storing both a
+result and the information needed to derive it lets those records drift
+apart after a partial update or history rewrite. Avoiding that redundant
+bookkeeping was a motivation for departing from
+[`git-subrepo`](../05-comparisons/02-third-party/01-git-subrepo.md).
+
+B, R and the sync status are therefore derived from committed history and
+fetched refs. A push does not need a monorepo commit to record its result:
+a later deterministic rebuild recovers it. A proposed state field should
+explain why existing history and configuration cannot supply the value,
+rather than introduce another record that commands must keep in sync.
+
 ## Sync state belongs in versioned files
 
 Extra commit metadata ties the relationship to tools that understand and

@@ -1,8 +1,14 @@
 # Design
 
 The other documentation chapters explain what `git-splice` does and how
-to use it: getting started, concepts, workflows, comparisons, the command
-reference and scenarios. Design explains why: the principles, tradeoffs
+to use it: [getting started](../01-getting-started/README.md),
+[concepts](../03-concepts/README.md),
+[workflows](../04-advanced-workflows/README.md),
+comparisons with [Git's tools](../05-comparisons/01-git/README.md),
+[third-party tools](../05-comparisons/02-third-party/README.md) and
+[other VCS tools](../05-comparisons/03-vcs/README.md),
+[the command reference](../06-command-reference/README.md) and
+[scenarios](../09-scenarios/README.md). Design explains why: the principles, tradeoffs
 and constraints behind that behaviour. Mechanisms appear here where they
 explain a choice; behaviour and usage belong in the relevant chapters.
 
@@ -16,10 +22,12 @@ explicitly reconsider the affected principle and its rationale.
 - **Changes cross the splice, commits don't.** Upstream history does not
   become part of the monorepo's ancestry, and monorepo side branches do
   not become part of upstream history.
-- **Version the relationship, derive the rest.** `.splice` moves and
-  branches with its folder. It records an upstream commit, never a
-  monorepo commit ID that rebasing could invalidate. Keeping sync state
-  in versioned files also avoids depending on VCS-specific commit metadata.
+- **Store as little state as possible.** Redundant records can disagree,
+  and every update becomes another opportunity to leave them inconsistent.
+  Derive what existing history and configuration already tell us instead
+  of storing it again. This avoids the redundant bookkeeping that motivated
+  the departure from `git-subrepo`
+  ([state rationale](01-state-and-upstreams.md#derive-state-instead-of-storing-redundant-records)).
 - **Nesting should not change a splice's meaning.** Given equivalent
   history, upstream state and settings, syncing `vendor/a/b/` should produce
   the same result for that splice as syncing `b/` in a standalone clone
