@@ -67,7 +67,10 @@ impl Repo {
             return Ok(());
         }
 
-        if !c.synced.is_empty() && !commit_here(&c.synced) {
+        if !c.synced.is_empty()
+            && !commit_here(&c.synced)
+            && !self.remake_synced(path, &c.synced.clone(), "HEAD")
+        {
             c.state = State::MissingSynced;
             return Ok(());
         }

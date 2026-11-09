@@ -488,6 +488,29 @@ impl Repo {
         indexed(&["write-tree"]).out().ok_or(Fail::Soft)
     }
 
+    /// Makes synced commit <synced> of splice <path> again, when it isn't
+    /// here: the rebuild of the last commit up to <rev> that recorded it, on
+    /// the synced commit recorded before that one, made again too if missing.
+    /// The rebuild of the splice above records a commit before its upstream
+    /// has it, and a clone of that upstream has the files, so the same
+    /// rebuild gives the same commit. True if it does.
+    pub fn remake_synced(&mut self, path: &str, synced: &str, rev: &str) -> bool {
+        let last = splice_last_sync(path, rev);
+        if last.is_empty() || splice_config(path, "commit", &last) != synced {
+            return false;
+        }
+        let before = format!("{last}^");
+        let previous = splice_config(path, "commit", &before);
+        if previous.is_empty() {
+            return false;
+        }
+        if !commit_here(&previous) && !self.remake_synced(path, &previous, &before) {
+            return false;
+        }
+        let range = format!("{before}..{last}");
+        matches!(self.rebuild_walk(path, Some(previous), &range), Ok(Some(made)) if made == synced)
+    }
+
     /// The tree of splice <path> in commit <rev>, without its state file, if
     /// the folder exists there.
     pub fn content_tree(&mut self, rev: &str, path: &str) -> Res<Option<String>> {
