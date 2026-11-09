@@ -72,6 +72,7 @@ ok   c fetched
 
 ```scrut
 $ git splice status
+??   c: synced commit 30bd30a isn't on main; made it again from this branch's history: 8c169b6 plus 1 commit(s) made here, which count as this branch's own
 On branch main
 
   ahead 1, behind 1  c
@@ -79,16 +80,17 @@ On branch main
 
 ```scrut
 $ git splice log c
+??   c: synced commit 30bd30a isn't on main; made it again from this branch's history: 8c169b6 plus 1 commit(s) made here, which count as this branch's own
 ===  c (main)
 < 30bd30a m1: c in the monorepo  (Test <test@example.com>)
 > 5f049ad c2: c upstream  (Test <test@example.com>)
-[0]
 ```
 
 ```scrut
 $ git splice pull --rebase c
 ok   c fetched
-!!   c: 'main' lacks the synced commit 30bd30a, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes
+??   c: synced commit 30bd30a isn't on main; made it again from this branch's history: 8c169b6 plus 1 commit(s) made here, which count as this branch's own
+!!   c: 'origin' has commits since f815a3c, which --rebase would rewrite -- pull on a branch nobody else has, e.g. a pull request's
 !!   Failed: c
 [1]
 ```
@@ -96,7 +98,7 @@ ok   c fetched
 ```scrut
 $ git splice pull c
 ok   c fetched
+??   c: synced commit 30bd30a isn't on main; made it again from this branch's history: 8c169b6 plus 1 commit(s) made here, which count as this branch's own
 ok   c: pulled 5f049ad
-[0]
 ```
 

@@ -67,12 +67,28 @@ impl Repo {
             return Ok(());
         }
 
-        if !c.synced.is_empty()
-            && !commit_here(&c.synced)
-            && !self.remake_synced(path, &c.synced.clone(), "HEAD")
-        {
-            c.state = State::MissingSynced;
-            return Ok(());
+        let here = c.synced.is_empty() || commit_here(&c.synced);
+        if !c.synced.is_empty() && (!here || !is_ancestor(&c.synced, &c.target_ref)) {
+            if !self.remake_synced(path, &c.synced.clone(), "HEAD") {
+                if !here {
+                    c.state = State::MissingSynced;
+                    return Ok(());
+                }
+            } else {
+                let fetched = git(&["merge-base", &c.synced, &c.target_ref])
+                    .out()
+                    .unwrap_or_default();
+                let own = git(&["rev-list", "--count", &format!("{fetched}..{}", c.synced)])
+                    .out()
+                    .unwrap_or_default();
+                log_warn(format!(
+                "{path}: synced commit {} isn't on {}; made it again from this branch's history: {} plus {own} commit(s) made here, which count as this branch's own",
+                short(&c.synced),
+                c.upstream_label,
+                short(&fetched)
+            ));
+                self.remade.insert(path.to_string(), fetched);
+            }
         }
 
         let rebuilt = contained(self.splice_rebuild(path))?;

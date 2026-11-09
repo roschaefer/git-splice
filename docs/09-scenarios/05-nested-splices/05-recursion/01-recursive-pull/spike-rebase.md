@@ -75,6 +75,7 @@ before it, *c1*: the same rebuild gives the same commit:
 
 ```scrut
 $ git splice status
+??   c: synced commit 30bd30a isn't on main; made it again from this branch's history: 8c169b6 plus 1 commit(s) made here, which count as this branch's own
 On branch main
 
   ahead 1, behind 1  c
@@ -112,7 +113,8 @@ c1: c seed
 ```scrut
 $ git splice pull --rebase c
 ok   c fetched
-!!   c: 'main' lacks the synced commit 30bd30a, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes
+??   c: synced commit 30bd30a isn't on main; made it again from this branch's history: 8c169b6 plus 1 commit(s) made here, which count as this branch's own
+!!   c: 'origin' has commits since f815a3c, which --rebase would rewrite -- pull on a branch nobody else has, e.g. a pull request's
 !!   Failed: c
 [1]
 ```

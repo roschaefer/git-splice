@@ -296,14 +296,25 @@ impl Repo {
                 "{path}: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; {verb} without --rebase"
             ));
         }
-        self.refuse_lacking_synced(path)?;
-        let synced_tree = tree_of(&c.synced);
+        // A synced commit made again here: the part the upstream lacks is this
+        // branch's own, so the sync point is the newest commit it has.
+        let remade = self.remade.get(path).cloned();
+        if remade.is_none() {
+            self.refuse_lacking_synced(path)?;
+        }
+        let sync_point = remade.clone().unwrap_or_else(|| c.synced.clone());
+        let synced_tree = tree_of(&sync_point);
         let mut base = None;
         let history = git(&["rev-list", "--first-parent", "HEAD"])
             .out()
             .unwrap_or_default();
         for commit in history.lines() {
-            if splice_config(path, "commit", commit) != c.synced {
+            let record = splice_config(path, "commit", commit);
+            let recorded = record == c.synced
+                || remade.as_ref().is_some_and(|point| {
+                    is_ancestor(point, &record) && is_ancestor(&record, &c.synced)
+                });
+            if !recorded {
                 break;
             }
             if self.content_tree(commit, path)? == synced_tree {
