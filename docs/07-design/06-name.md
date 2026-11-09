@@ -1,4 +1,4 @@
-# Why "splice"
+# Why the name "splice"
 
 ![Rope splices from the Nordisk familjebok, a long splice on the left](../images/rope-splices-nordisk-familjebok.png)
 

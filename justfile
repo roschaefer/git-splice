@@ -45,10 +45,10 @@ docs-check flag="": build
     target/debug/check-drawing labels README.md $(git ls-files 'docs/*.md' ':!docs/10-contributing/02-writing.md')
     target/debug/check-drawing placement README.md $(git ls-files 'docs/*.md')
     @if [[ "{{flag}}" == --write ]]; then \
-      scrut update --replace --assume-yes README.md docs/01-getting-started/02-walkthrough.md docs/10-contributing/02-writing.md docs/02-using-git-splice docs/03-concepts docs/04-advanced-workflows docs/05-comparisons docs/06-command-reference docs/07-design/03-git-trace.md docs/09-scenarios; \
+      scrut update --replace --assume-yes README.md docs/01-getting-started/02-walkthrough.md docs/10-contributing/02-writing.md docs/02-using-git-splice docs/03-concepts docs/04-advanced-workflows docs/05-comparisons docs/06-command-reference docs/07-design/05-git-trace.md docs/09-scenarios; \
     elif [[ -n "{{flag}}" ]]; then \
       echo "usage: just docs-check [--write]" >&2; exit 1; \
-    elif ! scrut test --jobs "$(nproc)" README.md docs/01-getting-started/02-walkthrough.md docs/10-contributing/02-writing.md docs/02-using-git-splice docs/03-concepts docs/04-advanced-workflows docs/05-comparisons docs/06-command-reference docs/07-design/03-git-trace.md docs/09-scenarios; then \
+    elif ! scrut test --jobs "$(nproc)" README.md docs/01-getting-started/02-walkthrough.md docs/10-contributing/02-writing.md docs/02-using-git-splice docs/03-concepts docs/04-advanced-workflows docs/05-comparisons docs/06-command-reference docs/07-design/05-git-trace.md docs/09-scenarios; then \
       echo "The README, walkthroughs, concepts, scenario READMEs or comparisons don't match real output. If only the output changed, run 'just docs-check --write'." >&2; exit 1; \
     fi
 

@@ -17,7 +17,7 @@ the upstream, and by the time the folder is a splice again, it may hold
 what was removed in between. See
 [removed-before-init](../01-removed-before-init/README.md) for the same
 reason at `init`, and
-[the design notes](../../../../07-design/README.md#splicing-out-push-and-the-rebuild).
+[the design notes](../../../../07-design/03-splicing-out.md#splicing-out-push-and-the-rebuild).
 
 ## Output
 
