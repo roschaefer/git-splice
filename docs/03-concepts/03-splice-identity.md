@@ -135,4 +135,4 @@ The two share the upstream's fetched refs
 
 - Two [splices that swap paths](../09-scenarios/07-moved-folders/02-swapped-splices/README.md) each keep their own history.
 - [Mirrors](../09-scenarios/07-moved-folders/03-mirrors/README.md) can swap paths, or make a move ambiguous.
-- [How the id is derived](../07-design/01-state-and-upstreams.md#the-splice-file).
+- [How the id is derived](../07-design/01-state-and-upstreams.md#identity-must-distinguish-replacements-and-remain-repeatable).

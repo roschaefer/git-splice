@@ -29,7 +29,7 @@ is to avoid adding a subfolder remote in the first place.
 ### Remove the accidental target
 
 Upstreams are fetched and pushed by URL from `.splice`, using
-[private refs](01-state-and-upstreams.md#refs-instead-of-remotes).
+[private refs](01-state-and-upstreams.md#private-refs-avoid-an-accidental-push-target).
 Git's remote selection, branch tracking and GUI remote pickers therefore
 have no subfolder remote to choose. No hook, helper or unusual URL is
 required in each clone. A plain `git push vendor/a main` fails because

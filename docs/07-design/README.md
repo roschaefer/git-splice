@@ -24,7 +24,7 @@ explicitly reconsider the affected principle and its rationale.
   the same result for that splice as syncing `b/` in a standalone clone
   of `vendor/a`'s repository. A project should not need a different dependency workflow
   because it is embedded in another repository. This governs
-  [portable state and defaults](01-state-and-upstreams.md#the-splice-file)
+  [portable state and defaults](01-state-and-upstreams.md#sync-state-belongs-in-versioned-files)
   and [inherited history](03-splicing-out.md#history-inherited-through-nesting).
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
