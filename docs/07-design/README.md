@@ -1,167 +1,99 @@
 # Design
 
 `git-splice` keeps folders of a monorepo in sync with their own upstream
-repositories, in both directions. Switching branches in the monorepo
-switches the branch every folder syncs with.
+repositories. The files are ordinary files; the histories stay separate.
+This chapter explains the choices behind the [sync model](../03-concepts/02-sync-model.md).
 
 ## Principles
 
-- **You can check it without reading it.** The state is plain Git: a committed
-  `.splice`, refs under `refs/splices/`, and rebuilt commits that always come
-  out the same. The docs write out the Git commands and run them against real
-  output. And the tool only runs the `git` CLI, not a library, so
-  [`GIT_TRACE` lists all it does](05-git-trace.md).
-- **Let Git do the work.** Wherever Git can do a job, the tool calls Git: `git config` parses the state file,
-  `cherry-pick` merges, `commit-tree` rebuilds, `log --left-right` compares.
-  The tool's own code connects these, and stays small.
-- **Changes cross the splice, commits don't.** The monorepo and each
-  upstream keep separate histories. Upstream commits never become
-  ancestors of the monorepo's commits, and the monorepo's merges and side
-  branches never reach upstream.
-- **The folder carries its own state.** A splice is a folder with a
-  committed `.splice` file. Nothing about it lives in `.git/config`, so a
-  clone of the monorepo has every splice, and `git mv` moves one.
-- **Store as little as possible, derive the rest.** `.splice` holds the
-  URL and the upstream commit the folder last matched, never a monorepo
-  SHA. Where the last sync happened in the monorepo, and whether a push is
-  needed, are worked out from history each time. Nothing a rebase or squash
-  merge does can make them stale, and commands only inspect history since
-  the last sync.
-- **Deterministic rebuilds.** The same history always rebuilds into the
-  same upstream commits, byte for byte. That makes status computable
-  without storing anything about earlier pushes, and lets a second push
-  fast-forward over the first.
-- **Branches follow the monorepo.** On `feature-x`, every splice syncs with
-  its upstream's `feature-x`. No branch is fixed per folder.
-- **Name the target when writing, show everything when looking.** Commands
-  that change the monorepo or an upstream need a path or `--all`.
-  Commands that only look cover every splice.
-- **Git's words keep Git's meaning.** `status`, `pull`, `upstream` or
-  `rebase` do what they do in Git. A new word, like *splice*, is one Git
-  doesn't use.
-- **Refuse rather than guess.** With unrelated histories, or a path that
-  can't be a ref name, the tool stops and says what to do.
-- **Weigh every fix against its complexity.** An easy, safe fix goes in.
-  A rare case gets documented, or an issue labelled
-  [`edge case`](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22). An extreme one is ignored.
+- **Changes cross the splice, commits don't.** Upstream history does not
+  become part of the monorepo's ancestry, and monorepo side branches do
+  not become part of upstream history.
+- **Version the relationship, derive the rest.** `.splice` moves and
+  branches with its folder. It records an upstream commit, never a
+  monorepo commit ID that rebasing could invalidate.
+- **Rebuild deterministically.** The same committed history produces the
+  same upstream commits, so a later push can fast-forward without a
+  monorepo commit recording the earlier push.
+- **Let Git do the work.** Git parses the configuration, merges trees,
+  creates commits and transfers objects. Its commands are
+  [inspectable](05-git-trace.md).
+- **Name the target when writing, show everything when looking.** Sync
+  commands need paths or `--all`; inspection and fetch commands cover
+  every splice by default. Familiar Git command names keep their meaning.
+- **Follow the monorepo's branch by default.** Branch mapping, tracking
+  overrides and pins choose the upstream target without a separate
+  checkout per splice.
+- **Refuse ambiguity and keep the design bounded.** Unrelated histories
+  and unsupported paths stop with an explanation. Rare cases can be
+  documented rather than complicating the ordinary workflow
+  ([limits](04-safety-and-limits.md#limits)).
 
 ## The sync point
 
 Like a subtree, a splice's files live directly in the monorepo. Like a
-submodule, the monorepo records an upstream commit. But a gitlink says
-which revision to check out; a splice's commit is a sync point, the
-upstream revision the folder last matched. Later commits can change
-the folder and leave the sync point where it is
-([sync model](../03-concepts/02-sync-model.md)).
+submodule, it records an upstream commit. But that commit is a sync point,
+not an instruction to check out another repository: local commits can
+change the folder while the sync point stays put.
 
 ## Vocabulary
 
-| Term | Meaning |
-|---|---|
-| **splice** | A folder of the monorepo that has its own upstream repository: "`vendor/a/` is spliced in from `github.com/x/a`", "the `vendor/a/` splice". Strictly, the noun means the joint, not the inserted piece ([why "splice"](06-name.md)). |
-| **path** | Where the splice lives in the monorepo, e.g. `vendor/a/`. (`git subtree` calls it `--prefix`.) |
-| **upstream** | The splice's own repository, named and given by URL in `.splice`, like a Git remote. |
-| **state file** | `<path>/.splice`. Its presence in `HEAD` makes the folder a splice. |
-| **synced commit**, **boundary**, **rebuild**, **upstream branch** | U(H), B, R and T of the [sync model](../03-concepts/02-sync-model.md). |
-| **last sync** | The newest first-parent commit in the monorepo that changed `<path>/.splice`: the last pull, usually. Its `.splice` records U(H). |
-| **mount** | Where a splice's history starts: its first `.splice`, or a `git mv`. |
-| **key** | An upstream's short name in one repository, e.g. `lib`, mapped to its URL in the repository's config. Names its refs. |
-| **splice in** | Bring upstream content into the monorepo: `clone`, `merge`, `pull`. |
-| **splice out** | Publish the monorepo's changes upstream: `push`. |
-| **sync state** | How R and T relate: `up to date`, `push`, `pull`, `diverged` and so on. |
-| **default branch** | A repository's main branch (`HEAD` on the remote). The monorepo's default branch corresponds to upstream's. |
-| **nested splice** | A splice below another one's folder ([nesting](../03-concepts/04-nesting.md)). |
-
-"Default branch" belongs to a repository and is stored in `.splice` when
-needed. It isn't called "fallback", which would describe only one of its
-uses.
+A splice is the folder and its connection to an upstream. **Splicing in**
+brings upstream content into the monorepo; **splicing out** publishes the
+folder's changes upstream. The [sync model](../03-concepts/02-sync-model.md)
+defines H, B, T, R and U(H); [Concepts](../03-concepts/README.md) explains
+the state file, upstreams and identity.
 
 ## Architecture
 
-```
-          monorepo                                  upstream (by URL)
- ┌────────────────────────────────┐
- │ HEAD                           │  fetch   ┌───────────────────────────┐
- │  └ vendor/a/                   │ <─────── │ refs/heads/*              │
- │      ├ .splice  (url, U(H))    │          └───────────────────────────┘
- │      └ …                       │                  ^
- │                                │                  │ push R
- │ refs/splices/<key>/heads/* (T) │                  │
- └────────────────────────────────┘                  │
-        │ merge: cherry-pick of re-rooted trees      │
-        │ push: rebuild of B..HEAD on top of U(B) ───┘
-```
+<div align="center">
 
-The state lives in two places, and both are plain Git data:
+![Committed folder contents and .splice are separate from local fetched refs and configuration. The rebuild and sync state are derived from history and fetched commits; fetch, pull and push connect them to the upstream repository.](architecture.drawio.svg)
 
-- **Committed:** `<path>/.splice`, with the upstream's URL and the synced
-  commit U(H).
-- **Local, rebuilt by `fetch`:** `refs/splices/<key>/heads/<branch>`, a copy of
-  every upstream branch, under a key the repository's config maps the
-  upstream's URL to.
+</div>
 
-Everything else, B, R and the sync state, is derived from those two and
-the monorepo's history each time a command runs.
+The relationship is committed in `.splice`. Fetched refs, upstream keys
+and branch-tracking overrides are local Git data. B, R and the sync state
+are computed from that state and the monorepo's history.
 [Development](../10-contributing/01-development.md#code-map) maps this onto the code.
 
 ## State and upstreams
 
-### The `.splice` file
-
-The folder carries its upstream and synced commit in a committed `.splice`
-file, so clones and branches have that state and `git mv` moves it.
-[State and upstreams](01-state-and-upstreams.md#the-splice-file) explains the
-file format, identity and default-branch choices; [Concepts](../03-concepts/README.md)
-shows the file itself.
-
-### Refs instead of remotes
-
-Fetched upstream branches live in `refs/splices/<key>/heads/`, keyed by URL
-rather than folder path. They can be shared by splices and worktrees without
-creating Git remotes that could receive the whole monorepo by mistake.
-[State and upstreams](01-state-and-upstreams.md#refs-instead-of-remotes)
-explains the key mapping and ref layout.
-
-The same chapter explains [branch mapping](01-state-and-upstreams.md#branches).
+[State and upstreams](01-state-and-upstreams.md) explains why `.splice`
+uses Git's config format, why refs belong to URLs rather than paths, and
+how branches and pins map between repositories.
 
 ## How the commands work
 
-Which splices a command acts on depends on what it does:
-
-| Kind | Commands | Without a path |
-|---|---|---|
-| Starts a splice | `clone`, `init` | Take one URL and one path, no `--all`. `clone` defaults the path to the repository's name, as `git clone` does. |
-| Splices in or out: changes the monorepo or an upstream | `merge`, `pull`, `push` | Refuses. Takes one or more paths, or `--all`. |
-| Looks or prepares: changes neither | `status`, `diff`, `log`, `fetch` | Every splice; paths narrow it down. |
-
-Splicing in writes a commit into the monorepo, and splicing out publishes
-commits upstream. Both should name their target, as `git push <remote>`
-does. An overview such as `status` is only useful if it's complete.
+Commands that change the monorepo or publish upstream changes require an
+explicit target. `status`, `diff`, `log` and `fetch` cover all splices
+unless paths narrow the selection. `clone` and `init` start one splice.
+This keeps an overview complete and a write deliberate.
 
 ## Splicing in
 
-`merge` turns already fetched upstream changes into **one ordinary
-commit** in the monorepo, and never touches the network.
-[Splicing in](02-splicing-in.md) explains starting a splice, re-rooting
-upstream trees and merging with Git's normal conflict handling.
+`git splice merge` supplies a three-way merge base explicitly, after
+re-rooting upstream trees into the monorepo's layout. Git's cherry-pick
+then keeps local edits and records the new sync point in one commit.
+[Splicing in](02-splicing-in.md) explains the mechanism and nested ordering.
 
 ## Splicing out
 
-A push sends the splice's history since the last sync, rebuilt as upstream
-commits. [Splicing out](03-splicing-out.md) explains the rebuild, followed
-by how `status`, `diff` and `log` use its result.
+`git splice push` rebuilds the folder's history as upstream commits,
+without writing to the monorepo. [Splicing out](03-splicing-out.md)
+explains history boundaries, deterministic metadata and how `status`,
+`diff` and `log` use the result.
 
 ## Safety and limits
 
-`git-splice` has no Git remotes for its upstreams.
-[Safety and limits](04-safety-and-limits.md) explains why, the alternatives
-considered, and the design's accepted limits.
+Upstreams use private refs instead of Git remotes, so a plain Git push
+cannot select them as a remote. [Safety and limits](04-safety-and-limits.md)
+explains that choice, the rejected alternatives and the remaining limits.
 
 ## Checking what it runs
 
-Everything `git-splice` does to a repository, it does by running the `git`
-command line. [Checking what it runs](05-git-trace.md) shows how to inspect
-those commands with `GIT_TRACE`, and what the trace doesn't show.
+[Checking what it runs](05-git-trace.md) shows how to capture Git commands
+with `GIT_TRACE` and where tracing has limits.
 
 ## Why the name "splice"
 

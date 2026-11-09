@@ -1,119 +1,110 @@
 # State and upstreams
 
-The [architecture overview](README.md#architecture) separates committed
-splice state from local fetched refs. This page explains the storage choices.
+Portable splice state belongs in the committed folder. Fetch state and
+per-clone choices belong in local Git refs and configuration
+([architecture](README.md#architecture)).
 
 ## The `.splice` file
 
-[The `.splice` file](../03-concepts/README.md) shows
-what it holds and which commands write it, and why it has no path and no
-monorepo commit. The other choices:
+Only the `.splice` committed in `HEAD` counts. It identifies the splice,
+names its upstreams and records the upstream commit the folder last
+matched. It stores no path or monorepo commit ID: moves carry the file,
+and history rewrites do not invalidate its recorded upstream commit.
+[Concepts](../03-concepts/README.md) shows the format. An upstream with a
+root `.splice` is refused because it would replace the file describing
+the outer relationship.
 
-- **Git's config format, read and written by Git.** There's no parser of
-  our own, and the file is never sourced, since that would run whatever
-  someone commits into it.
-- **Its name** clashes with no known configuration file, so build or
-  package globs that see it in the monorepo don't mistake it for theirs.
-- **Its `id` is derived, not random,** from the path, `HEAD`, the
-  upstream's URL and, for `clone`, the commit it splices in. So a command
-  gives the same result each time it runs on the same commit, while two
-  splices of different upstreams mounted at the same path on branches
-  from the same commit still get different ids. The rebuild uses it to
-  tell this splice from another one that had the same path before
-  ([push design](03-splicing-out.md#splicing-out-push-and-the-rebuild)).
-- **`default-branch` is recorded once**, by `clone` and `init`, and only
-  when it differs. That keeps it stable if the upstream later renames its
-  default branch, and visible to anyone wondering why `main` syncs with
-  `master`. It belongs to the upstream, like its URL: a company fork may
-  name its default branch differently from the original. Where the
-  splice above leaves it open, commands refuse rather than fall back to
-  the monorepo's.
-- **No merge driver** for the conflict two pulling branches get. One can
-  follow if that turns out to be common.
+Git reads and writes its own config format; there is no separate parser,
+and the file is never sourced as code. Its `id` is derived from the path,
+`HEAD`, upstream URL and imported commit, so the same operation produces
+the same ID. Different upstreams at the same path still get different IDs.
+The ID lets the rebuild follow a move and distinguish a replacement splice
+([identity](../03-concepts/03-splice-identity.md)).
+
+`clone` and `init` record `default-branch` when it differs from the
+containing repository's default. It belongs to each upstream: a fork and
+its origin may use different names. Committing the choice keeps it stable
+if the upstream later renames its default branch. A `default-pin` can
+instead select a tag or complete commit ID.
+
+Concurrent pulls can conflict in `.splice`. There is no automatic merge
+driver: choosing a sync point can require deciding which upstream state
+the merged folder actually contains
+([concurrent pulls](../09-scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).
 
 ## Refs instead of remotes
 
-Upstream branches are fetched by URL into private refs:
+The ordinary branch fetch is:
 
-```
+```text
 git fetch --prune --no-tags <url> '+refs/heads/*:refs/splices/<key>/heads/*'
 ```
 
-The key is the upstream's short name in this repository. The first
-command that fetches an upstream records it in the repository's config,
-which all its worktrees share, as they share the refs:
+A configured tag pin is fetched explicitly as well. Git can read these
+refs and check them out in worktrees, without registering the upstream as
+a remote that a plain push could select
+([why that matters](04-safety-and-limits.md)). Deleted upstream branches
+are pruned; a successful `git splice push` updates the fetched branch ref
+itself so status sees what was published. Failure to update that ref is
+reported even if the upstream push already succeeded.
 
-```
+### Keys belong to URLs
+
+The first fetch records a short key in the repository's local config,
+shared by its worktrees:
+
+```text
 [splice "lib"]
 	url = https://github.com/x/lib.git
 ```
 
-It comes from the end of the URL, without `.git`, in lower case: `lib`
-for `https://github.com/x/lib.git`. If that's taken, by another URL or by
-refs left under it, more of the URL goes in front, `x-lib`, then
-`github.com-x-lib`, and only then a number. Lower case only, so no two
-keys' refs share files on a case-insensitive file system, and short, so
-they fit any file system's name limit. Commands record keys one at a
-time, under a lock, and refuse a config edited by hand into keys that
-aren't valid, or into two URLs for a key or two keys for a URL, naming
-the `git config` command that fixes it. A key has no `/`, so it ends
-right before `heads/`, and branch names, which may have one, follow that. `git splice key <path>` prints a splice's key, and
-`git splice key <path> <new-key>` renames it, refs included. Commands
-that only read, like `status`, never record a key: an upstream without
-one hasn't been fetched.
+The candidate names are `lib`, `x-lib`, then `github.com-x-lib`; a numeric
+suffix resolves remaining collisions. Keys are lower-case, ref-safe and
+at most 64 characters. Allocation takes a lock so simultaneous fetches
+cannot claim the same key. Conflicting or invalid hand-edited mappings
+are refused.
 
-The URL is the one written in `.splice`, before `insteadOf`. Spellings
-that look alike can name different repositories, e.g. `/srv/lib` and
-`/srv/lib.git`, or `host:lib` (relative to the home folder) and
-`ssh://host/lib`, so only equal URLs share a key. Keys are local, like the
-refs: two clones may give one upstream different keys.
+URL equality is exact, before `insteadOf` expansion: `host:lib` and
+`ssh://host/lib` can mean different repositories. The generated key makes
+that URL safe for refs; it is not the URL escaped into a path. This also
+keeps URLs differing only in case from colliding on case-insensitive file
+systems. Each clone may choose different keys.
 
-Keyed by URL, not by path, the refs describe the upstream rather than the
-folder:
+This separation has useful consequences:
 
-- `git mv` keeps the URL, so a moved splice still finds its refs.
-- Splices at the same path with different upstreams, e.g. on two
-  branches, don't overwrite each other's refs, and `init` on a path that
-  had another upstream doesn't see that one's refs.
-- Splices with equal URLs share refs, which is fine, since refs only
-  describe the upstream. `fetch` fetches each upstream once.
-- No Git remote exists, so nothing can push the monorepo there by mistake.
-  [Why that matters](04-safety-and-limits.md).
-- `url.<base>.insteadOf` and `pushInsteadOf` still apply, since they work
-  on URLs.
-- `push` goes to the URL, and then updates `refs/splices/<key>/heads/<branch>`
-  itself. If it can't, the push counts as failed.
-- `--prune` drops branches deleted upstream, so no `prune` command is
-  needed.
-- Every Git command can read an upstream as `splices/<key>/heads/<branch>`,
-  as of the last fetch, so no separate clone is needed
-  ([looking at an upstream](../06-command-reference/02-fetch.md#looking-at-an-upstream)).
+- Moving a splice keeps its refs; replacing its upstream at the same
+  path does not reuse another upstream's refs.
+- Splices naming the same URL share fetched refs, so the URL is fetched
+  once, while their committed sync points remain independent.
+- `insteadOf` and `pushInsteadOf` still apply to the fetch and push URLs.
+- Read-only commands do not allocate keys; an unallocated upstream has
+  not been fetched here.
 
-Two rules follow from the layout:
-
-- **Both sides of a [nested splice](../03-concepts/04-nesting.md)
-  find the same state.** The `.splice` holds nothing specific to the
-  monorepo, and fetched refs are keyed by URL, so the monorepo and the
-  upstream above find the same synced commit under the same refs. An
-  upstream with a `.splice` at its root is refused: it would replace the
-  splice's own.
-- **A splice's path must work in a ref name** (`git check-ref-format`),
-  which applies to the whole path: no spaces, no component ending in
-  `.lock`, and so on.
+[`git splice key`](../06-command-reference/11-key.md) prints or renames a
+key, moving its refs and tracking settings with it.
 
 ## Branches
 
-- Each splice syncs with the upstream branch named like the monorepo's
-  current branch, for every command. Switching branches switches every
-  splice.
-- The monorepo's default branch maps to upstream's default branch
-  (the upstream's `default-branch` in `.splice` if the names differ). Every other branch
-  keeps its name on both sides.
-- The monorepo's default branch is `origin/HEAD`, else
-  `init.defaultBranch`.
-- If upstream has no branch named like the current one, every command
-  compares with upstream's default branch instead, as a PR from that
-  branch would, and `push` creates it only as described
-  [in the push design](03-splicing-out.md#splicing-out-push-and-the-rebuild). Which branch it was cut
-  from doesn't matter: Git doesn't record it, and commits from there
-  that upstream lacks have to get there somehow, e.g. through a PR.
+The monorepo's default branch is `origin/HEAD`, falling back to
+`init.defaultBranch`. Ordinarily it maps to the upstream's default branch,
+and other branches keep the same name on both sides.
+
+Two explicit choices override that mapping: `--branch` selects a target
+for the command, and `--track` stores a branch-to-upstream-key mapping in
+local Git config for later commands. `--branch` takes precedence over the
+stored tracking choice. Without either override, a committed `default-pin`
+selects a tag or commit on the default branch and refuses a push there;
+feature branches still follow named upstream branches. See
+[tracking](../03-concepts/01-upstreams.md#tracking-another-upstream-branch-locally)
+and [pins](../09-scenarios/04-upstreams/06-default-pin/README.md).
+
+If an ordinary feature branch does not exist upstream, comparison uses
+the upstream's default target, as a PR would. A push creates the branch
+only if it has commits the default target lacks
+([push design](03-splicing-out.md#new-upstream-branches)).
+
+A nested splice inherits an unspecified default branch from its enclosing
+splice, so its `.splice` means the same in a clone of that upstream.
+An enclosing pin requires a `default-branch` below it. Differing defaults
+among enclosing upstreams need a chosen upstream or an explicit default
+branch ([nesting](../03-concepts/04-nesting.md#settings-come-from-the-splice-above)).
