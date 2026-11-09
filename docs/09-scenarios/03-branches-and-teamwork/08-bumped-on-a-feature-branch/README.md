@@ -260,7 +260,9 @@ can't fetch it:
 ```scrut
 $ cd "$(dirname "$MONOREPO")" &&
 >   git clone -q "file://$MONOREPO" colleague &&
->   cd colleague
+>   cd colleague &&
+>   git config user.name "Colleague" &&
+>   git config user.email "colleague@example.com"
 ```
 
 ```scrut
@@ -270,11 +272,70 @@ ok   vendor/a fetched
 
 ```scrut
 $ git splice status vendor/a
+??   vendor/a: synced commit 52ca126 isn't on main -- made it again here: 2380a33 and 1 commit of this branch's own
 On branch main
 
-  ?? synced commit 52ca126 isn't here  vendor/a  run 'git splice fetch vendor/a', or check that upstream has it
+  ahead 1, behind 2  vendor/a
 ```
 
-Without the bump, `main`'s `.splice` would name a commit on the
-library's `main`, which it keeps, and a pull would bring in
-`a third option`.
+It makes the commit again instead: the rebuild of the commit before the
+bump gives *52ca126*, hash included. Only a copy of the monorepo's own
+history comes out the same, so the part the library's `main` lacks counts
+as the monorepo's own, `vendor/a: a second option`, which `log` shows
+next to the library's two commits:
+
+```scrut
+$ git splice log vendor/a
+??   vendor/a: synced commit 52ca126 isn't on main -- made it again here: 2380a33 and 1 commit of this branch's own
+===  vendor/a (main)
+= 52ca126 vendor/a: a second option  (Test <test@example.com>)
+> 460ece3 a third option  (Maintainer <maintainer@example.com>)
+= 5e19ac3 a second option (#2)  (Maintainer <maintainer@example.com>)
+```
+
+A pull merges them. Both sides added the same line after `an option`,
+and the library one more, so the merge conflicts there:
+
+```scrut
+$ git splice pull vendor/a
+ok   vendor/a fetched
+??   vendor/a: synced commit 52ca126 isn't on main -- made it again here: 2380a33 and 1 commit of this branch's own
+Auto-merging vendor/a/file.txt
+CONFLICT (content): Merge conflict in vendor/a/file.txt
+!!   vendor/a: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
+!!   vendor/a: pull failed
+!!   Failed: vendor/a
+[1]
+```
+
+```scrut
+$ cat vendor/a/file.txt
+seed
+local change
+an option
+a second option
+<<<<<<< HEAD
+=======
+a third option
+>>>>>>> * (splice: pull vendor/a from main at 460ece3) (glob)
+```
+
+Taking the library's side resolves it:
+
+```scrut
+$ git checkout -q --theirs vendor/a/file.txt &&
+>   git add vendor/a/file.txt &&
+>   git commit -q --no-edit
+```
+
+```scrut
+$ git splice status vendor/a
+On branch main
+
+  up to date  vendor/a
+```
+
+The folder has the files of the library's `main` now, so nothing is left
+to push, and the second option isn't sent again. Without the bump,
+`main`'s `.splice` would name a commit on the library's `main`, which it
+keeps, and a pull would bring in `a third option` without a conflict.

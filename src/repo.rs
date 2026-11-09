@@ -117,6 +117,9 @@ pub struct Repo {
     empty_tree: OnceCell<String>,
     pub uncommitted: HashMap<String, Uncommitted>,
     pub content_tree_cache: HashMap<String, String>,
+    /// Splices whose synced commit was made again here, with the newest
+    /// commit in its history that the upstream branch has.
+    pub remade: HashMap<String, String>,
     pub rebuild_given: HashMap<String, String>,
     pub rebuild_without_synced: bool,
     pub joins_rewritten: bool,

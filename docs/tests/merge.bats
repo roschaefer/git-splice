@@ -1050,3 +1050,69 @@ layer_with_a_commit() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"!!   vendor/a: its synced commit $(git config --file vendor/a/.splice splice.commit | cut -c1-7) isn't on its upstream any more"*"pick a side"* ]]
 }
+
+# A clone of the monorepo, in $clone, whose synced commit of vendor/a is
+# gone from the upstream: pushed to the upstream's feature branch and
+# bumped there, merged into main, and the feature branch deleted.
+synced_commit_lost_after_bump() {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  echo "an option" >>vendor/a/file.txt
+  git commit -q -am "an option"
+  splice push vendor/a >/dev/null 2>&1
+  splice pull --bump vendor/a >/dev/null
+  git switch -q main
+  git merge -q --no-ff -m "merge feature" feature
+  git -C "$upstream" update-ref -d refs/heads/feature
+  git -C "$upstream" gc -q --prune=now
+  clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q "$monorepo" "$clone"
+  cd "$clone"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  splice fetch vendor/a >/dev/null
+}
+
+@test "status: a synced commit its upstream lost, which the rebuild before its bump makes again, counts as this branch's own" {
+  synced_commit_lost_after_bump
+  local synced fetched
+  synced="$(splice_config vendor/a commit)"
+  fetched="$(git -C "$upstream" rev-parse --short main)"
+  run splice status vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "??   vendor/a: synced commit ${synced:0:7} isn't on main -- made it again here: $fetched and 1 commit of this branch's own" ]
+  [[ "$output" == *"ahead 1  vendor/a"* ]]
+  [ "$(git log -1 --format=%s "$synced")" = "an option" ]
+}
+
+@test "push: sends the commits a synced commit made again has above what its upstream has" {
+  synced_commit_lost_after_bump
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "an option" ]
+}
+
+@test "pull --rebase: of a synced commit made again, syncs from the newest commit its upstream has, not as after a rewrite" {
+  synced_commit_lost_after_bump
+  echo "more" >>vendor/a/file.txt
+  git commit -q -am "more"
+  seed_bare_repo "$upstream" "upstream moves on" main other.txt
+  run splice pull --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"doesn't show it ever had it"* ]]
+  [[ "$output" == *"there's a merge commit since $(git rev-parse --short main~2)"* ]]
+}
+
+@test "status: a synced commit the upstream branch's reflog shows it had isn't made again: the upstream rewound it" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "an option" >>vendor/a/file.txt
+  git commit -q -am "an option"
+  splice push vendor/a >/dev/null 2>&1
+  splice pull --bump vendor/a >/dev/null
+  git -C "$upstream" update-ref refs/heads/main "$(git -C "$upstream" rev-parse main^)"
+  splice fetch vendor/a >/dev/null
+  run splice status vendor/a
+  [[ "$output" != *"made it again here"* ]]
+}
