@@ -154,4 +154,6 @@ cell() {
   [ "$(cell s3 value)" = "${c2:0:7}" ]
   write_tree "c2=$c2"
   [ "$(cell s3 value)" = c2 ]
+  write_tree "z=$c2" "c2=$c2"
+  [ "$(cell s3 value)" = c2 ]
 }

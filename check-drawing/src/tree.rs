@@ -130,8 +130,10 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
         given
             .get(commit)
             .or_else(|| {
+                // Pushed in reverse, as the labels above: the first by name wins.
                 unfetched
                     .iter()
+                    .rev()
                     .find(|(hash, _)| commit.starts_with(hash.as_str()))
                     .map(|(_, label)| label)
             })
