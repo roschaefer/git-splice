@@ -588,6 +588,17 @@ impl Repo {
                 self.selected.push(path);
             }
         }
+        // A pull or merge of a splice decides which splices are inside it,
+        // so a name inside it means the tree from before, which may be gone.
+        if matches!(command, "pull" | "merge") {
+            for path in &self.selected {
+                if let Some(above) = first_above(path, &self.selected) {
+                    return die(format!(
+                        "{path} is inside {above}, whose {command} decides what's there -- {command} {above} with --recursive, or {path} in a command of its own"
+                    ));
+                }
+            }
+        }
         if self.args.has_flag("--recursive") {
             for path in self.all_paths.clone() {
                 if !self.selected.contains(&path) && first_above(&path, &self.selected).is_some() {

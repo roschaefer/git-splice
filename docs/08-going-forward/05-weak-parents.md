@@ -119,9 +119,9 @@ repositories use them today:
   ([Sapling compared](../05-comparisons/03-vcs/01-sapling.md#import-the-library)).
   That's all three facts a splice needs ([below](#what-a-splice-would-need)).
 - **jj** writes a `change-id` header in every commit, the identity a
-  change keeps across rewrites. A `jj graft` prototype, discussed on jj's
-  Discord, records a folder's sync point in a header too
-  ([Jujutsu compared](../05-comparisons/03-vcs/02-jj.md#what-jj-plans)).
+  change keeps across rewrites. This is change identity, not a folder's sync
+  point. Separate [repository-composition proposals](03-jj.md#proposals-and-experiments)
+  explore working across histories.
 
 A header is half a weak parent: it's in the commit, and `log`,
 `merge-base` and `fetch` don't follow it, since Git doesn't know it points

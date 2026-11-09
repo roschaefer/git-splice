@@ -49,6 +49,13 @@ A pull through E splices, with C commits of the monorepo's own on top:
 - [pulled one level at a time](../01-nested-splices/02-three-levels/pulled-level-by-level.md):
   three levels, a worktree per level, and `merge --rebuilt-commit` to
   take each result up.
+- [rebased one level at a time](../01-nested-splices/02-three-levels/rebased-level-by-level.md):
+  three levels with `--rebase`, each level's R rebased onto its own
+  pull, so the conflict comes up once, innermost.
+- [every level conflicts](../01-nested-splices/02-three-levels/every-level-conflicts.md):
+  three levels, where every upstream changed the folder of the splice
+  inside it: one conflict per edge, each resolved in the parent of the
+  two, and each take-up conflict-free.
 - [a recursive pull](01-recursive-pull/README.md): a tree with branches,
   `vendor/a/` with `b/`, `c/` in it, `d/` and `e/`, pulled with three
   runs of `pull --recursive`, each to the next conflict, and one commit

@@ -15,8 +15,7 @@ what `git-splice` could do about both. None of it is planned yet.
   answers would do.
 - **Git's index after `sl amend`.** Git keeps the file as it was before
   the amend, staged, and `git-splice` warns about uncommitted changes.
-  The fix belongs in Sapling
-  ([sapling#1316](https://github.com/facebook/sapling/issues/1316)).
+  This is reproduced with the pinned Sapling version in the comparison.
   `git-splice` shouldn't reset the index, since staged changes are the
   user's.
 - **A Sapling clone.** `sl clone` makes a repository with no Git
