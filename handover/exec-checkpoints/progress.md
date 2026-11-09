@@ -400,3 +400,34 @@ commit: `e6e59fb`.
   passed for 154 documents / 1,869 testcases, 180 label pages and 117 placements.
   Full core tests were not rerun for these documentation/scenario-only changes.
   Documentation log: `/tmp/git-splice-hook-scenarios-docs.log`.
+
+## Shared-option chapters and executable JSON payload
+
+The user requested a docs-site chapter for --exec and its JSON payload, with a
+scenario showing the payload, and shared references for --rebuilt-commit and
+--recursive. Implemented in `8193f0c` without changing Rust or CLI behavior.
+
+- Site hierarchy: Command reference -> Shared options -> --exec. The --exec
+  index covers handler contracts/checkpoints/examples, with child pages for
+  the full JSON field reference and --continue-from. Rebuilt-commit and
+  recursive are sibling shared-option pages comparing command semantics.
+- Command pages retain their executable help blocks and local examples, but
+  link to canonical protocol pages instead of duplicating the payload schema
+  mainly under pull. Existing per-command anchors remain available.
+- `05-exec-report/payload.md` captures a complete real after-fetch payload,
+  shows its keys and public JSON, checks the actual saved HEAD, resumes to an
+  after-merge payload, checks actual before/after HEADs and file content, then
+  resumes to completion without another payload. Stored payloads are untouched.
+- Rendered projections explicitly replace temporary URLs/monorepo commit IDs
+  with display labels and omit opaque continuation/guard strings. Initial full
+  verification caught fixture-dependent monorepo IDs; the display now uses
+  labels while assertions compare the real values. The display projection must
+  never be fed back as a continuation.
+- Verification passed: 155 documents / 1,883 executable cases, 187 label pages,
+  117 diagram placements. Production site build passed with broken links and
+  anchors configured to fail; all six reference pages and the normalized
+  payload scenario were confirmed in website/build. No core tests were rerun
+  for this documentation-only change.
+- Logs: `/tmp/git-splice-shared-options-final-docs.log` and
+  `/tmp/git-splice-shared-options-final-site.log`. Built pages are local artifacts;
+  nothing was deployed to production. PR #446 remains draft.
