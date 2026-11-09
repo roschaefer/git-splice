@@ -517,7 +517,7 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
     ))
 }
 
-fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
+fn clone_url(repo: &mut Repo) -> Res<i32> {
     let url = repo.args.paths[0].clone();
     if url.is_empty() {
         eprint_text(USAGE);
@@ -534,6 +534,8 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     require_usable_splice_path(&path, "choose another folder name")?;
 
     repo.open()?;
+    repo.configure(&path)?;
+    let merge = repo.args.has_flag("--merge");
     repo.require_message_template(Message {
         command: "clone",
         upstream: KNOWN,
@@ -657,6 +659,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     require_usable_splice_path(&path, "rename the submodule's folder")?;
 
     repo.open()?;
+    repo.configure(&path)?;
     repo.require_message_template(Message {
         command: "clone",
         new: KNOWN,
@@ -985,5 +988,5 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         );
     }
     args.require(USAGE, "clone", 1, 2)?;
-    clone_url(&mut Repo::new(context, args), merge)
+    clone_url(&mut Repo::new(context, args))
 }

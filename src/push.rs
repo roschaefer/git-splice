@@ -260,7 +260,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         argv,
     )?;
     args.require_branch_for_track()?;
-    if !args.exec.is_empty() || !args.continue_from.is_empty() {
+    if !args.has_flag("--rebase") || !args.exec.is_empty() || !args.continue_from.is_empty() {
         return crate::checkpoint::run(context, "push", args);
     }
     let mut repo = Repo::new(context, args);
@@ -316,10 +316,12 @@ impl PushProgress {
                 return die("--rebuilt-commit takes exactly one splice");
             }
             let path = repo.selected[0].clone();
+            repo.configure(&path)?;
             repo.give_rebuild(&path, &commit, repo.args.has_flag("--force"))?;
         }
         let selected = repo.selected.clone();
         repo.load_uncommitted_changes(&selected);
+        repo.configure("")?;
         Ok(Self {
             paths: splices_in_order(true, &selected),
             given: repo.context.supplied_rebuilds.clone(),
@@ -348,6 +350,7 @@ impl PushProgress {
             return die("rebuilt_commit result requires an after-rebuild checkpoint");
         };
         repo.context.supplied_rebuilds = self.given.clone();
+        repo.configure(&prepared.path)?;
         repo.give_rebuild(&prepared.path, commit, repo.args.has_flag("--force"))?;
         prepared.rebuilt_commit = repo.context.supplied_rebuilds[&prepared.path].clone();
         self.given = repo.context.supplied_rebuilds.clone();
@@ -382,6 +385,12 @@ impl PushProgress {
     ) -> Res<Option<crate::checkpoint::Event>> {
         use crate::checkpoint::Event;
         repo.context.supplied_rebuilds = self.given.clone();
+        let scope = match &self.phase {
+            PushPhase::Publish { prepared } => prepared.path.as_str(),
+            PushPhase::Rebuild => self.paths.get(self.next).map(String::as_str).unwrap_or(""),
+            PushPhase::Done => "",
+        };
+        repo.configure(scope)?;
         let force = repo.args.has_flag("--force");
         match self.phase.clone() {
             PushPhase::Done => Ok(None),
@@ -413,13 +422,13 @@ impl PushProgress {
                         self.phase = PushPhase::Publish {
                             prepared: prepared.clone(),
                         };
-                        Ok((!repo.args.exec.is_empty()).then_some(Event::AfterRebuild(prepared)))
+                        Ok((repo.context.checkpointing).then_some(Event::AfterRebuild(prepared)))
                     }
                 }
             }
             PushPhase::Publish { prepared } => {
                 self.phase = PushPhase::Rebuild;
-                if !repo.args.exec.is_empty()
+                if repo.context.checkpointing
                     && (commit_of(&prepared.rebuilt_commit).as_deref()
                         != Some(prepared.rebuilt_commit.as_str())
                         || tree_of(&prepared.rebuilt_commit)
@@ -435,7 +444,7 @@ impl PushProgress {
                     }
                     Ok(()) => {
                         self.track(repo, &prepared.path, branch)?;
-                        Ok((!repo.args.exec.is_empty()).then_some(Event::AfterPush(prepared)))
+                        Ok((repo.context.checkpointing).then_some(Event::AfterPush(prepared)))
                     }
                 }
             }

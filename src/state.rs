@@ -7,6 +7,9 @@ impl Repo<'_> {
     /// Classifies the splice's sync state while the monorepo is on <branch>,
     /// into `c`. Status, merge, push, diff and log all need it.
     pub fn classify_splice(&mut self, path: &str, branch: &str) -> Res<()> {
+        self.configure(path)?;
+        let upstream = self.args.upstream.clone();
+        self.use_upstreams(&upstream, &[path.to_string()])?;
         self.require_splice_upstream(path)?;
         let target = self.resolve_upstream_target(path, branch)?;
         let mut c = Classified {

@@ -4,6 +4,8 @@ use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct ExecutionContext {
+    pub(crate) configuration: crate::config::Configuration,
+    pub(crate) checkpointing: bool,
     pub(crate) content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
 }

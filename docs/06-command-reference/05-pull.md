@@ -1,5 +1,8 @@
 # pull
 
+Command defaults and inherited hooks can be committed in
+[`.spliceconfig`](12-configuration.md).
+
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
@@ -14,7 +17,7 @@ NAME
 SYNOPSIS
     git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
-    git splice pull --continue-from <file> --exec <command>
+    git splice pull --continue-from <file> [--exec <command>]
 ```
 
 ## Description
@@ -237,12 +240,13 @@ it supplies an edited history for validation before upload.
 ```scrut
 $ git splice pull -h | check-help option --continue-from
         Continues from a JSON payload saved by the script; - reads stdin.
-        Supply --exec again, with no other options or paths. Resumes after
-        the checkpoint that stopped, without retrying its script or repeating
+        Supply --exec again only for a command-line hook, with no other
+        options or paths. Configured hooks resume their saved chain. Resumes
+        after the stopped handler, without retrying it or repeating
         completed fetches or merges. Fix and verify a failed check first.
         Requires the same repository, worktree, branch, fetched refs and Git
         configuration. Repair commits may extend HEAD without changing
-        .splice files.
+        .splice or .spliceconfig files.
 ```
 
 For stepping, a script can simply run `cat; exit 1`. Redirect its output to

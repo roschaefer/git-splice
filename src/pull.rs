@@ -15,7 +15,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         &format!("{MERGE_OPTIONS} --recursive --exec --continue-from"),
         argv,
     )?;
-    if !args.exec.is_empty() || !args.continue_from.is_empty() {
+    if crate::config::use_checkpoints(context, &args)? {
         return crate::checkpoint::run(context, "pull", args);
     }
     args.require_one_splice_for_message()?;
@@ -117,6 +117,17 @@ pub(crate) fn fetch_for_pull(repo: &mut Repo) -> Res<(Vec<String>, Vec<String>)>
     }
 
     Ok((fetched, failures))
+}
+
+pub(crate) fn should_fold(repo: &mut Repo) -> Res<bool> {
+    let mut fold = repo.args.all || repo.args.has_flag("--recursive");
+    let roots = fold_roots(repo);
+    for root in roots {
+        repo.configure(&root)?;
+        fold |= repo.args.has_flag("--recursive");
+    }
+    repo.configure("")?;
+    Ok(fold && !repo.merge_rebase)
 }
 
 pub(crate) fn fold_roots(repo: &Repo) -> Vec<String> {

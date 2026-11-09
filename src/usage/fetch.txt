@@ -3,7 +3,7 @@ NAME
 
 SYNOPSIS
     git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [--exec <command>] [path...]
-    git splice fetch --continue-from <file> --exec <command>
+    git splice fetch --continue-from <file> [--exec <command>]
 
 DESCRIPTION
     Fetches every branch of each splice's upstreams, in parallel and each
@@ -48,8 +48,9 @@ OPTIONS
 
     --continue-from <file>
         Continues from a saved JSON payload; - reads stdin. Supply --exec
-        again, with no other options or paths. Finishes tracking and failure
-        reporting without fetching again or retrying the stopped script.
+        again only for a command-line hook, with no other options or paths.
+        Configured hooks resume their saved chain, then tracking and failure
+        reporting finish without fetching again or retrying stopped handlers.
         Requires the same repository, worktree, branch, fetched refs and Git
         configuration. A pull payload must be continued with pull instead.
 

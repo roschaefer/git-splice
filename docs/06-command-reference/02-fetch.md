@@ -1,5 +1,8 @@
 # fetch
 
+Command defaults and inherited hooks can be committed in
+[`.spliceconfig`](12-configuration.md).
+
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
@@ -13,7 +16,7 @@ NAME
 
 SYNOPSIS
     git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [--exec <command>] [path...]
-    git splice fetch --continue-from <file> --exec <command>
+    git splice fetch --continue-from <file> [--exec <command>]
 ```
 ## Description
 
@@ -113,8 +116,9 @@ applying updates together.
 ```scrut
 $ git splice fetch -h | check-help option --continue-from
         Continues from a saved JSON payload; - reads stdin. Supply --exec
-        again, with no other options or paths. Finishes tracking and failure
-        reporting without fetching again or retrying the stopped script.
+        again only for a command-line hook, with no other options or paths.
+        Configured hooks resume their saved chain, then tracking and failure
+        reporting finish without fetching again or retrying stopped handlers.
         Requires the same repository, worktree, branch, fetched refs and Git
         configuration. A pull payload must be continued with pull instead.
 ```

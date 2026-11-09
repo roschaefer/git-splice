@@ -1,5 +1,8 @@
 # push
 
+Command defaults and inherited hooks can be committed in
+[`.spliceconfig`](12-configuration.md).
+
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
@@ -14,7 +17,7 @@ NAME
 SYNOPSIS
     git splice push [--upstream <name>] [--branch <name> [--track]] [--force] [--exec <command>] (<path>... | --all)
     git splice push [--upstream <name>] [--branch <name>] [--force] [--exec <command>] --rebuilt-commit <commit> <path>
-    git splice push --continue-from <file> --exec <command>
+    git splice push --continue-from <file> [--exec <command>]
 ```
 
 ## Description
@@ -216,9 +219,10 @@ processed bottom-up, and failed uploads block their ancestors as usual.
 
 ```scrut
 $ git splice push -h | check-help option --continue-from
-        Continues from a saved payload; - reads stdin. Supply --exec again,
-        with no other options or paths. Resumes after the stopped checkpoint
-        without rebuilding or repeating completed pushes. Requires unchanged
+        Continues from a saved payload; - reads stdin. Supply --exec again
+        only for a command-line hook, with no other options or paths.
+        Configured hooks resume their saved chain. Continues without
+        rebuilding or repeating completed pushes. Requires unchanged
         HEAD, branch, fetched refs and Git configuration in the same worktree.
         At after-rebuild, result.rebuilt_commit may supply an edited commit,
         checked by the same rules as --rebuilt-commit, for one named splice.

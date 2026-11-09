@@ -82,6 +82,7 @@ impl Repo<'_> {
     }
 
     fn merge_one(&mut self, path: &str, branch: &str, verb: &str) -> Res<()> {
+        self.configure(path)?;
         self.classify_splice(path, branch)?;
         let option = self.upstream_option(path);
         let label = self.c.upstream_label.clone();
@@ -518,6 +519,7 @@ impl Repo<'_> {
         branch: &str,
         verb: &str,
         upstream: Option<&str>,
+        configuration_changed: bool,
     ) -> Res<()> {
         let old_urls: Vec<String> = self
             .upstream_lists
@@ -542,7 +544,7 @@ impl Repo<'_> {
             }
         }
         // A new upstream may lack them, and the one in use have them.
-        if !synced_commit_here(path) || !self.pin_here(path) {
+        if !synced_commit_here(path) || !self.pin_here(path) || configuration_changed {
             let more = if upstream.is_some() {
                 used_is_new = true;
                 vec![(path.to_string(), self.name_of(path))]
@@ -597,6 +599,8 @@ pub(crate) struct MergeProgress {
     next: usize,
     before: String,
     loaded: HashMap<String, Option<String>>,
+    #[serde(default)]
+    loaded_configuration: HashMap<String, Vec<Option<String>>>,
     failures: Vec<String>,
     skipped: Vec<String>,
     phase: MergePhase,
@@ -641,6 +645,12 @@ impl MergeProgress {
         verb: &str,
     ) -> Res<Option<crate::checkpoint::Event>> {
         use crate::checkpoint::Event;
+        let scope = match &self.phase {
+            MergePhase::Discover { path } => path.as_str(),
+            MergePhase::Merge => self.paths.get(self.next).map(String::as_str).unwrap_or(""),
+            _ => "",
+        };
+        repo.configure(scope)?;
         let recursive = repo.args.has_flag("--recursive") || (verb == "pull" && repo.args.all);
         match self.phase.clone() {
             MergePhase::Done => Ok(None),
@@ -650,6 +660,10 @@ impl MergeProgress {
                 } else {
                     Vec::new()
                 };
+                if !recursive && verb == "pull" && !repo.args.all {
+                    self.paths
+                        .retain(|known| !known.starts_with(&format!("{path}/")));
+                }
                 if recursive {
                     for added in added {
                         if repo.selected.contains(&path) && !repo.selected.contains(&added) {
@@ -676,6 +690,7 @@ impl MergeProgress {
                     return Ok(None);
                 }
                 let path = &paths[next];
+                repo.configure(path)?;
                 self.phase = MergePhase::Reload {
                     paths: paths.clone(),
                     next: next + 1,
@@ -688,7 +703,14 @@ impl MergeProgress {
                     .loaded
                     .entry(path.clone())
                     .or_insert_with(|| state_file_blob(&self.before, path));
-                if blob.is_none() || *last == blob {
+                let configuration = repo.context.configuration.identity("HEAD", path);
+                let previous = self
+                    .loaded_configuration
+                    .entry(path.clone())
+                    .or_insert_with(|| repo.context.configuration.identity(&self.before, path));
+                let configuration_changed = *previous != configuration;
+                *previous = configuration;
+                if blob.is_none() || (*last == blob && !configuration_changed) {
                     return Ok(None);
                 }
                 self.loaded.insert(path.clone(), blob);
@@ -702,7 +724,13 @@ impl MergeProgress {
                 } else {
                     None
                 };
-                match repo.reload_splice_upstream(path, branch, verb, upstream.as_deref()) {
+                match repo.reload_splice_upstream(
+                    path,
+                    branch,
+                    verb,
+                    upstream.as_deref(),
+                    configuration_changed,
+                ) {
                     Err(Fail::Hard) => return Err(Fail::Hard),
                     Err(_) => self.failures.push(path.clone()),
                     Ok(()) => {}
@@ -776,7 +804,7 @@ impl MergeProgress {
                         return Ok(None);
                     }
                 }
-                let checkpoint = (!repo.args.exec.is_empty()).then(|| {
+                let checkpoint = (repo.context.checkpointing).then(|| {
                     (
                         splice_config(&path, "commit", "HEAD"),
                         git(&["rev-parse", "HEAD"]).out().unwrap_or_default(),

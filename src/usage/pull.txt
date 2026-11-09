@@ -4,7 +4,7 @@ NAME
 SYNOPSIS
     git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
-    git splice pull --continue-from <file> --exec <command>
+    git splice pull --continue-from <file> [--exec <command>]
 
 DESCRIPTION
     'git splice fetch' followed by 'git splice merge': fetches the splices'
@@ -93,12 +93,13 @@ OPTIONS
 
     --continue-from <file>
         Continues from a JSON payload saved by the script; - reads stdin.
-        Supply --exec again, with no other options or paths. Resumes after
-        the checkpoint that stopped, without retrying its script or repeating
+        Supply --exec again only for a command-line hook, with no other
+        options or paths. Configured hooks resume their saved chain. Resumes
+        after the stopped handler, without retrying it or repeating
         completed fetches or merges. Fix and verify a failed check first.
         Requires the same repository, worktree, branch, fetched refs and Git
         configuration. Repair commits may extend HEAD without changing
-        .splice files.
+        .splice or .spliceconfig files.
 
         See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#--continue-from
 

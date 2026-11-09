@@ -5,6 +5,8 @@ use crate::util::*;
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Args {
+    #[serde(default)]
+    pub configuration: Option<crate::config::Invocation>,
     #[serde(skip)]
     pub exec: String,
     #[serde(skip)]
@@ -61,6 +63,11 @@ impl Args {
 /// e.g. "--merge -m". -h and --help print <usage> and end the command.
 /// Everything after `--` is a path.
 pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
+    let cli = parse_cli_args(usage, allowed, argv)?;
+    crate::config::initialize(usage, allowed, cli)
+}
+
+pub(crate) fn parse_cli_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
     let allowed: Vec<&str> = allowed.split_whitespace().collect();
     let refuse = |option: &str| -> Res<()> {
         if allowed.contains(&option) {

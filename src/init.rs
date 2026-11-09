@@ -40,6 +40,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 
     let mut repo = Repo::new(context, args);
     repo.open()?;
+    repo.configure(&path)?;
     repo.require_message_template(Message {
         command: "init",
         ..Message::default()

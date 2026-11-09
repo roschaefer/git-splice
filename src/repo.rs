@@ -123,7 +123,7 @@ pub struct Repo<'context> {
     pub merge_bump: bool,
     pub merge_rebase: bool,
     pub merge_no_fork_point: bool,
-    message_template: Option<Template>,
+    message_known: Option<(String, bool, bool, bool)>,
     pub c: Classified,
     pub d: Compared,
 }
@@ -482,7 +482,7 @@ impl<'context> Repo<'context> {
             merge_bump: Default::default(),
             merge_rebase: Default::default(),
             merge_no_fork_point: Default::default(),
-            message_template: Default::default(),
+            message_known: None,
             c: Default::default(),
             d: Default::default(),
         }
@@ -625,13 +625,27 @@ impl<'context> Repo<'context> {
                 }
             }
         }
-        if self.args.has_flag("--recursive") {
-            for path in self.all_paths.clone() {
-                if !self.selected.contains(&path) && first_above(&path, &self.selected).is_some() {
-                    self.selected.push(path);
+        let mut next = 0;
+        while next < self.selected.len() {
+            let root = self.selected[next].clone();
+            next += 1;
+            self.configure(&root)?;
+            if self.args.has_flag("--recursive") {
+                for path in self.all_paths.clone() {
+                    if !self.selected.contains(&path)
+                        && self
+                            .all_paths
+                            .iter()
+                            .filter(|above| path.starts_with(&format!("{above}/")))
+                            .max_by_key(|above| above.len())
+                            == Some(&root)
+                    {
+                        self.selected.push(path);
+                    }
                 }
             }
         }
+        self.configure("")?;
         Ok(())
     }
 
@@ -660,13 +674,24 @@ impl<'context> Repo<'context> {
         self.select_paths(kind, command)?;
         let upstream = self.args.upstream.clone();
         let selected = self.selected.clone();
-        self.use_upstreams(&upstream, &selected)?;
+        if self
+            .args
+            .configuration
+            .as_ref()
+            .is_none_or(|invocation| !invocation.cli.upstream.is_empty())
+        {
+            self.use_upstreams(&upstream, &selected)?;
+        }
         self.monorepo_branch = current_branch()?;
         let branch = self.monorepo_branch.clone();
         self.load_tracked_branches(&branch);
         for path in &selected {
+            self.configure(path)?;
+            let scoped_upstream = self.args.upstream.clone();
+            self.use_upstreams(&scoped_upstream, &[path.to_string()])?;
             self.resolve_upstream_target(path, &branch)?;
         }
+        self.configure("")?;
         Ok(())
     }
 
@@ -1517,11 +1542,29 @@ impl<'context> Repo<'context> {
     /// before it writes anything if the template is broken or needs a value
     /// <known> doesn't have (see message::KNOWN).
     pub fn require_message_template(&mut self, known: Message) -> Res<()> {
+        self.message_known = Some((
+            known.command.into(),
+            known.upstream.is_some(),
+            known.old.is_some(),
+            known.new.is_some(),
+        ));
         let Some(template) = Template::given(&self.args.message_template)? else {
             return Ok(());
         };
         template.require(&known)?;
-        self.message_template = Some(template);
+        Ok(())
+    }
+
+    pub(crate) fn message_template_for_scope(&mut self) -> Res<()> {
+        if let Some((command, upstream, old, new)) = self.message_known.clone() {
+            self.require_message_template(Message {
+                command: &command,
+                upstream: upstream.then_some(""),
+                old: old.then_some(""),
+                new: new.then_some(""),
+                ..Message::default()
+            })?;
+        }
         Ok(())
     }
 
@@ -1529,10 +1572,15 @@ impl<'context> Repo<'context> {
     /// --message-template's, else the <default> template's, filled in with
     /// <message>.
     pub fn commit_message(&self, default: &str, message: Message) -> Res<String> {
-        if !self.args.message.is_empty() {
-            return Ok(self.args.message.clone());
+        let args = if let Some(invocation) = &self.args.configuration {
+            crate::config::Configuration::default().resolve(invocation, message.path)?
+        } else {
+            self.args.clone()
+        };
+        if !args.message.is_empty() {
+            return Ok(args.message);
         }
-        match &self.message_template {
+        match Template::given(&args.message_template)? {
             Some(template) => template.render(&message),
             None => Template::default(default)?.render(&message),
         }

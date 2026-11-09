@@ -103,6 +103,12 @@ enum Phase {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Continuation {
+    #[serde(default)]
+    pending_hooks: Vec<crate::config::ScheduledHook>,
+    #[serde(default)]
+    pending_event: Option<Event>,
+    #[serde(default)]
+    cli_hook: bool,
     args: Args,
     branch: String,
     fold_start: Option<String>,
@@ -179,10 +185,12 @@ impl Repository {
             let changed = git(&["diff", "--name-only", "-z", &self.head, &now.head])
                 .bytes()
                 .ok_or(Fail::Hard)?;
-            if nul_fields(&changed)
-                .iter()
-                .any(|p| p == STATE_FILE || p.ends_with(&format!("/{STATE_FILE}")))
-            {
+            if nul_fields(&changed).iter().any(|p| {
+                p == STATE_FILE
+                    || p.ends_with(&format!("/{STATE_FILE}"))
+                    || p == crate::config::FILE
+                    || p.ends_with(&format!("/{}", crate::config::FILE))
+            }) {
                 return die(
                     "splice configuration changed since the checkpoint -- start a new operation",
                 );
@@ -201,6 +209,8 @@ struct ExecResult {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Payload {
+    #[serde(default)]
+    hook_scope: String,
     version: u32,
     operation: String,
     sequence: u64,
@@ -211,11 +221,12 @@ struct Payload {
     result: ExecResult,
 }
 
-fn hook(command: &str, payload: &Payload) -> Res<()> {
+fn hook(command: &str, scope: &str, payload: &Payload) -> Res<()> {
     let mut input = serde_json::to_vec(payload).map_err(|_| Fail::Hard)?;
     input.push(b'\n');
     let mut child = match Command::new("sh")
         .args(["-c", command])
+        .current_dir(std::path::Path::new(&payload.repository.root).join(scope))
         .stdin(Stdio::piped())
         .spawn()
     {
@@ -251,8 +262,17 @@ fn hook(command: &str, payload: &Payload) -> Res<()> {
 }
 
 pub fn run(context: &mut ExecutionContext, operation: &str, args: Args) -> Res<i32> {
-    crate::util::checkpoint_output(true);
+    let enabled = if !args.continue_from.is_empty() {
+        true
+    } else if let Some(invocation) = &args.configuration {
+        !args.exec.is_empty() || context.configuration.has_hooks(invocation, "HEAD")?
+    } else {
+        !args.exec.is_empty()
+    };
+    crate::util::checkpoint_output(enabled);
+    context.checkpointing = true;
     let result = run_inner(context, operation, args);
+    context.checkpointing = false;
     crate::util::checkpoint_output(false);
     result
 }
@@ -286,9 +306,6 @@ fn prepare<'context>(
 }
 
 fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res<i32> {
-    if args.exec.is_empty() {
-        return die("--continue-from needs --exec; the payload never supplies a script to execute");
-    }
     let command = args.exec.clone();
     let (mut repo, mut state, mut sequence, first_event) = if args.continue_from.is_empty() {
         let mut repo = prepare(context, operation, args)?;
@@ -311,23 +328,25 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
             let (fetched, failures) = crate::pull::fetch_for_pull(&mut repo)?;
             (branch, fetched, failures, Phase::Merging)
         };
-        let fold_start =
-            if operation == "pull" && (repo.args.has_flag("--recursive") || repo.args.all) {
-                if !git(&["merge-base", "--is-ancestor", "SPLICE_PULL_START", "HEAD"])
-                    .q()
-                    .ok()
-                    && !git(&["update-ref", "SPLICE_PULL_START", "HEAD"]).ok()
-                {
-                    return die("SPLICE_PULL_START couldn't be updated");
-                }
-                commit_of("SPLICE_PULL_START")
-            } else {
-                None
-            };
+        let fold_start = if operation == "pull" && crate::pull::should_fold(&mut repo)? {
+            if !git(&["merge-base", "--is-ancestor", "SPLICE_PULL_START", "HEAD"])
+                .q()
+                .ok()
+                && !git(&["update-ref", "SPLICE_PULL_START", "HEAD"]).ok()
+            {
+                return die("SPLICE_PULL_START couldn't be updated");
+            }
+            commit_of("SPLICE_PULL_START")
+        } else {
+            None
+        };
         let event = (operation != "push").then(|| Event::AfterFetch {
             fetched: std::mem::take(&mut repo.fetch_checkpoint),
         });
         let state = Continuation {
+            pending_hooks: Vec::new(),
+            pending_event: None,
+            cli_hook: !repo.args.exec.is_empty(),
             args: repo.args.clone(),
             branch,
             fold_start,
@@ -373,7 +392,16 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
         }
         let payload: Payload = match serde_json::from_slice(&bytes) {
             Ok(payload) => payload,
-            Err(error) => return die(format!("invalid continuation payload: {error}")),
+            Err(error) => {
+                return die(format!(
+                    "invalid continuation payload: {error}{}",
+                    if command.is_empty() {
+                        "; a command-line checkpoint needs --exec again"
+                    } else {
+                        ""
+                    }
+                ))
+            }
         };
         if payload.version != 1 || payload.operation != operation {
             return die("unsupported continuation version or operation");
@@ -389,14 +417,21 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
         {
             return die("rebuilt_commit result requires a push after-rebuild checkpoint");
         }
+        if command.is_empty()
+            && (payload.continuation.cli_hook || payload.continuation.args.configuration.is_none())
+        {
+            return die("--continue-from needs --exec again for its command-line hook");
+        }
         let mut saved_args = payload.continuation.args.clone();
         saved_args.exec = command.clone();
+        if let Some(invocation) = &mut saved_args.configuration {
+            invocation.cli.exec = command.clone();
+        }
         let mut repo = prepare(context, operation, saved_args)?;
         payload.repository.validate(&payload.operation)?;
         if payload.continuation.branch != payload.repository.branch
             || (operation == "pull"
-                && (payload.continuation.args.has_flag("--recursive")
-                    || payload.continuation.args.all)
+                && payload.continuation.fold_start.is_some()
                 && payload.continuation.fold_start != payload.repository.fold_start)
         {
             return die("inconsistent continuation payload");
@@ -414,25 +449,47 @@ fn run_inner(context: &mut ExecutionContext, operation: &str, args: Args) -> Res
                 .ok_or(Fail::Hard)?
                 .replace_rebuild(&mut repo, &commit)?;
         }
-        (repo, state, payload.sequence, None)
+        let pending = if state.pending_hooks.is_empty() {
+            None
+        } else {
+            Some(state.pending_event.take().unwrap_or(payload.event))
+        };
+        (repo, state, payload.sequence, pending)
     };
 
     let mut event = first_event;
     loop {
         if let Some(event) = event.take() {
-            sequence = sequence.checked_add(1).ok_or(Fail::Hard)?;
-            state.discovery = Discovery::capture(&repo);
-            let payload = Payload {
-                version: 1,
-                operation: operation.into(),
-                sequence,
-                event,
-                repository: Repository::capture()?,
-                continuation: state.clone(),
-                result: ExecResult::default(),
+            let mut scheduled = if state.pending_hooks.is_empty() {
+                crate::config::schedule(&mut repo, &event)?
+            } else {
+                std::mem::take(&mut state.pending_hooks)
             };
-            hook(&command, &payload)?;
-            repo.uncommitted.clear();
+            while !scheduled.is_empty() {
+                let next = scheduled.remove(0);
+                state.pending_hooks = scheduled.clone();
+                state.pending_event = (!scheduled.is_empty()).then(|| event.clone());
+                sequence = sequence.checked_add(1).ok_or(Fail::Hard)?;
+                state.discovery = Discovery::capture(&repo);
+                let (handler, scope) = repo.context.configuration.command(&next.hook, &command)?;
+                let mut scoped_event = event.clone();
+                if let Event::AfterFetch { fetched } = &mut scoped_event {
+                    fetched.retain(|entry| next.paths.contains(&entry.path));
+                }
+                crate::util::checkpoint_output(true);
+                let payload = Payload {
+                    hook_scope: scope.clone(),
+                    version: 1,
+                    operation: operation.into(),
+                    sequence,
+                    event: scoped_event,
+                    repository: Repository::capture()?,
+                    continuation: state.clone(),
+                    result: ExecResult::default(),
+                };
+                hook(&handler, &scope, &payload)?;
+                repo.uncommitted.clear();
+            }
         }
         match state.phase {
             Phase::Pushing => {

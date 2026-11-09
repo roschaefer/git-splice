@@ -499,3 +499,20 @@ assert_local_lfs_change_reaches_upstream() {
   [ "$status" -eq 0 ]
   [ "$(git rev-parse SPLICE_PULL_START)" = "$start" ]
 }
+
+@test "configuration: an automatic LFS hook downloads before checkout and preserves native uploads" {
+  setup_lfs_checkpoint
+  git config -f .spliceconfig splice.exec 'bash "$CHECKPOINT_SCRIPT"'
+  git add .spliceconfig
+  git commit -qm 'configure LFS handler'
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/model.bin)" = 'version two' ]
+  printf 'version three, trained locally\n' >vendor/a/model.bin
+  git add vendor/a/model.bin
+  git commit -qm 'train model locally'
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  git clone -q "file://$upstream" "$BATS_TEST_TMPDIR/upstream-colleague"
+  [ "$(cat "$BATS_TEST_TMPDIR/upstream-colleague/model.bin")" = 'version three, trained locally' ]
+}
