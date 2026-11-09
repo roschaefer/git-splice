@@ -55,6 +55,14 @@ explicitly reconsider the affected principle and its rationale.
   namespace or adopting the submodule model
   ([state choices](01-state-and-upstreams.md),
   [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
+- **Take advantage of Git's full power.** Git already provides flexible
+  tools to shape history, such as [rebasing](../04-advanced-workflows/README.md)
+  and [editing rebuilt commits in a worktree](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md).
+  Reimplementing those workflows would duplicate a problem Git solves
+  better and unnecessarily restrict the user's choices. History editing
+  stays with Git; `git-splice`'s contribution is to streamline work across
+  multiple repositories from one monorepo. Prefer composing ordinary Git
+  operations with splice commands over adding another history editor.
 - **Use the user's Git so repository operations remain observable.**
   Running the installed `git` uses the user's version and lets them follow
   and log the commands executed on their machine. Replacing it with a
