@@ -27,9 +27,7 @@ explicitly reconsider the affected principle and its rationale.
 - **Store as little state as possible.** Redundant records can disagree,
   and every update becomes another opportunity to leave them inconsistent.
   Derive what existing history, configuration and file locations already
-  tell us instead of storing it again. `.splice` lives inside its folder,
-  so its location supplies the splice's path; moving the folder moves its
-  state without updating a separate path record. Redundant bookkeeping in
+  tell us instead of storing it again. Redundant bookkeeping in
   `git-subrepo` motivated this principle
   ([state rationale](02-state-and-upstreams.md#derive-state-instead-of-storing-redundant-records)).
 - **Nesting should not change a splice's meaning.** Given equivalent
