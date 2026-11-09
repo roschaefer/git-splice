@@ -224,7 +224,9 @@ no additional fields.
 
 A script can inspect `event.checkpoint` with `jq` and choose its work. The
 [update report scenario](../09-scenarios/01-everyday-sync/05-exec-report/README.md)
-shows a small script that records only the splices that actually changed. To
+shows a small script that records only the splices that actually changed. The
+[logging example](../09-scenarios/01-everyday-sync/05-exec-report/logging.md)
+records every payload as JSON lines across fetch, pull and push. To
 find the first applied update that breaks a build, run `make` only at
 `after-merge`; fetching alone does not change checked-out source. To fetch
 LFS objects, act at `after-fetch`, using each successful entry's upstream URL

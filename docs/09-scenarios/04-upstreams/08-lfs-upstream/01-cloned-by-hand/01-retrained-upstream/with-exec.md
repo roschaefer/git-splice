@@ -1,7 +1,7 @@
-# Scenario: fetching LFS content with a checkpoint script
+# Scenario: LFS downloads through a committed hook
 
-A proof of concept for LFS support through `--exec`: fetch the large-file
-objects from each splice's upstream before Git tries to check out the update.
+A proof of concept for LFS support through a committed `.spliceconfig` hook:
+fetch the large-file objects from each splice's upstream before Git tries to check out the update.
 The monorepo and upstream have separate LFS servers. The new model exists
 only on the upstream's server.
 
@@ -26,7 +26,7 @@ $ cat vendor/a/model.bin
 weights, version 1
 ```
 
-## Without the script
+## Before configuring the hook
 
 A plain pull fetches the Git commits but fails to obtain the model's content
 from the monorepo's LFS server. Save the full diagnostics and show the cause:
@@ -47,7 +47,7 @@ Restore the files left by the failed checkout before trying the script:
 $ git checkout -q -- vendor/a
 ```
 
-## With the script
+## Commit the hook
 
 The [proof-of-concept script](../../lfs-fetch.sh) reads `event.fetched`, using
 the upstream URLs and commit IDs that git-splice supplies. It downloads the
@@ -81,8 +81,26 @@ for the complete continuation payload if a download fails. In that case the
 script exits nonzero, stopping before the merge. The caller must complete
 the download before continuing, since continuation skips the stopped script.
 
+Copy the handler into the monorepo and commit it with its configuration.
+The command is relative to the root `.spliceconfig`, so it also works in a
+fresh clone without the scenario's `LFS_SCRIPT` environment variable:
+
 ```scrut
-$ git splice pull --exec 'bash "$LFS_SCRIPT"' vendor/a
+$ mkdir -p .splice-hooks && cp "$LFS_SCRIPT" .splice-hooks/lfs-fetch.sh &&
+>   git config --file .spliceconfig splice.exec 'bash .splice-hooks/lfs-fetch.sh' &&
+>   git add .spliceconfig .splice-hooks/lfs-fetch.sh &&
+>   git commit -qm 'chore(lfs): configure splice downloads'
+```
+
+```scrut
+$ git config --blob HEAD:.spliceconfig splice.exec
+bash .splice-hooks/lfs-fetch.sh
+```
+
+No `--exec` flag is needed on subsequent commands:
+
+```scrut
+$ git splice pull vendor/a
 ok   vendor/a fetched
 LFS: fetching vendor/a at 18f6ff7
 Fetching reference 18f6ff741703f6844f109ec36d34b161ce5a7367
@@ -117,6 +135,13 @@ $ git clone -q https://git.example.com/monorepo.git ../colleague && cat ../colle
 weights, version 2
 ```
 
+The handler and its default are committed too:
+
+```scrut
+$ test -f ../colleague/.splice-hooks/lfs-fetch.sh && git -C ../colleague config --blob HEAD:.spliceconfig splice.exec
+bash .splice-hooks/lfs-fetch.sh
+```
+
 ## Push a local model back upstream
 
 Train the model locally and commit it. This new content does not exist on
@@ -127,11 +152,11 @@ $ printf 'weights, version 3, trained locally\n' >vendor/a/model.bin && git add 
 ```
 
 `git splice push` uploads the new LFS content through Git LFS's ordinary
-`pre-push` hook, together with the splice's rebuilt history. The checkpoint
-script ignores `after-rebuild` and `after-push`; uploads use the native hook:
+`pre-push` hook, together with the splice's rebuilt history. The configured
+handler ignores `after-rebuild` and `after-push`; uploads use the native hook:
 
 ```scrut
-$ git splice push --exec 'bash "$LFS_SCRIPT"' vendor/a
+$ git splice push vendor/a
 ok   vendor/a: pushed d940207 to main
 ```
 
@@ -146,10 +171,44 @@ weights, version 3, trained locally
 [Two splices with separate upstreams](../../02-push-to-upstreams/README.md)
 show the same round trip for both models using `git splice push --all`.
 
-The same script works with `git splice fetch --exec 'bash "$LFS_SCRIPT"'`
-followed by `git splice merge`: fetch populates the cache without changing
-checked-out files; merge materializes the update.
+## Fetch and merge separately
 
-This is an opt-in prototype for ordinary upstream URLs. It does not add LFS
+The committed hook also handles plain `git splice fetch`. Publish another
+model from the upstream clone:
+
+```scrut
+$ printf 'weights, version 4, trained upstream\n' >../upstream-colleague/model.bin &&
+>   git -C ../upstream-colleague add model.bin &&
+>   git -C ../upstream-colleague -c user.name=Test -c user.email=test@example.com commit -qm 'train upstream again' &&
+>   git -C ../upstream-colleague push -q origin main
+```
+
+```scrut
+$ git splice fetch vendor/a
+ok   vendor/a fetched (main moved d940207..f91d607)
+LFS: fetching vendor/a at 3752e56
+Fetching reference 3752e56315abb62859005b6a3386891625e43cac
+LFS: fetching vendor/a at f91d607
+Fetching reference f91d60778bacdf2238f8c30352b975bbadd5e104
+```
+
+Fetch downloads the new content without changing the checked-out model:
+
+```scrut
+$ cat vendor/a/model.bin
+weights, version 3, trained locally
+```
+
+```scrut
+$ git splice merge vendor/a
+ok   vendor/a: merged f91d607
+```
+
+```scrut
+$ cat vendor/a/model.bin
+weights, version 4, trained upstream
+```
+
+This is a configured prototype for ordinary upstream URLs. It does not add LFS
 support to clone or configure custom upstream `.lfsconfig` endpoints, and
 fetching these two commits is not a complete historical-object migration.

@@ -87,8 +87,8 @@ fi
 A root LFS downloader and a nested build handler can coexist: the root handler
 can act on `after-fetch`, while the nested handler acts on `after-merge`.
 The [LFS prototype](../09-scenarios/04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/with-exec.md)
-shows the downloader interface; the script can be configured as an `exec`
-handler instead of being passed on the CLI.
+commits the downloader and its `exec` configuration, then uses plain pull,
+fetch and push commands.
 
 For `after-fetch`, applicable incoming configuration is also read directly
 from fetched commits, before checkout. The nearest fetched splice's file takes

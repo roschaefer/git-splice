@@ -5,6 +5,9 @@ the path and upstream commit of each updated splice to a report outside the
 repository. The report could feed a release checklist; git-splice only sends
 the context and checks the script's exit status.
 
+For a complete JSON-lines log of fetch, pull and push checkpoints, see
+[logging execution checkpoints](logging.md).
+
 ## Output
 
 <!--

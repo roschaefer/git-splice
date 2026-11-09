@@ -7,7 +7,7 @@ way [`clone`](../../README.md) does: Git LFS looks for the new content on
 the monorepo's LFS server. `git-splice` doesn't support Git LFS yet,
 [#407](https://github.com/roschaefer/git-splice/issues/407). Pulling by
 hand works, as [cloning by hand](../../clone-by-hand.md) does. An
-[opt-in checkpoint script](with-exec.md) also downloads the content before
+[committed checkpoint hook](with-exec.md) also downloads the content before
 the merge, so the pull succeeds in one command.
 
 - **Monorepo (`vendor/a/`)**: [cloned by hand](../README.md), with

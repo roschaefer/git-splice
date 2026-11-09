@@ -502,8 +502,11 @@ assert_local_lfs_change_reaches_upstream() {
 
 @test "configuration: an automatic LFS hook downloads before checkout and preserves native uploads" {
   setup_lfs_checkpoint
-  git config -f .spliceconfig splice.exec 'bash "$CHECKPOINT_SCRIPT"'
-  git add .spliceconfig
+  mkdir -p .splice-hooks
+  cp "$CHECKPOINT_SCRIPT" .splice-hooks/lfs-fetch.sh
+  git config -f .spliceconfig splice.exec 'bash .splice-hooks/lfs-fetch.sh'
+  git add .spliceconfig .splice-hooks/lfs-fetch.sh
+  unset CHECKPOINT_SCRIPT
   git commit -qm 'configure LFS handler'
   run splice pull --recursive vendor/a
   [ "$status" -eq 0 ]
@@ -515,4 +518,23 @@ assert_local_lfs_change_reaches_upstream() {
   [ "$status" -eq 0 ]
   git clone -q "file://$upstream" "$BATS_TEST_TMPDIR/upstream-colleague"
   [ "$(cat "$BATS_TEST_TMPDIR/upstream-colleague/model.bin")" = 'version three, trained locally' ]
+}
+
+@test "checkpoints: JSON-lines logging observes fetch pull and push without changing execution" {
+  load '../09-scenarios/01-everyday-sync/05-exec-report/setup'
+  scenario_exec_report "$monorepo" "$upstream"
+  cd "$monorepo"
+  local start
+  start="$(git rev-parse HEAD)"
+  run splice fetch --exec 'jq -c . >>../splice-events.jsonl' vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse HEAD)" = "$start" ]
+  run splice pull --exec 'jq -c . >>../splice-events.jsonl' vendor/a
+  [ "$status" -eq 0 ]
+  commit_local "$monorepo" vendor/a 'local change'
+  run splice push --exec 'jq -c . >>../splice-events.jsonl' vendor/a
+  [ "$status" -eq 0 ]
+  jq -s -e 'map(.operation + ":" + .event.checkpoint) == ["fetch:after-fetch", "pull:after-fetch", "pull:after-merge", "push:after-rebuild", "push:after-push"] and map(.sequence) == [1, 1, 2, 1, 2] and all(.[]; (.repository.head | type) == "string" and (.continuation | type) == "object")' ../splice-events.jsonl
+  [ "$(git -C "$upstream" show main:file.txt)" = $'seed\nupstream change\nlocal change' ]
+  [ -z "$(git status --porcelain)" ]
 }

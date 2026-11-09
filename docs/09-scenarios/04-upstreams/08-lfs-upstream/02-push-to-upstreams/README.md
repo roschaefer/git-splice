@@ -1,8 +1,8 @@
 # Scenario: pushing LFS files to their splice upstreams
 
 Two splices store `model.bin` in Git LFS, each on its own upstream's LFS
-server. The checkpoint script downloads both updates. Local changes to those
-models then travel back to their respective upstream repositories with
+server. A committed checkpoint hook downloads both updates. Local changes to
+those models then travel back to their respective upstream repositories with
 `git splice push --all`.
 
 ## Output
@@ -21,10 +21,21 @@ $ build_scenario scenario_push_to_upstreams
 ```
 
 The [checkpoint script](../lfs-fetch.sh) fetches each model from the URL in
-that splice's payload entry before the merge checks it out:
+that splice's payload entry before the merge checks it out.
+
+Commit the script and a shared default once:
 
 ```scrut
-$ git splice pull --all --exec 'bash "$LFS_SCRIPT"'
+$ mkdir -p .splice-hooks && cp "$LFS_SCRIPT" .splice-hooks/lfs-fetch.sh &&
+>   git config --file .spliceconfig splice.exec 'bash .splice-hooks/lfs-fetch.sh' &&
+>   git add .spliceconfig .splice-hooks/lfs-fetch.sh &&
+>   git commit -qm 'chore(lfs): configure splice downloads'
+```
+
+A plain pull now invokes that handler for both splices:
+
+```scrut
+$ git splice pull --all
 ok   vendor/a fetched (main moved 18f6ff7..5552501)
 ok   vendor/b fetched (main moved 9d56a01..5a7a4a2)
 LFS: fetching vendor/a at 18f6ff7
@@ -55,11 +66,11 @@ $ printf 'a weights, trained locally\n' >vendor/a/model.bin && printf 'b weights
 `push --all` sends each splice's rebuilt history to its own upstream. Git
 LFS's existing `pre-push` hook uploads the new content to the corresponding
 LFS server. The checkpoint script is needed for downloading before merge;
-uploads use that ordinary hook. The same script is passed to push, where it
-ignores the `after-rebuild` and `after-push` checkpoints:
+uploads use that ordinary hook. The configured handler also runs during push,
+where it ignores the `after-rebuild` and `after-push` checkpoints:
 
 ```scrut
-$ git splice push --all --exec 'bash "$LFS_SCRIPT"'
+$ git splice push --all
 ok   vendor/a: pushed 28493f7 to main
 ok   vendor/b: pushed 27024cd to main
 ```
