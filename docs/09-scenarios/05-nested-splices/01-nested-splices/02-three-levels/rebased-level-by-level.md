@@ -99,7 +99,7 @@ $ printf 'c seed\nc local\nc upstream\n' >vendor/a/b/c/file.txt &&
 >   git rebase --continue >/dev/null
 ```
 
-*c* is on top of the pull, *p*, now:
+*c* is on top of the pull now:
 
 ```scrut
 $ git log --format=%s -3
