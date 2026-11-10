@@ -73,6 +73,10 @@ explicitly reconsider the affected principle and its rationale.
   to adopt it: examples are the global tag namespace and Git submodules
   ([upstream choices](03-upstreams.md),
   [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
+- **Git's words keep Git's meaning.** Users bring expectations from Git,
+  so an existing Git term must name an equivalent operation or concept.
+  If the meaning differs, invent a word Git has not taken, as with
+  [splice](01-name.md#noun-and-verb).
 - **Take advantage of Git's full power.** Git already provides flexible
   tools to shape history, such as [rebasing](../04-advanced-workflows/README.md)
   and [editing rebuilt commits in a worktree](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md).
@@ -100,12 +104,16 @@ explicitly reconsider the affected principle and its rationale.
   default branch supplies the comparison target before a feature branch
   exists; create that branch only when there are commits to submit
   ([branch rationale](03-upstreams.md#matching-branch-names-keep-a-feature-together)).
-- **Prefer a visible refusal to a guess that can lose work.** When the
-  history or target is ambiguous, guessing can discard changes or publish
-  to the wrong place. Supporting every rare case also adds complexity to
-  ordinary syncs. Document unsupported cases and
-  [known bugs](../09-scenarios/99-known-bugs.md) rather than hiding those
-  tradeoffs behind automatic choices.
+- **Refuse rather than guess.** Ambiguous history, targets or inputs need
+  an explicit decision. Guessing can discard changes or publish to the
+  wrong place; refusing with an explanation lets the user resolve the
+  ambiguity before anything changes.
+- **Weigh every fix against its complexity.** A fix can introduce more
+  failure modes than it removes. Prefer simple, safe fixes; weigh the
+  benefit and frequency of a case against the complexity it adds to every
+  future change. Rare cases can be documented or tracked as
+  [edge cases](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22)
+  instead of complicating the ordinary workflow.
 
 ## Architecture
 
