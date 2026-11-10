@@ -1,30 +1,23 @@
-# Why run the user's Git
+# Scenario: tracing Git commands
 
-Repository operations run through the user's installed `git`, so its
-version determines their behaviour. The user can follow and log the
-commands executed on their machine with Git's own tracing, and inspect
-what a sync publishes without reading `git-splice`'s implementation.
+Use Git's tracing to inspect the repository operations `git-splice` runs,
+including the commits a push sends. The
+[design principle](../../../07-design/README.md#principles) explains why
+using the user's installed Git matters.
 
-Using a library such as gitoxide would replace that Git version with
-another implementation inside `git-splice`. Even equivalent results would
-not preserve the ability to observe the operations as commands executed
-by the user's Git. We deliberately keep that property instead of replacing
-Git with a library. Reusing Git's implementation also avoids maintaining
-our own configuration parser, [merge machinery](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status),
-commit writer or transport.
-
-The examples below demonstrate the tracing this choice enables and where
-it has limits.
-
-<!-- See `just docs-check`.
+<!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../09-scenarios/readme-setup.sh" && source "$TESTDIR/git-trace-setup.bash" && build_scenario scenario_git_trace
+$ source "$TESTDIR/../../readme-setup.sh"
 ```
 -->
 
-The folder `lib/` here is a splice with one commit to push
-([setup](git-trace-setup.bash)). `GIT_TRACE` set to an absolute path makes Git add a line
-to that file for each command:
+[`setup.bash`](setup.bash) builds a splice at `lib/` with one commit to push:
+
+```scrut
+$ build_scenario scenario_git_trace
+```
+
+Set `GIT_TRACE` to an absolute path so Git records each command in that file:
 
 ```scrut
 $ GIT_TRACE="$PWD/../trace" git splice status

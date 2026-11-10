@@ -89,9 +89,9 @@ explicitly reconsider the affected principle and its rationale.
   Running the installed `git` uses the user's version and lets them follow
   and log the commands executed on their machine. Replacing it with a
   library such as gitoxide would substitute another implementation and
-  lose that direct Git command trace. This is a deliberate design choice,
-  not merely a debugging convenience
-  ([rationale and tracing examples](06-git-trace.md)).
+  lose that direct Git command trace. Using Git also avoids maintaining
+  another implementation of repository operations
+  ([tracing scenario](../09-scenarios/01-everyday-sync/05-git-trace/README.md)).
 - **Make information easy to discover and side effects deliberate.**
   Requiring users to enumerate splices before inspecting them can hide the
   very changes they need to discover. Applying that same broad default to
@@ -125,9 +125,8 @@ explicitly reconsider the affected principle and its rationale.
 
 [Why the name "splice"](01-name.md) introduces the terminology, including
 “splicing in” and “splicing out”, and the naming motivations. The following
-chapters develop the rationale for [state](02-state.md),
-[upstreams](03-upstreams.md), and
-[using the user's Git](06-git-trace.md).
+chapters develop the rationale for [state](02-state.md) and
+[upstreams](03-upstreams.md).
 [Going forward](07-going-forward/README.md) explores potential features and
 open questions, including directions that are out of scope; these proposals
 do not describe released behaviour or promise an implementation.
