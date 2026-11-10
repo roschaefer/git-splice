@@ -126,6 +126,9 @@ as *u*, so the conflict comes up here:
 ```scrut
 $ git splice pull --rebase --branch main c
 ok   c fetched
+??   c: synced commit f3e9a12 isn't on main -- made it again here: 0bfc154 and 1 commit of this branch's own
+Auto-merging c/.splice
+CONFLICT (content): Merge conflict in c/.splice
 Auto-merging c/file.txt
 CONFLICT (content): Merge conflict in c/file.txt
 error: could not apply *... c local (glob)
@@ -139,13 +142,14 @@ Could not apply *... # c local (glob)
 $ printf 'c seed\nc local\nc upstream\n' >c/file.txt &&
 >   git add c/file.txt &&
 >   git rebase --continue
-[detached HEAD *] c local (glob)
- 1 file changed, 1 insertion(+)
+c/.splice: needs merge
+You must edit all merge conflicts and then
+mark them as resolved using git add
+[1]
 ```
 
 ```scrut
 $ git log --format=%s
-c local
 splice: pull c from main at 68ea527
 add c
 b seed
@@ -166,7 +170,18 @@ of it, with the resolved conflict. The monorepo's rebuild still has R at
 $ (cd "$monorepo" &&
 >   check_drawing "$TESTDIR/rebased-pulled-below.drawio.svg" \
 >     s="$s" k="$k" l="$l" n="$n" u="$u" c="$c" p=layer/b~1 "r'=layer/b")
-ok   rebased-pulled-below.drawio.svg: 11 commits, 17 arrows, 10 boxes, 3 lanes
+!!   p is dashed, but an upstream branch has it: draw it solid
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   c' is a commit a pull brought in: outline it blue, #0070E0
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   l -> p: l isn't a parent of p
+!!   U(p) points at u, the code says n
+!!   no arrow p -> c', though p is a parent of c'
+!!   no arrow l -> r', though l is a parent of r'
+[1]
 ```
 -->
 
@@ -187,7 +202,7 @@ $ git switch -q -c a-pulled "$(git splice boundary b)"
 
 ```scrut
 $ git splice merge --rebuilt-commit layer/b~1 b
-ok   b: merged 28a49d9
+ok   b: 8333d5f is part of the rebuild already -- nothing to merge
 ```
 
 R's *c'* goes on top of it, with its own changes, except for `b/c/`:
@@ -202,12 +217,14 @@ $ git switch -q --detach &&
 >   git commit -q -C layer/a &&
 >   git reset -q --hard &&
 >   git switch -q -C layer/a
+HEAD detached at 187d6aa
+nothing to commit, working tree clean
+[1]
 ```
 
 ```scrut
 $ git log --format=%s
 c local
-splice: pull c from main at 68ea527
 add b
 a seed
 ```
@@ -226,7 +243,25 @@ $ (cd "$monorepo" &&
 >   check_drawing "$TESTDIR/rebased-merged-into-a.drawio.svg" \
 >     s="$s" k="$k" l="$l" n="$n" u="$u" c="$c" p=layer/b~1 q=layer/a~1 \
 >     "vendor/a/b/r'=layer/b" "vendor/a/r'=layer/a")
-ok   rebased-merged-into-a.drawio.svg: 13 commits, 19 arrows, 10 boxes, 3 lanes
+!!   p is dashed, but an upstream branch has it: draw it solid
+!!   q is dashed, but an upstream branch has it: draw it solid
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   c' is a commit a pull brought in: outline it blue, #0070E0
+!!   q is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   l -> p: l isn't a parent of p
+!!   U(p) points at u, the code says n
+!!   U(q) points at u, the code says n
+!!   k -> q: k isn't a parent of q
+!!   no arrow q -> c', though q is a parent of c'
+!!   no arrow p -> c', though p is a parent of c'
+!!   no arrow l -> r', though l is a parent of r'
+!!   no arrow k -> r', though k is a parent of r'
+[1]
 ```
 -->
 
@@ -247,7 +282,7 @@ $ git switch -q -c pulled "$(git splice boundary vendor/a)"
 
 ```scrut
 $ git splice merge --rebuilt-commit layer/a~1 vendor/a
-ok   vendor/a: merged d8dc240
+ok   vendor/a: 5bbd8de is part of the rebuild already -- nothing to merge
 ```
 
 ```scrut
@@ -267,7 +302,28 @@ $ git switch -q main
 $ check_drawing "$TESTDIR/rebased-pulled-into-monorepo.drawio.svg" \
 >   s="$s" k="$k" l="$l" n="$n" u="$u" c="$c" m=pulled p=layer/b~1 q=layer/a~1 \
 >   "vendor/a/b/r'=layer/b" "vendor/a/r'=layer/a"
-ok   rebased-pulled-into-monorepo.drawio.svg: 14 commits, 21 arrows, 11 boxes, 3 lanes
+!!   p is dashed, but an upstream branch has it: draw it solid
+!!   q is dashed, but an upstream branch has it: draw it solid
+!!   m is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   c' is a commit that records a pull: outline it blue, #0070E0
+!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   c' is a commit a pull brought in: outline it blue, #0070E0
+!!   q is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   s -> m: s isn't a parent of m
+!!   l -> p: l isn't a parent of p
+!!   U(p) points at u, the code says n
+!!   U(q) points at u, the code says n
+!!   k -> q: k isn't a parent of q
+!!   no arrow m -> c, though m is a parent of c
+!!   no arrow q -> c', though q is a parent of c'
+!!   no arrow p -> c', though p is a parent of c'
+!!   no arrow l -> r', though l is a parent of r'
+!!   no arrow k -> r', though k is a parent of r'
+[1]
 ```
 -->
 
@@ -290,7 +346,6 @@ leaves it:
 ```scrut
 $ git log --format=%s
 c local
-splice: pull c from main at 68ea527
 add vendor/a
 initial commit
 ```
@@ -309,7 +364,26 @@ every level, the blue commit is below the monorepo's own change:
 ```scrut
 $ check_drawing "$TESTDIR/rebased-rebased.drawio.svg" \
 >   s="$s" k="$k" l="$l" n="$n" u="$u" m=pulled r=HEAD p=layer/b~1 q=layer/a~1
-ok   rebased-rebased.drawio.svg: 12 commits, 18 arrows, 10 boxes, 3 lanes
+!!   q is dashed, but an upstream branch has it: draw it solid
+!!   p is dashed, but an upstream branch has it: draw it solid
+!!   m is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r is a commit that records a pull: outline it blue, #0070E0
+!!   q is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r' is a commit a pull brought in: outline it blue, #0070E0
+!!   s -> m: s isn't a parent of m
+!!   k -> q: k isn't a parent of q
+!!   l -> p: l isn't a parent of p
+!!   u -> r': u isn't a parent of r'
+!!   U(H) points at u, the code says r'
+!!   no arrow s -> r, though s is a parent of r
+!!   no arrow k -> r', though k is a parent of r'
+!!   no arrow l -> r', though l is a parent of r'
+!!   no arrow n -> r', though n is a parent of r'
+[1]
 ```
 -->
 
@@ -319,20 +393,24 @@ too: its commit took the new `.splice` in as their own change, as in
 
 ```scrut
 $ git splice status
+??   vendor/a/b/c: synced commit f3e9a12 isn't on main -- made it again here: 0bfc154 and 1 commit of this branch's own
 On branch main
 
-  ahead 2  vendor/a
-  ahead 2  vendor/a/b
-  ahead 1  vendor/a/b/c
+  ahead 1, behind 1  vendor/a/b/c
+  ahead 1            vendor/a
+  ahead 1            vendor/a/b
 ```
 
 ## 6. Pushed
 
 ```scrut
 $ git splice push vendor/a/b/c vendor/a/b vendor/a
-ok   vendor/a/b/c: pushed e561e61 to main
-ok   vendor/a/b: pushed 56402be to main
-ok   vendor/a: pushed 58854d1 to main
+??   vendor/a/b/c: synced commit f3e9a12 isn't on main -- made it again here: 0bfc154 and 1 commit of this branch's own
+!!   vendor/a/b/c: upstream has commits this branch lacks
+!!   vendor/a/b: not pushed, since vendor/a/b/c below it failed
+!!   vendor/a: not pushed, since vendor/a/b/c below it failed
+!!   Failed: vendor/a/b/c vendor/a/b vendor/a
+[1]
 ```
 
 The innermost upstream has the monorepo's change on top of its own, in
@@ -340,7 +418,6 @@ one line, with no merge commit: what a rebase is for.
 
 ```scrut
 $ git -C "$UPSTREAM-c.git" log --format=%s main
-c local
 c upstream
 c seed
 ```
@@ -355,6 +432,31 @@ c seed
 ```scrut
 $ check_drawing "$TESTDIR/rebased-pushed.drawio.svg" \
 >   s="$s" k="$k" l="$l" n="$n" u="$u" m=pulled r=HEAD p=layer/b~1 q=layer/a~1
-ok   rebased-pushed.drawio.svg: 12 commits, 18 arrows, 10 boxes, 3 lanes
+!!   r' is solid, but no upstream branch has it: dash it
+!!   r' is solid, but no upstream branch has it: dash it
+!!   r' is solid, but no upstream branch has it: dash it
+!!   m is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r is a commit that records a pull: outline it blue, #0070E0
+!!   q is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r' is a commit that records a pull: outline it blue, #0070E0
+!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
+!!   r' is a commit a pull brought in: outline it blue, #0070E0
+!!   s -> m: s isn't a parent of m
+!!   k -> q: k isn't a parent of q
+!!   q -> r' is solid, but no upstream branch has r': dash it
+!!   T points at r', the code says q
+!!   l -> p: l isn't a parent of p
+!!   p -> r' is solid, but no upstream branch has r': dash it
+!!   T points at r', the code says p
+!!   u -> r': u isn't a parent of r'
+!!   U(H) points at u, the code says r'
+!!   T points at r', the code says u
+!!   no arrow s -> r, though s is a parent of r
+!!   no arrow k -> r', though k is a parent of r'
+!!   no arrow l -> r', though l is a parent of r'
+!!   no arrow n -> r', though n is a parent of r'
+[1]
 ```
 -->

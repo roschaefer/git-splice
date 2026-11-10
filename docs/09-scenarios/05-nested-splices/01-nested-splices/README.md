@@ -82,7 +82,7 @@ without `.splice`:
 ```scrut
 $ git splice push vendor/a/b vendor/a
 ok   vendor/a/b: pushed 701ab17 to main
-ok   vendor/a: pushed b42292d to main
+ok   vendor/a: pushed f3a4007 to main
 ```
 
 ```scrut
@@ -130,9 +130,9 @@ too, so that commit is there:
 
 ```scrut
 $ git splice pull vendor/a
-ok   vendor/a fetched (main moved b42292d..1ca3147)
+ok   vendor/a fetched (main moved f3a4007..7d70548)
 ok   vendor/a/b fetched (main moved 701ab17..527b1a2)
-ok   vendor/a: pulled 1ca3147
+ok   vendor/a: pulled 7d70548
 ```
 
 The pull records the inner splice's new synced commit. Its unpushed
@@ -149,12 +149,12 @@ On branch main
 
 ```scrut
 $ git splice push vendor/a/b
-ok   vendor/a/b: pushed c5dc450 to main
+ok   vendor/a/b: pushed c317b8c to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" log --graph --format=%s main
-*   splice: pull vendor/a from main at 1ca3147
+*   splice: pull vendor/a from main at 7d70548
 |\  
 | * b upstream change
 * | b local 2

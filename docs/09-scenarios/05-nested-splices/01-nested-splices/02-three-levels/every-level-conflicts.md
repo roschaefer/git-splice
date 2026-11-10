@@ -159,13 +159,13 @@ The new commit goes up, one level at a time, again without a conflict:
 ```scrut
 $ cd ../a-layer &&
 >   git splice merge --rebuilt-commit layer/b b
-ok   b: merged 3ea1e4f
+ok   b: merged 7bdb6aa
 ```
 
 ```scrut
 $ cd ../monorepo &&
 >   git splice merge --rebuilt-commit layer/a vendor/a
-ok   vendor/a: merged c3b6c89
+ok   vendor/a: merged df868c2
 ```
 
 ## 4. Every level up to date
@@ -182,6 +182,7 @@ initial commit
 
 ```scrut
 $ git splice status
+??   vendor/a/b: synced commit c6a685e isn't on main -- made it again here: c26acde and 2 commits of this branch's own
 On branch main
 
   ahead 4  vendor/a
@@ -194,8 +195,9 @@ On branch main
 ```scrut
 $ git splice push vendor/a/b/c vendor/a/b vendor/a
 ok   vendor/a/b/c: pushed b33f7a9 to main
+??   vendor/a/b: synced commit c6a685e isn't on main -- made it again here: c26acde and 2 commits of this branch's own
 ok   vendor/a/b: pushed 16be81b to main
-ok   vendor/a: pushed c3b6c89 to main
+ok   vendor/a: pushed de7cb42 to main
 ```
 
 ```scrut

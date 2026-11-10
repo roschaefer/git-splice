@@ -5,6 +5,7 @@
 //! docs/07-design/README.md.
 
 use crate::repo::*;
+use crate::state::state_blob_in;
 use crate::util::*;
 use std::io::{BufRead, BufReader};
 use std::process::Stdio;
@@ -443,6 +444,50 @@ impl Repo {
         Ok(result)
     }
 
+    /// Folder tree <tree> of splice <path> at monorepo commit <rev>, with each
+    /// splice inside it recorded at its own rebuild as of <rev>, rather than
+    /// at the synced commit the monorepo recorded: what its upstream gets
+    /// with the same push.
+    fn record_children(&mut self, path: &str, rev: &str, tree: &str) -> Res<String> {
+        let names = git(&["ls-tree", "-r", "-z", "--name-only", tree])
+            .bytes()
+            .unwrap_or_default();
+        let suffix = format!("/{STATE_FILE}");
+        let mut updates = Vec::new();
+        for name in nul_fields(&names) {
+            let Some(dir) = name.strip_suffix(&suffix) else {
+                continue;
+            };
+            let child = format!("{path}/{dir}");
+            let recorded = splice_config(&child, "commit", rev);
+            let Ok(Some(rebuilt)) = self.rebuild_splice(&child, rev) else {
+                continue;
+            };
+            if rebuilt == recorded {
+                continue;
+            }
+            let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {
+                continue;
+            };
+            updates.push((name.clone(), blob));
+        }
+        if updates.is_empty() {
+            return Ok(tree.to_string());
+        }
+        let index = Temp::new();
+        let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
+        if !indexed(&["read-tree", tree]).ok() {
+            return Err(Fail::Soft);
+        }
+        for (name, blob) in &updates {
+            let info = format!("100644,{blob},{name}");
+            if !indexed(&["update-index", "--add", "--cacheinfo", &info]).ok() {
+                return Err(Fail::Soft);
+            }
+        }
+        indexed(&["write-tree"]).out().ok_or(Fail::Soft)
+    }
+
     /// The tree of splice <path> in commit <rev>, without its state file, if
     /// the folder exists there.
     pub fn content_tree(&mut self, rev: &str, path: &str) -> Res<Option<String>> {
@@ -462,9 +507,10 @@ impl Repo {
     }
 
     /// Makes synced commit <synced> of splice <path> again, when its upstream
-    /// lost it: the rebuild of the commit before the one that first recorded
-    /// it, as a push and then a pull --bump record it. True if that gives the
-    /// same commit.
+    /// lost it or doesn't have it yet: the rebuild of the commit before the
+    /// one that first recorded it, as a push and then a pull --bump record
+    /// it, or of that commit itself, as the rebuild of the splice around it
+    /// records it. True if either gives the same commit.
     pub fn remake_synced(&mut self, path: &str, synced: &str) -> bool {
         let spec = format!(":(top,literal){path}/{STATE_FILE}");
         let recorded = git(&[
@@ -488,7 +534,16 @@ impl Repo {
         if !previous.is_empty() && !commit_here(&previous) && !self.remake_synced(path, &previous) {
             return false;
         }
-        matches!(self.rebuild_splice(path, &before), Ok(Some(made)) if made == synced)
+        if matches!(self.rebuild_splice(path, &before), Ok(Some(made)) if made == synced) {
+            return true;
+        }
+        // The rebuild of the splice around it records it in the commit that
+        // changed its files: that commit, on the synced commit recorded before.
+        if previous.is_empty() {
+            return false;
+        }
+        let range = format!("{before}..{first}");
+        matches!(self.rebuild_walk(path, Some(previous), &range), Ok(Some(made)) if made == synced)
     }
 
     /// The upstream commit that represents the splice as of monorepo commit
@@ -843,6 +898,7 @@ impl Repo {
                 continue;
             };
             let tree = self.strip_state_tree(folder)?;
+            let tree = self.record_children(path, &hash_of(commit), &tree)?;
             if Some(&tree) == prev_tree.as_ref() {
                 continue;
             }

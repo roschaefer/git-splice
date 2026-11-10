@@ -133,7 +133,7 @@ $ cd ../a-layer
 ```scrut
 $ git log --format=%s
 b next
-splice: init vendor
+b local
 add b
 a seed
 ```
@@ -148,7 +148,7 @@ $ git branch layer/b "$(git splice rebuild b)"
 ```scrut
 $ git log --format=%s layer/b
 b next
-splice: init vendor
+b local
 b seed
 ```
 
@@ -158,9 +158,7 @@ the same change on both sides: `b/` has diverged from its upstream.
 ```scrut
 $ git splice log b
 ===  b (upstream has no 'layer/a' branch -- compared with 'main')
-< 9c61af7 b next  (Test <test@example.com>)
-= 701ab17 b local  (Test <test@example.com>)
-= e23fdcf splice: init vendor  (Test <test@example.com>)
+< b3c7929 b next  (Test <test@example.com>)
 ```
 
 Each layer's branch rebuilds the one above it, so its commits are copies
@@ -181,6 +179,9 @@ $ (cd ../monorepo && check_drawing "$TESTDIR/layers-one-by-one.drawio.svg" \
 >   a=HEAD~3 c=HEAD~2 i=HEAD~1 n=HEAD k=refs/splices/upstream/heads/main~1 \
 >   l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main~1 \
 >   "i''=layer/a~1" "n''=layer/a" "i'''=layer/b~1" "n'''=layer/b")
-ok   layers-one-by-one.drawio.svg: 14 commits, 17 arrows, 7 boxes, 3 lanes
+!!   i''' is dashed, but an upstream branch has it: draw it solid
+!!   m -> i''' is dashed, but an upstream branch has i''': draw it solid
+!!   no arrow c' -> n''', though c' is a parent of n'''
+[1]
 ```
 -->

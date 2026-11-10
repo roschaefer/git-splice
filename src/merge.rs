@@ -196,6 +196,7 @@ impl Repo {
         };
         refuse_changed_submodule(path, &merge_base, &target)?;
         let base_folder = tree_of(&merge_base).ok_or(Fail::Soft)?;
+        let base_folder = self.own_records_in(path, &base_folder)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message =
@@ -248,6 +249,63 @@ impl Repo {
             ));
         }
         Ok(())
+    }
+
+    /// Folder tree <tree>, an upstream commit's, with HEAD's .splice of each
+    /// splice inside it whose record there is one this monorepo's rebuild
+    /// pushed: the monorepo records those as it did before, and the rebuild
+    /// rewrites them on the way out.
+    fn own_records_in(&mut self, path: &str, tree: &str) -> Res<String> {
+        let names = git(&["ls-tree", "-r", "-z", "--name-only", tree])
+            .bytes()
+            .unwrap_or_default();
+        let suffix = format!("/{STATE_FILE}");
+        let mut updates = Vec::new();
+        for name in nul_fields(&names) {
+            let Some(dir) = name.strip_suffix(&suffix) else {
+                continue;
+            };
+            let child = format!("{path}/{dir}");
+            let Some(recorded) = git(&[
+                "config",
+                "--blob",
+                &format!("{tree}:{name}"),
+                "splice.commit",
+            ])
+            .q()
+            .out() else {
+                continue;
+            };
+            let Ok(Some(rebuilt)) = self.rebuild_splice(&child, "HEAD") else {
+                continue;
+            };
+            // Only a commit the rebuild made: its own, not one it was synced at.
+            let synced = splice_config(&child, "commit", "HEAD");
+            if !is_ancestor(&recorded, &rebuilt)
+                || (!synced.is_empty() && is_ancestor(&recorded, &synced))
+            {
+                continue;
+            }
+            let Some(blob) = state_file_blob("HEAD", &child) else {
+                continue;
+            };
+            updates.push((name.clone(), blob));
+        }
+        if updates.is_empty() {
+            return Ok(tree.to_string());
+        }
+        let index = Temp::new();
+        let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
+        if !indexed(&["read-tree", tree]).ok() {
+            return Err(Fail::Soft);
+        }
+        for (name, blob) in &updates {
+            let info = format!("100644,{blob},{name}");
+            if !indexed(&["update-index", "--add", "--cacheinfo", &info]).ok() {
+                return Err(Fail::Soft);
+            }
+        }
+        indexed(&["write-tree"]).out().ok_or(Fail::Soft)
     }
 
     /// For --rebase: takes the splice's upstream branch in on top of X, the
@@ -917,6 +975,7 @@ impl Repo {
         let message = self.given_message_or(default);
         let blob = state_file_blob("HEAD", path).ok_or(Fail::Hard)?;
         let base_folder = tree_of(&base).ok_or(Fail::Hard)?;
+        let base_folder = self.own_records_in(path, &base_folder)?;
         match splice_in(
             path,
             Some(&base_folder),
