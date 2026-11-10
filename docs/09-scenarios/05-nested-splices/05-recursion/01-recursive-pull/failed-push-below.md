@@ -30,6 +30,17 @@ $ echo "c in the monorepo" >>vendor/a/b/c/file.txt &&
 >   git commit -q -am "m1: c in the monorepo"
 ```
 
+*m1* is in each rebuild above `c/`, as the copy *m1'*:
+
+![The tree: the monorepo at m1, outlined orange; vendor/a/ at a1, then dashed m1', outlined orange; b/ at b1, then the same; c/ at c1, then the same; d/ at d1](failed-push-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/failed-push-before.drawio.svg" 
+ok   failed-push-before.drawio.svg: a tree of 5 rows
+```
+-->
+
 Meanwhile `c`'s upstream gets *c2*:
 
 ```scrut
@@ -91,6 +102,17 @@ $ git clone -q https://git.example.com/b.git ../b-work &&
 ok   c fetched
 ```
 
+Its `HEAD` is `b`'s commit `m1: c in the monorepo`, which records `c/` at *m1'*, `30bd30a`, the copy that never reached `c`'s upstream:
+
+![The tree of the clone: its HEAD, the commit m1 of b's upstream; c/ at m1', which the inner upstream doesn't have](failed-push-clone.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/failed-push-clone.drawio.svg" m1\'=$(git
+[2]
+```
+-->
+
 It can't fetch `30bd30a`, but it makes it again: the commit of `b`'s that
 recorded it, on the record before it, *c1*, gives the same hash. Only a
 copy of its own history comes out the same, so what `c`'s upstream lacks
@@ -136,6 +158,17 @@ ok   c fetched
 ??   c: synced commit 30bd30a isn't on main -- made it again here: 8c169b6 and 1 commit of this branch's own
 ok   c: pulled 5f049ad
 ```
+
+The pull, *pc*, records *c2*, and `c/` has *m1*'s line on top, as this branch's own, in its rebuild *pc'*:
+
+![The tree of the clone after the pull: at pc; c/ at c2, then dashed pc', with m1's line as the clone's own](failed-push-clone-pulled.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/failed-push-clone-pulled.drawio.svg" pc=HEAD c2=$(git
+[2]
+```
+-->
 
 ```scrut
 $ cat c/file.txt c/other.txt
