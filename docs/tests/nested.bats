@@ -46,13 +46,44 @@ b_changed_in_upstream_a() {
   [ "$(git -C "$upstream_b" show main:file.txt)" = "$(git show HEAD:vendor/a/b/file.txt)" ]
 }
 
-@test "nested: push of the splice above sends the files and the .splice of the one below" {
+@test "nested: push of the splice above sends the files of the one below, and its .splice recording the one below at its rebuild" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local"
   cd "$monorepo"
   splice push vendor/a
   [ "$(git -C "$upstream" ls-tree -r --name-only main)" = $'b/.splice\nb/file.txt\nfile.txt' ]
-  [ "$(git -C "$upstream" rev-parse main:b)" = "$(git rev-parse HEAD:vendor/a/b)" ]
+  [ "$(git -C "$upstream" rev-parse main:b/file.txt)" = "$(git rev-parse HEAD:vendor/a/b/file.txt)" ]
+  [ "$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)" = "$(splice rebuild vendor/a/b)" ]
+  [ "$(splice_config vendor/a/b commit)" != "$(splice rebuild vendor/a/b)" ]
+}
+
+@test "nested: one push --all leaves the upstream above recording what the one below has" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  cd "$monorepo"
+  splice push --all
+  [ "$(git -C "$upstream_b" show main:c/.splice | git config --file - splice.commit)" = "$(git -C "$upstream_c" rev-parse main)" ]
+  [ "$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ "$(git -C "$upstream" show main:b/c/.splice | git config --file - splice.commit)" = "$(git -C "$upstream_c" rev-parse main)" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "nested: a pull of the splice above, after its upstream pulled the one below further, doesn't conflict in the record the monorepo's push wrote" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  cd "$monorepo"
+  splice push --all >/dev/null
+  seed_bare_repo "$upstream_c" "c upstream" main other.txt
+  local b_work="$BATS_TEST_TMPDIR/b-work"
+  git clone -q "$upstream_b" "$b_work"
+  (cd "$b_work" && git config user.name Test && git config user.email test@example.com &&
+    splice pull c >/dev/null && git push -q origin main)
+  run splice pull vendor/a/b
+  [ "$status" -eq 0 ]
+  [[ "$output" != *CONFLICT* ]]
+  [ "$(splice_config vendor/a/b/c commit)" = "$(git -C "$upstream_c" rev-parse main)" ]
 }
 
 @test "nested: after both pushes, a clone of a's upstream sees b up to date" {
@@ -1452,4 +1483,22 @@ uncommitted" ]
   [[ "$output" == *"vendor/a: 'patches' lacks the synced commit ${synced:0:7}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
   git symbolic-ref -q HEAD
+}
+
+@test "nested: pull --rebase in a clone of a's upstream, whose record of b names a commit b's upstream never got, replays it on the pull, keeping the pull's record" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local" notes.txt
+  seed_bare_repo "$upstream_b" "b upstream" main other.txt
+  cd "$monorepo"
+  ! splice push vendor/a/b >/dev/null 2>&1
+  splice push vendor/a >/dev/null
+  work_in_upstream_a
+  git update-ref -d refs/remotes/origin/main
+  git update-ref -d refs/remotes/origin/HEAD 2>/dev/null || true
+  run splice pull --rebase b
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"made it again here"* ]]
+  [ "$(splice_config b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+  [ "$(cat b/notes.txt)" = "b local" ]
+  [ -z "$(git status --porcelain)" ]
 }
