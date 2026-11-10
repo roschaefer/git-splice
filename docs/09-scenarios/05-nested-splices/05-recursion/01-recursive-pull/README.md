@@ -154,7 +154,6 @@ In `c/`, b's upstream's change, the copy *b2'*, meets *c2*:
 ```scrut
 $ check_drawing "$TESTDIR/tree-c-conflicts.drawio.svg" pb=HEAD "b2'=$(git splice rebuild vendor/a/b/c)"
 ok   tree-c-conflicts.drawio.svg: a tree of 6 rows
-[0]
 ```
 -->
 
