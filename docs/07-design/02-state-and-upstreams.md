@@ -163,7 +163,7 @@ mapping where default branch names differ. Deriving the prospective
 changes from that target lets inspection show what a PR would contain.
 Only upstreams with commits to submit need a feature branch; eagerly
 creating one in every upstream would leave branches with no corresponding
-PR work ([push design](04-splicing-out.md#new-upstream-branches)).
+PR work ([scenario](../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/README.md)).
 
 ### Recorded defaults prevent silent retargeting
 

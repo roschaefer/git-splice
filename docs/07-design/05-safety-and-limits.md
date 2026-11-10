@@ -40,7 +40,7 @@ upstream URL into a plain Git push remains possible: this design removes
 accidental remote selection, not Git's ability to push by URL.
 
 The rebuild also limits what the intended push publishes: the splice's
-own history begins at its [mount](04-splicing-out.md#history-scope).
+own history begins at its [mount](04-splicing-out.md#publish-only-history-belonging-to-this-splice).
 It excludes the folder's history before `init` and follows splice identity
 across moves, so another splice's old history is not treated as its own.
 

@@ -36,11 +36,11 @@ explicitly reconsider the affected principle and its rationale.
   of `vendor/a`'s repository. A project should not need a different dependency workflow
   because it is embedded in another repository. This governs
   [portable state and defaults](02-state-and-upstreams.md#sync-state-belongs-in-versioned-files)
-  and [inherited history](04-splicing-out.md#history-inherited-through-nesting).
+  and [inherited history](04-splicing-out.md#recover-nested-history-so-enclosing-imports-do-not-erase-it).
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
   monorepo commit recording the earlier push
-  ([rebuild rationale](04-splicing-out.md#deterministic-metadata)).
+  ([rebuild rationale](04-splicing-out.md#determinism-avoids-bookkeeping-after-publication)).
 - **Keep repeated syncs scalable.** An advancing sync point lets rebuilds
   skip history already accounted for, rather than revisit an ever-growing
   history on every sync

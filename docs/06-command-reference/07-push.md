@@ -233,7 +233,7 @@ $ git splice push -h | check-help section read-more
 - A splice moved with `git mv` keeps its unpushed commits: the push
   after the move sends them as they were
   ([moved-with-unpushed-commits](../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
-- How the rebuild works: [design](../07-design/04-splicing-out.md#splicing-out-push-and-the-rebuild).
+- Why the rebuild is deterministic: [design](../07-design/04-splicing-out.md#determinism-avoids-bookkeeping-after-publication).
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
