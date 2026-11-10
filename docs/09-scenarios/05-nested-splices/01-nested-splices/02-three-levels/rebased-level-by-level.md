@@ -128,7 +128,6 @@ $ git splice pull --rebase --branch main c
 ok   c fetched
 ??   c: synced commit f3e9a12 isn't on main -- made it again here: 0bfc154 and 1 commit of this branch's own
 Auto-merging c/.splice
-CONFLICT (content): Merge conflict in c/.splice
 Auto-merging c/file.txt
 CONFLICT (content): Merge conflict in c/file.txt
 error: could not apply *... c local (glob)
@@ -142,14 +141,14 @@ Could not apply *... # c local (glob)
 $ printf 'c seed\nc local\nc upstream\n' >c/file.txt &&
 >   git add c/file.txt &&
 >   git rebase --continue
-c/.splice: needs merge
-You must edit all merge conflicts and then
-mark them as resolved using git add
-[1]
+[detached HEAD 56402be] c local
+ 1 file changed, 1 insertion(+)
+[0]
 ```
 
 ```scrut
 $ git log --format=%s
+c local
 splice: pull c from main at 68ea527
 add c
 b seed
@@ -170,17 +169,9 @@ of it, with the resolved conflict. The monorepo's rebuild still has R at
 $ (cd "$monorepo" &&
 >   check_drawing "$TESTDIR/rebased-pulled-below.drawio.svg" \
 >     s="$s" k="$k" l="$l" n="$n" u="$u" c="$c" p=layer/b~1 "r'=layer/b")
-!!   p is dashed, but an upstream branch has it: draw it solid
 !!   c' is a commit that records a pull: outline it blue, #0070E0
 !!   c' is a commit that records a pull: outline it blue, #0070E0
-!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
-!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   c' is a commit a pull brought in: outline it blue, #0070E0
-!!   r' is a commit that records a pull: outline it blue, #0070E0
-!!   l -> p: l isn't a parent of p
-!!   U(p) points at u, the code says n
-!!   no arrow p -> c', though p is a parent of c'
-!!   no arrow l -> r', though l is a parent of r'
 [1]
 ```
 -->
@@ -202,7 +193,13 @@ $ git switch -q -c a-pulled "$(git splice boundary b)"
 
 ```scrut
 $ git splice merge --rebuilt-commit layer/b~1 b
-ok   b: 8333d5f is part of the rebuild already -- nothing to merge
+Auto-merging b/c/.splice
+CONFLICT (content): Merge conflict in b/c/.splice
+Auto-merging b/c/file.txt
+CONFLICT (content): Merge conflict in b/c/file.txt
+!!   b: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
+!!   b: merge failed
+[1]
 ```
 
 R's *c'* goes on top of it, with its own changes, except for `b/c/`:
@@ -217,9 +214,9 @@ $ git switch -q --detach &&
 >   git commit -q -C layer/a &&
 >   git reset -q --hard &&
 >   git switch -q -C layer/a
-HEAD detached at 187d6aa
-nothing to commit, working tree clean
-[1]
+fatal: cannot switch branch while cherry-picking
+Consider "git cherry-pick --quit" or "git worktree add".
+[128]
 ```
 
 ```scrut
@@ -243,23 +240,15 @@ $ (cd "$monorepo" &&
 >   check_drawing "$TESTDIR/rebased-merged-into-a.drawio.svg" \
 >     s="$s" k="$k" l="$l" n="$n" u="$u" c="$c" p=layer/b~1 q=layer/a~1 \
 >     "vendor/a/b/r'=layer/b" "vendor/a/r'=layer/a")
-!!   p is dashed, but an upstream branch has it: draw it solid
 !!   q is dashed, but an upstream branch has it: draw it solid
 !!   c' is a commit that records a pull: outline it blue, #0070E0
 !!   c' is a commit that records a pull: outline it blue, #0070E0
-!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
-!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   c' is a commit a pull brought in: outline it blue, #0070E0
 !!   q is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r' is a commit that records a pull: outline it blue, #0070E0
-!!   r' is a commit that records a pull: outline it blue, #0070E0
-!!   l -> p: l isn't a parent of p
-!!   U(p) points at u, the code says n
 !!   U(q) points at u, the code says n
 !!   k -> q: k isn't a parent of q
 !!   no arrow q -> c', though q is a parent of c'
-!!   no arrow p -> c', though p is a parent of c'
-!!   no arrow l -> r', though l is a parent of r'
 !!   no arrow k -> r', though k is a parent of r'
 [1]
 ```
@@ -302,26 +291,18 @@ $ git switch -q main
 $ check_drawing "$TESTDIR/rebased-pulled-into-monorepo.drawio.svg" \
 >   s="$s" k="$k" l="$l" n="$n" u="$u" c="$c" m=pulled p=layer/b~1 q=layer/a~1 \
 >   "vendor/a/b/r'=layer/b" "vendor/a/r'=layer/a"
-!!   p is dashed, but an upstream branch has it: draw it solid
 !!   q is dashed, but an upstream branch has it: draw it solid
 !!   m is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   c' is a commit that records a pull: outline it blue, #0070E0
 !!   c' is a commit that records a pull: outline it blue, #0070E0
-!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
-!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   c' is a commit a pull brought in: outline it blue, #0070E0
 !!   q is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r' is a commit that records a pull: outline it blue, #0070E0
-!!   r' is a commit that records a pull: outline it blue, #0070E0
 !!   s -> m: s isn't a parent of m
-!!   l -> p: l isn't a parent of p
-!!   U(p) points at u, the code says n
 !!   U(q) points at u, the code says n
 !!   k -> q: k isn't a parent of q
 !!   no arrow m -> c, though m is a parent of c
 !!   no arrow q -> c', though q is a parent of c'
-!!   no arrow p -> c', though p is a parent of c'
-!!   no arrow l -> r', though l is a parent of r'
 !!   no arrow k -> r', though k is a parent of r'
 [1]
 ```
@@ -365,18 +346,16 @@ every level, the blue commit is below the monorepo's own change:
 $ check_drawing "$TESTDIR/rebased-rebased.drawio.svg" \
 >   s="$s" k="$k" l="$l" n="$n" u="$u" m=pulled r=HEAD p=layer/b~1 q=layer/a~1
 !!   q is dashed, but an upstream branch has it: draw it solid
-!!   p is dashed, but an upstream branch has it: draw it solid
 !!   m is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r is a commit that records a pull: outline it blue, #0070E0
 !!   q is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r' is a commit that records a pull: outline it blue, #0070E0
-!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r' is a commit that records a pull: outline it blue, #0070E0
-!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r' is a commit a pull brought in: outline it blue, #0070E0
 !!   s -> m: s isn't a parent of m
 !!   k -> q: k isn't a parent of q
-!!   l -> p: l isn't a parent of p
+!!   layer/b points at r', the code says 56402be, which isn't drawn
+!!   p -> r': p isn't a parent of r'
 !!   u -> r': u isn't a parent of r'
 !!   U(H) points at u, the code says r'
 !!   no arrow s -> r, though s is a parent of r
@@ -433,23 +412,23 @@ c seed
 $ check_drawing "$TESTDIR/rebased-pushed.drawio.svg" \
 >   s="$s" k="$k" l="$l" n="$n" u="$u" m=pulled r=HEAD p=layer/b~1 q=layer/a~1
 !!   r' is solid, but no upstream branch has it: dash it
+!!   p is solid, but no upstream branch has it: dash it
 !!   r' is solid, but no upstream branch has it: dash it
 !!   r' is solid, but no upstream branch has it: dash it
 !!   m is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r is a commit that records a pull: outline it blue, #0070E0
 !!   q is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r' is a commit that records a pull: outline it blue, #0070E0
-!!   p is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r' is a commit that records a pull: outline it blue, #0070E0
-!!   u is outlined blue, but it neither records a pull nor came in with one: outline it black
 !!   r' is a commit a pull brought in: outline it blue, #0070E0
 !!   s -> m: s isn't a parent of m
 !!   k -> q: k isn't a parent of q
 !!   q -> r' is solid, but no upstream branch has r': dash it
 !!   T points at r', the code says q
-!!   l -> p: l isn't a parent of p
-!!   p -> r' is solid, but no upstream branch has r': dash it
-!!   T points at r', the code says p
+!!   l -> p is solid, but no upstream branch has p: dash it
+!!   layer/b points at r', the code says 56402be, which isn't drawn
+!!   p -> r': p isn't a parent of r'
+!!   T points at r', the code says l
 !!   u -> r': u isn't a parent of r'
 !!   U(H) points at u, the code says r'
 !!   T points at r', the code says u

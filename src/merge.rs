@@ -391,9 +391,22 @@ impl Repo {
         let count = git(&["rev-list", "--count", &since])
             .out()
             .unwrap_or_default();
+        // The pull records the synced commit now: a commit replayed on it that
+        // recorded another one, e.g. a rebuild's own, keeps the pull's.
+        let attributes = Temp::new();
+        std::fs::write(
+            &attributes.path,
+            format!("/{path}/{STATE_FILE} merge=splice-record\n"),
+        )
+        .map_err(|_| Fail::Soft)?;
+        let attributes_file = format!("core.attributesFile={}", attributes.str());
         let rebased = git(&[
             "-c",
             "advice.mergeConflict=false",
+            "-c",
+            &attributes_file,
+            "-c",
+            "merge.splice-record.driver=true",
             "rebase",
             "-q",
             "--no-update-refs",
