@@ -495,6 +495,8 @@ impl Repo {
     /// before when the child's last sync is the same, instead of walking the
     /// child's history from its last sync again.
     fn child_rebuild(&mut self, child: &str, rev: &str) -> Res<Option<String>> {
+        // Set again by a failure inside this rebuild, not left from another.
+        self.unrebuilt_child = None;
         // The rebuilds are kept by commit: a name such as HEAD can move.
         let rev = &commit_of(rev).ok_or(Fail::Soft)?;
         let last_sync = splice_last_sync(child, rev);

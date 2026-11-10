@@ -31,8 +31,9 @@ impl Repo {
         // synced commit. An upstream never fetched has no key yet: a fetch
         // comes first.
         let fetch_tried = pin_here || !self.key_of(path).is_empty();
+        let mut remade_early = None;
         if fetch_tried && !c.synced.is_empty() && !commit_here(&c.synced) {
-            self.remake_synced(path, &c.synced.clone());
+            remade_early = Some(self.remake_synced(path, &c.synced.clone()));
         }
         if !self.splice_fetched(path) && !pin_here {
             // Without a synced commit, the splice came from init: its upstream
@@ -89,7 +90,7 @@ impl Repo {
         };
         if !c.synced.is_empty()
             && (!here || (!is_ancestor(&c.synced, &c.target_ref) && !had()))
-            && self.remake_synced(path, &c.synced.clone())
+            && remade_early.unwrap_or_else(|| self.remake_synced(path, &c.synced.clone()))
         {
             // Only a copy of this branch's own history comes out the same: the
             // commits above the newest one the upstream has are its own.
