@@ -31,13 +31,13 @@ explicitly reconsider the affected principle and its rationale.
   Derive what existing history, configuration and file locations already
   tell us instead of storing it again. Redundant bookkeeping in
   `git-subrepo` motivated this principle
-  ([state rationale](02-state-and-upstreams.md#derive-state-instead-of-storing-redundant-records)).
+  ([state rationale](02-state.md#derive-state-instead-of-storing-redundant-records)).
 - **Nesting should not change a splice's meaning.** Given equivalent
   history, upstream state and settings, syncing `vendor/a/b/` should produce
   the same result for that splice as syncing `b/` in a standalone clone
   of `vendor/a`'s repository. A project should not need a different dependency workflow
   because it is embedded in another repository. This requires
-  [portable state and defaults](02-state-and-upstreams.md#sync-state-belongs-in-versioned-files)
+  [portable state and defaults](02-state.md#sync-state-belongs-in-versioned-files)
   and recovering inner history hidden by an enclosing squash
   ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
 - **Rebuild deterministically.** The same committed history produces the
@@ -71,7 +71,7 @@ explicitly reconsider the affected principle and its rationale.
   and [reflogs](../09-scenarios/06-rewritten-history/04-patch-branch-rebased/README.md)
   are examples. Problems and bugs caused by a Git design are reasons not
   to adopt it: examples are the global tag namespace and Git submodules
-  ([state choices](02-state-and-upstreams.md),
+  ([upstream choices](03-upstreams.md),
   [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
 - **Take advantage of Git's full power.** Git already provides flexible
   tools to shape history, such as [rebasing](../04-advanced-workflows/README.md)
@@ -99,11 +99,11 @@ explicitly reconsider the affected principle and its rationale.
   connect its changes to the corresponding upstream PRs. The upstream
   default branch supplies the comparison target before a feature branch
   exists; create that branch only when there are commits to submit
-  ([branch rationale](02-state-and-upstreams.md#matching-branch-names-keep-a-feature-together)).
+  ([branch rationale](03-upstreams.md#matching-branch-names-keep-a-feature-together)).
 - **Prefer a visible refusal to a guess that can lose work.** When the
   history or target is ambiguous, guessing can discard changes or publish
   to the wrong place. Supporting every rare case also adds complexity to
-  ordinary syncs; explicit [limits](05-safety-and-limits.md#limits) keep
+  ordinary syncs; explicit [limits](../02-using-git-splice/02-limits.md) keep
   those tradeoffs visible rather than hiding them behind automatic choices.
 
 ## Architecture
@@ -116,8 +116,8 @@ explicitly reconsider the affected principle and its rationale.
 
 [Why the name "splice"](01-name.md) introduces the terminology, including
 “splicing in” and “splicing out”, and the naming motivations. The following
-chapters develop the rationale for [state and upstreams](02-state-and-upstreams.md),
-[safety and limits](05-safety-and-limits.md), and
+chapters develop the rationale for [state](02-state.md),
+[upstreams](03-upstreams.md), and
 [using the user's Git](06-git-trace.md).
 [Going forward](07-going-forward/README.md) explores potential features and
 open questions, including directions that are out of scope; these proposals

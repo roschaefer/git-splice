@@ -17,7 +17,7 @@ Each push sends its folder without its own `.splice`. So the push of
 `vendor/a/` sends `vendor/a/b/.splice` with the inner splice's files, and
 in the outer upstream, `b/` stays a splice that `git-splice` can pull and
 push there.
-[The design](../../../07-design/02-state-and-upstreams.md#private-refs-avoid-an-accidental-push-target)
+[The design](../../../07-design/03-upstreams.md#upstream-connections-must-not-become-ordinary-git-remotes)
 explains why both repositories agree on the inner splice's state.
 
 *l*'s `b/.splice` and the monorepo's `vendor/a/b/.splice` record the
@@ -165,7 +165,7 @@ $ git -C "$UPSTREAM-b.git" log --graph --format=%s main
 
 If the monorepo had pulled `vendor/a/b/` as well, to a different commit,
 the pull of `vendor/a/` would have conflicted: see
-[Limits](../../../07-design/05-safety-and-limits.md#limits).
+[Limits](../../../02-using-git-splice/02-limits.md).
 
 Once the monorepo has pushed a change in `vendor/a/b/`, another monorepo
 that splices the outer upstream in rebuilds the inner splice's history up

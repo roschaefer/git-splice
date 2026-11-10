@@ -12,7 +12,7 @@ synced commit U(H) of the [sync model](02-sync-model.md).
   ([why](../07-design/README.md#principles)).
 - Upstreams use private refs instead of Git remotes, so a plain `git push`
   cannot publish the monorepo to one by mistake
-  ([why](../07-design/05-safety-and-limits.md)).
+  ([why](../07-design/03-upstreams.md#upstream-connections-must-not-become-ordinary-git-remotes)).
 
 ```text
 [splice]

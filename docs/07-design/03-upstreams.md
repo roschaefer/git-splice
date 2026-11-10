@@ -1,90 +1,55 @@
-# State and upstreams
+# Upstreams
 
-The shared sync state must survive history rewrites and use by other VCS
-tools. Fetched upstream state and personal branch choices can stay local,
-following Git's model. The [architecture](README.md#architecture) shows
-where each belongs.
+An upstream connection must travel with the splice without exposing an
+accidental way to publish the whole monorepo. Its configuration therefore
+belongs in `.splice`, separate from ordinary Git remotes. Fetched data and
+personal tracking choices stay local, following Git's model.
 
-## Derive state instead of storing redundant records
+## Upstream connections must not become ordinary Git remotes
 
-Every stored value creates work to keep it consistent. Storing both a
-result and the information needed to derive it lets those records drift
-apart after a partial update or history rewrite. Avoiding that redundant
-bookkeeping was a motivation for departing from
-[`git-subrepo`](../05-comparisons/02-third-party/01-git-subrepo.md).
+An early predecessor registered splice upstreams as ordinary Git remotes.
+That exposed an operation the tool never intended to support: pushing the
+monorepo's history to a splice's upstream.
 
-B, R and the sync status are therefore derived from committed history and
-fetched refs. A push does not need a monorepo commit to record its result:
-a later deterministic rebuild recovers it. A proposed state field should
-explain why existing history and configuration cannot supply the value,
-rather than introduce another record that commands must keep in sync.
+A Git remote for a subfolder's repository can receive the whole monorepo
+history. A normal `git push` does not know that only a folder should leave.
+New branches and forced pushes are especially dangerous: a non-fast-forward
+rejection does not protect them.
 
-## Sync state belongs in versioned files
+It need not be an explicit `git push vendor/a main`. A branch can start
+tracking that remote, after which a plain push or an IDE's sync action
+uses it. Deleting the branch afterwards cannot retract copies already
+fetched. The design should not depend on every user choosing correctly.
 
-Extra commit metadata ties the relationship to tools that understand and
-preserve it. Keeping `.splice` in the worktree's versioned contents lets
-other VCS tools carry that state as an ordinary file, even when they use
-their own extra metadata. A rebase or squash likewise need not understand
-a special sync record to preserve it. This avoids depending on
-special handling of commit metadata, as
-[Sapling does](../05-comparisons/03-vcs/01-sapling.md), or sync records in
-[commit messages](../05-comparisons/01-git/02-git-subtree.md#problem-3-the-sync-points-are-in-commit-messages),
-as `git subtree` does.
+### Why not guard a remote?
 
-Committing the file also makes the relationship available in a fresh clone
-and lets ordinary Git switch and merge it between branches. Sync commands read its committed version so an
-unfinished edit cannot silently change the relationship they use.
+| Alternative | Why it was not chosen |
+| --- | --- |
+| A `pre-push` hook inspecting commits | Each clone must install it; `--no-verify` bypasses it; it competes with other hook managers. A path-based check can reject a legitimate library containing the same path. |
+| A deliberately invalid push URL | Blocks normal pushes, but the wrapper must push to the fetch URL and update refs itself. Errors and tools that inspect push URLs become confusing. |
+| A custom remote helper | Can reject ordinary pushes clearly, but every Git client needs the helper installed. Supporting multiple transports and tools that interpret URLs adds complexity. |
+| Server-side restrictions | Require control over the upstream server or hosting rules; they cannot protect pushes to arbitrary upstreams. |
 
-### Keep state inside the folder to avoid a redundant path
+Git documents [push hooks](https://git-scm.com/docs/githooks#_pre_push),
+[separate fetch/push URLs](https://git-scm.com/docs/git-remote) and
+[remote helpers](https://git-scm.com/docs/gitremote-helpers). The choice here
+is to avoid adding a subfolder remote in the first place.
 
-The minimum-state principle applies to paths too: `.splice` already
-identifies its folder by living inside it. Recording that path separately,
-as `.gitmodules` does for submodules, creates another value to keep in sync.
-A move can leave that record stale. Keeping `.splice` inside the splice
-lets ordinary folder moves carry the relationship without a second update.
+### Keep the connection in configuration Git does not treat as a remote
 
-### Recorded references must survive history rewrites
+The upstream connection belongs in the versioned `.splice` file, which
+`git-splice` interprets and ordinary Git remote selection does not. This
+keeps the relationship available in every clone without making it a push
+target for branch tracking, IDE sync actions or ordinary Git commands.
+Fetching and pushing by URL into private refs still lets Git handle the
+repository operations, without a hook or helper installed in each clone.
 
-A stored monorepo commit ID would become stale when history is
-rewritten, so the file records an upstream commit instead. The nesting
-principle also rules out storing a path or commit specific to the outermost
-monorepo: that reference would lose its meaning in a standalone clone of
-the enclosing upstream.
+Typing an upstream URL into a plain Git push remains possible. The design
+removes accidental remote selection; it cannot prevent a user explicitly
+asking Git to send monorepo history to a URL.
 
-### Reuse an available, established config format
-
-Every `git-splice` user already needs Git installed, so its config reader
-and writer are available without another dependency. Its established
-format provides sections and values without a parser of our own to
-maintain. Sourcing the file as a script would instead let committed
-configuration execute commands.
-
-### Avoid interfering with build and packaging tools
-
-Spliced files remain part of the monorepo's normal build and packaging
-inputs. `.splice` was chosen to clash with no known configuration file,
-so tools discovering files do not mistake the relationship for their own
-configuration.
-
-### Identity must distinguish replacements and remain repeatable
-
-A random ID would make otherwise identical initialisations differ. Path
-alone cannot distinguish a moved splice from a replacement at its old
-location. Deriving the ID from the path, `HEAD`, upstream URL and imported
-commit makes the same operation repeatable while distinguishing different
-upstreams introduced at the same path. Keeping that ID through moves lets
-the rebuild recover the right history
-([identity](../03-concepts/03-splice-identity.md)).
-
-### Conflicting sync points require a deliberate decision
-
-Choosing either `.splice` mechanically can claim that a merged folder
-contains an upstream state it does not actually contain. There is no
-automatic merge driver today; adding one would need to establish that
-relationship, not merely resolve the configuration text
-([concurrent pulls](../09-scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md)).
-An upstream with a root `.splice` is likewise refused because importing
-it would overwrite the file defining the outer relationship.
+For the different tradeoffs of a centrally operated export pipeline, see
+[Copybara and ShipIt](../05-comparisons/02-third-party/04-export-tools.md).
 
 ## Fetched state belongs to each clone
 
@@ -94,15 +59,6 @@ state or confuse the latter's. URL keys also let several splices share
 one fetch while retaining independent committed sync points. The registry
 belongs in local Git config, shared with worktrees just as the refs are;
 committing it would impose one clone's naming choices on everyone.
-
-### Private refs avoid an accidental push target
-
-Registering an upstream as a remote makes it available to plain Git push,
-branch tracking and IDE sync actions, any of which can send monorepo
-history. Fetching by URL into private refs keeps upstream objects usable
-by ordinary Git commands without adding that accidental push target.
-[Safety and limits](05-safety-and-limits.md) compares the rejected guards
-and explains the remaining risk of an explicit push by URL.
 
 ### Exact URLs identify upstreams without guessing equivalence
 
