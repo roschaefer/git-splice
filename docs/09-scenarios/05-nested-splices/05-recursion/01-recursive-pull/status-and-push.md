@@ -59,7 +59,8 @@ On branch main
 
 ## One push
 
-Bottom-up, `c` first, and each push records the one below it:
+Bottom-up, `c` first. Each rebuild records the one below it, and its
+push sends that record:
 
 ```scrut
 $ git splice push --all

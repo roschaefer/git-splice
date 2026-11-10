@@ -79,9 +79,9 @@ UPSTREAM BRANCH
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/push/#upstream-branch
 
 ORDER
-    Bottom-up: a splice below another is pushed first, since the push of the
-    one above records it at the commit that push sent, and a failed push
-    stops the splices above it.
+    Bottom-up: a splice below another is pushed first, since the rebuild of
+    the one above records it at the commit its push sends, and a failed
+    push stops the splices above it.
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/push/#order
 
