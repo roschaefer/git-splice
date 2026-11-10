@@ -3,39 +3,19 @@
 Run `just docs-check` to test every page. After an intended change, run
 `just docs-check --write` to update their output.
 
-## What belongs where
+## Documentation principles
 
-The chapters before Design explain what the tool does and how to use it.
-Include a reason there when it helps a reader use a feature correctly;
-keep the full justification in Design and link to it. Concepts defines
-behaviour, the command reference gives syntax and output, and scenarios
-can explain detailed workflows and edge cases.
-
-Design records why: principles, tradeoffs, rejected alternatives and
-mechanisms needed to explain a decision. Its overview states the
-principles; subchapters develop their rationale rather than repeat usage.
-Behaviour details belong there only when they are needed to understand
-the choice, with links to their user-facing definitions.
-
-A decision's bullet should make its purpose clear when skimmed. Its
-explanation should say which problem or alternative led to the choice and
-what would go wrong if that constraint were ignored. Restating a behaviour
-under an imperative heading does not explain its rationale.
-
-For a feature or behaviour change, contributors and AI agents should read
-the relevant [Design](../07-design/README.md) principles first. Explain how
-the proposal fits them. Ask how Git solves the equivalent problem and
-follow that model closely where it works well; explain a deliberate
-alternative where it does not. If a proposal requires a different tradeoff,
-explicitly revisit the principle and rationale in the same change; update behaviour
-documentation and tests to match. For changes to nested state, target
-selection or rebuilding, compare the nested workflow with the equivalent
-workflow in a standalone clone of the enclosing upstream. Account for
-history, fetched state and local overrides when comparing results; an
-extra enclosing repository alone should not change the outcome.
-
-Design guides future work, but is not a claim that every current
-implementation detail must remain permanent.
+- Avoid redundancy; link to existing explanations.
+- Order the documentation from generic to specific.
+- Put detailed behaviour in [Scenarios](../09-scenarios/README.md), keeping
+  earlier user-facing chapters concise.
+- [Design](../07-design/README.md) explains why decisions were made, not
+  merely what the tool does.
+- Follow the [design principles](../07-design/README.md#principles) for
+  future features, or revise them with strong justification.
+- Use [acceptance-test-driven development](01-development.md#testing):
+  define and test expected behaviour before implementing it. The docs serve
+  users, developers and AI agents alike.
 
 ## Markup
 
