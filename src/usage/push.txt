@@ -80,8 +80,8 @@ UPSTREAM BRANCH
 
 ORDER
     Bottom-up: a splice below another is pushed first, since the push of the
-    one above publishes its .splice, and a failed push stops the splices
-    above it.
+    one above records it at the commit that push sent, and a failed push
+    stops the splices above it.
 
     See also: https://roschaefer.github.io/git-splice/docs/command-reference/push/#order
 
