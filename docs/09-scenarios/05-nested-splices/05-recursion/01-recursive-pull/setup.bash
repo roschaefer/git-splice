@@ -33,3 +33,70 @@ scenario_recursive_pull() {
     fetch_splice "$monorepo" "https://git.example.com/$x.git"
   done
 }
+
+# Runs the command after $1 in the monorepo, and records each ref it
+# updates, in order, in file $1: "<old> <new> <ref>" per line, as Git's
+# reference-transaction hook reports them.
+record_refs() {
+  local log="$1" hook status
+  shift
+  hook="$(git rev-parse --git-path hooks)/reference-transaction"
+  : >"$log"
+  printf '#!/bin/sh\n[ "$1" = committed ] || exit 0\ncat >>"%s"\n' "$log" >"$hook"
+  chmod +x "$hook"
+  "$@"
+  status=$?
+  rm -f "$hook"
+  rm -f "$log.at"
+  return "$status"
+}
+
+# Moves the refs recorded in $1 back to where they were before, and the
+# working tree with them. Commits the command made stay in the repository.
+rewind_refs() {
+  local log="$1" old new ref zero=0000000000000000000000000000000000000000
+  tac "$log" | while read -r old new ref; do
+    [[ "$ref" == refs/* || "$ref" == SPLICE_PULL_START ]] || continue
+    if [[ "$old" == "$zero" ]]; then
+      git update-ref -d "$ref"
+    else
+      git update-ref "$ref" "$old"
+    fi
+  done
+  git reset -q --hard
+  echo 0 >"$log.at"
+}
+
+# Applies the updates recorded in $1 again, from where the last call
+# stopped, up to and including the next update of ref $2, or of a ref
+# starting with it if it ends in a slash, and as long as only such refs
+# follow. Prints each ref it moves, sorted: fetches run in parallel.
+replay_refs() {
+  local log="$1" want="$2" at line=0 old new ref seen= moved=() zero=0000000000000000000000000000000000000000
+  at="$(cat "$log.at" 2>/dev/null || echo 0)"
+  while read -r old new ref; do
+    line=$((line + 1))
+    ((line > at)) || continue
+    local match=
+    if [[ "$want" == */ ]]; then [[ "$ref" == "$want"* ]] && match=1; else [[ "$ref" == "$want" ]] && match=1; fi
+    if [[ -n "$seen" && -z "$match" && "$want" == */ ]]; then
+      line=$((line - 1))
+      break
+    fi
+    if [[ "$ref" == refs/* || "$ref" == SPLICE_PULL_START ]]; then
+      if [[ "$new" == "$zero" ]]; then
+        git update-ref -d "$ref"
+      else
+        git update-ref "$ref" "$new"
+      fi
+      moved+=("$ref")
+    fi
+    if [[ -n "$match" ]]; then
+      seen=1
+      [[ "$want" == */ ]] || break
+    fi
+  done <"$log"
+  echo "$line" >"$log.at"
+  git reset -q --hard
+  ((${#moved[@]} == 0)) || printf '%s\n' "${moved[@]}" | LC_ALL=C sort -u
+}
