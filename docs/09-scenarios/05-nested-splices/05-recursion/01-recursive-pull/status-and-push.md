@@ -71,6 +71,17 @@ ok   vendor/a/d: nothing to push
 ok   vendor/a: pushed 04ebbea to main
 ```
 
+The push sends *m2'* to the three upstreams, bottom-up, and nothing to `d`'s; each *m2'* is solid now. The records are right again:
+
+![The tree after the push: the monorepo at m2; vendor/a/ at a1, then m2', solid; b/ at b1, then the same; c/ at c1, then the same; d/ at d1](push-pushed-c.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-pushed-c.drawio.svg" m1=HEAD~1 m2=HEAD
+ok   push-pushed-c.drawio.svg: a tree of 5 rows
+```
+-->
+
 `b`'s upstream records the commit `c`'s upstream has now:
 
 ```scrut
@@ -113,37 +124,46 @@ ok   push-pushed.drawio.svg: a tree of 5 rows
 ```
 -->
 
-## Another change
+## A change in `c/` only
 
-The monorepo changes all three again, in *m2*, and pushes once more:
+*m2* changes only `vendor/a/b/c/`:
 
 ```scrut
-$ echo "a again" >>vendor/a/file.txt &&
->   echo "b again" >>vendor/a/b/notes.txt &&
->   echo "c again" >>vendor/a/b/c/file.txt &&
->   git commit -q -am "m2: a, b and c again"
+$ echo "c again" >>vendor/a/b/c/file.txt &&
+>   git commit -q -am "m2: c again"
 ```
+
+It's a change in `b/` and `vendor/a/` too: their folders contain `c/`, and their record of `c/` changes with it. So each of them gets *m2'* as well. `d/` doesn't:
+
+![The tree: the monorepo at m2; vendor/a/ at a1, then dashed m2'; b/ at b1, then the same; c/ at c1, then the same; d/ at d1, with nothing of m2](push-changed-c.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-changed-c.drawio.svg" m1=HEAD~1 m2=HEAD
+ok   push-changed-c.drawio.svg: a tree of 5 rows
+```
+-->
 
 ```scrut
 $ git splice push --all
-ok   vendor/a/b/c: pushed cb1574f to main
-ok   vendor/a/b: pushed ca809d5 to main
+ok   vendor/a/b/c: pushed 3830d27 to main
+ok   vendor/a/b: pushed e99151a to main
 ok   vendor/a/d: nothing to push
-ok   vendor/a: pushed 54b9072 to main
+ok   vendor/a: pushed a0972a4 to main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" show main:c/.splice | git config --file - splice.commit | cut -c1-7 &&
 >   git -C "$UPSTREAM-c.git" rev-parse --short main
-cb1574f
-cb1574f
+3830d27
+3830d27
 ```
 
 ```scrut
 $ git -C "$UPSTREAM-a.git" show main:b/.splice | git config --file - splice.commit | cut -c1-7 &&
 >   git -C "$UPSTREAM-b.git" rev-parse --short main
-ca809d5
-ca809d5
+e99151a
+e99151a
 ```
 
 ```scrut
@@ -155,4 +175,3 @@ On branch main
   up to date  vendor/a/b/c
   up to date  vendor/a/d
 ```
-
