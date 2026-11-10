@@ -167,3 +167,13 @@ On branch main
   up to date  vendor/a/b/c
 ```
 
+The same state as lanes, with each upstream's history: *c'* and *p'* on *k* and *l* in the two upstreams above, and in `c/`, *p'* joining *c'*, the monorepo's change, and *u*, its upstream's:
+
+![The monorepo's s, c and p, H at p; in vendor/a/, k, U(H), then c' and p', T and R; in vendor/a/b/, l, U(H), then c' and p', T and R; in vendor/a/b/c/, n, then u, U(H), and c' beside it, both parents of p', T and R](levels-lanes-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/levels-lanes-pushed.drawio.svg" s="$s" c="$c" k="$k" l="$l" n="$n" u="$u" p=HEAD
+ok   levels-lanes-pushed.drawio.svg: 13 commits, 17 arrows, 7 boxes, 3 lanes
+```
+-->

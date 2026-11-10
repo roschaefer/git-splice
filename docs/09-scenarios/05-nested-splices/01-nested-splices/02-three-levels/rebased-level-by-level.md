@@ -169,3 +169,13 @@ On branch main
   up to date  vendor/a/b/c
 ```
 
+The same state as lanes: the pull, *p'*, below *c'* in the two upstreams above, and in `c/`, *c'* on *u*: no merge, the monorepo's change replayed on top:
+
+![The monorepo's s, p and c, H at c; in vendor/a/, k, U(H), then p' and c', T and R; in vendor/a/b/, l, U(H), then p' and c', T and R; in vendor/a/b/c/, n, then u, U(H), and c' on u, T and R](rebased-lanes-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/rebased-lanes-pushed.drawio.svg" s="$s" k="$k" l="$l" n="$n" u="$u" p=HEAD~1 c=HEAD
+ok   rebased-lanes-pushed.drawio.svg: 12 commits, 15 arrows, 7 boxes, 3 lanes
+```
+-->
