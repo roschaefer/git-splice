@@ -65,3 +65,7 @@ A pull through E splices, with C commits of the monorepo's own on top:
 - [rebased](01-recursive-pull/rebased.md): the recursive pull with
   `--rebase`: the pulls first, as one commit, then the monorepo's own
   commit, rebased onto it once.
+- [status and push](01-recursive-pull/status-and-push.md): a push goes
+  bottom-up, and each parent has to record what its child's upstream has
+  before it's pushed itself; `push --all` doesn't, and `status` doesn't
+  notice.

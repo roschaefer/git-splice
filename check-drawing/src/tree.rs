@@ -134,6 +134,12 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
             format!("{}'", label(original.map_or(commit, String::as_str)))
         })
     };
+    // A synced commit a push made is a copy too, of the monorepo's commit.
+    let synced_label =
+        |commit: &str| match (given.get(commit), originals.get(&git.copy_key(commit))) {
+            (None, Some(original)) => format!("{}'", label(original)),
+            _ => label(commit),
+        };
     let pulled = |commit: &str| pulls.contains(commit) || brought.contains(commit);
     let mut errors = Vec::new();
     let mut circle = |label: String, pulled: bool, carried: bool| {
@@ -175,7 +181,7 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
             .max_by_key(|p| p.len())
             .map_or(splice.as_str(), |p| &splice[p.len() + 1..]);
         let synced =
-            (!truth.u.is_empty()).then(|| circle(label(&truth.u), pulled(&truth.u), false));
+            (!truth.u.is_empty()).then(|| circle(synced_label(&truth.u), pulled(&truth.u), false));
         let r = (!truth.r.is_empty() && truth.r != truth.u).then(|| {
             circle(
                 copy_label(&truth.r),
