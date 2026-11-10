@@ -5,6 +5,7 @@
 //! docs/07-design/README.md.
 
 use crate::repo::*;
+use crate::state::{state_blob_in, tree_with};
 use crate::util::*;
 use std::io::{BufRead, BufReader};
 use std::process::Stdio;
@@ -443,6 +444,150 @@ impl Repo {
         Ok(result)
     }
 
+    /// Folder tree <tree> of splice <path> at monorepo commit <rev>, with each
+    /// splice inside it recorded at its own rebuild as of <rev>, rather than
+    /// at the synced commit the monorepo recorded: what its upstream gets
+    /// with the same push.
+    fn record_children(&mut self, path: &str, rev: &str, tree: &str) -> Res<String> {
+        let dirs = self.nested_splices(tree);
+        // The splices right inside this one: the ones deeper are inside them,
+        // and their rebuilds record those.
+        let direct: Vec<&String> = dirs
+            .iter()
+            .filter(|dir| {
+                !dirs
+                    .iter()
+                    .any(|other| dir.starts_with(&format!("{other}/")))
+            })
+            .collect();
+        // Each child's folder as its rebuild has it, so the records inside it
+        // are the ones the commit its .splice names has.
+        let mut folders = Vec::new();
+        let mut files = Vec::new();
+        for dir in direct {
+            let child = format!("{path}/{dir}");
+            let recorded = splice_config(&child, "commit", rev);
+            let Some(rebuilt) = self.child_rebuild(&child, rev)? else {
+                continue;
+            };
+            // Commits that changed nothing in the end, e.g. a change and its
+            // revert, leave the record: the child's push sends nothing then.
+            // The child's push sends nothing when its folder is the recorded
+            // commit's files, by the same comparison: the record stays then.
+            if rebuilt == recorded
+                || (commit_here(&recorded)
+                    && self.folder_is(rev, &child, tree_of(&recorded).as_ref())?)
+            {
+                continue;
+            }
+            let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {
+                continue;
+            };
+            folders.push((dir.clone(), format!("{rebuilt}^{{tree}}")));
+            files.push((format!("{dir}/{STATE_FILE}"), blob));
+        }
+        tree_with(tree, &folders, &files)
+    }
+
+    /// The rebuild of splice <child> at monorepo commit <rev>, for the record
+    /// of the splice around it. The rebuild of that splice asks for it at
+    /// each commit it walks, oldest first, so it goes on from the commit
+    /// before when the child's last sync is the same, instead of walking the
+    /// child's history from its last sync again.
+    fn child_rebuild(&mut self, child: &str, rev: &str) -> Res<Option<String>> {
+        // Set again by a failure inside this rebuild, not left from another.
+        self.unrebuilt_child = None;
+        // The rebuilds are kept by commit: a name such as HEAD can move.
+        let rev = &commit_of(rev).ok_or(Fail::Soft)?;
+        let last_sync = splice_last_sync(child, rev);
+        let mut made = None;
+        if let Some((sync, before, previous)) = self.child_rebuilds.get(child).cloned() {
+            if sync == last_sync && (before == *rev || goes_on_from(child, &before, rev)) {
+                made = Some(if before == *rev {
+                    Ok(previous)
+                } else {
+                    let range = format!("{before}..{rev}");
+                    quietly(|| self.rebuild_walk(child, previous, &range))
+                });
+            }
+        }
+        let made = match made.unwrap_or_else(|| quietly(|| self.rebuild_splice(child, rev))) {
+            Ok(made) => made,
+            Err(_) => {
+                // The rebuild around it records it: without it, that one would
+                // come out other than what was pushed. A splice inside this one
+                // may be what failed, and its message is quiet here.
+                let failed = match self.unrebuilt_child.take() {
+                    Some(inner) if inner.starts_with(&format!("{child}/")) => inner,
+                    _ => child.to_string(),
+                };
+                log_err(format!(
+                    "{failed}: can't be rebuilt here, and the rebuild of the splice around it records it -- 'git splice fetch {}' fetches what it needs",
+                    shell_quote(&failed)
+                ));
+                self.unrebuilt_child = Some(failed);
+                return Err(Fail::Soft);
+            }
+        };
+        self.child_rebuilds.insert(
+            child.to_string(),
+            (last_sync, rev.to_string(), made.clone()),
+        );
+        Ok(made)
+    }
+
+    /// Folder tree of splice <path> in commit <rev> as its upstream gets it:
+    /// without its state file, and each splice inside it recorded at its own
+    /// rebuild. What an upstream commit's tree is compared with.
+    pub fn published_tree(&mut self, rev: &str, path: &str) -> Res<Option<String>> {
+        match self.content_tree(rev, path)? {
+            Some(tree) => Ok(Some(self.record_children(path, rev, &tree)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Upstream tree <tree> of splice <path>, read in the records of monorepo
+    /// commit <rev>: each record of a splice inside it that is the one the
+    /// rebuild writes at <rev> stands for <rev>'s own record there. The other
+    /// direction of published_tree: what the folder would be.
+    pub fn in_monorepo_terms(&mut self, rev: &str, path: &str, tree: &str) -> Res<String> {
+        let mut published = None;
+        let mut files = Vec::new();
+        for dir in self.nested_splices(tree) {
+            let theirs = splice_config(&dir, "commit", tree);
+            let own = splice_config(&format!("{path}/{dir}"), "commit", rev);
+            if theirs == own {
+                continue;
+            }
+            let published = match &published {
+                Some(found) => found,
+                None => published.insert(self.published_tree(rev, path)?.unwrap_or_default()),
+            };
+            if published.is_empty() || theirs != splice_config(&dir, "commit", published) {
+                continue;
+            }
+            let Ok(blob) = state_blob_in(&dir, tree, &[("commit", &own)]) else {
+                continue;
+            };
+            files.push((format!("{dir}/{STATE_FILE}"), blob));
+        }
+        tree_with(tree, &[], &files)
+    }
+
+    /// Whether splice <path>'s folder in commit <rev> is upstream tree <tree>,
+    /// read in <rev>'s records. Equal files are the quick answer: a record
+    /// equal to <rev>'s own needs no reading.
+    pub fn folder_is(&mut self, rev: &str, path: &str, tree: Option<&String>) -> Res<bool> {
+        let Some(tree) = tree else {
+            return Ok(false);
+        };
+        let folder = self.content_tree(rev, path)?;
+        if folder.as_ref() == Some(tree) {
+            return Ok(true);
+        }
+        Ok(folder == Some(self.in_monorepo_terms(rev, path, tree)?))
+    }
+
     /// The tree of splice <path> in commit <rev>, without its state file, if
     /// the folder exists there.
     pub fn content_tree(&mut self, rev: &str, path: &str) -> Res<Option<String>> {
@@ -462,9 +607,10 @@ impl Repo {
     }
 
     /// Makes synced commit <synced> of splice <path> again, when its upstream
-    /// lost it: the rebuild of the commit before the one that first recorded
-    /// it, as a push and then a pull --bump record it. True if that gives the
-    /// same commit.
+    /// lost it or doesn't have it yet: the rebuild of the commit before the
+    /// one that first recorded it, as a push and then a pull --bump record
+    /// it, or of that commit itself, as the rebuild of the splice around it
+    /// records it. True if either gives the same commit.
     pub fn remake_synced(&mut self, path: &str, synced: &str) -> bool {
         let spec = format!(":(top,literal){path}/{STATE_FILE}");
         let recorded = git(&[
@@ -488,7 +634,15 @@ impl Repo {
         if !previous.is_empty() && !commit_here(&previous) && !self.remake_synced(path, &previous) {
             return false;
         }
-        matches!(self.rebuild_splice(path, &before), Ok(Some(made)) if made == synced)
+        if matches!(self.rebuild_splice(path, &before), Ok(Some(made)) if made == synced) {
+            return true;
+        }
+        // The rebuild of the splice around it records it in the commit that
+        // changed its files: that commit, on the synced commit recorded before,
+        // or as a root, after init.
+        let start = (!previous.is_empty()).then_some(previous);
+        let range = format!("{before}..{first}");
+        matches!(self.rebuild_walk(path, start, &range), Ok(Some(made)) if made == synced)
     }
 
     /// The upstream commit that represents the splice as of monorepo commit
@@ -691,7 +845,11 @@ impl Repo {
             let mut rebuild_start = Some(last_sync.clone());
             prev = Some(synced.clone());
             let prev_tree = tree_of(&synced).ok_or(Fail::Soft)?;
-            let tree = self.content_tree(&last_sync, &at)?;
+            let tree = if self.folder_is(&last_sync, &at, Some(&prev_tree))? {
+                Some(prev_tree.clone())
+            } else {
+                self.published_tree(&last_sync, &at)?
+            };
             // With the history from above, L's folder may equal it while the
             // monorepo's history before L has commits it lacks. They're joined
             // all the same. So is a move that changed the state file.
@@ -843,6 +1001,7 @@ impl Repo {
                 continue;
             };
             let tree = self.strip_state_tree(folder)?;
+            let tree = self.record_children(path, &hash_of(commit), &tree)?;
             if Some(&tree) == prev_tree.as_ref() {
                 continue;
             }
@@ -857,4 +1016,47 @@ impl Repo {
         }
         Ok(prev)
     }
+}
+
+/// Whether the child's rebuild at <rev> goes on from its rebuild at
+/// <before>: on <rev>'s first-parent line, and no splice around <child>
+/// synced in between. The commit right before is the common case, and
+/// needs no walk of the history between.
+fn goes_on_from(child: &str, before: &str, rev: &str) -> bool {
+    let parent = git(&["rev-parse", "--verify", "--quiet", &format!("{rev}^1")]).out();
+    if parent.as_deref() == Some(before) {
+        return !synced_above_between(child, before, rev);
+    }
+    first_parent_reaches(rev, before) && !synced_above_between(child, before, rev)
+}
+
+/// Whether <ancestor> is on the first-parent line of <rev>: the walk from it
+/// goes on along the same commits a walk from scratch would.
+fn first_parent_reaches(rev: &str, ancestor: &str) -> bool {
+    let range = format!("{ancestor}..{rev}");
+    let oldest = git(&["rev-list", "--first-parent", "--reverse", &range])
+        .out()
+        .unwrap_or_default();
+    let Some(oldest) = oldest.lines().next() else {
+        return false;
+    };
+    git(&["rev-parse", "--verify", "--quiet", &format!("{oldest}^1")])
+        .out()
+        .is_some_and(|parent| parent == git(&["rev-parse", ancestor]).out().unwrap_or_default())
+}
+
+/// Whether a commit after <before> up to <rev> changed the .splice of a
+/// splice around <child>: its history from above can start elsewhere then.
+fn synced_above_between(child: &str, before: &str, rev: &str) -> bool {
+    let parts: Vec<&str> = child.split('/').collect();
+    let specs: Vec<String> = (1..parts.len())
+        .map(|n| format!(":(top,literal){}/{STATE_FILE}", parts[..n].join("/")))
+        .collect();
+    if specs.is_empty() {
+        return false;
+    }
+    let range = format!("{before}..{rev}");
+    let mut args = vec!["rev-list", "--count", &range, "--"];
+    args.extend(specs.iter().map(String::as_str));
+    git(&args).out().is_none_or(|count| count != "0")
 }

@@ -85,6 +85,17 @@ cell() {
   [[ "$(cell s3 style)" != *"dashed=1;"* ]]
 }
 
+@test "drawing tree: R is dashed while no upstream branch has it, and solid once pushed" {
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  write_tree m=HEAD
+  [[ "$(cell r3 style)" == *"dashed=1;"* ]]
+  splice push vendor/a/b/c >/dev/null
+  write_tree m=HEAD
+  [[ "$(cell r3 style)" != *"dashed=1;"* ]]
+  [ "$(cell r3 value)" = "m'" ]
+  [ "$(cell dots3 value)" = "…" ]
+}
+
 @test "drawing tree: the commit a conflicted pull merges in, outlined red, and the row says so" {
   commit_local "$monorepo" vendor/a/b "b local"
   seed_bare_repo "$BATS_TEST_TMPDIR/upstream-b.git" "b2: b upstream"
@@ -135,7 +146,7 @@ cell() {
   [[ "$output" == *"write it with \`check-drawing tree --mark pulled m=HEAD\`"* ]]
 }
 
-@test "drawing tree: a splice after an init has no synced commit, only R" {
+@test "drawing tree: a splice after an init has no synced commit, only R, without the dots" {
   load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git"
   scenario_init_new_upstream "$other" "$other_upstream"
@@ -144,6 +155,7 @@ cell() {
   write_tree s=HEAD
   [ "$(cell r1 value)" = "s'" ]
   [ -z "$(cell s1 value)" ]
+  [ -z "$(cell dots1 value)" ]
   [ "$(cell c1 target)" = r1 ]
 }
 
@@ -161,4 +173,14 @@ cell() {
   git commit -q -am "c at c2, not fetched"
   write_tree
   [ "$(cell s3 value)" = "${c2:0:7}" ]
+}
+
+@test "drawing tree: a commit the monorepo doesn't have takes a label given by its full hash" {
+  local c2
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c2: c upstream"
+  c2="$(git -C "$BATS_TEST_TMPDIR/upstream-c.git" rev-parse main)"
+  git config --file vendor/a/b/c/.splice splice.commit "$c2"
+  git commit -q -am "c at c2, not fetched"
+  write_tree "c2=$c2"
+  [ "$(cell s3 value)" = c2 ]
 }

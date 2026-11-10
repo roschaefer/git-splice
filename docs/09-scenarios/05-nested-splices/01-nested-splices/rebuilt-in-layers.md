@@ -1,25 +1,21 @@
 # Scenario: nested-splices, rebuilt layer by layer
 
-Nesting would be simpler if each level ran the command for one level, in
-the repository its splice is spliced into: the rebuild of the splice
-above. That only gives the monorepo's answer if the rebuild of the splice
-above has all the history the levels below need. This page shows a case
-where it doesn't, and the two answers differ.
+Each level can run the command for one level, in the repository its
+splice is spliced into: the rebuild of the splice above. That gives the
+monorepo's answer only if the rebuild of the splice above has all the
+history the levels below need.
 
-The monorepo pushes a change to `vendor/a/b/`, and then makes `vendor/` a
-splice around `vendor/a/`. A splice's history starts where it was made,
-so `vendor/`'s rebuild starts at its `init`, with the pushed change
-folded into that one commit. Rebuilt level by level from there, `b/` has
-the change as part of the `init`, next to the upstream's own commit for
-it: `b/` diverges from its upstream. The monorepo's rebuild walks the
-monorepo's commits, and has the pushed commit itself, as the upstream
-does.
-
-The monorepo's answer is the right one: it agrees with the upstream. So
-running the command one level at a time needs the history from the
-monorepo's rebuild. The level only gives its files and `.splice` files.
-[#364](https://github.com/roschaefer/git-splice/pull/364) pulls one
-level at a time that way.
+Here the monorepo pushes a change to `vendor/a/b/`, and then makes
+`vendor/` a splice around `vendor/a/`. A splice's history starts where
+it was made, so `vendor/`'s rebuild starts at its `init`, with the
+pushed change folded into that one commit. The records carry it,
+though: the rebuild of `vendor/` records `a/` at the rebuild of
+`vendor/a/`, which has the pushed change as a commit of its own, and
+that one records `b/` the same way. So rebuilt level by level, each
+level comes out as the monorepo's own rebuild, commit for commit.
+Before the rebuild wrote the records this way, `b/` had the change only
+as part of the `init`, and diverged from its upstream
+([#337](https://github.com/roschaefer/git-splice/pull/337)).
 
 ## Output
 
@@ -35,6 +31,17 @@ $ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=3 GIT_CONFI
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
+As a tree: the monorepo at *a*, `vendor/a/` at *l*, and `b/` in it at *m*:
+
+![The tree: the monorepo at a; vendor/a/ at l; b/ at m](layers-tree-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/layers-tree-before.drawio.svg" a=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main
+ok   layers-tree-before.drawio.svg: a tree of 3 rows
+```
+-->
+
 The monorepo pushes a change to `vendor/a/b/`:
 
 ```scrut
@@ -43,6 +50,17 @@ $ echo "b local" >>vendor/a/b/file.txt &&
 >   git splice push vendor/a/b
 ok   vendor/a/b: pushed 701ab17 to main
 ```
+
+The inner upstream has *c'* now, the copy of *c*, so it's solid in `b/`. The monorepo still records *m*, so both are there. `vendor/a/` wasn't pushed, and its *c'* is dashed:
+
+![The tree: the monorepo at c; vendor/a/ at l, then dashed c'; b/ at m, then c', solid: the inner upstream has it](layers-tree-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/layers-tree-pushed.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main~1
+ok   layers-tree-pushed.drawio.svg: a tree of 3 rows
+```
+-->
 
 Then it makes `vendor/` a splice of a new upstream, around `vendor/a/`,
 and changes `vendor/a/b/` again:
@@ -57,6 +75,17 @@ ok   vendor: initialized -- 'git splice push vendor' publishes it
 $ echo "b next" >>vendor/a/b/file.txt &&
 >   git commit -q -a -m "b next"
 ```
+
+`vendor/` has no synced commit, only its rebuild, *n'*, and `vendor/a/` and `b/` are inside it now:
+
+![The tree: the monorepo at n; vendor/, with no synced commit, dashed n'; in it, a/ at l, then dashed n'; b/ at m, then dashed n'](layers-tree-after.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/layers-tree-after.drawio.svg" n=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main~1
+ok   layers-tree-after.drawio.svg: a tree of 4 rows
+```
+-->
 
 ## In the monorepo
 
@@ -133,13 +162,13 @@ $ cd ../a-layer
 ```scrut
 $ git log --format=%s
 b next
-splice: init vendor
+b local
 add b
 a seed
 ```
 
-And in there, `b/`. Its rebuild has the pushed change only as part of
-`splice: init vendor`:
+And in there, `b/`. Its rebuild has the pushed change as a commit of its
+own, `b local`:
 
 ```scrut
 $ git branch layer/b "$(git splice rebuild b)"
@@ -148,39 +177,29 @@ $ git branch layer/b "$(git splice rebuild b)"
 ```scrut
 $ git log --format=%s layer/b
 b next
-splice: init vendor
+b local
 b seed
 ```
 
-So `log` marks the pushed `b local` and `splice: init vendor` with `=`,
-the same change on both sides: `b/` has diverged from its upstream.
+Only `b next` is new, as in the monorepo:
 
 ```scrut
 $ git splice log b
 ===  b (upstream has no 'layer/a' branch -- compared with 'main')
-< 9c61af7 b next  (Test <test@example.com>)
-= 701ab17 b local  (Test <test@example.com>)
-= e23fdcf splice: init vendor  (Test <test@example.com>)
+< b3c7929 b next  (Test <test@example.com>)
 ```
 
-Each layer's branch rebuilds the one above it, so its commits are copies
-of copies: *i''* and *n''* of *i'* and *n'*, and *i'''* and *n'''* of
-those. In `vendor/a/b/`, `layer/b` puts *i'''* on *m*, next to the
-upstream's *c'*, the
-same change in two commits:
+Each layer's branch is the same commit as the monorepo's rebuild of
+that splice:
 
-<div align="center">
-
-![The monorepo's a, c, i and n, H at n; in the lane vendor/, dashed, i prime and n prime, layer/vendor; in vendor/a/, drawn inside it and shaded, a's upstream commits k and l, T and U(H) at l, and dashed on l, i double prime and n double prime, layer/a; in vendor/a/b/, drawn inside that, b's upstream commits m, U(H) and U(l), and c prime, T, and dashed on m, i triple prime and n triple prime, layer/b](layers-one-by-one.drawio.svg)
-
-</div>
-
-<!--
 ```scrut
-$ (cd ../monorepo && check_drawing "$TESTDIR/layers-one-by-one.drawio.svg" \
->   a=HEAD~3 c=HEAD~2 i=HEAD~1 n=HEAD k=refs/splices/upstream/heads/main~1 \
->   l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main~1 \
->   "i''=layer/a~1" "n''=layer/a" "i'''=layer/b~1" "n'''=layer/b")
-ok   layers-one-by-one.drawio.svg: 14 commits, 17 arrows, 7 boxes, 3 lanes
+$ git rev-parse --short=7 layer/a && git rev-parse --short=7 layer/b
+0be5270
+b3c7929
 ```
--->
+
+```scrut
+$ (cd ../monorepo && git splice rebuild vendor/a | cut -c1-7 && git splice rebuild vendor/a/b | cut -c1-7)
+0be5270
+b3c7929
+```

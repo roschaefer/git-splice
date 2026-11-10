@@ -25,6 +25,16 @@ impl Repo {
         let pinned = target.kind != TargetKind::Branch;
         // A pin that's here counts as fetched, though upstream has no branches.
         let pin_here = pinned && commit_of(&target.reference).is_some();
+        // Made again before anything compares with it: a branch the upstream
+        // doesn't have yet compares with its default branch, and an upstream
+        // that's still empty has nothing to compare with, from the same
+        // synced commit. An upstream never fetched has no key yet: a fetch
+        // comes first.
+        let fetch_tried = pin_here || !self.key_of(path).is_empty();
+        let mut remade_early = None;
+        if fetch_tried && !c.synced.is_empty() && !commit_here(&c.synced) {
+            remade_early = Some(self.remake_synced(path, &c.synced.clone()));
+        }
         if !self.splice_fetched(path) && !pin_here {
             // Without a synced commit, the splice came from init: its upstream
             // was empty, so a fetch that brings nothing is the expected state.
@@ -42,13 +52,6 @@ impl Repo {
                 State::NeverFetched
             };
             return Ok(());
-        }
-
-        // Made again before anything compares with it: a branch the upstream
-        // doesn't have yet compares with its default branch, from the same
-        // synced commit.
-        if !c.synced.is_empty() && !commit_here(&c.synced) {
-            self.remake_synced(path, &c.synced.clone());
         }
 
         c.target_ref = target.reference.clone();
@@ -87,7 +90,7 @@ impl Repo {
         };
         if !c.synced.is_empty()
             && (!here || (!is_ancestor(&c.synced, &c.target_ref) && !had()))
-            && self.remake_synced(path, &c.synced.clone())
+            && remade_early.unwrap_or_else(|| self.remake_synced(path, &c.synced.clone()))
         {
             // Only a copy of this branch's own history comes out the same: the
             // commits above the newest one the upstream has are its own.
@@ -244,6 +247,46 @@ pub fn state_blob_in(path: &str, rev: &str, settings: &[(&str, &str)]) -> Res<St
 
 pub fn state_blob(path: &str, settings: &[(&str, &str)]) -> Res<String> {
     state_blob_in(path, "HEAD", settings)
+}
+
+/// Tree <tree> with each (folder, tree) of <folders> in place of that folder,
+/// then each (file, blob) of <files> written. Uses a temporary index, so
+/// neither the worktree nor the real index changes.
+pub fn tree_with(
+    tree: &str,
+    folders: &[(String, String)],
+    files: &[(String, String)],
+) -> Res<String> {
+    if folders.is_empty() && files.is_empty() {
+        return Ok(tree.to_string());
+    }
+    let index = Temp::new();
+    let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
+    let mut ok = indexed(&["read-tree", tree]).ok();
+    for (folder, content) in folders {
+        let spec = format!(":(top,literal){folder}");
+        ok = ok
+            && indexed(&[
+                "rm",
+                "-r",
+                "-q",
+                "-f",
+                "--cached",
+                "--ignore-unmatch",
+                "--",
+                &spec,
+            ])
+            .ok()
+            && indexed(&["read-tree", &format!("--prefix={folder}/"), content]).ok();
+    }
+    for (file, blob) in files {
+        let entry = format!("100644,{blob},{file}");
+        ok = ok && indexed(&["update-index", "--add", "--cacheinfo", &entry]).ok();
+    }
+    if !ok {
+        return Err(Fail::Soft);
+    }
+    indexed(&["write-tree"]).out().ok_or(Fail::Soft)
 }
 
 /// A tree: commit <rev>'s, with folder <path> replaced by <folder> (none: no

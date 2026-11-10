@@ -60,6 +60,8 @@ impl Marks {
 struct Circle {
     label: String,
     color: Option<&'static str>,
+    /// No upstream branch has it, as in the lanes.
+    dashed: bool,
 }
 
 /// A row: the splice's folder, relative to the row it hangs from, how deep
@@ -99,7 +101,10 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
     let mut names: Vec<(&String, &String)> = labels.revs.iter().collect();
     names.sort();
     for (label, rev) in names.into_iter().rev() {
-        if let Some(commit) = git.commit(rev) {
+        // A full hash names a commit the repository may not have, e.g. a
+        // synced commit that isn't here: labelled all the same.
+        let full_hash = matches!(rev.len(), 40 | 64) && rev.bytes().all(|b| b.is_ascii_hexdigit());
+        if let Some(commit) = git.commit(rev).or_else(|| full_hash.then(|| rev.clone())) {
             given.insert(commit, label.clone());
         }
     }
@@ -156,7 +161,11 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
         } else {
             None
         };
-        Circle { label, color }
+        Circle {
+            label,
+            color,
+            dashed: false,
+        }
     };
 
     let mut rows = vec![Row {
@@ -182,8 +191,10 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
             .map_or(splice.as_str(), |p| &splice[p.len() + 1..]);
         let synced =
             (!truth.u.is_empty()).then(|| circle(synced_label(&truth.u), pulled(&truth.u), false));
-        let r = (!truth.r.is_empty() && truth.r != truth.u).then(|| {
-            circle(
+        let upstream = format!("refs/splices/{}/heads/", truth.key);
+        let r = (!truth.r.is_empty() && truth.r != truth.u).then(|| Circle {
+            dashed: truth.key.is_empty() || !git.any_ref_contains(&truth.r, &[&upstream]),
+            ..circle(
                 copy_label(&truth.r),
                 pulled(&truth.r),
                 !git.is_ancestor(&truth.r, &truth.s),
@@ -195,6 +206,7 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
             .map(|(_, commit)| Circle {
                 label: label(commit),
                 color: Some(CONFLICT),
+                dashed: false,
             });
         rows.push(Row {
             folder: format!("{folder}/"),
@@ -254,16 +266,21 @@ fn render(rows: &[Row], marks: &Marks) -> String {
             next += CIRCLE + GAP;
         }
         if let Some(r) = &row.r {
-            let dots = format!("text;align=center;verticalAlign=middle;fontSize=16;{FONT}");
-            shape(
-                &format!("dots{i}"),
-                "…",
-                &dots,
-                (next - GAP + 2.0, y, GAP - 4.0, CIRCLE),
-                "1",
-            );
+            // The commits between the synced commit and R: none to stand for
+            // without a synced commit, e.g. after init.
+            if row.synced.is_some() {
+                let dots = format!("text;align=center;verticalAlign=middle;fontSize=16;{FONT}");
+                shape(
+                    &format!("dots{i}"),
+                    "…",
+                    &dots,
+                    (next - GAP + 2.0, y, GAP - 4.0, CIRCLE),
+                    "1",
+                );
+            }
             let id = format!("r{i}");
-            let style = format!("{commit}dashed=1;{}", outline(r.color));
+            let dashed = if r.dashed { "dashed=1;" } else { "" };
+            let style = format!("{commit}{dashed}{}", outline(r.color));
             shape(&id, &r.label, &style, (next, y, CIRCLE, CIRCLE), "1");
             head = Some((id, next));
             next += CIRCLE + GAP;

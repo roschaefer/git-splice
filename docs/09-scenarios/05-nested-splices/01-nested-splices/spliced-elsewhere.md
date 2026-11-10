@@ -2,19 +2,21 @@
 
 The monorepo pushes a change in `vendor/a/b/`, the splice below
 `vendor/a/`. Then another monorepo splices the outer upstream in. There,
-the inner splice's files already have the change, but its `.splice`
-still names the synced commit from before it, and `git splice clone`
-squashed the outer upstream's history into one commit: the other
-monorepo's own history has nothing between that synced commit and the
-inner splice's files.
+the inner splice's files have the change, and its `.splice` names the
+commit the inner upstream got with that push: the rebuild of
+`vendor/a/` records each splice inside it at its own rebuild. So the
+inner splice is up to date, and its first change is pushed on top.
 
-The outer upstream has that history, though, and the other monorepo
-fetched it. So up to the clone, the inner splice's history is rebuilt
-from the outer upstream: the rebuild gets exactly the commit the first
-monorepo pushed, the inner splice is up to date, and its first change is
-pushed on top. Before, it read as diverged there, and `pull` conflicted
-on a line both sides had
+`git splice clone` squashes the outer upstream's history into one
+commit, so the other monorepo's own history has nothing between the
+inner splice's synced commits. The rebuild reads that history from the
+outer upstream instead, which the other monorepo fetched. Before, the
+record named the synced commit from before the change, and the inner
+splice read as diverged there
 ([#74](https://github.com/roschaefer/git-splice/issues/74)).
+Pushed without the inner splice, the outer upstream records a commit the
+inner upstream lacks, which the other monorepo can't make again
+([spliced elsewhere before the push below](spliced-elsewhere-before-the-push-below.md)).
 
 ## Output
 
@@ -32,26 +34,65 @@ the monorepo:
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
-The monorepo changes `vendor/a/b/` and pushes both, bottom-up:
+As a tree: the monorepo at *a*, `vendor/a/` at *l*, and `b/` in it at *m*:
+
+![The tree: the monorepo at a; vendor/a/ at l; b/ at m](elsewhere-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-before.drawio.svg" a=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main
+ok   elsewhere-before.drawio.svg: a tree of 3 rows
+```
+-->
+
+The monorepo changes `vendor/a/b/`, in *c* (`b local`):
 
 ```scrut
 $ echo "b local" >>vendor/a/b/file.txt &&
->   git commit -q -a -m "b local" &&
->   git splice push vendor/a/b vendor/a
-ok   vendor/a/b: pushed f47c373 to main
-ok   vendor/a: pushed 924e6e3 to main
+>   git commit -q -a -m "b local"
 ```
 
-`vendor/a/b/.splice` still names the synced commit from before the
-change: a push writes nothing to the monorepo. The push of `vendor/a/`
-publishes this `.splice`, along with a commit `b local` in the outer
-upstream:
+Each rebuild has it on top: *c'* in `b/`, and *p* in `vendor/a/`, which records *c'*. Neither is upstream yet, so both are dashed:
+
+![The tree: the monorepo at c; vendor/a/ at l, then dashed p; b/ at m, then dashed c'; no upstream has either yet](elsewhere-changed-below.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-changed-below.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main p=$(git splice rebuild vendor/a) c\'=$(git splice rebuild vendor/a/b)
+ok   elsewhere-changed-below.drawio.svg: a tree of 3 rows
+```
+-->
+
+It pushes both, bottom-up:
+
+```scrut
+$ git splice push vendor/a/b vendor/a
+ok   vendor/a/b: pushed f47c373 to main
+ok   vendor/a: pushed 9946cf2 to main
+```
+
+Both upstreams have them now, so they're solid. The monorepo still records *l* and *m*, so both commits are there in each row:
+
+![The tree: the monorepo at c; vendor/a/ at l, then p; b/ at m, then c'; both solid now: their upstreams have them](elsewhere-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-pushed.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main~1 m=refs/splices/b/heads/main~1 p=refs/splices/upstream/heads/main c\'=refs/splices/b/heads/main
+ok   elsewhere-pushed.drawio.svg: a tree of 3 rows
+```
+-->
+
+`vendor/a/b/.splice` in the monorepo still names the synced commit from
+before the change: a push writes nothing to the monorepo. The push of
+`vendor/a/` publishes a commit `b local` in the outer upstream, whose
+`b/.splice` records the rebuild of `vendor/a/b/`: the commit the inner
+upstream just got.
 
 ```scrut
 $ git -C "$UPSTREAM" show main:b/.splice |
 >   git config --file - splice.commit |
 >   xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
-b seed
+b local
 ```
 
 ## Another monorepo splices the outer upstream in
@@ -65,7 +106,7 @@ $ git init -q -b main ../other &&
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
-ok   vendor/a: cloned 924e6e3 from main
+ok   vendor/a: cloned 9946cf2 from main
 ok   vendor/a/b fetched
 ```
 
@@ -75,13 +116,24 @@ ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```
 
+Here, *o* clones the outer upstream at *p*, which records *c'* for `b/`:
+
+![The tree: the other monorepo at o; vendor/a/ at p; b/ at c', which p records; no splice has commits of its own](elsewhere-cloned.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-cloned.drawio.svg" o=HEAD p=$(git config --file vendor/a/.splice splice.commit) c\'=$(git config --file vendor/a/b/.splice splice.commit)
+ok   elsewhere-cloned.drawio.svg: a tree of 3 rows
+```
+-->
+
 `clone` squashed the outer upstream's history into one commit. The files
-of `vendor/a/b/` there already have `b local`, but its `.splice` names
-`b seed`:
+of `vendor/a/b/` there have `b local`, and so has the commit its
+`.splice` names:
 
 ```scrut
 $ git log --format=%s
-splice: clone vendor/a from main at 924e6e3
+splice: clone vendor/a from main at 9946cf2
 other monorepo
 ```
 
@@ -93,7 +145,7 @@ b local
 
 ```scrut
 $ git log -1 --format=%s "$(git config --file vendor/a/b/.splice splice.commit)"
-b seed
+b local
 ```
 
 Up to date, since the inner splice's files match the inner upstream:
@@ -112,9 +164,19 @@ The first change to `vendor/a/b/` here:
 $ echo "b other" >>vendor/a/b/file.txt && git commit -q -a -m "b other"
 ```
 
-The rebuild of `vendor/a/b/` reads its history up to the clone in the
-outer upstream, where `b local` is a commit of its own. So it gets the
-commit the first monorepo pushed, and only `b other` is new:
+*d* (`b other`) goes on top of *c'* in `b/`'s rebuild, and on top of *p* in `vendor/a/`'s:
+
+![The tree: the other monorepo at d; vendor/a/ at p, then dashed d'; b/ at c', then dashed d'](elsewhere-changed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-changed.drawio.svg" d=HEAD o=HEAD~1 p=$(git config --file vendor/a/.splice splice.commit) c\'=$(git config --file vendor/a/b/.splice splice.commit)
+ok   elsewhere-changed.drawio.svg: a tree of 3 rows
+```
+-->
+
+The rebuild of `vendor/a/b/` starts at that synced commit, `b local`,
+so only `b other` is new:
 
 ```scrut
 $ git splice status vendor/a/b
@@ -141,6 +203,17 @@ ok   vendor/a/b: nothing to pull
 $ git splice push vendor/a/b
 ok   vendor/a/b: pushed f123e09 to main
 ```
+
+The inner upstream has *d'* now; `vendor/a/` wasn't pushed, and its *d'* is dashed:
+
+![The tree of the other monorepo after the push: at d; vendor/a/ at p, then dashed d'; b/ at c', then d', solid: the inner upstream has it](elsewhere-pushed-below.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-pushed-below.drawio.svg" d=HEAD p=$(git config --file vendor/a/.splice splice.commit) c\'=$(git config --file vendor/a/b/.splice splice.commit)
+ok   elsewhere-pushed-below.drawio.svg: a tree of 3 rows
+```
+-->
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" log --format=%s main

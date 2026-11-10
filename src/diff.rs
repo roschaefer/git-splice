@@ -62,7 +62,7 @@ fn diff_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
         }
         State::Push | State::Diverged => old_tree = tree_of(&repo.c.target_ref),
     }
-    let new_tree = contained(repo.content_tree("HEAD", path))?.unwrap_or_default();
+    let new_tree = contained(repo.published_tree("HEAD", path))?.unwrap_or_default();
     let old_tree = old_tree.unwrap_or_else(|| repo.empty_tree());
     log_step(path);
     let mut args = vec!["diff"];

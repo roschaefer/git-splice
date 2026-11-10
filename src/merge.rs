@@ -195,7 +195,7 @@ impl Repo {
                 .unwrap_or_default()
         };
         refuse_changed_submodule(path, &merge_base, &target)?;
-        let base_folder = tree_of(&merge_base).ok_or(Fail::Soft)?;
+        let base_folder = self.own_records_in(path, &merge_base, &target)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message =
@@ -228,7 +228,7 @@ impl Repo {
             if splice_config(path, "commit", commit) != synced {
                 break;
             }
-            if self.content_tree(commit, path)? == synced_tree {
+            if self.folder_is(commit, path, synced_tree.as_ref())? {
                 return Ok(Some(commit.to_string()));
             }
         }
@@ -248,6 +248,80 @@ impl Repo {
             ));
         }
         Ok(())
+    }
+
+    /// The folder of merge base <base> for a merge of <theirs> into splice
+    /// <path>, with the records of the splices inside it set so that each
+    /// side is compared with the base in its own terms. <base> may be a copy
+    /// the monorepo's rebuild made of its commit Y, whose records the rebuild
+    /// wrote: <theirs> changed a record if it differs from <base>'s, the
+    /// monorepo if HEAD's differs from Y's. Where <theirs> changed it, the
+    /// base gets Y's: the merge takes <theirs> if HEAD's is still Y's, and
+    /// they conflict unless they agree if not. Where it didn't: <base>'s as it
+    /// is, so the merge keeps HEAD's.
+    fn own_records_in(&mut self, path: &str, base: &str, theirs: &str) -> Res<String> {
+        let tree = tree_of(base).ok_or(Fail::Soft)?;
+        let mut original = None;
+        let mut files = Vec::new();
+        for dir in self.nested_splices(&tree) {
+            if splice_config(&dir, "commit", theirs) == splice_config(&dir, "commit", base) {
+                continue;
+            }
+            let original = match &original {
+                Some(found) => found,
+                None => original.insert(self.original_of(path, base)?),
+            };
+            let Some(y) = original else {
+                continue;
+            };
+            let monorepo_then = splice_config(&format!("{path}/{dir}"), "commit", y);
+            let Ok(blob) = state_blob_in(&dir, &tree, &[("commit", &monorepo_then)]) else {
+                continue;
+            };
+            files.push((format!("{dir}/{STATE_FILE}"), blob));
+        }
+        tree_with(&tree, &[], &files)
+    }
+
+    /// The first-parent commit of the monorepo that upstream commit <copy>
+    /// is the rebuild's copy of, for splice <path>: the same author,
+    /// committer, dates and message, and its folder the copy's files.
+    fn original_of(&mut self, path: &str, copy: &str) -> Res<Option<String>> {
+        const FORMAT: &str = "%an%x00%ae%x00%ad%x00%cn%x00%ce%x00%cd%x00%B";
+        let Some(key) = git(&[
+            "log",
+            "-1",
+            "--date=raw",
+            &format!("--format={FORMAT}"),
+            copy,
+        ])
+        .out() else {
+            return Ok(None);
+        };
+        let spec = format!(":(top,literal){path}");
+        let Some(log) = git(&[
+            "log",
+            "--first-parent",
+            "--date=raw",
+            &format!("--format=%H%x00{FORMAT}%x01"),
+            "HEAD",
+            "--",
+            &spec,
+        ])
+        .out() else {
+            return Ok(None);
+        };
+        let tree = tree_of(copy);
+        for entry in log.split('\u{1}') {
+            let entry = entry.trim_start_matches('\n');
+            let Some((commit, rest)) = entry.split_once('\0') else {
+                continue;
+            };
+            if rest.trim_end() == key.trim_end() && self.folder_is(commit, path, tree.as_ref())? {
+                return Ok(Some(commit.to_string()));
+            }
+        }
+        Ok(None)
     }
 
     /// For --rebase: takes the splice's upstream branch in on top of X, the
@@ -319,12 +393,9 @@ impl Repo {
             ));
         }
         let blob = state_blob_in(path, &base, &[("commit", &target)])?;
-        let tree = reroot_tree(
-            path,
-            Some(&format!("{target}^{{tree}}")),
-            Some(&blob),
-            &base,
-        )?;
+        let theirs = tree_of(&target).ok_or(Fail::Soft)?;
+        let folder = self.in_monorepo_terms(&base, path, &theirs)?;
+        let tree = reroot_tree(path, Some(&folder), Some(&blob), &base)?;
         let message =
             self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
         let pull = git(&["commit-tree", &tree, "-p", &base, "-m", &message])
@@ -916,7 +987,9 @@ impl Repo {
         };
         let message = self.given_message_or(default);
         let blob = state_file_blob("HEAD", path).ok_or(Fail::Hard)?;
-        let base_folder = tree_of(&base).ok_or(Fail::Hard)?;
+        let base_folder = self
+            .own_records_in(path, &base, &given)
+            .map_err(|_| Fail::Hard)?;
         match splice_in(
             path,
             Some(&base_folder),

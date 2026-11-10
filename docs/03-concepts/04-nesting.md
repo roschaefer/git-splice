@@ -60,9 +60,20 @@ together in three ways:
 - **Pull top-down.** Pulling the splice above brings in the nested
   `.splice` as its upstream has it, which can move the synced commit of
   the splice below. So `merge` and `pull` take the splice above first.
-- **Push bottom-up.** Pushing the splice above sends the nested
-  `.splice`, which must not name a commit its own upstream doesn't have
-  yet ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/README.md)).
+- **The rebuild records the splices inside it.** The rebuild of the
+  splice above writes into the nested `.splice` the rebuild of the
+  splice below: the commit that splice's upstream gets with the same
+  push. The push sends what the rebuild made and, as always, writes
+  nothing to the monorepo, which keeps its own record. So one push of
+  both leaves the upstream above recording what the one below got from
+  the monorepo; an upstream that moved on is pulled first, as before any
+  push
+  ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/pulled-level-by-level.md)).
+  The splice below goes first, so the record names a commit its upstream
+  has, and `push --all` stops at a failed push before the splice above.
+  Should the splice above be pushed on its own anyway, a clone of its
+  upstream makes the recorded commit again from its own history
+  ([scenario](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/failed-push-below.md)).
 - **History from above.** The splice above came in squashed, so the
   monorepo lacks the older history of the splice below. A push takes it
   from the upstream above

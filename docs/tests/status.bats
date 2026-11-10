@@ -106,6 +106,18 @@ assert_state() {
   [ "$(splice_state lib/a)" = missing-branch ]
 }
 
+@test "state: never-fetched in a fresh clone of the monorepo, though it could make the synced commit of a splice made by init again" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice init lib/a "$upstream" >/dev/null
+  splice push lib/a >/dev/null
+  splice pull --bump lib/a >/dev/null
+  local clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q --no-local "$monorepo" "$clone"
+  cd "$clone"
+  [ "$(splice_state lib/a)" = never-fetched ]
+}
+
 @test "status: counts what push would publish and pull would bring in" {
   scenario_push_ahead "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "second local change"

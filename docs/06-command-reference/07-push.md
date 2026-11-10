@@ -212,13 +212,18 @@ but only for the splices that changed on it
 
 ```scrut
 $ git splice push -h | check-help section order
-    Bottom-up: a splice below another is pushed first, since the push of the
-    one above publishes its .splice, and a failed push stops the splices
-    above it.
+    Bottom-up: a splice below another is pushed first, since the rebuild of
+    the one above records it at the commit its push sends, and a failed
+    push stops the splices above it.
 ```
 
-Pushing the splice above sends the `.splice` of the one below, so the
-one below goes first ([nesting](../03-concepts/04-nesting.md)).
+Pushing the splice above sends the `.splice` of the one below as the
+rebuild wrote it, recording the rebuild of the one below: what its
+upstream gets with the same push.
+So one `push --all` leaves every upstream recording what the one inside
+it got from the monorepo, without `pull --bump` in between. An upstream
+that moved on since is pulled first, as before any push
+([nesting](../03-concepts/04-nesting.md)).
 
 ## Read more
 

@@ -116,13 +116,13 @@ its folder. Its `default-upstream` goes along, so in the outer upstream,
 
 ```scrut
 $ git splice push vendor/a
-ok   vendor/a: pushed e49458b to origin/main
+ok   vendor/a: pushed 71a9326 to origin/main
 ```
 
 ```scrut
 $ git -C "$UPSTREAM" show main:b/.splice
 [splice]
-	commit = d5d5b62373ad5b94d1393019ab51f2ad34bb43c2
+\tcommit = c819ad9d7bd5f546a2ba1485e9f4c89e74159f58 (escaped)
 	id = 548ac82ad47ea22d
 	default-upstream = origin
 [upstream "origin"]

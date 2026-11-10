@@ -209,6 +209,15 @@ ok   central-legend.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
   monorepo's *c*, with the same changes and message, in the upstream's
   layout.
 
+## A scenario's states
+
+A scenario shows its first and its last state as a drawing, and each
+state in between that its point depends on. For nested splices, that's
+a tree, written by `check-drawing tree`, so every state compares with
+the others; a step that leaves the tree as it was, like `status`, needs
+none. A step that changes two things, like a commit and the push of it,
+is two code blocks, with the state after each.
+
 ## The sidebar
 
 The folders in `docs/` are the sidebar. The numbers in their names set

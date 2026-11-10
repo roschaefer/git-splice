@@ -62,6 +62,17 @@ $ echo "a in the monorepo" >>vendor/a/file.txt &&
 >   git commit -q -am "a in the monorepo"
 ```
 
+Before: the monorepo at *m*, `a in the monorepo`, and each splice at its synced commit, *k*, *l* and *n*. *m*'s copy *m'* is in `vendor/a/`'s rebuild:
+
+![The tree: the monorepo at m; vendor/a/ at k, then dashed m'; b/ at l; c/ at n](every-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/every-before.drawio.svg" m=HEAD k=$(git config --file vendor/a/.splice splice.commit) l=$(git config --file vendor/a/b/.splice splice.commit) n=$(git config --file vendor/a/b/c/.splice splice.commit)
+ok   every-before.drawio.svg: a tree of 4 rows
+```
+-->
+
 ## 1. The monorepo and `vendor/a/`
 
 ```scrut
@@ -82,6 +93,17 @@ $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
 >   git add vendor/a/file.txt &&
 >   git commit -q --no-edit
 ```
+
+After the pull of `vendor/a/`, *pa*: `vendor/a/` is at *a2*, its upstream's commit, and `b/` has *a2'*, the change `a`'s upstream made in `b/`, as its own:
+
+![The tree: the monorepo at pa; vendor/a/ at a2, then dashed pa'; b/ at l, then dashed a2'; c/ at n](every-a.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/every-a.drawio.svg" pa=HEAD a2=$(git config --file vendor/a/.splice splice.commit) l=$(git config --file vendor/a/b/.splice splice.commit) n=$(git config --file vendor/a/b/c/.splice splice.commit) a2\'=$(git splice rebuild vendor/a/b)
+ok   every-a.drawio.svg: a tree of 4 rows
+```
+-->
 
 ## 2. `a` and `b/`
 
@@ -117,8 +139,19 @@ changed since its rebuild was checked out, so nothing conflicts:
 ```scrut
 $ cd ../monorepo &&
 >   git splice merge --rebuilt-commit layer/a vendor/a
-ok   vendor/a: merged 773f6ae
+ok   vendor/a: merged 7a981f0
 ```
+
+After `b/`'s pull came up, *pb*: `b/` is at *b2*, and `c/` has *b2'*, the change `b`'s upstream made in `c/`, as its own:
+
+![The tree: the monorepo at pb; vendor/a/ at a2, then dashed pb'; b/ at b2, then dashed pb'; c/ at n, then dashed b2'](every-b.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/every-b.drawio.svg" pb=HEAD a2=$(git config --file vendor/a/.splice splice.commit) b2=$(git config --file vendor/a/b/.splice splice.commit) n=$(git config --file vendor/a/b/c/.splice splice.commit) b2\'=$(git splice rebuild vendor/a/b/c)
+ok   every-b.drawio.svg: a tree of 4 rows
+```
+-->
 
 ```scrut
 $ git worktree remove ../a-layer &&
@@ -159,13 +192,13 @@ The new commit goes up, one level at a time, again without a conflict:
 ```scrut
 $ cd ../a-layer &&
 >   git splice merge --rebuilt-commit layer/b b
-ok   b: merged 3ea1e4f
+ok   b: merged 988f424
 ```
 
 ```scrut
 $ cd ../monorepo &&
 >   git splice merge --rebuilt-commit layer/a vendor/a
-ok   vendor/a: merged c3b6c89
+ok   vendor/a: merged f09023f
 ```
 
 ## 4. Every level up to date
@@ -194,9 +227,20 @@ On branch main
 ```scrut
 $ git splice push vendor/a/b/c vendor/a/b vendor/a
 ok   vendor/a/b/c: pushed b33f7a9 to main
-ok   vendor/a/b: pushed 16be81b to main
-ok   vendor/a: pushed c3b6c89 to main
+ok   vendor/a/b: pushed 1a51fd8 to main
+ok   vendor/a: pushed 0f14077 to main
 ```
+
+After `c/`'s pull, *pc*, and the push: each splice at its upstream's commit, *a2*, *b2* and *c2*, with *pc'* on top, which each upstream has now:
+
+![The tree: the monorepo at pc; vendor/a/ at a2, then pc', solid; b/ at b2, then the same; c/ at c2, then the same](every-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/every-pushed.drawio.svg" pc=HEAD a2=$(git config --file vendor/a/.splice splice.commit) b2=$(git config --file vendor/a/b/.splice splice.commit) c2=$(git config --file vendor/a/b/c/.splice splice.commit)
+ok   every-pushed.drawio.svg: a tree of 4 rows
+```
+-->
 
 ```scrut
 $ git -C "$UPSTREAM-c.git" show main:file.txt

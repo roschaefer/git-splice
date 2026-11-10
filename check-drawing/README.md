@@ -229,11 +229,12 @@ command that writes it.
 - **Edge**: a line from a parent's head into the child's synced commit,
   the one the parent records. A splice's head is its R, or its synced
   commit where it has no R.
-- **R**: after `…`, dashed, where the splice has commits of its own,
-  labelled after the commit it copies, with a `'`. After an init, a
-  splice has no synced commit: `…` and R alone. Dashed or not, a tree
-  says nothing about which upstream branch has a commit; that's for the
-  lanes to show.
+- **R**: after `…`, where the splice has commits of its own, labelled
+  after the commit it copies, with a `'`; dashed if no upstream branch
+  has it, as in the lanes, so solid after a push. After an init, a
+  splice has no synced commit: R alone, without `…`, which stands for
+  the commits between the synced commit and R. Which upstream branch has
+  it is for the lanes to show.
 - **Merged in with a conflict**: during a pull that stopped at a
   conflict, the commit it merges in, outlined red, and the row's folder
   followed by `conflict`.
@@ -244,7 +245,8 @@ command that writes it.
 A circle is labelled as a `<label>=<rev>` names its commit, else by its
 subject, up to a colon, as in the lanes. A synced commit that a push
 made, a copy of one of the monorepo's commits, is labelled after that
-commit, with a `'`, as R is.
+commit, with a `'`, as R is. A `<rev>` that's a full hash can name a commit
+the repository doesn't have, e.g. a synced commit that isn't here.
 
 ## Saving drawings
 

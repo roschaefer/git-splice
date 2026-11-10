@@ -141,9 +141,12 @@ impl Repo {
     /// The rebuild as if the splice had no synced commit: the upstream no
     /// longer has it, and the monorepo's side replaces its history anyway.
     fn rebuild_without_synced(&mut self, path: &str) -> Res<String> {
+        // The children's rebuilds kept for the records change with it.
+        self.child_rebuilds.clear();
         self.rebuild_without_synced = true;
         let rebuilt = contained(self.splice_rebuild(path));
         self.rebuild_without_synced = false;
+        self.child_rebuilds.clear();
         Ok(rebuilt?.unwrap_or_default())
     }
 
@@ -186,8 +189,11 @@ impl Repo {
         let Some(rebuilt) = commit_of(commit) else {
             return die(format!("--rebuilt-commit: unknown commit: {commit}"));
         };
-        let folder = self.content_tree("HEAD", path).map_err(|_| Fail::Hard)?;
-        if tree_of(&rebuilt) != folder {
+        let given = tree_of(&rebuilt);
+        if !self
+            .folder_is("HEAD", path, given.as_ref())
+            .map_err(|_| Fail::Hard)?
+        {
             return die(format!(
                 "{path}: {} has other files than the folder -- --rebuilt-commit only takes edits to the history; commit changes to files in the monorepo",
                 short(&rebuilt)
