@@ -164,8 +164,9 @@ $ git -C "$UPSTREAM-b.git" log --graph --format=%s main
 ```
 
 If the monorepo had pulled `vendor/a/b/` as well, to a different commit,
-the pull of `vendor/a/` would have conflicted: see
-[Limits](../../../02-using-git-splice/02-limits.md).
+the pull of `vendor/a/` would have conflicted. The
+[three-level conflict scenario](02-three-levels/every-level-conflicts.md)
+shows how to resolve such conflicts from the outside in.
 
 Once the monorepo has pushed a change in `vendor/a/b/`, another monorepo
 that splices the outer upstream in rebuilds the inner splice's history up

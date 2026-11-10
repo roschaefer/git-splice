@@ -103,8 +103,9 @@ explicitly reconsider the affected principle and its rationale.
 - **Prefer a visible refusal to a guess that can lose work.** When the
   history or target is ambiguous, guessing can discard changes or publish
   to the wrong place. Supporting every rare case also adds complexity to
-  ordinary syncs; explicit [limits](../02-using-git-splice/02-limits.md) keep
-  those tradeoffs visible rather than hiding them behind automatic choices.
+  ordinary syncs. Document unsupported cases and
+  [known bugs](../09-scenarios/99-known-bugs.md) rather than hiding those
+  tradeoffs behind automatic choices.
 
 ## Architecture
 

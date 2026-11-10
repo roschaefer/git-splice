@@ -13,6 +13,9 @@ Windows, x86-64, from the
 `git-splice` (`git-splice.exe` on Windows) on your `PATH`. The archive also
 has the shell completions.
 
+On Windows, `log` and `diff` write directly to the terminal; pipe their
+output to a pager if needed.
+
 Or build it with [Rust](https://rustup.rs):
 
     cargo install --git https://github.com/roschaefer/git-splice git-splice
@@ -23,6 +26,9 @@ sure `~/.cargo/bin/` is on it.
 Requires:
 
 - Git >= 2.40. `git subtree` isn't needed.
+- Repository paths, splice paths, command-line arguments and commit
+  author/committer identities must be valid UTF-8. Commit messages may
+  contain arbitrary bytes.
 
 ## Shell completions
 

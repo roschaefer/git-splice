@@ -25,6 +25,10 @@ $ git splice clone -h | check-help section description
     --from-submodule, it turns a submodule into a splice instead.
 ```
 
+Splice paths currently must be valid in a Git ref name, so spaces and
+components ending in `.lock` are refused
+([checked example](../09-scenarios/02-starting-a-splice/06-clone-without-commits/ref-friendly-path.md)).
+
 In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `pkg-b.git` isn't spliced in yet:
 
 ```scrut
