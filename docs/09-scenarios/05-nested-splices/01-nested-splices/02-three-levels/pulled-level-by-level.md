@@ -133,12 +133,12 @@ ok   vendor/a: pushed 9a4ce67 to main
 
 After the push, each upstream has *p'*, so it's solid; the monorepo still records *k*, *l* and *u*:
 
-![The tree after the push: the monorepo at p; vendor/a/ at k, then p', solid; b/ at l, then the same; c/ at u, then the same](levels-pushed.drawio.svg)
+![The tree after the push: the monorepo at p; vendor/a/ at k, then p', solid; b/ at l, then the same; c/ at u, then the same](levels-tree-pushed.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/levels-pushed.drawio.svg" k="$k" l="$l" u="$u" p=HEAD
-ok   levels-pushed.drawio.svg: a tree of 4 rows
+$ check_drawing "$TESTDIR/levels-tree-pushed.drawio.svg" k="$k" l="$l" u="$u" p=HEAD
+ok   levels-tree-pushed.drawio.svg: a tree of 4 rows
 ```
 -->
 

@@ -40,6 +40,11 @@ explicitly reconsider the affected principle and its rationale.
   [portable state and defaults](02-state.md#sync-state-belongs-in-versioned-files)
   and recovering inner history hidden by an enclosing squash
   ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
+  It's also why the rebuild of a splice records each splice inside it at
+  that splice's own rebuild, the commit its upstream gets with the same
+  push: the enclosing upstream then records what the inner one has, and a
+  clone of it rebuilds the inner splice as the monorepo does
+  ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/rebuilt-in-layers.md)).
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
   monorepo commit recording the earlier push. Using original metadata
