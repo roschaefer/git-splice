@@ -7,6 +7,8 @@ Run `just docs-check` to test every page. After an intended change, run
 
 - Avoid redundancy; link to existing explanations.
 - Order the documentation from generic to specific.
+- Make headings and bullet points convey the gist when skimmed.
+- Use diagrams and drawings to make concepts easier to understand visually.
 - Put detailed behaviour in [Scenarios](../09-scenarios/README.md), keeping
   earlier user-facing chapters concise.
 - [Design](../07-design/README.md) explains why decisions were made, not
