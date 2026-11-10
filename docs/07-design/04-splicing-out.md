@@ -17,20 +17,19 @@ defines the resulting history; the
 checks that metadata copying agrees with `git subtree split` where their
 algorithms apply alike.
 
-## Keep monorepo branch topology out of upstream
+## Preserving monorepo commit topology is a non-goal
 
-A monorepo merge integrates a branch that may concern many projects.
-Upstream needs the resulting changes to its folder, not a reconstruction
-of that branch's entire development. Walking first-parent history treats
-the merge as the point where those changes joined the monorepo branch.
-The tradeoff is deliberate: the upstream copy preserves the integrated
-change, rather than the individual commits of the merged side branch.
+Following first-parent ancestry is enough for the current use cases.
+Preserving the monorepo's branch and merge structure in the library is not
+required: the original history is still available in the monorepo.
 
-An upstream history imported by a pull is different: it already belongs
-to that upstream and must remain connected to the rebuilt local changes.
-This is why rebuilt pulls can retain upstream merge parents even though
-ordinary monorepo merges become single commits
-([parent rules](../03-concepts/02-sync-model.md#parents-of-rebuilt-commits)).
+The lesson from [`git subtree`](../05-comparisons/01-git/02-git-subtree.md)
+and [Josh](../05-comparisons/02-third-party/02-josh.md) was that mapping an
+equivalent history onto a folder adds complexity without much benefit to
+the user. More faithful topology may be worth implementing in the future
+if a use case justifies that complexity. The current
+[parent rules](../03-concepts/02-sync-model.md#parents-of-rebuilt-commits)
+are described in the sync model.
 
 ## Publish only history belonging to this splice
 
