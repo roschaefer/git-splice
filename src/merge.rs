@@ -216,6 +216,31 @@ impl Repo {
         Ok(())
     }
 
+    /// For --rebase: the newest first-parent commit since the synced commit
+    /// was recorded whose folder has exactly its files. For a synced commit
+    /// made again here, the part its upstream lacks is this branch's own, so
+    /// it's the newest commit in its history the upstream has instead.
+    fn sync_point_commit(&mut self, path: &str) -> Res<Option<String>> {
+        let synced = self.c.synced.clone();
+        let remade = self.remade.get(path).cloned();
+        let synced_tree = tree_of(remade.as_ref().unwrap_or(&synced));
+        let history = git(&["rev-list", "--first-parent", "HEAD"])
+            .out()
+            .unwrap_or_default();
+        for commit in history.lines() {
+            let record = splice_config(path, "commit", commit);
+            let recorded = record == synced
+                || (remade.is_some() && !record.is_empty() && is_ancestor(&record, &synced));
+            if !recorded {
+                break;
+            }
+            if self.content_tree(commit, path)? == synced_tree {
+                return Ok(Some(commit.to_string()));
+            }
+        }
+        Ok(None)
+    }
+
     /// For --rebase: takes the splice's upstream branch in on top of X, the
     /// newest first-parent commit since the synced commit was recorded whose
     /// folder has exactly its files, and rebases the commits after X onto that.
@@ -238,29 +263,10 @@ impl Repo {
                 "{path}: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; {verb} without --rebase"
             ));
         }
-        // A synced commit made again here: the part its upstream lacks is this
-        // branch's own, so the sync point is the newest commit it has.
-        let remade = self.remade.get(path).cloned();
-        if remade.is_none() {
+        if !self.remade.contains_key(path) {
             self.refuse_lacking_synced(path)?;
         }
-        let synced_tree = tree_of(remade.as_ref().unwrap_or(&c.synced));
-        let mut base = None;
-        let history = git(&["rev-list", "--first-parent", "HEAD"])
-            .out()
-            .unwrap_or_default();
-        for commit in history.lines() {
-            let record = splice_config(path, "commit", commit);
-            let recorded = record == c.synced
-                || (remade.is_some() && !record.is_empty() && is_ancestor(&record, &c.synced));
-            if !recorded {
-                break;
-            }
-            if self.content_tree(commit, path)? == synced_tree {
-                base = Some(commit.to_string());
-                break;
-            }
-        }
+        let base = self.sync_point_commit(path)?;
         let Some(base) = base else {
             return fail(format!(
                 "{path}: no commit since the synced commit {} has exactly its files, e.g. after a {verb} that merged local changes -- nothing to rebase onto; {verb} without --rebase",
@@ -319,9 +325,14 @@ impl Repo {
         let count = git(&["rev-list", "--count", &since])
             .out()
             .unwrap_or_default();
+        let records = KeepRecords::new()?;
         let rebased = git(&[
             "-c",
             "advice.mergeConflict=false",
+            "-c",
+            &records.attributes,
+            "-c",
+            KeepRecords::DRIVER,
             "rebase",
             "-q",
             "--no-update-refs",
@@ -358,7 +369,13 @@ impl Repo {
         if !matches!(self.c.state, State::Pull | State::Diverged) {
             return Ok(false);
         }
-        self.refuse_lacking_synced(path)?;
+        if self.remade.contains_key(path) {
+            if let Some(point) = self.sync_point_commit(path)? {
+                self.remade_sync_points.push(point);
+            }
+        } else {
+            self.refuse_lacking_synced(path)?;
+        }
         Ok(true)
     }
 

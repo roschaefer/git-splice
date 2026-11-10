@@ -482,6 +482,12 @@ impl Repo {
             return false;
         };
         let before = format!("{first}^");
+        // The rebuild starts at the synced commit recorded before, which an
+        // earlier push and bump may have lost the same way.
+        let previous = splice_config(path, "commit", &before);
+        if !previous.is_empty() && !commit_here(&previous) && !self.remake_synced(path, &previous) {
+            return false;
+        }
         matches!(self.rebuild_splice(path, &before), Ok(Some(made)) if made == synced)
     }
 

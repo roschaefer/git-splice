@@ -120,6 +120,9 @@ pub struct Repo {
     /// Splices whose synced commit was made again here, with the newest
     /// commit in its history that the upstream branch has.
     pub remade: HashMap<String, String>,
+    /// For pull --rebase --recursive: the sync points of the splices whose
+    /// synced commit was made again, which the rewind goes back to.
+    pub remade_sync_points: Vec<String>,
     pub rebuild_given: HashMap<String, String>,
     pub rebuild_without_synced: bool,
     pub joins_rewritten: bool,
@@ -1515,5 +1518,28 @@ impl Repo {
             Some(template) => template.render(&message),
             None => Template::default(default)?.render(&message),
         }
+    }
+}
+
+/// While own commits are replayed on a pull, each `.splice` keeps the record
+/// the pull wrote: a replayed commit that recorded another synced commit,
+/// e.g. a bump, would only conflict with it.
+pub struct KeepRecords {
+    _file: Temp,
+    pub attributes: String,
+}
+
+impl KeepRecords {
+    pub const DRIVER: &'static str = "merge.splice-record.driver=true";
+
+    pub fn new() -> Res<KeepRecords> {
+        let file = Temp::new();
+        std::fs::write(&file.path, format!("{STATE_FILE} merge=splice-record\n"))
+            .map_err(|_| Fail::Soft)?;
+        let attributes = format!("core.attributesFile={}", file.str());
+        Ok(KeepRecords {
+            _file: file,
+            attributes,
+        })
     }
 }

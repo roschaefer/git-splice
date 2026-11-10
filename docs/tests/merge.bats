@@ -1067,7 +1067,7 @@ synced_commit_lost_after_bump() {
   git -C "$upstream" update-ref -d refs/heads/feature
   git -C "$upstream" gc -q --prune=now
   clone="$BATS_TEST_TMPDIR/clone"
-  git clone -q "$monorepo" "$clone"
+  git clone -q --no-local "$monorepo" "$clone"
   cd "$clone"
   git config user.name "Test"
   git config user.email "test@example.com"
@@ -1115,4 +1115,66 @@ synced_commit_lost_after_bump() {
   splice fetch vendor/a >/dev/null
   run splice status vendor/a
   [[ "$output" != *"made it again here"* ]]
+}
+
+# vendor/a's synced commit is one this monorepo pushed to the upstream's
+# feature branch and bumped, fast-forwarded into main; the upstream then
+# deleted the branch, and its main moved on with a file of its own.
+bumped_on_a_deleted_branch() {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  echo "an option" >>vendor/a/file.txt
+  git commit -q -am "an option"
+  splice push vendor/a >/dev/null 2>&1
+  splice pull --bump vendor/a >/dev/null
+  git switch -q main
+  git merge -q --ff-only feature
+  git -C "$upstream" update-ref -d refs/heads/feature
+  seed_bare_repo "$upstream" "upstream moves on" main other.txt
+}
+
+@test "pull --rebase: replaying the bump of a synced commit made again keeps the pull's record, without a conflict" {
+  bumped_on_a_deleted_branch
+  run splice pull --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" != *CONFLICT* ]]
+  [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
+  [[ "$(cat vendor/a/file.txt)" == *"an option" ]]
+  [ "$(git log -1 --format=%s)" = "an option" ]
+}
+
+@test "pull --rebase --recursive: a synced commit made again is synced from its sync point, and its commits replayed" {
+  bumped_on_a_deleted_branch
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"doesn't show it ever had it"* ]]
+  [[ "$output" != *CONFLICT* ]]
+  [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
+  [ "$(git log -1 --format=%s)" = "an option" ]
+}
+
+@test "status: a synced commit made again after two pushes and bumps makes the earlier one again first" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  local option
+  for option in one two; do
+    echo "option $option" >>vendor/a/file.txt
+    git commit -q -am "option $option"
+    splice push vendor/a >/dev/null 2>&1
+    splice pull --bump vendor/a >/dev/null
+  done
+  git switch -q main
+  git merge -q --no-ff -m "merge feature" feature
+  git -C "$upstream" update-ref -d refs/heads/feature
+  git -C "$upstream" gc -q --prune=now
+  clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q --no-local "$monorepo" "$clone"
+  cd "$clone"
+  splice fetch vendor/a >/dev/null
+  run splice status vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"made it again here: $(git -C "$upstream" rev-parse --short main) and 2 commits of this branch's own"* ]]
+  [[ "$output" == *"ahead 2  vendor/a"* ]]
 }
