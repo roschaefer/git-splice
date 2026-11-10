@@ -36,11 +36,11 @@ namesakes do to a repository. `boundary`, `rebuild` and `key` are new:
 their names come from splicing.
 
 Each of them only runs the `git` command line, and
-[Git can list what it ran](../07-design/05-git-trace.md).
+[Git can list what it ran](../09-scenarios/01-everyday-sync/05-git-trace/README.md).
 
 `merge`, `pull` and `push` need paths or `--all`; `status`, `diff`,
 `log` and `fetch` cover every splice unless you name some
-([why](../07-design/README.md#how-the-commands-work)). `status`,
+([why](../07-design/README.md#principles)). `status`,
 `diff`, `log` and `merge` only use what was last fetched. With several
 [upstreams](../03-concepts/01-upstreams.md), `--upstream <name>` picks
 one. Run `git splice <command> --help` for options.

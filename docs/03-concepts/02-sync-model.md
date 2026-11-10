@@ -216,7 +216,7 @@ R is never stored. It's computed from `HEAD` each time, and the same
 identically, and the next push is a fast-forward. Since R is computed,
 `.splice` needs no monorepo commit ids, which a rebase or a squash merge
 would invalidate
-([design](../07-design/03-splicing-out.md#splicing-out-push-and-the-rebuild)).
+([design](../07-design/README.md#principles)).
 
 A push moves T but doesn't write to the monorepo, so U(H) stays at the
 last pull. It need not record anything: `status` compares R with T, and
@@ -233,4 +233,4 @@ Rebuilding walks every commit since B, pushed or not;
 matters.
 
 A pull could have been a merge, with U(H) as its second parent:
-[weak parents](../08-going-forward/05-weak-parents.md) compares the two.
+[weak parents](../07-design/07-going-forward/05-weak-parents.md) compares the two.

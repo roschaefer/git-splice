@@ -19,6 +19,18 @@ back here.
 | [edited-before-push: a change before the pull](06-rewritten-history/01-edited-before-push/change-before-the-pull.md) | [#82](https://github.com/roschaefer/git-splice/issues/82) | The next push publishes the original commit next to its edited version; `pull -s ours` isn't implemented. |
 | [upstream-rewritten-equal-tree: `push --force`](06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) | [#38](https://github.com/roschaefer/git-splice/issues/38) | `push --force`, one of the ways out `merge` prints, publishes the history the upstream rewrote away. |
 
+## Input and platform restrictions
+
+These current restrictions are separate from the open-issue bugs above.
+The linked pages show the behaviour and available workarounds.
+
+- [Non-UTF-8 input](10-platform-compatibility/01-platform-restrictions/README.md):
+  arguments, repository and splice paths, and author/committer identities.
+- [Splice paths must be ref-friendly](02-starting-a-splice/06-clone-without-commits/ref-friendly-path.md):
+  spaces and other ref-name characters are currently refused.
+- [Paging on Windows](10-platform-compatibility/01-platform-restrictions/windows-paging.md):
+  pipe output to a pager explicitly.
+
 ## Every known bug
 
 This check lists every document with a banner, and its issue. It fails

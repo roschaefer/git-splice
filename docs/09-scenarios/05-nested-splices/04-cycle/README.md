@@ -90,8 +90,8 @@ vendor/a/i/vendor/a/.splice: id = 224f2c2563d3b6f7
 Once the monorepo is pushed, the `i/` splices sync with a version that
 has every level so far, so a pull nests them all once more. The copies
 of the nested `.splice` files then conflict, as both sides pulled them
-to different commits (the first of the
-[design's limits](../../../07-design/04-safety-and-limits.md#limits)).
+to different commits
+([nested conflicts](../01-nested-splices/02-three-levels/every-level-conflicts.md)).
 
 ### The monorepo pushes to itself
 

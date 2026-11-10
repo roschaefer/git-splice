@@ -24,6 +24,8 @@ Requires:
 
 - Git >= 2.40. `git subtree` isn't needed.
 
+See [known bugs and platform restrictions](../09-scenarios/99-known-bugs.md).
+
 ## Shell completions
 
 `completions/` has completions for bash, zsh and fish. They complete

@@ -16,4 +16,4 @@ questions: do they sync an external repository into a folder, and can
 
 The executable examples pin Sapling and jj in [`flake.nix`](../../../flake.nix).
 Their exact output and compatibility caveats describe those versions.
-Future integration ideas live under [Going forward](../../08-going-forward/README.md).
+Future integration ideas live under [Going forward](../../07-design/07-going-forward/README.md).

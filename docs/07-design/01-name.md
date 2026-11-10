@@ -10,6 +10,20 @@ A [splice](https://en.wikipedia.org/wiki/Splice) joins two things into
 one: ropes, film, tape, wires, optical fibres, wooden beams, genes. The
 name `git-splice` borrows from all of them.
 
+## Noun and verb
+
+As a noun, a splice is the joint: here, the folder together with its
+connection to the upstream repository. "The `vendor/a/` splice" is the
+folder `vendor/a/` and the upstream it syncs with.
+
+As a verb, you splice something in or out:
+
+- **[splice in](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)**: bring upstream content into the monorepo, with `clone`,
+  `merge` and `pull`.
+- **[splice out](../03-concepts/02-sync-model.md#r-the-rebuild)**: publish the monorepo's changes upstream, with `push`.
+
+[Concepts](../03-concepts/README.md) defines these and the other terms.
+
 ## Rope splicing
 
 A [long splice](https://en.wikipedia.org/wiki/Rope_splicing) unlays the
@@ -21,21 +35,6 @@ diameter and runs through a pulley like the rest of the rope.
 monorepo as an ordinary folder, with no submodule pointer (gitlink) and
 nothing extra to check out. You see the joint only as one small file,
 `<path>/.splice`, which records the upstream.
-
-## Noun and verb
-
-As a noun, a splice is the joint: here, the folder together with its
-connection to the upstream repository. "The `vendor/a/` splice" is the
-folder `vendor/a/` and the upstream it syncs with.
-
-As a verb, you splice something in or out:
-
-- **splice in**: bring upstream content into the monorepo, with `clone`,
-  `merge` and `pull`.
-- **splice out**: publish the monorepo's changes upstream, with `push`.
-
-The [vocabulary](README.md#vocabulary) defines these and the
-other terms.
 
 ## RNA splicing
 

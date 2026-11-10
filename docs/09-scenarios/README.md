@@ -10,7 +10,7 @@ bugs](99-known-bugs.md) lists them.
 The scenarios are grouped into numbered chapters by topic, from the
 situations every user meets to the edge cases: everyday sync, starting a
 splice, branches and teamwork, upstreams, nested splices, rewritten
-history, moved and copied folders, and VCS compatibility. Within a chapter, the numbers order the
+history, moved and copied folders, VCS compatibility, and platform compatibility. Within a chapter, the numbers order the
 scenarios the same way. The site drops the numbers from its URLs, and
 takes a chapter's name from its `_category_.json`.
 
@@ -56,6 +56,7 @@ ok 01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor (1 d
 ok 01-everyday-sync/02-up-to-date/03-diverged-then-pulled (1 document)
 ok 01-everyday-sync/03-many-splices (5 documents)
 ok 01-everyday-sync/04-never-fetched (1 document)
+ok 01-everyday-sync/05-git-trace (1 document)
 ok 02-starting-a-splice/01-clone-copied-content (1 document)
 ok 02-starting-a-splice/02-clone-differing-content (1 document)
 ok 02-starting-a-splice/03-clone-on-feature-branch (1 document)
@@ -117,6 +118,7 @@ ok 09-vcs-compatibility (1 document)
 ok 09-vcs-compatibility/01-sapling-metadata (1 document)
 ok 09-vcs-compatibility/02-sapling-git-index (1 document)
 ok 09-vcs-compatibility/03-jujutsu-named-branch (1 document)
+ok 10-platform-compatibility/01-platform-restrictions (2 documents)
 ```
 
 ## Scenario output

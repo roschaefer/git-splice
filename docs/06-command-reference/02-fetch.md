@@ -130,7 +130,7 @@ $ git worktree remove ../pkg-a-upstream
 
 Upstreams are fetched and pushed by URL, with no Git remote, so a plain
 `git push` can't send the whole monorepo to one by mistake
-([refs instead of remotes](../07-design/01-state-and-upstreams.md#refs-instead-of-remotes)).
+([refs instead of remotes](../07-design/03-upstreams.md#upstream-connections-must-not-become-ordinary-git-remotes)).
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut

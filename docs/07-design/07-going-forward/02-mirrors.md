@@ -1,6 +1,6 @@
 # Mirrors
 
-[Mirrors](../09-scenarios/07-moved-folders/03-mirrors/README.md) are folders with
+[Mirrors](../../09-scenarios/07-moved-folders/03-mirrors/README.md) are folders with
 the same splice `id`, meant to have the same files.
 
 `git-splice` doesn't act on that yet: each splice is pulled and pushed on
@@ -19,7 +19,7 @@ meanwhile.
 
 Not from separate clones: if the monorepo and two of its upstreams each
 clone the same library, the three copies have three ids, and are
-independent ([diamond](../09-scenarios/05-nested-splices/03-diamond/README.md)). To
+independent ([diamond](../../09-scenarios/05-nested-splices/03-diamond/README.md)). To
 declare them mirrors, a clone would need to take over the id of an
 existing splice. There's no command for that yet.
 
@@ -29,13 +29,13 @@ because that upstream has an older version of the one at `a/`. The
 monorepo can't change that alone. Refusing duplicate ids would refuse
 diamonds of that shape.
 
-Nor can the rebuild [tell mirrors apart](../09-scenarios/07-moved-folders/03-mirrors/README.md#mirrors-that-swap-paths).
+Nor can the rebuild [tell mirrors apart](../../09-scenarios/07-moved-folders/03-mirrors/README.md#mirrors-that-swap-paths).
 
 ## What would be desired, and what's possible
 
 | Desired | Status |
 |---|---|
-| Mirrors are stored once | **Already so.** Git stores identical files as one object, and identical folders as one tree ([diamond](../09-scenarios/05-nested-splices/03-diamond/README.md)). |
+| Mirrors are stored once | **Already so.** Git stores identical files as one object, and identical folders as one tree ([diamond](../../09-scenarios/05-nested-splices/03-diamond/README.md)). |
 | A report of mirrors that drifted, with how to resolve it | **Possible**, not implemented: compare the folders of splices with the same id, without `.splice`. |
 | A fork or a new version made from a copy is pointed out | **Possible** in part, not implemented: a copy that names another upstream than its mirrors. A new URL also keeps the id when the upstream moved, so it's a warning, not an error. |
 | A pull of one mirror pulls the others | **Possible** for copies in the monorepo, not implemented. Not for a nested copy that another upstream owns. |
@@ -51,10 +51,10 @@ how to resolve the difference. For a mirror that's only behind, that's a
 plain `pull`, which anyone can check. Where both changed, the pull
 merges, and the difference left is for someone to resolve. That fits the design's principles: refuse rather than
 guess, and make the state explicit
-([design](../07-design/README.md#principles)).
+([design](../README.md#principles)).
 
 1. **Edit one copy**, e.g. the top-level `s/` in the
-   [diamond](../09-scenarios/05-nested-splices/03-diamond/README.md).
+   [diamond](../../09-scenarios/05-nested-splices/03-diamond/README.md).
 2. **Push it, and pull every mirror right away**, as the diamond's round
    trip does.
 3. **Compare mirrors** before merging, e.g. in CI. Their folders,
@@ -64,7 +64,7 @@ guess, and make the state explicit
    git diff --quiet HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice'
    ```
 
-   ([scenario](../09-scenarios/07-moved-folders/03-mirrors/README.md#a-mirror-drifts)
+   ([scenario](../../09-scenarios/07-moved-folders/03-mirrors/README.md#a-mirror-drifts)
    shows it with real output.)
 4. **Clone, don't copy,** a version of its own, so it gets an id of its
-   own ([scenario](../09-scenarios/07-moved-folders/03-mirrors/README.md#a-copy-shares-the-id)).
+   own ([scenario](../../09-scenarios/07-moved-folders/03-mirrors/README.md#a-copy-shares-the-id)).

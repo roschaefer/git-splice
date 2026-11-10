@@ -3,6 +3,24 @@
 Run `just docs-check` to test every page. After an intended change, run
 `just docs-check --write` to update their output.
 
+## Documentation principles
+
+- Avoid redundancy; link to existing explanations.
+- Order the documentation from generic to specific.
+- Make headings and bullet points convey the gist when skimmed.
+- Use diagrams and drawings to make concepts easier to understand visually.
+- Put detailed behaviour in [Scenarios](../09-scenarios/README.md), keeping
+  earlier user-facing chapters concise.
+- [Design](../07-design/README.md) explains why decisions were made, not
+  merely what the tool does.
+- Follow the [design principles](../07-design/README.md#principles) for
+  future features, or revise them with strong justification.
+- Use [acceptance-test-driven development](01-development.md#testing):
+  define and test expected behaviour before implementing it. The docs serve
+  users, developers and AI agents alike.
+
+## Markup
+
 Markup in running text tells a reader what kind of thing a word names:
 the commit *a*, not the English word "a". Each kind gets one markup,
 everywhere.
