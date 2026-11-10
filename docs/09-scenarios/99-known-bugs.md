@@ -14,6 +14,7 @@ back here.
 | [lfs-upstream](04-upstreams/08-lfs-upstream/README.md) | [#407](https://github.com/roschaefer/git-splice/issues/407) | `clone` of an upstream that stores files in Git LFS fails; Git LFS isn't supported yet. |
 | [lfs-upstream: retrained-upstream](04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md) | [#407](https://github.com/roschaefer/git-splice/issues/407) | `pull` of a changed Git LFS file fails, as `clone` does. |
 | [nested-splices: a pull retried after the synced commit below is gone](05-nested-splices/01-nested-splices/gone-below.md) | [#274](https://github.com/roschaefer/git-splice/issues/274) | A retry of a failed pull succeeds, though the splice below still lacks its synced commit. |
+| [nested-splices: spliced elsewhere before the push below](05-nested-splices/01-nested-splices/spliced-elsewhere-before-the-push-below.md) | [#467](https://github.com/roschaefer/git-splice/issues/467) | After a push of the splice above alone, `git splice clone` of its upstream can't make the inner splice's synced commit again. |
 | [nested-splices: a and b swap their `.splice`](05-nested-splices/01-nested-splices/swapped-ids.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | A push sends one splice's files to the other's upstream. |
 | [edited-before-push: a change before the pull](06-rewritten-history/01-edited-before-push/change-before-the-pull.md) | [#82](https://github.com/roschaefer/git-splice/issues/82) | The next push publishes the original commit next to its edited version; `pull -s ours` isn't implemented. |
 | [upstream-rewritten-equal-tree: `push --force`](06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) | [#38](https://github.com/roschaefer/git-splice/issues/38) | `push --force`, one of the ways out `merge` prints, publishes the history the upstream rewrote away. |
@@ -49,6 +50,7 @@ ok 03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.m
 ok 04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md #407
 ok 04-upstreams/08-lfs-upstream/README.md #407
 ok 05-nested-splices/01-nested-splices/gone-below.md #274
+ok 05-nested-splices/01-nested-splices/spliced-elsewhere-before-the-push-below.md #467
 ok 05-nested-splices/01-nested-splices/swapped-ids.md #174
 ok 06-rewritten-history/01-edited-before-push/change-before-the-pull.md #82
 ok 06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md #38

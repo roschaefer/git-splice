@@ -453,11 +453,22 @@ impl Repo {
             .bytes()
             .unwrap_or_default();
         let suffix = format!("/{STATE_FILE}");
+        let dirs: Vec<String> = nul_fields(&names)
+            .iter()
+            .filter_map(|name| name.strip_suffix(&suffix).map(str::to_string))
+            .collect();
+        // The splices right inside this one: the ones deeper are inside them,
+        // and their rebuilds record those.
+        let direct: Vec<&String> = dirs
+            .iter()
+            .filter(|dir| {
+                !dirs
+                    .iter()
+                    .any(|other| dir.starts_with(&format!("{other}/")))
+            })
+            .collect();
         let mut updates = Vec::new();
-        for name in nul_fields(&names) {
-            let Some(dir) = name.strip_suffix(&suffix) else {
-                continue;
-            };
+        for dir in direct {
             let child = format!("{path}/{dir}");
             let recorded = splice_config(&child, "commit", rev);
             let Some(rebuilt) = self.child_rebuild(&child, rev) else {
@@ -469,19 +480,27 @@ impl Repo {
             let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {
                 continue;
             };
-            updates.push((name.clone(), blob));
+            updates.push((dir.clone(), rebuilt, blob));
         }
         if updates.is_empty() {
             return Ok(tree.to_string());
         }
+        // Each child's folder as its rebuild has it, so the records inside it
+        // are the ones the commit its .splice names has.
         let index = Temp::new();
         let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
         if !indexed(&["read-tree", tree]).ok() {
             return Err(Fail::Soft);
         }
-        for (name, blob) in &updates {
-            let info = format!("100644,{blob},{name}");
-            if !indexed(&["update-index", "--add", "--cacheinfo", &info]).ok() {
+        for (dir, rebuilt, blob) in &updates {
+            let spec = format!(":(top,literal){dir}");
+            let prefix = format!("{dir}/");
+            let folder = format!("{rebuilt}^{{tree}}");
+            let state = format!("100644,{blob},{dir}/{STATE_FILE}");
+            if !indexed(&["rm", "-r", "-q", "--cached", "--", &spec]).ok()
+                || !indexed(&["read-tree", &format!("--prefix={prefix}"), &folder]).ok()
+                || !indexed(&["update-index", "--add", "--cacheinfo", &state]).ok()
+            {
                 return Err(Fail::Soft);
             }
         }

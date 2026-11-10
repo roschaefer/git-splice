@@ -14,6 +14,9 @@ outer upstream instead, which the other monorepo fetched. Before, the
 record named the synced commit from before the change, and the inner
 splice read as diverged there
 ([#74](https://github.com/roschaefer/git-splice/issues/74)).
+Pushed without the inner splice, the outer upstream records a commit the
+inner upstream lacks, which the other monorepo can't make again
+([spliced elsewhere before the push below](spliced-elsewhere-before-the-push-below.md)).
 
 ## Output
 

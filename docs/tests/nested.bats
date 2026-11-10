@@ -1569,3 +1569,22 @@ uncommitted" ]
   [ "$status" -eq 0 ]
   [[ "$output" == *"up to date  vendor/a"* ]]
 }
+
+@test "nested: the upstream above gets the folder of the splice below as the commit its record names, records inside it included" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local b_work="$BATS_TEST_TMPDIR/b-work"
+  git clone -q "$upstream_b" "$b_work"
+  echo "c in b's upstream" >>"$b_work/c/file.txt"
+  git -C "$b_work" -c user.name=Test -c user.email=test@example.com commit -q -am "c in b's upstream"
+  git -C "$b_work" push -q origin main
+  cd "$monorepo"
+  splice pull vendor/a/b >/dev/null
+  splice push --all >/dev/null
+  local recorded
+  recorded="$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)"
+  [ "$(git -C "$upstream" rev-parse main:b/c/.splice)" = "$(git -C "$upstream_b" rev-parse "$recorded:c/.splice")" ]
+  work_in_upstream_a
+  splice fetch >/dev/null
+  run splice status b
+  [[ "$output" == *"up to date  b"* ]]
+}
