@@ -44,6 +44,13 @@ impl Repo {
             return Ok(());
         }
 
+        // Made again before anything compares with it: a branch the upstream
+        // doesn't have yet compares with its default branch, from the same
+        // synced commit.
+        if !c.synced.is_empty() && !commit_here(&c.synced) {
+            self.remake_synced(path, &c.synced.clone());
+        }
+
         c.target_ref = target.reference.clone();
         if pinned {
             if commit_of(&c.target_ref).is_none() {
@@ -67,7 +74,38 @@ impl Repo {
             return Ok(());
         }
 
-        if !c.synced.is_empty() && !commit_here(&c.synced) {
+        let here = c.synced.is_empty() || commit_here(&c.synced);
+        // A branch whose reflog here shows it had the synced commit was
+        // rewritten or rewound upstream: that's not this branch's work.
+        let had = || {
+            git(&["rev-list", "--walk-reflogs", &c.target_ref])
+                .q()
+                .out()
+                .unwrap_or_default()
+                .lines()
+                .any(|entry| is_ancestor(&c.synced, entry))
+        };
+        if !c.synced.is_empty()
+            && (!here || (!is_ancestor(&c.synced, &c.target_ref) && !had()))
+            && self.remake_synced(path, &c.synced.clone())
+        {
+            // Only a copy of this branch's own history comes out the same: the
+            // commits above the newest one the upstream has are its own.
+            let fetched = git(&["merge-base", &c.synced, &c.target_ref])
+                .out()
+                .unwrap_or_default();
+            let own = git(&["rev-list", "--count", &format!("{fetched}..{}", c.synced)])
+                .out()
+                .unwrap_or_default();
+            let plural = if own == "1" { "" } else { "s" };
+            log_warn(format!(
+                "{path}: synced commit {} isn't on {} -- made it again here: {} and {own} commit{plural} of this branch's own",
+                short(&c.synced),
+                c.upstream_label,
+                short(&fetched)
+            ));
+            self.remade.insert(path.to_string(), fetched);
+        } else if !here {
             c.state = State::MissingSynced;
             return Ok(());
         }

@@ -1050,3 +1050,143 @@ layer_with_a_commit() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"!!   vendor/a: its synced commit $(git config --file vendor/a/.splice splice.commit | cut -c1-7) isn't on its upstream any more"*"pick a side"* ]]
 }
+
+# A clone of the monorepo, in $clone, whose synced commit of vendor/a is
+# gone from the upstream: pushed to the upstream's feature branch and
+# bumped there, merged into main, and the feature branch deleted.
+synced_commit_lost_after_bump() {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  echo "an option" >>vendor/a/file.txt
+  git commit -q -am "an option"
+  splice push vendor/a >/dev/null 2>&1
+  splice pull --bump vendor/a >/dev/null
+  git switch -q main
+  git merge -q --no-ff -m "merge feature" feature
+  git -C "$upstream" update-ref -d refs/heads/feature
+  git -C "$upstream" gc -q --prune=now
+  clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q --no-local "$monorepo" "$clone"
+  cd "$clone"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  splice fetch vendor/a >/dev/null
+}
+
+@test "status: a synced commit its upstream lost, which the rebuild before its bump makes again, counts as this branch's own" {
+  synced_commit_lost_after_bump
+  local synced fetched
+  synced="$(splice_config vendor/a commit)"
+  fetched="$(git -C "$upstream" rev-parse --short main)"
+  run splice status vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "??   vendor/a: synced commit ${synced:0:7} isn't on main -- made it again here: $fetched and 1 commit of this branch's own" ]
+  [[ "$output" == *"ahead 1  vendor/a"* ]]
+  [ "$(git log -1 --format=%s "$synced")" = "an option" ]
+}
+
+@test "push: sends the commits a synced commit made again has above what its upstream has" {
+  synced_commit_lost_after_bump
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "an option" ]
+}
+
+@test "status: a synced commit the upstream branch's reflog shows it had isn't made again: the upstream rewound it" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "an option" >>vendor/a/file.txt
+  git commit -q -am "an option"
+  splice push vendor/a >/dev/null 2>&1
+  splice pull --bump vendor/a >/dev/null
+  git -C "$upstream" update-ref refs/heads/main "$(git -C "$upstream" rev-parse main^)"
+  splice fetch vendor/a >/dev/null
+  run splice status vendor/a
+  [[ "$output" != *"made it again here"* ]]
+}
+
+# vendor/a's synced commit is one this monorepo pushed to the upstream's
+# feature branch and bumped, fast-forwarded into main; the upstream then
+# deleted the branch, and its main moved on with a file of its own.
+bumped_on_a_deleted_branch() {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  echo "an option" >>vendor/a/file.txt
+  git commit -q -am "an option"
+  splice push vendor/a >/dev/null 2>&1
+  splice pull --bump vendor/a >/dev/null
+  git switch -q main
+  git merge -q --ff-only feature
+  git -C "$upstream" update-ref -d refs/heads/feature
+  seed_bare_repo "$upstream" "upstream moves on" main other.txt
+}
+
+@test "status: a synced commit made again after two pushes and bumps makes the earlier one again first" {
+  scenario_pushed_then_pulled "$monorepo" "$upstream"
+  cd "$monorepo"
+  git switch -q -c feature
+  local option
+  for option in one two; do
+    echo "option $option" >>vendor/a/file.txt
+    git commit -q -am "option $option"
+    splice push vendor/a >/dev/null 2>&1
+    splice pull --bump vendor/a >/dev/null
+  done
+  git switch -q main
+  git merge -q --no-ff -m "merge feature" feature
+  git -C "$upstream" update-ref -d refs/heads/feature
+  git -C "$upstream" gc -q --prune=now
+  clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q --no-local "$monorepo" "$clone"
+  cd "$clone"
+  splice fetch vendor/a >/dev/null
+  run splice status vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"made it again here: $(git -C "$upstream" rev-parse --short main) and 2 commits of this branch's own"* ]]
+  [[ "$output" == *"ahead 2  vendor/a"* ]]
+}
+
+@test "pull --rebase: refuses a synced commit made again, whose own commits can sit below the last sync, and changes nothing" {
+  bumped_on_a_deleted_branch
+  local before synced fetched
+  before="$(git rev-parse HEAD)"
+  synced="$(splice_config vendor/a commit)"
+  fetched="$(git -C "$upstream" rev-parse main~1)"
+  run splice pull --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: synced commit ${synced:0:7} was made again here -- --rebase doesn't replay what's above ${fetched:0:7}; pull without --rebase"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "pull --rebase --recursive: refuses a synced commit made again before it moves anywhere" {
+  bumped_on_a_deleted_branch
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull --rebase --recursive vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"was made again here -- --rebase doesn't replay"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  git symbolic-ref -q HEAD
+}
+
+@test "pull: merges a synced commit made again, keeping its commits above what its upstream has" {
+  bumped_on_a_deleted_branch
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
+  [[ "$(cat vendor/a/file.txt)" == *"an option" ]]
+  [ -f vendor/a/other.txt ]
+}
+
+@test "push: on a new branch, compares a synced commit made again with the upstream's default branch, and creates the branch" {
+  synced_commit_lost_after_bump
+  git switch -q -c next-feature
+  echo "next" >>vendor/a/file.txt
+  git commit -q -am "next"
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pushed"*"to next-feature"* ]]
+  [ "$(git -C "$upstream" log -1 --format=%s next-feature)" = "next" ]
+}

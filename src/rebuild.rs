@@ -461,6 +461,36 @@ impl Repo {
         self.rebuild_splice(path, "HEAD")
     }
 
+    /// Makes synced commit <synced> of splice <path> again, when its upstream
+    /// lost it: the rebuild of the commit before the one that first recorded
+    /// it, as a push and then a pull --bump record it. True if that gives the
+    /// same commit.
+    pub fn remake_synced(&mut self, path: &str, synced: &str) -> bool {
+        let spec = format!(":(top,literal){path}/{STATE_FILE}");
+        let recorded = git(&[
+            "log",
+            "--reverse",
+            "--format=%H",
+            &format!("-S{synced}"),
+            "HEAD",
+            "--",
+            &spec,
+        ])
+        .out()
+        .unwrap_or_default();
+        let Some(first) = recorded.lines().next() else {
+            return false;
+        };
+        let before = format!("{first}^");
+        // The rebuild starts at the synced commit recorded before, which an
+        // earlier push and bump may have lost the same way.
+        let previous = splice_config(path, "commit", &before);
+        if !previous.is_empty() && !commit_here(&previous) && !self.remake_synced(path, &previous) {
+            return false;
+        }
+        matches!(self.rebuild_splice(path, &before), Ok(Some(made)) if made == synced)
+    }
+
     /// The upstream commit that represents the splice as of monorepo commit
     /// <rev>, or nothing if the splice has no content yet.
     pub fn rebuild_splice(&mut self, path: &str, rev: &str) -> Res<Option<String>> {
