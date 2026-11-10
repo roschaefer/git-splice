@@ -20,7 +20,7 @@ As a verb, you splice something in or out:
 
 - **[splice in](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)**: bring upstream content into the monorepo, with `clone`,
   `merge` and `pull`.
-- **[splice out](04-splicing-out.md)**: publish the monorepo's changes upstream, with `push`.
+- **[splice out](../03-concepts/02-sync-model.md#r-the-rebuild)**: publish the monorepo's changes upstream, with `push`.
 
 [Concepts](../03-concepts/README.md) defines these and the other terms.
 

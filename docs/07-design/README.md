@@ -23,7 +23,9 @@ explicitly reconsider the affected principle and its rationale.
   library does not require importing its entire history into the monorepo;
   publishing a library change does not require exposing the monorepo's
   unrelated work. This is why changes cross the splice while the histories
-  stay separate.
+  stay separate. A folder's earlier history may never have been intended
+  for that upstream, so publication must follow the splice's identity
+  rather than include everything that once occupied its path.
 - **Store as little state as possible.** Redundant records can disagree,
   and every update becomes another opportunity to leave them inconsistent.
   Derive what existing history, configuration and file locations already
@@ -34,17 +36,34 @@ explicitly reconsider the affected principle and its rationale.
   history, upstream state and settings, syncing `vendor/a/b/` should produce
   the same result for that splice as syncing `b/` in a standalone clone
   of `vendor/a`'s repository. A project should not need a different dependency workflow
-  because it is embedded in another repository. This governs
+  because it is embedded in another repository. This requires
   [portable state and defaults](02-state-and-upstreams.md#sync-state-belongs-in-versioned-files)
-  and [inherited history](04-splicing-out.md#recover-nested-history-so-enclosing-imports-do-not-erase-it).
+  and recovering inner history hidden by an enclosing squash
+  ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)).
 - **Rebuild deterministically.** The same committed history produces the
   same upstream commits, so a later push can fast-forward without a
-  monorepo commit recording the earlier push
-  ([rebuild rationale](04-splicing-out.md#determinism-avoids-bookkeeping-after-publication)).
+  monorepo commit recording the earlier push. Using original metadata
+  rather than the current time or user, and leaving rebuilt commits unsigned,
+  avoids inputs that would change their IDs between runs
+  ([sync model](../03-concepts/02-sync-model.md#r-is-computed-not-stored)).
 - **Keep repeated syncs scalable.** An advancing sync point lets rebuilds
   skip history already accounted for, rather than revisit an ever-growing
-  history on every sync
-  ([rebuild cost](04-splicing-out.md#advancing-sync-points-bounds-repeated-work)).
+  history on every sync. [`git subtree split --squash`](../05-comparisons/01-git/02-git-subtree.md#problem-2-with---squash-split-walks-everything)
+  demonstrates that scaling problem. Advancing the sync point costs a
+  recording commit; an explicit [bump](../04-advanced-workflows/03-bump.md)
+  lets the user choose that tradeoff rather than impose it on every push.
+- **Preserving monorepo commit topology is a non-goal.** First-parent
+  ancestry is enough for current use cases; the original history remains
+  available in the monorepo. The lesson from
+  [`git subtree`](../05-comparisons/01-git/02-git-subtree.md) and
+  [Josh](../05-comparisons/02-third-party/02-josh.md) was that equivalent
+  history mapping adds complexity with little benefit. More faithful
+  topology can be reconsidered when a use case justifies it.
+- **Inspection must predict publication.** Different interpretations of
+  local changes could make inspection promise something a push does not
+  send. Comparing the same rebuilt history makes inspection a useful
+  preview of publication
+  ([sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)).
 - **Ask “what would Git do?”** Git has much more experience solving
   version-control problems. Where its solution works well, implement the
   closest equivalent:
@@ -98,7 +117,6 @@ explicitly reconsider the affected principle and its rationale.
 [Why the name "splice"](01-name.md) introduces the terminology, including
 “splicing in” and “splicing out”, and the naming motivations. The following
 chapters develop the rationale for [state and upstreams](02-state-and-upstreams.md),
-[splicing out](04-splicing-out.md),
 [safety and limits](05-safety-and-limits.md), and
 [using the user's Git](06-git-trace.md).
 [Going forward](07-going-forward/README.md) explores potential features and
