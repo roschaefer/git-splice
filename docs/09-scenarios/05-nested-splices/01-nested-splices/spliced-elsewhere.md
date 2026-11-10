@@ -34,6 +34,17 @@ the monorepo:
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
+As a tree: the monorepo at *a*, `vendor/a/` at *l*, and `b/` in it at *m*:
+
+![The tree: the monorepo at a; vendor/a/ at l; b/ at m](elsewhere-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-before.drawio.svg" a=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main
+ok   elsewhere-before.drawio.svg: a tree of 3 rows
+```
+-->
+
 The monorepo changes `vendor/a/b/` and pushes both, bottom-up:
 
 ```scrut
@@ -43,6 +54,17 @@ $ echo "b local" >>vendor/a/b/file.txt &&
 ok   vendor/a/b: pushed f47c373 to main
 ok   vendor/a: pushed 9946cf2 to main
 ```
+
+The monorepo's *c* (`b local`) is in each rebuild: *c'* in `b/`, which the inner upstream got, and *p* in `vendor/a/`, which the outer upstream got. The monorepo still records *l* and *m*:
+
+![The tree: the monorepo at c; vendor/a/ at l, then dashed p; b/ at m, then dashed c'](elsewhere-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-pushed.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main~1 m=refs/splices/b/heads/main~1 p=refs/splices/upstream/heads/main c\'=refs/splices/b/heads/main
+ok   elsewhere-pushed.drawio.svg: a tree of 3 rows
+```
+-->
 
 `vendor/a/b/.splice` in the monorepo still names the synced commit from
 before the change: a push writes nothing to the monorepo. The push of
@@ -77,6 +99,17 @@ $ git splice fetch
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```
+
+Here, *o* clones the outer upstream at *p*, which records *c'* for `b/`:
+
+![The tree: the other monorepo at o; vendor/a/ at p; b/ at c', which p records; no splice has commits of its own](elsewhere-cloned.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-cloned.drawio.svg" o=HEAD p=$(git c\'=$(git
+[2]
+```
+-->
 
 `clone` squashed the outer upstream's history into one commit. The files
 of `vendor/a/b/` there have `b local`, and so has the commit its
@@ -114,6 +147,17 @@ The first change to `vendor/a/b/` here:
 ```scrut
 $ echo "b other" >>vendor/a/b/file.txt && git commit -q -a -m "b other"
 ```
+
+*d* (`b other`) goes on top of *c'* in `b/`'s rebuild, and on top of *p* in `vendor/a/`'s:
+
+![The tree: the other monorepo at d; vendor/a/ at p, then dashed d'; b/ at c', then dashed d'](elsewhere-changed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-changed.drawio.svg" d=HEAD o=HEAD~1 p=$(git c\'=$(git
+[2]
+```
+-->
 
 The rebuild of `vendor/a/b/` starts at that synced commit, `b local`,
 so only `b other` is new:
