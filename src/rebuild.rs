@@ -471,13 +471,16 @@ impl Repo {
         for dir in direct {
             let child = format!("{path}/{dir}");
             let recorded = splice_config(&child, "commit", rev);
-            let Some(rebuilt) = self.child_rebuild(&child, rev) else {
+            let Some(rebuilt) = self.child_rebuild(&child, rev)? else {
                 continue;
             };
             // Commits that changed nothing in the end, e.g. a change and its
             // revert, leave the record: the child's push sends nothing then.
+            // The child's push sends nothing when its folder is the recorded
+            // commit's files, by the same comparison: the record stays then.
             if rebuilt == recorded
-                || (commit_here(&recorded) && tree_of(&rebuilt) == tree_of(&recorded))
+                || (commit_here(&recorded)
+                    && self.folder_is(rev, &child, tree_of(&recorded).as_ref())?)
             {
                 continue;
             }
@@ -501,7 +504,8 @@ impl Repo {
             let prefix = format!("{dir}/");
             let folder = format!("{rebuilt}^{{tree}}");
             let state = format!("100644,{blob},{dir}/{STATE_FILE}");
-            if !indexed(&["rm", "-r", "-q", "--cached", "--", &spec]).ok()
+            // A temporary index: the work tree's files don't matter here.
+            if !indexed(&["rm", "-r", "-q", "-f", "--cached", "--", &spec]).ok()
                 || !indexed(&["read-tree", &format!("--prefix={prefix}"), &folder]).ok()
                 || !indexed(&["update-index", "--add", "--cacheinfo", &state]).ok()
             {
@@ -516,30 +520,36 @@ impl Repo {
     /// each commit it walks, oldest first, so it goes on from the commit
     /// before when the child's last sync is the same, instead of walking the
     /// child's history from its last sync again.
-    fn child_rebuild(&mut self, child: &str, rev: &str) -> Option<String> {
+    fn child_rebuild(&mut self, child: &str, rev: &str) -> Res<Option<String>> {
         let last_sync = splice_last_sync(child, rev);
-        if let Some((sync, before, made)) = self.child_rebuilds.get(child).cloned() {
+        let mut made = None;
+        if let Some((sync, before, previous)) = self.child_rebuilds.get(child).cloned() {
             if sync == last_sync && (before == rev || goes_on_from(child, &before, rev)) {
-                let range = format!("{before}..{rev}");
-                let made = if before == rev {
-                    made
+                made = Some(if before == rev {
+                    Ok(previous)
                 } else {
-                    quietly(|| self.rebuild_walk(child, made, &range)).ok()?
-                };
-                self.child_rebuilds.insert(
-                    child.to_string(),
-                    (last_sync, rev.to_string(), made.clone()),
-                );
-                return made;
+                    let range = format!("{before}..{rev}");
+                    quietly(|| self.rebuild_walk(child, previous, &range))
+                });
             }
         }
-        // Only for the record: a child that can't be rebuilt keeps it.
-        let made = quietly(|| self.rebuild_splice(child, rev)).ok()?;
+        let made = match made.unwrap_or_else(|| quietly(|| self.rebuild_splice(child, rev))) {
+            Ok(made) => made,
+            Err(_) => {
+                // The rebuild around it records it: without it, that one would
+                // come out other than what was pushed.
+                log_err(format!(
+                    "{child}: can't be rebuilt here, and the rebuild of the splice around it records it -- 'git splice fetch {}' fetches what it needs",
+                    shell_quote(child)
+                ));
+                return Err(Fail::Soft);
+            }
+        };
         self.child_rebuilds.insert(
             child.to_string(),
             (last_sync, rev.to_string(), made.clone()),
         );
-        made
+        Ok(made)
     }
 
     /// Folder tree of splice <path> in commit <rev> as its upstream gets it:

@@ -114,23 +114,23 @@ ok   vendor/a/b fetched
 ok   vendor/a: pulled a4d6fde
 ```
 
-`b/` is back at *c'*: the pull of `vendor/a/` took the outer upstream's record over the monorepo's:
+`b/` is still at *b2*, the monorepo's own pull, with *c* on top:
 
-![The tree: the monorepo at pa; vendor/a/ at a2, then dashed pa'; b/ back at c', then dashed pb'](below-after-pull-a.drawio.svg)
+![The tree: the monorepo at pa; vendor/a/ at a2, then dashed pa'; b/ still at b2, then dashed pb'](below-after-pull-a.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/below-after-pull-a.drawio.svg" pa=HEAD a2=$(git config --file vendor/a/.splice splice.commit) c\'=$(git config --file vendor/a/b/.splice splice.commit) pb=HEAD~1
+$ check_drawing "$TESTDIR/below-after-pull-a.drawio.svg" pa=HEAD a2=$(git config --file vendor/a/.splice splice.commit) b2=$(git config --file vendor/a/b/.splice splice.commit) pb=HEAD~1
 ok   below-after-pull-a.drawio.svg: a tree of 3 rows
 ```
 -->
 
-`vendor/a/b/.splice` should still record *b2*, the monorepo's own pull,
-since *a2* didn't change it:
+`vendor/a/b/.splice` still records *b2*, the monorepo's own pull, since
+*a2* didn't change it:
 
 ```scrut
 $ git config --file vendor/a/b/.splice splice.commit | cut -c1-7
-f47c373
+a900d91
 ```
 
 ```scrut
@@ -142,11 +142,14 @@ a900d91
 ## The merge base
 
 The pull of `vendor/a/` is a three-way merge. Its base is *p*, the
-commit the monorepo's push made, which records *c'* for `b/`. The
-monorepo, *pb*, records *b2*; the outer upstream, *a2*, still *c'*.
+commit the monorepo's push made, a copy of *c*. Each side is compared
+with it in its own terms:
 
-*c'* in *p* is a record the monorepo's rebuild wrote: the monorepo
-itself recorded *m* at that point. So the merge reads *p*'s record as
-the monorepo's own, which today means *pb*'s: the base becomes *b2*,
-equal to the monorepo's side, and the merge takes the other side's
-*c'*. That undoes the monorepo's pull of `b/`.
+- The outer upstream's side in the upstream's records: *a2* records
+  *c'*, as *p* does. Unchanged.
+- The monorepo's side in its own records: *pb* records *b2*, while
+  *c*, the commit *p* copies, recorded *m*. Changed.
+
+Only the monorepo changed `b/.splice`, so it keeps *b2*. Had the outer
+upstream changed it too, the two would conflict; had only the outer
+upstream, its record would win.

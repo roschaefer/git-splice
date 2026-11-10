@@ -195,8 +195,7 @@ impl Repo {
                 .unwrap_or_default()
         };
         refuse_changed_submodule(path, &merge_base, &target)?;
-        let base_folder = tree_of(&merge_base).ok_or(Fail::Soft)?;
-        let base_folder = self.own_records_in(path, &base_folder)?;
+        let base_folder = self.own_records_in(path, &merge_base, &target)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message =
@@ -251,53 +250,67 @@ impl Repo {
         Ok(())
     }
 
-    /// Folder tree <tree>, an upstream commit's, with HEAD's .splice of each
-    /// splice inside it whose record there is one this monorepo's rebuild
-    /// pushed: the monorepo records those as it did before, and the rebuild
-    /// rewrites them on the way out.
-    fn own_records_in(&mut self, path: &str, tree: &str) -> Res<String> {
-        let names = git(&["ls-tree", "-r", "-z", "--name-only", tree])
+    /// The folder of merge base <base> for a merge of <theirs> into splice
+    /// <path>, with the records of the splices inside it set so that each
+    /// side is compared with the base in its own terms. <base> may be a copy
+    /// the monorepo's rebuild made of its commit Y, whose records the rebuild
+    /// wrote: <theirs> changed a record if it differs from <base>'s, the
+    /// monorepo if HEAD's differs from Y's. Only the upstream changed it: the
+    /// base gets HEAD's, so the merge takes <theirs>. Both did: Y's, so they
+    /// conflict unless they agree. Only the monorepo, or nobody: <base>'s as
+    /// it is, so the merge keeps HEAD's.
+    fn own_records_in(&mut self, path: &str, base: &str, theirs: &str) -> Res<String> {
+        let tree = tree_of(base).ok_or(Fail::Soft)?;
+        let names = git(&["ls-tree", "-r", "-z", "--name-only", &tree])
             .bytes()
             .unwrap_or_default();
         let suffix = format!("/{STATE_FILE}");
-        let mut updates = Vec::new();
-        for name in nul_fields(&names) {
-            let Some(dir) = name.strip_suffix(&suffix) else {
-                continue;
-            };
-            let child = format!("{path}/{dir}");
-            let Some(recorded) = git(&[
+        let record = |rev: &str, name: &str| {
+            git(&[
                 "config",
                 "--blob",
-                &format!("{tree}:{name}"),
+                &format!("{rev}:{name}"),
                 "splice.commit",
             ])
             .q()
-            .out() else {
-                continue;
-            };
-            let Ok(Some(rebuilt)) = self.rebuild_splice(&child, "HEAD") else {
-                continue;
-            };
-            // Only a commit the rebuild made: its own, not one it was synced at.
-            let synced = splice_config(&child, "commit", "HEAD");
-            if !is_ancestor(&recorded, &rebuilt)
-                || (!synced.is_empty() && is_ancestor(&recorded, &synced))
-            {
+            .out()
+            .unwrap_or_default()
+        };
+        let mut original = None;
+        let mut updates = Vec::new();
+        for name in nul_fields(&names) {
+            if name.strip_suffix(&suffix).is_none() {
                 continue;
             }
-            // The record only: everything else in it merges as usual.
-            let Some(blob) = with_record(&format!("{tree}:{name}"), &synced) else {
+            let recorded = record(base, &name);
+            if record(theirs, &name) == recorded {
+                continue;
+            }
+            let original = match &original {
+                Some(found) => found,
+                None => original.insert(self.original_of(path, base)),
+            };
+            let Some(y) = original else {
+                continue;
+            };
+            let monorepo_then = record(y, &format!("{path}/{name}"));
+            let monorepo_now = self.record_now(path, &name, base);
+            let set = if monorepo_now == monorepo_then {
+                monorepo_now
+            } else {
+                monorepo_then
+            };
+            let Some(blob) = with_record(&format!("{tree}:{name}"), &set) else {
                 continue;
             };
             updates.push((name.clone(), blob));
         }
         if updates.is_empty() {
-            return Ok(tree.to_string());
+            return Ok(tree);
         }
         let index = Temp::new();
         let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
-        if !indexed(&["read-tree", tree]).ok() {
+        if !indexed(&["read-tree", &tree]).ok() {
             return Err(Fail::Soft);
         }
         for (name, blob) in &updates {
@@ -307,6 +320,66 @@ impl Repo {
             }
         }
         indexed(&["write-tree"]).out().ok_or(Fail::Soft)
+    }
+
+    /// The first-parent commit of the monorepo that upstream commit <copy>
+    /// is the rebuild's copy of, for splice <path>: the same author,
+    /// committer, dates and message, and its folder the copy's files.
+    fn original_of(&mut self, path: &str, copy: &str) -> Option<String> {
+        const FORMAT: &str = "%an%x00%ae%x00%ad%x00%cn%x00%ce%x00%cd%x00%B";
+        let key = git(&[
+            "log",
+            "-1",
+            "--date=raw",
+            &format!("--format={FORMAT}"),
+            copy,
+        ])
+        .out()?;
+        let spec = format!(":(top,literal){path}");
+        let log = git(&[
+            "log",
+            "--first-parent",
+            "--date=raw",
+            &format!("--format=%H%x00{FORMAT}%x01"),
+            "HEAD",
+            "--",
+            &spec,
+        ])
+        .out()?;
+        let tree = tree_of(copy);
+        for entry in log.split('\u{1}') {
+            let entry = entry.trim_start_matches('\n');
+            let Some((commit, rest)) = entry.split_once('\0') else {
+                continue;
+            };
+            if rest.trim_end() == key.trim_end()
+                && self.folder_is(commit, path, tree.as_ref()).unwrap_or(false)
+            {
+                return Some(commit.to_string());
+            }
+        }
+        None
+    }
+
+    /// HEAD's record of the splice whose state file is <name> in the folder
+    /// of splice <path> in commit <base>: the splice with the same id, which
+    /// may have moved since.
+    fn record_now(&self, path: &str, name: &str, base: &str) -> String {
+        let id = git(&["config", "--blob", &format!("{base}:{name}"), "splice.id"])
+            .q()
+            .out()
+            .unwrap_or_default();
+        let dir = name.strip_suffix(&format!("/{STATE_FILE}")).unwrap_or(name);
+        let here = format!("{path}/{dir}");
+        if !id.is_empty() && splice_config(&here, "id", "HEAD") != id {
+            let found = self.all_paths.iter().find(|other| {
+                other.starts_with(&format!("{path}/")) && splice_config(other, "id", "HEAD") == id
+            });
+            if let Some(moved) = found {
+                return splice_config(moved, "commit", "HEAD");
+            }
+        }
+        splice_config(&here, "commit", "HEAD")
     }
 
     /// For --rebase: takes the splice's upstream branch in on top of X, the
@@ -975,8 +1048,9 @@ impl Repo {
         };
         let message = self.given_message_or(default);
         let blob = state_file_blob("HEAD", path).ok_or(Fail::Hard)?;
-        let base_folder = tree_of(&base).ok_or(Fail::Hard)?;
-        let base_folder = self.own_records_in(path, &base_folder)?;
+        let base_folder = self
+            .own_records_in(path, &base, &given)
+            .map_err(|_| Fail::Hard)?;
         match splice_in(
             path,
             Some(&base_folder),

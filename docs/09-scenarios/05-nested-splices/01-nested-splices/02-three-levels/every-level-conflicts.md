@@ -215,7 +215,6 @@ initial commit
 
 ```scrut
 $ git splice status
-??   vendor/a/b: synced commit b6b577f isn't on main -- made it again here: c26acde and 2 commits of this branch's own
 On branch main
 
   ahead 4  vendor/a
@@ -228,7 +227,6 @@ On branch main
 ```scrut
 $ git splice push vendor/a/b/c vendor/a/b vendor/a
 ok   vendor/a/b/c: pushed b33f7a9 to main
-??   vendor/a/b: synced commit b6b577f isn't on main -- made it again here: c26acde and 2 commits of this branch's own
 ok   vendor/a/b: pushed 1a51fd8 to main
 ok   vendor/a: pushed 0f14077 to main
 ```

@@ -221,7 +221,8 @@ Pushing the splice above sends the `.splice` of the one below as the
 rebuild wrote it, recording the rebuild of the one below: what its
 upstream gets with the same push.
 So one `push --all` leaves every upstream recording what the one inside
-it has, without `pull --bump` in between
+it got from the monorepo, without `pull --bump` in between. An upstream
+that moved on since is pulled first, as before any push
 ([nesting](../03-concepts/04-nesting.md)).
 
 ## Read more

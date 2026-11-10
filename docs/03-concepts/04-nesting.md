@@ -65,7 +65,9 @@ together in three ways:
   splice below: the commit that splice's upstream gets with the same
   push. The push sends what the rebuild made and, as always, writes
   nothing to the monorepo, which keeps its own record. So one push of
-  both leaves the upstream above recording what the one below has
+  both leaves the upstream above recording what the one below got from
+  the monorepo; an upstream that moved on is pulled first, as before any
+  push
   ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/pulled-level-by-level.md)).
   The splice below goes first, so the record names a commit its upstream
   has, and `push --all` stops at a failed push before the splice above.
