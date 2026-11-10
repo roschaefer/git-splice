@@ -148,7 +148,7 @@ CONFLICT (content): Merge conflict in vendor/a/b/c/file.txt
 
 In `c/`, b's upstream's change, the copy *b2'*, meets *c2*:
 
-![The tree: the monorepo at pb, outlined blue; vendor/a/ at a2, outlined blue, then dashed pb', outlined blue; b/ at b2, outlined blue, then dashed pb'; c/ at c1, then dashed b2', and c2, outlined red, with a red dashed arrow into b2'; d/ at d1; and the new e/ at e1, outlined blue](tree-c-conflicts.drawio.svg)
+![The tree: the monorepo at pb, outlined blue; vendor/a/ at a2, then dashed pb', outlined blue; b/ at b2, outlined blue, then dashed pb', outlined blue; c/ at c1, then dashed b2', outlined blue, and c2, outlined red: c/ conflicts; d/ at d1; and the new e/ at e1](tree-c-conflicts.drawio.svg)
 
 <!--
 ```scrut
