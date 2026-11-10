@@ -69,3 +69,6 @@ A pull through E splices, with C commits of the monorepo's own on top:
   bottom-up, and each parent has to record what its child's upstream has
   before it's pushed itself; `push --all` doesn't, and `status` doesn't
   notice.
+- [a failed push below](01-recursive-pull/failed-push-below.md): the
+  upstream above records a commit the one below never got; a clone of it
+  makes the commit again and counts it as its own.
