@@ -54,22 +54,17 @@ $ monorepo="$PWD" s="$(git rev-parse HEAD~1)" c="$(git rev-parse HEAD)" &&
 ```
 -->
 
-Each lane is one level, drawn inside the one above it. The monorepo's
-*c* changes the innermost folder, so each level's rebuild, R, has a copy
-of it, *c'*, on top of the synced commit. Only the innermost upstream
-moved on, to *u*:
+Before the pull, each splice is at its synced commit, *k*, *l* and *n*.
+The monorepo's *c* changed the innermost folder, so each level's rebuild
+has a copy of it, *c'*, on top, which the next push would carry over.
+Only the innermost upstream moved on, to *u*:
 
-<div align="center">
-
-![The monorepo's s and c, H at c; in vendor/a/, k, T and U(H), and on top of it, dashed, c prime, R; in vendor/a/b/ the same with l; in vendor/a/b/c/, n, U(H), u on top of it, T, and c prime on top of n, dashed, R](levels-before.drawio.svg)
-
-</div>
+![The tree: the monorepo at c, outlined orange; vendor/a/ at k, then dashed c', outlined orange; b/ at l, then the same; c/ at n, then the same](levels-tree-before.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/levels-before.drawio.svg" \
->   s="$s" c="$c" k="$k" l="$l" n="$n" u="$u"
-ok   levels-before.drawio.svg: 9 commits, 13 arrows, 8 boxes, 3 lanes
+$ check_drawing "$TESTDIR/levels-tree-before.drawio.svg" c="$c" k="$k" l="$l" n="$n"
+ok   levels-tree-before.drawio.svg: a tree of 4 rows
 ```
 -->
 
