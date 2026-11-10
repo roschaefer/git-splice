@@ -257,14 +257,18 @@ fn render(rows: &[Row], marks: &Marks) -> String {
             next += CIRCLE + GAP;
         }
         if let Some(r) = &row.r {
-            let dots = format!("text;align=center;verticalAlign=middle;fontSize=16;{FONT}");
-            shape(
-                &format!("dots{i}"),
-                "…",
-                &dots,
-                (next - GAP + 2.0, y, GAP - 4.0, CIRCLE),
-                "1",
-            );
+            // The commits between the synced commit and R: none to stand for
+            // without a synced commit, e.g. after init.
+            if row.synced.is_some() {
+                let dots = format!("text;align=center;verticalAlign=middle;fontSize=16;{FONT}");
+                shape(
+                    &format!("dots{i}"),
+                    "…",
+                    &dots,
+                    (next - GAP + 2.0, y, GAP - 4.0, CIRCLE),
+                    "1",
+                );
+            }
             let id = format!("r{i}");
             let style = format!("{commit}dashed=1;{}", outline(r.color));
             shape(&id, &r.label, &style, (next, y, CIRCLE, CIRCLE), "1");

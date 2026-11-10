@@ -135,7 +135,7 @@ cell() {
   [[ "$output" == *"write it with \`check-drawing tree --mark pulled m=HEAD\`"* ]]
 }
 
-@test "drawing tree: a splice after an init has no synced commit, only R" {
+@test "drawing tree: a splice after an init has no synced commit, only R, without the dots" {
   load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git"
   scenario_init_new_upstream "$other" "$other_upstream"
@@ -144,6 +144,7 @@ cell() {
   write_tree s=HEAD
   [ "$(cell r1 value)" = "s'" ]
   [ -z "$(cell s1 value)" ]
+  [ -z "$(cell dots1 value)" ]
   [ "$(cell c1 target)" = r1 ]
 }
 

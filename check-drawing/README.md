@@ -231,7 +231,8 @@ command that writes it.
   commit where it has no R.
 - **R**: after `…`, dashed, where the splice has commits of its own,
   labelled after the commit it copies, with a `'`. After an init, a
-  splice has no synced commit: `…` and R alone. Dashed or not, a tree
+  splice has no synced commit: R alone, without `…`, which stands for
+  the commits between the synced commit and R. Dashed or not, a tree
   says nothing about which upstream branch has a commit; that's for the
   lanes to show.
 - **Merged in with a conflict**: during a pull that stopped at a
