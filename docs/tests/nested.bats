@@ -1692,3 +1692,18 @@ pushed_above_alone() {
   run splice status vendor/a
   [[ "$output" == *"up to date  vendor/a"* ]]
 }
+
+@test "nested: pull --rebase of the splice above, after a push, a bump and a pull of the one below, doesn't conflict in the record below" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice push --all >/dev/null
+  splice pull --bump vendor/a >/dev/null
+  seed_bare_repo "$upstream_b" "b upstream" main other.txt
+  splice pull vendor/a/b >/dev/null
+  seed_bare_repo "$upstream" "a upstream" main other.txt
+  run splice pull --rebase vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" != *CONFLICT* ]]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+}
