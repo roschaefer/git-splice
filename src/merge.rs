@@ -322,62 +322,6 @@ impl Repo {
         indexed(&["write-tree"]).out().ok_or(Fail::Soft)
     }
 
-    /// The folder of upstream commit <target> for splice <path>, with each
-    /// record of a splice inside it that is the one the monorepo's rebuild
-    /// wrote at <base> set back to <base>'s own: the upstream didn't change
-    /// it, so the monorepo's record stays.
-    fn in_monorepo_records(&mut self, path: &str, target: &str, base: &str) -> Res<String> {
-        let tree = tree_of(target).ok_or(Fail::Soft)?;
-        let Some(published) = self.published_tree(base, path)? else {
-            return Ok(tree);
-        };
-        let names = git(&["ls-tree", "-r", "-z", "--name-only", &tree])
-            .bytes()
-            .unwrap_or_default();
-        let suffix = format!("/{STATE_FILE}");
-        let record = |rev: &str, name: &str| {
-            git(&[
-                "config",
-                "--blob",
-                &format!("{rev}:{name}"),
-                "splice.commit",
-            ])
-            .q()
-            .out()
-            .unwrap_or_default()
-        };
-        let mut updates = Vec::new();
-        for name in nul_fields(&names) {
-            if name.strip_suffix(&suffix).is_none() {
-                continue;
-            }
-            let theirs = record(&tree, &name);
-            let own = record(base, &format!("{path}/{name}"));
-            if theirs == own || theirs != record(&published, &name) {
-                continue;
-            }
-            let Some(blob) = with_record(&format!("{tree}:{name}"), &own) else {
-                continue;
-            };
-            updates.push((name.clone(), blob));
-        }
-        if updates.is_empty() {
-            return Ok(tree);
-        }
-        let index = Temp::new();
-        let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
-        if !indexed(&["read-tree", &tree]).ok() {
-            return Err(Fail::Soft);
-        }
-        for (name, blob) in &updates {
-            let info = format!("100644,{blob},{name}");
-            if !indexed(&["update-index", "--add", "--cacheinfo", &info]).ok() {
-                return Err(Fail::Soft);
-            }
-        }
-        indexed(&["write-tree"]).out().ok_or(Fail::Soft)
-    }
-
     /// The first-parent commit of the monorepo that upstream commit <copy>
     /// is the rebuild's copy of, for splice <path>: the same author,
     /// committer, dates and message, and its folder the copy's files.
@@ -507,7 +451,8 @@ impl Repo {
             ));
         }
         let blob = state_blob_in(path, &base, &[("commit", &target)])?;
-        let folder = self.in_monorepo_records(path, &target, &base)?;
+        let theirs = tree_of(&target).ok_or(Fail::Soft)?;
+        let folder = self.in_monorepo_terms(&base, path, &theirs)?;
         let tree = reroot_tree(path, Some(&folder), Some(&blob), &base)?;
         let message =
             self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
@@ -1228,7 +1173,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
 
 /// The blob of state file <file>, a `<tree>:<path>`, with `commit` set to
 /// <commit>, or unset if that's empty.
-fn with_record(file: &str, commit: &str) -> Option<String> {
+pub fn with_record(file: &str, commit: &str) -> Option<String> {
     let temp = Temp::new();
     let content = git(&["cat-file", "blob", file]).bytes()?;
     std::fs::write(&temp.path, content).ok()?;

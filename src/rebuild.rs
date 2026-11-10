@@ -4,6 +4,7 @@
 //! branch without remembering anything about earlier pushes. See
 //! docs/07-design/README.md.
 
+use crate::merge::with_record;
 use crate::repo::*;
 use crate::state::state_blob_in;
 use crate::util::*;
@@ -562,17 +563,78 @@ impl Repo {
         }
     }
 
-    /// Whether splice <path>'s folder in commit <rev> is upstream tree <tree>:
-    /// with the records the monorepo has, as after a pull, or with the ones
-    /// its rebuild writes, as after a push.
+    /// Upstream tree <tree> of splice <path>, read in the records of monorepo
+    /// commit <rev>: each record of a splice inside it that is the one the
+    /// rebuild writes at <rev> stands for <rev>'s own record there. The other
+    /// direction of published_tree: what the folder would be.
+    pub fn in_monorepo_terms(&mut self, rev: &str, path: &str, tree: &str) -> Res<String> {
+        let names = git(&["ls-tree", "-r", "-z", "--name-only", tree])
+            .bytes()
+            .unwrap_or_default();
+        let suffix = format!("/{STATE_FILE}");
+        let record = |rev: &str, name: &str| {
+            git(&[
+                "config",
+                "--blob",
+                &format!("{rev}:{name}"),
+                "splice.commit",
+            ])
+            .q()
+            .out()
+            .unwrap_or_default()
+        };
+        let mut published = None;
+        let mut updates = Vec::new();
+        for name in nul_fields(&names) {
+            if name.strip_suffix(&suffix).is_none() {
+                continue;
+            }
+            let theirs = record(tree, &name);
+            let own = record(rev, &format!("{path}/{name}"));
+            if theirs == own {
+                continue;
+            }
+            let published = match &published {
+                Some(found) => found,
+                None => published.insert(self.published_tree(rev, path)?.unwrap_or_default()),
+            };
+            if published.is_empty() || theirs != record(published, &name) {
+                continue;
+            }
+            let Some(blob) = with_record(&format!("{tree}:{name}"), &own) else {
+                continue;
+            };
+            updates.push((name.clone(), blob));
+        }
+        if updates.is_empty() {
+            return Ok(tree.to_string());
+        }
+        let index = Temp::new();
+        let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
+        if !indexed(&["read-tree", tree]).ok() {
+            return Err(Fail::Soft);
+        }
+        for (name, blob) in &updates {
+            let info = format!("100644,{blob},{name}");
+            if !indexed(&["update-index", "--add", "--cacheinfo", &info]).ok() {
+                return Err(Fail::Soft);
+            }
+        }
+        indexed(&["write-tree"]).out().ok_or(Fail::Soft)
+    }
+
+    /// Whether splice <path>'s folder in commit <rev> is upstream tree <tree>,
+    /// read in <rev>'s records. Equal files are the quick answer: a record
+    /// equal to <rev>'s own needs no reading.
     pub fn folder_is(&mut self, rev: &str, path: &str, tree: Option<&String>) -> Res<bool> {
         let Some(tree) = tree else {
             return Ok(false);
         };
-        if self.content_tree(rev, path)?.as_ref() == Some(tree) {
+        let folder = self.content_tree(rev, path)?;
+        if folder.as_ref() == Some(tree) {
             return Ok(true);
         }
-        Ok(self.published_tree(rev, path)?.as_ref() == Some(tree))
+        Ok(folder == Some(self.in_monorepo_terms(rev, path, tree)?))
     }
 
     /// The tree of splice <path> in commit <rev>, without its state file, if
