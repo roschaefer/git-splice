@@ -99,7 +99,10 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
     let mut names: Vec<(&String, &String)> = labels.revs.iter().collect();
     names.sort();
     for (label, rev) in names.into_iter().rev() {
-        if let Some(commit) = git.commit(rev) {
+        // A full hash names a commit the repository may not have, e.g. a
+        // synced commit that isn't here: labelled all the same.
+        let full_hash = rev.len() == 40 && rev.bytes().all(|b| b.is_ascii_hexdigit());
+        if let Some(commit) = git.commit(rev).or_else(|| full_hash.then(|| rev.clone())) {
             given.insert(commit, label.clone());
         }
     }

@@ -244,7 +244,8 @@ command that writes it.
 A circle is labelled as a `<label>=<rev>` names its commit, else by its
 subject, up to a colon, as in the lanes. A synced commit that a push
 made, a copy of one of the monorepo's commits, is labelled after that
-commit, with a `'`, as R is.
+commit, with a `'`, as R is. A `<rev>` that's a full hash can name a commit
+the repository doesn't have, e.g. a synced commit that isn't here.
 
 ## Saving drawings
 

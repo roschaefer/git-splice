@@ -27,6 +27,17 @@ $ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=3 GIT_CONFI
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
+As a tree: the monorepo at *a*, `vendor/a/` at *l*, and `b/` in it at *m*:
+
+![The tree: the monorepo at a; vendor/a/ at l; b/ at m](elsewhere-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-before.drawio.svg" a=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main
+ok   elsewhere-before.drawio.svg: a tree of 3 rows
+```
+-->
+
 The monorepo changes `vendor/a/b/` and pushes only `vendor/a/`:
 
 ```scrut
@@ -35,6 +46,17 @@ $ echo "b local" >>vendor/a/b/file.txt &&
 >   git splice push vendor/a
 ok   vendor/a: pushed 9946cf2 to main
 ```
+
+*p* went to the outer upstream with `vendor/a/`'s push, and records *c'*, the copy of *c* (`b local`) in `b/`'s rebuild. No push sent *c'*:
+
+![The tree: the monorepo at c; vendor/a/ at l, then dashed p; b/ at m, then dashed c', which the inner upstream doesn't have](elsewhere-pushed-above.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-pushed-above.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main~1 m=refs/splices/b/heads/main p=refs/splices/upstream/heads/main
+ok   elsewhere-pushed-above.drawio.svg: a tree of 3 rows
+```
+-->
 
 The outer upstream records a commit the inner upstream doesn't have:
 
@@ -68,6 +90,17 @@ $ git splice fetch
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```
+
+*o* clones the outer upstream at *p*, so `vendor/a/b/` is at *c'*, which neither the inner upstream nor this monorepo has:
+
+![The tree: the other monorepo at o; vendor/a/ at p; b/ at c', which this clone can't make again](elsewhere-cloned-before-the-push-below.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-cloned-before-the-push-below.drawio.svg" o=HEAD p=$(git c\'=$(git
+[2]
+```
+-->
 
 ```scrut
 $ cat vendor/a/b/file.txt

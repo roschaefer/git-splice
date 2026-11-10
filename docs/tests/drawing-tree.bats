@@ -162,3 +162,13 @@ cell() {
   write_tree
   [ "$(cell s3 value)" = "${c2:0:7}" ]
 }
+
+@test "drawing tree: a commit the monorepo doesn't have takes a label given by its full hash" {
+  local c2
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c2: c upstream"
+  c2="$(git -C "$BATS_TEST_TMPDIR/upstream-c.git" rev-parse main)"
+  git config --file vendor/a/b/c/.splice splice.commit "$c2"
+  git commit -q -am "c at c2, not fetched"
+  write_tree "c2=$c2"
+  [ "$(cell s3 value)" = c2 ]
+}
