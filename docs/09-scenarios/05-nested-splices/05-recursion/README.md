@@ -1,12 +1,12 @@
 # Recursion
 
-These scenarios are experiments. They show how `git-splice` is meant to
-pull through [nested splices](../../../03-concepts/04-nesting.md): as
-if each splice's upstream were cloned on its own, updated there, and
-the result handed up to the splice around it. Some pages do it by hand,
-with worktrees and plain Git; others with `git splice pull --recursive`,
-which does part of it already. As the tool takes over, their code blocks
-shrink to its commands, and their drawings change with them.
+These scenarios show how `git-splice` pulls through
+[nested splices](../../../03-concepts/04-nesting.md): as if each
+splice's upstream were cloned on its own, updated there, and the result
+handed up to the splice around it. Pages that did that by hand, one
+level at a time with a worktree per level, showed it ends where the
+monorepo's own pull ends; `git splice pull --recursive` and
+`pull --rebase --recursive` do it now, and the pages below show those.
 
 ## The tree
 
@@ -45,12 +45,6 @@ A pull through E splices, with C commits of the monorepo's own on top:
 
 ## The scenarios
 
-- [pulled one level at a time](../01-nested-splices/02-three-levels/pulled-level-by-level.md):
-  three levels, a worktree per level, and `merge --rebuilt-commit` to
-  take each result up.
-- [rebased one level at a time](../01-nested-splices/02-three-levels/rebased-level-by-level.md):
-  three levels with `--rebase`, each level's R rebased onto its own
-  pull, so the conflict comes up once, innermost.
 - [every level conflicts](../01-nested-splices/02-three-levels/every-level-conflicts.md):
   three levels, where every upstream changed the folder of the splice
   inside it: one conflict per edge, each resolved in the parent of the
