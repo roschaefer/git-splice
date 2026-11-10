@@ -5,7 +5,7 @@ rebuild: the commit that splice's upstream gets with the same push. If
 that push fails, the upstream above still gets the record, of a commit
 the upstream below doesn't have. A clone of the upstream above has
 everything that commit is made of, so it makes it again, and counts what
-the upstream below lacks as its own.
+the upstream below lacks as its own: a plain pull merges it.
 
 ## Output
 
@@ -111,57 +111,26 @@ $ git splice log c
 > 5f049ad c2: c upstream  (Test <test@example.com>)
 ```
 
-`pull --rebase` would rewrite `b`'s published commit, so it refuses, as
-it would without the record:
+`pull --rebase` refuses: the commit of `b`'s that made the record is the
+last sync itself, so the rebase would replay it, and the record in it
+would meet the pull's. Keeping the pull's record, also when a conflict
+interrupts the rebase, needs a pull that carries its state from one run
+to the next
+([#446](https://github.com/roschaefer/git-splice/pull/446)):
 
 ```scrut
 $ git splice pull --rebase c
 ok   c fetched
 ??   c: synced commit 30bd30a isn't on main -- made it again here: 8c169b6 and 1 commit of this branch's own
-!!   c: 'origin' has commits since f815a3c, which --rebase would rewrite -- pull on a branch nobody else has, e.g. a pull request's
+!!   c: synced commit 30bd30a was made again here -- --rebase doesn't replay what's above 8c169b6; pull without --rebase
 !!   Failed: c
 [1]
 ```
 
-On a branch nobody else has, pulling `c`'s `main`, it replays that commit
-on *c2*: *m1*'s line stays, and the record is *c2*'s, the pull's:
+A plain pull merges instead:
 
 ```scrut
-$ git switch -q -c private &&
->   git update-ref -d refs/remotes/origin/main &&
->   git update-ref -d refs/remotes/origin/HEAD
-```
-
-```scrut
-$ git splice pull --rebase --branch main c
-ok   c fetched
-??   c: synced commit 30bd30a isn't on main -- made it again here: 8c169b6 and 1 commit of this branch's own
-ok   c: pulled 5f049ad, and rebased 1 commit onto it
-```
-
-```scrut
-$ cat c/file.txt c/other.txt
-c1: c seed
-c in the monorepo
-c upstream
-```
-
-```scrut
-$ git log --format=%s -3
-m1: c in the monorepo
-splice: pull c from main at 5f049ad
-b1: add c
-```
-
-```scrut
-$ git config --file c/.splice splice.commit | cut -c1-7
-5f049ad
-```
-
-A plain pull merges instead, on `main`:
-
-```scrut
-$ git switch -q main && git splice pull c
+$ git splice pull c
 ok   c fetched
 ??   c: synced commit 30bd30a isn't on main -- made it again here: 8c169b6 and 1 commit of this branch's own
 ok   c: pulled 5f049ad

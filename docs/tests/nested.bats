@@ -1485,7 +1485,7 @@ uncommitted" ]
   git symbolic-ref -q HEAD
 }
 
-@test "nested: pull --rebase in a clone of a's upstream, whose record of b names a commit b's upstream never got, replays it on the pull, keeping the pull's record" {
+@test "nested: in a clone of a's upstream, whose record of b names a commit b's upstream never got, pull --rebase refuses and pull merges it" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local" notes.txt
   seed_bare_repo "$upstream_b" "b upstream" main other.txt
@@ -1493,12 +1493,12 @@ uncommitted" ]
   ! splice push vendor/a/b >/dev/null 2>&1
   splice push vendor/a >/dev/null
   work_in_upstream_a
-  git update-ref -d refs/remotes/origin/main
-  git update-ref -d refs/remotes/origin/HEAD 2>/dev/null || true
   run splice pull --rebase b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"b: synced commit"*"was made again here -- --rebase doesn't replay what's above"* ]]
+  run splice pull b
   [ "$status" -eq 0 ]
-  [[ "$output" == *"made it again here"* ]]
   [ "$(splice_config b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
   [ "$(cat b/notes.txt)" = "b local" ]
-  [ -z "$(git status --porcelain)" ]
+  [ -f b/other.txt ]
 }
