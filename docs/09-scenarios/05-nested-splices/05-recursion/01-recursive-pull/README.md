@@ -153,10 +153,8 @@ In `c/`, b's upstream's change, the copy *b2'*, meets *c2*:
 <!--
 ```scrut
 $ check_drawing "$TESTDIR/tree-c-conflicts.drawio.svg" pb=HEAD "b2'=$(git splice rebuild vendor/a/b/c)"
-!!   tree-c-conflicts.drawio.svg isn't the tree the repository gives: write it with `check-drawing tree --mark pulled b2'=869eb99643d1aa050eab7d9261beb18b80330b16 pb=HEAD`, and export it
-!!   r2: drawn "geometry.as="geometry" height=36 parent="1" points=0 style="ellipse;aspect=fixed;strokeWidth=2;fontSize=14;fontFamily=Roboto Mono,monospace;dashed=1;" value="pb'" vertex="1" width=36 x=196 y=120", given "geometry.as="geometry" height=36 parent="1" points=0 style="ellipse;aspect=fixed;strokeWidth=2;fontSize=14;fontFamily=Roboto Mono,monospace;dashed=1;strokeColor=#0070E0;strokeWidth=3;" value="pb'" vertex="1" width=36 x=196 y=120"
-!!   r3: drawn "geometry.as="geometry" height=36 parent="1" points=0 style="ellipse;aspect=fixed;strokeWidth=2;fontSize=14;fontFamily=Roboto Mono,monospace;dashed=1;" value="b2'" vertex="1" width=36 x=294 y=180", given "geometry.as="geometry" height=36 parent="1" points=0 style="ellipse;aspect=fixed;strokeWidth=2;fontSize=14;fontFamily=Roboto Mono,monospace;dashed=1;strokeColor=#0070E0;strokeWidth=3;" value="b2'" vertex="1" width=36 x=294 y=180"
-[1]
+ok   tree-c-conflicts.drawio.svg: a tree of 6 rows
+[0]
 ```
 -->
 
