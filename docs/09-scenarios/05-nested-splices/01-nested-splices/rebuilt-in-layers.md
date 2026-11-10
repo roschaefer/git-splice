@@ -31,6 +31,17 @@ $ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=3 GIT_CONFI
 $ build_scenario scenario_nested_splices https://git.example.com/b.git
 ```
 
+As a tree: the monorepo at *a*, `vendor/a/` at *l*, and `b/` in it at *m*:
+
+![The tree: the monorepo at a; vendor/a/ at l; b/ at m](layers-tree-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/layers-tree-before.drawio.svg" a=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main
+ok   layers-tree-before.drawio.svg: a tree of 3 rows
+```
+-->
+
 The monorepo pushes a change to `vendor/a/b/`:
 
 ```scrut
@@ -39,6 +50,17 @@ $ echo "b local" >>vendor/a/b/file.txt &&
 >   git splice push vendor/a/b
 ok   vendor/a/b: pushed 701ab17 to main
 ```
+
+The inner upstream has *c'* now, the copy of *c*. The monorepo still records *m*, with *c'* on top, in `b/` and in `vendor/a/`:
+
+![The tree: the monorepo at c; vendor/a/ at l, then dashed c'; b/ at m, then dashed c'](layers-tree-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/layers-tree-pushed.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main~1
+ok   layers-tree-pushed.drawio.svg: a tree of 3 rows
+```
+-->
 
 Then it makes `vendor/` a splice of a new upstream, around `vendor/a/`,
 and changes `vendor/a/b/` again:
@@ -53,6 +75,17 @@ ok   vendor: initialized -- 'git splice push vendor' publishes it
 $ echo "b next" >>vendor/a/b/file.txt &&
 >   git commit -q -a -m "b next"
 ```
+
+`vendor/` has no synced commit, only its rebuild, *n'*, and `vendor/a/` and `b/` are inside it now:
+
+![The tree: the monorepo at n; vendor/, with no synced commit, dashed n'; in it, a/ at l, then dashed n'; b/ at m, then dashed n'](layers-tree-after.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/layers-tree-after.drawio.svg" n=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main~1
+ok   layers-tree-after.drawio.svg: a tree of 4 rows
+```
+-->
 
 ## In the monorepo
 
