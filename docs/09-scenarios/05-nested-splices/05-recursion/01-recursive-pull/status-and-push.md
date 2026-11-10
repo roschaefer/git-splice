@@ -71,17 +71,6 @@ ok   vendor/a/d: nothing to push
 ok   vendor/a: pushed 04ebbea to main
 ```
 
-The push sends *m2'* to the three upstreams, bottom-up, and nothing to `d`'s; each *m2'* is solid now. The records are right again:
-
-![The tree after the push: the monorepo at m2; vendor/a/ at a1, then m2', solid; b/ at b1, then the same; c/ at c1, then the same; d/ at d1](push-pushed-c.drawio.svg)
-
-<!--
-```scrut
-$ check_drawing "$TESTDIR/push-pushed-c.drawio.svg" m1=HEAD~1 m2=HEAD
-ok   push-pushed-c.drawio.svg: a tree of 5 rows
-```
--->
-
 `b`'s upstream records the commit `c`'s upstream has now:
 
 ```scrut
@@ -151,6 +140,17 @@ ok   vendor/a/b: pushed e99151a to main
 ok   vendor/a/d: nothing to push
 ok   vendor/a: pushed a0972a4 to main
 ```
+
+The push sends *m2'* to the three upstreams, bottom-up, and nothing to `d`'s; each *m2'* is solid now. The records are right again:
+
+![The tree after the push: the monorepo at m2; vendor/a/ at a1, then m2', solid; b/ at b1, then the same; c/ at c1, then the same; d/ at d1](push-pushed-c.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-pushed-c.drawio.svg" m1=HEAD~1 m2=HEAD
+ok   push-pushed-c.drawio.svg: a tree of 5 rows
+```
+-->
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" show main:c/.splice | git config --file - splice.commit | cut -c1-7 &&
