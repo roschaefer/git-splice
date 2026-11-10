@@ -60,9 +60,8 @@ A pull through E splices, with C commits of the monorepo's own on top:
   `--rebase`: the pulls first, as one commit, then the monorepo's own
   commit, rebased onto it once.
 - [status and push](01-recursive-pull/status-and-push.md): a push goes
-  bottom-up, and each parent has to record what its child's upstream has
-  before it's pushed itself; `push --all` doesn't, and `status` doesn't
-  notice.
+  bottom-up, and the rebuild of each parent records what its child's
+  push sends, so one `push --all` leaves every record right.
 - [a failed push below](01-recursive-pull/failed-push-below.md): the
   upstream above records a commit the one below never got; a clone of it
   makes the commit again and counts it as its own.
