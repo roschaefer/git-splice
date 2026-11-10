@@ -80,6 +80,17 @@ $ git splice push vendor/a/b
 ok   vendor/a/b: pushed e879cb1 to main
 ```
 
+`b/`'s *m1'* is solid now: its upstream has it. `c/`'s is still dashed, though `b`'s copy records it: `c`'s push was rejected. `vendor/a/` wasn't pushed:
+
+![The tree after the push of vendor/a/b: the monorepo at m1; vendor/a/ at a1, then dashed m1'; b/ at b1, then m1', solid: b's upstream has it; c/ at c1, then dashed m1', which c's upstream doesn't have; d/ at d1](failed-push-pushed-b.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/failed-push-pushed-b.drawio.svg" 
+ok   failed-push-pushed-b.drawio.svg: a tree of 5 rows
+```
+-->
+
 ```scrut
 $ git -C "$UPSTREAM-b.git" show main:c/.splice | git config --file - splice.commit | cut -c1-7
 30bd30a
@@ -177,3 +188,16 @@ c in the monorepo
 c upstream
 ```
 
+
+`c/`'s history in the clone: *c2* on *c1* in `c`'s upstream, *m1'*
+beside it, made again here and on no upstream branch, and the pull's
+rebuild *pc'*, which joins both:
+
+![The clone's b1, m1 and the pull pc, B at m1 and H at pc; in the lane c/, c's upstream commits c1 and c2, T and U(H) at c2; m1', dashed, on c1; and pc', dashed, R, a merge of m1' and c2](failed-push-lanes.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/failed-push-lanes.drawio.svg" b1=HEAD~2 m1=HEAD~1 pc=HEAD c1=splices/c/heads/main~1 c2=splices/c/heads/main
+ok   failed-push-lanes.drawio.svg: 7 commits, 10 arrows, 4 boxes, 1 lanes
+```
+-->
