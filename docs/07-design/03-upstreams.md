@@ -7,19 +7,22 @@ personal tracking choices stay local, following Git's model.
 
 ## Upstream connections must not become ordinary Git remotes
 
+A private monorepo containing folders with public upstreams is a core use
+case. Publishing the monorepo's history to one of those upstreams would
+disclose private source code and data.
+
 An early predecessor registered splice upstreams as ordinary Git remotes.
-That exposed an operation the tool never intended to support: pushing the
-monorepo's history to a splice's upstream.
+That made an ordinary `git push`, branch-tracking setup or IDE sync action
+capable of sending the entire private history to a public repository.
+New branches and forced pushes bypass the non-fast-forward rejection that
+might otherwise stop it.
 
-A Git remote for a subfolder's repository can receive the whole monorepo
-history. A normal `git push` does not know that only a folder should leave.
-New branches and forced pushes are especially dangerous: a non-fast-forward
-rejection does not protect them.
-
-It need not be an explicit `git push vendor/a main`. A branch can start
-tracking that remote, after which a plain push or an IDE's sync action
-uses it. Deleting the branch afterwards cannot retract copies already
-fetched. The design should not depend on every user choosing correctly.
+Deleting the public branch does not reliably retract the disclosure.
+GitHub can retain commits through cached views and pull-request references,
+and copies in other people's clones or forks remain beyond the author's
+control ([GitHub's removal guidance](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)).
+The design must prevent this accidental publication path rather than rely
+on every user choosing correctly or being able to undo a mistake.
 
 ### Why not guard a remote?
 
