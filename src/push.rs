@@ -141,9 +141,12 @@ impl Repo {
     /// The rebuild as if the splice had no synced commit: the upstream no
     /// longer has it, and the monorepo's side replaces its history anyway.
     fn rebuild_without_synced(&mut self, path: &str) -> Res<String> {
+        // The children's rebuilds kept for the records change with it.
+        self.child_rebuilds.clear();
         self.rebuild_without_synced = true;
         let rebuilt = contained(self.splice_rebuild(path));
         self.rebuild_without_synced = false;
+        self.child_rebuilds.clear();
         Ok(rebuilt?.unwrap_or_default())
     }
 

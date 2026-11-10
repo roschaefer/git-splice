@@ -4,9 +4,8 @@
 //! branch without remembering anything about earlier pushes. See
 //! docs/07-design/README.md.
 
-use crate::merge::with_record;
 use crate::repo::*;
-use crate::state::state_blob_in;
+use crate::state::{state_blob_in, tree_with};
 use crate::util::*;
 use std::io::{BufRead, BufReader};
 use std::process::Stdio;
@@ -450,14 +449,7 @@ impl Repo {
     /// at the synced commit the monorepo recorded: what its upstream gets
     /// with the same push.
     fn record_children(&mut self, path: &str, rev: &str, tree: &str) -> Res<String> {
-        let names = git(&["ls-tree", "-r", "-z", "--name-only", tree])
-            .bytes()
-            .unwrap_or_default();
-        let suffix = format!("/{STATE_FILE}");
-        let dirs: Vec<String> = nul_fields(&names)
-            .iter()
-            .filter_map(|name| name.strip_suffix(&suffix).map(str::to_string))
-            .collect();
+        let dirs = self.nested_splices(tree);
         // The splices right inside this one: the ones deeper are inside them,
         // and their rebuilds record those.
         let direct: Vec<&String> = dirs
@@ -468,7 +460,10 @@ impl Repo {
                     .any(|other| dir.starts_with(&format!("{other}/")))
             })
             .collect();
-        let mut updates = Vec::new();
+        // Each child's folder as its rebuild has it, so the records inside it
+        // are the ones the commit its .splice names has.
+        let mut folders = Vec::new();
+        let mut files = Vec::new();
         for dir in direct {
             let child = format!("{path}/{dir}");
             let recorded = splice_config(&child, "commit", rev);
@@ -488,32 +483,10 @@ impl Repo {
             let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {
                 continue;
             };
-            updates.push((dir.clone(), rebuilt, blob));
+            folders.push((dir.clone(), format!("{rebuilt}^{{tree}}")));
+            files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
-        if updates.is_empty() {
-            return Ok(tree.to_string());
-        }
-        // Each child's folder as its rebuild has it, so the records inside it
-        // are the ones the commit its .splice names has.
-        let index = Temp::new();
-        let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
-        if !indexed(&["read-tree", tree]).ok() {
-            return Err(Fail::Soft);
-        }
-        for (dir, rebuilt, blob) in &updates {
-            let spec = format!(":(top,literal){dir}");
-            let prefix = format!("{dir}/");
-            let folder = format!("{rebuilt}^{{tree}}");
-            let state = format!("100644,{blob},{dir}/{STATE_FILE}");
-            // A temporary index: the work tree's files don't matter here.
-            if !indexed(&["rm", "-r", "-q", "-f", "--cached", "--", &spec]).ok()
-                || !indexed(&["read-tree", &format!("--prefix={prefix}"), &folder]).ok()
-                || !indexed(&["update-index", "--add", "--cacheinfo", &state]).ok()
-            {
-                return Err(Fail::Soft);
-            }
-        }
-        indexed(&["write-tree"]).out().ok_or(Fail::Soft)
+        tree_with(tree, &folders, &files)
     }
 
     /// The rebuild of splice <child> at monorepo commit <rev>, for the record
@@ -522,11 +495,13 @@ impl Repo {
     /// before when the child's last sync is the same, instead of walking the
     /// child's history from its last sync again.
     fn child_rebuild(&mut self, child: &str, rev: &str) -> Res<Option<String>> {
+        // The rebuilds are kept by commit: a name such as HEAD can move.
+        let rev = &commit_of(rev).ok_or(Fail::Soft)?;
         let last_sync = splice_last_sync(child, rev);
         let mut made = None;
         if let Some((sync, before, previous)) = self.child_rebuilds.get(child).cloned() {
-            if sync == last_sync && (before == rev || goes_on_from(child, &before, rev)) {
-                made = Some(if before == rev {
+            if sync == last_sync && (before == *rev || goes_on_from(child, &before, rev)) {
+                made = Some(if before == *rev {
                     Ok(previous)
                 } else {
                     let range = format!("{before}..{rev}");
@@ -538,11 +513,17 @@ impl Repo {
             Ok(made) => made,
             Err(_) => {
                 // The rebuild around it records it: without it, that one would
-                // come out other than what was pushed.
+                // come out other than what was pushed. A splice inside this one
+                // may be what failed, and its message is quiet here.
+                let failed = match self.unrebuilt_child.take() {
+                    Some(inner) if inner.starts_with(&format!("{child}/")) => inner,
+                    _ => child.to_string(),
+                };
                 log_err(format!(
-                    "{child}: can't be rebuilt here, and the rebuild of the splice around it records it -- 'git splice fetch {}' fetches what it needs",
-                    shell_quote(child)
+                    "{failed}: can't be rebuilt here, and the rebuild of the splice around it records it -- 'git splice fetch {}' fetches what it needs",
+                    shell_quote(&failed)
                 ));
+                self.unrebuilt_child = Some(failed);
                 return Err(Fail::Soft);
             }
         };
@@ -568,29 +549,11 @@ impl Repo {
     /// rebuild writes at <rev> stands for <rev>'s own record there. The other
     /// direction of published_tree: what the folder would be.
     pub fn in_monorepo_terms(&mut self, rev: &str, path: &str, tree: &str) -> Res<String> {
-        let names = git(&["ls-tree", "-r", "-z", "--name-only", tree])
-            .bytes()
-            .unwrap_or_default();
-        let suffix = format!("/{STATE_FILE}");
-        let record = |rev: &str, name: &str| {
-            git(&[
-                "config",
-                "--blob",
-                &format!("{rev}:{name}"),
-                "splice.commit",
-            ])
-            .q()
-            .out()
-            .unwrap_or_default()
-        };
         let mut published = None;
-        let mut updates = Vec::new();
-        for name in nul_fields(&names) {
-            if name.strip_suffix(&suffix).is_none() {
-                continue;
-            }
-            let theirs = record(tree, &name);
-            let own = record(rev, &format!("{path}/{name}"));
+        let mut files = Vec::new();
+        for dir in self.nested_splices(tree) {
+            let theirs = splice_config(&dir, "commit", tree);
+            let own = splice_config(&format!("{path}/{dir}"), "commit", rev);
             if theirs == own {
                 continue;
             }
@@ -598,29 +561,15 @@ impl Repo {
                 Some(found) => found,
                 None => published.insert(self.published_tree(rev, path)?.unwrap_or_default()),
             };
-            if published.is_empty() || theirs != record(published, &name) {
+            if published.is_empty() || theirs != splice_config(&dir, "commit", published) {
                 continue;
             }
-            let Some(blob) = with_record(&format!("{tree}:{name}"), &own) else {
+            let Ok(blob) = state_blob_in(&dir, tree, &[("commit", &own)]) else {
                 continue;
             };
-            updates.push((name.clone(), blob));
+            files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
-        if updates.is_empty() {
-            return Ok(tree.to_string());
-        }
-        let index = Temp::new();
-        let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
-        if !indexed(&["read-tree", tree]).ok() {
-            return Err(Fail::Soft);
-        }
-        for (name, blob) in &updates {
-            let info = format!("100644,{blob},{name}");
-            if !indexed(&["update-index", "--add", "--cacheinfo", &info]).ok() {
-                return Err(Fail::Soft);
-            }
-        }
-        indexed(&["write-tree"]).out().ok_or(Fail::Soft)
+        tree_with(tree, &[], &files)
     }
 
     /// Whether splice <path>'s folder in commit <rev> is upstream tree <tree>,

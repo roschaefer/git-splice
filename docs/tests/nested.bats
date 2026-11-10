@@ -1693,6 +1693,23 @@ pushed_above_alone() {
   [[ "$output" == *"up to date  vendor/a"* ]]
 }
 
+@test "nested: a clone that fetched the two splices above names the third one below as needed for their rebuilds" {
+  scenario_three_levels "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  cd "$monorepo"
+  splice push --all >/dev/null
+  local clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q --no-local "$monorepo" "$clone"
+  cd "$clone"
+  splice fetch vendor/a vendor/a/b >/dev/null
+  run splice status vendor/a
+  [[ "$output" == *"vendor/a/b/c: can't be rebuilt here, and the rebuild of the splice around it records it -- 'git splice fetch vendor/a/b/c' fetches what it needs"* ]]
+  [[ "$output" != *"'git splice fetch vendor/a/b'"* ]]
+  splice fetch vendor/a/b/c >/dev/null
+  run splice status vendor/a
+  [[ "$output" == *"up to date  vendor/a"* ]]
+}
+
 @test "nested: pull --rebase of the splice above, after a push, a bump and a pull of the one below, doesn't conflict in the record below" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local"

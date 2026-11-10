@@ -124,6 +124,9 @@ pub struct Repo {
     /// the splice around it: its last sync then, the monorepo commit, and
     /// the rebuild.
     pub child_rebuilds: HashMap<String, (String, String, Option<String>)>,
+    /// The innermost splice whose rebuild failed for the record of the one
+    /// around it, so the message names what to fetch.
+    pub unrebuilt_child: Option<String>,
     pub rebuild_given: HashMap<String, String>,
     pub rebuild_without_synced: bool,
     pub joins_rewritten: bool,
@@ -523,6 +526,16 @@ impl Repo {
         .bytes()
         .unwrap_or_default();
         nul_fields(&output)
+    }
+
+    /// The folders of the splices inside tree <tree>, at any depth: the
+    /// folders in it with a state file.
+    pub fn nested_splices(&self, tree: &str) -> Vec<String> {
+        let suffix = format!("/{STATE_FILE}");
+        self.state_files(tree)
+            .iter()
+            .filter_map(|file| file.strip_suffix(&suffix).map(str::to_string))
+            .collect()
     }
 
     /// A folder with a committed .splice is a splice, also below another
