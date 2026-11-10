@@ -204,6 +204,17 @@ $ git splice push vendor/a/b
 ok   vendor/a/b: pushed f123e09 to main
 ```
 
+The inner upstream has *d'* now; `vendor/a/` wasn't pushed, and its *d'* is dashed:
+
+![The tree of the other monorepo after the push: at d; vendor/a/ at p, then dashed d'; b/ at c', then d', solid: the inner upstream has it](elsewhere-pushed-below.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-pushed-below.drawio.svg" d=HEAD p=$(git config --file vendor/a/.splice splice.commit) c\'=$(git config --file vendor/a/b/.splice splice.commit)
+ok   elsewhere-pushed-below.drawio.svg: a tree of 3 rows
+```
+-->
+
 ```scrut
 $ git -C "$UPSTREAM-b.git" log --format=%s main
 b other

@@ -133,6 +133,17 @@ ok   vendor/a/b: pushed 5bf7de9 to main
 ok   vendor/a: pushed 5ce8aa1 to main
 ```
 
+After the push, each upstream has *c'*, so it's solid; the monorepo still records *k*, *l* and *u*:
+
+![The tree after the push: the monorepo at c; vendor/a/ at k, then c', solid; b/ at l, then the same; c/ at u, then the same](rebased-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/rebased-pushed.drawio.svg" k="$k" l="$l" u="$u" c=HEAD
+ok   rebased-pushed.drawio.svg: a tree of 4 rows
+```
+-->
+
 Each upstream records the commit the one inside it has now:
 
 ```scrut

@@ -101,6 +101,17 @@ to push:
 $ echo "c other" >>vendor/a/b/c/file.txt && git commit -q -a -m "c other"
 ```
 
+Here, `vendor/a/` is at *pa*, the commit the first monorepo's push made in the outer upstream, `b/` at *pb*, the one in the middle upstream, and `c/` at *c'*, the inner upstream's copy of `c local`. *o*, `c other`, is on top of each, as *o'*:
+
+![The tree of the other monorepo: at o, c other; vendor/a/ at pa, then dashed o'; b/ at pb, then the same; c/ at c', then the same](tree-other.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/tree-other.drawio.svg" o=HEAD pa=$(git config --file vendor/a/.splice splice.commit) pb=$(git config --file vendor/a/b/.splice splice.commit) c\'=$(git config --file vendor/a/b/c/.splice splice.commit)
+ok   tree-other.drawio.svg: a tree of 4 rows
+```
+-->
+
 ```scrut
 $ git splice status vendor/a/b/c
 On branch main

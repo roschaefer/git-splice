@@ -232,3 +232,14 @@ ok   vendor/a/d: nothing to push
 ok   vendor/a/e: nothing to push
 ok   vendor/a: pushed 727d9de to main
 ```
+Each upstream that got *p'* has it now, so it's solid:
+
+![The tree after the push: the monorepo at p; vendor/a/ at a2, then p', solid; b/ at b2, then the same; c/ at c2, then the same; d/ at d2; e/ at e1](tree-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/tree-pushed.drawio.svg" p=HEAD
+ok   tree-pushed.drawio.svg: a tree of 6 rows
+```
+-->
+
