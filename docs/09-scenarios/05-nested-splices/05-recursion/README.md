@@ -56,6 +56,11 @@ A pull through E splices, with C commits of the monorepo's own on top:
 - [discovered top-down](01-recursive-pull/discovered-top-down.md): why
   the splice above goes first: its pull drops `d/` and adds `e/`, so
   naming `vendor/a/d` beside it means nothing definite.
+- [step by step](01-recursive-pull/step-by-step.md): one recursive
+  pull, recorded, wound back, and replayed one step at a time, with the
+  tree after each.
+- [a conflict in an update](01-recursive-pull/conflict-in-an-update.md):
+  why updating a splice isn't always a fast-forward.
 - [rebased](01-recursive-pull/rebased.md): the recursive pull with
   `--rebase`: the pulls first, as one commit, then the monorepo's own
   commit, rebased onto it once.
