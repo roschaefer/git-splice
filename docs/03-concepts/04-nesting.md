@@ -68,8 +68,9 @@ together in three ways:
   both leaves the upstream above recording what the one below has
   ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/pulled-level-by-level.md)).
   The splice below goes first, so the record names a commit its upstream
-  has; if its push fails, a clone of the upstream above makes that
-  commit again from its own history
+  has, and `push --all` stops at a failed push before the splice above.
+  Should the splice above be pushed on its own anyway, a clone of its
+  upstream makes the recorded commit again from its own history
   ([scenario](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/failed-push-below.md)).
 - **History from above.** The splice above came in squashed, so the
   monorepo lacks the older history of the splice below. A push takes it

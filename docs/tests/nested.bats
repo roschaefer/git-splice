@@ -1588,3 +1588,16 @@ uncommitted" ]
   run splice status b
   [[ "$output" == *"up to date  b"* ]]
 }
+
+@test "nested: a change below and its revert leave the record of the splice above as it was, as the push below sends nothing" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "b local" >>vendor/a/b/file.txt
+  git commit -q -am "b local"
+  git revert --no-edit HEAD >/dev/null
+  commit_local "$monorepo" vendor/a "a local" other.txt
+  run splice push --all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/b: nothing to push"* ]]
+  [ "$(git -C "$upstream" show main:b/.splice | git config --file - splice.commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+}

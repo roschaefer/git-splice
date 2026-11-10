@@ -43,9 +43,10 @@ static QUIET: AtomicBool = AtomicBool::new(false);
 
 /// Runs `step` without any message on stderr.
 pub fn quietly<T>(step: impl FnOnce() -> T) -> T {
-    QUIET.store(true, Ordering::Relaxed);
+    // Quiet steps nest, e.g. the rebuild of a splice inside another's.
+    let before = QUIET.swap(true, Ordering::Relaxed);
     let result = step();
-    QUIET.store(false, Ordering::Relaxed);
+    QUIET.store(before, Ordering::Relaxed);
     result
 }
 
@@ -358,6 +359,17 @@ pub fn git_merged_output(args: &[&str]) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn quietly_nests_and_stays_quiet_until_the_outer_step_ends() {
+        let inner_ended = quietly(|| {
+            quietly(|| ());
+            QUIET.load(Ordering::Relaxed)
+        });
+        assert!(inner_ended);
+        assert!(!QUIET.load(Ordering::Relaxed));
+    }
+
     use super::*;
 
     #[test]

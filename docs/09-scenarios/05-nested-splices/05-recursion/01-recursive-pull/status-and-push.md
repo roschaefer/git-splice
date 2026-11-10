@@ -5,8 +5,9 @@ inside it, so the parent goes first. A push goes up: a parent's upstream
 has a `.splice` for each child, which records a commit of the child's
 upstream. The rebuild of the parent writes into it the rebuild of the
 child, the commit the child's push sends, so one `push --all` leaves
-every upstream recording what the one inside it has, without a commit
-in the monorepo in between. `status` looks at each splice on its own,
+every upstream recording what the one inside it got from the monorepo,
+without a commit in the monorepo in between. An upstream that moved on
+since is pulled first, as before any push. `status` looks at each splice on its own,
 and so it can.
 
 Here, the monorepo changed `vendor/a/`, `b/` in it and `c/` in that.

@@ -474,7 +474,11 @@ impl Repo {
             let Some(rebuilt) = self.child_rebuild(&child, rev) else {
                 continue;
             };
-            if rebuilt == recorded {
+            // Commits that changed nothing in the end, e.g. a change and its
+            // revert, leave the record: the child's push sends nothing then.
+            if rebuilt == recorded
+                || (commit_here(&recorded) && tree_of(&rebuilt) == tree_of(&recorded))
+            {
                 continue;
             }
             let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {

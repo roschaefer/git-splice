@@ -2,8 +2,9 @@
 
 The rebuild of a splice records each splice inside it at its own
 rebuild: the commit that splice's upstream gets with the same push. If
-that push fails, the upstream above still gets the record, of a commit
-the upstream below doesn't have. A clone of the upstream above has
+that push fails, `push --all` stops before the splice above; pushed on
+its own anyway, the upstream above gets the record of a commit the
+upstream below doesn't have. A clone of the upstream above has
 everything that commit is made of, so it makes it again, and counts what
 the upstream below lacks as its own: a plain pull merges it.
 
