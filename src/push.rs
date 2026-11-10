@@ -186,8 +186,11 @@ impl Repo {
         let Some(rebuilt) = commit_of(commit) else {
             return die(format!("--rebuilt-commit: unknown commit: {commit}"));
         };
-        let folder = self.content_tree("HEAD", path).map_err(|_| Fail::Hard)?;
-        if tree_of(&rebuilt) != folder {
+        let given = tree_of(&rebuilt);
+        if !self
+            .folder_is("HEAD", path, given.as_ref())
+            .map_err(|_| Fail::Hard)?
+        {
             return die(format!(
                 "{path}: {} has other files than the folder -- --rebuilt-commit only takes edits to the history; commit changes to files in the monorepo",
                 short(&rebuilt)

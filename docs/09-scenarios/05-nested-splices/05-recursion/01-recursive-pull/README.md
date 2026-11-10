@@ -148,7 +148,7 @@ CONFLICT (content): Merge conflict in vendor/a/b/c/file.txt
 
 In `c/`, b's upstream's change, the copy *b2'*, meets *c2*:
 
-![The tree: the monorepo at pb, outlined blue; vendor/a/ at a2, then dashed pb', outlined blue; b/ at b2, outlined blue, then dashed pb', outlined blue; c/ at c1, then dashed b2', outlined blue, and c2, outlined red: c/ conflicts; d/ at d1; and the new e/ at e1](tree-c-conflicts.drawio.svg)
+![The tree: the monorepo at pb, outlined blue; vendor/a/ at a2, then dashed pb', outlined blue; b/ at b2, outlined blue, then dashed pb'; c/ at c1, then dashed b2', outlined blue, and c2, outlined red: c/ conflicts; d/ at d1; and the new e/ at e1](tree-c-conflicts.drawio.svg)
 
 <!--
 ```scrut
@@ -182,7 +182,7 @@ ok   vendor/a/e: nothing to pull
 ok   vendor/a: 4 pulls made one commit, 9252b9b
 ```
 
-![The tree: the monorepo at p, the one commit for the whole pull; vendor/a/ at a2, then dashed p'; b/ at b2, then dashed p'; c/ at c2, then dashed p'; d/ at d2; e/ at e1; every synced commit, p and the copies of p that move a synced commit below them outlined blue](tree-pulled.drawio.svg)
+![The tree: the monorepo at p, the one commit for the whole pull, outlined blue; vendor/a/ at a2, outlined blue, then dashed p', outlined blue; b/ at b2, then the same; c/ at c2, then the same; d/ at d2, outlined blue; e/ at e1](tree-pulled.drawio.svg)
 
 <!--
 ```scrut
@@ -227,8 +227,8 @@ On branch main
 ```scrut
 $ git splice push --all
 ok   vendor/a/b/c: pushed 6b6b08c to main
-ok   vendor/a/b: pushed 9acbcb5 to main
+ok   vendor/a/b: pushed 00e5644 to main
 ok   vendor/a/d: nothing to push
 ok   vendor/a/e: nothing to push
-ok   vendor/a: pushed 9c97a97 to main
+ok   vendor/a: pushed 727d9de to main
 ```

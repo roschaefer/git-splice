@@ -150,7 +150,7 @@ add vendor/a
 initial commit
 ```
 
-![The monorepo's history s, p, m1, main at m1; p outlined blue, p and m1 filled red: each stopped at a conflict. Below, each lane continues from its upstream's main with dashed copies: vendor/a/ a1, a2, then p', m1'; vendor/a/b/ b1, b2, then p', m1'; vendor/a/b/c/ c1, c2, then p'; vendor/a/d/ d1, d2 and nothing more; vendor/a/e/ e1. The upstream commits that came in are outlined blue, and so are the copies of p that move a synced commit, in vendor/a/ and vendor/a/b/, and the copies of m1 in vendor/a/ and vendor/a/b/, which record the splices inside them at their own rebuilds](rebased-pulled.drawio.svg)
+![The monorepo's history s, p, m1, main at m1; p outlined blue, p and m1 filled red: each stopped at a conflict. Below, each lane continues from its upstream's main with dashed copies: vendor/a/ a1, a2, then p', m1'; vendor/a/b/ b1, b2, then p', m1'; vendor/a/b/c/ c1, c2, then p'; vendor/a/d/ d1, d2 and nothing more; vendor/a/e/ e1. The upstream commits that came in are outlined blue, and so are the copies of p, in vendor/a/, vendor/a/b/ and vendor/a/b/c/, and the copies of m1 in vendor/a/ and vendor/a/b/, which record the splices inside them at their own rebuilds](rebased-pulled.drawio.svg)
 
 <!--
 ```scrut

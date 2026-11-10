@@ -1502,3 +1502,70 @@ uncommitted" ]
   [ "$(cat b/notes.txt)" = "b local" ]
   [ -f b/other.txt ]
 }
+
+@test "nested: a pull of the splice above keeps the monorepo's own change to the .splice below, besides the record its push wrote" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice push --all >/dev/null
+  local mirror="$BATS_TEST_TMPDIR/mirror-b.git"
+  git clone -q --bare "$upstream_b" "$mirror"
+  git config --file vendor/a/b/.splice upstream.fork.url "$mirror"
+  git commit -q -am "b gets a fork"
+  seed_bare_repo "$upstream_b" "b upstream" main other.txt
+  git -C "$mirror" fetch -q "$upstream_b" "+refs/heads/*:refs/heads/*"
+  work_in_upstream_a
+  splice pull b >/dev/null
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" != *CONFLICT* ]]
+  [ "$(git config --file vendor/a/b/.splice upstream.fork.url)" = "$mirror" ]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$upstream_b" rev-parse main)" ]
+}
+
+@test "nested: a splice made by init below another, pushed only with the one above, is made again in a clone of the upstream above, which can push it" {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "a seed"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream" vendor/a
+  local upstream_n="$BATS_TEST_TMPDIR/upstream-n.git"
+  make_bare_repo "$upstream_n"
+  cd "$monorepo"
+  mkdir vendor/a/n
+  echo "n" >vendor/a/n/file.txt
+  git add vendor/a/n
+  git commit -q -m "add n"
+  splice init vendor/a/n "$upstream_n" >/dev/null
+  splice push vendor/a >/dev/null
+  work_in_upstream_a
+  splice fetch n >/dev/null
+  run splice status n
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"isn't here"* ]]
+  [[ "$output" != *"never fetched"* ]]
+  run splice push n
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream_n" rev-parse main)" = "$(splice_config n commit)" ]
+}
+
+@test "nested: push --rebuilt-commit takes the rebuild of the splice above, whose record of the one below the rebuild wrote" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  run splice push --rebuilt-commit "$(splice rebuild vendor/a)" vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a: pushed"* ]]
+}
+
+@test "nested: a bump of the splice above right after a push of both leaves it up to date" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  splice push --all >/dev/null
+  splice pull --bump vendor/a >/dev/null
+  run splice status vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"up to date  vendor/a"* ]]
+}

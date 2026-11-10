@@ -25,6 +25,13 @@ impl Repo {
         let pinned = target.kind != TargetKind::Branch;
         // A pin that's here counts as fetched, though upstream has no branches.
         let pin_here = pinned && commit_of(&target.reference).is_some();
+        // Made again before anything compares with it: a branch the upstream
+        // doesn't have yet compares with its default branch, and an upstream
+        // that's still empty has nothing to compare with, from the same
+        // synced commit.
+        if !c.synced.is_empty() && !commit_here(&c.synced) {
+            self.remake_synced(path, &c.synced.clone());
+        }
         if !self.splice_fetched(path) && !pin_here {
             // Without a synced commit, the splice came from init: its upstream
             // was empty, so a fetch that brings nothing is the expected state.
@@ -42,13 +49,6 @@ impl Repo {
                 State::NeverFetched
             };
             return Ok(());
-        }
-
-        // Made again before anything compares with it: a branch the upstream
-        // doesn't have yet compares with its default branch, from the same
-        // synced commit.
-        if !c.synced.is_empty() && !commit_here(&c.synced) {
-            self.remake_synced(path, &c.synced.clone());
         }
 
         c.target_ref = target.reference.clone();

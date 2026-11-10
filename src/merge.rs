@@ -229,7 +229,7 @@ impl Repo {
             if splice_config(path, "commit", commit) != synced {
                 break;
             }
-            if self.content_tree(commit, path)? == synced_tree {
+            if self.folder_is(commit, path, synced_tree.as_ref())? {
                 return Ok(Some(commit.to_string()));
             }
         }
@@ -286,7 +286,8 @@ impl Repo {
             {
                 continue;
             }
-            let Some(blob) = state_file_blob("HEAD", &child) else {
+            // The record only: everything else in it merges as usual.
+            let Some(blob) = with_record(&format!("{tree}:{name}"), &synced) else {
                 continue;
             };
             updates.push((name.clone(), blob));
@@ -1097,4 +1098,25 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let selected = repo.selected.clone();
     repo.merge_paths(&branch, "merge", &selected)?;
     Ok(0)
+}
+
+/// The blob of state file <file>, a `<tree>:<path>`, with `commit` set to
+/// <commit>, or unset if that's empty.
+fn with_record(file: &str, commit: &str) -> Option<String> {
+    let temp = Temp::new();
+    let content = git(&["cat-file", "blob", file]).bytes()?;
+    std::fs::write(&temp.path, content).ok()?;
+    let name = temp.str();
+    let set = if commit.is_empty() {
+        git(&["config", "--file", &name, "--unset", "splice.commit"])
+            .q()
+            .run();
+        true
+    } else {
+        git(&["config", "--file", &name, "splice.commit", commit]).ok()
+    };
+    if !set {
+        return None;
+    }
+    git(&["hash-object", "-w", "--", &name]).out()
 }

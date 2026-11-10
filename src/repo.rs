@@ -120,6 +120,10 @@ pub struct Repo {
     /// Splices whose synced commit was made again here, with the newest
     /// commit in its history that the upstream branch has.
     pub remade: HashMap<String, String>,
+    /// For each splice inside another, its last rebuild for the record of
+    /// the splice around it: its last sync then, the monorepo commit, and
+    /// the rebuild.
+    pub child_rebuilds: HashMap<String, (String, String, Option<String>)>,
     pub rebuild_given: HashMap<String, String>,
     pub rebuild_without_synced: bool,
     pub joins_rewritten: bool,
