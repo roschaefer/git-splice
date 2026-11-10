@@ -116,7 +116,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
         }
     }
     if rewinds {
-        rewind_to_last_pull(&tops, &branch, &repo.remade_sync_points)?;
+        rewind_to_last_pull(&tops, &branch)?;
     } else if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
         return fail(format!("{START} couldn't be updated"));
     }
@@ -195,7 +195,7 @@ fn forget_rebase() -> Res<()> {
 /// and the commits since, the monorepo's own, are rebased onto them once.
 /// Rebasing onto each pull instead would replay the pulls of the splices
 /// above it too.
-fn rewind_to_last_pull(tops: &[String], branch: &str, sync_points: &[String]) -> Res<()> {
+fn rewind_to_last_pull(tops: &[String], branch: &str) -> Res<()> {
     let mut args = vec![
         "log".to_string(),
         "--first-parent".to_string(),
@@ -210,14 +210,6 @@ fn rewind_to_last_pull(tops: &[String], branch: &str, sync_points: &[String]) ->
     let Some(base) = git(&args).out().filter(|base| !base.is_empty()) else {
         return fail("no pull to rebase onto");
     };
-    // A synced commit made again counts as this branch's own above its sync
-    // point, which can be older: those commits are replayed too.
-    let mut base = base;
-    for point in sync_points {
-        if point != &base && is_ancestor(point, &base) {
-            base = point.clone();
-        }
-    }
     let head = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
     if base == head {
         return if git(&["update-ref", START, "HEAD"]).ok() {
@@ -286,14 +278,9 @@ fn replay_own_commits(branch: &str) -> Res<bool> {
         }
         return Ok(true);
     }
-    let records = KeepRecords::new()?;
     let rebased = git(&[
         "-c",
         "advice.mergeConflict=false",
-        "-c",
-        &records.attributes,
-        "-c",
-        KeepRecords::DRIVER,
         "rebase",
         "-q",
         "--no-update-refs",

@@ -47,6 +47,7 @@ git config --blob HEAD:lib/.splice --get upstream.origin.default-pin
 git config --blob HEAD:lib/.splice --get upstream.origin.default-branch
 git config --blob HEAD:lib/.splice --get splice.commit
 git for-each-ref --count=1 refs/splices/lib/heads/
+git cat-file -e 'bde416459fbcc09c9b585f3b65a94cab3f68bfcd^{commit}'
 git show-ref --verify --quiet refs/splices/lib/heads/main
 git rev-parse --verify --quiet HEAD:lib
 git cat-file -t f51c3c7fe316a0dfa76abc5dd3e5a37ad1398f0d

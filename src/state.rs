@@ -44,6 +44,13 @@ impl Repo {
             return Ok(());
         }
 
+        // Made again before anything compares with it: a branch the upstream
+        // doesn't have yet compares with its default branch, from the same
+        // synced commit.
+        if !c.synced.is_empty() && !commit_here(&c.synced) {
+            self.remake_synced(path, &c.synced.clone());
+        }
+
         c.target_ref = target.reference.clone();
         if pinned {
             if commit_of(&c.target_ref).is_none() {

@@ -217,21 +217,15 @@ impl Repo {
     }
 
     /// For --rebase: the newest first-parent commit since the synced commit
-    /// was recorded whose folder has exactly its files. For a synced commit
-    /// made again here, the part its upstream lacks is this branch's own, so
-    /// it's the newest commit in its history the upstream has instead.
+    /// was recorded whose folder has exactly its files.
     fn sync_point_commit(&mut self, path: &str) -> Res<Option<String>> {
         let synced = self.c.synced.clone();
-        let remade = self.remade.get(path).cloned();
-        let synced_tree = tree_of(remade.as_ref().unwrap_or(&synced));
+        let synced_tree = tree_of(&synced);
         let history = git(&["rev-list", "--first-parent", "HEAD"])
             .out()
             .unwrap_or_default();
         for commit in history.lines() {
-            let record = splice_config(path, "commit", commit);
-            let recorded = record == synced
-                || (remade.is_some() && !record.is_empty() && is_ancestor(&record, &synced));
-            if !recorded {
+            if splice_config(path, "commit", commit) != synced {
                 break;
             }
             if self.content_tree(commit, path)? == synced_tree {
@@ -239,6 +233,21 @@ impl Repo {
             }
         }
         Ok(None)
+    }
+
+    /// For --rebase: a synced commit made again here has commits of this
+    /// branch's own above the newest one its upstream has, which can sit
+    /// below the last sync, e.g. the bump that recorded it: replaying them
+    /// is left to a plain pull, which merges them.
+    fn refuse_remade(&self, path: &str) -> Res<()> {
+        if let Some(fetched) = self.remade.get(path) {
+            return fail(format!(
+                "{path}: synced commit {} was made again here -- --rebase doesn't replay what's above {}; pull without --rebase",
+                short(&self.c.synced),
+                short(fetched)
+            ));
+        }
+        Ok(())
     }
 
     /// For --rebase: takes the splice's upstream branch in on top of X, the
@@ -263,9 +272,8 @@ impl Repo {
                 "{path}: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; {verb} without --rebase"
             ));
         }
-        if !self.remade.contains_key(path) {
-            self.refuse_lacking_synced(path)?;
-        }
+        self.refuse_remade(path)?;
+        self.refuse_lacking_synced(path)?;
         let base = self.sync_point_commit(path)?;
         let Some(base) = base else {
             return fail(format!(
@@ -325,14 +333,9 @@ impl Repo {
         let count = git(&["rev-list", "--count", &since])
             .out()
             .unwrap_or_default();
-        let records = KeepRecords::new()?;
         let rebased = git(&[
             "-c",
             "advice.mergeConflict=false",
-            "-c",
-            &records.attributes,
-            "-c",
-            KeepRecords::DRIVER,
             "rebase",
             "-q",
             "--no-update-refs",
@@ -369,13 +372,8 @@ impl Repo {
         if !matches!(self.c.state, State::Pull | State::Diverged) {
             return Ok(false);
         }
-        if self.remade.contains_key(path) {
-            if let Some(point) = self.sync_point_commit(path)? {
-                self.remade_sync_points.push(point);
-            }
-        } else {
-            self.refuse_lacking_synced(path)?;
-        }
+        self.refuse_remade(path)?;
+        self.refuse_lacking_synced(path)?;
         Ok(true)
     }
 

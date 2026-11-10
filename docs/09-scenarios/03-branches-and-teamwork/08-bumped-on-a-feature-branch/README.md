@@ -293,8 +293,23 @@ $ git splice log vendor/a
 = 5e19ac3 a second option (#2)  (Maintainer <maintainer@example.com>)
 ```
 
-A pull merges them. Both sides added the same line after `an option`,
-and the library one more, so the merge conflicts there:
+`pull --rebase` refuses. The commits of the monorepo's own start below
+its last sync, the bump: replaying them would replay the bump too, and
+its record would meet the pull's. Doing that, and going on after a
+conflict, needs a pull that carries its state from one run to the next
+([#446](https://github.com/roschaefer/git-splice/pull/446)):
+
+```scrut
+$ git splice pull --rebase vendor/a
+ok   vendor/a fetched
+??   vendor/a: synced commit 52ca126 isn't on main -- made it again here: 2380a33 and 1 commit of this branch's own
+!!   vendor/a: synced commit 52ca126 was made again here -- --rebase doesn't replay what's above 2380a33; pull without --rebase
+!!   Failed: vendor/a
+[1]
+```
+
+A plain pull merges them instead. Both sides added the same line after
+`an option`, and the library one more, so the merge conflicts there:
 
 ```scrut
 $ git splice pull vendor/a
@@ -339,3 +354,6 @@ The folder has the files of the library's `main` now, so nothing is left
 to push, and the second option isn't sent again. Without the bump,
 `main`'s `.splice` would name a commit on the library's `main`, which it
 keeps, and a pull would bring in `a third option` without a conflict.
+
+A splice moved after the bump isn't made again yet
+([moved after the bump](moved-after-the-bump.md)).
