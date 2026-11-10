@@ -45,19 +45,35 @@ ok   elsewhere-before.drawio.svg: a tree of 3 rows
 ```
 -->
 
-The monorepo changes `vendor/a/b/` and pushes both, bottom-up:
+The monorepo changes `vendor/a/b/`, in *c* (`b local`):
 
 ```scrut
 $ echo "b local" >>vendor/a/b/file.txt &&
->   git commit -q -a -m "b local" &&
->   git splice push vendor/a/b vendor/a
+>   git commit -q -a -m "b local"
+```
+
+Each rebuild has it on top: *c'* in `b/`, and *p* in `vendor/a/`, which records *c'*. Neither is upstream yet, so both are dashed:
+
+![The tree: the monorepo at c; vendor/a/ at l, then dashed p; b/ at m, then dashed c'; no upstream has either yet](elsewhere-changed-below.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-changed-below.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main p=$(git splice rebuild vendor/a) c\'=$(git splice rebuild vendor/a/b)
+ok   elsewhere-changed-below.drawio.svg: a tree of 3 rows
+```
+-->
+
+It pushes both, bottom-up:
+
+```scrut
+$ git splice push vendor/a/b vendor/a
 ok   vendor/a/b: pushed f47c373 to main
 ok   vendor/a: pushed 9946cf2 to main
 ```
 
-The monorepo's *c* (`b local`) is in each rebuild: *c'* in `b/`, which the inner upstream got, and *p* in `vendor/a/`, which the outer upstream got. The monorepo still records *l* and *m*:
+Both upstreams have them now, so they're solid. The monorepo still records *l* and *m*, so both commits are there in each row:
 
-![The tree: the monorepo at c; vendor/a/ at l, then dashed p; b/ at m, then dashed c'](elsewhere-pushed.drawio.svg)
+![The tree: the monorepo at c; vendor/a/ at l, then p; b/ at m, then c'; both solid now: their upstreams have them](elsewhere-pushed.drawio.svg)
 
 <!--
 ```scrut
@@ -106,8 +122,8 @@ Here, *o* clones the outer upstream at *p*, which records *c'* for `b/`:
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/elsewhere-cloned.drawio.svg" o=HEAD p=$(git c\'=$(git
-[2]
+$ check_drawing "$TESTDIR/elsewhere-cloned.drawio.svg" o=HEAD p=$(git config --file vendor/a/.splice splice.commit) c\'=$(git config --file vendor/a/b/.splice splice.commit)
+ok   elsewhere-cloned.drawio.svg: a tree of 3 rows
 ```
 -->
 
@@ -154,8 +170,8 @@ $ echo "b other" >>vendor/a/b/file.txt && git commit -q -a -m "b other"
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/elsewhere-changed.drawio.svg" d=HEAD o=HEAD~1 p=$(git c\'=$(git
-[2]
+$ check_drawing "$TESTDIR/elsewhere-changed.drawio.svg" d=HEAD o=HEAD~1 p=$(git config --file vendor/a/.splice splice.commit) c\'=$(git config --file vendor/a/b/.splice splice.commit)
+ok   elsewhere-changed.drawio.svg: a tree of 3 rows
 ```
 -->
 

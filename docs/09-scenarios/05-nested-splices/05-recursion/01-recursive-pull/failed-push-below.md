@@ -108,8 +108,8 @@ Its `HEAD` is `b`'s commit `m1: c in the monorepo`, which records `c/` at *m1'*,
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/failed-push-clone.drawio.svg" m1\'=$(git
-[2]
+$ check_drawing "$TESTDIR/failed-push-clone.drawio.svg" m1\'=$(git config --file c/.splice splice.commit)
+ok   failed-push-clone.drawio.svg: a tree of 2 rows
 ```
 -->
 
@@ -165,8 +165,8 @@ The pull, *pc*, records *c2*, and `c/` has *m1*'s line on top, as this branch's 
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/failed-push-clone-pulled.drawio.svg" pc=HEAD c2=$(git
-[2]
+$ check_drawing "$TESTDIR/failed-push-clone-pulled.drawio.svg" pc=HEAD c2=$(git config --file c/.splice splice.commit)
+ok   failed-push-clone-pulled.drawio.svg: a tree of 2 rows
 ```
 -->
 

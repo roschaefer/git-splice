@@ -38,22 +38,38 @@ ok   elsewhere-before.drawio.svg: a tree of 3 rows
 ```
 -->
 
-The monorepo changes `vendor/a/b/` and pushes only `vendor/a/`:
+The monorepo changes `vendor/a/b/`, in *c* (`b local`):
 
 ```scrut
 $ echo "b local" >>vendor/a/b/file.txt &&
->   git commit -q -a -m "b local" &&
->   git splice push vendor/a
-ok   vendor/a: pushed 9946cf2 to main
+>   git commit -q -a -m "b local"
 ```
 
-*p* went to the outer upstream with `vendor/a/`'s push, and records *c'*, the copy of *c* (`b local`) in `b/`'s rebuild. No push sent *c'*:
+Each rebuild has it on top: *c'* in `b/`, and *p* in `vendor/a/`, which records *c'*. Neither is upstream yet, so both are dashed:
 
-![The tree: the monorepo at c; vendor/a/ at l, then dashed p; b/ at m, then dashed c', which the inner upstream doesn't have](elsewhere-pushed-above.drawio.svg)
+![The tree: the monorepo at c; vendor/a/ at l, then dashed p; b/ at m, then dashed c'; no upstream has either yet](elsewhere-changed-below.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/elsewhere-pushed-above.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main~1 m=refs/splices/b/heads/main p=refs/splices/upstream/heads/main
+$ check_drawing "$TESTDIR/elsewhere-changed-below.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main p=$(git splice rebuild vendor/a) c\'=$(git splice rebuild vendor/a/b)
+ok   elsewhere-changed-below.drawio.svg: a tree of 3 rows
+```
+-->
+
+It pushes only `vendor/a/`:
+
+```scrut
+$ git splice push vendor/a
+ok   vendor/a: pushed 9946cf2 to main
+```
+
+The outer upstream has *p* now, so it's solid. The monorepo still records *l*, so both commits are there. *c'* is still dashed: no push sent it:
+
+![The tree: the monorepo at c; vendor/a/ at l, then p, solid: its upstream has it; b/ at m, then dashed c', which the inner upstream doesn't have](elsewhere-pushed-above.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/elsewhere-pushed-above.drawio.svg" c=HEAD l=refs/splices/upstream/heads/main~1 m=refs/splices/b/heads/main p=refs/splices/upstream/heads/main c\'=$(git splice rebuild vendor/a/b)
 ok   elsewhere-pushed-above.drawio.svg: a tree of 3 rows
 ```
 -->
@@ -97,8 +113,8 @@ ok   vendor/a/b fetched
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/elsewhere-cloned-before-the-push-below.drawio.svg" o=HEAD p=$(git c\'=$(git
-[2]
+$ check_drawing "$TESTDIR/elsewhere-cloned-before-the-push-below.drawio.svg" o=HEAD p=$(git config --file vendor/a/.splice splice.commit) c\'=$(git config --file vendor/a/b/.splice splice.commit)
+ok   elsewhere-cloned-before-the-push-below.drawio.svg: a tree of 3 rows
 ```
 -->
 

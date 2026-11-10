@@ -51,9 +51,9 @@ $ echo "b local" >>vendor/a/b/file.txt &&
 ok   vendor/a/b: pushed 701ab17 to main
 ```
 
-The inner upstream has *c'* now, the copy of *c*. The monorepo still records *m*, with *c'* on top, in `b/` and in `vendor/a/`:
+The inner upstream has *c'* now, the copy of *c*, so it's solid in `b/`. The monorepo still records *m*, so both are there. `vendor/a/` wasn't pushed, and its *c'* is dashed:
 
-![The tree: the monorepo at c; vendor/a/ at l, then dashed c'; b/ at m, then dashed c'](layers-tree-pushed.drawio.svg)
+![The tree: the monorepo at c; vendor/a/ at l, then dashed c'; b/ at m, then c', solid: the inner upstream has it](layers-tree-pushed.drawio.svg)
 
 <!--
 ```scrut

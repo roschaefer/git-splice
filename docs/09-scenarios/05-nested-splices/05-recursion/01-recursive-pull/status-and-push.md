@@ -101,9 +101,10 @@ On branch main
 
 The monorepo keeps its own records: its `vendor/a/b/c/.splice` still
 names *c1*, and each rebuild writes the new commit on the way out. So
-each splice has the commit it pushed above its synced commit:
+each splice has the commit it pushed above its synced commit, solid now,
+as its upstream has it:
 
-![The tree as before the push, without colors: the monorepo at m1; vendor/a/ at a1, then dashed m1'; b/ at b1, then the same; c/ at c1, then the same; d/ at d1](push-pushed.drawio.svg)
+![The tree after the push: the monorepo at m1; vendor/a/ at a1, then m1', solid: its upstream has it; b/ at b1, then the same; c/ at c1, then the same; d/ at d1](push-pushed.drawio.svg)
 
 <!--
 ```scrut

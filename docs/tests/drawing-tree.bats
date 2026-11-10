@@ -85,6 +85,17 @@ cell() {
   [[ "$(cell s3 style)" != *"dashed=1;"* ]]
 }
 
+@test "drawing tree: R is dashed while no upstream branch has it, and solid once pushed" {
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  write_tree m=HEAD
+  [[ "$(cell r3 style)" == *"dashed=1;"* ]]
+  splice push vendor/a/b/c >/dev/null
+  write_tree m=HEAD
+  [[ "$(cell r3 style)" != *"dashed=1;"* ]]
+  [ "$(cell r3 value)" = "m'" ]
+  [ "$(cell dots3 value)" = "…" ]
+}
+
 @test "drawing tree: the commit a conflicted pull merges in, outlined red, and the row says so" {
   commit_local "$monorepo" vendor/a/b "b local"
   seed_bare_repo "$BATS_TEST_TMPDIR/upstream-b.git" "b2: b upstream"
