@@ -2,7 +2,8 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
-use crate::merge::{apply_merge_options, MERGE_OPTIONS};
+use crate::fetch::{FetchPlan, FetchResults};
+use crate::merge::{apply_merge_options, MergeProgress, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
 use crate::repo::*;
 use crate::util::*;
@@ -16,140 +17,232 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let mut repo = Repo::new(context, args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
-    repo.require_message_template(Message {
-        command: "pull",
-        upstream: KNOWN,
-        old: KNOWN,
-        new: KNOWN,
-        ..Message::default()
-    })?;
-    // Before select_splices: a rebase in progress has detached HEAD.
-    require_no_splice_in_progress()?;
-    let recursive = repo.args.has_flag("--recursive") || repo.args.all;
-    let rebase_tree = recursive && repo.merge_rebase;
-    let resumed = rebase_under_way()?;
-    if let Some(branch) = &resumed {
-        if !rebase_tree {
-            return die(format!(
+    let mut progress = PullProgress::new(&mut repo)?;
+    while !progress.done() {
+        progress.advance(&mut repo)?;
+    }
+    progress.finish()
+}
+
+enum PullPhase {
+    Fetch(FetchPlan),
+    Fetched(FetchResults),
+    Merge(MergeProgress),
+    Finalize,
+    Done,
+}
+
+struct PullProgress {
+    branch: String,
+    selected: Vec<String>,
+    recursive: bool,
+    rebase_tree: bool,
+    resumed_rebase: bool,
+    fold_roots: Vec<String>,
+    rebasing: bool,
+    fetch_failures: Vec<String>,
+    status: i32,
+    phase: PullPhase,
+}
+
+impl PullProgress {
+    fn new(repo: &mut Repo) -> Res<Self> {
+        repo.require_message_template(Message {
+            command: "pull",
+            upstream: KNOWN,
+            old: KNOWN,
+            new: KNOWN,
+            ..Message::default()
+        })?;
+        // Before select_splices: a rebase in progress has detached HEAD.
+        require_no_splice_in_progress()?;
+        let recursive = repo.args.has_flag("--recursive") || repo.args.all;
+        let rebase_tree = recursive && repo.merge_rebase;
+        let resumed = rebase_under_way()?;
+        if let Some(branch) = &resumed {
+            if !rebase_tree {
+                return die(format!(
                 "a 'pull --rebase --recursive' is under way for '{branch}' -- re-run it, or 'git switch {branch}' to give up"
             ));
+            }
+            repo.monorepo_branch = branch.clone();
         }
-        repo.monorepo_branch = branch.clone();
-    }
-    // The splices pull below, top-down, rather than rebasing onto each pull.
-    repo.merge_rebase = repo.merge_rebase && !recursive;
-    repo.select_splices(Kind::Explicit, "pull")?;
-    let branch = repo.monorepo_branch.clone();
-    let selected = repo.selected.clone();
+        // The splices pull below, top-down, rather than rebasing onto each pull.
+        repo.merge_rebase = repo.merge_rebase && !recursive;
+        repo.select_splices(Kind::Explicit, "pull")?;
+        let branch = repo.monorepo_branch.clone();
+        let selected = repo.selected.clone();
 
-    // A splice below one selected, selected itself or not: a pull above can
-    // move its synced commit.
-    let below_selected = |path: &str| {
-        selected
+        // A splice below one selected, selected itself or not: a pull above can
+        // move its synced commit.
+        let below_selected = |path: &str| {
+            selected
+                .iter()
+                .any(|above| path.starts_with(&format!("{above}/")))
+        };
+        let top: Vec<String> = selected
             .iter()
-            .any(|above| path.starts_with(&format!("{above}/")))
-    };
-    let top: Vec<String> = selected
-        .iter()
-        .filter(|path| !below_selected(path))
-        .cloned()
-        .collect();
-    let below: Vec<String> = repo
-        .all_paths
-        .iter()
-        .filter(|path| below_selected(path))
-        .cloned()
-        .collect();
-    let mut entries = repo.used_upstream_entry(&top);
-    entries.extend(repo.every_upstream_entry(&below)?);
-    let failures = repo.fetch_all(&branch, &entries)?;
+            .filter(|path| !below_selected(path))
+            .cloned()
+            .collect();
+        let below: Vec<String> = repo
+            .all_paths
+            .iter()
+            .filter(|path| below_selected(path))
+            .cloned()
+            .collect();
+        let mut entries = repo.used_upstream_entry(&top);
+        entries.extend(repo.every_upstream_entry(&below)?);
+        let plan = repo.prepare_fetch(&branch, &entries)?;
+        Ok(Self {
+            branch,
+            selected,
+            recursive,
+            rebase_tree,
+            resumed_rebase: resumed.is_some(),
+            fold_roots: Vec::new(),
+            rebasing: false,
+            fetch_failures: Vec::new(),
+            status: 0,
+            phase: PullPhase::Fetch(plan),
+        })
+    }
 
-    let mut fetched = Vec::new();
-    for path in &selected {
-        if failures.contains(path) {
-            continue;
+    fn done(&self) -> bool {
+        matches!(self.phase, PullPhase::Done)
+    }
+
+    fn advance(&mut self, repo: &mut Repo) -> Res<()> {
+        match std::mem::replace(&mut self.phase, PullPhase::Done) {
+            PullPhase::Done => Ok(()),
+            PullPhase::Fetch(plan) => {
+                self.phase = PullPhase::Fetched(plan.download());
+                Ok(())
+            }
+            PullPhase::Fetched(results) => {
+                self.fetch_failures = results.finish(repo)?;
+                self.begin_merges(repo)
+            }
+            PullPhase::Merge(mut merges) => {
+                if merges.advance(repo).is_err() {
+                    self.status = 1;
+                    self.phase = PullPhase::Finalize;
+                } else if merges.done() {
+                    if merges.finish().is_err() {
+                        self.status = 1;
+                    }
+                    self.phase = PullPhase::Finalize;
+                } else {
+                    self.phase = PullPhase::Merge(merges);
+                }
+                Ok(())
+            }
+            PullPhase::Finalize => self.finalize(),
         }
-        if let Some(failed) = first_above(path, &failures) {
-            log_err(format!(
-                "{path}: not pulled, since {failed} above it wasn't fetched"
-            ));
-            continue;
-        }
-        // Its pull could move the synced commit of the failed one to one that
-        // wasn't fetched.
-        if let Some(failed) = first_below(path, &failures) {
-            log_err(format!(
+    }
+
+    fn begin_merges(&mut self, repo: &mut Repo) -> Res<()> {
+        let mut fetched = Vec::new();
+        for path in &self.selected {
+            if self.fetch_failures.contains(path) {
+                continue;
+            }
+            if let Some(failed) = first_above(path, &self.fetch_failures) {
+                log_err(format!(
+                    "{path}: not pulled, since {failed} above it wasn't fetched"
+                ));
+                continue;
+            }
+            // Its pull could move the synced commit of the failed one to one that
+            // wasn't fetched.
+            if let Some(failed) = first_below(path, &self.fetch_failures) {
+                log_err(format!(
                 "{path}: not pulled, since {failed} below it wasn't fetched -- 'git splice merge {path}' merges what was fetched anyway"
             ));
-            continue;
+                continue;
+            }
+            fetched.push(path.clone());
         }
-        fetched.push(path.clone());
+
+        // A recursive pull is one commit per splice it starts from, made of its
+        // pulls once the last run ends without a conflict; pull --all starts
+        // from each splice no other is around. A run that stops leaves where it
+        // started, which a later run goes on from only while HEAD still descends
+        // from it: not after the branch was reset past it, e.g. after an abort.
+        let fold = self.recursive;
+        let tops: Vec<String> = if repo.args.all {
+            repo.all_paths
+                .iter()
+                .filter(|path| first_above(path, &repo.all_paths).is_none())
+                .cloned()
+                .collect()
+        } else {
+            repo.args
+                .paths
+                .iter()
+                .map(|path| normalize_path(path))
+                .collect()
+        };
+        let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
+            .q()
+            .ok();
+        let mut rewinds = false;
+        if self.rebase_tree && !self.resumed_rebase {
+            for path in &fetched {
+                if repo.pull_to_rebase(path, &self.branch)? {
+                    rewinds = true;
+                }
+            }
+        }
+        if rewinds {
+            rewind_to_last_pull(&tops, &self.branch)?;
+        } else if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
+            return fail(format!("{START} couldn't be updated"));
+        }
+        self.rebasing = rebase_under_way()?.is_some();
+        self.fold_roots = tops;
+        self.phase = if fetched.is_empty() {
+            PullPhase::Finalize
+        } else {
+            PullPhase::Merge(MergeProgress::new(repo, &self.branch, "pull", &fetched))
+        };
+        Ok(())
     }
 
-    // A recursive pull is one commit per splice it starts from, made of its
-    // pulls once the last run ends without a conflict; pull --all starts
-    // from each splice no other is around. A run that stops leaves where it
-    // started, which a later run goes on from only while HEAD still descends
-    // from it: not after the branch was reset past it, e.g. after an abort.
-    let fold = recursive;
-    let tops: Vec<String> = if repo.args.all {
-        repo.all_paths
-            .iter()
-            .filter(|path| first_above(path, &repo.all_paths).is_none())
-            .cloned()
-            .collect()
-    } else {
-        repo.args
-            .paths
-            .iter()
-            .map(|path| normalize_path(path))
-            .collect()
-    };
-    let goes_on = git(&["merge-base", "--is-ancestor", START, "HEAD"])
-        .q()
-        .ok();
-    let mut rewinds = false;
-    if rebase_tree && resumed.is_none() {
-        for path in &fetched {
-            if repo.pull_to_rebase(path, &branch)? {
-                rewinds = true;
+    fn finalize(&mut self) -> Res<()> {
+        if self.recursive && !splice_in_progress() {
+            if self.status == 0 {
+                fold_pulls(&self.fold_roots)?;
             }
-        }
-    }
-    if rewinds {
-        rewind_to_last_pull(&tops, &branch)?;
-    } else if fold && !goes_on && !git(&["update-ref", START, "HEAD"]).ok() {
-        return fail(format!("{START} couldn't be updated"));
-    }
-    let rebasing = rebase_under_way()?.is_some();
-    let mut status = 0;
-    if !fetched.is_empty() && repo.merge_paths(&branch, "pull", &fetched).is_err() {
-        status = 1;
-    }
-    if fold && !splice_in_progress() {
-        if status == 0 {
-            fold_pulls(&tops)?;
-        }
-        if status == 0 || !failures.is_empty() {
-            if rebasing {
-                if !replay_own_commits(&branch)? {
-                    status = 1;
+            if self.status == 0 || !self.fetch_failures.is_empty() {
+                if self.rebasing {
+                    if !replay_own_commits(&self.branch)? {
+                        self.status = 1;
+                    }
+                } else if !git(&["update-ref", "-d", START]).ok() {
+                    return fail(format!("{START} couldn't be updated"));
                 }
-            } else if !git(&["update-ref", "-d", START]).ok() {
-                return fail(format!("{START} couldn't be updated"));
             }
         }
-    }
-    if rebasing && rebase_under_way()?.is_some() {
-        log_err(format!(
+        if self.rebasing && rebase_under_way()?.is_some() {
+            let branch = &self.branch;
+            log_err(format!(
             "The pulls are on a detached HEAD, '{branch}' is as it was -- re-run pull to go on, or 'git switch {branch}' to give up"
         ));
+        }
+        if !self.fetch_failures.is_empty() {
+            log_err(format!("Not fetched: {}", self.fetch_failures.join(" ")));
+            self.status = 1;
+        }
+        Ok(())
     }
-    if !failures.is_empty() {
-        log_err(format!("Not fetched: {}", failures.join(" ")));
-        status = 1;
+
+    fn finish(&self) -> Res<i32> {
+        if !self.done() {
+            return die("pull still has pending work");
+        }
+        Ok(self.status)
     }
-    Ok(status)
 }
 
 const START: &str = "SPLICE_PULL_START";
@@ -459,6 +552,173 @@ fn fold_pulls(tops: &[String]) -> Res<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::util::test_repo::{git, with_repository};
+
+    struct Updates {
+        parent: String,
+        child: String,
+    }
+
+    fn nested_updates(context: &mut ExecutionContext) -> Updates {
+        git(&["config", "user.name", "Test"]);
+        git(&["config", "user.email", "test@example.com"]);
+        git(&["commit", "--allow-empty", "-qm", "initial"]);
+        git(&["init", "-q", "--initial-branch=main", "child"]);
+        std::fs::write("child/file", "old child\n").unwrap();
+        git(&["-C", "child", "add", "."]);
+        git(&["-C", "child", "commit", "-qm", "initial child"]);
+        let child = git(&["-C", "child", "rev-parse", "HEAD"]);
+        git(&["init", "-q", "--initial-branch=main", "parent"]);
+        std::fs::create_dir_all("parent/b").unwrap();
+        std::fs::write("parent/file", "old parent\n").unwrap();
+        std::fs::write("parent/b/file", "old child\n").unwrap();
+        let root = std::env::current_dir().unwrap();
+        std::fs::write(
+            "parent/b/.splice",
+            format!(
+                "[splice]\n id = child\n commit = {child}\n[upstream \"origin\"]\n url = {}\n",
+                root.join("child").display()
+            ),
+        )
+        .unwrap();
+        git(&["-C", "parent", "add", "."]);
+        git(&["-C", "parent", "commit", "-qm", "initial parent"]);
+        crate::clone::run(
+            context,
+            &[
+                root.join("parent").to_string_lossy().into_owned(),
+                "vendor/a".into(),
+            ],
+        )
+        .unwrap();
+        std::fs::write("parent/file", "new parent\n").unwrap();
+        git(&["-C", "parent", "commit", "-qam", "update parent"]);
+        std::fs::write("child/file", "new child\n").unwrap();
+        git(&["-C", "child", "commit", "-qam", "update child"]);
+        Updates {
+            parent: git(&["-C", "parent", "rev-parse", "HEAD"]),
+            child: git(&["-C", "child", "rev-parse", "HEAD"]),
+        }
+    }
+
+    fn progress(context: &mut ExecutionContext) -> (Repo<'_>, PullProgress) {
+        let args = parse_args(
+            USAGE,
+            "--recursive",
+            &["--recursive".into(), "vendor/a".into()],
+        )
+        .unwrap();
+        let mut repo = Repo::new(context, args);
+        apply_merge_options(&mut repo).unwrap();
+        repo.open().unwrap();
+        let progress = PullProgress::new(&mut repo).unwrap();
+        (repo, progress)
+    }
+
+    #[test]
+    fn recursive_pull_retains_downloads_then_exposes_unfolded_merges_before_finalization() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            let updates = nested_updates(&mut context);
+            let before = git(&["rev-parse", "HEAD"]);
+            let (mut repo, mut progress) = progress(&mut context);
+            progress.advance(&mut repo).unwrap();
+            assert!(matches!(progress.phase, PullPhase::Fetched(_)));
+            assert_eq!(git(&["rev-parse", "HEAD"]), before);
+            assert_eq!(
+                git(&["rev-parse", &repo.splice_ref("vendor/a", "main")]),
+                updates.parent
+            );
+            assert_eq!(
+                git(&["rev-parse", &repo.splice_ref("vendor/a/b", "main")]),
+                updates.child
+            );
+            assert_eq!(
+                std::fs::read_to_string("vendor/a/file").unwrap(),
+                "old parent\n"
+            );
+            assert_eq!(
+                std::fs::read_to_string("vendor/a/b/file").unwrap(),
+                "old child\n"
+            );
+            std::fs::rename("parent", "parent.offline").unwrap();
+            std::fs::rename("child", "child.offline").unwrap();
+            while !matches!(progress.phase, PullPhase::Finalize) {
+                progress.advance(&mut repo).unwrap();
+            }
+            assert_eq!(
+                git(&["rev-list", "--count", &format!("{before}..HEAD")]),
+                "2"
+            );
+            assert_eq!(git(&["rev-parse", START]), before);
+            assert_eq!(splice_config("vendor/a", "commit", "HEAD"), updates.parent);
+            assert_eq!(splice_config("vendor/a/b", "commit", "HEAD"), updates.child);
+            let unfolded = git(&["rev-parse", "HEAD"]);
+            let tree = git(&["rev-parse", "HEAD^{tree}"]);
+            progress.advance(&mut repo).unwrap();
+            assert!(progress.done());
+            assert_eq!(progress.finish().unwrap(), 0);
+            assert_eq!(
+                git(&["rev-list", "--count", &format!("{before}..HEAD")]),
+                "1"
+            );
+            assert_ne!(git(&["rev-parse", "HEAD"]), unfolded);
+            assert_eq!(git(&["rev-parse", "HEAD^{tree}"]), tree);
+            assert!(!std::path::Path::new(&git(&["rev-parse", "--git-path", START])).exists());
+            let folded = git(&["rev-parse", "HEAD"]);
+            progress.advance(&mut repo).unwrap();
+            assert_eq!(git(&["rev-parse", "HEAD"]), folded);
+        });
+    }
+
+    #[test]
+    fn partial_fetch_failure_still_folds_successful_work_and_cleans_up_before_reporting_failure() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            nested_updates(&mut context);
+            let root = std::env::current_dir().unwrap();
+            crate::clone::run(
+                &mut context,
+                &[
+                    root.join("parent").to_string_lossy().into_owned(),
+                    "vendor/z".into(),
+                ],
+            )
+            .unwrap();
+            git(&[
+                "config",
+                "--file",
+                "vendor/z/.splice",
+                "upstream.origin.url",
+                &root.join("missing").to_string_lossy(),
+            ]);
+            git(&["add", "vendor/z/.splice"]);
+            git(&["commit", "-qm", "unavailable independent upstream"]);
+            let before = git(&["rev-parse", "HEAD"]);
+            let args = parse_args(USAGE, "", &["--all".into()]).unwrap();
+            let mut repo = Repo::new(&mut context, args);
+            apply_merge_options(&mut repo).unwrap();
+            repo.open().unwrap();
+            let mut progress = PullProgress::new(&mut repo).unwrap();
+            while !matches!(progress.phase, PullPhase::Finalize) {
+                progress.advance(&mut repo).unwrap();
+            }
+            assert!(progress.fetch_failures.contains(&"vendor/z".into()));
+            assert_eq!(progress.status, 0);
+            assert_eq!(
+                git(&["rev-list", "--count", &format!("{before}..HEAD")]),
+                "2"
+            );
+            progress.advance(&mut repo).unwrap();
+            assert_eq!(progress.finish().unwrap(), 1);
+            assert_eq!(
+                git(&["rev-list", "--count", &format!("{before}..HEAD")]),
+                "1"
+            );
+            assert!(!std::path::Path::new(&git(&["rev-parse", "--git-path", START])).exists());
+        });
+    }
 
     #[test]
     fn drops_the_conflicts_git_lists_after_a_conflict() {

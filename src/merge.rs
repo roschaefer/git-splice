@@ -762,7 +762,7 @@ enum MergePhase {
     Done,
 }
 
-struct MergeProgress {
+pub(crate) struct MergeProgress {
     paths: Vec<String>,
     next: usize,
     before: String,
@@ -777,7 +777,7 @@ struct MergeProgress {
 }
 
 impl MergeProgress {
-    fn new(repo: &Repo, branch: &str, verb: &str, given: &[String]) -> Self {
+    pub(crate) fn new(repo: &Repo, branch: &str, verb: &str, given: &[String]) -> Self {
         Self {
             paths: splices_in_order(false, given),
             next: 0,
@@ -796,11 +796,11 @@ impl MergeProgress {
         }
     }
 
-    fn done(&self) -> bool {
+    pub(crate) fn done(&self) -> bool {
         matches!(self.phase, MergePhase::Done)
     }
 
-    fn advance(&mut self, repo: &mut Repo) -> Res<()> {
+    pub(crate) fn advance(&mut self, repo: &mut Repo) -> Res<()> {
         let branch = self.branch.as_str();
         let verb = self.verb.as_str();
         match std::mem::replace(&mut self.phase, MergePhase::Done) {
@@ -937,7 +937,7 @@ impl MergeProgress {
         }
     }
 
-    fn finish(&self) -> Res<()> {
+    pub(crate) fn finish(&self) -> Res<()> {
         if !self.done() {
             return die("merge still has pending work");
         }
