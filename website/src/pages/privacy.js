@@ -10,15 +10,16 @@ export default function Privacy() {
           the <a href="https://roschaefer.de/en/imprint/">imprint</a>.
         </p>
         <p>
-          <strong>Hosting.</strong> GitHub Pages hosts this site. GitHub
+          <strong>Hosting.</strong> Netlify hosts this site. Netlify
           processes access data such as your IP address, see
-          the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub
+          the <a href="https://www.netlify.com/privacy/">Netlify
           privacy statement</a>.
         </p>
         <p>
           <strong>Analytics.</strong> <a href="https://www.goatcounter.com/help/privacy">GoatCounter</a> counts
           which pages are visited, without cookies or tracking IDs. It does
-          not keep IP addresses or full user agents.
+          not permanently store IP addresses or full user agents. The collection
+          endpoint on this site forwards technical visit data to GoatCounter.
         </p>
       </main>
     </Layout>

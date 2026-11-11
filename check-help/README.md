@@ -7,7 +7,7 @@ in the same shape. A help section ends with the page section that expands it:
 DESCRIPTION
     Short explanation for the terminal.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/push/#description
+    See also: https://git-splice.roschaefer.de/docs/command-reference/push/#description
 ```
 
 The page heading replaces the help heading and supplies the anchor. Below it,

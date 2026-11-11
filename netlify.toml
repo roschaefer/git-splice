@@ -1,0 +1,17 @@
+[build]
+base = "."
+command = "cd website && corepack pnpm install --frozen-lockfile && corepack pnpm build"
+publish = "website/build"
+
+[build.environment]
+NODE_VERSION = "24"
+
+[[redirects]]
+from = "/gc/count.js"
+to = "https://gc.zgo.at/count.js"
+status = 200
+force = true
+
+[[edge_functions]]
+function = "goatcounter"
+path = "/gc/count"

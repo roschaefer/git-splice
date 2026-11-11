@@ -11,7 +11,7 @@ DESCRIPTION
     commit per splice. Never touches the network: run 'git splice fetch'
     first, or 'git splice pull' to do both.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#description
+    See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#description
 
 OPTIONS
     <path>...
@@ -25,7 +25,7 @@ OPTIONS
         instead of its default upstream. A splice without the named upstream
         stops the command before it starts.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#--upstream
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#--upstream
 
     --branch <name>
         Merges this upstream branch instead of the usual one (see UPSTREAM
@@ -33,7 +33,7 @@ OPTIONS
         request's branch the upstream has none for. It doesn't change
         .splice, and the splices below keep theirs.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#branch-tracking
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#branch-tracking
 
     --track
         With --branch, also tracks that branch on the monorepo's current
@@ -45,7 +45,7 @@ OPTIONS
         fetch --branch <name> --track' tracks one without a merge, and 'git
         splice fetch --no-track' stops tracking it.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#branch-tracking
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#branch-tracking
 
     --bump
         Also moves the synced commit up to the upstream branch when there's
@@ -53,7 +53,7 @@ OPTIONS
         changes the splice's .splice, like a submodule bump. Later rebuilds
         then start there, instead of rebuilding every pushed commit again.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#--bump
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#--bump
 
     --rebase
         Rebases instead, like 'git pull --rebase': takes the upstream branch
@@ -75,13 +75,13 @@ OPTIONS
         stashes nor moves other branches. On a conflict, resolve it and run
         'git rebase --continue' (or 'git rebase --abort' to give up).
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#--rebase
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#--rebase
 
     --no-fork-point
         Merges from Git's merge base instead of the fork point (see
         REWRITTEN UPSTREAM BRANCHES).
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#--no-fork-point
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#--no-fork-point
 
     --rebuilt-commit <commit>
         Merges <commit> instead of an upstream branch: one made on top of
@@ -108,7 +108,7 @@ OPTIONS
         commits in instead. Upstream commits no fetched branch has, not
         fetched yet or rewritten away since, look like local work to it.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#--rebuilt-commit
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#--rebuilt-commit
 
     -m <message>
         Gives the commit this message instead of the default one, which
@@ -117,7 +117,7 @@ OPTIONS
         of its own. Nothing reads the message back: .splice records the
         synced commit. On a conflict, 'git commit' keeps the message.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#-m
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#-m
 
     --message-template <template>
         Gives each commit a message made from <template>, also with --all.
@@ -136,9 +136,9 @@ OPTIONS
 
             splice: {command} {path} from {upstream} at {new}
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#--message-template
+        See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#--message-template
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#options
+    See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#options
 
 UPSTREAM BRANCH
     The upstream branch is the one named like the current branch; on the
@@ -146,13 +146,13 @@ UPSTREAM BRANCH
     or the tag or commit its default-pin names. On a branch the upstream
     doesn't have, there's nothing to merge. --branch names another.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#upstream-branch
+    See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#upstream-branch
 
 ORDER
     Top-down: a splice is merged before the ones below it, since its merge
     can move their synced commits, and a failure stops them.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#order
+    See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#order
 
 CONFLICTS
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
@@ -160,7 +160,7 @@ CONFLICTS
     two sides share no history at all, merge doesn't guess: it prints the
     commands to keep either side.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#conflicts
+    See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#conflicts
 
 REWRITTEN UPSTREAM BRANCHES
     When the upstream rewrote its branch, e.g. a fork rebased its patch
@@ -171,4 +171,4 @@ REWRITTEN UPSTREAM BRANCHES
     it refuses: the next push would publish the rewritten-away commits
     again, under them. --rebase redoes them on top instead.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/merge/#rewritten-upstream-branches
+    See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#rewritten-upstream-branches

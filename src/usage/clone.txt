@@ -11,7 +11,7 @@ DESCRIPTION
     and fetches the splices the upstream has inside it. With
     --from-submodule, it turns a submodule into a splice instead.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/clone/#description
+    See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#description
 
 OPTIONS
     --merge
@@ -20,7 +20,7 @@ OPTIONS
         --merge is given: then every file that differs becomes a conflict to
         resolve, and nothing is lost. Resolve it and run 'git commit'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/clone/#--merge
+        See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#--merge
 
     --from-submodule
         <path> is a submodule committed in HEAD, and clone turns it into a
@@ -30,7 +30,7 @@ OPTIONS
         submodule with the folder, and removes it from .gitmodules (the file
         too, once empty). See SUBMODULES.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/clone/#--from-submodule
+        See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#--from-submodule
 
     --recursive
         With --from-submodule, converts a submodule whose commit has
@@ -45,7 +45,7 @@ OPTIONS
         submodule is refused, the ones above stay converted; fix what the
         message says, then run clone on that path.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/clone/#--recursive
+        See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#--recursive
 
     -m <message>
         Gives the commit this message instead of the default one, which
@@ -57,7 +57,7 @@ OPTIONS
         --recursive; see 'git splice merge --help'. With --from-submodule,
         the default is 'splice: clone {path} from submodule at {new}'.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/clone/#options
+    See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#options
 
 UPSTREAM BRANCH
     The upstream branch is the one named like the current branch, else the
@@ -68,7 +68,7 @@ UPSTREAM BRANCH
     instead, and on the monorepo's default branch, that's the upstream
     branch: the monorepo's branch name isn't tried.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/clone/#upstream-branch
+    See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#upstream-branch
 
 ATTRIBUTES
     In upstream, and in a submodule, only upstream's own .gitattributes
@@ -80,7 +80,7 @@ ATTRIBUTES
     apply to upstream's files, and push would send them as these store
     them.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/clone/#attributes
+    See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#attributes
 
 SUBMODULES
     Upstream must serve the submodule's commit, on a branch, a tag or by
@@ -103,4 +103,4 @@ SUBMODULES
     A submodule with update = none is refused: no checkout contains it,
     and a splice's files are in every checkout.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/clone/#submodules
+    See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#submodules
