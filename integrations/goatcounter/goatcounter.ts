@@ -66,4 +66,3 @@ export default async (request: Request, context: Context) => {
 
 	return gifResponse();
 };
-
