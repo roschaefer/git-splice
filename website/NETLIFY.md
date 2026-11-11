@@ -33,5 +33,5 @@ deployment if they must remain reachable; Netlify cannot redirect requests
 sent to GitHub's hostname. Existing source links to that hostname are rewritten
 to local paths when Docusaurus builds them.
 
-The reusable analytics implementation is mounted at `integrations/goatcounter`.
+The reusable analytics implementation is mounted at `website/integrations/goatcounter`.
 See its README for reuse in the other websites.

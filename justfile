@@ -61,7 +61,7 @@ drawings-check flag="":
 
 # Build the documentation site into website/build; fails on broken links
 site-build:
-    node --experimental-strip-types integrations/goatcounter/goatcounter.test.ts
+    node --experimental-strip-types website/integrations/goatcounter/goatcounter.test.ts
     cd website && pnpm install --frozen-lockfile && pnpm build
 
 # Serve the documentation site locally, reloading on changes

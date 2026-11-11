@@ -1,1 +1,1 @@
-export {default} from "../../integrations/goatcounter/goatcounter.ts";
+export {default} from "../../website/integrations/goatcounter/goatcounter.ts";
