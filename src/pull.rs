@@ -641,67 +641,133 @@ mod tests {
 
     #[test]
     fn observer_sees_real_fetch_merge_and_fold_boundaries_through_the_command_entrypoint() {
+        #[derive(Debug)]
+        struct Observation {
+            event: ExecutionEvent,
+            head: String,
+            commits: usize,
+            tree: String,
+        }
+
         with_repository(|| {
+            use crate::execution::FetchedUpstream;
+            use ExecutionEvent::*;
+
             let mut context = ExecutionContext::new();
             nested_updates(&mut context);
-            let before = git(&["rev-parse", "HEAD"]);
+            let root = std::env::current_dir().unwrap();
+            let start = git(&["rev-parse", "HEAD"]);
+            let observed_start = start.clone();
             let observations = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
             let recorded = observations.clone();
             context.set_observer(move |event| {
-                let head = git(&["rev-parse", "HEAD"]);
-                let count = git(&["rev-list", "--count", &format!("{before}..HEAD")]);
-                let tree = git(&["rev-parse", "HEAD^{tree}"]);
-                recorded
-                    .lock()
-                    .unwrap()
-                    .push((event.clone(), head, count, tree));
+                recorded.lock().unwrap().push(Observation {
+                    event: event.clone(),
+                    head: git(&["rev-parse", "HEAD"]),
+                    commits: git(&["rev-list", "--count", &format!("{observed_start}..HEAD")])
+                        .parse()
+                        .unwrap(),
+                    tree: git(&["rev-parse", "HEAD^{tree}"]),
+                });
             });
             assert_eq!(
                 run(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap(),
                 0
             );
             let observed = observations.lock().unwrap();
-            assert_eq!(observed.len(), 5);
-            assert!(
-                matches!(&observed[0].0, ExecutionEvent::AfterFetch { fetched }
-                if fetched.iter().map(|entry| entry.path.as_str()).collect::<Vec<_>>() == ["vendor/a", "vendor/a/b"]
-                    && fetched.iter().all(|entry| !entry.failed))
-            );
-            assert!(
-                matches!(&observed[1].0, ExecutionEvent::AfterMerge { path, head_after, .. }
-                if path == "vendor/a" && head_after == &observed[1].1)
-            );
-            assert!(
-                matches!(&observed[2].0, ExecutionEvent::AfterMerge { path, head_after, .. }
-                if path == "vendor/a/b" && head_after == &observed[2].1)
-            );
-            assert!(
-                matches!(&observed[3].0, ExecutionEvent::BeforeFold { head, roots }
-                if head == &observed[3].1 && roots == &["vendor/a"])
-            );
-            assert!(
-                matches!(&observed[4].0, ExecutionEvent::AfterFold { head_before, head_after, .. }
-                if head_before == &observed[3].1 && head_after == &observed[4].1)
+            assert_eq!(observed.len(), 5, "{observed:#?}");
+            let parent_head = observed[1].head.clone();
+            let child_head = observed[2].head.clone();
+            let folded_head = git(&["rev-parse", "HEAD"]);
+            let fetched = vec![
+                FetchedUpstream {
+                    path: "vendor/a".into(),
+                    upstream: "origin".into(),
+                    url: root.join("parent").to_string_lossy().into_owned(),
+                    failed: false,
+                },
+                FetchedUpstream {
+                    path: "vendor/a/b".into(),
+                    upstream: "origin".into(),
+                    url: root.join("child").to_string_lossy().into_owned(),
+                    failed: false,
+                },
+            ];
+            assert_eq!(
+                observed
+                    .iter()
+                    .map(|row| row.event.clone())
+                    .collect::<Vec<_>>(),
+                vec![
+                    AfterFetch {
+                        fetched: fetched.clone()
+                    },
+                    AfterMerge {
+                        path: "vendor/a".into(),
+                        head_before: start.clone(),
+                        head_after: parent_head.clone(),
+                    },
+                    AfterMerge {
+                        path: "vendor/a/b".into(),
+                        head_before: parent_head.clone(),
+                        head_after: child_head.clone(),
+                    },
+                    BeforeFold {
+                        roots: vec!["vendor/a".into()],
+                        head: child_head.clone()
+                    },
+                    AfterFold {
+                        roots: vec!["vendor/a".into()],
+                        head_before: child_head.clone(),
+                        head_after: folded_head.clone(),
+                    },
+                ],
+                "observed checkpoints:\n{observed:#?}"
             );
             assert_eq!(
                 observed
                     .iter()
-                    .map(|(_, _, count, _)| count.as_str())
+                    .map(|row| row.head.as_str())
                     .collect::<Vec<_>>(),
-                ["0", "1", "2", "2", "1"]
+                [
+                    start.as_str(),
+                    parent_head.as_str(),
+                    child_head.as_str(),
+                    child_head.as_str(),
+                    folded_head.as_str(),
+                ]
             );
-            assert_eq!(observed[3].3, observed[4].3);
+            assert_eq!(
+                observed.iter().map(|row| row.commits).collect::<Vec<_>>(),
+                [0, 1, 2, 2, 1]
+            );
+            assert_eq!(observed[3].tree, observed[4].tree);
             drop(observed);
             observations.lock().unwrap().clear();
             assert_eq!(
                 run(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap(),
                 0
             );
-            assert!(!observations
-                .lock()
-                .unwrap()
-                .iter()
-                .any(|(event, ..)| matches!(event, ExecutionEvent::AfterMerge { .. })));
+            let observed = observations.lock().unwrap();
+            assert_eq!(
+                observed
+                    .iter()
+                    .map(|row| row.event.clone())
+                    .collect::<Vec<_>>(),
+                vec![
+                    AfterFetch { fetched },
+                    BeforeFold {
+                        roots: vec!["vendor/a".into()],
+                        head: folded_head.clone()
+                    },
+                    AfterFold {
+                        roots: vec!["vendor/a".into()],
+                        head_before: folded_head.clone(),
+                        head_after: folded_head
+                    },
+                ],
+                "observed checkpoints:\n{observed:#?}"
+            );
         });
     }
 

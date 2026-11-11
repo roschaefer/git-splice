@@ -1479,6 +1479,7 @@ mod tests {
             apply_merge_options(&mut repo).unwrap();
             repo.open().unwrap();
             repo.select_splices(Kind::Explicit, "pull").unwrap();
+            let parent_before = git(&["rev-parse", "HEAD"]);
             let mut progress = MergeProgress::new(&repo, "main", "pull", &["vendor/a".into()]);
             while !progress.done() && !matches!(progress.phase, MergePhase::FetchedReload { .. }) {
                 progress.advance(&mut repo).unwrap();
@@ -1501,10 +1502,29 @@ mod tests {
             assert_eq!(splice_config("vendor/a/b", "commit", "HEAD"), missing);
             assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "old\n");
             let observed = events.lock().unwrap();
-            assert!(matches!(&observed[..], [
-                ExecutionEvent::AfterMerge { path, .. },
-                ExecutionEvent::AfterFetch { fetched },
-            ] if path == "vendor/a" && fetched.len() == 1 && fetched[0].path == "vendor/a/b" && !fetched[0].failed));
+            assert_eq!(
+                *observed,
+                vec![
+                    ExecutionEvent::AfterMerge {
+                        path: "vendor/a".into(),
+                        head_before: parent_before,
+                        head_after: merged_parent,
+                    },
+                    ExecutionEvent::AfterFetch {
+                        fetched: vec![crate::execution::FetchedUpstream {
+                            path: "vendor/a/b".into(),
+                            upstream: "origin".into(),
+                            url: std::env::current_dir()
+                                .unwrap()
+                                .join("child")
+                                .to_string_lossy()
+                                .into_owned(),
+                            failed: false,
+                        }],
+                    },
+                ],
+                "observed events:\n{observed:#?}"
+            );
         });
     }
 

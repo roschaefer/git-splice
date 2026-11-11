@@ -494,12 +494,30 @@ mod tests {
             ];
             assert_eq!(run(&mut context, &args).unwrap(), 0);
             let observed = events.lock().unwrap();
-            assert!(matches!(&observed[..], [
-                ExecutionEvent::AfterRebuild { path: a, commit: ac },
-                ExecutionEvent::AfterPush { path: ap, commit: apc },
-                ExecutionEvent::AfterRebuild { path: b, commit: bc },
-                ExecutionEvent::AfterPush { path: bp, commit: bpc },
-            ] if a == "vendor/a" && a == ap && ac == apc && b == "vendor/b" && b == bp && bc == bpc));
+            let a_commit = git(&["--git-dir=vendor/a.git", "rev-parse", "refs/heads/topic"]);
+            let b_commit = git(&["--git-dir=vendor/b.git", "rev-parse", "refs/heads/topic"]);
+            assert_eq!(
+                *observed,
+                vec![
+                    ExecutionEvent::AfterRebuild {
+                        path: "vendor/a".into(),
+                        commit: a_commit.clone()
+                    },
+                    ExecutionEvent::AfterPush {
+                        path: "vendor/a".into(),
+                        commit: a_commit
+                    },
+                    ExecutionEvent::AfterRebuild {
+                        path: "vendor/b".into(),
+                        commit: b_commit.clone()
+                    },
+                    ExecutionEvent::AfterPush {
+                        path: "vendor/b".into(),
+                        commit: b_commit
+                    },
+                ],
+                "observed events:\n{observed:#?}"
+            );
             drop(observed);
             events.lock().unwrap().clear();
             assert_eq!(run(&mut context, &args).unwrap(), 0);

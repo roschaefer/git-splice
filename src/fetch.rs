@@ -579,10 +579,25 @@ mod tests {
             assert_eq!(results.finish(&mut repo).unwrap(), ["vendor/a", "vendor/b"]);
             assert!(repo.upstream_key(&url).unwrap().is_empty());
             let observed = events.lock().unwrap();
-            assert!(
-                matches!(&observed[..], [ExecutionEvent::AfterFetch { fetched }]
-                if fetched.iter().map(|entry| entry.path.as_str()).collect::<Vec<_>>() == ["vendor/a", "vendor/b"]
-                    && fetched.iter().all(|entry| entry.failed && entry.upstream == "origin" && entry.url == url))
+            assert_eq!(
+                *observed,
+                vec![ExecutionEvent::AfterFetch {
+                    fetched: vec![
+                        FetchedUpstream {
+                            path: "vendor/a".into(),
+                            upstream: "origin".into(),
+                            url: url.clone(),
+                            failed: true
+                        },
+                        FetchedUpstream {
+                            path: "vendor/b".into(),
+                            upstream: "origin".into(),
+                            url,
+                            failed: true
+                        },
+                    ],
+                }],
+                "observed events:\n{observed:#?}"
             );
         });
     }
