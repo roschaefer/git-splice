@@ -1,6 +1,7 @@
 //! git splice key.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::repo::*;
 use crate::util::*;
 
@@ -94,13 +95,13 @@ fn rename_upstream_key(repo: &mut Repo, old: &str, new: &str) -> Res<()> {
     Ok(())
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(USAGE, "--upstream", argv)?;
     args.require(USAGE, "key", 1, 2)?;
     let path = normalize_path(&args.paths[0]);
     let new = args.paths.get(1).cloned().unwrap_or_default();
     let upstream = args.upstream.clone();
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     repo.open()?;
     repo.require_splice(&path)?;
     repo.use_upstreams(&upstream, std::slice::from_ref(&path))?;

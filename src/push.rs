@@ -1,13 +1,14 @@
 //! git splice push.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::merge::EqualTree;
 use crate::repo::*;
 use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/push.txt");
 
-impl Repo {
+impl Repo<'_> {
     /// Pushes one splice.
     fn push_one(&mut self, path: &str, branch: &str, force: bool) -> Res<()> {
         match self.has_uncommitted_changes(path) {
@@ -91,7 +92,7 @@ impl Repo {
                 // upstream's default branch has it: it was asked for, and needs
                 // recording.
                 if !rebuilt.is_empty()
-                    && !self.rebuild_given.contains_key(path)
+                    && !self.context.supplied_rebuilds.contains_key(path)
                     && self.d.no_changes
                 {
                     log_ok(format!(
@@ -155,7 +156,7 @@ impl Repo {
     /// after a retry that finds it upstream: the earlier push may have gone
     /// through without its reminder.
     fn remind_pull(&mut self, path: &str, selection: &str) -> Res<()> {
-        let Some(given) = self.rebuild_given.get(path).cloned() else {
+        let Some(given) = self.context.supplied_rebuilds.get(path).cloned() else {
             return Ok(());
         };
         if !self.given_is_rebuild(path, &given)? {
@@ -231,12 +232,14 @@ impl Repo {
                 ));
             }
         }
-        self.rebuild_given.insert(path.to_string(), rebuilt);
+        self.context
+            .supplied_rebuilds
+            .insert(path.to_string(), rebuilt);
         Ok(())
     }
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(
         USAGE,
         "--force --upstream --branch --track --rebuilt-commit",
@@ -246,7 +249,7 @@ pub fn run(argv: &[String]) -> Res<i32> {
     let force = args.has_flag("--force");
     let track = args.has_flag("--track");
     let wanted = args.branch.clone();
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     repo.open()?;
     repo.select_splices(Kind::Explicit, "push")?;
     let rebuilt_commit = repo.args.rebuilt_commit.clone();

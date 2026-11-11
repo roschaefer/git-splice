@@ -28,6 +28,7 @@ the command's `run`. The tool only runs the `git` CLI, so
 |---|---|
 | `src/util.rs` | Logging, failures (`Fail`) and running git. |
 | `src/args.rs` | Argument parsing. |
+| `src/context.rs` | Caller-owned `ExecutionContext`: immutable content-tree cache and validated supplied rebuilds shared by operations in one invocation. |
 | `src/repo.rs` | `Repo`: discovery, path selection, reading `.splice`, upstreams, keys and what a splice syncs with. |
 | `src/rebuild.rs` | The push rebuild: `rebuild_splice`, `splice_start` (B) and the commit loop `rebuild_walk`. |
 | `src/state.rs` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone`. |
@@ -37,6 +38,12 @@ the command's `run`. The tool only runs the `git` CLI, so
 
 A failure is `Fail::Soft`, which ends one splice's step, or `Fail::Hard`, which
 ends the command.
+
+`main` creates one `ExecutionContext` and passes it as the first argument to
+each command's `run`. A `Repo` borrows that context, so nested operations
+share it. Mutable discovery, worktree observations and rebuild progress stay
+on `Repo`; a new `Repo` reads current state while reusing tree-ID cache entries.
+The context belongs to one invocation in one repository.
 
 Each command follows the same shape: `select_paths` picks the splices,
 then a per-splice function (`merge_one`, `push_one`, …) calls
