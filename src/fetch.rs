@@ -200,6 +200,10 @@ impl Repo<'_> {
     /// same refs would fail on each other's locks. Prints what there is to say
     /// about each entry, in their order, and returns the paths that failed.
     pub fn fetch_all(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchFailures> {
+        self.prepare_fetch(branch, entries)?.download().finish(self)
+    }
+
+    fn prepare_fetch(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchPlan> {
         // Before the fetches start in parallel, which would race to record keys.
         let mut groups: Vec<(String, String, Vec<usize>)> = Vec::new();
         let mut new_keys = Vec::new();
@@ -225,7 +229,7 @@ impl Repo<'_> {
             }
         }
 
-        let mut jobs: Vec<(String, String, Vec<String>, Vec<Member>)> = Vec::new();
+        let mut jobs = Vec::new();
         for (key, url, indexes) in groups {
             let mut commits = Vec::new();
             let mut members = Vec::new();
@@ -275,44 +279,19 @@ impl Repo<'_> {
                     tag,
                 });
             }
-            jobs.push((key, url, commits, members));
+            jobs.push(FetchJob {
+                key,
+                url,
+                commits,
+                members,
+            });
         }
 
-        let mut reports = vec![Report::default(); entries.len()];
-        std::thread::scope(|scope| {
-            let handles: Vec<_> = jobs
-                .iter()
-                .map(|(key, url, commits, members)| {
-                    scope.spawn(move || fetch_shared_upstream(key, url, commits, members))
-                })
-                .collect();
-            for handle in handles {
-                if let Ok(done) = handle.join() {
-                    for (index, report) in done {
-                        reports[index] = report;
-                    }
-                }
-            }
-        });
-
-        let mut failures = Vec::new();
-        for ((path, _), report) in entries.iter().zip(&reports) {
-            if !report.out.is_empty() {
-                say(&report.out);
-            }
-            if !report.err.is_empty() {
-                eprint_text(&format!("{}\n", report.err));
-            }
-            if report.failed && !failures.contains(path) {
-                failures.push(path.clone());
-            }
-        }
-        for (key, _, _, members) in &jobs {
-            if new_keys.contains(key) && members.iter().all(|m| reports[m.index].failed) {
-                self.forget_upstream_key(key)?;
-            }
-        }
-        Ok(failures)
+        Ok(FetchPlan {
+            entries: entries.to_vec(),
+            jobs,
+            new_keys,
+        })
     }
 
     /// An entry for fetch_all for each upstream of each splice.
@@ -333,6 +312,78 @@ impl Repo<'_> {
             .iter()
             .map(|path| (path.clone(), self.name_of(path)))
             .collect()
+    }
+}
+
+struct FetchJob {
+    key: String,
+    url: String,
+    commits: Vec<String>,
+    members: Vec<Member>,
+}
+
+struct FetchPlan {
+    entries: Vec<(String, String)>,
+    jobs: Vec<FetchJob>,
+    new_keys: Vec<String>,
+}
+
+struct FetchResults {
+    plan: FetchPlan,
+    reports: Vec<Report>,
+}
+
+impl FetchPlan {
+    fn download(self) -> FetchResults {
+        let mut reports = vec![Report::default(); self.entries.len()];
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = self
+                .jobs
+                .iter()
+                .map(|job| {
+                    scope.spawn(move || {
+                        fetch_shared_upstream(&job.key, &job.url, &job.commits, &job.members)
+                    })
+                })
+                .collect();
+            for handle in handles {
+                if let Ok(done) = handle.join() {
+                    for (index, report) in done {
+                        reports[index] = report;
+                    }
+                }
+            }
+        });
+
+        FetchResults {
+            plan: self,
+            reports,
+        }
+    }
+}
+
+impl FetchResults {
+    fn finish(self, repo: &mut Repo) -> Res<FetchFailures> {
+        let mut failures = Vec::new();
+        for ((path, _), report) in self.plan.entries.iter().zip(&self.reports) {
+            if !report.out.is_empty() {
+                say(&report.out);
+            }
+            if !report.err.is_empty() {
+                eprint_text(&format!("{}\n", report.err));
+            }
+            if report.failed && !failures.contains(path) {
+                failures.push(path.clone());
+            }
+        }
+        for job in &self.plan.jobs {
+            if self.plan.new_keys.contains(&job.key)
+                && job.members.iter().all(|m| self.reports[m.index].failed)
+            {
+                repo.forget_upstream_key(&job.key)?;
+            }
+        }
+        Ok(failures)
     }
 }
 
@@ -393,4 +444,105 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         return Ok(1);
     }
     Ok(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::util::test_repo::{git, with_repository};
+
+    fn upstream() -> String {
+        git(&["config", "user.name", "Test"]);
+        git(&["config", "user.email", "test@example.com"]);
+        git(&["commit", "--allow-empty", "-qm", "initial"]);
+        git(&["init", "-q", "--initial-branch=main", "upstream"]);
+        std::fs::write("upstream/file", "old\n").unwrap();
+        git(&["-C", "upstream", "add", "."]);
+        git(&["-C", "upstream", "commit", "-qm", "initial upstream"]);
+        std::env::current_dir()
+            .unwrap()
+            .join("upstream")
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    fn repo(context: &mut ExecutionContext) -> Repo<'_> {
+        let mut repo = Repo::new(context, Default::default());
+        repo.open().unwrap();
+        repo.select_paths(Kind::Overview, "fetch").unwrap();
+        repo
+    }
+
+    #[test]
+    fn shared_upstream_download_finishes_before_results_are_handled_without_refetching() {
+        with_repository(|| {
+            let url = upstream();
+            let mut context = ExecutionContext::new();
+            for path in ["vendor/a", "vendor/b"] {
+                crate::clone::run(&mut context, &[url.clone(), path.into()]).unwrap();
+            }
+            let head = git(&["rev-parse", "HEAD"]);
+            let old = git(&["-C", "upstream", "rev-parse", "HEAD"]);
+            std::fs::write("upstream/file", "new\n").unwrap();
+            git(&["-C", "upstream", "commit", "-qam", "new upstream"]);
+            let new = git(&["-C", "upstream", "rev-parse", "HEAD"]);
+            let mut repo = repo(&mut context);
+            let selected = repo.selected.clone();
+            let entries = repo.every_upstream_entry(&selected).unwrap();
+            let plan = repo.prepare_fetch("main", &entries).unwrap();
+            assert_eq!(plan.jobs.len(), 1);
+            assert_eq!(plan.jobs[0].members.len(), 2);
+            let reference = plan.jobs[0].members[0].target_ref.clone();
+            assert_eq!(git(&["rev-parse", &reference]), old);
+            let results = plan.download();
+            assert_eq!(git(&["rev-parse", &reference]), new);
+            assert_eq!(results.reports.len(), 2);
+            for (path, report) in ["vendor/a", "vendor/b"].into_iter().zip(&results.reports) {
+                assert!(!report.failed);
+                assert!(report.out.contains(&format!("{path} fetched")));
+                assert_eq!(
+                    std::fs::read_to_string(format!("{path}/file")).unwrap(),
+                    "old\n"
+                );
+            }
+            assert_eq!(git(&["rev-parse", "HEAD"]), head);
+            std::fs::rename("upstream", "upstream.offline").unwrap();
+            assert!(results.finish(&mut repo).unwrap().is_empty());
+            assert_eq!(git(&["rev-parse", &reference]), new);
+            assert_eq!(git(&["rev-parse", "HEAD"]), head);
+        });
+    }
+
+    #[test]
+    fn failed_batch_retains_per_splice_failures_until_new_shared_key_is_cleaned_up() {
+        with_repository(|| {
+            let url = upstream();
+            for path in ["vendor/a", "vendor/b"] {
+                std::fs::create_dir_all(path).unwrap();
+                std::fs::write(
+                    format!("{path}/.splice"),
+                    format!("[splice]\n id = {path}\n[upstream \"origin\"]\n url = {url}\n"),
+                )
+                .unwrap();
+            }
+            git(&["add", "vendor/a", "vendor/b"]);
+            git(&["commit", "-qm", "mount splices"]);
+            let mut context = ExecutionContext::new();
+            let mut repo = repo(&mut context);
+            let selected = repo.selected.clone();
+            let entries = repo.every_upstream_entry(&selected).unwrap();
+            assert!(repo.upstream_key(&url).unwrap().is_empty());
+            let plan = repo.prepare_fetch("main", &entries).unwrap();
+            assert_eq!(plan.jobs.len(), 1);
+            assert_eq!(plan.new_keys.len(), 1);
+            let key = repo.upstream_key(&url).unwrap();
+            assert!(!key.is_empty());
+            std::fs::rename("upstream", "upstream.offline").unwrap();
+            let results = plan.download();
+            assert!(results.reports.iter().all(|report| report.failed));
+            assert_eq!(repo.upstream_key(&url).unwrap(), key);
+            assert_eq!(results.finish(&mut repo).unwrap(), ["vendor/a", "vendor/b"]);
+            assert!(repo.upstream_key(&url).unwrap().is_empty());
+        });
+    }
 }
