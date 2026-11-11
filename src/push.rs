@@ -557,21 +557,121 @@ mod tests {
     use super::*;
     use crate::util::test_repo::{git, with_repository};
 
-    fn setup() {
+    struct SpliceFixture {
+        path: &'static str,
+        upstream: &'static str,
+        files: &'static [(&'static str, &'static str)],
+    }
+
+    impl SpliceFixture {
+        fn offline_path(&self) -> std::path::PathBuf {
+            std::path::Path::new(self.upstream).with_extension("offline")
+        }
+
+        fn disconnect(&self) {
+            std::fs::rename(self.upstream, self.offline_path()).unwrap();
+        }
+    }
+
+    fn setup_splices(splices: &[SpliceFixture]) {
         git(&["commit", "--allow-empty", "-qm", "initial"]);
-        for path in ["vendor/a", "vendor/b"] {
-            let upstream = format!("{path}.git");
-            git(&["init", "-q", "--bare", "--initial-branch=main", &upstream]);
-            std::fs::create_dir_all(path).unwrap();
-            std::fs::write(format!("{path}/file"), path).unwrap();
+        for splice in splices {
+            git(&[
+                "init",
+                "-q",
+                "--bare",
+                "--initial-branch=main",
+                splice.upstream,
+            ]);
+            std::fs::create_dir_all(splice.path).unwrap();
+            for (file, content) in splice.files {
+                let file = std::path::Path::new(splice.path).join(file);
+                std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+                std::fs::write(file, content).unwrap();
+            }
             std::fs::write(
-                format!("{path}/.splice"),
-                format!("[splice]\n id = {path}\n[upstream \"origin\"]\n url = {upstream}\n"),
+                format!("{}/.splice", splice.path),
+                format!(
+                    "[splice]\n id = {}\n[upstream \"origin\"]\n url = {}\n",
+                    splice.path, splice.upstream
+                ),
             )
             .unwrap();
+            git(&["add", "--", splice.path]);
         }
-        git(&["add", "vendor/a", "vendor/b"]);
         git(&["commit", "-qm", "mount splices"]);
+    }
+
+    fn setup() {
+        setup_splices(&[
+            SpliceFixture {
+                path: "vendor/a",
+                upstream: "vendor/a.git",
+                files: &[("file", "vendor/a")],
+            },
+            SpliceFixture {
+                path: "vendor/b",
+                upstream: "vendor/b.git",
+                files: &[("file", "vendor/b")],
+            },
+        ]);
+    }
+
+    fn assert_push_diagram(
+        checkpoint: &str,
+        splices: &[SpliceFixture],
+        commits: &[(&str, &str)],
+        expected: &str,
+    ) {
+        let label = |commit: &str| {
+            if commit.is_empty() {
+                return "-".to_string();
+            }
+            commits
+                .iter()
+                .find(|(_, id)| *id == commit)
+                .map(|(name, _)| (*name).to_string())
+                .unwrap_or_else(|| commit.to_string())
+        };
+        let branch = git(&["symbolic-ref", "--short", "HEAD"]);
+        let head = label(&git(&["rev-parse", "HEAD"]));
+        let local = commits
+            .iter()
+            .map(|(name, id)| {
+                if commit_here(id) {
+                    (*name).to_string()
+                } else {
+                    format!("{name} (missing)")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        let mut diagram = format!("{branch} -> {head}\nnamed local commits: {local}");
+        for splice in splices {
+            let online = std::path::Path::new(splice.upstream).exists();
+            let repository = if online {
+                std::path::PathBuf::from(splice.upstream)
+            } else {
+                splice.offline_path()
+            };
+            let commit = git(&[
+                &format!("--git-dir={}", repository.display()),
+                "for-each-ref",
+                "--format=%(objectname)",
+                "refs/heads/topic",
+            ]);
+            let state = if online { "online" } else { "offline" };
+            diagram.push_str(&format!(
+                "\n{}/topic -> {} ({state})",
+                splice.upstream,
+                label(&commit)
+            ));
+        }
+        println!("\n{checkpoint}\n{diagram}\n");
+        assert_eq!(
+            diagram, expected,
+            "{checkpoint}: observed repository diagram:\n{diagram}"
+        );
     }
 
     fn progress<'a>(context: &'a mut ExecutionContext) -> (Repo<'a>, PushProgress) {
@@ -598,7 +698,29 @@ mod tests {
     #[test]
     fn named_push_checkpoints_pause_and_continue_without_repeating_publication() {
         with_repository(|| {
-            setup();
+            let splices = [
+                SpliceFixture {
+                    path: "vendor/a",
+                    upstream: "vendor/a.git",
+                    files: &[("file", "a's committed content")],
+                },
+                SpliceFixture {
+                    path: "vendor/b",
+                    upstream: "vendor/b.git",
+                    files: &[("file", "b's committed content")],
+                },
+            ];
+            setup_splices(&splices);
+            let main = git(&["rev-parse", "HEAD"]);
+            assert_push_diagram(
+                "Initial fixture",
+                &splices,
+                &[("M", &main)],
+                r#"main -> M
+named local commits: M
+vendor/a.git/topic -> - (online)
+vendor/b.git/topic -> - (online)"#,
+            );
             let mut context = ExecutionContext::new();
             let observed = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
             let events = observed.clone();
@@ -619,6 +741,15 @@ mod tests {
                 panic!("expected rebuild pause")
             };
             assert_eq!(path, "vendor/a");
+            assert_push_diagram(
+                "Paused: a rebuilt, not published",
+                &splices,
+                &[("M", &main), ("A", &commit)],
+                r#"main -> M
+named local commits: M A
+vendor/a.git/topic -> - (online)
+vendor/b.git/topic -> - (online)"#,
+            );
             assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
             assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
             std::fs::write("vendor/a/file", "uncommitted content").unwrap();
@@ -637,10 +768,19 @@ mod tests {
             );
             assert_eq!(
                 git(&["--git-dir=vendor/a.git", "show", "topic:file"]),
-                "vendor/a"
+                "a's committed content"
             );
             assert_eq!(git(&["config", "--get", "branch.main.splice"]), "a:topic");
-            std::fs::rename("vendor/a.git", "vendor/a.offline").unwrap();
+            assert_push_diagram(
+                "Paused: a published",
+                &splices,
+                &[("M", &main), ("A", &commit)],
+                r#"main -> M
+named local commits: M A
+vendor/a.git/topic -> A (online)
+vendor/b.git/topic -> - (online)"#,
+            );
+            splices[0].disconnect();
             let paused = execution
                 .run_until(|event| matches!(event, ExecutionEvent::AfterRebuild { .. }))
                 .unwrap();
@@ -652,15 +792,42 @@ mod tests {
                 panic!("expected b's rebuild pause: {paused:#?}")
             };
             assert_eq!(path, "vendor/b");
+            assert_push_diagram(
+                "Paused: b rebuilt, a offline",
+                &splices,
+                &[("M", &main), ("A", &commit), ("B", &b_commit)],
+                r#"main -> M
+named local commits: M A B
+vendor/a.git/topic -> A (offline)
+vendor/b.git/topic -> - (online)"#,
+            );
             assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
             assert_eq!(execution.run().unwrap(), 0);
             assert!(!git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
-            std::fs::rename("vendor/b.git", "vendor/b.offline").unwrap();
+            assert_push_diagram(
+                "Complete: b published",
+                &splices,
+                &[("M", &main), ("A", &commit), ("B", &b_commit)],
+                r#"main -> M
+named local commits: M A B
+vendor/a.git/topic -> A (offline)
+vendor/b.git/topic -> B (online)"#,
+            );
+            splices[1].disconnect();
             assert_eq!(
                 execution.run_until(|_| true).unwrap(),
                 ExecutionOutcome::Complete(0)
             );
             assert_eq!(execution.run().unwrap(), 0);
+            assert_push_diagram(
+                "Still complete: both upstreams offline",
+                &splices,
+                &[("M", &main), ("A", &commit), ("B", &b_commit)],
+                r#"main -> M
+named local commits: M A B
+vendor/a.git/topic -> A (offline)
+vendor/b.git/topic -> B (offline)"#,
+            );
             let events = observed.lock().unwrap();
             assert_eq!(
                 *events,
