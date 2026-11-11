@@ -409,42 +409,6 @@ pub fn splice_lineage_to_mount(path: &str, upper: &str) -> MountLineage {
 }
 
 impl Repo<'_> {
-    /// Folder tree <tree> without its state file. The same folder tree recurs
-    /// in every commit that doesn't touch it.
-    fn strip_state_tree(&mut self, tree: &str) -> Res<String> {
-        if let Some(stripped) = self.context.content_trees.get(tree) {
-            return Ok(stripped.clone());
-        }
-        // NUL-separated throughout: a file name may contain anything but NUL.
-        let entries = git(&["ls-tree", "-z", tree]).bytes().ok_or(Fail::Soft)?;
-        let mut stripped: Vec<u8> = Vec::new();
-        let mut found = false;
-        for entry in entries.split(|&byte| byte == 0).filter(|e| !e.is_empty()) {
-            let name = entry
-                .iter()
-                .position(|&byte| byte == b'\t')
-                .map_or(entry, |tab| &entry[tab + 1..]);
-            if name == STATE_FILE.as_bytes() {
-                found = true;
-            } else {
-                stripped.extend_from_slice(entry);
-                stripped.push(0);
-            }
-        }
-        let result = if found {
-            git(&["mktree", "-z"])
-                .input(stripped)
-                .out()
-                .ok_or(Fail::Soft)?
-        } else {
-            tree.to_string()
-        };
-        self.context
-            .content_trees
-            .insert(tree.to_string(), result.clone());
-        Ok(result)
-    }
-
     /// Folder tree <tree> of splice <path> at monorepo commit <rev>, with each
     /// splice inside it recorded at its own rebuild as of <rev>, rather than
     /// at the synced commit the monorepo recorded: what its upstream gets
@@ -593,7 +557,7 @@ impl Repo<'_> {
     /// the folder exists there.
     pub fn content_tree(&mut self, rev: &str, path: &str) -> Res<Option<String>> {
         match folder_tree(rev, path) {
-            Some(tree) => Ok(Some(self.strip_state_tree(&tree)?)),
+            Some(tree) => Ok(Some(self.context.strip_state_tree(&tree)?)),
             None => Ok(None),
         }
     }
@@ -1001,7 +965,7 @@ impl Repo<'_> {
             let (Some(folder), Some("tree")) = (words.next(), words.next()) else {
                 continue;
             };
-            let tree = self.strip_state_tree(folder)?;
+            let tree = self.context.strip_state_tree(folder)?;
             let tree = self.record_children(path, &hash_of(commit), &tree)?;
             if Some(&tree) == prev_tree.as_ref() {
                 continue;

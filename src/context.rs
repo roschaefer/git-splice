@@ -1,16 +1,52 @@
 //! State shared by the operations in one execution.
 
+use crate::repo::STATE_FILE;
+use crate::util::*;
 use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct ExecutionContext {
-    pub(crate) content_trees: HashMap<String, String>,
+    content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
 }
 
 impl ExecutionContext {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Folder tree <tree> without its state file. The same folder tree recurs
+    /// in every commit that doesn't touch it.
+    pub(crate) fn strip_state_tree(&mut self, tree: &str) -> Res<String> {
+        if let Some(stripped) = self.content_trees.get(tree) {
+            return Ok(stripped.clone());
+        }
+        // NUL-separated throughout: a file name may contain anything but NUL.
+        let entries = git(&["ls-tree", "-z", tree]).bytes().ok_or(Fail::Soft)?;
+        let mut stripped: Vec<u8> = Vec::new();
+        let mut found = false;
+        for entry in entries.split(|&byte| byte == 0).filter(|e| !e.is_empty()) {
+            let name = entry
+                .iter()
+                .position(|&byte| byte == b'\t')
+                .map_or(entry, |tab| &entry[tab + 1..]);
+            if name == STATE_FILE.as_bytes() {
+                found = true;
+            } else {
+                stripped.extend_from_slice(entry);
+                stripped.push(0);
+            }
+        }
+        let result = if found {
+            git(&["mktree", "-z"])
+                .input(stripped)
+                .out()
+                .ok_or(Fail::Soft)?
+        } else {
+            tree.to_string()
+        };
+        self.content_trees.insert(tree.to_string(), result.clone());
+        Ok(result)
     }
 }
 
