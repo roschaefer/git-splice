@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
+use crate::execution::ExecutionEvent;
 use crate::merge::EqualTree;
 use crate::repo::*;
 use crate::util::*;
@@ -350,6 +351,12 @@ impl PushProgress {
                     }
                     Ok(None) => self.track(repo, &path),
                     Ok(Some(prepared)) => {
+                        if repo.context.observing() {
+                            repo.context.emit(ExecutionEvent::AfterRebuild {
+                                path: prepared.path.clone(),
+                                commit: prepared.rebuilt_commit.clone(),
+                            });
+                        }
                         self.phase = PushPhase::Publish(prepared);
                         Ok(())
                     }
@@ -363,7 +370,16 @@ impl PushProgress {
                         self.failures.push(prepared.path);
                         Ok(())
                     }
-                    Ok(()) => self.track(repo, &prepared.path),
+                    Ok(()) => {
+                        self.track(repo, &prepared.path)?;
+                        if repo.context.observing() {
+                            repo.context.emit(ExecutionEvent::AfterPush {
+                                path: prepared.path,
+                                commit: prepared.rebuilt_commit,
+                            });
+                        }
+                        Ok(())
+                    }
                 }
             }
         }
@@ -447,6 +463,54 @@ mod tests {
         repo.open().unwrap();
         let progress = PushProgress::new(&mut repo).unwrap();
         (repo, progress)
+    }
+
+    #[test]
+    fn observer_sees_rebuilds_before_publication_and_published_commits_afterward() {
+        with_repository(|| {
+            setup();
+            let mut context = ExecutionContext::new();
+            let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let recorded = events.clone();
+            context.set_observer(move |event| {
+                match event {
+                    ExecutionEvent::AfterRebuild { path, commit } => {
+                        assert!(commit_here(commit));
+                        assert!(git(&[&format!("--git-dir={path}.git"), "for-each-ref"]).is_empty());
+                    }
+                    ExecutionEvent::AfterPush { path, commit } => {
+                        assert_eq!(git(&[&format!("--git-dir={path}.git"), "rev-parse", "refs/heads/topic"]), *commit);
+                    }
+                    _ => panic!("unexpected checkpoint: {event:?}"),
+                }
+                recorded.lock().unwrap().push(event.clone());
+            });
+            let args = [
+                "--all".into(),
+                "--force".into(),
+                "--branch".into(),
+                "topic".into(),
+                "--track".into(),
+            ];
+            assert_eq!(run(&mut context, &args).unwrap(), 0);
+            let observed = events.lock().unwrap();
+            assert!(matches!(&observed[..], [
+                ExecutionEvent::AfterRebuild { path: a, commit: ac },
+                ExecutionEvent::AfterPush { path: ap, commit: apc },
+                ExecutionEvent::AfterRebuild { path: b, commit: bc },
+                ExecutionEvent::AfterPush { path: bp, commit: bpc },
+            ] if a == "vendor/a" && a == ap && ac == apc && b == "vendor/b" && b == bp && bc == bpc));
+            drop(observed);
+            events.lock().unwrap().clear();
+            assert_eq!(run(&mut context, &args).unwrap(), 0);
+            assert!(events.lock().unwrap().is_empty());
+            context.clear_observer();
+            std::fs::write("vendor/a/file", "changed").unwrap();
+            git(&["add", "vendor/a/file"]);
+            git(&["commit", "-qm", "new local content"]);
+            assert_eq!(run(&mut context, &args).unwrap(), 0);
+            assert!(events.lock().unwrap().is_empty());
+        });
     }
 
     #[test]

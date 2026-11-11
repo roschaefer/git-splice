@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
+use crate::execution::ExecutionEvent;
 use crate::fetch::{FetchPlan, FetchResults};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
@@ -887,6 +888,11 @@ impl MergeProgress {
                         return Ok(());
                     }
                 }
+                let observed_head = repo
+                    .context
+                    .observing()
+                    .then(|| commit_of("HEAD"))
+                    .flatten();
                 match repo.merge_one(path, branch, verb) {
                     Err(Fail::Hard) => return Err(Fail::Hard),
                     Err(_) => self.failures.push(path.clone()),
@@ -903,6 +909,20 @@ impl MergeProgress {
                 if !splice_in_progress() && !self.failures.contains(path) {
                     self.phase = MergePhase::Discover(path.clone());
                 }
+                if let Some(before) = observed_head {
+                    if !splice_in_progress() {
+                        if let Some(after) = commit_of("HEAD") {
+                            if before != after {
+                                repo.context.emit(ExecutionEvent::AfterMerge {
+                                    path: path.clone(),
+                                    head_before: before,
+                                    head_after: after,
+                                });
+                            }
+                        }
+                    }
+                }
+
                 Ok(())
             }
             MergePhase::Discover(path) => {
@@ -965,7 +985,7 @@ impl MergeProgress {
                 self.phase = MergePhase::FetchedReload {
                     paths,
                     next,
-                    results: plan.download(),
+                    results: plan.download(repo.context),
                 };
                 Ok(())
             }
@@ -1452,6 +1472,9 @@ mod tests {
                 &["--recursive".into(), "vendor/a".into()],
             )
             .unwrap();
+            let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let recorded = events.clone();
+            context.set_observer(move |event| recorded.lock().unwrap().push(event.clone()));
             let mut repo = Repo::new(&mut context, args);
             apply_merge_options(&mut repo).unwrap();
             repo.open().unwrap();
@@ -1477,6 +1500,11 @@ mod tests {
             assert_eq!(git(&["rev-parse", "HEAD"]), merged_parent);
             assert_eq!(splice_config("vendor/a/b", "commit", "HEAD"), missing);
             assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "old\n");
+            let observed = events.lock().unwrap();
+            assert!(matches!(&observed[..], [
+                ExecutionEvent::AfterMerge { path, .. },
+                ExecutionEvent::AfterFetch { fetched },
+            ] if path == "vendor/a" && fetched.len() == 1 && fetched[0].path == "vendor/a/b" && !fetched[0].failed));
         });
     }
 

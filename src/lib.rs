@@ -5,6 +5,7 @@ pub mod args;
 pub mod clone;
 pub mod context;
 pub mod diff;
+pub mod execution;
 pub mod fetch;
 pub mod init;
 pub mod key;

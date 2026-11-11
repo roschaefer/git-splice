@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
+use crate::execution::ExecutionEvent;
 use crate::fetch::{FetchPlan, FetchResults};
 use crate::merge::{apply_merge_options, MergeProgress, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
@@ -116,7 +117,7 @@ impl PullProgress {
         match std::mem::replace(&mut self.phase, PullPhase::Done) {
             PullPhase::Done => Ok(()),
             PullPhase::Fetch(plan) => {
-                self.phase = PullPhase::Fetched(plan.download());
+                self.phase = PullPhase::Fetched(plan.download(repo.context));
                 Ok(())
             }
             PullPhase::Fetched(results) => {
@@ -137,7 +138,7 @@ impl PullProgress {
                 }
                 Ok(())
             }
-            PullPhase::Finalize => self.finalize(),
+            PullPhase::Finalize => self.finalize(repo.context),
         }
     }
 
@@ -214,10 +215,27 @@ impl PullProgress {
         Ok(())
     }
 
-    fn finalize(&mut self) -> Res<()> {
+    fn finalize(&mut self, context: &mut ExecutionContext) -> Res<()> {
         if self.recursive && !splice_in_progress() {
             if self.status == 0 {
+                let observed_head = context.observing().then(|| commit_of("HEAD")).flatten();
+                if let Some(head) = &observed_head {
+                    context.emit(ExecutionEvent::BeforeFold {
+                        roots: self.fold_roots.clone(),
+                        head: head.clone(),
+                    });
+                }
                 fold_pulls(&self.fold_roots)?;
+                if let (Some(head_before), Some(head_after)) = (
+                    observed_head,
+                    context.observing().then(|| commit_of("HEAD")).flatten(),
+                ) {
+                    context.emit(ExecutionEvent::AfterFold {
+                        roots: self.fold_roots.clone(),
+                        head_before,
+                        head_after,
+                    });
+                }
             }
             if self.status == 0 || !self.fetch_failures.is_empty() {
                 if self.rebasing {
@@ -619,6 +637,72 @@ mod tests {
         repo.open().unwrap();
         let progress = PullProgress::new(&mut repo).unwrap();
         (repo, progress)
+    }
+
+    #[test]
+    fn observer_sees_real_fetch_merge_and_fold_boundaries_through_the_command_entrypoint() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            nested_updates(&mut context);
+            let before = git(&["rev-parse", "HEAD"]);
+            let observations = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let recorded = observations.clone();
+            context.set_observer(move |event| {
+                let head = git(&["rev-parse", "HEAD"]);
+                let count = git(&["rev-list", "--count", &format!("{before}..HEAD")]);
+                let tree = git(&["rev-parse", "HEAD^{tree}"]);
+                recorded
+                    .lock()
+                    .unwrap()
+                    .push((event.clone(), head, count, tree));
+            });
+            assert_eq!(
+                run(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap(),
+                0
+            );
+            let observed = observations.lock().unwrap();
+            assert_eq!(observed.len(), 5);
+            assert!(
+                matches!(&observed[0].0, ExecutionEvent::AfterFetch { fetched }
+                if fetched.iter().map(|entry| entry.path.as_str()).collect::<Vec<_>>() == ["vendor/a", "vendor/a/b"]
+                    && fetched.iter().all(|entry| !entry.failed))
+            );
+            assert!(
+                matches!(&observed[1].0, ExecutionEvent::AfterMerge { path, head_after, .. }
+                if path == "vendor/a" && head_after == &observed[1].1)
+            );
+            assert!(
+                matches!(&observed[2].0, ExecutionEvent::AfterMerge { path, head_after, .. }
+                if path == "vendor/a/b" && head_after == &observed[2].1)
+            );
+            assert!(
+                matches!(&observed[3].0, ExecutionEvent::BeforeFold { head, roots }
+                if head == &observed[3].1 && roots == &["vendor/a"])
+            );
+            assert!(
+                matches!(&observed[4].0, ExecutionEvent::AfterFold { head_before, head_after, .. }
+                if head_before == &observed[3].1 && head_after == &observed[4].1)
+            );
+            assert_eq!(
+                observed
+                    .iter()
+                    .map(|(_, _, count, _)| count.as_str())
+                    .collect::<Vec<_>>(),
+                ["0", "1", "2", "2", "1"]
+            );
+            assert_eq!(observed[3].3, observed[4].3);
+            drop(observed);
+            observations.lock().unwrap().clear();
+            assert_eq!(
+                run(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap(),
+                0
+            );
+            assert!(!observations
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|(event, ..)| matches!(event, ExecutionEvent::AfterMerge { .. })));
+        });
     }
 
     #[test]

@@ -1,11 +1,15 @@
 //! State shared by the operations in one execution.
 
+use crate::execution::ExecutionEvent;
 use crate::repo::STATE_FILE;
 use crate::util::*;
 use std::collections::HashMap;
 
+type Observer = Box<dyn FnMut(&ExecutionEvent) + Send + Sync>;
+
 #[derive(Default)]
 pub struct ExecutionContext {
+    observer: Option<Observer>,
     content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
 }
@@ -13,6 +17,25 @@ pub struct ExecutionContext {
 impl ExecutionContext {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Observes completed steps synchronously. No observer is installed by default.
+    pub fn set_observer(&mut self, observer: impl FnMut(&ExecutionEvent) + Send + Sync + 'static) {
+        self.observer = Some(Box::new(observer));
+    }
+
+    pub fn clear_observer(&mut self) {
+        self.observer = None;
+    }
+
+    pub(crate) fn observing(&self) -> bool {
+        self.observer.is_some()
+    }
+
+    pub(crate) fn emit(&mut self, event: ExecutionEvent) {
+        if let Some(observer) = &mut self.observer {
+            observer(&event);
+        }
     }
 
     /// Folder tree <tree> without its state file. The same folder tree recurs
