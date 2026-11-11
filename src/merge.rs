@@ -697,154 +697,11 @@ impl Repo<'_> {
     /// a splice goes before the ones below it, whose .splice its merge may
     /// change, and a failure stops them. Fails if anything was skipped or failed.
     pub fn merge_paths(&mut self, branch: &str, verb: &str, given: &[String]) -> Res<()> {
-        let mut paths = splices_in_order(false, given);
-        // pull --all reaches the splices below each through the one above.
-        let recursive = self.args.has_flag("--recursive") || (verb == "pull" && self.args.all);
-        let state_file_here = |path: &str| {
-            git(&["cat-file", "-e", &format!("HEAD:{path}/{STATE_FILE}")])
-                .q()
-                .ok()
-        };
-        let track = self.args.has_flag("--track");
-        let wanted = self.args.branch.clone();
-        // Each .splice below a merged splice, as last loaded: as in HEAD
-        // before the first merge, until a merge above changes it.
-        let before = git(&["rev-parse", "HEAD"]).out().unwrap_or_default();
-        let mut loaded: HashMap<String, Option<String>> = HashMap::new();
-        let mut failures: Vec<String> = Vec::new();
-        let mut skipped: Vec<String> = Vec::new();
-        let mut next = 0;
-        while next < paths.len() {
-            let path = &paths[next].clone();
-            next += 1;
-            if splice_in_progress() {
-                skipped.push(path.clone());
-                continue;
-            }
-            // Reading its .splice again after a merge above failed, e.g. the
-            // fetch of the upstream it names now; the reason came then.
-            if failures.contains(path) {
-                log_err(format!(
-                    "{path}: not {}, since its {STATE_FILE} from a merge above failed to load",
-                    past_tense(verb)
-                ));
-                continue;
-            }
-            if let Some(failed) = first_above(path, &failures) {
-                log_err(format!(
-                    "{path}: not {}, since {failed} above it failed",
-                    past_tense(verb)
-                ));
-                failures.push(path.clone());
-                continue;
-            }
-            // Its merge could change the .splice of the failed one again: then
-            // that one's failure would be about a file that's gone.
-            if let Some(failed) = first_below(path, &failures) {
-                log_err(format!(
-                    "{path}: not {}, since {failed} below it failed",
-                    past_tense(verb)
-                ));
-                failures.push(path.clone());
-                continue;
-            }
-            // A pull of a splice above this one may have removed it.
-            if !state_file_here(path) {
-                let named = self.args.paths.iter().any(|p| normalize_path(p) == *path);
-                match first_above(path, &paths) {
-                    Some(above) if recursive && !named => {
-                        log_ok(format!("{path}: removed by the {verb} of {above}"));
-                    }
-                    _ => log_ok(format!(
-                        "{path}: not a splice any more -- nothing to {verb}"
-                    )),
-                }
-                continue;
-            }
-            // A copy of a splice it's inside, by its id: pulling it brings in
-            // another copy below, and that one the next, so recursion ends.
-            let named = self.args.paths.iter().any(|p| normalize_path(p) == *path);
-            let id = splice_config(path, "id", "HEAD");
-            if recursive && !named && !id.is_empty() {
-                let copied = self
-                    .all_paths
-                    .iter()
-                    .filter(|above| path.starts_with(&format!("{above}/")))
-                    .find(|above| splice_config(above, "id", "HEAD") == id);
-                if let Some(above) = copied {
-                    log_ok(format!(
-                        "{path}: a copy of {above}, which it's inside -- not {}",
-                        past_tense(verb)
-                    ));
-                    continue;
-                }
-            }
-            match self.merge_one(path, branch, verb) {
-                Err(Fail::Hard) => return Err(Fail::Hard),
-                Err(_) => failures.push(path.clone()),
-                Ok(()) => {
-                    if track && !splice_in_progress() {
-                        match self.track_branch(path, branch, &wanted) {
-                            Err(Fail::Hard) => return Err(Fail::Hard),
-                            Err(_) => failures.push(path.clone()),
-                            Ok(()) => {}
-                        }
-                    }
-                }
-            }
-            // The splices below a failed one are skipped anyway.
-            if !splice_in_progress() && !failures.contains(path) {
-                // A splice its pull added is known from now on, so the
-                // reading below fetches it; a recursive pull pulls it too.
-                let added = if recursive || verb == "pull" {
-                    self.discover_below(path)?
-                } else {
-                    Vec::new()
-                };
-                if recursive {
-                    for added in added {
-                        // Below a selected splice, as the ones found before
-                        // the pull: --branch names its upstream branch too.
-                        if self.selected.contains(path) && !self.selected.contains(&added) {
-                            self.selected.push(added.clone());
-                        }
-                        let at = paths
-                            .iter()
-                            .rposition(|known| added.starts_with(&format!("{known}/")))
-                            .map_or(paths.len(), |above| above + 1);
-                        paths.insert(at.max(next), added);
-                    }
-                }
-                self.read_below_again(
-                    path,
-                    branch,
-                    verb,
-                    &paths,
-                    (&before, &mut loaded),
-                    &mut failures,
-                )?;
-            }
+        let mut progress = MergeProgress::new(self, branch, verb, given);
+        while !progress.done() {
+            progress.advance(self)?;
         }
-        if !skipped.is_empty() {
-            let conclude = if rebase_in_progress() {
-                "git rebase --continue"
-            } else {
-                "git commit"
-            };
-            log_err(format!(
-                "Not {} yet: {} -- resolve the conflict, run '{conclude}', then re-run {verb}",
-                past_tense(verb),
-                skipped.join(" ")
-            ));
-        }
-        if !failures.is_empty() {
-            log_err(format!("Failed: {}", failures.join(" ")));
-        }
-        if skipped.is_empty() && failures.is_empty() {
-            Ok(())
-        } else {
-            Err(Fail::Hard)
-        }
+        progress.finish()
     }
 
     /// After a merge of <merged>: each splice below it reads its .splice again
@@ -896,6 +753,215 @@ impl Repo<'_> {
             }
         }
         Ok(())
+    }
+}
+
+enum MergePhase {
+    Merge,
+    Discover(String),
+    Done,
+}
+
+struct MergeProgress {
+    paths: Vec<String>,
+    next: usize,
+    before: String,
+    loaded: HashMap<String, Option<String>>,
+    failures: Vec<String>,
+    skipped: Vec<String>,
+    recursive: bool,
+    branch: String,
+    verb: String,
+    tracked_branch: Option<String>,
+    phase: MergePhase,
+}
+
+impl MergeProgress {
+    fn new(repo: &Repo, branch: &str, verb: &str, given: &[String]) -> Self {
+        Self {
+            paths: splices_in_order(false, given),
+            next: 0,
+            before: git(&["rev-parse", "HEAD"]).out().unwrap_or_default(),
+            loaded: HashMap::new(),
+            failures: Vec::new(),
+            skipped: Vec::new(),
+            recursive: repo.args.has_flag("--recursive") || (verb == "pull" && repo.args.all),
+            branch: branch.to_string(),
+            verb: verb.to_string(),
+            tracked_branch: repo
+                .args
+                .has_flag("--track")
+                .then(|| repo.args.branch.clone()),
+            phase: MergePhase::Merge,
+        }
+    }
+
+    fn done(&self) -> bool {
+        matches!(self.phase, MergePhase::Done)
+    }
+
+    fn advance(&mut self, repo: &mut Repo) -> Res<()> {
+        let branch = self.branch.as_str();
+        let verb = self.verb.as_str();
+        match std::mem::replace(&mut self.phase, MergePhase::Done) {
+            MergePhase::Done => Ok(()),
+            MergePhase::Merge => {
+                if self.next >= self.paths.len() {
+                    return Ok(());
+                }
+                self.phase = MergePhase::Merge;
+                let track = self.tracked_branch.is_some();
+                let wanted = self.tracked_branch.clone().unwrap_or_default();
+                let state_file_here = |path: &str| {
+                    git(&["cat-file", "-e", &format!("HEAD:{path}/{STATE_FILE}")])
+                        .q()
+                        .ok()
+                };
+                let path = &self.paths[self.next].clone();
+                self.next += 1;
+                if splice_in_progress() {
+                    self.skipped.push(path.clone());
+                    return Ok(());
+                }
+                // Reading its .splice again after a merge above failed, e.g. the
+                // fetch of the upstream it names now; the reason came then.
+                if self.failures.contains(path) {
+                    log_err(format!(
+                        "{path}: not {}, since its {STATE_FILE} from a merge above failed to load",
+                        past_tense(verb)
+                    ));
+                    return Ok(());
+                }
+                if let Some(failed) = first_above(path, &self.failures) {
+                    log_err(format!(
+                        "{path}: not {}, since {failed} above it failed",
+                        past_tense(verb)
+                    ));
+                    self.failures.push(path.clone());
+                    return Ok(());
+                }
+                // Its merge could change the .splice of the failed one again: then
+                // that one's failure would be about a file that's gone.
+                if let Some(failed) = first_below(path, &self.failures) {
+                    log_err(format!(
+                        "{path}: not {}, since {failed} below it failed",
+                        past_tense(verb)
+                    ));
+                    self.failures.push(path.clone());
+                    return Ok(());
+                }
+                // A pull of a splice above this one may have removed it.
+                if !state_file_here(path) {
+                    let named = repo.args.paths.iter().any(|p| normalize_path(p) == *path);
+                    match first_above(path, &self.paths) {
+                        Some(above) if self.recursive && !named => {
+                            log_ok(format!("{path}: removed by the {verb} of {above}"));
+                        }
+                        _ => log_ok(format!(
+                            "{path}: not a splice any more -- nothing to {verb}"
+                        )),
+                    }
+                    return Ok(());
+                }
+                // A copy of a splice it's inside, by its id: pulling it brings in
+                // another copy below, and that one the next, so recursion ends.
+                let named = repo.args.paths.iter().any(|p| normalize_path(p) == *path);
+                let id = splice_config(path, "id", "HEAD");
+                if self.recursive && !named && !id.is_empty() {
+                    let copied = repo
+                        .all_paths
+                        .iter()
+                        .filter(|above| path.starts_with(&format!("{above}/")))
+                        .find(|above| splice_config(above, "id", "HEAD") == id);
+                    if let Some(above) = copied {
+                        log_ok(format!(
+                            "{path}: a copy of {above}, which it's inside -- not {}",
+                            past_tense(verb)
+                        ));
+                        return Ok(());
+                    }
+                }
+                match repo.merge_one(path, branch, verb) {
+                    Err(Fail::Hard) => return Err(Fail::Hard),
+                    Err(_) => self.failures.push(path.clone()),
+                    Ok(()) => {
+                        if track && !splice_in_progress() {
+                            match repo.track_branch(path, branch, &wanted) {
+                                Err(Fail::Hard) => return Err(Fail::Hard),
+                                Err(_) => self.failures.push(path.clone()),
+                                Ok(()) => {}
+                            }
+                        }
+                    }
+                }
+                if !splice_in_progress() && !self.failures.contains(path) {
+                    self.phase = MergePhase::Discover(path.clone());
+                }
+                Ok(())
+            }
+            MergePhase::Discover(path) => {
+                self.phase = MergePhase::Merge;
+                let path = &path;
+                // A splice its pull added is known from now on, so the
+                // reading below fetches it; a recursive pull pulls it too.
+                let added = if self.recursive || verb == "pull" {
+                    repo.discover_below(path)?
+                } else {
+                    Vec::new()
+                };
+                if self.recursive {
+                    for added in added {
+                        // Below a selected splice, as the ones found before
+                        // the pull: --branch names its upstream branch too.
+                        if repo.selected.contains(path) && !repo.selected.contains(&added) {
+                            repo.selected.push(added.clone());
+                        }
+                        let at = self
+                            .paths
+                            .iter()
+                            .rposition(|known| added.starts_with(&format!("{known}/")))
+                            .map_or(self.paths.len(), |above| above + 1);
+                        self.paths.insert(at.max(self.next), added);
+                    }
+                }
+                repo.read_below_again(
+                    path,
+                    branch,
+                    verb,
+                    &self.paths,
+                    (&self.before, &mut self.loaded),
+                    &mut self.failures,
+                )?;
+                Ok(())
+            }
+        }
+    }
+
+    fn finish(&self) -> Res<()> {
+        if !self.done() {
+            return die("merge still has pending work");
+        }
+        let verb = self.verb.as_str();
+        if !self.skipped.is_empty() {
+            let conclude = if rebase_in_progress() {
+                "git rebase --continue"
+            } else {
+                "git commit"
+            };
+            log_err(format!(
+                "Not {} yet: {} -- resolve the conflict, run '{conclude}', then re-run {verb}",
+                past_tense(verb),
+                self.skipped.join(" ")
+            ));
+        }
+        if !self.failures.is_empty() {
+            log_err(format!("Failed: {}", self.failures.join(" ")));
+        }
+        if self.skipped.is_empty() && self.failures.is_empty() {
+            Ok(())
+        } else {
+            Err(Fail::Hard)
+        }
     }
 }
 
@@ -1112,4 +1178,152 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let selected = repo.selected.clone();
     repo.merge_paths(&branch, "merge", &selected)?;
     Ok(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::util::test_repo::{git, with_repository};
+
+    struct IncomingChild {
+        parent: String,
+        old_child: String,
+        new_child: String,
+    }
+
+    fn incoming_child(context: &mut ExecutionContext) -> IncomingChild {
+        git(&["config", "user.name", "Test"]);
+        git(&["config", "user.email", "test@example.com"]);
+        git(&["commit", "--allow-empty", "-qm", "initial"]);
+        git(&["init", "-q", "--initial-branch=main", "child"]);
+        std::fs::write("child/file", "old\n").unwrap();
+        git(&["-C", "child", "add", "."]);
+        git(&["-C", "child", "commit", "-qm", "old child"]);
+        let old_child = git(&["-C", "child", "rev-parse", "HEAD"]);
+        std::fs::write("child/file", "new\n").unwrap();
+        git(&["-C", "child", "commit", "-qam", "new child"]);
+        let new_child = git(&["-C", "child", "rev-parse", "HEAD"]);
+        git(&["init", "-q", "--initial-branch=main", "parent"]);
+        std::fs::write("parent/file", "parent\n").unwrap();
+        git(&["-C", "parent", "add", "."]);
+        git(&["-C", "parent", "commit", "-qm", "parent"]);
+        let root = std::env::current_dir().unwrap();
+        let parent_url = root.join("parent").to_string_lossy().into_owned();
+        crate::clone::run(context, &[parent_url, "vendor/a".into()]).unwrap();
+        std::fs::create_dir_all("parent/b").unwrap();
+        std::fs::write("parent/b/file", "old\n").unwrap();
+        std::fs::write(
+            "parent/b/.splice",
+            format!(
+                "[splice]\n id = child\n commit = {old_child}\n[upstream \"origin\"]\n url = {}\n",
+                root.join("child").display()
+            ),
+        )
+        .unwrap();
+        std::fs::write("parent/file", "changed upstream\n").unwrap();
+        git(&["-C", "parent", "add", "."]);
+        git(&["-C", "parent", "commit", "-qm", "introduce child"]);
+        let parent = git(&["-C", "parent", "rev-parse", "HEAD"]);
+        crate::fetch::run(context, &["vendor/a".into()]).unwrap();
+        IncomingChild {
+            parent,
+            old_child,
+            new_child,
+        }
+    }
+
+    #[test]
+    fn parent_merge_is_observable_before_discovery_fetches_and_schedules_its_new_child() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            let incoming = incoming_child(&mut context);
+            let args = parse_args(
+                USAGE,
+                "--recursive",
+                &["--recursive".into(), "vendor/a".into()],
+            )
+            .unwrap();
+            let mut repo = Repo::new(&mut context, args);
+            apply_merge_options(&mut repo).unwrap();
+            repo.open().unwrap();
+            repo.select_splices(Kind::Explicit, "pull").unwrap();
+            let mut progress = MergeProgress::new(&repo, "main", "pull", &["vendor/a".into()]);
+            assert!(!std::path::Path::new("vendor/a/b/.splice").exists());
+            progress.advance(&mut repo).unwrap();
+            assert!(matches!(&progress.phase, MergePhase::Discover(path) if path == "vendor/a"));
+            assert_eq!(splice_config("vendor/a", "commit", "HEAD"), incoming.parent);
+            assert_eq!(
+                splice_config("vendor/a/b", "commit", "HEAD"),
+                incoming.old_child
+            );
+            assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "old\n");
+            assert!(!repo.all_paths.contains(&"vendor/a/b".into()));
+            assert_eq!(progress.paths, ["vendor/a"]);
+            progress.advance(&mut repo).unwrap();
+            assert_eq!(progress.paths, ["vendor/a", "vendor/a/b"]);
+            assert!(repo.selected.contains(&"vendor/a/b".into()));
+            assert!(repo.splice_fetched("vendor/a/b"));
+            assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "old\n");
+            std::fs::rename("parent", "parent.offline").unwrap();
+            std::fs::rename("child", "child.offline").unwrap();
+            progress.advance(&mut repo).unwrap();
+            assert_eq!(
+                splice_config("vendor/a/b", "commit", "HEAD"),
+                incoming.new_child
+            );
+            assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "new\n");
+            while !progress.done() {
+                progress.advance(&mut repo).unwrap();
+            }
+            progress.finish().unwrap();
+            let head = git(&["rev-parse", "HEAD"]);
+            progress.advance(&mut repo).unwrap();
+            assert_eq!(git(&["rev-parse", "HEAD"]), head);
+        });
+    }
+    #[test]
+    fn merge_conflict_skips_remaining_splices_without_discovering_children() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            incoming_child(&mut context);
+            let child_url = std::env::current_dir()
+                .unwrap()
+                .join("child")
+                .to_string_lossy()
+                .into_owned();
+            crate::clone::run(&mut context, &[child_url, "vendor/z".into()]).unwrap();
+            std::fs::write("vendor/a/file", "changed locally\n").unwrap();
+            git(&["add", "vendor/a/file"]);
+            git(&["commit", "-qm", "local change"]);
+            let unchanged = splice_config("vendor/z", "commit", "HEAD");
+            let args = parse_args(
+                USAGE,
+                "--recursive",
+                &["--recursive".into(), "--all".into()],
+            )
+            .unwrap();
+            let mut repo = Repo::new(&mut context, args);
+            apply_merge_options(&mut repo).unwrap();
+            repo.open().unwrap();
+            repo.select_splices(Kind::Explicit, "pull").unwrap();
+            let mut progress = MergeProgress::new(
+                &repo,
+                "main",
+                "pull",
+                &["vendor/a".into(), "vendor/z".into()],
+            );
+            progress.advance(&mut repo).unwrap();
+            assert!(splice_in_progress());
+            assert!(!matches!(progress.phase, MergePhase::Discover(_)));
+            assert!(!repo.all_paths.contains(&"vendor/a/b".into()));
+            while !progress.done() {
+                progress.advance(&mut repo).unwrap();
+            }
+            assert_eq!(progress.failures, ["vendor/a"]);
+            assert_eq!(progress.skipped, ["vendor/z"]);
+            assert!(progress.finish().is_err());
+            assert_eq!(splice_config("vendor/z", "commit", "HEAD"), unchanged);
+            assert!(splice_in_progress());
+        });
+    }
 }
