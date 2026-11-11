@@ -27,7 +27,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 enum PullPhase {
     Fetch(FetchPlan),
     Fetched(FetchResults),
-    Merge(MergeProgress),
+    Merge(Box<MergeProgress>),
     Finalize,
     Done,
 }
@@ -204,7 +204,12 @@ impl PullProgress {
         self.phase = if fetched.is_empty() {
             PullPhase::Finalize
         } else {
-            PullPhase::Merge(MergeProgress::new(repo, &self.branch, "pull", &fetched))
+            PullPhase::Merge(Box::new(MergeProgress::new(
+                repo,
+                &self.branch,
+                "pull",
+                &fetched,
+            )))
         };
         Ok(())
     }
