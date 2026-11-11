@@ -420,3 +420,53 @@ mod tests {
         assert_eq!(join_names(&names(&["a", "b", "c"])), "'a', 'b' and 'c'");
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test_repo {
+    use super::Temp;
+    use std::path::PathBuf;
+    use std::process::Command;
+    use std::sync::Mutex;
+
+    static DIRECTORY_LOCK: Mutex<()> = Mutex::new(());
+
+    struct RestoreDirectory(PathBuf);
+
+    impl Drop for RestoreDirectory {
+        fn drop(&mut self) {
+            std::env::set_current_dir(&self.0).unwrap();
+        }
+    }
+
+    pub fn git(args: &[&str]) -> String {
+        let output = Command::new("git")
+            .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
+            .args(args)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .trim_end()
+            .to_string()
+    }
+
+    pub fn with_repository(test: impl FnOnce()) {
+        let _lock = DIRECTORY_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let directory = Temp::new();
+        std::fs::create_dir_all(&directory.path).unwrap();
+        let _restore = RestoreDirectory(std::env::current_dir().unwrap());
+        std::env::set_current_dir(&directory.path).unwrap();
+        git(&["init", "-q", "--initial-branch=main"]);
+        git(&["config", "init.defaultBranch", "main"]);
+        test();
+    }
+}

@@ -18,13 +18,6 @@ struct PreparedPush {
 }
 
 impl Repo<'_> {
-    fn push_one(&mut self, path: &str, branch: &str, force: bool) -> Res<()> {
-        if let Some(prepared) = self.prepare_push(path, branch, force)? {
-            self.publish_push(&prepared, force)?;
-        }
-        Ok(())
-    }
-
     fn prepare_push(&mut self, path: &str, branch: &str, force: bool) -> Res<Option<PreparedPush>> {
         match self.has_uncommitted_changes(path) {
             Uncommitted::Changes => log_warn(format!(
@@ -279,65 +272,251 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         argv,
     )?;
     args.require_branch_for_track()?;
-    let force = args.has_flag("--force");
-    let track = args.has_flag("--track");
-    let wanted = args.branch.clone();
     let mut repo = Repo::new(context, args);
     repo.open()?;
-    repo.select_splices(Kind::Explicit, "push")?;
-    let rebuilt_commit = repo.args.rebuilt_commit.clone();
-    if !rebuilt_commit.is_empty() {
-        if repo.args.all || repo.selected.len() != 1 {
-            return die("--rebuilt-commit takes exactly one splice");
-        }
-        let path = repo.selected[0].clone();
-        repo.give_rebuild(&path, &rebuilt_commit, force)?;
+    let mut progress = PushProgress::new(&mut repo)?;
+    while !progress.done() {
+        progress.advance(&mut repo)?;
     }
-    let branch = repo.monorepo_branch.clone();
-    let selected = repo.selected.clone();
+    progress.finish()
+}
 
-    // Bottom-up: a splice's push publishes the .splice files below it, which
-    // should point at what their own pushes published.
-    let paths = splices_in_order(true, &selected);
-    repo.load_uncommitted_changes(&selected);
-    let mut failures: Vec<String> = Vec::new();
-    for path in &paths {
-        if let Some(failed) = first_below(path, &failures) {
-            log_err(format!(
-                "{path}: not pushed, since {failed} below it failed"
-            ));
-            failures.push(path.clone());
-            continue;
+enum PushPhase {
+    Prepare,
+    Publish(PreparedPush),
+    Done,
+}
+
+struct PushProgress {
+    paths: std::collections::VecDeque<String>,
+    failures: Vec<String>,
+    branch: String,
+    force: bool,
+    tracked_branch: Option<String>,
+    phase: PushPhase,
+}
+
+impl PushProgress {
+    fn new(repo: &mut Repo) -> Res<Self> {
+        repo.select_splices(Kind::Explicit, "push")?;
+        let force = repo.args.has_flag("--force");
+        let rebuilt_commit = repo.args.rebuilt_commit.clone();
+        if !rebuilt_commit.is_empty() {
+            if repo.args.all || repo.selected.len() != 1 {
+                return die("--rebuilt-commit takes exactly one splice");
+            }
+            let path = repo.selected[0].clone();
+            repo.give_rebuild(&path, &rebuilt_commit, force)?;
         }
-        match repo.push_one(path, &branch, force) {
-            Err(Fail::Hard) => return Err(Fail::Hard),
-            Err(_) => failures.push(path.clone()),
-            Ok(()) if track => {
-                // A push with nothing to push, e.g. no changes for a PR, creates
-                // no branch, and a missing tracked branch would stop every pull.
-                let reference = repo.splice_ref(path, &wanted);
-                if !git(&["rev-parse", "--verify", "--quiet", &reference])
-                    .q()
-                    .ok()
-                {
+        let selected = repo.selected.clone();
+        repo.load_uncommitted_changes(&selected);
+        Ok(Self {
+            paths: splices_in_order(true, &selected).into(),
+            failures: Vec::new(),
+            branch: repo.monorepo_branch.clone(),
+            force,
+            tracked_branch: repo
+                .args
+                .has_flag("--track")
+                .then(|| repo.args.branch.clone()),
+            phase: PushPhase::Prepare,
+        })
+    }
+
+    fn done(&self) -> bool {
+        matches!(self.phase, PushPhase::Done)
+    }
+
+    fn advance(&mut self, repo: &mut Repo) -> Res<()> {
+        match std::mem::replace(&mut self.phase, PushPhase::Done) {
+            PushPhase::Done => Ok(()),
+            PushPhase::Prepare => {
+                let Some(path) = self.paths.pop_front() else {
+                    return Ok(());
+                };
+                self.phase = PushPhase::Prepare;
+                if let Some(failed) = first_below(&path, &self.failures) {
                     log_err(format!(
-                        "{path}: upstream has no '{wanted}' branch to track -- the push didn't create it"
+                        "{path}: not pushed, since {failed} below it failed"
                     ));
-                    failures.push(path.clone());
-                } else {
-                    match repo.track_branch(path, &branch, &wanted) {
-                        Err(Fail::Hard) => return Err(Fail::Hard),
-                        Err(_) => failures.push(path.clone()),
-                        Ok(()) => {}
+                    self.failures.push(path);
+                    return Ok(());
+                }
+                match repo.prepare_push(&path, &self.branch, self.force) {
+                    Err(Fail::Hard) => Err(Fail::Hard),
+                    Err(_) => {
+                        self.failures.push(path);
+                        Ok(())
+                    }
+                    Ok(None) => self.track(repo, &path),
+                    Ok(Some(prepared)) => {
+                        self.phase = PushPhase::Publish(prepared);
+                        Ok(())
                     }
                 }
             }
-            Ok(()) => {}
+            PushPhase::Publish(prepared) => {
+                self.phase = PushPhase::Prepare;
+                match repo.publish_push(&prepared, self.force) {
+                    Err(Fail::Hard) => Err(Fail::Hard),
+                    Err(_) => {
+                        self.failures.push(prepared.path);
+                        Ok(())
+                    }
+                    Ok(()) => self.track(repo, &prepared.path),
+                }
+            }
         }
     }
-    if !failures.is_empty() {
-        log_err(format!("Failed: {}", failures.join(" ")));
-        return Ok(1);
+
+    fn track(&mut self, repo: &mut Repo, path: &str) -> Res<()> {
+        let Some(wanted) = &self.tracked_branch else {
+            return Ok(());
+        };
+        // A no-op push may leave no branch to track.
+        let reference = repo.splice_ref(path, wanted);
+        if !git(&["rev-parse", "--verify", "--quiet", &reference])
+            .q()
+            .ok()
+        {
+            log_err(format!(
+                "{path}: upstream has no '{wanted}' branch to track -- the push didn't create it"
+            ));
+            self.failures.push(path.to_string());
+        } else {
+            match repo.track_branch(path, &self.branch, wanted) {
+                Err(Fail::Hard) => return Err(Fail::Hard),
+                Err(_) => self.failures.push(path.to_string()),
+                Ok(()) => {}
+            }
+        }
+        Ok(())
     }
-    Ok(0)
+
+    fn finish(&self) -> Res<i32> {
+        if !self.done() {
+            return die("push still has pending work");
+        }
+        if self.failures.is_empty() {
+            Ok(0)
+        } else {
+            log_err(format!("Failed: {}", self.failures.join(" ")));
+            Ok(1)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::util::test_repo::{git, with_repository};
+
+    fn setup() {
+        git(&["commit", "--allow-empty", "-qm", "initial"]);
+        for path in ["vendor/a", "vendor/b"] {
+            let upstream = format!("{path}.git");
+            git(&["init", "-q", "--bare", "--initial-branch=main", &upstream]);
+            std::fs::create_dir_all(path).unwrap();
+            std::fs::write(format!("{path}/file"), path).unwrap();
+            std::fs::write(
+                format!("{path}/.splice"),
+                format!("[splice]\n id = {path}\n[upstream \"origin\"]\n url = {upstream}\n"),
+            )
+            .unwrap();
+        }
+        git(&["add", "vendor/a", "vendor/b"]);
+        git(&["commit", "-qm", "mount splices"]);
+    }
+
+    fn progress<'a>(context: &'a mut ExecutionContext) -> (Repo<'a>, PushProgress) {
+        let mut repo = Repo::new(
+            context,
+            parse_args(
+                USAGE,
+                "--force --branch --track",
+                &[
+                    "--force".into(),
+                    "--branch".into(),
+                    "topic".into(),
+                    "--track".into(),
+                    "--all".into(),
+                ],
+            )
+            .unwrap(),
+        );
+        repo.open().unwrap();
+        let progress = PushProgress::new(&mut repo).unwrap();
+        (repo, progress)
+    }
+
+    #[test]
+    fn preparation_leaves_remote_unchanged_and_publication_advances_once_before_next_splice() {
+        with_repository(|| {
+            setup();
+            let mut context = ExecutionContext::new();
+            let (mut repo, mut progress) = progress(&mut context);
+            assert_eq!(progress.paths.front().unwrap(), "vendor/a");
+            progress.advance(&mut repo).unwrap();
+            let PushPhase::Publish(prepared) = &progress.phase else {
+                panic!("expected prepared push")
+            };
+            let rebuilt = prepared.rebuilt_commit.clone();
+            let reference = prepared.fetched_ref.clone();
+            assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            repo.c = Classified::default();
+            progress.advance(&mut repo).unwrap();
+            assert_eq!(
+                git(&["--git-dir=vendor/a.git", "rev-parse", "refs/heads/topic"]),
+                rebuilt
+            );
+            assert_eq!(git(&["rev-parse", &reference]), rebuilt);
+            assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            assert_eq!(git(&["config", "--get", "branch.main.splice"]), "a:topic");
+            std::fs::rename("vendor/a.git", "vendor/a.offline").unwrap();
+            while !progress.done() {
+                progress.advance(&mut repo).unwrap();
+            }
+            assert_eq!(progress.finish().unwrap(), 0);
+            assert!(!git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            std::fs::rename("vendor/b.git", "vendor/b.offline").unwrap();
+            progress.advance(&mut repo).unwrap();
+            assert!(progress.done());
+            assert_eq!(progress.finish().unwrap(), 0);
+        });
+    }
+
+    #[test]
+    fn publication_failure_blocks_ancestors_but_allows_an_independent_splice() {
+        with_repository(|| {
+            setup();
+            let mut context = ExecutionContext::new();
+            git(&[
+                "init",
+                "-q",
+                "--bare",
+                "--initial-branch=main",
+                "upstream.git",
+            ]);
+            std::fs::write(
+                "vendor/.splice",
+                "[splice]\n id = parent\n[upstream \"origin\"]\n url = upstream.git\n",
+            )
+            .unwrap();
+            git(&["add", "vendor/.splice"]);
+            git(&["commit", "-qm", "mount parent"]);
+            let (mut repo, mut progress) = progress(&mut context);
+            progress.advance(&mut repo).unwrap();
+            assert!(matches!(progress.phase, PushPhase::Publish(_)));
+            std::fs::rename("vendor/a.git", "vendor/a.offline").unwrap();
+            progress.advance(&mut repo).unwrap();
+            assert_eq!(progress.failures, ["vendor/a"]);
+            while !progress.done() {
+                progress.advance(&mut repo).unwrap();
+            }
+            assert_eq!(progress.finish().unwrap(), 1);
+            assert_eq!(progress.failures, ["vendor/a", "vendor"]);
+            assert!(!git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+        });
+    }
 }
