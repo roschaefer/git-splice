@@ -466,6 +466,7 @@ pub(crate) mod test_repo {
         let _restore = RestoreDirectory(std::env::current_dir().unwrap());
         std::env::set_current_dir(&directory.path).unwrap();
         git(&["init", "-q", "--initial-branch=main"]);
+        git(&["config", "init.defaultBranch", "main"]);
         test();
     }
 }
