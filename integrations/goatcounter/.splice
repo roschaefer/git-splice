@@ -1,4 +1,5 @@
 [splice]
 	id = ea42506c3f8b335c
+	commit = eb1d28d8a6f0031ea671c350ec7dac4047353321
 [upstream "origin"]
 	url = https://github.com/roschaefer/goatcounter-netlify
