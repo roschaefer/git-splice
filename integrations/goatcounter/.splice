@@ -1,0 +1,4 @@
+[splice]
+	id = ea42506c3f8b335c
+[upstream "origin"]
+	url = https://github.com/roschaefer/goatcounter-netlify
