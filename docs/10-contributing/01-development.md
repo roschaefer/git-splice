@@ -54,6 +54,9 @@ surround the fold stage, before any subsequent rebase replay or cleanup.
 An observer reports progress; it supplies no pause/cancel decision. The CLI
 installs no observer. These Rust events do not define a serialized hook protocol.
 
+For a minimal public API walkthrough with checked diagrams, see
+[Pause and continue in memory](03-pause-and-continue.md).
+
 For an in-memory push that can pause, Rust callers use `push::start` and keep its
 `PushExecution`. `run_until` returns `ExecutionOutcome::Paused(event)` when its
 predicate matches a named event. Calling `run_until` again continues after that
