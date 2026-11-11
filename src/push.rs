@@ -2,7 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
-use crate::execution::ExecutionEvent;
+use crate::execution::{ExecutionEvent, ExecutionOutcome};
 use crate::merge::EqualTree;
 use crate::repo::*;
 use crate::util::*;
@@ -267,6 +267,14 @@ impl Repo<'_> {
 }
 
 pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
+    start(context, argv)?.run()
+}
+
+/// Starts a push whose progress remains owned by the returned execution.
+pub fn start<'context>(
+    context: &'context mut ExecutionContext,
+    argv: &[String],
+) -> Res<PushExecution<'context>> {
     let args = parse_args(
         USAGE,
         "--force --upstream --branch --track --rebuilt-commit",
@@ -275,11 +283,133 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     args.require_branch_for_track()?;
     let mut repo = Repo::new(context, args);
     repo.open()?;
-    let mut progress = PushProgress::new(&mut repo)?;
-    while !progress.done() {
-        progress.advance(&mut repo)?;
+    let progress = PushProgress::new(&mut repo)?;
+    Ok(PushExecution {
+        repo,
+        progress,
+        paused: None,
+        completed: None,
+        failed: None,
+    })
+}
+
+/// A push retained in memory. Continuing never repeats a consumed checkpoint.
+pub struct PushExecution<'context> {
+    repo: Repo<'context>,
+    progress: PushProgress,
+    paused: Option<PausedRepository>,
+    completed: Option<i32>,
+    failed: Option<Fail>,
+}
+
+type PausePredicate<'a> = &'a mut dyn FnMut(&ExecutionEvent) -> bool;
+
+impl PushExecution<'_> {
+    /// Drives this push to completion, including after an earlier pause.
+    pub fn run(&mut self) -> Res<i32> {
+        match self.drive(None)? {
+            ExecutionOutcome::Complete(status) => Ok(status),
+            ExecutionOutcome::Paused(_) => unreachable!("no pause predicate installed"),
+        }
     }
-    progress.finish()
+
+    /// Returns after an event for which stop is true, retaining all remaining work.
+    /// Local HEAD, branch, fetched refs and Git configuration must remain unchanged
+    /// in the predicate or while paused. Uncommitted files are not published by push.
+    pub fn run_until(
+        &mut self,
+        mut stop: impl FnMut(&ExecutionEvent) -> bool,
+    ) -> Res<ExecutionOutcome> {
+        self.drive(Some(&mut stop))
+    }
+
+    fn drive(&mut self, mut stop: Option<PausePredicate<'_>>) -> Res<ExecutionOutcome> {
+        if let Some(failure) = self.failed {
+            return Err(failure);
+        }
+        if let Some(status) = self.completed {
+            return Ok(ExecutionOutcome::Complete(status));
+        }
+        if let Some(paused) = &self.paused {
+            let validated = paused.validate();
+            self.checked(validated)?;
+        }
+        self.paused = None;
+        while !self.progress.done() {
+            if stop.is_some() {
+                self.repo.context.capture_events();
+            }
+            let advanced = self.progress.advance(&mut self.repo);
+            let events = if stop.is_some() {
+                self.repo.context.take_events()
+            } else {
+                Vec::new()
+            };
+            self.checked(advanced)?;
+            if let Some(predicate) = &mut stop {
+                for event in events {
+                    let checkpoint = self.checked(PausedRepository::capture())?;
+                    let pause = predicate(&event);
+                    self.checked(checkpoint.validate())?;
+                    if pause {
+                        self.paused = Some(checkpoint);
+                        return Ok(ExecutionOutcome::Paused(event));
+                    }
+                }
+            }
+        }
+        let finished = self.progress.finish();
+        let status = self.checked(finished)?;
+        self.completed = Some(status);
+        Ok(ExecutionOutcome::Complete(status))
+    }
+
+    fn checked<T>(&mut self, result: Res<T>) -> Res<T> {
+        if let Err(failure) = &result {
+            self.failed = Some(*failure);
+        }
+        result
+    }
+}
+
+#[derive(PartialEq, Eq)]
+struct PausedRepository {
+    root: std::path::PathBuf,
+    git_dir: String,
+    head: String,
+    branch: Option<String>,
+    fetched_refs: String,
+    config: Vec<u8>,
+}
+
+impl PausedRepository {
+    fn capture() -> Res<Self> {
+        Ok(Self {
+            root: std::env::current_dir().map_err(|_| Fail::Hard)?,
+            git_dir: git(&["rev-parse", "--absolute-git-dir"])
+                .out()
+                .ok_or(Fail::Hard)?,
+            head: commit_of("HEAD").ok_or(Fail::Hard)?,
+            branch: git(&["symbolic-ref", "--quiet", "HEAD"]).q().out(),
+            fetched_refs: git(&[
+                "for-each-ref",
+                "--format=%(refname) %(objectname)",
+                "refs/splices/",
+            ])
+            .out()
+            .ok_or(Fail::Hard)?,
+            config: git(&["config", "--null", "--list"])
+                .bytes()
+                .ok_or(Fail::Hard)?,
+        })
+    }
+
+    fn validate(&self) -> Res<()> {
+        if *self != Self::capture()? {
+            return die("repository state changed at a push checkpoint -- start a new push");
+        }
+        Ok(())
+    }
 }
 
 enum PushPhase {
@@ -463,6 +593,208 @@ mod tests {
         repo.open().unwrap();
         let progress = PushProgress::new(&mut repo).unwrap();
         (repo, progress)
+    }
+
+    #[test]
+    fn named_push_checkpoints_pause_and_continue_without_repeating_publication() {
+        with_repository(|| {
+            setup();
+            let mut context = ExecutionContext::new();
+            let observed = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let events = observed.clone();
+            context.set_observer(move |event| events.lock().unwrap().push(event.clone()));
+            let args = [
+                "--all".into(),
+                "--force".into(),
+                "--branch".into(),
+                "topic".into(),
+                "--track".into(),
+            ];
+            let mut execution = start(&mut context, &args).unwrap();
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterRebuild { .. }))
+                .unwrap();
+            let ExecutionOutcome::Paused(ExecutionEvent::AfterRebuild { path, commit }) = paused
+            else {
+                panic!("expected rebuild pause")
+            };
+            assert_eq!(path, "vendor/a");
+            assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            std::fs::write("vendor/a/file", "uncommitted content").unwrap();
+            assert_eq!(
+                execution
+                    .run_until(|event| matches!(event, ExecutionEvent::AfterPush { .. }))
+                    .unwrap(),
+                ExecutionOutcome::Paused(ExecutionEvent::AfterPush {
+                    path: "vendor/a".into(),
+                    commit: commit.clone()
+                }),
+            );
+            assert_eq!(
+                git(&["--git-dir=vendor/a.git", "rev-parse", "refs/heads/topic"]),
+                commit
+            );
+            assert_eq!(
+                git(&["--git-dir=vendor/a.git", "show", "topic:file"]),
+                "vendor/a"
+            );
+            assert_eq!(git(&["config", "--get", "branch.main.splice"]), "a:topic");
+            std::fs::rename("vendor/a.git", "vendor/a.offline").unwrap();
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterRebuild { .. }))
+                .unwrap();
+            let ExecutionOutcome::Paused(ExecutionEvent::AfterRebuild {
+                path,
+                commit: b_commit,
+            }) = paused
+            else {
+                panic!("expected b's rebuild pause: {paused:#?}")
+            };
+            assert_eq!(path, "vendor/b");
+            assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            assert_eq!(execution.run().unwrap(), 0);
+            assert!(!git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            std::fs::rename("vendor/b.git", "vendor/b.offline").unwrap();
+            assert_eq!(
+                execution.run_until(|_| true).unwrap(),
+                ExecutionOutcome::Complete(0)
+            );
+            assert_eq!(execution.run().unwrap(), 0);
+            let events = observed.lock().unwrap();
+            assert_eq!(
+                *events,
+                vec![
+                    ExecutionEvent::AfterRebuild {
+                        path: "vendor/a".into(),
+                        commit: commit.clone()
+                    },
+                    ExecutionEvent::AfterPush {
+                        path: "vendor/a".into(),
+                        commit
+                    },
+                    ExecutionEvent::AfterRebuild {
+                        path: "vendor/b".into(),
+                        commit: b_commit.clone()
+                    },
+                    ExecutionEvent::AfterPush {
+                        path: "vendor/b".into(),
+                        commit: b_commit
+                    },
+                ],
+                "observed events:\n{events:#?}"
+            );
+        });
+    }
+
+    #[test]
+    fn changed_local_state_rejects_continuation_before_publication_and_remains_failed() {
+        for change in [
+            "head",
+            "branch",
+            "fetched refs",
+            "configuration",
+            "repository",
+        ] {
+            with_repository(|| {
+                setup();
+                let root = std::env::current_dir().unwrap();
+                let mut context = ExecutionContext::new();
+                let args = [
+                    "--force".into(),
+                    "--branch".into(),
+                    "topic".into(),
+                    "vendor/a".into(),
+                ];
+                let mut execution = start(&mut context, &args).unwrap();
+                assert!(matches!(
+                    execution.run_until(|_| true).unwrap(),
+                    ExecutionOutcome::Paused(ExecutionEvent::AfterRebuild { .. })
+                ));
+                match change {
+                    "head" => {
+                        git(&["commit", "--allow-empty", "-qm", "changed HEAD"]);
+                    }
+                    "branch" => {
+                        git(&["checkout", "-qb", "another"]);
+                    }
+                    "fetched refs" => {
+                        git(&["update-ref", "refs/splices/changed/heads/main", "HEAD"]);
+                    }
+                    "configuration" => {
+                        git(&["config", "test.changed", "true"]);
+                    }
+                    "repository" => {
+                        git(&["init", "-q", "--initial-branch=main", "other"]);
+                        git(&["-C", "other", "commit", "--allow-empty", "-qm", "other"]);
+                        std::env::set_current_dir(root.join("other")).unwrap();
+                    }
+                    _ => unreachable!(),
+                }
+                assert!(execution.run().is_err(), "{change}");
+                std::env::set_current_dir(&root).unwrap();
+                assert!(execution.run_until(|_| false).is_err(), "{change}");
+                assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            });
+        }
+    }
+
+    #[test]
+    fn checkpoint_predicate_cannot_change_head_before_pausing_or_continuing() {
+        for pause in [false, true] {
+            with_repository(|| {
+                setup();
+                let mut context = ExecutionContext::new();
+                let args = [
+                    "--force".into(),
+                    "--branch".into(),
+                    "topic".into(),
+                    "vendor/a".into(),
+                ];
+                let mut execution = start(&mut context, &args).unwrap();
+                assert!(execution
+                    .run_until(|_| {
+                        git(&["commit", "--allow-empty", "-qm", "changed in predicate"]);
+                        pause
+                    })
+                    .is_err());
+                assert!(execution.run().is_err());
+                assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            });
+        }
+    }
+
+    #[test]
+    fn pause_after_an_independent_push_preserves_an_earlier_publication_failure() {
+        with_repository(|| {
+            setup();
+            let mut context = ExecutionContext::new();
+            let args = [
+                "--all".into(),
+                "--force".into(),
+                "--branch".into(),
+                "topic".into(),
+            ];
+            let mut execution = start(&mut context, &args).unwrap();
+            std::fs::rename("vendor/a.git", "vendor/a.offline").unwrap();
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterPush { .. }))
+                .unwrap();
+            let published = git(&["--git-dir=vendor/b.git", "rev-parse", "refs/heads/topic"]);
+            assert_eq!(
+                paused,
+                ExecutionOutcome::Paused(ExecutionEvent::AfterPush {
+                    path: "vendor/b".into(),
+                    commit: published,
+                })
+            );
+            std::fs::rename("vendor/b.git", "vendor/b.offline").unwrap();
+            assert_eq!(execution.run().unwrap(), 1);
+            assert_eq!(
+                execution.run_until(|_| true).unwrap(),
+                ExecutionOutcome::Complete(1)
+            );
+        });
     }
 
     #[test]
