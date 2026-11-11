@@ -203,7 +203,11 @@ impl Repo<'_> {
         self.prepare_fetch(branch, entries)?.download().finish(self)
     }
 
-    fn prepare_fetch(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchPlan> {
+    pub(crate) fn prepare_fetch(
+        &mut self,
+        branch: &str,
+        entries: &[(String, String)],
+    ) -> Res<FetchPlan> {
         // Before the fetches start in parallel, which would race to record keys.
         let mut groups: Vec<(String, String, Vec<usize>)> = Vec::new();
         let mut new_keys = Vec::new();
@@ -322,19 +326,19 @@ struct FetchJob {
     members: Vec<Member>,
 }
 
-struct FetchPlan {
+pub(crate) struct FetchPlan {
     entries: Vec<(String, String)>,
     jobs: Vec<FetchJob>,
     new_keys: Vec<String>,
 }
 
-struct FetchResults {
+pub(crate) struct FetchResults {
     plan: FetchPlan,
     reports: Vec<Report>,
 }
 
 impl FetchPlan {
-    fn download(self) -> FetchResults {
+    pub(crate) fn download(self) -> FetchResults {
         let mut reports = vec![Report::default(); self.entries.len()];
         std::thread::scope(|scope| {
             let handles: Vec<_> = self
@@ -363,7 +367,7 @@ impl FetchPlan {
 }
 
 impl FetchResults {
-    fn finish(self, repo: &mut Repo) -> Res<FetchFailures> {
+    pub(crate) fn finish(self, repo: &mut Repo) -> Res<FetchFailures> {
         let mut failures = Vec::new();
         for ((path, _), report) in self.plan.entries.iter().zip(&self.reports) {
             if !report.out.is_empty() {
