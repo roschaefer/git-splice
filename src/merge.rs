@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
+use crate::fetch::{FetchPlan, FetchResults};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
@@ -615,21 +616,16 @@ impl Repo<'_> {
         }
     }
 
-    /// Reads the splice's upstreams again after a merge above changed its
-    /// .splice, and uses the one the command chose, if it merges the splice:
-    /// <upstream> is None for one it only fetches. A pull fetches the upstreams
-    /// it names now, but didn't before: the synced commit the merge above moved
-    /// it to may be in any of them. It also fetches the one it uses, or all of
-    /// them for one it doesn't merge, if that synced commit or the pin isn't
-    /// here. Fails, saying why, if one can't be fetched, if the synced commit is
-    /// on none of them, or if a merge would use one that wasn't.
-    fn reload_splice_upstream(
+    /// Reloads upstream selection after a parent changes a .splice. Pull gets
+    /// a plan for newly named upstreams or missing history; merge checks that
+    /// required history was fetched already. None means no download is needed.
+    fn prepare_splice_reload(
         &mut self,
         path: &str,
         branch: &str,
         verb: &str,
         upstream: Option<&str>,
-    ) -> Res<()> {
+    ) -> Res<Option<FetchPlan>> {
         let old_urls: Vec<String> = self
             .upstream_lists
             .get(path)
@@ -667,27 +663,31 @@ impl Repo<'_> {
             }
         }
         if entries.is_empty() {
-            return Ok(());
+            return Ok(None);
         }
         if verb == "pull" {
-            if !self.fetch_all(branch, &entries)?.is_empty() {
-                return Err(Fail::Soft);
-            }
-            // A fetch by hash fails quietly when no upstream has the commit
-            // any more, e.g. after a gc.
-            if !synced_commit_here(path) {
-                let synced = splice_config(path, "commit", "HEAD");
-                return fail(format!(
-                    "{path}: its synced commit {}, from a pull above, isn't on its upstream any more",
-                    short(&synced)
-                ));
-            }
+            return self.prepare_fetch(branch, &entries).map(Some);
         } else if used_is_new && (!self.splice_fetched(path) || !synced_commit_here(path)) {
             log_warn(format!(
                 "{path}: not fetched yet -- run 'git splice fetch {}{path}' first",
                 self.upstream_option(path)
             ));
             return Err(Fail::Soft);
+        }
+        Ok(None)
+    }
+
+    fn complete_splice_reload(&mut self, path: &str, results: FetchResults) -> Res<()> {
+        if !results.finish(self)?.is_empty() {
+            return Err(Fail::Soft);
+        }
+        // A fetch by hash can fail quietly when no upstream has the commit.
+        if !synced_commit_here(path) {
+            let synced = splice_config(path, "commit", "HEAD");
+            return fail(format!(
+                "{path}: its synced commit {}, from a pull above, isn't on its upstream any more",
+                short(&synced)
+            ));
         }
         Ok(())
     }
@@ -704,9 +704,9 @@ impl Repo<'_> {
         progress.finish()
     }
 
-    /// Reloads one descendant's changed .splice after a merge above it.
-    /// A pull fetches its new upstreams; a failed reload blocks descendants.
-    fn read_below_path(
+    /// Prepares one descendant's changed .splice for reload after a merge.
+    /// A failed preparation blocks its descendants.
+    fn prepare_below_path(
         &mut self,
         path: &str,
         branch: &str,
@@ -714,16 +714,16 @@ impl Repo<'_> {
         selected: &[String],
         (before, loaded): (&str, &mut HashMap<String, Option<String>>),
         failures: &mut Vec<String>,
-    ) -> Res<()> {
+    ) -> Res<Option<FetchPlan>> {
         if first_above(path, failures).is_some() {
-            return Ok(());
+            return Ok(None);
         }
         let blob = state_file_blob("HEAD", path);
         let last = loaded
             .entry(path.to_string())
             .or_insert_with(|| state_file_blob(before, path));
         if blob.is_none() || *last == blob {
-            return Ok(());
+            return Ok(None);
         }
         loaded.insert(path.to_string(), blob);
         // --upstream names one of the selected splice's upstreams.
@@ -735,23 +735,36 @@ impl Repo<'_> {
             if contained(self.load_splice_upstream(path)).is_err() {
                 failures.push(path.to_string());
             }
-            return Ok(());
+            return Ok(None);
         } else {
             None
         };
-        match self.reload_splice_upstream(path, branch, verb, upstream.as_deref()) {
+        match self.prepare_splice_reload(path, branch, verb, upstream.as_deref()) {
             Err(Fail::Hard) => return Err(Fail::Hard),
             Err(_) => failures.push(path.to_string()),
-            Ok(()) => {}
+            Ok(plan) => return Ok(plan),
         }
-        Ok(())
+        Ok(None)
     }
 }
 
 enum MergePhase {
     Merge,
     Discover(String),
-    Reload { paths: Vec<String>, next: usize },
+    Reload {
+        paths: Vec<String>,
+        next: usize,
+    },
+    FetchReload {
+        paths: Vec<String>,
+        next: usize,
+        plan: FetchPlan,
+    },
+    FetchedReload {
+        paths: Vec<String>,
+        next: usize,
+        results: FetchResults,
+    },
     Done,
 }
 
@@ -928,7 +941,7 @@ impl MergeProgress {
             }
             MergePhase::Reload { paths, next } => {
                 if let Some(path) = paths.get(next) {
-                    repo.read_below_path(
+                    let plan = repo.prepare_below_path(
                         path,
                         branch,
                         verb,
@@ -936,13 +949,40 @@ impl MergeProgress {
                         (&self.before, &mut self.loaded),
                         &mut self.failures,
                     )?;
-                    self.phase = MergePhase::Reload {
-                        paths,
-                        next: next + 1,
+                    self.phase = match plan {
+                        Some(plan) => MergePhase::FetchReload { paths, next, plan },
+                        None => MergePhase::Reload {
+                            paths,
+                            next: next + 1,
+                        },
                     };
                 } else {
                     self.phase = MergePhase::Merge;
                 }
+                Ok(())
+            }
+            MergePhase::FetchReload { paths, next, plan } => {
+                self.phase = MergePhase::FetchedReload {
+                    paths,
+                    next,
+                    results: plan.download(),
+                };
+                Ok(())
+            }
+            MergePhase::FetchedReload {
+                paths,
+                next,
+                results,
+            } => {
+                match repo.complete_splice_reload(&paths[next], results) {
+                    Err(Fail::Hard) => return Err(Fail::Hard),
+                    Err(_) => self.failures.push(paths[next].clone()),
+                    Ok(()) => {}
+                }
+                self.phase = MergePhase::Reload {
+                    paths,
+                    next: next + 1,
+                };
                 Ok(())
             }
         }
@@ -1275,6 +1315,10 @@ mod tests {
             assert!(repo.selected.contains(&"vendor/a/b".into()));
             assert!(!repo.splice_fetched("vendor/a/b"));
             progress.advance(&mut repo).unwrap();
+            assert!(matches!(progress.phase, MergePhase::FetchReload { .. }));
+            assert!(!repo.splice_fetched("vendor/a/b"));
+            progress.advance(&mut repo).unwrap();
+            assert!(matches!(progress.phase, MergePhase::FetchedReload { .. }));
             assert!(repo.splice_fetched("vendor/a/b"));
             assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "old\n");
             std::fs::rename("parent", "parent.offline").unwrap();
@@ -1341,6 +1385,10 @@ mod tests {
             assert!(!repo.splice_fetched("vendor/a/b"));
             assert!(!repo.splice_fetched("vendor/a/c"));
             progress.advance(&mut repo).unwrap();
+            assert!(matches!(progress.phase, MergePhase::FetchReload { .. }));
+            assert!(!repo.splice_fetched("vendor/a/b"));
+            progress.advance(&mut repo).unwrap();
+            assert!(matches!(progress.phase, MergePhase::FetchedReload { .. }));
             assert!(repo.splice_fetched("vendor/a/b"));
             assert!(!repo.splice_fetched("vendor/a/c"));
             assert_eq!(git(&["rev-parse", "HEAD"]), merged_parent);
@@ -1351,6 +1399,13 @@ mod tests {
             std::fs::rename("parent", "parent.offline").unwrap();
             std::fs::rename("child", "child.offline").unwrap();
             std::fs::rename("second", "second.offline").unwrap();
+            progress.advance(&mut repo).unwrap();
+            while !progress.done()
+                && !matches!(progress.phase, MergePhase::FetchedReload { next: 1, .. })
+            {
+                progress.advance(&mut repo).unwrap();
+            }
+            assert!(progress.failures.is_empty());
             progress.advance(&mut repo).unwrap();
             assert_eq!(progress.failures, ["vendor/a/c"]);
             assert_eq!(git(&["rev-parse", "HEAD"]), merged_parent);
@@ -1364,6 +1419,64 @@ mod tests {
                 incoming.new_child
             );
             assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "new\n");
+        });
+    }
+
+    #[test]
+    fn completed_nested_download_is_validated_before_the_child_can_merge() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            incoming_child(&mut context);
+            let missing = "1111111111111111111111111111111111111111";
+            git(&[
+                "-C",
+                "parent",
+                "config",
+                "--file",
+                "b/.splice",
+                "splice.commit",
+                missing,
+            ]);
+            git(&["-C", "parent", "add", "b/.splice"]);
+            git(&[
+                "-C",
+                "parent",
+                "commit",
+                "-qm",
+                "record unavailable child history",
+            ]);
+            crate::fetch::run(&mut context, &["vendor/a".into()]).unwrap();
+            let args = parse_args(
+                USAGE,
+                "--recursive",
+                &["--recursive".into(), "vendor/a".into()],
+            )
+            .unwrap();
+            let mut repo = Repo::new(&mut context, args);
+            apply_merge_options(&mut repo).unwrap();
+            repo.open().unwrap();
+            repo.select_splices(Kind::Explicit, "pull").unwrap();
+            let mut progress = MergeProgress::new(&repo, "main", "pull", &["vendor/a".into()]);
+            while !progress.done() && !matches!(progress.phase, MergePhase::FetchedReload { .. }) {
+                progress.advance(&mut repo).unwrap();
+            }
+            assert!(matches!(progress.phase, MergePhase::FetchedReload { .. }));
+            assert!(repo.splice_fetched("vendor/a/b"));
+            assert!(!commit_here(missing));
+            assert!(progress.failures.is_empty());
+            let merged_parent = git(&["rev-parse", "HEAD"]);
+            std::fs::rename("parent", "parent.offline").unwrap();
+            std::fs::rename("child", "child.offline").unwrap();
+            progress.advance(&mut repo).unwrap();
+            assert_eq!(progress.failures, ["vendor/a/b"]);
+            assert_eq!(git(&["rev-parse", "HEAD"]), merged_parent);
+            while !progress.done() {
+                progress.advance(&mut repo).unwrap();
+            }
+            assert!(progress.finish().is_err());
+            assert_eq!(git(&["rev-parse", "HEAD"]), merged_parent);
+            assert_eq!(splice_config("vendor/a/b", "commit", "HEAD"), missing);
+            assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "old\n");
         });
     }
 
