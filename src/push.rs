@@ -8,9 +8,24 @@ use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/push.txt");
 
+struct PreparedPush {
+    path: String,
+    url: String,
+    branch: String,
+    label: String,
+    rebuilt_commit: String,
+    fetched_ref: String,
+}
+
 impl Repo<'_> {
-    /// Pushes one splice.
     fn push_one(&mut self, path: &str, branch: &str, force: bool) -> Res<()> {
+        if let Some(prepared) = self.prepare_push(path, branch, force)? {
+            self.publish_push(&prepared, force)?;
+        }
+        Ok(())
+    }
+
+    fn prepare_push(&mut self, path: &str, branch: &str, force: bool) -> Res<Option<PreparedPush>> {
         match self.has_uncommitted_changes(path) {
             Uncommitted::Changes => log_warn(format!(
                 "{path}: uncommitted changes aren't pushed -- commit them first"
@@ -44,13 +59,14 @@ impl Repo<'_> {
             }
             State::UpToDate => {
                 log_ok(format!("{path}: nothing to push"));
-                return self.remind_pull(path, &selection);
+                self.remind_pull(path, &selection)?;
+                return Ok(None);
             }
             State::Pull if !force => {
                 log_ok(format!(
                     "{path}: nothing to push (upstream is ahead -- 'git splice pull {selection}{path}' brings it in)"
                 ));
-                return Ok(());
+                return Ok(None);
             }
             State::Pull => {}
             State::Diverged if !force => {
@@ -99,7 +115,7 @@ impl Repo<'_> {
                         "{path}: nothing to push (upstream has no '{label}' branch, and a PR to '{}' would show no changes)",
                         self.d.default_branch
                     ));
-                    return Ok(());
+                    return Ok(None);
                 }
                 if !rebuilt.is_empty() {
                     log_warn(format!(
@@ -112,30 +128,47 @@ impl Repo<'_> {
 
         if rebuilt.is_empty() {
             log_ok(format!("{path}: nothing to push (no content)"));
-            return Ok(());
+            return Ok(None);
         }
 
         let url = self.url_in_use(path);
         // Before the push, so a failure to record the key can't follow a push
         // that already happened.
         self.ensure_splice_key(path)?;
-        let refspec = format!("{rebuilt}:refs/heads/{}", c.upstream_branch);
+        Ok(Some(PreparedPush {
+            path: path.to_string(),
+            url,
+            branch: c.upstream_branch.clone(),
+            label,
+            rebuilt_commit: rebuilt,
+            fetched_ref: self.splice_ref(path, &c.upstream_branch),
+        }))
+    }
+
+    fn publish_push(&mut self, prepared: &PreparedPush, force: bool) -> Res<()> {
+        let path = &prepared.path;
+        let rebuilt = &prepared.rebuilt_commit;
+        let url = &prepared.url;
+        let label = &prepared.label;
+        let option = self.upstream_option(path);
+        let selection = self.selection_options(path);
+        let refspec = format!("{rebuilt}:refs/heads/{}", prepared.branch);
         let mut args = vec!["push"];
         if force {
             args.push("--force");
         }
-        args.extend_from_slice(&["--quiet", "--", &url, &refspec]);
+        args.extend_from_slice(&["--quiet", "--", url, &refspec]);
         if git(&args).run() != 0 {
             return fail(format!("{path}: push failed"));
         }
         // Pushing to a URL updates no ref here, so record what upstream has now.
-        let fetched = self.splice_ref(path, &c.upstream_branch);
-        if !git(&["update-ref", "--create-reflog", &fetched, &rebuilt]).ok() {
+        let fetched = &prepared.fetched_ref;
+        if !git(&["update-ref", "--create-reflog", fetched, rebuilt]).ok() {
             return fail(format!(
                 "{path}: pushed, but couldn't record it in {fetched} -- run 'git splice fetch {option}{path}'"
             ));
         }
-        log_ok(format!("{path}: pushed {} to {label}", short(&rebuilt)));
+        log_ok(format!("{path}: pushed {} to {label}", short(rebuilt)));
         self.remind_pull(path, &selection)
     }
 
