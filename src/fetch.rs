@@ -1,6 +1,7 @@
 //! git splice fetch.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::repo::*;
 use crate::util::*;
 
@@ -192,7 +193,7 @@ fn fetch_shared_upstream(
 /// Paths whose fetch failed.
 pub type FetchFailures = Vec<String>;
 
-impl Repo {
+impl Repo<'_> {
     /// Fetches the upstreams of every given (distinct) entry in parallel, each
     /// (path, name) of an upstream of a splice, and each upstream once: splices
     /// with the same URL share their fetched refs, and two fetches into the
@@ -335,10 +336,10 @@ impl Repo {
     }
 }
 
-pub fn run(argv: &[String]) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(USAGE, "--upstream --branch --track --no-track", argv)?;
     args.require_branch_for_track()?;
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     repo.open()?;
     repo.select_paths(Kind::Overview, "fetch")?;
     let branch = current_branch()?;

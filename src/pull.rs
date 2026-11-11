@@ -1,6 +1,7 @@
 //! git splice pull.
 
 use crate::args::parse_args;
+use crate::context::ExecutionContext;
 use crate::merge::{apply_merge_options, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
 use crate::repo::*;
@@ -8,11 +9,11 @@ use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/pull.txt");
 
-pub fn run(argv: &[String]) -> Res<i32> {
+pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
-    let mut repo = Repo::new(args);
+    let mut repo = Repo::new(context, args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
     repo.require_message_template(Message {
