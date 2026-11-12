@@ -37,6 +37,7 @@ pub fn with_repository(test: impl FnOnce()) {
         .args(["--exact", name, "--nocapture", "--test-threads=1"])
         .current_dir(repository)
         .env(CHILD, name)
+        .env("TMPDIR", &directory.0)
         .env("HOME", &home)
         .env("XDG_CONFIG_HOME", home.join(".config"))
         .env("GIT_CONFIG_GLOBAL", "/dev/null")
@@ -67,24 +68,27 @@ pub fn git(args: &[&str]) -> String {
 }
 
 pub fn push_ahead() {
-    git(&["init", "-q", "--initial-branch=main"]);
-    git(&["config", "init.defaultBranch", "main"]);
-    git(&["config", "user.name", "Test"]);
-    git(&["config", "user.email", "test@example.com"]);
-    git(&[
-        "init",
-        "-q",
-        "--bare",
-        "--initial-branch=main",
-        "../upstream.git",
-    ]);
-    std::fs::create_dir_all("vendor/a").unwrap();
-    std::fs::write("vendor/a/file.txt", "local change\n").unwrap();
-    std::fs::write(
-        "vendor/a/.splice",
-        "[splice]\n id = public-api\n[upstream \"origin\"]\n url = ../upstream.git\n",
-    )
-    .unwrap();
-    git(&["add", "."]);
-    git(&["commit", "-qm", "mount splice"]);
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let output = Command::new("bash")
+        .args([
+            "-euo",
+            "pipefail",
+            "-c",
+            r#"
+source "$1/docs/tests/helpers/fixtures.bash"
+source "$1/docs/09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup.bash"
+hermetic_git_config
+scenario_push_ahead "$PWD" "$(cd .. && pwd)/upstream.git"
+"#,
+            "push-ahead",
+        ])
+        .arg(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
