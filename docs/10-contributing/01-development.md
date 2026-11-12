@@ -4,9 +4,32 @@ With [Nix](https://nixos.org/download/) and
 [flakes](https://wiki.nixos.org/wiki/Flakes), run in the clone:
 
     nix develop      # shell with the dev tools and this checkout on PATH
-    just --list      # lint, fmt, test, ci, bench, sandbox, ...
-    just sandbox     # try commands by hand in a throwaway monorepo
-    just site-serve  # this documentation site, reloading on changes
+
+Available development commands:
+
+<!--
+```scrut
+$ cd "$TESTDIR/../.."
+```
+-->
+
+```scrut
+$ just --list
+Available recipes:
+    bench *args            # Time commands on a synthetic monorepo; see `just bench --help`
+    build                  # Build git-splice into target/debug, where the tests and docs run it
+    ci                     # Everything CI runs: lint, fmt-check, test, docs-check and site-build
+    docs-check flag=""     # Check the README, walkthroughs, concepts, scenario READMEs and comparisons against real output; --write updates them
+    drawings-check flag="" # Check with draw.io that each drawing's picture is its diagram's export; --write exports the stale ones again
+    fmt                    # Format with shfmt and rustfmt
+    fmt-check              # Check formatting with shfmt and rustfmt
+    lint                   # Run shellcheck and clippy
+    sandbox *args          # Open a shell in the state a docs page starts from, the walkthrough by default, e.g. `just sandbox 05-comparisons/01-git/01-git-submodule`; see `just sandbox --help`
+    scrut-lock             # Update nix/scrut.Cargo.lock after scrut/Cargo.toml changed, e.g. after a pull; scrut upstream commits no Cargo.lock
+    site-build             # Build the documentation site into website/build; fails on broken links
+    site-serve             # Serve the documentation site locally, reloading on changes
+    test                   # Run the Rust unit tests, then the bats tests, one job per CPU
+```
 
 [Writing the docs](02-writing.md) has the markup the documentation uses
 for what, and [the design](../07-design/README.md#architecture) where the state
@@ -105,15 +128,9 @@ then a per-splice function (`merge_one`, `push_one`, …) calls
 ## Testing
 
 Tests are executable documentation: a test's name states one behaviour,
-and a scenario's README shows the tool's real output. Run them in
-`nix develop`:
-
-```
-just test                 # Rust tests (including doctests), then bats tests
-just docs-check           # concepts, scenario READMEs and walkthroughs, via scrut
-just docs-check --write   # update them after an intended output change
-just ci                   # lint, fmt-check, test, docs-check, site-build
-```
+and a scenario's README shows the tool's real output. Run `just test` for code
+and `just docs-check` for documented output. After an intended output change,
+run `just docs-check --write`. `just ci` runs all checks.
 
 CI also runs the bats tests on the oldest supported Git, 2.40.
 
@@ -218,7 +235,8 @@ fn shell_quote_closes_and_reopens_the_quotes_around_a_single_quote() {
 
 ### Writing a Rust integration test
 
-Put public API tests in `tests/*.rs`, import `git_splice`, and keep shared helpers
+Existing repository tests live in module test blocks. For new public API tests,
+use `tests/*.rs`, import `git_splice`, and keep shared helpers
 in `tests/common/mod.rs`. The existing library target needs no crates.io release.
 Assert on results, Git data and callback-time state, not only the final state.
 Keep internal tests in their modules when they need private access.
