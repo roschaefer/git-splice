@@ -10,7 +10,7 @@ DESCRIPTION
     upstreams in parallel, then splices their changes in, as one ordinary
     commit per splice.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#description
+    See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#description
 
 OPTIONS
     <path>...
@@ -31,45 +31,45 @@ OPTIONS
         Pulls this upstream branch, for this pull only; see 'git splice
         merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#merge-options
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#merge-options
 
     --track
         With --branch, also tracks it on the current branch; see 'git splice
         merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#merge-options
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#merge-options
 
     --bump
         Also moves the synced commit up to the upstream branch when there's
         nothing to pull, e.g. right after a push; see 'git splice merge
         --help'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#merge-options
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#merge-options
 
     --rebase
         Rebases instead of merging, like 'git pull --rebase'; see 'git
         splice merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#merge-options
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#merge-options
 
     --no-fork-point
         Merges a rewritten upstream branch from Git's merge base, not from
         where the branch was before the rewrite; see 'git splice merge
         --help'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#merge-options
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#merge-options
 
     -m <message>
         Gives the commit this message, for one splice; see 'git splice merge
         --help'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#-m
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#-m
 
     --message-template <template>
         Gives each commit a message made from <template>, also with --all;
         see 'git splice merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#--message-template
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--message-template
 
     --recursive
         Also pulls every splice below each one given, and any a pull above
@@ -80,9 +80,9 @@ OPTIONS
         pull, and the branch's own commits since are rebased onto them
         once.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#--recursive
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--recursive
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#options
+    See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#options
 
 ORDER
     Also fetches the splices below each, and any its pull brings in:
@@ -90,7 +90,7 @@ ORDER
     pulled before the ones below it, and a failed fetch stops the splices
     above and below it.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#order
+    See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#order
 
 CONFLICTS
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
@@ -99,7 +99,7 @@ CONFLICTS
     --rebase --recursive, only for the branch's own commits, and 'git
     switch <branch>' gives up before.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#conflicts
+    See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#conflicts
 
 READ MORE
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/pull/#read-more
+    See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#read-more

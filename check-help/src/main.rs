@@ -3,7 +3,7 @@ use std::fs;
 use std::io::{self, Read};
 use std::process::ExitCode;
 
-const URL_PREFIX: &str = "https://roschaefer.github.io/git-splice/docs/command-reference/";
+const URL_PREFIX: &str = "https://git-splice.roschaefer.de/docs/command-reference/";
 
 #[derive(Debug)]
 struct Section<'a> {
@@ -400,7 +400,7 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    const HELP: &str = "NAME\n    x\n\nDESCRIPTION\n    Explain x.\n\n    See also: https://roschaefer.github.io/git-splice/docs/command-reference/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/docs/command-reference/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/docs/command-reference/x/#options\n";
+    const HELP: &str = "NAME\n    x\n\nDESCRIPTION\n    Explain x.\n\n    See also: https://git-splice.roschaefer.de/docs/command-reference/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://git-splice.roschaefer.de/docs/command-reference/x/#--one\n\n    See also: https://git-splice.roschaefer.de/docs/command-reference/x/#options\n";
     const PAGE: &str = "# x\n```scrut\n$ git splice x -h | check-help preamble\n```\n## Description\n```scrut\n$ git splice x -h | check-help section description\n```\n## Options\n### `--one`\n```scrut\n$ git splice x -h | check-help option --one\n```\n";
 
     #[test]
@@ -491,13 +491,13 @@ mod tests {
 
     #[test]
     fn linked_sections_are_the_complete_top_level_sections() {
-        let help = "NAME\n    x\n\nSYNOPSIS\n    x\n\nDESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/docs/command-reference/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://roschaefer.github.io/git-splice/docs/command-reference/x/#--one\n\n    See also: https://roschaefer.github.io/git-splice/docs/command-reference/x/#options\n";
+        let help = "NAME\n    x\n\nSYNOPSIS\n    x\n\nDESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://git-splice.roschaefer.de/docs/command-reference/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://git-splice.roschaefer.de/docs/command-reference/x/#--one\n\n    See also: https://git-splice.roschaefer.de/docs/command-reference/x/#options\n";
         let sections = linked_sections(help).unwrap();
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].anchor, "description");
         assert_eq!(
             sections[0].text,
-            "DESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://roschaefer.github.io/git-splice/docs/command-reference/x/#description\n"
+            "DESCRIPTION\n    first paragraph\n\n    second paragraph\n\n    See also: https://git-splice.roschaefer.de/docs/command-reference/x/#description\n"
         );
         assert_eq!(sections[1].anchor, "options");
         let options = linked_options(help).unwrap();

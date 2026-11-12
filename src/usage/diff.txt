@@ -9,7 +9,7 @@ DESCRIPTION
     upstream, with paths as the upstream sees them. Purely local -- run
     'git splice fetch' first for up-to-date results.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/diff/#description
+    See also: https://git-splice.roschaefer.de/docs/command-reference/diff/#description
 
 OPTIONS
     <path>...
@@ -24,9 +24,9 @@ OPTIONS
     --stat
         Summarizes the changes per file instead, like 'git diff --stat'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/diff/#--stat
+        See also: https://git-splice.roschaefer.de/docs/command-reference/diff/#--stat
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/diff/#options
+    See also: https://git-splice.roschaefer.de/docs/command-reference/diff/#options
 
 NO UPSTREAM BRANCH
     For a splice whose upstream has no branch named like the current one, the
@@ -34,4 +34,4 @@ NO UPSTREAM BRANCH
     PR from the new branch would show it. Without a default branch upstream,
     the whole splice is new.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/diff/#no-upstream-branch
+    See also: https://git-splice.roschaefer.de/docs/command-reference/diff/#no-upstream-branch

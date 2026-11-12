@@ -9,7 +9,7 @@ DESCRIPTION
     upstream once, and reports when the branch a splice syncs with has
     moved. Branches deleted upstream are pruned.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#description
+    See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#description
 
 OPTIONS
     <path>...
@@ -20,7 +20,7 @@ OPTIONS
         Fetches only this one of the upstreams the splice's .splice names.
         Without it, a splice with several upstreams has each fetched.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#--upstream
+        See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#--upstream
 
     --branch <name> --track
         Also tracks that upstream branch on the current branch, without a
@@ -28,15 +28,15 @@ OPTIONS
         there, and 'git splice status' compares with it. See 'git splice
         merge --help'.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#branch-tracking
+        See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#branch-tracking
 
     --no-track
         Stops tracking one, so the splice syncs with the branch named like
         the current one again.
 
-        See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#branch-tracking
+        See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#branch-tracking
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#options
+    See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#options
 
 REFS
     The branches go to refs/splices/<key>/heads/*, where <key> is the
@@ -44,4 +44,4 @@ REFS
     https://github.com/x/lib.git -- by URL, there is no Git remote; 'git
     splice key' prints and renames keys.
 
-    See also: https://roschaefer.github.io/git-splice/docs/command-reference/fetch/#refs
+    See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#refs

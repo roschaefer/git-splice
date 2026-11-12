@@ -5,8 +5,10 @@
 module.exports = function siteLinks({siteUrl}) {
   return (tree) => {
     const visit = (node) => {
-      if (node.type === 'link' && node.url.startsWith(siteUrl)) {
-        node.url = '/' + node.url.slice(siteUrl.length);
+      if (node.type === 'link') {
+        const prefix = [siteUrl, 'https://roschaefer.github.io/git-splice/']
+          .find((url) => node.url.startsWith(url));
+        if (prefix) node.url = '/' + node.url.slice(prefix.length);
       }
       (node.children || []).forEach(visit);
     };
