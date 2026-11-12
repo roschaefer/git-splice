@@ -2,7 +2,7 @@
   "name": "git-splice-website",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@11.26.0",
+  "packageManager": "pnpm@11.28.11",
   "scripts": {
     "docusaurus": "docusaurus",
     "start": "docusaurus start",
