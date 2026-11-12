@@ -113,11 +113,26 @@ bats but because each builds repositories and runs Git, which a Rust
 integration test would do too. A unit test needs neither and runs in
 microseconds, so an edge case that fits one should not cost a repository.
 
+### Isolated Rust repository tests
+
+Use `util::test_repo::with_repository` to test internal execution progress.
+Keep setup and assertions inside its closure: the helper reruns the named test
+in a child process with a fresh repository, temporary home and isolated Git
+configuration. This lets repository tests run in parallel; concurrent library
+operations within one process still share a working directory.
+
+Run a filtered test with output:
+
+```sh
+cargo test --lib fetch::tests:: -- --nocapture
+```
+
 ### The layers
 
 | Layer | Where | What it checks |
 |---|---|---|
 | Unit tests | `src/**/*.rs`, `check-*/src/*.rs` | Functions that need no repository, run by `cargo test`. |
+| Rust repository tests | `src/**/*.rs` with `with_repository` | Internal progress and library results, each test in an isolated child process. |
 | Scenarios | `docs/09-scenarios/**/setup.bash` | Nothing on its own: one function that builds a monorepo and an upstream in one state, nested under the scenario it continues from, or at the top of its chapter when that scenario is in an earlier chapter. Shared by everything below. |
 | Command tests | `docs/tests/*.bats` | The `git-splice` CLI, run through the `splice` helper, against a scenario. |
 | Oracle tests | `docs/tests/rebuild.bats` | The rebuild against `git subtree split`. |

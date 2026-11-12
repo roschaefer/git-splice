@@ -424,13 +424,49 @@ mod tests {
 #[cfg(test)]
 pub(crate) mod test_repo {
     use super::Temp;
-    use std::path::PathBuf;
-    use std::process::Command;
-    use std::sync::Mutex;
+    use std::process::{Command, Output};
 
-    static DIRECTORY_LOCK: Mutex<()> = Mutex::new(());
+    const CHILD_TEST: &str = "GIT_SPLICE_REPOSITORY_TEST";
+    const PARENT_PID: &str = "GIT_SPLICE_TEST_PARENT_PID";
 
-    struct RestoreDirectory(PathBuf);
+    fn isolated_test(name: &str) -> Output {
+        let directory = Temp::new();
+        let home = directory.path.join("home");
+        std::fs::create_dir_all(&home).unwrap();
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
+            .args(["--exact", name, "--nocapture", "--test-threads=1"])
+            .current_dir(&directory.path)
+            .env(CHILD_TEST, name)
+            .env(PARENT_PID, std::process::id().to_string())
+            .env("HOME", &home)
+            .env("XDG_CONFIG_HOME", home.join(".config"))
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_TERMINAL_PROMPT", "0");
+        for (key, _) in std::env::vars_os() {
+            let name = key.to_string_lossy();
+            if name.starts_with("GIT_CONFIG_")
+                && name != "GIT_CONFIG_GLOBAL"
+                && name != "GIT_CONFIG_NOSYSTEM"
+                || matches!(
+                    name.as_ref(),
+                    "GIT_DIR"
+                        | "GIT_WORK_TREE"
+                        | "GIT_COMMON_DIR"
+                        | "GIT_INDEX_FILE"
+                        | "GIT_OBJECT_DIRECTORY"
+                        | "GIT_ALTERNATE_OBJECT_DIRECTORIES"
+                        | "GIT_CONFIG"
+                )
+            {
+                command.env_remove(key);
+            }
+        }
+        command.output().unwrap()
+    }
+
+    struct RestoreDirectory(std::path::PathBuf);
 
     impl Drop for RestoreDirectory {
         fn drop(&mut self) {
@@ -458,15 +494,123 @@ pub(crate) mod test_repo {
     }
 
     pub fn with_repository(test: impl FnOnce()) {
-        let _lock = DIRECTORY_LOCK
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        let directory = Temp::new();
-        std::fs::create_dir_all(&directory.path).unwrap();
-        let _restore = RestoreDirectory(std::env::current_dir().unwrap());
-        std::env::set_current_dir(&directory.path).unwrap();
-        git(&["init", "-q", "--initial-branch=main"]);
-        git(&["config", "init.defaultBranch", "main"]);
-        test();
+        let thread = std::thread::current();
+        let name = thread
+            .name()
+            .expect("repository fixtures run on a named test thread");
+        if std::env::var(CHILD_TEST).as_deref() == Ok(name) {
+            let mut directory = Temp::new();
+            directory.path = std::env::current_dir()
+                .unwrap()
+                .join(directory.path.file_name().unwrap());
+            std::fs::create_dir_all(&directory.path).unwrap();
+            let _restore = RestoreDirectory(std::env::current_dir().unwrap());
+            std::env::set_current_dir(&directory.path).unwrap();
+            git(&["init", "-q", "--initial-branch=main"]);
+            git(&["config", "init.defaultBranch", "main"]);
+            git(&["config", "user.name", "Test"]);
+            git(&["config", "user.email", "test@example.com"]);
+            test();
+            return;
+        }
+        let output = isolated_test(name);
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        assert!(
+            output.status.success(),
+            "isolated repository test {name} failed: {}",
+            output.status
+        );
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn repository_fixture_runs_in_its_own_process_and_home() {
+            let original_directory = std::env::current_dir().unwrap();
+            let original_home = std::env::var_os("HOME");
+            with_repository(|| {
+                let parent: u32 = std::env::var(PARENT_PID).unwrap().parse().unwrap();
+                assert_ne!(std::process::id(), parent);
+                let repository = std::env::current_dir().unwrap();
+                let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap())
+                    .canonicalize()
+                    .unwrap();
+                assert_eq!(repository.parent(), home.parent());
+                assert_ne!(repository, home);
+                assert_eq!(git(&["branch", "--show-current"]), "main");
+                assert_eq!(git(&["config", "--get", "user.email"]), "test@example.com");
+            });
+            assert_eq!(std::env::current_dir().unwrap(), original_directory);
+            assert_eq!(std::env::var_os("HOME"), original_home);
+        }
+
+        #[test]
+        fn repository_fixture_discards_inherited_git_overrides() {
+            const PROBE: &str = "GIT_SPLICE_CONFIG_PROBE";
+            if std::env::var_os(PROBE).is_some() {
+                with_repository(|| {
+                    assert!(std::env::var_os("GIT_DIR").is_none());
+                    assert!(std::env::var_os("GIT_INDEX_FILE").is_none());
+                    assert!(std::env::var_os("GIT_CONFIG_COUNT").is_none());
+                    assert!(std::env::var_os("GIT_CONFIG").is_none());
+                    assert_eq!(std::env::var("GIT_CONFIG_GLOBAL").unwrap(), "/dev/null");
+                    assert_eq!(std::env::var("GIT_CONFIG_NOSYSTEM").unwrap(), "1");
+                    assert_eq!(git(&["config", "--get", "user.email"]), "test@example.com");
+                });
+                return;
+            }
+            let directory = Temp::new();
+            std::fs::create_dir_all(&directory.path).unwrap();
+            let config = directory.path.join("inherited.config");
+            let original_config = "[user]\n\temail = inherited@example.com\n";
+            std::fs::write(&config, original_config).unwrap();
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "util::test_repo::tests::repository_fixture_discards_inherited_git_overrides",
+                    "--nocapture",
+                ])
+                .env(PROBE, "1")
+                .env("GIT_CONFIG", &config)
+                .env("GIT_DIR", "/nonexistent/inherited-repository")
+                .env("GIT_INDEX_FILE", "/nonexistent/inherited-index")
+                .env("GIT_CONFIG_GLOBAL", "/nonexistent/inherited-config")
+                .env("GIT_CONFIG_COUNT", "1")
+                .env("GIT_CONFIG_KEY_0", "user.email")
+                .env("GIT_CONFIG_VALUE_0", "inherited@example.com")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(std::fs::read_to_string(config).unwrap(), original_config);
+        }
+
+        #[test]
+        fn repository_fixture_propagates_assertion_failures() {
+            const PROBE: &str = "GIT_SPLICE_FAILURE_PROBE";
+            if std::env::var_os(PROBE).is_some() {
+                with_repository(|| panic!("intentional repository assertion failure"));
+                return;
+            }
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "util::test_repo::tests::repository_fixture_propagates_assertion_failures",
+                    "--nocapture",
+                ])
+                .env(PROBE, "1")
+                .output()
+                .unwrap();
+            assert!(!output.status.success());
+            assert!(String::from_utf8_lossy(&output.stderr)
+                .contains("intentional repository assertion failure"));
+        }
     }
 }
