@@ -856,6 +856,41 @@ mod tests {
     }
 
     #[test]
+    fn paused_recursive_rebase_rejects_a_moved_original_branch_before_replay() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            nested_updates(&mut context);
+            std::fs::write("own-file", "my own change").unwrap();
+            git(&["add", "own-file"]);
+            git(&["commit", "-qm", "Own change"]);
+            let own = git(&["rev-parse", "HEAD"]);
+            let mut execution = start(
+                &mut context,
+                &["--recursive".into(), "--rebase".into(), "vendor/a".into()],
+            )
+            .unwrap();
+            assert!(matches!(
+                execution
+                    .run_until(|event| matches!(event, ExecutionEvent::AfterFold { .. }))
+                    .unwrap(),
+                ExecutionOutcome::Paused(ExecutionEvent::AfterFold { .. })
+            ));
+            let folded = git(&["rev-parse", "HEAD"]);
+            let moved = git(&["rev-parse", &format!("{own}^")]);
+            git(&["update-ref", "refs/heads/main", &moved, &own]);
+
+            assert_eq!(execution.run(), Err(Fail::Hard));
+            assert_eq!(execution.run(), Err(Fail::Hard));
+            assert_eq!(git(&["rev-parse", "HEAD"]), folded);
+            assert_eq!(git(&["rev-parse", "main"]), moved);
+            assert_eq!(
+                git(&["symbolic-ref", "SPLICE_PULL_BRANCH"]),
+                "refs/heads/main"
+            );
+        });
+    }
+
+    #[test]
     fn pull_continuation_rejects_tracked_file_index_and_marker_changes() {
         enum Change {
             TrackedFile,

@@ -182,6 +182,7 @@ struct TrackedState {
     worktree: String,
     fold_start: Option<Vec<u8>>,
     rebase_branch: Option<Vec<u8>>,
+    rebase_tip: Option<String>,
 }
 
 impl TrackedState {
@@ -204,6 +205,7 @@ impl TrackedState {
                 .ok_or(Fail::Hard)?,
             fold_start: Self::marker("SPLICE_PULL_START")?,
             rebase_branch: Self::marker("SPLICE_PULL_BRANCH")?,
+            rebase_tip: commit_of("SPLICE_PULL_BRANCH"),
         })
     }
 
