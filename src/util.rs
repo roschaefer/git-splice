@@ -457,6 +457,7 @@ pub(crate) mod test_repo {
                         | "GIT_INDEX_FILE"
                         | "GIT_OBJECT_DIRECTORY"
                         | "GIT_ALTERNATE_OBJECT_DIRECTORIES"
+                        | "GIT_CONFIG"
                 )
             {
                 command.env_remove(key);
@@ -534,7 +535,9 @@ pub(crate) mod test_repo {
                 let parent: u32 = std::env::var(PARENT_PID).unwrap().parse().unwrap();
                 assert_ne!(std::process::id(), parent);
                 let repository = std::env::current_dir().unwrap();
-                let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap());
+                let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap())
+                    .canonicalize()
+                    .unwrap();
                 assert_eq!(repository.parent(), home.parent());
                 assert_ne!(repository, home);
                 assert_eq!(git(&["branch", "--show-current"]), "main");
@@ -552,12 +555,18 @@ pub(crate) mod test_repo {
                     assert!(std::env::var_os("GIT_DIR").is_none());
                     assert!(std::env::var_os("GIT_INDEX_FILE").is_none());
                     assert!(std::env::var_os("GIT_CONFIG_COUNT").is_none());
+                    assert!(std::env::var_os("GIT_CONFIG").is_none());
                     assert_eq!(std::env::var("GIT_CONFIG_GLOBAL").unwrap(), "/dev/null");
                     assert_eq!(std::env::var("GIT_CONFIG_NOSYSTEM").unwrap(), "1");
                     assert_eq!(git(&["config", "--get", "user.email"]), "test@example.com");
                 });
                 return;
             }
+            let directory = Temp::new();
+            std::fs::create_dir_all(&directory.path).unwrap();
+            let config = directory.path.join("inherited.config");
+            let original_config = "[user]\n\temail = inherited@example.com\n";
+            std::fs::write(&config, original_config).unwrap();
             let output = Command::new(std::env::current_exe().unwrap())
                 .args([
                     "--exact",
@@ -565,6 +574,7 @@ pub(crate) mod test_repo {
                     "--nocapture",
                 ])
                 .env(PROBE, "1")
+                .env("GIT_CONFIG", &config)
                 .env("GIT_DIR", "/nonexistent/inherited-repository")
                 .env("GIT_INDEX_FILE", "/nonexistent/inherited-index")
                 .env("GIT_CONFIG_GLOBAL", "/nonexistent/inherited-config")
@@ -579,6 +589,7 @@ pub(crate) mod test_repo {
                 String::from_utf8_lossy(&output.stdout),
                 String::from_utf8_lossy(&output.stderr)
             );
+            assert_eq!(std::fs::read_to_string(config).unwrap(), original_config);
         }
 
         #[test]
