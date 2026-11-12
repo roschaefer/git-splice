@@ -1,10 +1,11 @@
 [build]
-base = "."
-command = "cd website && corepack pnpm install --frozen-lockfile && corepack pnpm build"
-publish = "website/build"
+base = "website"
+command = "corepack pnpm build"
+publish = "build"
 
 [build.environment]
 NODE_VERSION = "24"
+PNPM_FLAGS = "--frozen-lockfile"
 
 [[redirects]]
 from = "/gc/count.js"

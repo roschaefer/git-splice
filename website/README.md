@@ -1,37 +1,19 @@
-# Publishing the documentation on Netlify
+# Documentation website
 
-Import `roschaefer/git-splice` into Netlify, selecting `main` as the production
-branch. Keep the base directory at the repository root and leave the package
-directory unset. The root `netlify.toml` installs the website's pinned pnpm
-dependencies, builds Docusaurus, publishes `website/build`, and configures
-the analytics Edge Function. No Rust or Nix build is needed.
+Run `just site-dev` or `just site-build` from the repository root.
+The Nix dev shell provides Node.js and pnpm; `package.json` pins pnpm for Netlify.
 
-Add `git-splice.roschaefer.de` as the production custom domain. Follow Netlify's
-instructions to add its DNS record at your DNS provider; Netlify provisions
-HTTPS. The canonical URL is configured in `website/docusaurus.config.js`.
+In Netlify, select `main` as the production branch and set **Base directory**
+to `website`; leave **Package directory** unset. Netlify reads
+[`netlify.toml`](netlify.toml), installs dependencies, and publishes `build/`.
+Disable Deploy Previews and branch deploys; GitHub CI validates pull requests.
+Set the custom domain to `git-splice.roschaefer.de`.
 
-In Netlify's environment settings, with Functions scope and production
-context only, configure:
+For analytics environment variables, token permissions, and tests, see the
+[shared integration documentation](integrations/goatcounter/README.md).
+The [Edge Function entry point](netlify/edge-functions/goatcounter.ts) re-exports
+that splice. The browser integration counts Docusaurus navigation and only
+loads on the canonical production hostname.
 
-- `GOATCOUNTER_SITE`: `git-splice`
-- `GOATCOUNTER_API_TOKEN`: a GoatCounter API token with count permission
-
-Redeploy after setting the variables. Keep secrets out of Git. The browser
-only loads analytics on the canonical production hostname, so local servers
-and Netlify preview domains do not record pageviews.
-
-Check a production page with browser network tools: `/gc/count.js` should
-load and `/gc/count` should return a no-store GIF. Confirm the visit appears
-in GoatCounter; a successful GIF alone does not prove upstream delivery.
-Check Edge Function logs for configuration or API errors. Verify a subsequent
-Docusaurus navigation records one more pageview.
-
-The GitHub Pages deployment workflow is removed; CI still builds the site
-and checks links. Disable Pages in GitHub repository settings at cutover.
-Previously distributed github.io links need a separate redirect-only Pages
-deployment if they must remain reachable; Netlify cannot redirect requests
-sent to GitHub's hostname. Existing source links to that hostname are rewritten
-to local paths when Docusaurus builds them.
-
-The reusable analytics implementation is mounted at `website/integrations/goatcounter`.
-See its README for reuse in the other websites.
+At cutover, disable or replace GitHub Pages. Preserving old github.io links
+requires a separate redirect-only Pages deployment.
