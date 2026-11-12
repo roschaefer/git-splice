@@ -284,10 +284,11 @@ pub fn start<'context>(
     let mut repo = Repo::new(context, args);
     repo.open()?;
     let progress = PushProgress::new(&mut repo)?;
+    let checkpoint = PausedRepository::capture()?;
     Ok(PushExecution {
         repo,
         progress,
-        paused: None,
+        checkpoint: Some(checkpoint),
         completed: None,
         failed: None,
     })
@@ -297,7 +298,7 @@ pub fn start<'context>(
 pub struct PushExecution<'context> {
     repo: Repo<'context>,
     progress: PushProgress,
-    paused: Option<PausedRepository>,
+    checkpoint: Option<PausedRepository>,
     completed: Option<i32>,
     failed: Option<Fail>,
 }
@@ -330,11 +331,11 @@ impl PushExecution<'_> {
         if let Some(status) = self.completed {
             return Ok(ExecutionOutcome::Complete(status));
         }
-        if let Some(paused) = &self.paused {
-            let validated = paused.validate();
+        if let Some(checkpoint) = &self.checkpoint {
+            let validated = checkpoint.validate();
             self.checked(validated)?;
         }
-        self.paused = None;
+        self.checkpoint = None;
         while !self.progress.done() {
             if stop.is_some() {
                 self.repo.context.capture_events();
@@ -352,7 +353,7 @@ impl PushExecution<'_> {
                     let pause = predicate(&event);
                     self.checked(checkpoint.validate())?;
                     if pause {
-                        self.paused = Some(checkpoint);
+                        self.checkpoint = Some(checkpoint);
                         return Ok(ExecutionOutcome::Paused(event));
                     }
                 }
@@ -852,6 +853,45 @@ vendor/b.git/topic -> B (offline)"#,
                 "observed events:\n{events:#?}"
             );
         });
+    }
+
+    #[test]
+    fn switching_repositories_before_first_advance_rejects_publication_and_remains_failed() {
+        for use_predicate in [false, true] {
+            with_repository(|| {
+                setup();
+                let root = std::env::current_dir().unwrap();
+                git(&[
+                    "config",
+                    "--file",
+                    "vendor/a/.splice",
+                    "upstream.origin.url",
+                    root.join("vendor/a.git").to_str().unwrap(),
+                ]);
+                git(&["commit", "-qam", "use absolute upstream"]);
+                git(&["clone", "-q", ".", "other"]);
+                std::fs::write("other/vendor/a/file", "other repository content").unwrap();
+                git(&["-C", "other", "commit", "-qam", "other content"]);
+                let mut context = ExecutionContext::new();
+                let args = [
+                    "--force".into(),
+                    "--branch".into(),
+                    "topic".into(),
+                    "vendor/a".into(),
+                ];
+                let mut execution = start(&mut context, &args).unwrap();
+                std::env::set_current_dir(root.join("other")).unwrap();
+                let failed = if use_predicate {
+                    execution.run_until(|_| false).is_err()
+                } else {
+                    execution.run().is_err()
+                };
+                std::env::set_current_dir(&root).unwrap();
+                assert!(failed, "use_predicate={use_predicate}");
+                assert!(execution.run().is_err());
+                assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            });
+        }
     }
 
     #[test]

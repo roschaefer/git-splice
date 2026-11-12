@@ -59,9 +59,9 @@ For an in-memory push that can pause, Rust callers use `push::start` and keep it
 predicate matches a named event. Calling `run_until` again continues after that
 event; `run` completes the remaining work. An installed observer still receives
 each event once. Completion retains the command's exit status, including failures.
-Continuing requires the same working directory, Git directory, HEAD, branch,
-fetched refs and effective Git configuration. The predicate must also preserve
-that state. Uncommitted edits remain unpublished.
+The first run and continuation require the same working directory, Git directory,
+HEAD, branch, fetched refs and effective Git configuration captured at start or
+pause. The predicate must also preserve that state. Uncommitted edits remain unpublished.
 An error ends that execution. Dropping it abandons pending work and leaves completed
 pushes applied; there is no saved continuation or CLI pause option yet.
 
