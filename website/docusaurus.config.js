@@ -4,8 +4,8 @@ const {themes} = require('prism-react-renderer');
 // concepts, scenarios, comparisons and design notes -- in place, so the pages are the
 // same files `just docs-check` runs against real output.
 const repoUrl = 'https://github.com/roschaefer/git-splice';
-const siteUrl = 'https://roschaefer.github.io';
-const baseUrl = '/git-splice/';
+const siteUrl = 'https://git-splice.roschaefer.de';
+const baseUrl = '/';
 const repoFileLinks = require('./src/remark/repo-file-links');
 const siteLinks = require('./src/remark/site-links');
 const drawioPlain = require('./src/remark/drawio-plain');
@@ -94,7 +94,7 @@ module.exports = {
       },
       footer: {
         style: 'dark',
-        copyright: `MIT licensed · <a href="${repoUrl}">${repoUrl.replace('https://', '')}</a> · <a href="${baseUrl}privacy/">Privacy</a>`,
+        copyright: `MIT licensed · <a href="${repoUrl}">${repoUrl.replace('https://', '')}</a> · <a href="${baseUrl}privacy/">Datenschutz / Privacy</a> · <a href="https://roschaefer.de/de/impressum/" lang="de">Impressum</a> / <a href="https://roschaefer.de/en/imprint/">Legal notice</a>`,
       },
       prism: {
         theme: themes.github,

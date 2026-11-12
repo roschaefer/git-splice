@@ -1,9 +1,6 @@
 import ExecutionEnvironment from '@docusaurus/ExecutionEnvironment';
 import siteConfig from '@generated/docusaurus.config';
 
-// GitHub Pages can't proxy the beacon through our own domain like the
-// Netlify sites do, so visitors load GoatCounter's script and send their hits
-// directly. Only the deployed site counts: not `docusaurus start` or `serve`.
 const counting =
   ExecutionEnvironment.canUseDOM &&
   window.location.hostname === new URL(siteConfig.url).hostname;
@@ -11,8 +8,8 @@ const counting =
 if (counting) {
   const script = document.createElement('script');
   script.async = true;
-  script.src = 'https://gc.zgo.at/count.js';
-  script.dataset.goatcounter = 'https://git-splice.goatcounter.com/count';
+  script.src = '/gc/count.js';
+  script.dataset.goatcounter = '/gc/count';
   document.head.appendChild(script);
 }
 
