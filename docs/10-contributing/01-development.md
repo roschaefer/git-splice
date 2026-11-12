@@ -79,6 +79,25 @@ absent. Offline upstreams are renamed local test repositories; the inspector
 reads their retained refs directly while the push still uses the missing URL.
 
 
+For a retained pull, use `pull::start` and its `PullExecution` with the same
+`run_until` and `run` methods. Pull additionally checks tracked file contents,
+the index and pull markers at each pause. These are inspection-only checkpoints;
+changing these inputs requires starting a new execution.
+
+Replay its nested-splice scenario with:
+
+```sh
+env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 cargo test --lib named_pull_checkpoints -- --nocapture
+```
+
+The fixture declares parent and child files before and after upstream updates.
+The checked diagrams show fetched refs, recorded splice commits, file contents,
+fold markers and first-parent history. `S -- P -- C` remains visible at
+`BeforeFold`; `AfterFold` shows `S -- F` with the same tree. Cleanup clears the
+start marker only when execution continues after that pause. Upstream repositories
+are taken offline after the fetch checkpoint, so continuation cannot refetch.
+
+
 Each command follows the same shape: `select_paths` picks the splices,
 then a per-splice function (`merge_one`, `push_one`, …) calls
 `classify_splice` and acts on its state.

@@ -342,6 +342,14 @@ pub(crate) struct FetchResults {
 
 impl FetchPlan {
     pub(crate) fn download(self, context: &mut ExecutionContext) -> FetchResults {
+        let (results, event) = self.download_event();
+        if context.observing() {
+            context.emit(event);
+        }
+        results
+    }
+
+    pub(crate) fn download_event(self) -> (FetchResults, ExecutionEvent) {
         let mut reports = vec![Report::default(); self.entries.len()];
         std::thread::scope(|scope| {
             let handles: Vec<_> = self
@@ -362,32 +370,32 @@ impl FetchPlan {
             }
         });
 
-        if context.observing() {
-            let mut fetched = Vec::new();
-            for job in &self.jobs {
-                for member in &job.members {
-                    let (path, upstream) = &self.entries[member.index];
-                    fetched.push((
-                        member.index,
-                        FetchedUpstream {
-                            path: path.clone(),
-                            upstream: upstream.clone(),
-                            url: job.url.clone(),
-                            failed: reports[member.index].failed,
-                        },
-                    ));
-                }
+        let mut fetched = Vec::new();
+        for job in &self.jobs {
+            for member in &job.members {
+                let (path, upstream) = &self.entries[member.index];
+                fetched.push((
+                    member.index,
+                    FetchedUpstream {
+                        path: path.clone(),
+                        upstream: upstream.clone(),
+                        url: job.url.clone(),
+                        failed: reports[member.index].failed,
+                    },
+                ));
             }
-            fetched.sort_by_key(|(index, _)| *index);
-            context.emit(ExecutionEvent::AfterFetch {
-                fetched: fetched.into_iter().map(|(_, entry)| entry).collect(),
-            });
         }
+        fetched.sort_by_key(|(index, _)| *index);
 
-        FetchResults {
-            plan: self,
-            reports,
-        }
+        (
+            FetchResults {
+                plan: self,
+                reports,
+            },
+            ExecutionEvent::AfterFetch {
+                fetched: fetched.into_iter().map(|(_, entry)| entry).collect(),
+            },
+        )
     }
 }
 

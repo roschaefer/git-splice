@@ -2,7 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
-use crate::execution::{ExecutionEvent, ExecutionOutcome};
+use crate::execution::{Execution, ExecutionEvent, ExecutionOutcome, Operation};
 use crate::merge::EqualTree;
 use crate::repo::*;
 use crate::util::*;
@@ -284,124 +284,29 @@ pub fn start<'context>(
     let mut repo = Repo::new(context, args);
     repo.open()?;
     let progress = PushProgress::new(&mut repo)?;
-    let checkpoint = PausedRepository::capture()?;
     Ok(PushExecution {
-        repo,
-        progress,
-        checkpoint: Some(checkpoint),
-        completed: None,
-        failed: None,
+        inner: Execution::new(repo, progress)?,
     })
 }
 
 /// A push retained in memory. Continuing never repeats a consumed checkpoint.
 pub struct PushExecution<'context> {
-    repo: Repo<'context>,
-    progress: PushProgress,
-    checkpoint: Option<PausedRepository>,
-    completed: Option<i32>,
-    failed: Option<Fail>,
+    inner: Execution<'context, PushProgress>,
 }
-
-type PausePredicate<'a> = &'a mut dyn FnMut(&ExecutionEvent) -> bool;
 
 impl PushExecution<'_> {
-    /// Drives this push to completion, including after an earlier pause.
+    /// Drives remaining work to completion, including after a pause.
     pub fn run(&mut self) -> Res<i32> {
-        match self.drive(None)? {
-            ExecutionOutcome::Complete(status) => Ok(status),
-            ExecutionOutcome::Paused(_) => unreachable!("no pause predicate installed"),
-        }
+        self.inner.run()
     }
 
-    /// Returns after an event for which stop is true, retaining all remaining work.
-    /// Local HEAD, branch, fetched refs and Git configuration must remain unchanged
-    /// in the predicate or while paused. Uncommitted files are not published by push.
+    /// Pauses at a selected event. Local HEAD, branch, fetched refs and Git
+    /// configuration must remain unchanged in the predicate and while paused.
     pub fn run_until(
         &mut self,
-        mut stop: impl FnMut(&ExecutionEvent) -> bool,
+        stop: impl FnMut(&ExecutionEvent) -> bool,
     ) -> Res<ExecutionOutcome> {
-        self.drive(Some(&mut stop))
-    }
-
-    fn drive(&mut self, mut stop: Option<PausePredicate<'_>>) -> Res<ExecutionOutcome> {
-        if let Some(failure) = self.failed {
-            return Err(failure);
-        }
-        if let Some(status) = self.completed {
-            return Ok(ExecutionOutcome::Complete(status));
-        }
-        if let Some(checkpoint) = &self.checkpoint {
-            let validated = checkpoint.validate();
-            self.checked(validated)?;
-        }
-        self.checkpoint = None;
-        while !self.progress.done() {
-            let advanced = self.progress.advance(&mut self.repo);
-            if let Some(event) = self.checked(advanced)? {
-                self.repo.context.emit(event.clone());
-                if let Some(predicate) = &mut stop {
-                    let checkpoint = self.checked(PausedRepository::capture())?;
-                    let pause = predicate(&event);
-                    self.checked(checkpoint.validate())?;
-                    if pause {
-                        self.checkpoint = Some(checkpoint);
-                        return Ok(ExecutionOutcome::Paused(event));
-                    }
-                }
-            }
-        }
-        let finished = self.progress.finish();
-        let status = self.checked(finished)?;
-        self.completed = Some(status);
-        Ok(ExecutionOutcome::Complete(status))
-    }
-
-    fn checked<T>(&mut self, result: Res<T>) -> Res<T> {
-        if let Err(failure) = &result {
-            self.failed = Some(*failure);
-        }
-        result
-    }
-}
-
-#[derive(PartialEq, Eq)]
-struct PausedRepository {
-    root: std::path::PathBuf,
-    git_dir: String,
-    head: String,
-    branch: Option<String>,
-    fetched_refs: String,
-    config: Vec<u8>,
-}
-
-impl PausedRepository {
-    fn capture() -> Res<Self> {
-        Ok(Self {
-            root: std::env::current_dir().map_err(|_| Fail::Hard)?,
-            git_dir: git(&["rev-parse", "--absolute-git-dir"])
-                .out()
-                .ok_or(Fail::Hard)?,
-            head: commit_of("HEAD").ok_or(Fail::Hard)?,
-            branch: git(&["symbolic-ref", "--quiet", "HEAD"]).q().out(),
-            fetched_refs: git(&[
-                "for-each-ref",
-                "--format=%(refname) %(objectname)",
-                "refs/splices/",
-            ])
-            .out()
-            .ok_or(Fail::Hard)?,
-            config: git(&["config", "--null", "--list"])
-                .bytes()
-                .ok_or(Fail::Hard)?,
-        })
-    }
-
-    fn validate(&self) -> Res<()> {
-        if *self != Self::capture()? {
-            return die("repository state changed at a push checkpoint -- start a new push");
-        }
-        Ok(())
+        self.inner.run_until(stop)
     }
 }
 
@@ -537,6 +442,21 @@ impl PushProgress {
             log_err(format!("Failed: {}", self.failures.join(" ")));
             Ok(1)
         }
+    }
+}
+
+impl Operation for PushProgress {
+    const NAME: &'static str = "push";
+    const CHECK_TRACKED_STATE: bool = false;
+
+    fn done(&self) -> bool {
+        PushProgress::done(self)
+    }
+    fn advance(&mut self, repo: &mut Repo) -> Res<Option<ExecutionEvent>> {
+        PushProgress::advance(self, repo)
+    }
+    fn finish(&self) -> Res<i32> {
+        PushProgress::finish(self)
     }
 }
 

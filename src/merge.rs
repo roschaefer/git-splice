@@ -808,13 +808,20 @@ impl MergeProgress {
     }
 
     pub(crate) fn advance(&mut self, repo: &mut Repo) -> Res<()> {
+        if let Some(event) = self.advance_event(repo)? {
+            repo.context.emit(event);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn advance_event(&mut self, repo: &mut Repo) -> Res<Option<ExecutionEvent>> {
         let branch = self.branch.as_str();
         let verb = self.verb.as_str();
         match std::mem::replace(&mut self.phase, MergePhase::Done) {
-            MergePhase::Done => Ok(()),
+            MergePhase::Done => Ok(None),
             MergePhase::Merge => {
                 if self.next >= self.paths.len() {
-                    return Ok(());
+                    return Ok(None);
                 }
                 self.phase = MergePhase::Merge;
                 let track = self.tracked_branch.is_some();
@@ -828,7 +835,7 @@ impl MergeProgress {
                 self.next += 1;
                 if splice_in_progress() {
                     self.skipped.push(path.clone());
-                    return Ok(());
+                    return Ok(None);
                 }
                 // Reading its .splice again after a merge above failed, e.g. the
                 // fetch of the upstream it names now; the reason came then.
@@ -837,7 +844,7 @@ impl MergeProgress {
                         "{path}: not {}, since its {STATE_FILE} from a merge above failed to load",
                         past_tense(verb)
                     ));
-                    return Ok(());
+                    return Ok(None);
                 }
                 if let Some(failed) = first_above(path, &self.failures) {
                     log_err(format!(
@@ -845,7 +852,7 @@ impl MergeProgress {
                         past_tense(verb)
                     ));
                     self.failures.push(path.clone());
-                    return Ok(());
+                    return Ok(None);
                 }
                 // Its merge could change the .splice of the failed one again: then
                 // that one's failure would be about a file that's gone.
@@ -855,7 +862,7 @@ impl MergeProgress {
                         past_tense(verb)
                     ));
                     self.failures.push(path.clone());
-                    return Ok(());
+                    return Ok(None);
                 }
                 // A pull of a splice above this one may have removed it.
                 if !state_file_here(path) {
@@ -868,7 +875,7 @@ impl MergeProgress {
                             "{path}: not a splice any more -- nothing to {verb}"
                         )),
                     }
-                    return Ok(());
+                    return Ok(None);
                 }
                 // A copy of a splice it's inside, by its id: pulling it brings in
                 // another copy below, and that one the next, so recursion ends.
@@ -885,14 +892,10 @@ impl MergeProgress {
                             "{path}: a copy of {above}, which it's inside -- not {}",
                             past_tense(verb)
                         ));
-                        return Ok(());
+                        return Ok(None);
                     }
                 }
-                let observed_head = repo
-                    .context
-                    .observing()
-                    .then(|| commit_of("HEAD"))
-                    .flatten();
+                let observed_head = commit_of("HEAD");
                 match repo.merge_one(path, branch, verb) {
                     Err(Fail::Hard) => return Err(Fail::Hard),
                     Err(_) => self.failures.push(path.clone()),
@@ -913,17 +916,17 @@ impl MergeProgress {
                     if !splice_in_progress() {
                         if let Some(after) = commit_of("HEAD") {
                             if before != after {
-                                repo.context.emit(ExecutionEvent::AfterMerge {
+                                return Ok(Some(ExecutionEvent::AfterMerge {
                                     path: path.clone(),
                                     head_before: before,
                                     head_after: after,
-                                });
+                                }));
                             }
                         }
                     }
                 }
 
-                Ok(())
+                Ok(None)
             }
             MergePhase::Discover(path) => {
                 self.phase = MergePhase::Merge;
@@ -957,7 +960,7 @@ impl MergeProgress {
                         .collect(),
                     next: 0,
                 };
-                Ok(())
+                Ok(None)
             }
             MergePhase::Reload { paths, next } => {
                 if let Some(path) = paths.get(next) {
@@ -979,15 +982,16 @@ impl MergeProgress {
                 } else {
                     self.phase = MergePhase::Merge;
                 }
-                Ok(())
+                Ok(None)
             }
             MergePhase::FetchReload { paths, next, plan } => {
+                let (results, event) = plan.download_event();
                 self.phase = MergePhase::FetchedReload {
                     paths,
                     next,
-                    results: plan.download(repo.context),
+                    results,
                 };
-                Ok(())
+                Ok(Some(event))
             }
             MergePhase::FetchedReload {
                 paths,
@@ -1003,7 +1007,7 @@ impl MergeProgress {
                     paths,
                     next: next + 1,
                 };
-                Ok(())
+                Ok(None)
             }
         }
     }

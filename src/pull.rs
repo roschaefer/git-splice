@@ -2,7 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
-use crate::execution::ExecutionEvent;
+use crate::execution::{Execution, ExecutionEvent, ExecutionOutcome, Operation};
 use crate::fetch::{FetchPlan, FetchResults};
 use crate::merge::{apply_merge_options, MergeProgress, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
@@ -12,17 +12,45 @@ use crate::util::*;
 pub const USAGE: &str = include_str!("usage/pull.txt");
 
 pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
+    start(context, argv)?.run()
+}
+
+/// Starts a pull retained in memory until it is completed or dropped.
+pub fn start<'context>(
+    context: &'context mut ExecutionContext,
+    argv: &[String],
+) -> Res<PullExecution<'context>> {
     let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let mut repo = Repo::new(context, args);
     apply_merge_options(&mut repo)?;
     repo.open()?;
-    let mut progress = PullProgress::new(&mut repo)?;
-    while !progress.done() {
-        progress.advance(&mut repo)?;
+    let progress = PullProgress::new(&mut repo)?;
+    Ok(PullExecution {
+        inner: Execution::new(repo, progress)?,
+    })
+}
+
+/// A pull retained across inspection-only pauses in the same process.
+pub struct PullExecution<'context> {
+    inner: Execution<'context, PullProgress>,
+}
+
+impl PullExecution<'_> {
+    pub fn run(&mut self) -> Res<i32> {
+        self.inner.run()
     }
-    progress.finish()
+
+    /// Pauses at a selected event. Repository identity, HEAD, branch, fetched
+    /// refs, configuration, tracked files, index and pull markers must remain
+    /// unchanged in the predicate and while paused.
+    pub fn run_until(
+        &mut self,
+        stop: impl FnMut(&ExecutionEvent) -> bool,
+    ) -> Res<ExecutionOutcome> {
+        self.inner.run_until(stop)
+    }
 }
 
 enum PullPhase {
@@ -30,6 +58,8 @@ enum PullPhase {
     Fetched(FetchResults),
     Merge(Box<MergeProgress>),
     Finalize,
+    Fold { observed_head: Option<String> },
+    Cleanup { allowed: bool },
     Done,
 }
 
@@ -113,19 +143,22 @@ impl PullProgress {
         matches!(self.phase, PullPhase::Done)
     }
 
-    fn advance(&mut self, repo: &mut Repo) -> Res<()> {
+    fn advance(&mut self, repo: &mut Repo) -> Res<Option<ExecutionEvent>> {
         match std::mem::replace(&mut self.phase, PullPhase::Done) {
-            PullPhase::Done => Ok(()),
+            PullPhase::Done => Ok(None),
             PullPhase::Fetch(plan) => {
-                self.phase = PullPhase::Fetched(plan.download(repo.context));
-                Ok(())
+                let (results, event) = plan.download_event();
+                self.phase = PullPhase::Fetched(results);
+                Ok(Some(event))
             }
             PullPhase::Fetched(results) => {
                 self.fetch_failures = results.finish(repo)?;
-                self.begin_merges(repo)
+                self.begin_merges(repo).map(|()| None)
             }
             PullPhase::Merge(mut merges) => {
-                if merges.advance(repo).is_err() {
+                let advanced = merges.advance_event(repo);
+                let event = advanced.as_ref().ok().cloned().flatten();
+                if advanced.is_err() {
                     self.status = 1;
                     self.phase = PullPhase::Finalize;
                 } else if merges.done() {
@@ -136,9 +169,39 @@ impl PullProgress {
                 } else {
                     self.phase = PullPhase::Merge(merges);
                 }
-                Ok(())
+                Ok(event)
             }
-            PullPhase::Finalize => self.finalize(repo.context),
+            PullPhase::Finalize => {
+                let allowed = self.recursive && !splice_in_progress();
+                if allowed && self.status == 0 {
+                    let observed_head = commit_of("HEAD");
+                    let event = observed_head
+                        .as_ref()
+                        .map(|head| ExecutionEvent::BeforeFold {
+                            roots: self.fold_roots.clone(),
+                            head: head.clone(),
+                        });
+                    self.phase = PullPhase::Fold { observed_head };
+                    Ok(event)
+                } else {
+                    self.phase = PullPhase::Cleanup { allowed };
+                    Ok(None)
+                }
+            }
+            PullPhase::Fold { observed_head } => {
+                fold_pulls(&self.fold_roots)?;
+                let event =
+                    observed_head
+                        .zip(commit_of("HEAD"))
+                        .map(|(head_before, head_after)| ExecutionEvent::AfterFold {
+                            roots: self.fold_roots.clone(),
+                            head_before,
+                            head_after,
+                        });
+                self.phase = PullPhase::Cleanup { allowed: true };
+                Ok(event)
+            }
+            PullPhase::Cleanup { allowed } => self.finalize(allowed).map(|()| None),
         }
     }
 
@@ -215,36 +278,14 @@ impl PullProgress {
         Ok(())
     }
 
-    fn finalize(&mut self, context: &mut ExecutionContext) -> Res<()> {
-        if self.recursive && !splice_in_progress() {
-            if self.status == 0 {
-                let observed_head = context.observing().then(|| commit_of("HEAD")).flatten();
-                if let Some(head) = &observed_head {
-                    context.emit(ExecutionEvent::BeforeFold {
-                        roots: self.fold_roots.clone(),
-                        head: head.clone(),
-                    });
+    fn finalize(&mut self, allowed: bool) -> Res<()> {
+        if allowed && (self.status == 0 || !self.fetch_failures.is_empty()) {
+            if self.rebasing {
+                if !replay_own_commits(&self.branch)? {
+                    self.status = 1;
                 }
-                fold_pulls(&self.fold_roots)?;
-                if let (Some(head_before), Some(head_after)) = (
-                    observed_head,
-                    context.observing().then(|| commit_of("HEAD")).flatten(),
-                ) {
-                    context.emit(ExecutionEvent::AfterFold {
-                        roots: self.fold_roots.clone(),
-                        head_before,
-                        head_after,
-                    });
-                }
-            }
-            if self.status == 0 || !self.fetch_failures.is_empty() {
-                if self.rebasing {
-                    if !replay_own_commits(&self.branch)? {
-                        self.status = 1;
-                    }
-                } else if !git(&["update-ref", "-d", START]).ok() {
-                    return fail(format!("{START} couldn't be updated"));
-                }
+            } else if !git(&["update-ref", "-d", START]).ok() {
+                return fail(format!("{START} couldn't be updated"));
             }
         }
         if self.rebasing && rebase_under_way()?.is_some() {
@@ -572,57 +613,174 @@ fn fold_pulls(tops: &[String]) -> Res<()> {
     Ok(())
 }
 
+impl Operation for PullProgress {
+    const NAME: &'static str = "pull";
+    const CHECK_TRACKED_STATE: bool = true;
+
+    fn done(&self) -> bool {
+        PullProgress::done(self)
+    }
+    fn advance(&mut self, repo: &mut Repo) -> Res<Option<ExecutionEvent>> {
+        PullProgress::advance(self, repo)
+    }
+    fn finish(&self) -> Res<i32> {
+        PullProgress::finish(self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use crate::util::test_repo::{git, with_repository};
 
+    struct FileVersions {
+        before: &'static str,
+        after: &'static str,
+    }
+
+    struct SpliceFixture {
+        path: &'static str,
+        upstream: &'static str,
+        file: FileVersions,
+    }
+
+    struct NestedFixture {
+        parent: SpliceFixture,
+        child: SpliceFixture,
+    }
+
     struct Updates {
         parent: String,
         child: String,
+        parent_before: String,
+        child_before: String,
+        parent_ref: String,
+        child_ref: String,
     }
 
-    fn nested_updates(context: &mut ExecutionContext) -> Updates {
+    fn setup_nested_updates(context: &mut ExecutionContext, fixture: &NestedFixture) -> Updates {
+        let parent = &fixture.parent;
+        let child = &fixture.child;
         git(&["config", "user.name", "Test"]);
         git(&["config", "user.email", "test@example.com"]);
         git(&["commit", "--allow-empty", "-qm", "initial"]);
-        git(&["init", "-q", "--initial-branch=main", "child"]);
-        std::fs::write("child/file", "old child\n").unwrap();
-        git(&["-C", "child", "add", "."]);
-        git(&["-C", "child", "commit", "-qm", "initial child"]);
-        let child = git(&["-C", "child", "rev-parse", "HEAD"]);
-        git(&["init", "-q", "--initial-branch=main", "parent"]);
-        std::fs::create_dir_all("parent/b").unwrap();
-        std::fs::write("parent/file", "old parent\n").unwrap();
-        std::fs::write("parent/b/file", "old child\n").unwrap();
+        git(&["init", "-q", "--initial-branch=main", child.upstream]);
+        std::fs::write(format!("{}/file", child.upstream), child.file.before).unwrap();
+        git(&["-C", child.upstream, "add", "."]);
+        git(&["-C", child.upstream, "commit", "-qm", "initial child"]);
+        let child_before = git(&["-C", child.upstream, "rev-parse", "HEAD"]);
+        git(&["init", "-q", "--initial-branch=main", parent.upstream]);
+        let inside = std::path::Path::new(child.path)
+            .strip_prefix(parent.path)
+            .unwrap();
+        let nested = std::path::Path::new(parent.upstream).join(inside);
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(format!("{}/file", parent.upstream), parent.file.before).unwrap();
+        std::fs::write(nested.join("file"), child.file.before).unwrap();
         let root = std::env::current_dir().unwrap();
         std::fs::write(
-            "parent/b/.splice",
+            nested.join(".splice"),
             format!(
-                "[splice]\n id = child\n commit = {child}\n[upstream \"origin\"]\n url = {}\n",
-                root.join("child").display()
+                "[splice]\n id = {}\n commit = {child_before}\n[upstream \"origin\"]\n url = {}\n",
+                child.upstream,
+                root.join(child.upstream).display()
             ),
         )
         .unwrap();
-        git(&["-C", "parent", "add", "."]);
-        git(&["-C", "parent", "commit", "-qm", "initial parent"]);
+        git(&["-C", parent.upstream, "add", "."]);
+        git(&["-C", parent.upstream, "commit", "-qm", "initial parent"]);
+        let parent_before = git(&["-C", parent.upstream, "rev-parse", "HEAD"]);
         crate::clone::run(
             context,
             &[
-                root.join("parent").to_string_lossy().into_owned(),
-                "vendor/a".into(),
+                root.join(parent.upstream).to_string_lossy().into_owned(),
+                parent.path.into(),
             ],
         )
         .unwrap();
-        std::fs::write("parent/file", "new parent\n").unwrap();
-        git(&["-C", "parent", "commit", "-qam", "update parent"]);
-        std::fs::write("child/file", "new child\n").unwrap();
-        git(&["-C", "child", "commit", "-qam", "update child"]);
+        std::fs::write(format!("{}/file", parent.upstream), parent.file.after).unwrap();
+        git(&["-C", parent.upstream, "commit", "-qam", "update parent"]);
+        std::fs::write(format!("{}/file", child.upstream), child.file.after).unwrap();
+        git(&["-C", child.upstream, "commit", "-qam", "update child"]);
+        let mut repo = Repo::new(context, Default::default());
+        repo.open().unwrap();
+        repo.select_paths(Kind::Overview, "fetch").unwrap();
         Updates {
-            parent: git(&["-C", "parent", "rev-parse", "HEAD"]),
-            child: git(&["-C", "child", "rev-parse", "HEAD"]),
+            parent: git(&["-C", parent.upstream, "rev-parse", "HEAD"]),
+            child: git(&["-C", child.upstream, "rev-parse", "HEAD"]),
+            parent_before,
+            child_before,
+            parent_ref: repo.splice_ref(parent.path, "main"),
+            child_ref: repo.splice_ref(child.path, "main"),
         }
+    }
+
+    fn nested_updates(context: &mut ExecutionContext) -> Updates {
+        setup_nested_updates(
+            context,
+            &NestedFixture {
+                parent: SpliceFixture {
+                    path: "vendor/a",
+                    upstream: "parent",
+                    file: FileVersions {
+                        before: "old parent\n",
+                        after: "new parent\n",
+                    },
+                },
+                child: SpliceFixture {
+                    path: "vendor/a/b",
+                    upstream: "child",
+                    file: FileVersions {
+                        before: "old child\n",
+                        after: "new child\n",
+                    },
+                },
+            },
+        )
+    }
+
+    fn assert_pull_diagram(
+        checkpoint: &str,
+        fixture: &NestedFixture,
+        updates: &Updates,
+        start: &str,
+        names: &[(&str, &str)],
+        expected: &str,
+    ) {
+        let label = |id: &str| {
+            if id.is_empty() {
+                return "-".to_string();
+            }
+            names
+                .iter()
+                .find(|(_, known)| *known == id)
+                .map(|(name, _)| (*name).to_string())
+                .unwrap_or_else(|| id.to_string())
+        };
+        let branch = git(&["rev-parse", "--abbrev-ref", "HEAD"]);
+        let head = label(&git(&["rev-parse", "HEAD"]));
+        let range = git(&[
+            "rev-list",
+            "--first-parent",
+            "--reverse",
+            &format!("{start}..HEAD"),
+        ]);
+        let mut history = vec![label(start)];
+        history.extend(range.lines().map(label));
+        let parent_fetched = label(&git(&["rev-parse", &updates.parent_ref]));
+        let child_fetched = label(&git(&["rev-parse", &updates.child_ref]));
+        let parent_record = label(&splice_config(fixture.parent.path, "commit", "HEAD"));
+        let child_record = label(&splice_config(fixture.child.path, "commit", "HEAD"));
+        let parent_file = std::fs::read_to_string(format!("{}/file", fixture.parent.path)).unwrap();
+        let child_file = std::fs::read_to_string(format!("{}/file", fixture.child.path)).unwrap();
+        let fold_start = label(&commit_of(START).unwrap_or_default());
+        let diagram = format!("{branch} -> {head}\nhistory: {}\nfetched: a -> {parent_fetched}, a/b -> {child_fetched}\nrecorded: a -> {parent_record}, a/b -> {child_record}\nfiles: a = {parent_file:?}, a/b = {child_file:?}\nfold start -> {fold_start}", history.join(" -- "));
+        println!("\n{checkpoint}\n{diagram}\n");
+        assert_eq!(
+            diagram, expected,
+            "{checkpoint}: observed repository diagram:\n{diagram}"
+        );
     }
 
     fn progress(context: &mut ExecutionContext) -> (Repo<'_>, PullProgress) {
@@ -637,6 +795,342 @@ mod tests {
         repo.open().unwrap();
         let progress = PullProgress::new(&mut repo).unwrap();
         (repo, progress)
+    }
+
+    #[test]
+    fn pull_rejects_state_changes_between_start_and_first_run() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            nested_updates(&mut context);
+            let mut execution =
+                start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+            std::fs::write("vendor/a/file", "changed after planning").unwrap();
+            let head = git(&["rev-parse", "HEAD"]);
+            assert_eq!(execution.run(), Err(Fail::Hard));
+            assert_eq!(git(&["rev-parse", "HEAD"]), head);
+        });
+    }
+
+    #[test]
+    fn paused_recursive_rebase_replays_own_commit_only_after_folding() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            nested_updates(&mut context);
+            std::fs::write("own-file", "my own change").unwrap();
+            git(&["add", "own-file"]);
+            git(&["commit", "-qm", "Own change"]);
+            let own = git(&["rev-parse", "HEAD"]);
+            let mut execution = start(
+                &mut context,
+                &["--recursive".into(), "--rebase".into(), "vendor/a".into()],
+            )
+            .unwrap();
+            execution
+                .run_until(|event| matches!(event, ExecutionEvent::BeforeFold { .. }))
+                .unwrap();
+            let before_fold = git(&["rev-parse", "HEAD"]);
+            let outcome = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterFold { .. }))
+                .unwrap();
+            let folded = git(&["rev-parse", "HEAD"]);
+            assert_eq!(
+                outcome,
+                ExecutionOutcome::Paused(ExecutionEvent::AfterFold {
+                    roots: vec!["vendor/a".into()],
+                    head_before: before_fold,
+                    head_after: folded.clone()
+                })
+            );
+            assert_eq!(git(&["rev-parse", "main"]), own);
+            assert_eq!(git(&["rev-parse", "--abbrev-ref", "HEAD"]), "HEAD");
+            assert!(!std::path::Path::new("own-file").exists());
+            assert_eq!(execution.run(), Ok(0));
+            assert_eq!(git(&["branch", "--show-current"]), "main");
+            assert_eq!(git(&["rev-parse", "HEAD^"]), folded);
+            assert_eq!(
+                std::fs::read_to_string("own-file").unwrap(),
+                "my own change"
+            );
+            assert_eq!(git(&["log", "-1", "--format=%s"]), "Own change");
+        });
+    }
+
+    #[test]
+    fn paused_recursive_rebase_rejects_a_moved_original_branch_before_replay() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            nested_updates(&mut context);
+            std::fs::write("own-file", "my own change").unwrap();
+            git(&["add", "own-file"]);
+            git(&["commit", "-qm", "Own change"]);
+            let own = git(&["rev-parse", "HEAD"]);
+            let mut execution = start(
+                &mut context,
+                &["--recursive".into(), "--rebase".into(), "vendor/a".into()],
+            )
+            .unwrap();
+            assert!(matches!(
+                execution
+                    .run_until(|event| matches!(event, ExecutionEvent::AfterFold { .. }))
+                    .unwrap(),
+                ExecutionOutcome::Paused(ExecutionEvent::AfterFold { .. })
+            ));
+            let folded = git(&["rev-parse", "HEAD"]);
+            let moved = git(&["rev-parse", &format!("{own}^")]);
+            git(&["update-ref", "refs/heads/main", &moved, &own]);
+
+            assert_eq!(execution.run(), Err(Fail::Hard));
+            assert_eq!(execution.run(), Err(Fail::Hard));
+            assert_eq!(git(&["rev-parse", "HEAD"]), folded);
+            assert_eq!(git(&["rev-parse", "main"]), moved);
+            assert_eq!(
+                git(&["symbolic-ref", "SPLICE_PULL_BRANCH"]),
+                "refs/heads/main"
+            );
+        });
+    }
+
+    #[test]
+    fn pull_continuation_rejects_tracked_file_index_and_marker_changes() {
+        enum Change {
+            TrackedFile,
+            Index,
+            FoldStart,
+            RebaseBranch,
+        }
+        for change in [
+            Change::TrackedFile,
+            Change::Index,
+            Change::FoldStart,
+            Change::RebaseBranch,
+        ] {
+            with_repository(|| {
+                let mut context = ExecutionContext::new();
+                nested_updates(&mut context);
+                let mut execution =
+                    start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+                assert!(matches!(
+                    execution
+                        .run_until(|event| matches!(event, ExecutionEvent::BeforeFold { .. }))
+                        .unwrap(),
+                    ExecutionOutcome::Paused(ExecutionEvent::BeforeFold { .. })
+                ));
+                let head = git(&["rev-parse", "HEAD"]);
+                match change {
+                    Change::TrackedFile => {
+                        std::fs::write("vendor/a/file", "edited while paused").unwrap()
+                    }
+                    Change::Index => {
+                        std::fs::write("vendor/a/file", "staged while paused").unwrap();
+                        git(&["add", "vendor/a/file"]);
+                        std::fs::write("vendor/a/file", "new parent\n").unwrap();
+                    }
+                    Change::FoldStart => {
+                        std::fs::write(git(&["rev-parse", "--git-path", START]), "changed").unwrap()
+                    }
+                    Change::RebaseBranch => std::fs::write(
+                        git(&["rev-parse", "--git-path", "SPLICE_PULL_BRANCH"]),
+                        "changed",
+                    )
+                    .unwrap(),
+                }
+                assert_eq!(execution.run(), Err(Fail::Hard));
+                assert_eq!(execution.run(), Err(Fail::Hard));
+                assert_eq!(git(&["rev-parse", "HEAD"]), head);
+            });
+        }
+    }
+
+    #[test]
+    fn named_pull_checkpoints_pause_before_folding_and_continue_without_refetching() {
+        with_repository(|| {
+            let fixture = NestedFixture {
+                parent: SpliceFixture {
+                    path: "vendor/a",
+                    upstream: "parent",
+                    file: FileVersions {
+                        before: "parent v1",
+                        after: "parent v2",
+                    },
+                },
+                child: SpliceFixture {
+                    path: "vendor/a/b",
+                    upstream: "child",
+                    file: FileVersions {
+                        before: "child v1",
+                        after: "child v2",
+                    },
+                },
+            };
+            let mut context = ExecutionContext::new();
+            let updates = setup_nested_updates(&mut context, &fixture);
+            let initial = git(&["rev-parse", "HEAD"]);
+            let mut names = vec![
+                ("S", initial.as_str()),
+                ("A0", updates.parent_before.as_str()),
+                ("B0", updates.child_before.as_str()),
+                ("A1", updates.parent.as_str()),
+                ("B1", updates.child.as_str()),
+            ];
+            assert_pull_diagram(
+                "Initial fixture",
+                &fixture,
+                &updates,
+                &initial,
+                &names,
+                r#"main -> S
+history: S
+fetched: a -> A0, a/b -> B0
+recorded: a -> A0, a/b -> B0
+files: a = "parent v1", a/b = "child v1"
+fold start -> -"#,
+            );
+            let mut execution =
+                start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterFetch { .. }))
+                .unwrap();
+            assert!(matches!(
+                paused,
+                ExecutionOutcome::Paused(ExecutionEvent::AfterFetch { .. })
+            ));
+            assert_pull_diagram(
+                "Paused: initial downloads complete",
+                &fixture,
+                &updates,
+                &initial,
+                &names,
+                r#"main -> S
+history: S
+fetched: a -> A1, a/b -> B1
+recorded: a -> A0, a/b -> B0
+files: a = "parent v1", a/b = "child v1"
+fold start -> -"#,
+            );
+            std::fs::rename("parent", "parent.offline").unwrap();
+            std::fs::rename("child", "child.offline").unwrap();
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterMerge { .. }))
+                .unwrap();
+            let parent_head = git(&["rev-parse", "HEAD"]);
+            assert_eq!(
+                paused,
+                ExecutionOutcome::Paused(ExecutionEvent::AfterMerge {
+                    path: "vendor/a".into(),
+                    head_before: initial.clone(),
+                    head_after: parent_head.clone()
+                })
+            );
+            names.push(("P", &parent_head));
+            assert_pull_diagram(
+                "Paused: parent merged",
+                &fixture,
+                &updates,
+                &initial,
+                &names,
+                r#"main -> P
+history: S -- P
+fetched: a -> A1, a/b -> B1
+recorded: a -> A1, a/b -> B0
+files: a = "parent v2", a/b = "child v1"
+fold start -> S"#,
+            );
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterMerge { .. }))
+                .unwrap();
+            let child_head = git(&["rev-parse", "HEAD"]);
+            assert_eq!(
+                paused,
+                ExecutionOutcome::Paused(ExecutionEvent::AfterMerge {
+                    path: "vendor/a/b".into(),
+                    head_before: parent_head.clone(),
+                    head_after: child_head.clone()
+                })
+            );
+            names.push(("C", &child_head));
+            assert_pull_diagram(
+                "Paused: child merged",
+                &fixture,
+                &updates,
+                &initial,
+                &names,
+                r#"main -> C
+history: S -- P -- C
+fetched: a -> A1, a/b -> B1
+recorded: a -> A1, a/b -> B1
+files: a = "parent v2", a/b = "child v2"
+fold start -> S"#,
+            );
+            assert_eq!(
+                execution
+                    .run_until(|event| matches!(event, ExecutionEvent::BeforeFold { .. }))
+                    .unwrap(),
+                ExecutionOutcome::Paused(ExecutionEvent::BeforeFold {
+                    roots: vec!["vendor/a".into()],
+                    head: child_head.clone()
+                })
+            );
+            assert_pull_diagram(
+                "Paused: BEFORE folding",
+                &fixture,
+                &updates,
+                &initial,
+                &names,
+                r#"main -> C
+history: S -- P -- C
+fetched: a -> A1, a/b -> B1
+recorded: a -> A1, a/b -> B1
+files: a = "parent v2", a/b = "child v2"
+fold start -> S"#,
+            );
+            let tree = git(&["rev-parse", "HEAD^{tree}"]);
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterFold { .. }))
+                .unwrap();
+            let folded = git(&["rev-parse", "HEAD"]);
+            assert_eq!(
+                paused,
+                ExecutionOutcome::Paused(ExecutionEvent::AfterFold {
+                    roots: vec!["vendor/a".into()],
+                    head_before: child_head.clone(),
+                    head_after: folded.clone()
+                })
+            );
+            names.push(("F", &folded));
+            assert_eq!(git(&["rev-parse", "HEAD^{tree}"]), tree);
+            assert_pull_diagram(
+                "Paused: AFTER folding, before cleanup",
+                &fixture,
+                &updates,
+                &initial,
+                &names,
+                r#"main -> F
+history: S -- F
+fetched: a -> A1, a/b -> B1
+recorded: a -> A1, a/b -> B1
+files: a = "parent v2", a/b = "child v2"
+fold start -> S"#,
+            );
+            assert_eq!(execution.run().unwrap(), 0);
+            assert_pull_diagram(
+                "Complete: start marker cleared",
+                &fixture,
+                &updates,
+                &initial,
+                &names,
+                r#"main -> F
+history: S -- F
+fetched: a -> A1, a/b -> B1
+recorded: a -> A1, a/b -> B1
+files: a = "parent v2", a/b = "child v2"
+fold start -> -"#,
+            );
+            assert_eq!(
+                execution.run_until(|_| true).unwrap(),
+                ExecutionOutcome::Complete(0)
+            );
+            assert_eq!(git(&["rev-parse", "HEAD"]), folded);
+        });
     }
 
     #[test]
@@ -811,7 +1305,9 @@ mod tests {
             assert_eq!(splice_config("vendor/a/b", "commit", "HEAD"), updates.child);
             let unfolded = git(&["rev-parse", "HEAD"]);
             let tree = git(&["rev-parse", "HEAD^{tree}"]);
-            progress.advance(&mut repo).unwrap();
+            while !progress.done() {
+                progress.advance(&mut repo).unwrap();
+            }
             assert!(progress.done());
             assert_eq!(progress.finish().unwrap(), 0);
             assert_eq!(
@@ -865,7 +1361,9 @@ mod tests {
                 git(&["rev-list", "--count", &format!("{before}..HEAD")]),
                 "2"
             );
-            progress.advance(&mut repo).unwrap();
+            while !progress.done() {
+                progress.advance(&mut repo).unwrap();
+            }
             assert_eq!(progress.finish().unwrap(), 1);
             assert_eq!(
                 git(&["rev-list", "--count", &format!("{before}..HEAD")]),
