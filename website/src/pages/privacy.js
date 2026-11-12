@@ -22,8 +22,8 @@ export default function Privacy() {
             <strong>Besuchsstatistik.</strong> <a href="https://www.goatcounter.com/help/privacy">GoatCounter</a> zählt
             Seitenaufrufe ohne Cookies oder Tracking-IDs. IP-Adressen und
             vollständige User-Agent-Angaben werden nicht dauerhaft gespeichert.
-            Der Erfassungsendpunkt dieser Website leitet technische Besuchsdaten
-            an GoatCounter weiter.
+            Für die Besuchsstatistik werden technische Daten über Netlify an
+            GoatCounter übermittelt.
           </p>
         </section>
         <section lang="en" aria-labelledby="privacy">
