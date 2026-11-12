@@ -246,10 +246,10 @@ operations still share the process working directory, so use process isolation
 as described above. `util::test_repo` is private to module tests; external tests
 need their own harness.
 
-Reuse scenario recipes in `docs/09-scenarios/` and
-`docs/tests/helpers/fixtures.bash` where useful by invoking Bash. Share setup
-recipes, never mutable checkouts; environment changes in a Bash child do not
-isolate the Rust parent.
+The external test helper in `tests/common/mod.rs` invokes Bash to reuse
+scenario recipes from `docs/09-scenarios/` and
+`docs/tests/helpers/fixtures.bash`. Share recipes, never mutable checkouts;
+environment changes in a Bash child do not isolate the Rust parent.
 
 For short public API examples, write doctests in `///` or `//!` documentation
 and run `cargo test --doc -p git-splice`. Keep shell workflows in Scrut.
