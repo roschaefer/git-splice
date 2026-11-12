@@ -34,7 +34,7 @@ function __git_splice_positional
             continue
         end
         switch $token
-            case --upstream --branch -m --message --message-template
+            case --upstream --branch -m --message --message-template --exec
                 set skip 1
             case '-*'
             case '*'
@@ -90,3 +90,4 @@ complete -c git-splice -n "__git_splice_positional boundary 0" -a "(__git_splice
 complete -c git-splice -n "__git_splice_positional rebuild 0" -a "(__git_splice_paths)" -d splice
 complete -c git-splice -n "__git_splice_positional key 0" -a "(__git_splice_paths)" -d splice
 complete -c git-splice -n "__fish_seen_subcommand_from key fetch merge pull push status diff log" -l upstream -x -d 'upstream named in .splice'
+complete -c git-splice -n "__fish_seen_subcommand_from pull push" -l exec -x -d 'run a command at each execution checkpoint'

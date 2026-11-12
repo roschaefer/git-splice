@@ -2,8 +2,8 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] (<path>... | --all)
-    git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
+    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] [--exec <command>] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force] [--exec <command>] --rebuilt-commit <commit> <path>
 
 DESCRIPTION
     Publishes each splice's local changes: rebuilds the commits that changed
@@ -62,6 +62,17 @@ OPTIONS
         synced commit before the next change, as push reminds you.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/push/#--rebuilt-commit
+
+    --exec <command>
+        Runs <command> through sh from the repository root at each execution
+        checkpoint. GIT_SPLICE_EVENT names the checkpoint; GIT_SPLICE_PATH
+        names its splice, and GIT_SPLICE_COMMIT its prepared or published
+        commit, when applicable. Other values are empty. Zero continues;
+        nonzero stops with completed work applied. Hooks must preserve the
+        repository inputs required by continuation. stdin is closed; stdout
+        and stderr are inherited.
+
+        See also: https://git-splice.roschaefer.de/docs/command-reference/push/#--exec
 
     See also: https://git-splice.roschaefer.de/docs/command-reference/push/#options
 

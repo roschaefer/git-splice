@@ -2,7 +2,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 
 DESCRIPTION
@@ -81,6 +81,17 @@ OPTIONS
         once.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--recursive
+
+    --exec <command>
+        Runs <command> through sh from the repository root at each execution
+        checkpoint. GIT_SPLICE_EVENT names the checkpoint; GIT_SPLICE_PATH
+        names its splice, and GIT_SPLICE_COMMIT its prepared or published
+        commit, when applicable. Other values are empty. Zero continues;
+        nonzero stops with completed work applied. Hooks must preserve the
+        repository inputs required by continuation. stdin is closed; stdout
+        and stderr are inherited.
+
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--exec
 
     See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#options
 

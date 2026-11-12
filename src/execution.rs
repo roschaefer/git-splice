@@ -2,6 +2,7 @@
 
 use crate::repo::{commit_of, Repo};
 use crate::util::*;
+use std::process::{Command, Stdio};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FetchedUpstream {
@@ -41,6 +42,37 @@ pub enum ExecutionEvent {
 pub enum ExecutionOutcome {
     Paused(ExecutionEvent),
     Complete(i32),
+}
+
+impl ExecutionEvent {
+    fn exec(&self, command: &str) -> Res<()> {
+        let (event, path, commit) = match self {
+            Self::AfterFetch { .. } => ("after-fetch", "", ""),
+            Self::AfterMerge { path, .. } => ("after-merge", path.as_str(), ""),
+            Self::AfterRebuild { path, commit } => {
+                ("after-rebuild", path.as_str(), commit.as_str())
+            }
+            Self::AfterPush { path, commit } => ("after-push", path.as_str(), commit.as_str()),
+            Self::BeforeFold { .. } => ("before-fold", "", ""),
+            Self::AfterFold { .. } => ("after-fold", "", ""),
+        };
+        let status = match Command::new("sh")
+            .args(["-c", command])
+            .env("GIT_SPLICE_EVENT", event)
+            .env("GIT_SPLICE_PATH", path)
+            .env("GIT_SPLICE_COMMIT", commit)
+            .stdin(Stdio::null())
+            .status()
+        {
+            Ok(status) => status,
+            Err(error) => return die(format!("--exec: could not run command: {error}")),
+        };
+        if !status.success() {
+            log_err(format!("--exec stopped at {event}"));
+            return Err(Fail::Code(status_code(status)));
+        }
+        Ok(())
+    }
 }
 
 pub(crate) trait Operation {
@@ -102,6 +134,13 @@ impl<'context, O: Operation> Execution<'context, O> {
             let advanced = self.progress.advance(&mut self.repo);
             if let Some(event) = self.checked(advanced)? {
                 self.repo.context.emit(event.clone());
+                if !self.repo.args.exec.is_empty() {
+                    let checkpoint =
+                        self.checked(PausedRepository::capture(O::CHECK_TRACKED_STATE))?;
+                    let executed = event.exec(&self.repo.args.exec);
+                    self.checked(executed)?;
+                    self.checked(checkpoint.validate(O::NAME))?;
+                }
                 if let Some(predicate) = &mut stop {
                     let checkpoint =
                         self.checked(PausedRepository::capture(O::CHECK_TRACKED_STATE))?;

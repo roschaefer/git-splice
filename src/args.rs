@@ -10,6 +10,7 @@ pub struct Args {
     pub branch: String,
     pub message: String,
     pub message_template: String,
+    pub exec: String,
     pub paths: Vec<String>,
     pub flags: Vec<String>,
 }
@@ -83,6 +84,7 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                 "--rebuilt-commit",
                 "--branch",
                 "--message-template",
+                "--exec",
             ]
             .iter()
             .any(|o| arg == *o || arg.starts_with(&format!("{o}="))) =>
@@ -96,6 +98,12 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                     argv.get(i).cloned().unwrap_or_default()
                 };
                 match option {
+                    "--exec" => {
+                        if value.is_empty() {
+                            return die("--exec needs a command");
+                        }
+                        args.exec = value;
+                    }
                     "--upstream" => {
                         if value.is_empty() {
                             return die("--upstream needs an upstream's name");

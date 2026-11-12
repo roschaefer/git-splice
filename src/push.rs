@@ -277,7 +277,7 @@ pub fn start<'context>(
 ) -> Res<PushExecution<'context>> {
     let args = parse_args(
         USAGE,
-        "--force --upstream --branch --track --rebuilt-commit",
+        "--force --upstream --branch --track --rebuilt-commit --exec",
         argv,
     )?;
     args.require_branch_for_track()?;
@@ -601,6 +601,82 @@ mod tests {
         repo.open().unwrap();
         let progress = PushProgress::new(&mut repo).unwrap();
         (repo, progress)
+    }
+
+    #[test]
+    fn exec_hooks_observe_prepared_and_published_commits_from_the_repository_root() {
+        with_repository(|| {
+            setup();
+            let mut context = ExecutionContext::new();
+            let observed = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let events = observed.clone();
+            context.set_observer(move |event| events.lock().unwrap().push(event.clone()));
+            let hook = r#"
+set -eu
+test "$GIT_SPLICE_PATH" = vendor/a
+git cat-file -e "$GIT_SPLICE_COMMIT^{commit}"
+case "$GIT_SPLICE_EVENT" in
+    after-rebuild) test -z "$(git --git-dir=vendor/a.git for-each-ref)" ;;
+    after-push) test "$(git --git-dir=vendor/a.git rev-parse topic)" = "$GIT_SPLICE_COMMIT" ;;
+    *) exit 1 ;;
+esac
+printf '%s\n' "$GIT_SPLICE_EVENT" >> hook-events
+"#;
+            std::env::set_current_dir("vendor/a").unwrap();
+            let mut execution = start(
+                &mut context,
+                &[
+                    "--branch=topic".into(),
+                    format!("--exec={hook}"),
+                    "vendor/a".into(),
+                ],
+            )
+            .unwrap();
+            assert_eq!(execution.run(), Ok(0));
+            assert_eq!(execution.run(), Ok(0));
+            assert_eq!(
+                std::fs::read_to_string("hook-events").unwrap(),
+                "after-rebuild\nafter-push\n"
+            );
+            assert_eq!(observed.lock().unwrap().len(), 2);
+        });
+    }
+
+    #[test]
+    fn failing_exec_hook_stops_remaining_work_and_remains_failed() {
+        for stop in ["after-rebuild", "after-push"] {
+            with_repository(|| {
+                setup();
+                let mut context = ExecutionContext::new();
+                let hook = format!(r#"if test "$GIT_SPLICE_EVENT" = {stop}; then exit 7; fi"#);
+                let mut execution =
+                    start(&mut context, &["--exec".into(), hook, "vendor/a".into()]).unwrap();
+                assert_eq!(execution.run(), Err(Fail::Code(7)));
+                assert_eq!(execution.run(), Err(Fail::Code(7)));
+                let published = !git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty();
+                assert_eq!(published, stop == "after-push");
+            });
+        }
+    }
+
+    #[test]
+    fn exec_hook_that_changes_head_is_rejected_before_publication() {
+        with_repository(|| {
+            setup();
+            let mut context = ExecutionContext::new();
+            assert_eq!(
+                run(
+                    &mut context,
+                    &[
+                        "--exec".into(),
+                        "git commit --allow-empty -qm changed".into(),
+                        "vendor/a".into(),
+                    ],
+                ),
+                Err(Fail::Hard)
+            );
+            assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+        });
     }
 
     #[test]

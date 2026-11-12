@@ -20,7 +20,7 @@ pub fn start<'context>(
     context: &'context mut ExecutionContext,
     argv: &[String],
 ) -> Res<PullExecution<'context>> {
-    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive"), argv)?;
+    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive --exec"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let mut repo = Repo::new(context, args);
@@ -798,6 +798,29 @@ mod tests {
     }
 
     #[test]
+    fn failing_exec_hook_leaves_downloads_applied_without_merging() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            let updates = nested_updates(&mut context);
+            let head = git(&["rev-parse", "HEAD"]);
+            assert_eq!(
+                run(
+                    &mut context,
+                    &[
+                        "--exec".into(),
+                        r#"test "$GIT_SPLICE_EVENT" = after-fetch && test -z "$GIT_SPLICE_PATH$GIT_SPLICE_COMMIT" && exit 9"#.into(),
+                        "vendor/a".into(),
+                    ],
+                ),
+                Err(Fail::Code(9))
+            );
+            assert_eq!(git(&["rev-parse", "HEAD"]), head);
+            assert_eq!(git(&["rev-parse", &updates.parent_ref]), updates.parent);
+            assert_eq!(git(&["rev-parse", &updates.child_ref]), updates.child);
+        });
+    }
+
+    #[test]
     fn pull_rejects_state_changes_between_start_and_first_run() {
         with_repository(|| {
             let mut context = ExecutionContext::new();
@@ -1134,7 +1157,7 @@ fold start -> -"#,
     }
 
     #[test]
-    fn observer_sees_real_fetch_merge_and_fold_boundaries_through_the_command_entrypoint() {
+    fn observer_and_exec_hook_see_fetch_merge_and_fold_boundaries() {
         #[derive(Debug)]
         struct Observation {
             event: ExecutionEvent,
@@ -1165,8 +1188,21 @@ fold start -> -"#,
                 });
             });
             assert_eq!(
-                run(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap(),
+                run(
+                    &mut context,
+                    &[
+                        "--recursive".into(),
+                        "--exec".into(),
+                        r#"test -z "$GIT_SPLICE_COMMIT" && printf '%s:%s\n' "$GIT_SPLICE_EVENT" "$GIT_SPLICE_PATH" >> hook-events"#.into(),
+                        "vendor/a".into(),
+                    ],
+                )
+                .unwrap(),
                 0
+            );
+            assert_eq!(
+                std::fs::read_to_string("hook-events").unwrap(),
+                "after-fetch:\nafter-merge:vendor/a\nafter-merge:vendor/a/b\nbefore-fold:\nafter-fold:\n"
             );
             let observed = observations.lock().unwrap();
             assert_eq!(observed.len(), 5, "{observed:#?}");
