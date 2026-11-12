@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
+use crate::execution::{ExecutionEvent, FetchedUpstream};
 use crate::repo::*;
 use crate::util::*;
 
@@ -200,7 +201,9 @@ impl Repo<'_> {
     /// same refs would fail on each other's locks. Prints what there is to say
     /// about each entry, in their order, and returns the paths that failed.
     pub fn fetch_all(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchFailures> {
-        self.prepare_fetch(branch, entries)?.download().finish(self)
+        self.prepare_fetch(branch, entries)?
+            .download(self.context)
+            .finish(self)
     }
 
     pub(crate) fn prepare_fetch(
@@ -338,7 +341,7 @@ pub(crate) struct FetchResults {
 }
 
 impl FetchPlan {
-    pub(crate) fn download(self) -> FetchResults {
+    pub(crate) fn download(self, context: &mut ExecutionContext) -> FetchResults {
         let mut reports = vec![Report::default(); self.entries.len()];
         std::thread::scope(|scope| {
             let handles: Vec<_> = self
@@ -358,6 +361,28 @@ impl FetchPlan {
                 }
             }
         });
+
+        if context.observing() {
+            let mut fetched = Vec::new();
+            for job in &self.jobs {
+                for member in &job.members {
+                    let (path, upstream) = &self.entries[member.index];
+                    fetched.push((
+                        member.index,
+                        FetchedUpstream {
+                            path: path.clone(),
+                            upstream: upstream.clone(),
+                            url: job.url.clone(),
+                            failed: reports[member.index].failed,
+                        },
+                    ));
+                }
+            }
+            fetched.sort_by_key(|(index, _)| *index);
+            context.emit(ExecutionEvent::AfterFetch {
+                fetched: fetched.into_iter().map(|(_, entry)| entry).collect(),
+            });
+        }
 
         FetchResults {
             plan: self,
@@ -498,7 +523,7 @@ mod tests {
             assert_eq!(plan.jobs[0].members.len(), 2);
             let reference = plan.jobs[0].members[0].target_ref.clone();
             assert_eq!(git(&["rev-parse", &reference]), old);
-            let results = plan.download();
+            let results = plan.download(repo.context);
             assert_eq!(git(&["rev-parse", &reference]), new);
             assert_eq!(results.reports.len(), 2);
             for (path, report) in ["vendor/a", "vendor/b"].into_iter().zip(&results.reports) {
@@ -532,6 +557,12 @@ mod tests {
             git(&["add", "vendor/a", "vendor/b"]);
             git(&["commit", "-qm", "mount splices"]);
             let mut context = ExecutionContext::new();
+            let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let recorded = events.clone();
+            context.set_observer(move |event| {
+                assert!(!git(&["config", "--get-regexp", "^splice\\..*\\.url$"]).is_empty());
+                recorded.lock().unwrap().push(event.clone());
+            });
             let mut repo = repo(&mut context);
             let selected = repo.selected.clone();
             let entries = repo.every_upstream_entry(&selected).unwrap();
@@ -542,11 +573,32 @@ mod tests {
             let key = repo.upstream_key(&url).unwrap();
             assert!(!key.is_empty());
             std::fs::rename("upstream", "upstream.offline").unwrap();
-            let results = plan.download();
+            let results = plan.download(repo.context);
             assert!(results.reports.iter().all(|report| report.failed));
             assert_eq!(repo.upstream_key(&url).unwrap(), key);
             assert_eq!(results.finish(&mut repo).unwrap(), ["vendor/a", "vendor/b"]);
             assert!(repo.upstream_key(&url).unwrap().is_empty());
+            let observed = events.lock().unwrap();
+            assert_eq!(
+                *observed,
+                vec![ExecutionEvent::AfterFetch {
+                    fetched: vec![
+                        FetchedUpstream {
+                            path: "vendor/a".into(),
+                            upstream: "origin".into(),
+                            url: url.clone(),
+                            failed: true
+                        },
+                        FetchedUpstream {
+                            path: "vendor/b".into(),
+                            upstream: "origin".into(),
+                            url,
+                            failed: true
+                        },
+                    ],
+                }],
+                "observed events:\n{observed:#?}"
+            );
         });
     }
 }
