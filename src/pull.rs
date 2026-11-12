@@ -2,6 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
+use crate::execution::ExecutionEvent;
 use crate::fetch::{FetchPlan, FetchResults};
 use crate::merge::{apply_merge_options, MergeProgress, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
@@ -116,7 +117,7 @@ impl PullProgress {
         match std::mem::replace(&mut self.phase, PullPhase::Done) {
             PullPhase::Done => Ok(()),
             PullPhase::Fetch(plan) => {
-                self.phase = PullPhase::Fetched(plan.download());
+                self.phase = PullPhase::Fetched(plan.download(repo.context));
                 Ok(())
             }
             PullPhase::Fetched(results) => {
@@ -137,7 +138,7 @@ impl PullProgress {
                 }
                 Ok(())
             }
-            PullPhase::Finalize => self.finalize(),
+            PullPhase::Finalize => self.finalize(repo.context),
         }
     }
 
@@ -214,10 +215,27 @@ impl PullProgress {
         Ok(())
     }
 
-    fn finalize(&mut self) -> Res<()> {
+    fn finalize(&mut self, context: &mut ExecutionContext) -> Res<()> {
         if self.recursive && !splice_in_progress() {
             if self.status == 0 {
+                let observed_head = context.observing().then(|| commit_of("HEAD")).flatten();
+                if let Some(head) = &observed_head {
+                    context.emit(ExecutionEvent::BeforeFold {
+                        roots: self.fold_roots.clone(),
+                        head: head.clone(),
+                    });
+                }
                 fold_pulls(&self.fold_roots)?;
+                if let (Some(head_before), Some(head_after)) = (
+                    observed_head,
+                    context.observing().then(|| commit_of("HEAD")).flatten(),
+                ) {
+                    context.emit(ExecutionEvent::AfterFold {
+                        roots: self.fold_roots.clone(),
+                        head_before,
+                        head_after,
+                    });
+                }
             }
             if self.status == 0 || !self.fetch_failures.is_empty() {
                 if self.rebasing {
@@ -619,6 +637,138 @@ mod tests {
         repo.open().unwrap();
         let progress = PullProgress::new(&mut repo).unwrap();
         (repo, progress)
+    }
+
+    #[test]
+    fn observer_sees_real_fetch_merge_and_fold_boundaries_through_the_command_entrypoint() {
+        #[derive(Debug)]
+        struct Observation {
+            event: ExecutionEvent,
+            head: String,
+            commits: usize,
+            tree: String,
+        }
+
+        with_repository(|| {
+            use crate::execution::FetchedUpstream;
+            use ExecutionEvent::*;
+
+            let mut context = ExecutionContext::new();
+            nested_updates(&mut context);
+            let root = std::env::current_dir().unwrap();
+            let start = git(&["rev-parse", "HEAD"]);
+            let observed_start = start.clone();
+            let observations = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let recorded = observations.clone();
+            context.set_observer(move |event| {
+                recorded.lock().unwrap().push(Observation {
+                    event: event.clone(),
+                    head: git(&["rev-parse", "HEAD"]),
+                    commits: git(&["rev-list", "--count", &format!("{observed_start}..HEAD")])
+                        .parse()
+                        .unwrap(),
+                    tree: git(&["rev-parse", "HEAD^{tree}"]),
+                });
+            });
+            assert_eq!(
+                run(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap(),
+                0
+            );
+            let observed = observations.lock().unwrap();
+            assert_eq!(observed.len(), 5, "{observed:#?}");
+            let parent_head = observed[1].head.clone();
+            let child_head = observed[2].head.clone();
+            let folded_head = git(&["rev-parse", "HEAD"]);
+            let fetched = vec![
+                FetchedUpstream {
+                    path: "vendor/a".into(),
+                    upstream: "origin".into(),
+                    url: root.join("parent").to_string_lossy().into_owned(),
+                    failed: false,
+                },
+                FetchedUpstream {
+                    path: "vendor/a/b".into(),
+                    upstream: "origin".into(),
+                    url: root.join("child").to_string_lossy().into_owned(),
+                    failed: false,
+                },
+            ];
+            assert_eq!(
+                observed
+                    .iter()
+                    .map(|row| row.event.clone())
+                    .collect::<Vec<_>>(),
+                vec![
+                    AfterFetch {
+                        fetched: fetched.clone()
+                    },
+                    AfterMerge {
+                        path: "vendor/a".into(),
+                        head_before: start.clone(),
+                        head_after: parent_head.clone(),
+                    },
+                    AfterMerge {
+                        path: "vendor/a/b".into(),
+                        head_before: parent_head.clone(),
+                        head_after: child_head.clone(),
+                    },
+                    BeforeFold {
+                        roots: vec!["vendor/a".into()],
+                        head: child_head.clone()
+                    },
+                    AfterFold {
+                        roots: vec!["vendor/a".into()],
+                        head_before: child_head.clone(),
+                        head_after: folded_head.clone(),
+                    },
+                ],
+                "observed checkpoints:\n{observed:#?}"
+            );
+            assert_eq!(
+                observed
+                    .iter()
+                    .map(|row| row.head.as_str())
+                    .collect::<Vec<_>>(),
+                [
+                    start.as_str(),
+                    parent_head.as_str(),
+                    child_head.as_str(),
+                    child_head.as_str(),
+                    folded_head.as_str(),
+                ]
+            );
+            assert_eq!(
+                observed.iter().map(|row| row.commits).collect::<Vec<_>>(),
+                [0, 1, 2, 2, 1]
+            );
+            assert_eq!(observed[3].tree, observed[4].tree);
+            drop(observed);
+            observations.lock().unwrap().clear();
+            assert_eq!(
+                run(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap(),
+                0
+            );
+            let observed = observations.lock().unwrap();
+            assert_eq!(
+                observed
+                    .iter()
+                    .map(|row| row.event.clone())
+                    .collect::<Vec<_>>(),
+                vec![
+                    AfterFetch { fetched },
+                    BeforeFold {
+                        roots: vec!["vendor/a".into()],
+                        head: folded_head.clone()
+                    },
+                    AfterFold {
+                        roots: vec!["vendor/a".into()],
+                        head_before: folded_head.clone(),
+                        head_after: folded_head
+                    },
+                ],
+                "observed checkpoints:\n{observed:#?}"
+            );
+        });
     }
 
     #[test]

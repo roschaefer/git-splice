@@ -28,7 +28,8 @@ the command's `run`. The tool only runs the `git` CLI, so
 |---|---|
 | `src/util.rs` | Logging, failures (`Fail`) and running git. |
 | `src/args.rs` | Argument parsing. |
-| `src/context.rs` | Caller-owned `ExecutionContext`: immutable content-tree cache and validated supplied rebuilds shared by operations in one invocation. |
+| `src/execution.rs` | Typed fetch, merge, rebuild, push and fold observations for an optional execution-context observer. |
+| `src/context.rs` | Caller-owned `ExecutionContext`: immutable content-tree cache, validated supplied rebuilds and optional progress observer shared by operations in one invocation. |
 | `src/repo.rs` | `Repo`: discovery, path selection, reading `.splice`, upstreams, keys and what a splice syncs with. |
 | `src/rebuild.rs` | The push rebuild: `rebuild_splice`, `splice_start` (B) and the commit loop `rebuild_walk`. |
 | `src/state.rs` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone`. |
@@ -44,6 +45,14 @@ each command's `run`. A `Repo` borrows that context, so nested operations
 share it. Mutable discovery, worktree observations and rebuild progress stay
 on `Repo`; a new `Repo` reads current state while reusing tree-ID cache entries.
 The context belongs to one invocation in one repository.
+
+Rust callers can use `ExecutionContext::set_observer` to inspect synchronization
+checkpoints from fetch, merge, pull and push. Callbacks run synchronously after
+the completed step, before later work. Fetch observations include failed entries
+and precede report/key cleanup and synced-history validation. Fold observations
+surround the fold stage, before any subsequent rebase replay or cleanup.
+An observer reports progress; it supplies no pause/cancel decision. The CLI
+installs no observer. These Rust events do not define a serialized hook protocol.
 
 Each command follows the same shape: `select_paths` picks the splices,
 then a per-splice function (`merge_one`, `push_one`, …) calls
