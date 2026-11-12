@@ -10,7 +10,6 @@ type Observer = Box<dyn FnMut(&ExecutionEvent) + Send + Sync>;
 #[derive(Default)]
 pub struct ExecutionContext {
     observer: Option<Observer>,
-    captured_events: Option<Vec<ExecutionEvent>>,
     content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
 }
@@ -30,25 +29,13 @@ impl ExecutionContext {
     }
 
     pub(crate) fn observing(&self) -> bool {
-        self.observer.is_some() || self.captured_events.is_some()
+        self.observer.is_some()
     }
 
     pub(crate) fn emit(&mut self, event: ExecutionEvent) {
         if let Some(observer) = &mut self.observer {
             observer(&event);
         }
-        if let Some(events) = &mut self.captured_events {
-            events.push(event);
-        }
-    }
-
-    pub(crate) fn capture_events(&mut self) {
-        debug_assert!(self.captured_events.is_none());
-        self.captured_events = Some(Vec::new());
-    }
-
-    pub(crate) fn take_events(&mut self) -> Vec<ExecutionEvent> {
-        self.captured_events.take().unwrap_or_default()
     }
 
     /// Folder tree <tree> without its state file. The same folder tree recurs

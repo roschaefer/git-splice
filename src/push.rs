@@ -337,18 +337,10 @@ impl PushExecution<'_> {
         }
         self.checkpoint = None;
         while !self.progress.done() {
-            if stop.is_some() {
-                self.repo.context.capture_events();
-            }
             let advanced = self.progress.advance(&mut self.repo);
-            let events = if stop.is_some() {
-                self.repo.context.take_events()
-            } else {
-                Vec::new()
-            };
-            self.checked(advanced)?;
-            if let Some(predicate) = &mut stop {
-                for event in events {
+            if let Some(event) = self.checked(advanced)? {
+                self.repo.context.emit(event.clone());
+                if let Some(predicate) = &mut stop {
                     let checkpoint = self.checked(PausedRepository::capture())?;
                     let pause = predicate(&event);
                     self.checked(checkpoint.validate())?;
@@ -459,12 +451,12 @@ impl PushProgress {
         matches!(self.phase, PushPhase::Done)
     }
 
-    fn advance(&mut self, repo: &mut Repo) -> Res<()> {
+    fn advance(&mut self, repo: &mut Repo) -> Res<Option<ExecutionEvent>> {
         match std::mem::replace(&mut self.phase, PushPhase::Done) {
-            PushPhase::Done => Ok(()),
+            PushPhase::Done => Ok(None),
             PushPhase::Prepare => {
                 let Some(path) = self.paths.pop_front() else {
-                    return Ok(());
+                    return Ok(None);
                 };
                 self.phase = PushPhase::Prepare;
                 if let Some(failed) = first_below(&path, &self.failures) {
@@ -472,24 +464,22 @@ impl PushProgress {
                         "{path}: not pushed, since {failed} below it failed"
                     ));
                     self.failures.push(path);
-                    return Ok(());
+                    return Ok(None);
                 }
                 match repo.prepare_push(&path, &self.branch, self.force) {
                     Err(Fail::Hard) => Err(Fail::Hard),
                     Err(_) => {
                         self.failures.push(path);
-                        Ok(())
+                        Ok(None)
                     }
-                    Ok(None) => self.track(repo, &path),
+                    Ok(None) => self.track(repo, &path).map(|()| None),
                     Ok(Some(prepared)) => {
-                        if repo.context.observing() {
-                            repo.context.emit(ExecutionEvent::AfterRebuild {
-                                path: prepared.path.clone(),
-                                commit: prepared.rebuilt_commit.clone(),
-                            });
-                        }
+                        let event = ExecutionEvent::AfterRebuild {
+                            path: prepared.path.clone(),
+                            commit: prepared.rebuilt_commit.clone(),
+                        };
                         self.phase = PushPhase::Publish(prepared);
-                        Ok(())
+                        Ok(Some(event))
                     }
                 }
             }
@@ -499,17 +489,14 @@ impl PushProgress {
                     Err(Fail::Hard) => Err(Fail::Hard),
                     Err(_) => {
                         self.failures.push(prepared.path);
-                        Ok(())
+                        Ok(None)
                     }
                     Ok(()) => {
                         self.track(repo, &prepared.path)?;
-                        if repo.context.observing() {
-                            repo.context.emit(ExecutionEvent::AfterPush {
-                                path: prepared.path,
-                                commit: prepared.rebuilt_commit,
-                            });
-                        }
-                        Ok(())
+                        Ok(Some(ExecutionEvent::AfterPush {
+                            path: prepared.path,
+                            commit: prepared.rebuilt_commit,
+                        }))
                     }
                 }
             }
@@ -1077,16 +1064,29 @@ vendor/b.git/topic -> B (offline)"#,
             let mut context = ExecutionContext::new();
             let (mut repo, mut progress) = progress(&mut context);
             assert_eq!(progress.paths.front().unwrap(), "vendor/a");
-            progress.advance(&mut repo).unwrap();
+            let event = progress.advance(&mut repo).unwrap();
             let PushPhase::Publish(prepared) = &progress.phase else {
                 panic!("expected prepared push")
             };
             let rebuilt = prepared.rebuilt_commit.clone();
             let reference = prepared.fetched_ref.clone();
+            assert_eq!(
+                event,
+                Some(ExecutionEvent::AfterRebuild {
+                    path: "vendor/a".into(),
+                    commit: rebuilt.clone(),
+                })
+            );
             assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
             assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
             repo.c = Classified::default();
-            progress.advance(&mut repo).unwrap();
+            assert_eq!(
+                progress.advance(&mut repo).unwrap(),
+                Some(ExecutionEvent::AfterPush {
+                    path: "vendor/a".into(),
+                    commit: rebuilt.clone(),
+                })
+            );
             assert_eq!(
                 git(&["--git-dir=vendor/a.git", "rev-parse", "refs/heads/topic"]),
                 rebuilt
@@ -1101,7 +1101,7 @@ vendor/b.git/topic -> B (offline)"#,
             assert_eq!(progress.finish().unwrap(), 0);
             assert!(!git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
             std::fs::rename("vendor/b.git", "vendor/b.offline").unwrap();
-            progress.advance(&mut repo).unwrap();
+            assert_eq!(progress.advance(&mut repo).unwrap(), None);
             assert!(progress.done());
             assert_eq!(progress.finish().unwrap(), 0);
         });
