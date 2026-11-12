@@ -54,6 +54,31 @@ surround the fold stage, before any subsequent rebase replay or cleanup.
 An observer reports progress; it supplies no pause/cancel decision. The CLI
 installs no observer. These Rust events do not define a serialized hook protocol.
 
+For an in-memory push that can pause, Rust callers use `push::start` and keep its
+`PushExecution`. `run_until` returns `ExecutionOutcome::Paused(event)` when its
+predicate matches a named event. Calling `run_until` again continues after that
+event; `run` completes the remaining work. An installed observer still receives
+each event once. Completion retains the command's exit status, including failures.
+The first run and continuation require the same working directory, Git directory,
+HEAD, branch, fetched refs and effective Git configuration captured at start or
+pause. The predicate must also preserve that state. Uncommitted edits remain unpublished.
+An error ends that execution. Dropping it abandons pending work and leaves completed
+pushes applied; there is no saved continuation or CLI pause option yet.
+
+To replay the in-memory push scenario and print diagrams checked against Git:
+
+```sh
+env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 cargo test --lib named_push_checkpoints -- --nocapture
+```
+
+Its setup declares each splice's path, empty upstream and committed files as
+fixture values. Each printed diagram reads actual branch refs and verifies the
+named local commits. `M` names the unchanged monorepo HEAD; `A` and `B` name the
+rebuilt commits returned at the pauses. A dash means the upstream branch is
+absent. Offline upstreams are renamed local test repositories; the inspector
+reads their retained refs directly while the push still uses the missing URL.
+
+
 Each command follows the same shape: `select_paths` picks the splices,
 then a per-splice function (`merge_one`, `push_one`, …) calls
 `classify_splice` and acts on its state.

@@ -32,3 +32,10 @@ pub enum ExecutionEvent {
         head_after: String,
     },
 }
+
+/// Result of driving an operation to completion or a requested event boundary.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ExecutionOutcome {
+    Paused(ExecutionEvent),
+    Complete(i32),
+}

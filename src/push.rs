@@ -2,7 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
-use crate::execution::ExecutionEvent;
+use crate::execution::{ExecutionEvent, ExecutionOutcome};
 use crate::merge::EqualTree;
 use crate::repo::*;
 use crate::util::*;
@@ -267,6 +267,14 @@ impl Repo<'_> {
 }
 
 pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
+    start(context, argv)?.run()
+}
+
+/// Starts a push whose progress remains owned by the returned execution.
+pub fn start<'context>(
+    context: &'context mut ExecutionContext,
+    argv: &[String],
+) -> Res<PushExecution<'context>> {
     let args = parse_args(
         USAGE,
         "--force --upstream --branch --track --rebuilt-commit",
@@ -275,11 +283,126 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     args.require_branch_for_track()?;
     let mut repo = Repo::new(context, args);
     repo.open()?;
-    let mut progress = PushProgress::new(&mut repo)?;
-    while !progress.done() {
-        progress.advance(&mut repo)?;
+    let progress = PushProgress::new(&mut repo)?;
+    let checkpoint = PausedRepository::capture()?;
+    Ok(PushExecution {
+        repo,
+        progress,
+        checkpoint: Some(checkpoint),
+        completed: None,
+        failed: None,
+    })
+}
+
+/// A push retained in memory. Continuing never repeats a consumed checkpoint.
+pub struct PushExecution<'context> {
+    repo: Repo<'context>,
+    progress: PushProgress,
+    checkpoint: Option<PausedRepository>,
+    completed: Option<i32>,
+    failed: Option<Fail>,
+}
+
+type PausePredicate<'a> = &'a mut dyn FnMut(&ExecutionEvent) -> bool;
+
+impl PushExecution<'_> {
+    /// Drives this push to completion, including after an earlier pause.
+    pub fn run(&mut self) -> Res<i32> {
+        match self.drive(None)? {
+            ExecutionOutcome::Complete(status) => Ok(status),
+            ExecutionOutcome::Paused(_) => unreachable!("no pause predicate installed"),
+        }
     }
-    progress.finish()
+
+    /// Returns after an event for which stop is true, retaining all remaining work.
+    /// Local HEAD, branch, fetched refs and Git configuration must remain unchanged
+    /// in the predicate or while paused. Uncommitted files are not published by push.
+    pub fn run_until(
+        &mut self,
+        mut stop: impl FnMut(&ExecutionEvent) -> bool,
+    ) -> Res<ExecutionOutcome> {
+        self.drive(Some(&mut stop))
+    }
+
+    fn drive(&mut self, mut stop: Option<PausePredicate<'_>>) -> Res<ExecutionOutcome> {
+        if let Some(failure) = self.failed {
+            return Err(failure);
+        }
+        if let Some(status) = self.completed {
+            return Ok(ExecutionOutcome::Complete(status));
+        }
+        if let Some(checkpoint) = &self.checkpoint {
+            let validated = checkpoint.validate();
+            self.checked(validated)?;
+        }
+        self.checkpoint = None;
+        while !self.progress.done() {
+            let advanced = self.progress.advance(&mut self.repo);
+            if let Some(event) = self.checked(advanced)? {
+                self.repo.context.emit(event.clone());
+                if let Some(predicate) = &mut stop {
+                    let checkpoint = self.checked(PausedRepository::capture())?;
+                    let pause = predicate(&event);
+                    self.checked(checkpoint.validate())?;
+                    if pause {
+                        self.checkpoint = Some(checkpoint);
+                        return Ok(ExecutionOutcome::Paused(event));
+                    }
+                }
+            }
+        }
+        let finished = self.progress.finish();
+        let status = self.checked(finished)?;
+        self.completed = Some(status);
+        Ok(ExecutionOutcome::Complete(status))
+    }
+
+    fn checked<T>(&mut self, result: Res<T>) -> Res<T> {
+        if let Err(failure) = &result {
+            self.failed = Some(*failure);
+        }
+        result
+    }
+}
+
+#[derive(PartialEq, Eq)]
+struct PausedRepository {
+    root: std::path::PathBuf,
+    git_dir: String,
+    head: String,
+    branch: Option<String>,
+    fetched_refs: String,
+    config: Vec<u8>,
+}
+
+impl PausedRepository {
+    fn capture() -> Res<Self> {
+        Ok(Self {
+            root: std::env::current_dir().map_err(|_| Fail::Hard)?,
+            git_dir: git(&["rev-parse", "--absolute-git-dir"])
+                .out()
+                .ok_or(Fail::Hard)?,
+            head: commit_of("HEAD").ok_or(Fail::Hard)?,
+            branch: git(&["symbolic-ref", "--quiet", "HEAD"]).q().out(),
+            fetched_refs: git(&[
+                "for-each-ref",
+                "--format=%(refname) %(objectname)",
+                "refs/splices/",
+            ])
+            .out()
+            .ok_or(Fail::Hard)?,
+            config: git(&["config", "--null", "--list"])
+                .bytes()
+                .ok_or(Fail::Hard)?,
+        })
+    }
+
+    fn validate(&self) -> Res<()> {
+        if *self != Self::capture()? {
+            return die("repository state changed at a push checkpoint -- start a new push");
+        }
+        Ok(())
+    }
 }
 
 enum PushPhase {
@@ -328,12 +451,12 @@ impl PushProgress {
         matches!(self.phase, PushPhase::Done)
     }
 
-    fn advance(&mut self, repo: &mut Repo) -> Res<()> {
+    fn advance(&mut self, repo: &mut Repo) -> Res<Option<ExecutionEvent>> {
         match std::mem::replace(&mut self.phase, PushPhase::Done) {
-            PushPhase::Done => Ok(()),
+            PushPhase::Done => Ok(None),
             PushPhase::Prepare => {
                 let Some(path) = self.paths.pop_front() else {
-                    return Ok(());
+                    return Ok(None);
                 };
                 self.phase = PushPhase::Prepare;
                 if let Some(failed) = first_below(&path, &self.failures) {
@@ -341,24 +464,22 @@ impl PushProgress {
                         "{path}: not pushed, since {failed} below it failed"
                     ));
                     self.failures.push(path);
-                    return Ok(());
+                    return Ok(None);
                 }
                 match repo.prepare_push(&path, &self.branch, self.force) {
                     Err(Fail::Hard) => Err(Fail::Hard),
                     Err(_) => {
                         self.failures.push(path);
-                        Ok(())
+                        Ok(None)
                     }
-                    Ok(None) => self.track(repo, &path),
+                    Ok(None) => self.track(repo, &path).map(|()| None),
                     Ok(Some(prepared)) => {
-                        if repo.context.observing() {
-                            repo.context.emit(ExecutionEvent::AfterRebuild {
-                                path: prepared.path.clone(),
-                                commit: prepared.rebuilt_commit.clone(),
-                            });
-                        }
+                        let event = ExecutionEvent::AfterRebuild {
+                            path: prepared.path.clone(),
+                            commit: prepared.rebuilt_commit.clone(),
+                        };
                         self.phase = PushPhase::Publish(prepared);
-                        Ok(())
+                        Ok(Some(event))
                     }
                 }
             }
@@ -368,17 +489,14 @@ impl PushProgress {
                     Err(Fail::Hard) => Err(Fail::Hard),
                     Err(_) => {
                         self.failures.push(prepared.path);
-                        Ok(())
+                        Ok(None)
                     }
                     Ok(()) => {
                         self.track(repo, &prepared.path)?;
-                        if repo.context.observing() {
-                            repo.context.emit(ExecutionEvent::AfterPush {
-                                path: prepared.path,
-                                commit: prepared.rebuilt_commit,
-                            });
-                        }
-                        Ok(())
+                        Ok(Some(ExecutionEvent::AfterPush {
+                            path: prepared.path,
+                            commit: prepared.rebuilt_commit,
+                        }))
                     }
                 }
             }
@@ -427,21 +545,121 @@ mod tests {
     use super::*;
     use crate::util::test_repo::{git, with_repository};
 
-    fn setup() {
+    struct SpliceFixture {
+        path: &'static str,
+        upstream: &'static str,
+        files: &'static [(&'static str, &'static str)],
+    }
+
+    impl SpliceFixture {
+        fn offline_path(&self) -> std::path::PathBuf {
+            std::path::Path::new(self.upstream).with_extension("offline")
+        }
+
+        fn disconnect(&self) {
+            std::fs::rename(self.upstream, self.offline_path()).unwrap();
+        }
+    }
+
+    fn setup_splices(splices: &[SpliceFixture]) {
         git(&["commit", "--allow-empty", "-qm", "initial"]);
-        for path in ["vendor/a", "vendor/b"] {
-            let upstream = format!("{path}.git");
-            git(&["init", "-q", "--bare", "--initial-branch=main", &upstream]);
-            std::fs::create_dir_all(path).unwrap();
-            std::fs::write(format!("{path}/file"), path).unwrap();
+        for splice in splices {
+            git(&[
+                "init",
+                "-q",
+                "--bare",
+                "--initial-branch=main",
+                splice.upstream,
+            ]);
+            std::fs::create_dir_all(splice.path).unwrap();
+            for (file, content) in splice.files {
+                let file = std::path::Path::new(splice.path).join(file);
+                std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+                std::fs::write(file, content).unwrap();
+            }
             std::fs::write(
-                format!("{path}/.splice"),
-                format!("[splice]\n id = {path}\n[upstream \"origin\"]\n url = {upstream}\n"),
+                format!("{}/.splice", splice.path),
+                format!(
+                    "[splice]\n id = {}\n[upstream \"origin\"]\n url = {}\n",
+                    splice.path, splice.upstream
+                ),
             )
             .unwrap();
+            git(&["add", "--", splice.path]);
         }
-        git(&["add", "vendor/a", "vendor/b"]);
         git(&["commit", "-qm", "mount splices"]);
+    }
+
+    fn setup() {
+        setup_splices(&[
+            SpliceFixture {
+                path: "vendor/a",
+                upstream: "vendor/a.git",
+                files: &[("file", "vendor/a")],
+            },
+            SpliceFixture {
+                path: "vendor/b",
+                upstream: "vendor/b.git",
+                files: &[("file", "vendor/b")],
+            },
+        ]);
+    }
+
+    fn assert_push_diagram(
+        checkpoint: &str,
+        splices: &[SpliceFixture],
+        commits: &[(&str, &str)],
+        expected: &str,
+    ) {
+        let label = |commit: &str| {
+            if commit.is_empty() {
+                return "-".to_string();
+            }
+            commits
+                .iter()
+                .find(|(_, id)| *id == commit)
+                .map(|(name, _)| (*name).to_string())
+                .unwrap_or_else(|| commit.to_string())
+        };
+        let branch = git(&["symbolic-ref", "--short", "HEAD"]);
+        let head = label(&git(&["rev-parse", "HEAD"]));
+        let local = commits
+            .iter()
+            .map(|(name, id)| {
+                if commit_here(id) {
+                    (*name).to_string()
+                } else {
+                    format!("{name} (missing)")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        let mut diagram = format!("{branch} -> {head}\nnamed local commits: {local}");
+        for splice in splices {
+            let online = std::path::Path::new(splice.upstream).exists();
+            let repository = if online {
+                std::path::PathBuf::from(splice.upstream)
+            } else {
+                splice.offline_path()
+            };
+            let commit = git(&[
+                &format!("--git-dir={}", repository.display()),
+                "for-each-ref",
+                "--format=%(objectname)",
+                "refs/heads/topic",
+            ]);
+            let state = if online { "online" } else { "offline" };
+            diagram.push_str(&format!(
+                "\n{}/topic -> {} ({state})",
+                splice.upstream,
+                label(&commit)
+            ));
+        }
+        println!("\n{checkpoint}\n{diagram}\n");
+        assert_eq!(
+            diagram, expected,
+            "{checkpoint}: observed repository diagram:\n{diagram}"
+        );
     }
 
     fn progress<'a>(context: &'a mut ExecutionContext) -> (Repo<'a>, PushProgress) {
@@ -463,6 +681,314 @@ mod tests {
         repo.open().unwrap();
         let progress = PushProgress::new(&mut repo).unwrap();
         (repo, progress)
+    }
+
+    #[test]
+    fn named_push_checkpoints_pause_and_continue_without_repeating_publication() {
+        with_repository(|| {
+            let splices = [
+                SpliceFixture {
+                    path: "vendor/a",
+                    upstream: "vendor/a.git",
+                    files: &[("file", "a's committed content")],
+                },
+                SpliceFixture {
+                    path: "vendor/b",
+                    upstream: "vendor/b.git",
+                    files: &[("file", "b's committed content")],
+                },
+            ];
+            setup_splices(&splices);
+            let main = git(&["rev-parse", "HEAD"]);
+            assert_push_diagram(
+                "Initial fixture",
+                &splices,
+                &[("M", &main)],
+                r#"main -> M
+named local commits: M
+vendor/a.git/topic -> - (online)
+vendor/b.git/topic -> - (online)"#,
+            );
+            let mut context = ExecutionContext::new();
+            let observed = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let events = observed.clone();
+            context.set_observer(move |event| events.lock().unwrap().push(event.clone()));
+            let args = [
+                "--all".into(),
+                "--force".into(),
+                "--branch".into(),
+                "topic".into(),
+                "--track".into(),
+            ];
+            let mut execution = start(&mut context, &args).unwrap();
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterRebuild { .. }))
+                .unwrap();
+            let ExecutionOutcome::Paused(ExecutionEvent::AfterRebuild { path, commit }) = paused
+            else {
+                panic!("expected rebuild pause")
+            };
+            assert_eq!(path, "vendor/a");
+            assert_push_diagram(
+                "Paused: a rebuilt, not published",
+                &splices,
+                &[("M", &main), ("A", &commit)],
+                r#"main -> M
+named local commits: M A
+vendor/a.git/topic -> - (online)
+vendor/b.git/topic -> - (online)"#,
+            );
+            assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            std::fs::write("vendor/a/file", "uncommitted content").unwrap();
+            assert_eq!(
+                execution
+                    .run_until(|event| matches!(event, ExecutionEvent::AfterPush { .. }))
+                    .unwrap(),
+                ExecutionOutcome::Paused(ExecutionEvent::AfterPush {
+                    path: "vendor/a".into(),
+                    commit: commit.clone()
+                }),
+            );
+            assert_eq!(
+                git(&["--git-dir=vendor/a.git", "rev-parse", "refs/heads/topic"]),
+                commit
+            );
+            assert_eq!(
+                git(&["--git-dir=vendor/a.git", "show", "topic:file"]),
+                "a's committed content"
+            );
+            assert_eq!(git(&["config", "--get", "branch.main.splice"]), "a:topic");
+            assert_push_diagram(
+                "Paused: a published",
+                &splices,
+                &[("M", &main), ("A", &commit)],
+                r#"main -> M
+named local commits: M A
+vendor/a.git/topic -> A (online)
+vendor/b.git/topic -> - (online)"#,
+            );
+            splices[0].disconnect();
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterRebuild { .. }))
+                .unwrap();
+            let ExecutionOutcome::Paused(ExecutionEvent::AfterRebuild {
+                path,
+                commit: b_commit,
+            }) = paused
+            else {
+                panic!("expected b's rebuild pause: {paused:#?}")
+            };
+            assert_eq!(path, "vendor/b");
+            assert_push_diagram(
+                "Paused: b rebuilt, a offline",
+                &splices,
+                &[("M", &main), ("A", &commit), ("B", &b_commit)],
+                r#"main -> M
+named local commits: M A B
+vendor/a.git/topic -> A (offline)
+vendor/b.git/topic -> - (online)"#,
+            );
+            assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            assert_eq!(execution.run().unwrap(), 0);
+            assert!(!git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
+            assert_push_diagram(
+                "Complete: b published",
+                &splices,
+                &[("M", &main), ("A", &commit), ("B", &b_commit)],
+                r#"main -> M
+named local commits: M A B
+vendor/a.git/topic -> A (offline)
+vendor/b.git/topic -> B (online)"#,
+            );
+            splices[1].disconnect();
+            assert_eq!(
+                execution.run_until(|_| true).unwrap(),
+                ExecutionOutcome::Complete(0)
+            );
+            assert_eq!(execution.run().unwrap(), 0);
+            assert_push_diagram(
+                "Still complete: both upstreams offline",
+                &splices,
+                &[("M", &main), ("A", &commit), ("B", &b_commit)],
+                r#"main -> M
+named local commits: M A B
+vendor/a.git/topic -> A (offline)
+vendor/b.git/topic -> B (offline)"#,
+            );
+            let events = observed.lock().unwrap();
+            assert_eq!(
+                *events,
+                vec![
+                    ExecutionEvent::AfterRebuild {
+                        path: "vendor/a".into(),
+                        commit: commit.clone()
+                    },
+                    ExecutionEvent::AfterPush {
+                        path: "vendor/a".into(),
+                        commit
+                    },
+                    ExecutionEvent::AfterRebuild {
+                        path: "vendor/b".into(),
+                        commit: b_commit.clone()
+                    },
+                    ExecutionEvent::AfterPush {
+                        path: "vendor/b".into(),
+                        commit: b_commit
+                    },
+                ],
+                "observed events:\n{events:#?}"
+            );
+        });
+    }
+
+    #[test]
+    fn switching_repositories_before_first_advance_rejects_publication_and_remains_failed() {
+        for use_predicate in [false, true] {
+            with_repository(|| {
+                setup();
+                let root = std::env::current_dir().unwrap();
+                git(&[
+                    "config",
+                    "--file",
+                    "vendor/a/.splice",
+                    "upstream.origin.url",
+                    root.join("vendor/a.git").to_str().unwrap(),
+                ]);
+                git(&["commit", "-qam", "use absolute upstream"]);
+                git(&["clone", "-q", ".", "other"]);
+                std::fs::write("other/vendor/a/file", "other repository content").unwrap();
+                git(&["-C", "other", "commit", "-qam", "other content"]);
+                let mut context = ExecutionContext::new();
+                let args = [
+                    "--force".into(),
+                    "--branch".into(),
+                    "topic".into(),
+                    "vendor/a".into(),
+                ];
+                let mut execution = start(&mut context, &args).unwrap();
+                std::env::set_current_dir(root.join("other")).unwrap();
+                let failed = if use_predicate {
+                    execution.run_until(|_| false).is_err()
+                } else {
+                    execution.run().is_err()
+                };
+                std::env::set_current_dir(&root).unwrap();
+                assert!(failed, "use_predicate={use_predicate}");
+                assert!(execution.run().is_err());
+                assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            });
+        }
+    }
+
+    #[test]
+    fn changed_local_state_rejects_continuation_before_publication_and_remains_failed() {
+        for change in [
+            "head",
+            "branch",
+            "fetched refs",
+            "configuration",
+            "repository",
+        ] {
+            with_repository(|| {
+                setup();
+                let root = std::env::current_dir().unwrap();
+                let mut context = ExecutionContext::new();
+                let args = [
+                    "--force".into(),
+                    "--branch".into(),
+                    "topic".into(),
+                    "vendor/a".into(),
+                ];
+                let mut execution = start(&mut context, &args).unwrap();
+                assert!(matches!(
+                    execution.run_until(|_| true).unwrap(),
+                    ExecutionOutcome::Paused(ExecutionEvent::AfterRebuild { .. })
+                ));
+                match change {
+                    "head" => {
+                        git(&["commit", "--allow-empty", "-qm", "changed HEAD"]);
+                    }
+                    "branch" => {
+                        git(&["checkout", "-qb", "another"]);
+                    }
+                    "fetched refs" => {
+                        git(&["update-ref", "refs/splices/changed/heads/main", "HEAD"]);
+                    }
+                    "configuration" => {
+                        git(&["config", "test.changed", "true"]);
+                    }
+                    "repository" => {
+                        git(&["init", "-q", "--initial-branch=main", "other"]);
+                        git(&["-C", "other", "commit", "--allow-empty", "-qm", "other"]);
+                        std::env::set_current_dir(root.join("other")).unwrap();
+                    }
+                    _ => unreachable!(),
+                }
+                assert!(execution.run().is_err(), "{change}");
+                std::env::set_current_dir(&root).unwrap();
+                assert!(execution.run_until(|_| false).is_err(), "{change}");
+                assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            });
+        }
+    }
+
+    #[test]
+    fn checkpoint_predicate_cannot_change_head_before_pausing_or_continuing() {
+        for pause in [false, true] {
+            with_repository(|| {
+                setup();
+                let mut context = ExecutionContext::new();
+                let args = [
+                    "--force".into(),
+                    "--branch".into(),
+                    "topic".into(),
+                    "vendor/a".into(),
+                ];
+                let mut execution = start(&mut context, &args).unwrap();
+                assert!(execution
+                    .run_until(|_| {
+                        git(&["commit", "--allow-empty", "-qm", "changed in predicate"]);
+                        pause
+                    })
+                    .is_err());
+                assert!(execution.run().is_err());
+                assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
+            });
+        }
+    }
+
+    #[test]
+    fn pause_after_an_independent_push_preserves_an_earlier_publication_failure() {
+        with_repository(|| {
+            setup();
+            let mut context = ExecutionContext::new();
+            let args = [
+                "--all".into(),
+                "--force".into(),
+                "--branch".into(),
+                "topic".into(),
+            ];
+            let mut execution = start(&mut context, &args).unwrap();
+            std::fs::rename("vendor/a.git", "vendor/a.offline").unwrap();
+            let paused = execution
+                .run_until(|event| matches!(event, ExecutionEvent::AfterPush { .. }))
+                .unwrap();
+            let published = git(&["--git-dir=vendor/b.git", "rev-parse", "refs/heads/topic"]);
+            assert_eq!(
+                paused,
+                ExecutionOutcome::Paused(ExecutionEvent::AfterPush {
+                    path: "vendor/b".into(),
+                    commit: published,
+                })
+            );
+            std::fs::rename("vendor/b.git", "vendor/b.offline").unwrap();
+            assert_eq!(execution.run().unwrap(), 1);
+            assert_eq!(
+                execution.run_until(|_| true).unwrap(),
+                ExecutionOutcome::Complete(1)
+            );
+        });
     }
 
     #[test]
@@ -538,16 +1064,29 @@ mod tests {
             let mut context = ExecutionContext::new();
             let (mut repo, mut progress) = progress(&mut context);
             assert_eq!(progress.paths.front().unwrap(), "vendor/a");
-            progress.advance(&mut repo).unwrap();
+            let event = progress.advance(&mut repo).unwrap();
             let PushPhase::Publish(prepared) = &progress.phase else {
                 panic!("expected prepared push")
             };
             let rebuilt = prepared.rebuilt_commit.clone();
             let reference = prepared.fetched_ref.clone();
+            assert_eq!(
+                event,
+                Some(ExecutionEvent::AfterRebuild {
+                    path: "vendor/a".into(),
+                    commit: rebuilt.clone(),
+                })
+            );
             assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
             assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
             repo.c = Classified::default();
-            progress.advance(&mut repo).unwrap();
+            assert_eq!(
+                progress.advance(&mut repo).unwrap(),
+                Some(ExecutionEvent::AfterPush {
+                    path: "vendor/a".into(),
+                    commit: rebuilt.clone(),
+                })
+            );
             assert_eq!(
                 git(&["--git-dir=vendor/a.git", "rev-parse", "refs/heads/topic"]),
                 rebuilt
@@ -562,7 +1101,7 @@ mod tests {
             assert_eq!(progress.finish().unwrap(), 0);
             assert!(!git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
             std::fs::rename("vendor/b.git", "vendor/b.offline").unwrap();
-            progress.advance(&mut repo).unwrap();
+            assert_eq!(progress.advance(&mut repo).unwrap(), None);
             assert!(progress.done());
             assert_eq!(progress.finish().unwrap(), 0);
         });
