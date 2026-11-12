@@ -20,6 +20,22 @@ impl ExecutionContext {
     }
 
     /// Observes completed steps synchronously. No observer is installed by default.
+    ///
+    /// Configure progress reporting before passing the context to an operation:
+    ///
+    /// ```
+    /// use git_splice::context::ExecutionContext;
+    /// use git_splice::execution::ExecutionEvent;
+    ///
+    /// let mut context = ExecutionContext::new();
+    /// context.set_observer(|event| {
+    ///     if let ExecutionEvent::AfterPush { path, commit } = event {
+    ///         eprintln!("Published {path} at {commit}");
+    ///     }
+    /// });
+    /// // Pass &mut context to a library operation, then disable reporting.
+    /// context.clear_observer();
+    /// ```
     pub fn set_observer(&mut self, observer: impl FnMut(&ExecutionEvent) + Send + Sync + 'static) {
         self.observer = Some(Box::new(observer));
     }
