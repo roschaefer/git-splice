@@ -115,27 +115,17 @@ microseconds, so an edge case that fits one should not cost a repository.
 
 ### Isolated Rust repository tests
 
-Rust tests that inspect internal execution progress use
-`util::test_repo::with_repository`. Put the scenario setup and assertions inside
-its closure. The helper reruns that exact named test in a child process, where
-the closure gets a fresh repository on `main`, a temporary home directory and
-local Git identity. Inherited Git repository and configuration overrides are
-removed; global and system Git configuration are disabled for the child.
+Use `util::test_repo::with_repository` to test internal execution progress.
+Keep setup and assertions inside its closure: the helper reruns the named test
+in a child process with a fresh repository, temporary home and isolated Git
+configuration. This lets repository tests run in parallel; concurrent library
+operations within one process still share a working directory.
 
-The parent test process keeps its working directory and environment unchanged.
-Repository tests can therefore run concurrently without the former directory
-mutex. The library still uses process-wide working directories: isolation here
-is per test process, not support for concurrent library operations in one process.
-The child runs library calls directly; it does not launch the git-splice CLI.
-
-Assertion failures and child stdout/stderr are forwarded to the parent test.
-Use normal test filtering and `--nocapture` to inspect a scenario:
+Run a filtered test with output:
 
 ```sh
-cargo test --lib fetch::tests:: -- --nocapture --test-threads=8
+cargo test --lib fetch::tests:: -- --nocapture
 ```
-
-Pure unit tests continue to run directly in the normal test process.
 
 ### The layers
 
