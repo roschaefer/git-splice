@@ -109,10 +109,10 @@ and a scenario's README shows the tool's real output. Run them in
 `nix develop`:
 
 ```
-just test                 # Rust unit tests, then bats tests
+just test                 # Rust tests (including doctests), then bats tests
 just docs-check           # concepts, scenario READMEs and walkthroughs, via scrut
 just docs-check --write   # update them after an intended output change
-just ci                   # lint, fmt-check, test, docs-check
+just ci                   # lint, fmt-check, test, docs-check, site-build
 ```
 
 CI also runs the bats tests on the oldest supported Git, 2.40.
@@ -122,15 +122,15 @@ CI also runs the bats tests on the oldest supported Git, 2.40.
 | What changed | Test |
 |---|---|
 | What a user sees: output, exit code, the repositories afterwards | A [bats test](#writing-a-bats-test), or a [scenario](#writing-a-scenario) if the output belongs in the docs |
+| Public Rust results, errors or observer callbacks | A [Rust integration test](#writing-a-rust-integration-test) through the public API |
+| Examples for library callers | A doctest in `///` or `//!` documentation |
 | Logic with many edge cases that needs no repository: parsing, paths, quoting, messages | A [unit test](#writing-a-unit-test) next to the function |
-| A bug | A bats test for the symptom the user saw, plus unit tests for the edge cases behind it |
+| A bug | A regression test through the affected interface |
 
-The bats tests run the built binary and know nothing about its code, so
-they kept checking the behaviour while the tool moved from shell to Rust.
-Keep it that way: don't port them to Rust. They aren't slow because of
-bats but because each builds repositories and runs Git, which a Rust
-integration test would do too. A unit test needs neither and runs in
-microseconds, so an edge case that fits one should not cost a repository.
+Test each contract through its interface: Bats protects the CLI, Rust tests
+protect library behaviour such as callback timing, and Scrut checks documented
+workflows. Avoid repeating every history case across suites; repository setup
+and Git commands cost the same in either language.
 
 ### Isolated Rust repository tests
 
@@ -165,7 +165,7 @@ cargo test --lib fetch::tests:: -- --nocapture
 setup() {
   load 'helpers/fixtures'
   hermetic_git_config       # ignore the developer's git config
-  load 'scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
+  load '../09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -211,10 +211,30 @@ fn shell_quote_closes_and_reopens_the_quotes_around_a_single_quote() {
 
 - **Name the behaviour** as for bats, in snake case: the list of names
   should read as a specification.
-- **Test functions that need no repository.** A function that runs Git is
-  tested through the binary, by a bats test.
+- **Keep private invariant tests local.** Do not expose internals just to
+  test them from another crate.
 - **Make sure the test can fail:** break the function on purpose once and
   watch the test fail.
+
+### Writing a Rust integration test
+
+Put public API tests in `tests/*.rs`, import `git_splice`, and keep shared helpers
+in `tests/common/mod.rs`. The existing library target needs no crates.io release.
+Assert on results, Git data and callback-time state, not only the final state.
+Keep internal tests in their modules when they need private access.
+
+Give each test its own repositories, Git configuration and cleanup. Library
+operations still share the process working directory, so use process isolation
+as described above. `util::test_repo` is private to module tests; external tests
+need their own harness.
+
+Reuse scenario recipes in `docs/09-scenarios/` and
+`docs/tests/helpers/fixtures.bash` where useful by invoking Bash. Share setup
+recipes, never mutable checkouts; environment changes in a Bash child do not
+isolate the Rust parent.
+
+For short public API examples, write doctests in `///` or `//!` documentation
+and run `cargo test --doc -p git-splice`. Keep shell workflows in Scrut.
 
 ### Writing a scenario
 
