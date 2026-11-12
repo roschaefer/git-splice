@@ -94,7 +94,7 @@ module.exports = {
       },
       footer: {
         style: 'dark',
-        copyright: `MIT licensed · <a href="${repoUrl}">${repoUrl.replace('https://', '')}</a> · <a href="${baseUrl}privacy/">Privacy</a>`,
+        copyright: `MIT licensed · <a href="${repoUrl}">${repoUrl.replace('https://', '')}</a> · <a href="${baseUrl}privacy/">Datenschutz / Privacy</a> · <a href="https://roschaefer.de/de/impressum/" lang="de">Impressum</a> / <a href="https://roschaefer.de/en/imprint/">Legal notice</a>`,
       },
       prism: {
         theme: themes.github,
