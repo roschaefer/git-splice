@@ -5,17 +5,10 @@ import count from './goatcounter.ts';
 test('forwards visitor metadata and events to the configured site without exposing the token', async () => {
   const originalFetch = globalThis.fetch;
   const pending: Promise<unknown>[] = [];
-  let calls = 0;
+  const requests: {url: Parameters<typeof fetch>[0]; init: Parameters<typeof fetch>[1]}[] = [];
   Object.assign(globalThis, {Netlify: {env: {get: (name: string) => ({GOATCOUNTER_SITE: 'git-splice', GOATCOUNTER_API_TOKEN: 'secret'})[name]}}});
   globalThis.fetch = async (url, init) => {
-    calls++;
-    assert.equal(url, 'https://git-splice.goatcounter.com/api/v0/count');
-    assert.equal(init?.headers?.['authorization'], 'Bearer secret');
-    assert.deepEqual(JSON.parse(String(init?.body)), {hits: [{
-      path: '/docs/', title: 'Docs', ref: 'https://example.org/', event: true,
-      size: '1920,1080', query: 'campaign=docs', bot: 150,
-      user_agent: 'visitor-browser', language: 'de-DE', ip: '203.0.113.7',
-    }]});
+    requests.push({url, init});
     return new Response(null, {status: 202});
   };
   try {
@@ -23,7 +16,15 @@ test('forwards visitor metadata and events to the configured site without exposi
       headers: {'user-agent': 'visitor-browser', 'accept-language': 'de-DE,de;q=0.9'},
     }), {ip: '203.0.113.7', waitUntil: p => pending.push(p)});
     await Promise.all(pending);
-    assert.equal(calls, 1);
+    assert.equal(requests.length, 1);
+    const {url, init} = requests[0];
+    assert.equal(url, 'https://git-splice.goatcounter.com/api/v0/count');
+    assert.equal(init?.headers?.['authorization'], 'Bearer secret');
+    assert.deepEqual(JSON.parse(String(init?.body)), {hits: [{
+      path: '/docs/', title: 'Docs', ref: 'https://example.org/', event: true,
+      size: '1920,1080', query: 'campaign=docs', bot: 150,
+      user_agent: 'visitor-browser', language: 'de-DE', ip: '203.0.113.7',
+    }]});
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal(response.headers.get('content-type'), 'image/gif');
     assert.equal(new TextDecoder().decode((await response.arrayBuffer()).slice(0, 6)), 'GIF89a');
