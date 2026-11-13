@@ -135,6 +135,22 @@ pub struct Repo<'context> {
     message_template: Option<Template>,
     pub c: Classified,
     pub d: Compared,
+    /// The commit or tree whose state files the splices' upstreams are read
+    /// from: HEAD, except while pull's fetch walk reads an upstream's.
+    pub state_rev: String,
+    /// Upstream URLs this command fetched.
+    pub fetched_urls: HashSet<String>,
+}
+
+/// What Repo knows of each splice's upstreams, as read from one revision.
+#[derive(Default)]
+pub struct UpstreamState {
+    upstream_lists: HashMap<String, Vec<String>>,
+    upstream_urls: HashMap<(String, String), String>,
+    default_upstreams: HashMap<String, String>,
+    upstream_names: HashMap<String, String>,
+    urls: HashMap<String, String>,
+    keys: HashMap<String, String>,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -194,13 +210,18 @@ pub fn splice_config(path: &str, key: &str, rev: &str) -> String {
 
 /// Value <key> of upstream <name> in splice <path>'s committed state file.
 pub fn upstream_config(path: &str, name: &str, key: &str) -> String {
+    upstream_config_in("HEAD", path, name, key)
+}
+
+/// Value <key> of upstream <name> in splice <path>'s state file in <rev>.
+pub fn upstream_config_in(rev: &str, path: &str, name: &str, key: &str) -> String {
     if name.is_empty() {
         return String::new();
     }
     git(&[
         "config",
         "--blob",
-        &format!("HEAD:{path}/{STATE_FILE}"),
+        &format!("{rev}:{path}/{STATE_FILE}"),
         "--get",
         &format!("upstream.{name}.{key}"),
     ])
@@ -496,7 +517,40 @@ impl<'context> Repo<'context> {
             message_template: Default::default(),
             c: Default::default(),
             d: Default::default(),
+            state_rev: "HEAD".to_string(),
+            fetched_urls: Default::default(),
         }
+    }
+
+    /// Runs <step> with the splices' upstreams read from the state files in
+    /// commit or tree <rev>, then restores what was known before.
+    pub fn with_state_rev<T>(&mut self, rev: &str, step: impl FnOnce(&mut Self) -> T) -> T {
+        let saved = self.swap_upstream_state(UpstreamState::default());
+        let saved_rev = std::mem::replace(&mut self.state_rev, rev.to_string());
+        let result = step(self);
+        self.state_rev = saved_rev;
+        self.swap_upstream_state(saved);
+        result
+    }
+
+    fn swap_upstream_state(&mut self, state: UpstreamState) -> UpstreamState {
+        UpstreamState {
+            upstream_lists: std::mem::replace(&mut self.upstream_lists, state.upstream_lists),
+            upstream_urls: std::mem::replace(&mut self.upstream_urls, state.upstream_urls),
+            default_upstreams: std::mem::replace(
+                &mut self.default_upstreams,
+                state.default_upstreams,
+            ),
+            upstream_names: std::mem::replace(&mut self.upstream_names, state.upstream_names),
+            urls: std::mem::replace(&mut self.urls, state.urls),
+            keys: std::mem::replace(&mut self.keys, state.keys),
+        }
+    }
+
+    /// Value <key> of upstream <name> in splice <path>'s state file, as read
+    /// from the state revision.
+    pub fn upstream_setting(&self, path: &str, name: &str, key: &str) -> String {
+        upstream_config_in(&self.state_rev, path, name, key)
     }
 
     /// Where every command starts: at the repository root, with HEAD a commit,
@@ -697,7 +751,7 @@ impl<'context> Repo<'context> {
     /// uses its default one, or ends the command explaining what's wrong with
     /// the file.
     pub fn load_splice_upstream(&mut self, path: &str) -> Res<()> {
-        let blob = format!("HEAD:{path}/{STATE_FILE}");
+        let blob = format!("{}:{path}/{STATE_FILE}", self.state_rev);
         let Some((status, output)) = git(&["config", "--blob", &blob, "--list", "-z"])
             .q()
             .bytes_and_status()
@@ -1346,7 +1400,7 @@ impl<'context> Repo<'context> {
     /// the file means the same in every repository it reaches.
     pub fn splice_default_branch(&mut self, path: &str, upstream: Option<&str>) -> Res<String> {
         let upstream = upstream.map_or_else(|| self.name_of(path), str::to_string);
-        let name = upstream_config(path, &upstream, "default-branch");
+        let name = self.upstream_setting(path, &upstream, "default-branch");
         if !name.is_empty() {
             return Ok(name);
         }
@@ -1375,7 +1429,7 @@ impl<'context> Repo<'context> {
     /// command if that splice names several upstreams with different default
     /// branches, but none is chosen.
     pub fn container_default_branch(&mut self, path: &str) -> Res<String> {
-        let Some(above) = splice_above_in("HEAD", path) else {
+        let Some(above) = splice_above_in(&self.state_rev, path) else {
             return Ok(self.monorepo_default_branch());
         };
         self.require_upstream_list(&above)?;
@@ -1463,7 +1517,7 @@ impl<'context> Repo<'context> {
     /// upstream's default-pin names, else its default branch.
     pub fn resolve_default_target(&mut self, path: &str, upstream: Option<&str>) -> Res<Target> {
         let name = upstream.map_or_else(|| self.name_of(path), str::to_string);
-        let pin = upstream_config(path, &name, "default-pin");
+        let pin = self.upstream_setting(path, &name, "default-pin");
         if !pin.is_empty() {
             return self.resolve_pin(path, &name, &pin);
         }

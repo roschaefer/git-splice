@@ -5,6 +5,7 @@ use crate::context::ExecutionContext;
 use crate::execution::{ExecutionEvent, FetchedUpstream};
 use crate::repo::*;
 use crate::util::*;
+use std::collections::{HashMap, HashSet};
 
 pub const USAGE: &str = include_str!("usage/fetch.txt");
 
@@ -201,9 +202,12 @@ impl Repo<'_> {
     /// same refs would fail on each other's locks. Prints what there is to say
     /// about each entry, in their order, and returns the paths that failed.
     pub fn fetch_all(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchFailures> {
-        self.prepare_fetch(branch, entries)?
-            .download(self.context)
-            .finish(self)
+        let mut walk = FetchWalk::new(branch, entries, &[], Descend::Never);
+        while let Some(plan) = walk.plan(self)? {
+            let results = plan.download(self.context);
+            walk.finish(self, results)?;
+        }
+        Ok(walk.failures)
     }
 
     pub(crate) fn prepare_fetch(
@@ -256,7 +260,7 @@ impl Repo<'_> {
                 // Only a default-pin fetches a tag or a commit. Every branch
                 // fetches it: a feature branch compares with it when upstream
                 // has no branch like it.
-                let pin = upstream_config(path, name, "default-pin");
+                let pin = self.upstream_setting(path, name, "default-pin");
                 let tag = if is_commit_id(&pin) {
                     commits.push(pin.clone());
                     String::new()
@@ -274,7 +278,7 @@ impl Repo<'_> {
                     String::new()
                 };
                 let old_sha = git(&["rev-parse", "--verify", "--quiet", &target_ref]).out();
-                commits.push(splice_config(path, "commit", "HEAD"));
+                commits.push(splice_config(path, "commit", &self.state_rev));
                 members.push(Member {
                     index,
                     path: path.clone(),
@@ -341,6 +345,30 @@ pub(crate) struct FetchResults {
 }
 
 impl FetchPlan {
+    /// One plan for both: an upstream in both is fetched once.
+    fn combine(mut self, other: FetchPlan) -> FetchPlan {
+        let offset = self.entries.len();
+        self.entries.extend(other.entries);
+        for mut job in other.jobs {
+            for member in &mut job.members {
+                member.index += offset;
+            }
+            match self.jobs.iter_mut().find(|known| known.key == job.key) {
+                Some(known) => {
+                    known.commits.extend(job.commits);
+                    known.members.extend(job.members);
+                }
+                None => self.jobs.push(job),
+            }
+        }
+        for key in other.new_keys {
+            if !self.new_keys.contains(&key) {
+                self.new_keys.push(key);
+            }
+        }
+        self
+    }
+
     pub(crate) fn download(self, context: &mut ExecutionContext) -> FetchResults {
         let (results, event) = self.download_event();
         if context.observing() {
@@ -414,6 +442,11 @@ impl FetchResults {
             }
         }
         for job in &self.plan.jobs {
+            if job.members.iter().any(|m| !self.reports[m.index].failed) {
+                repo.fetched_urls.insert(job.url.clone());
+            }
+        }
+        for job in &self.plan.jobs {
             if self.plan.new_keys.contains(&job.key)
                 && job.members.iter().all(|m| self.reports[m.index].failed)
             {
@@ -422,6 +455,296 @@ impl FetchResults {
         }
         Ok(failures)
     }
+}
+
+/// Which fetched splices the walk descends from: the state files in the
+/// upstream commit each one syncs with name what the next level fetches.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(crate) enum Descend {
+    /// Only what the monorepo's state files name: git splice fetch.
+    Never,
+    /// From the selected splices: a pull merges only them.
+    Selected,
+    /// From every splice: a recursive pull merges each one.
+    All,
+}
+
+/// A splice the walk fetches for, as one state file describes it.
+#[derive(Clone)]
+struct Node {
+    path: String,
+    /// The commit or tree whose state files describe it and the splices
+    /// around it: HEAD, or a tree of state files only.
+    rev: String,
+    /// The upstreams to fetch.
+    names: Vec<String>,
+}
+
+/// Fetches level by level, before anything is merged. The first level is
+/// what the monorepo's state files name. Each next one is what the state
+/// files in the upstream commits just fetched name: the commits a pull is
+/// about to merge, with the splices inside them. A splice whose state file
+/// a merge may leave in either version is fetched for both.
+pub(crate) struct FetchWalk {
+    branch: String,
+    descend: Descend,
+    level: Vec<Node>,
+    first: bool,
+    /// (path, blob) of each state file fetched for.
+    seen: HashSet<(String, String)>,
+    /// Paths whose fetch failed, or whose synced commit isn't here after it.
+    pub failures: FetchFailures,
+}
+
+impl FetchWalk {
+    pub(crate) fn new(
+        branch: &str,
+        entries: &[(String, String)],
+        known: &[String],
+        descend: Descend,
+    ) -> Self {
+        let mut level: Vec<Node> = Vec::new();
+        for (path, name) in entries {
+            match level.iter_mut().find(|node| node.path == *path) {
+                Some(node) => node.names.push(name.clone()),
+                None => level.push(Node {
+                    path: path.clone(),
+                    rev: "HEAD".to_string(),
+                    names: vec![name.clone()],
+                }),
+            }
+        }
+        // The monorepo's state files: fetched for, or not needed.
+        let seen = known
+            .iter()
+            .filter_map(|path| state_file_blob_in("HEAD", path).map(|blob| (path.clone(), blob)))
+            .collect();
+        Self {
+            branch: branch.to_string(),
+            descend,
+            level,
+            first: true,
+            seen,
+            failures: Vec::new(),
+        }
+    }
+
+    /// What to download for the current level, or nothing once the walk is
+    /// done. Skips a level with nothing to download.
+    pub(crate) fn plan(&mut self, repo: &mut Repo) -> Res<Option<FetchPlan>> {
+        while !self.level.is_empty() {
+            let mut combined: Option<FetchPlan> = None;
+            let mut revs: Vec<String> = Vec::new();
+            for node in &self.level {
+                if !revs.contains(&node.rev) {
+                    revs.push(node.rev.clone());
+                }
+            }
+            for rev in revs {
+                let entries: Vec<(String, String)> = self
+                    .level
+                    .iter()
+                    .filter(|node| node.rev == rev)
+                    .flat_map(|node| {
+                        node.names
+                            .iter()
+                            .map(|name| (node.path.clone(), name.clone()))
+                    })
+                    .collect();
+                let plan = if self.first {
+                    repo.prepare_fetch(&self.branch, &entries)?
+                } else {
+                    let branch = self.branch.clone();
+                    repo.with_state_rev(&rev, |repo| {
+                        let needed: Vec<(String, String)> = entries
+                            .iter()
+                            .filter(|(path, name)| repo.fetch_needed(path, name))
+                            .cloned()
+                            .collect();
+                        repo.prepare_fetch(&branch, &needed)
+                    })?
+                };
+                combined = Some(match combined {
+                    Some(known) => known.combine(plan),
+                    None => plan,
+                });
+            }
+            match combined {
+                Some(plan) if !plan.jobs.is_empty() => return Ok(Some(plan)),
+                _ => self.next_level(repo, &[])?,
+            }
+        }
+        Ok(None)
+    }
+
+    /// Reports the level's downloads and finds the next level.
+    pub(crate) fn finish(&mut self, repo: &mut Repo, results: FetchResults) -> Res<()> {
+        let failed = results.finish(repo)?;
+        self.next_level(repo, &failed)
+    }
+
+    fn next_level(&mut self, repo: &mut Repo, failed: &[String]) -> Res<()> {
+        for path in failed {
+            if !self.failures.contains(path) {
+                self.failures.push(path.clone());
+            }
+        }
+        let level = std::mem::take(&mut self.level);
+        let first = std::mem::replace(&mut self.first, false);
+        let mut next: Vec<Node> = Vec::new();
+        let mut entries_of: HashMap<String, Vec<(String, String)>> = HashMap::new();
+        let mut entries = |repo: &Repo, rev: &str| {
+            entries_of
+                .entry(rev.to_string())
+                .or_insert_with(|| state_file_entries(repo, rev))
+                .clone()
+        };
+        for node in level {
+            if failed.contains(&node.path) {
+                continue;
+            }
+            // A synced commit the monorepo records but no upstream has any
+            // more is merge's to report, as it is without a walk.
+            if !first {
+                let synced = splice_config(&node.path, "commit", &node.rev);
+                if !synced.is_empty() && !commit_here(&synced) {
+                    log_err(format!(
+                        "{}: its synced commit {}, which a pull above brings in, isn't on its upstream any more",
+                        node.path,
+                        short(&synced)
+                    ));
+                    if !self.failures.contains(&node.path) {
+                        self.failures.push(node.path.clone());
+                    }
+                    continue;
+                }
+            }
+            let descends = match self.descend {
+                Descend::Never => false,
+                Descend::Selected => first && repo.selected.contains(&node.path),
+                Descend::All => true,
+            };
+            // A copy of a splice it's inside brings in another copy below,
+            // and that one the next: the merge stops at it, by its id.
+            if !descends || copy_of_splice_above(&node.rev, &node.path) {
+                continue;
+            }
+            let branch = self.branch.clone();
+            let target = if first {
+                quietly(|| repo.resolve_upstream_target(&node.path, &branch))
+            } else {
+                repo.with_state_rev(&node.rev, |repo| {
+                    quietly(|| {
+                        repo.require_upstream_list(&node.path)?;
+                        repo.resolve_upstream_target(&node.path, &branch)
+                    })
+                })
+            };
+            let Some(commit) = target.ok().and_then(|t| commit_of(&t.reference)) else {
+                continue;
+            };
+            let below = format!("{}/", node.path);
+            let mut files: Vec<(String, String)> = entries(repo, &node.rev)
+                .into_iter()
+                .filter(|(file, _)| !file.starts_with(&below))
+                .collect();
+            files.extend(
+                entries(repo, &commit)
+                    .into_iter()
+                    .map(|(file, blob)| (format!("{below}{file}"), blob)),
+            );
+            let Some(rev) = tree_of_files(&files) else {
+                continue;
+            };
+            for (file, blob) in &files {
+                let Some(path) = file.strip_suffix(&format!("/{STATE_FILE}")) else {
+                    continue;
+                };
+                if !path.starts_with(&below) || !self.seen.insert((path.to_string(), blob.clone()))
+                {
+                    continue;
+                }
+                let names = repo.with_state_rev(&rev, |repo| {
+                    quietly(|| repo.require_upstream_list(path))
+                        .ok()
+                        .map(|()| repo.upstream_lists[path].clone())
+                });
+                // An unreadable state file is the merge's to report.
+                if let Some(names) = names {
+                    next.push(Node {
+                        path: path.to_string(),
+                        rev: rev.clone(),
+                        names,
+                    });
+                }
+            }
+        }
+        self.level = next;
+        Ok(())
+    }
+}
+
+impl Repo<'_> {
+    /// Upstream <name> of splice <path> needs a fetch: this command hasn't
+    /// fetched it, or not the synced commit the state file records.
+    fn fetch_needed(&mut self, path: &str, name: &str) -> bool {
+        if self.require_upstream_list(path).is_err() {
+            return false;
+        }
+        let synced = splice_config(path, "commit", &self.state_rev);
+        !self.fetched_urls.contains(&self.url_of(path, name))
+            || (!synced.is_empty() && !commit_here(&synced))
+    }
+}
+
+/// Splice <path> in <rev> has the id of a splice it's inside.
+fn copy_of_splice_above(rev: &str, path: &str) -> bool {
+    let id = splice_config(path, "id", rev);
+    let mut above = path;
+    while let Some((dir, _)) = above.rsplit_once('/') {
+        above = dir;
+        if !id.is_empty() && splice_config(above, "id", rev) == id {
+            return true;
+        }
+    }
+    false
+}
+
+/// The state file blob of splice <path> in <rev>, if it has one.
+pub fn state_file_blob_in(rev: &str, path: &str) -> Option<String> {
+    git(&[
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        &format!("{rev}:{path}/{STATE_FILE}"),
+    ])
+    .q()
+    .out()
+}
+
+/// Each (file, blob) of a state file in <rev>.
+fn state_file_entries(repo: &Repo, rev: &str) -> Vec<(String, String)> {
+    repo.state_files(rev)
+        .into_iter()
+        .filter_map(|file| {
+            state_file_blob_in(rev, file.strip_suffix(&format!("/{STATE_FILE}"))?)
+                .map(|blob| (file, blob))
+        })
+        .collect()
+}
+
+/// A tree of just the given (file, blob) state files.
+fn tree_of_files(files: &[(String, String)]) -> Option<String> {
+    let index = Temp::new();
+    let lines: String = files
+        .iter()
+        .map(|(file, blob)| format!("100644 {blob}\t{file}\n"))
+        .collect();
+    let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
+    if !indexed(&["update-index", "--index-info"]).input(lines).ok() {
+        return None;
+    }
+    indexed(&["write-tree"]).out()
 }
 
 pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {

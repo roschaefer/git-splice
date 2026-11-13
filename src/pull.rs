@@ -3,7 +3,7 @@
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
 use crate::execution::{Execution, ExecutionEvent, ExecutionOutcome, Operation};
-use crate::fetch::{FetchPlan, FetchResults};
+use crate::fetch::{Descend, FetchPlan, FetchResults, FetchWalk};
 use crate::merge::{apply_merge_options, MergeProgress, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
 use crate::repo::*;
@@ -56,6 +56,7 @@ impl PullExecution<'_> {
 enum PullPhase {
     Fetch(FetchPlan),
     Fetched(FetchResults),
+    Walked,
     Merge(Box<MergeProgress>),
     Finalize,
     Fold { observed_head: Option<String> },
@@ -72,6 +73,10 @@ struct PullProgress {
     fold_roots: Vec<String>,
     rebasing: bool,
     fetch_failures: Vec<String>,
+    /// The splices the pull starts from: a failed fetch at or below one
+    /// stops its whole pull, before anything is merged.
+    tops: Vec<String>,
+    walk: FetchWalk,
     status: i32,
     phase: PullPhase,
 }
@@ -124,7 +129,16 @@ impl PullProgress {
             .collect();
         let mut entries = repo.used_upstream_entry(&top);
         entries.extend(repo.every_upstream_entry(&below)?);
-        let plan = repo.prepare_fetch(&branch, &entries)?;
+        let descend = if recursive {
+            Descend::All
+        } else {
+            Descend::Selected
+        };
+        let mut walk = FetchWalk::new(&branch, &entries, &repo.all_paths, descend);
+        let phase = match walk.plan(repo)? {
+            Some(plan) => PullPhase::Fetch(plan),
+            None => PullPhase::Walked,
+        };
         Ok(Self {
             branch,
             selected,
@@ -134,8 +148,10 @@ impl PullProgress {
             fold_roots: Vec::new(),
             rebasing: false,
             fetch_failures: Vec::new(),
+            tops: top,
+            walk,
             status: 0,
-            phase: PullPhase::Fetch(plan),
+            phase,
         })
     }
 
@@ -152,7 +168,15 @@ impl PullProgress {
                 Ok(Some(event))
             }
             PullPhase::Fetched(results) => {
-                self.fetch_failures = results.finish(repo)?;
+                self.walk.finish(repo, results)?;
+                self.phase = match self.walk.plan(repo)? {
+                    Some(plan) => PullPhase::Fetch(plan),
+                    None => PullPhase::Walked,
+                };
+                Ok(None)
+            }
+            PullPhase::Walked => {
+                self.fetch_failures = self.walk.failures.clone();
                 self.begin_merges(repo).map(|()| None)
             }
             PullPhase::Merge(mut merges) => {
@@ -208,24 +232,22 @@ impl PullProgress {
     fn begin_merges(&mut self, repo: &mut Repo) -> Res<()> {
         let mut fetched = Vec::new();
         for path in &self.selected {
-            if self.fetch_failures.contains(path) {
-                continue;
+            let top = self
+                .tops
+                .iter()
+                .find(|top| *top == path || path.starts_with(&format!("{top}/")))
+                .unwrap_or(path);
+            let failed = self
+                .fetch_failures
+                .iter()
+                .find(|failed| *failed == top || failed.starts_with(&format!("{top}/")));
+            match failed {
+                None => fetched.push(path.clone()),
+                Some(failed) if failed == path => {}
+                Some(failed) => log_err(format!(
+                    "{path}: not pulled, since {failed} wasn't fetched -- 'git splice merge {path}' merges what was fetched anyway"
+                )),
             }
-            if let Some(failed) = first_above(path, &self.fetch_failures) {
-                log_err(format!(
-                    "{path}: not pulled, since {failed} above it wasn't fetched"
-                ));
-                continue;
-            }
-            // Its pull could move the synced commit of the failed one to one that
-            // wasn't fetched.
-            if let Some(failed) = first_below(path, &self.fetch_failures) {
-                log_err(format!(
-                "{path}: not pulled, since {failed} below it wasn't fetched -- 'git splice merge {path}' merges what was fetched anyway"
-            ));
-                continue;
-            }
-            fetched.push(path.clone());
         }
 
         // A recursive pull is one commit per splice it starts from, made of its
