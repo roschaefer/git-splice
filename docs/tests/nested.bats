@@ -1297,6 +1297,27 @@ a_conflicts_with_upstream_a() {
   [[ "$output" != *"never fetched"* ]]
 }
 
+@test "nested: pull --rebase with the apply backend that stops on a conflict fetches a splice the pull brings in" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  a_conflicts_with_upstream_a
+  git config rebase.backend apply
+  run splice pull --rebase vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"conflict while rebasing"*"vendor/a/e fetched"* ]]
+}
+
+@test "nested: pull that stops on a conflict lists a splice it brings in whose fetch fails as failed" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  a_conflicts_with_upstream_a
+  mv "$upstream_e" "$upstream_e.gone"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/e fetch failed"* ]]
+  [[ "$output" == *"Failed: vendor/a vendor/a/e"* ]]
+}
+
 @test "nested: pull that stops on a conflict fetches the tag a splice it brings in is pinned at" {
   scenario_nested_splices "$monorepo" "$upstream"
   upstream_e="$BATS_TEST_TMPDIR/upstream-e.git"
