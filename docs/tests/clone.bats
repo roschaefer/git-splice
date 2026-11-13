@@ -86,6 +86,13 @@ new_upstream() {
   [ -f upstream/.splice ]
 }
 
+@test "clone: names the folder after the repository for a URL ending in /.git, as git clone does" {
+  new_upstream
+  git clone -q "$upstream" "$BATS_TEST_TMPDIR/lib"
+  splice clone "$BATS_TEST_TMPDIR/lib/.git"
+  [ -f lib/.splice ]
+}
+
 @test "clone: records upstream's default branch when it's named differently" {
   new_upstream master
   run splice clone "$upstream" vendor/a

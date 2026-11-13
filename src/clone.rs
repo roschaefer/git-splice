@@ -19,6 +19,7 @@ const CHECKOUT_ATTRIBUTES: [&str; 5] = ["text", "eol", "filter", "ident", "worki
 fn default_clone_path(url: &str) -> String {
     let name = url.strip_suffix('/').unwrap_or(url);
     let name = name.strip_suffix(".git").unwrap_or(name);
+    let name = name.strip_suffix('/').unwrap_or(name);
     let name = name.rsplit('/').next().unwrap_or(name);
     name.rsplit(':').next().unwrap_or(name).to_string()
 }
