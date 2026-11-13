@@ -3,7 +3,7 @@
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
 use crate::execution::ExecutionEvent;
-use crate::fetch::{FetchPlan, FetchResults};
+use crate::fetch::{FetchFailures, FetchPlan, FetchResults};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
@@ -678,8 +678,8 @@ impl Repo<'_> {
         Ok(None)
     }
 
-    fn complete_splice_reload(&mut self, path: &str, results: FetchResults) -> Res<()> {
-        if !results.finish(self)?.is_empty() {
+    fn complete_splice_reload(&mut self, path: &str, failures: FetchFailures) -> Res<()> {
+        if !failures.is_empty() {
             return Err(Fail::Soft);
         }
         // A fetch by hash can fail quietly when no upstream has the commit.
@@ -985,20 +985,23 @@ impl MergeProgress {
                 Ok(None)
             }
             MergePhase::FetchReload { paths, next, plan } => {
-                let (results, event) = plan.download_event();
                 self.phase = MergePhase::FetchedReload {
                     paths,
                     next,
-                    results,
+                    results: plan.download(),
                 };
-                Ok(Some(event))
+                Ok(None)
             }
             MergePhase::FetchedReload {
                 paths,
                 next,
                 results,
             } => {
-                match repo.complete_splice_reload(&paths[next], results) {
+                let reported = results.finish(repo);
+                let event = reported.as_ref().ok().map(|(_, event)| event.clone());
+                let completed = reported
+                    .and_then(|(failures, _)| repo.complete_splice_reload(&paths[next], failures));
+                match completed {
                     Err(Fail::Hard) => return Err(Fail::Hard),
                     Err(_) => self.failures.push(paths[next].clone()),
                     Ok(()) => {}
@@ -1007,7 +1010,7 @@ impl MergeProgress {
                     paths,
                     next: next + 1,
                 };
-                Ok(None)
+                Ok(event)
             }
         }
     }

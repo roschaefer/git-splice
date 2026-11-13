@@ -28,10 +28,6 @@ impl ExecutionContext {
         self.observer = None;
     }
 
-    pub(crate) fn observing(&self) -> bool {
-        self.observer.is_some()
-    }
-
     pub(crate) fn emit(&mut self, event: ExecutionEvent) {
         if let Some(observer) = &mut self.observer {
             observer(&event);

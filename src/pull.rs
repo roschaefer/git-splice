@@ -56,6 +56,7 @@ impl PullExecution<'_> {
 enum PullPhase {
     Fetch(FetchPlan),
     Fetched(FetchResults),
+    Reported,
     Merge(Box<MergeProgress>),
     Finalize,
     Fold { observed_head: Option<String> },
@@ -147,14 +148,16 @@ impl PullProgress {
         match std::mem::replace(&mut self.phase, PullPhase::Done) {
             PullPhase::Done => Ok(None),
             PullPhase::Fetch(plan) => {
-                let (results, event) = plan.download_event();
-                self.phase = PullPhase::Fetched(results);
-                Ok(Some(event))
+                self.phase = PullPhase::Fetched(plan.download());
+                Ok(None)
             }
             PullPhase::Fetched(results) => {
-                self.fetch_failures = results.finish(repo)?;
-                self.begin_merges(repo).map(|()| None)
+                let (failures, event) = results.finish(repo)?;
+                self.fetch_failures = failures;
+                self.phase = PullPhase::Reported;
+                Ok(Some(event))
             }
+            PullPhase::Reported => self.begin_merges(repo).map(|()| None),
             PullPhase::Merge(mut merges) => {
                 let advanced = merges.advance_event(repo);
                 let event = advanced.as_ref().ok().cloned().flatten();

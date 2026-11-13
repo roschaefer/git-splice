@@ -15,7 +15,7 @@ pub struct FetchedUpstream {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExecutionEvent {
-    /// All batch workers have joined; reporting, key cleanup and validation may follow.
+    /// Downloads are done and reported; new upstreams that all failed are forgotten.
     AfterFetch { fetched: Vec<FetchedUpstream> },
     /// HEAD changed without an unresolved splice conflict; discovery may follow.
     AfterMerge {

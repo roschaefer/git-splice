@@ -201,9 +201,12 @@ impl Repo<'_> {
     /// same refs would fail on each other's locks. Prints what there is to say
     /// about each entry, in their order, and returns the paths that failed.
     pub fn fetch_all(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchFailures> {
-        self.prepare_fetch(branch, entries)?
-            .download(self.context)
-            .finish(self)
+        let (failures, event) = self
+            .prepare_fetch(branch, entries)?
+            .download()
+            .finish(self)?;
+        self.context.emit(event);
+        Ok(failures)
     }
 
     pub(crate) fn prepare_fetch(
@@ -338,18 +341,11 @@ pub(crate) struct FetchPlan {
 pub(crate) struct FetchResults {
     plan: FetchPlan,
     reports: Vec<Report>,
+    event: ExecutionEvent,
 }
 
 impl FetchPlan {
-    pub(crate) fn download(self, context: &mut ExecutionContext) -> FetchResults {
-        let (results, event) = self.download_event();
-        if context.observing() {
-            context.emit(event);
-        }
-        results
-    }
-
-    pub(crate) fn download_event(self) -> (FetchResults, ExecutionEvent) {
+    pub(crate) fn download(self) -> FetchResults {
         let mut reports = vec![Report::default(); self.entries.len()];
         std::thread::scope(|scope| {
             let handles: Vec<_> = self
@@ -387,20 +383,20 @@ impl FetchPlan {
         }
         fetched.sort_by_key(|(index, _)| *index);
 
-        (
-            FetchResults {
-                plan: self,
-                reports,
-            },
-            ExecutionEvent::AfterFetch {
+        FetchResults {
+            plan: self,
+            reports,
+            event: ExecutionEvent::AfterFetch {
                 fetched: fetched.into_iter().map(|(_, entry)| entry).collect(),
             },
-        )
+        }
     }
 }
 
 impl FetchResults {
-    pub(crate) fn finish(self, repo: &mut Repo) -> Res<FetchFailures> {
+    /// Prints the reports and forgets the keys of new upstreams that all
+    /// failed. The event follows, so it describes a finished fetch.
+    pub(crate) fn finish(self, repo: &mut Repo) -> Res<(FetchFailures, ExecutionEvent)> {
         let mut failures = Vec::new();
         for ((path, _), report) in self.plan.entries.iter().zip(&self.reports) {
             if !report.out.is_empty() {
@@ -420,7 +416,7 @@ impl FetchResults {
                 repo.forget_upstream_key(&job.key)?;
             }
         }
-        Ok(failures)
+        Ok((failures, self.event))
     }
 }
 
@@ -531,7 +527,7 @@ mod tests {
             assert_eq!(plan.jobs[0].members.len(), 2);
             let reference = plan.jobs[0].members[0].target_ref.clone();
             assert_eq!(git(&["rev-parse", &reference]), old);
-            let results = plan.download(repo.context);
+            let results = plan.download();
             assert_eq!(git(&["rev-parse", &reference]), new);
             assert_eq!(results.reports.len(), 2);
             for (path, report) in ["vendor/a", "vendor/b"].into_iter().zip(&results.reports) {
@@ -544,7 +540,7 @@ mod tests {
             }
             assert_eq!(git(&["rev-parse", "HEAD"]), head);
             std::fs::rename("upstream", "upstream.offline").unwrap();
-            assert!(results.finish(&mut repo).unwrap().is_empty());
+            assert!(results.finish(&mut repo).unwrap().0.is_empty());
             assert_eq!(git(&["rev-parse", &reference]), new);
             assert_eq!(git(&["rev-parse", "HEAD"]), head);
         });
@@ -565,12 +561,6 @@ mod tests {
             git(&["add", "vendor/a", "vendor/b"]);
             git(&["commit", "-qm", "mount splices"]);
             let mut context = ExecutionContext::new();
-            let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-            let recorded = events.clone();
-            context.set_observer(move |event| {
-                assert!(!git(&["config", "--get-regexp", "^splice\\..*\\.url$"]).is_empty());
-                recorded.lock().unwrap().push(event.clone());
-            });
             let mut repo = repo(&mut context);
             let selected = repo.selected.clone();
             let entries = repo.every_upstream_entry(&selected).unwrap();
@@ -581,15 +571,15 @@ mod tests {
             let key = repo.upstream_key(&url).unwrap();
             assert!(!key.is_empty());
             std::fs::rename("upstream", "upstream.offline").unwrap();
-            let results = plan.download(repo.context);
+            let results = plan.download();
             assert!(results.reports.iter().all(|report| report.failed));
             assert_eq!(repo.upstream_key(&url).unwrap(), key);
-            assert_eq!(results.finish(&mut repo).unwrap(), ["vendor/a", "vendor/b"]);
+            let (failures, event) = results.finish(&mut repo).unwrap();
+            assert_eq!(failures, ["vendor/a", "vendor/b"]);
             assert!(repo.upstream_key(&url).unwrap().is_empty());
-            let observed = events.lock().unwrap();
             assert_eq!(
-                *observed,
-                vec![ExecutionEvent::AfterFetch {
+                event,
+                ExecutionEvent::AfterFetch {
                     fetched: vec![
                         FetchedUpstream {
                             path: "vendor/a".into(),
@@ -604,8 +594,7 @@ mod tests {
                             failed: true
                         },
                     ],
-                }],
-                "observed events:\n{observed:#?}"
+                }
             );
         });
     }
