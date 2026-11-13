@@ -51,6 +51,69 @@ fn state_file_blob(rev: &str, path: &str) -> Option<String> {
 }
 
 impl Repo<'_> {
+    /// Fetches the upstreams of the splices below <path>, as the commit a
+    /// conflicted pull of <path> brings in has them, that aren't fetched yet,
+    /// or lack the synced commit or pin recorded there: once the conflict is
+    /// resolved, those are the splices below.
+    fn fetch_below_conflict(
+        &mut self,
+        path: &str,
+        branch: &str,
+    ) -> Res<(Option<ExecutionEvent>, FetchFailures)> {
+        // The commit cherry-picked, or with --rebase the pull commit the
+        // monorepo's own commits are rebased onto, by either backend.
+        let onto = ["rebase-merge/onto", "rebase-apply/onto"]
+            .iter()
+            .filter_map(|state| git(&["rev-parse", "--git-path", state]).out())
+            .find_map(|file| std::fs::read_to_string(file).ok());
+        let theirs = match commit_of("CHERRY_PICK_HEAD") {
+            Some(commit) => commit,
+            None => match onto.and_then(|onto| commit_of(onto.trim())) {
+                Some(onto) => onto,
+                None => return Ok((None, Vec::new())),
+            },
+        };
+        let inside = format!("{path}/");
+        let below: Vec<String> = self
+            .nested_splices(&theirs)
+            .into_iter()
+            .filter(|below| below.starts_with(&inside))
+            .collect();
+        // The upstream the splice was pulled from, e.g. --upstream's: the
+        // splices below follow its default branch.
+        let used = self.name_of(path);
+        let plan = self.with_state_rev(&theirs, |repo| {
+            if quietly(|| contained(repo.require_upstream_list(path))).is_ok() && !used.is_empty() {
+                let _ = quietly(|| repo.use_upstreams(&used, &[path.to_string()]));
+            }
+            let mut entries = Vec::new();
+            for below in &below {
+                // One that can't be loaded: its merge says why, after the
+                // conflict.
+                if quietly(|| contained(repo.require_upstream_list(below))).is_err() {
+                    continue;
+                }
+                let synced = splice_config(below, "commit", &theirs);
+                let lacks_synced = !synced.is_empty() && !commit_here(&synced);
+                for name in repo.upstream_lists[below].clone() {
+                    repo.use_upstream(below, &name)?;
+                    if lacks_synced || !repo.splice_fetched(below) || !repo.pin_here(below) {
+                        entries.push((below.clone(), name));
+                    }
+                }
+            }
+            if entries.is_empty() {
+                return Ok(None);
+            }
+            repo.prepare_fetch(branch, &entries).map(Some)
+        })?;
+        let Some(plan) = plan else {
+            return Ok((None, Vec::new()));
+        };
+        let (failures, event) = plan.download().finish(self)?;
+        Ok((Some(event), failures))
+    }
+
     /// record_equal_tree's choice, which push --rebuilt-commit asks too.
     pub fn equal_tree_outcome(&mut self, path: &str, target: &str) -> Res<EqualTree> {
         let synced = splice_config(path, "commit", "HEAD");
@@ -603,7 +666,7 @@ impl Repo<'_> {
     /// The tag or commit the default-pin of the splice's upstream in use names
     /// is here, or it has none.
     fn pin_here(&self, path: &str) -> bool {
-        let pin = upstream_config(path, &self.name_of(path), "default-pin");
+        let pin = self.upstream_setting(path, &self.name_of(path), "default-pin");
         if pin.is_empty() {
             true
         } else if is_commit_id(&pin) {
@@ -908,6 +971,23 @@ impl MergeProgress {
                             }
                         }
                     }
+                }
+                // The pull stops here: the splices the conflicted merge brings
+                // in are fetched now, as a merge without a conflict would.
+                // A failure here was reported; the run's summary still comes.
+                if verb == "pull" && splice_in_progress() {
+                    return match repo.fetch_below_conflict(path, branch) {
+                        Err(Fail::Hard) => Err(Fail::Hard),
+                        Err(_) => Ok(None),
+                        Ok((event, failures)) => {
+                            for failed in failures {
+                                if !self.failures.contains(&failed) {
+                                    self.failures.push(failed);
+                                }
+                            }
+                            Ok(event)
+                        }
+                    };
                 }
                 if !splice_in_progress() && !self.failures.contains(path) {
                     self.phase = MergePhase::Discover(path.clone());
