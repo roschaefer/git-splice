@@ -291,15 +291,20 @@ impl PullProgress {
                 return fail(format!("{START} couldn't be updated"));
             }
         }
+        self.say_if_detached()?;
+        if !self.fetch_failures.is_empty() {
+            log_err(format!("Not fetched: {}", self.fetch_failures.join(" ")));
+            self.status = 1;
+        }
+        Ok(())
+    }
+
+    fn say_if_detached(&self) -> Res<()> {
         if self.rebasing && rebase_under_way()?.is_some() {
             let branch = &self.branch;
             log_err(format!(
             "The pulls are on a detached HEAD, '{branch}' is as it was -- re-run pull to go on, or 'git switch {branch}' to give up"
         ));
-        }
-        if !self.fetch_failures.is_empty() {
-            log_err(format!("Not fetched: {}", self.fetch_failures.join(" ")));
-            self.status = 1;
         }
         Ok(())
     }
@@ -628,6 +633,9 @@ impl Operation for PullProgress {
     }
     fn finish(&self) -> Res<i32> {
         PullProgress::finish(self)
+    }
+    fn stopped(&self) {
+        let _ = self.say_if_detached();
     }
 }
 

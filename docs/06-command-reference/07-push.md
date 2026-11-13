@@ -205,7 +205,7 @@ $ git splice push -h | check-help option --exec
 The checkpoints are `after-rebuild` before publication and `after-push` after publication and
 tracking changes. A hook runs synchronously; the next step starts
 only after it succeeds. A failed hook ends this execution; completed changes
-remain applied. There is no saved continuation for another CLI invocation.
+remain applied, and re-running `push` goes on from there, as after a conflict.
 
 See the [drawing-checked push scenario](../09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/with-exec.md).
 

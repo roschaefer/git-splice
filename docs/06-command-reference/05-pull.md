@@ -214,7 +214,7 @@ $ git splice pull -h | check-help option --exec
 The checkpoints are `after-fetch`, `after-merge`, and, for recursive pulls, `before-fold` and
 `after-fold`. A hook runs synchronously; the next step starts
 only after it succeeds. A failed hook ends this execution; completed changes
-remain applied. There is no saved continuation for another CLI invocation.
+remain applied, and re-running `pull` goes on from there, as after a conflict.
 
 Hooks can inspect tracked files and the index, but changing them or the
 pull markers prevents continuation.

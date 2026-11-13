@@ -45,17 +45,20 @@ pub enum ExecutionOutcome {
 }
 
 impl ExecutionEvent {
-    fn exec(&self, command: &str) -> Res<()> {
-        let (event, path, commit) = match self {
+    /// The event's name, splice and commit, as --exec hooks get them.
+    fn hook_values(&self) -> (&str, &str, &str) {
+        match self {
             Self::AfterFetch { .. } => ("after-fetch", "", ""),
-            Self::AfterMerge { path, .. } => ("after-merge", path.as_str(), ""),
-            Self::AfterRebuild { path, commit } => {
-                ("after-rebuild", path.as_str(), commit.as_str())
-            }
-            Self::AfterPush { path, commit } => ("after-push", path.as_str(), commit.as_str()),
+            Self::AfterMerge { path, .. } => ("after-merge", path, ""),
+            Self::AfterRebuild { path, commit } => ("after-rebuild", path, commit),
+            Self::AfterPush { path, commit } => ("after-push", path, commit),
             Self::BeforeFold { .. } => ("before-fold", "", ""),
             Self::AfterFold { .. } => ("after-fold", "", ""),
-        };
+        }
+    }
+
+    fn exec(&self, command: &str, operation: &str) -> Res<()> {
+        let (event, path, commit) = self.hook_values();
         let status = match Command::new("sh")
             .args(["-c", command])
             .env("GIT_SPLICE_EVENT", event)
@@ -68,7 +71,14 @@ impl ExecutionEvent {
             Err(error) => return die(format!("--exec: could not run command: {error}")),
         };
         if !status.success() {
-            log_err(format!("--exec stopped at {event}"));
+            let of = if path.is_empty() {
+                String::new()
+            } else {
+                format!(" of {path}")
+            };
+            log_err(format!(
+                "--exec stopped {operation} at {event}{of}, what it did so far stays -- re-run {operation} to go on"
+            ));
             return Err(Fail::Code(status_code(status)));
         }
         Ok(())
@@ -81,6 +91,8 @@ pub(crate) trait Operation {
     fn done(&self) -> bool;
     fn advance(&mut self, repo: &mut Repo) -> Res<Option<ExecutionEvent>>;
     fn finish(&self) -> Res<i32>;
+    /// Says what else an --exec hook that stopped the operation left behind.
+    fn stopped(&self) {}
 }
 
 pub(crate) struct Execution<'context, O> {
@@ -134,22 +146,22 @@ impl<'context, O: Operation> Execution<'context, O> {
             let advanced = self.progress.advance(&mut self.repo);
             if let Some(event) = self.checked(advanced)? {
                 self.repo.context.emit(event.clone());
-                if !self.repo.args.exec.is_empty() {
-                    let checkpoint =
-                        self.checked(PausedRepository::capture(O::CHECK_TRACKED_STATE))?;
-                    let executed = event.exec(&self.repo.args.exec);
-                    self.checked(executed)?;
-                    self.checked(checkpoint.validate(O::NAME))?;
+                let command = self.repo.args.exec.clone();
+                if command.is_empty() && stop.is_none() {
+                    continue;
                 }
-                if let Some(predicate) = &mut stop {
-                    let checkpoint =
-                        self.checked(PausedRepository::capture(O::CHECK_TRACKED_STATE))?;
-                    let pause = predicate(&event);
-                    self.checked(checkpoint.validate(O::NAME))?;
-                    if pause {
-                        self.paused = Some(checkpoint);
-                        return Ok(ExecutionOutcome::Paused(event));
+                let checkpoint = self.checked(PausedRepository::capture(O::CHECK_TRACKED_STATE))?;
+                if !command.is_empty() {
+                    if let Err(failure) = event.exec(&command, O::NAME) {
+                        self.progress.stopped();
+                        return self.checked(Err(failure));
                     }
+                }
+                let pause = stop.as_mut().is_some_and(|predicate| predicate(&event));
+                self.checked(checkpoint.validate(O::NAME))?;
+                if pause {
+                    self.paused = Some(checkpoint);
+                    return Ok(ExecutionOutcome::Paused(event));
                 }
             }
         }
