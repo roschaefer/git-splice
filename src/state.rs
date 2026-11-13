@@ -240,7 +240,7 @@ pub fn state_blob_in(path: &str, rev: &str, settings: &[(&str, &str)]) -> Res<St
     if failed {
         return Err(Fail::Soft);
     }
-    git(&["hash-object", "-w", &file_name])
+    git(&["hash-object", "-w", "--no-filters", &file_name])
         .out()
         .ok_or(Fail::Soft)
 }

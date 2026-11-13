@@ -23,12 +23,24 @@ git clone -q upstream.git seed 2>/dev/null
 git init -q -b main monorepo
 cd monorepo
 git commit -q --allow-empty -m "initial commit"
-git splice clone "$work/upstream.git" vendor/a
+# Git for Windows sets core.autocrlf=true; git-splice's temporary files must
+# not show up in its line-ending warnings.
+git splice clone "$work/upstream.git" vendor/a 2>"$work/stderr"
+cat "$work/stderr" >&2
+if grep -q "git-splice-" "$work/stderr"; then
+  echo "clone warned about a temporary file of git-splice's" >&2
+  exit 1
+fi
 grep -q one vendor/a/file.txt
 
 echo two >>vendor/a/file.txt
 git commit -q -am two
-git splice push vendor/a
+git splice push vendor/a 2>"$work/stderr"
+cat "$work/stderr" >&2
+if grep -q "git-splice-" "$work/stderr"; then
+  echo "push warned about a temporary file of git-splice's" >&2
+  exit 1
+fi
 git -C ../seed pull -q
 grep -q two ../seed/file.txt
 

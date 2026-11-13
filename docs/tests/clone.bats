@@ -86,6 +86,13 @@ new_upstream() {
   [ -f upstream/.splice ]
 }
 
+@test "clone: with core.autocrlf=true, warns about no temporary file of its own" {
+  new_upstream
+  git config core.autocrlf true
+  splice clone "$upstream" 2>"$BATS_TEST_TMPDIR/stderr"
+  diff /dev/null "$BATS_TEST_TMPDIR/stderr"
+}
+
 @test "clone: records upstream's default branch when it's named differently" {
   new_upstream master
   run splice clone "$upstream" vendor/a
