@@ -68,6 +68,8 @@ struct Circle {
 /// it hangs, its synced commit (the root's: HEAD), R, where the splice has
 /// commits of its own, and the commit a conflicted pull of it merges in.
 struct Row {
+    /// The splice's path in the monorepo; empty for the monorepo's row.
+    path: String,
     folder: String,
     depth: usize,
     synced: Option<Circle>,
@@ -169,6 +171,7 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
     };
 
     let mut rows = vec![Row {
+        path: String::new(),
         folder: "monorepo".to_string(),
         depth: 0,
         synced: Some(circle(
@@ -209,6 +212,7 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
                 dashed: false,
             });
         rows.push(Row {
+            path: splice.clone(),
             folder: format!("{folder}/"),
             depth: around.len() + 1,
             synced,
@@ -373,6 +377,92 @@ fn render(rows: &[Row], marks: &Marks) -> String {
     format!(
         "<mxfile host=\"Electron\"><diagram name=\"tree\" id=\"tree\"><mxGraphModel grid=\"0\" page=\"0\" background=\"#ffffff\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>\n{cells}{edges}</root></mxGraphModel></diagram></mxfile>\n"
     )
+}
+
+/// The tree of the monorepo in the current folder as text, as `tree` prints
+/// folders, with the same rows as the drawing: each splice's synced commit
+/// and, after "…", its rebuild R. A commit is (label), or [label] where no
+/// upstream branch has it (dashed in the drawing); with <marks>, a pulled
+/// one ends in *, a carried one in ^, and the commit a conflicted pull
+/// merges in in !. <notes> adds text after the row of the splice it names.
+///
+/// ```text
+/// monorepo        (pb)
+/// └─ vendor/a/    (a2) … [pb']  done
+///    ├─ b/        (b2)          done
+///    │  └─ c/     (c1)          pending: merge
+///    └─ d/        (d1)          pending: merge
+/// ```
+pub fn ascii(
+    labels: &Labels,
+    marks: &Marks,
+    notes: &HashMap<String, String>,
+) -> Result<String, Vec<String>> {
+    let rows = rows(&History::default(), labels, marks)?;
+    let circle = |c: &Circle| {
+        let mark = match c.color {
+            Some(PULLED) => "*",
+            Some(CARRIED) => "^",
+            Some(_) => "!",
+            None => "",
+        };
+        if c.dashed {
+            format!("[{}{mark}]", c.label)
+        } else {
+            format!("({}{mark})", c.label)
+        }
+    };
+    // Whether no later row hangs from the same row as row <i>.
+    let last = |i: usize| {
+        let depth = rows[i].depth;
+        rows[i + 1..]
+            .iter()
+            .take_while(|row| row.depth >= depth)
+            .all(|row| row.depth > depth)
+    };
+    let mut lines: Vec<(String, String, String)> = Vec::new();
+    // For each depth, whether the row drawn last at it was its parent's last.
+    let mut closed: Vec<bool> = Vec::new();
+    for (i, row) in rows.iter().enumerate() {
+        let mut name = String::new();
+        if row.depth > 0 {
+            closed.truncate(row.depth);
+            for &done in closed.iter().skip(1) {
+                name.push_str(if done { "   " } else { "│  " });
+            }
+            let is_last = last(i);
+            name.push_str(if is_last { "└─ " } else { "├─ " });
+            closed.push(is_last);
+        } else {
+            closed = vec![true];
+        }
+        name.push_str(&row.folder);
+        let mut commits: Vec<String> = row.synced.iter().map(circle).collect();
+        if let Some(r) = &row.r {
+            if row.synced.is_some() {
+                commits.push("…".to_string());
+            }
+            commits.push(circle(r));
+        }
+        commits.extend(row.theirs.iter().map(circle));
+        let note = notes.get(&row.path).cloned().unwrap_or_default();
+        lines.push((name, commits.join(" "), note));
+    }
+    let width = |pick: fn(&(String, String, String)) -> &String| {
+        lines
+            .iter()
+            .map(|line| pick(line).chars().count())
+            .max()
+            .unwrap_or(0)
+    };
+    let (names, commits) = (width(|l| &l.0), width(|l| &l.1));
+    Ok(lines
+        .iter()
+        .map(|(name, circles, note)| {
+            let line = format!("{name:<names$}  {circles:<commits$}  {note}");
+            format!("{}\n", line.trim_end())
+        })
+        .collect())
 }
 
 /// `check-drawing tree [--mark pulled|carried]... [<label>=<rev>...]`:

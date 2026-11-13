@@ -1,7 +1,7 @@
 //! Typed observations and in-memory synchronization drivers.
 
 use crate::repo::{commit_of, Repo};
-use crate::tree::{SpliceTree, Tasks};
+use crate::tree::Tasks;
 use crate::util::*;
 use std::process::{Command, Stdio};
 
@@ -176,10 +176,9 @@ impl<'context, O: Operation> Execution<'context, O> {
         Ok(ExecutionOutcome::Complete(status))
     }
 
-    /// The splice tree at HEAD, with the operation's work per splice.
-    pub(crate) fn splice_tree(&mut self) -> Res<SpliceTree> {
-        let tasks = self.progress.tasks();
-        self.repo.splice_tree(tasks)
+    /// The operation's work per splice, done and still to do.
+    pub(crate) fn tasks(&self) -> Tasks {
+        self.progress.tasks()
     }
 
     fn checked<T>(&mut self, result: Res<T>) -> Res<T> {

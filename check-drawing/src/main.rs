@@ -6,14 +6,8 @@
 //! it had, comes from git-splice's own code, so a drawing is checked against
 //! what the tool really does.
 
-mod check;
-mod diagram;
-mod history;
-mod labels;
-mod placement;
-mod tree;
-
-use check::{Checker, Labels};
+use check_drawing::check::{Checker, Labels};
+use check_drawing::{labels, placement, tree};
 use std::process::ExitCode;
 
 const USAGE: &str = "usage: check-drawing <drawing> [--alias <name>=<term>...] [<label>=<rev>...]\n       check-drawing tree [--mark pulled|carried]... [<label>=<rev>...]\n       check-drawing labels <page>...\n       check-drawing placement <page>...";

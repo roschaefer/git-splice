@@ -55,7 +55,7 @@ the command's `run`. The tool only runs the `git` CLI, so
 | `src/context.rs` | Caller-owned `ExecutionContext`: immutable content-tree cache, validated supplied rebuilds and optional progress observer shared by operations in one invocation. |
 | `src/repo.rs` | `Repo`: discovery, path selection, reading `.splice`, upstreams, keys and what a splice syncs with. |
 | `src/rebuild.rs` | The push rebuild: `rebuild_splice`, `splice_start` (B) and the commit loop `rebuild_walk`. |
-| `src/tree.rs` | `SpliceTree`: each splice's B, U, R and T at HEAD and an operation's work for it, as a text table for Rust tests. |
+| `src/tree.rs` | `Tasks`: an operation's work per splice, done or pending, for a paused execution to show. |
 | `src/state.rs` | `classify_splice`, the sync state every command acts on, and `splice_in`, the re-rooted cherry-pick behind `merge` and `clone`. |
 | `src/pager.rs` | Paging for `diff` and `log`. |
 | `src/<command>.rs` | One command each: its `run` and its per-splice step. |
