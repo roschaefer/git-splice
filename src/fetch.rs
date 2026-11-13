@@ -58,7 +58,7 @@ pub fn fetch_by_id(url: &str, commit: &str) -> bool {
 /// Fetches tag <tag> of upstream <url> into <prefix>tags/<tag>, if upstream has
 /// it. Git doesn't move a fetched tag that moved upstream, and neither does
 /// this: it keeps the commit the tag named, and returns (old, new) then.
-pub(crate) fn fetch_tag(url: &str, prefix: &str, tag: &str) -> Option<(String, String)> {
+fn fetch_tag(url: &str, prefix: &str, tag: &str) -> Option<(String, String)> {
     let reference = format!("{prefix}tags/{tag}");
     let verify = |reference: &str| git(&["rev-parse", "--verify", "--quiet", reference]).out();
     let old = verify(&reference);
@@ -259,7 +259,7 @@ impl Repo<'_> {
                 // Only a default-pin fetches a tag or a commit. Every branch
                 // fetches it: a feature branch compares with it when upstream
                 // has no branch like it.
-                let pin = upstream_config(path, name, "default-pin");
+                let pin = self.upstream_setting(path, name, "default-pin");
                 let tag = if is_commit_id(&pin) {
                     commits.push(pin.clone());
                     String::new()
@@ -277,7 +277,7 @@ impl Repo<'_> {
                     String::new()
                 };
                 let old_sha = git(&["rev-parse", "--verify", "--quiet", &target_ref]).out();
-                commits.push(splice_config(path, "commit", "HEAD"));
+                commits.push(splice_config(path, "commit", &self.state_rev));
                 members.push(Member {
                     index,
                     path: path.clone(),

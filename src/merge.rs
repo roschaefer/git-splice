@@ -3,7 +3,7 @@
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
 use crate::execution::ExecutionEvent;
-use crate::fetch::{fetch_tag, fetch_upstream, FetchFailures, FetchPlan, FetchResults};
+use crate::fetch::{FetchFailures, FetchPlan, FetchResults};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
@@ -51,11 +51,11 @@ fn state_file_blob(rev: &str, path: &str) -> Option<String> {
 }
 
 impl Repo<'_> {
-    /// Fetches each upstream of each splice below <path>, as the commit a
-    /// conflicted pull of <path> brings in has it, that isn't fetched yet, or
-    /// lacks the synced commit or pin recorded there: once the conflict is
+    /// Fetches the upstreams of the splices below <path>, as the commit a
+    /// conflicted pull of <path> brings in has them, that aren't fetched yet,
+    /// or lack the synced commit or pin recorded there: once the conflict is
     /// resolved, those are the splices below.
-    fn fetch_below_conflict(&mut self, path: &str) -> Res<()> {
+    fn fetch_below_conflict(&mut self, path: &str, branch: &str) -> Res<Option<ExecutionEvent>> {
         // The commit cherry-picked, or with --rebase the pull commit the
         // monorepo's own commits are rebased onto.
         let onto = git(&["rev-parse", "--git-path", "rebase-merge/onto"])
@@ -63,86 +63,59 @@ impl Repo<'_> {
             .and_then(|file| std::fs::read_to_string(file).ok());
         let theirs = match commit_of("CHERRY_PICK_HEAD") {
             Some(commit) => commit,
-            None => match onto.map(|onto| onto.trim().to_string()) {
-                Some(onto) if commit_here(&onto) => onto,
-                _ => return Ok(()),
+            None => match onto.and_then(|onto| commit_of(onto.trim())) {
+                Some(onto) => onto,
+                None => return Ok(None),
             },
         };
-        let suffix = format!("/{STATE_FILE}");
-        for file in self.state_files(&theirs) {
-            let Some(below) = file.strip_suffix(&suffix) else {
-                continue;
-            };
-            if !below.starts_with(&format!("{path}/")) {
-                continue;
-            }
-            let settings = git(&[
-                "config",
-                "--blob",
-                &format!("{theirs}:{file}"),
-                "--get-regexp",
-                r"^upstream\.",
-            ])
-            .q()
-            .out()
-            .unwrap_or_default();
-            let setting = |name: &str, key: &str| {
-                settings.lines().find_map(|line| {
-                    let (k, value) = line.split_once(' ')?;
-                    (k == format!("upstream.{name}.{key}")).then(|| value.to_string())
-                })
-            };
-            let names: Vec<&str> = settings
-                .lines()
-                .filter_map(|line| {
-                    line.split_once(' ')?
-                        .0
-                        .strip_prefix("upstream.")?
-                        .strip_suffix(".url")
-                })
-                .collect();
-            let synced = splice_config(below, "commit", &theirs);
-            for name in names {
-                let Some(url) = setting(name, "url").filter(|url| !url.is_empty()) else {
-                    continue;
-                };
-                let pin = setting(name, "default-pin").unwrap_or_default();
-                let recorded = !self.upstream_key(&url)?.is_empty();
-                let key = self.create_upstream_key(&url)?;
-                let prefix = format!("refs/splices/{key}/");
-                let fetched = !git(&["for-each-ref", "--count=1", &prefix])
-                    .out()
-                    .unwrap_or_default()
-                    .is_empty();
-                let mut commits = vec![synced.clone()];
-                let mut tag = String::new();
-                if is_commit_id(&pin) {
-                    commits.push(pin);
-                } else {
-                    tag = pin;
-                }
-                let tag_here = tag.is_empty() || ref_exists(&format!("{prefix}tags/{tag}"));
-                if fetched && tag_here && commits.iter().all(|c| c.is_empty() || commit_here(c)) {
+        let spec = format!(":(top,glob){path}/**/{STATE_FILE}");
+        let files = git(&[
+            "diff-tree",
+            "-r",
+            "--name-only",
+            "-z",
+            &self.empty_tree(),
+            &theirs,
+            "--",
+            &spec,
+        ])
+        .q()
+        .bytes()
+        .unwrap_or_default();
+        let below: Vec<String> = nul_fields(&files)
+            .iter()
+            .filter_map(|file| {
+                file.strip_suffix(&format!("/{STATE_FILE}"))
+                    .map(str::to_string)
+            })
+            .collect();
+        let plan = self.with_state_rev(&theirs, |repo| {
+            let mut entries = Vec::new();
+            for path in &below {
+                // One that can't be loaded: its merge says why, after the
+                // conflict.
+                if quietly(|| contained(repo.require_upstream_list(path))).is_err() {
                     continue;
                 }
-                let (ok, output) = fetch_upstream(&url, &format!("{prefix}heads/"), &commits);
-                if !output.is_empty() {
-                    eprint_text(&format!("{output}\n"));
-                }
-                if ok && !tag.is_empty() {
-                    fetch_tag(&url, &prefix, &tag);
-                }
-                if ok {
-                    log_ok(format!("{below} fetched"));
-                } else {
-                    log_err(format!("{below} fetch failed"));
-                    if !recorded {
-                        self.forget_upstream_key(&key)?;
+                let synced = splice_config(path, "commit", &theirs);
+                let lacks_synced = !synced.is_empty() && !commit_here(&synced);
+                for name in repo.upstream_lists[path].clone() {
+                    repo.use_upstream(path, &name)?;
+                    if lacks_synced || !repo.splice_fetched(path) || !repo.pin_here(path) {
+                        entries.push((path.clone(), name));
                     }
                 }
             }
-        }
-        Ok(())
+            if entries.is_empty() {
+                return Ok(None);
+            }
+            repo.prepare_fetch(branch, &entries).map(Some)
+        })?;
+        let Some(plan) = plan else {
+            return Ok(None);
+        };
+        let (_, event) = plan.download().finish(self)?;
+        Ok(Some(event))
     }
 
     /// record_equal_tree's choice, which push --rebuilt-commit asks too.
@@ -697,7 +670,7 @@ impl Repo<'_> {
     /// The tag or commit the default-pin of the splice's upstream in use names
     /// is here, or it has none.
     fn pin_here(&self, path: &str) -> bool {
-        let pin = upstream_config(path, &self.name_of(path), "default-pin");
+        let pin = self.upstream_setting(path, &self.name_of(path), "default-pin");
         if pin.is_empty() {
             true
         } else if is_commit_id(&pin) {
@@ -1006,7 +979,7 @@ impl MergeProgress {
                 // The pull stops here: the splices the conflicted merge brings
                 // in are fetched now, as a merge without a conflict would.
                 if verb == "pull" && splice_in_progress() {
-                    repo.fetch_below_conflict(path)?;
+                    return repo.fetch_below_conflict(path, branch);
                 }
                 if !splice_in_progress() && !self.failures.contains(path) {
                     self.phase = MergePhase::Discover(path.clone());
