@@ -43,7 +43,7 @@ to its setup or doesn't call that function first:
 ```scrut {fail_fast: true, output_stream: combined}
 $ source "$TESTDIR/readme-setup.sh" && check_scenario_setups
 ok 01-everyday-sync/01-sync-model (1 document)
-ok 01-everyday-sync/01-sync-model/01-after-pull (1 document)
+ok 01-everyday-sync/01-sync-model/01-after-pull (2 documents)
 ok 01-everyday-sync/01-sync-model/01-after-pull/01-pushed (1 document)
 ok 01-everyday-sync/01-sync-model/01-after-pull/02-pulled-again (1 document)
 ok 01-everyday-sync/02-up-to-date (3 documents)

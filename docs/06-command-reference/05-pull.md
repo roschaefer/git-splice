@@ -12,7 +12,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 ```
 
@@ -197,6 +197,27 @@ was until they're done. Then the branch's own commits since are rebased
 onto their commit once. Rebasing onto each pull would replay the pulls
 of the splices above it too
 ([rebased](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/rebased.md)).
+
+### `--exec`
+
+```scrut
+$ git splice pull -h | check-help option --exec
+        Runs <command> through sh from the repository root at each execution
+        checkpoint. GIT_SPLICE_EVENT names the checkpoint; GIT_SPLICE_PATH
+        names its splice, and GIT_SPLICE_COMMIT its prepared or published
+        commit, when applicable. Other values are empty. Zero continues;
+        nonzero stops with completed work applied. Hooks must preserve the
+        repository inputs required by continuation. stdin is closed; stdout
+        and stderr are inherited.
+```
+
+The checkpoints are `after-fetch`, `after-merge`, and, for recursive pulls, `before-fold` and
+`after-fold`. A hook runs synchronously; the next step starts
+only after it succeeds. A failed hook ends this execution; completed changes
+remain applied, and re-running `pull` goes on from there, as after a conflict.
+
+Hooks can inspect tracked files and the index, but changing them or the
+pull markers prevents continuation.
 
 ## Order
 

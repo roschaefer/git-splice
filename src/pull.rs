@@ -20,7 +20,7 @@ pub fn start<'context>(
     context: &'context mut ExecutionContext,
     argv: &[String],
 ) -> Res<PullExecution<'context>> {
-    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive"), argv)?;
+    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive --exec"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let mut repo = Repo::new(context, args);
@@ -56,6 +56,7 @@ impl PullExecution<'_> {
 enum PullPhase {
     Fetch(FetchPlan),
     Fetched(FetchResults),
+    Reported,
     Merge(Box<MergeProgress>),
     Finalize,
     Fold { observed_head: Option<String> },
@@ -147,14 +148,16 @@ impl PullProgress {
         match std::mem::replace(&mut self.phase, PullPhase::Done) {
             PullPhase::Done => Ok(None),
             PullPhase::Fetch(plan) => {
-                let (results, event) = plan.download_event();
-                self.phase = PullPhase::Fetched(results);
-                Ok(Some(event))
+                self.phase = PullPhase::Fetched(plan.download());
+                Ok(None)
             }
             PullPhase::Fetched(results) => {
-                self.fetch_failures = results.finish(repo)?;
-                self.begin_merges(repo).map(|()| None)
+                let (failures, event) = results.finish(repo)?;
+                self.fetch_failures = failures;
+                self.phase = PullPhase::Reported;
+                Ok(Some(event))
             }
+            PullPhase::Reported => self.begin_merges(repo).map(|()| None),
             PullPhase::Merge(mut merges) => {
                 let advanced = merges.advance_event(repo);
                 let event = advanced.as_ref().ok().cloned().flatten();
@@ -288,15 +291,20 @@ impl PullProgress {
                 return fail(format!("{START} couldn't be updated"));
             }
         }
+        self.say_if_detached()?;
+        if !self.fetch_failures.is_empty() {
+            log_err(format!("Not fetched: {}", self.fetch_failures.join(" ")));
+            self.status = 1;
+        }
+        Ok(())
+    }
+
+    fn say_if_detached(&self) -> Res<()> {
         if self.rebasing && rebase_under_way()?.is_some() {
             let branch = &self.branch;
             log_err(format!(
             "The pulls are on a detached HEAD, '{branch}' is as it was -- re-run pull to go on, or 'git switch {branch}' to give up"
         ));
-        }
-        if !self.fetch_failures.is_empty() {
-            log_err(format!("Not fetched: {}", self.fetch_failures.join(" ")));
-            self.status = 1;
         }
         Ok(())
     }
@@ -626,6 +634,9 @@ impl Operation for PullProgress {
     fn finish(&self) -> Res<i32> {
         PullProgress::finish(self)
     }
+    fn stopped(&self) {
+        let _ = self.say_if_detached();
+    }
 }
 
 #[cfg(test)]
@@ -795,6 +806,29 @@ mod tests {
         repo.open().unwrap();
         let progress = PullProgress::new(&mut repo).unwrap();
         (repo, progress)
+    }
+
+    #[test]
+    fn failing_exec_hook_leaves_downloads_applied_without_merging() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            let updates = nested_updates(&mut context);
+            let head = git(&["rev-parse", "HEAD"]);
+            assert_eq!(
+                run(
+                    &mut context,
+                    &[
+                        "--exec".into(),
+                        r#"test "$GIT_SPLICE_EVENT" = after-fetch && test -z "$GIT_SPLICE_PATH$GIT_SPLICE_COMMIT" && exit 9"#.into(),
+                        "vendor/a".into(),
+                    ],
+                ),
+                Err(Fail::Code(9))
+            );
+            assert_eq!(git(&["rev-parse", "HEAD"]), head);
+            assert_eq!(git(&["rev-parse", &updates.parent_ref]), updates.parent);
+            assert_eq!(git(&["rev-parse", &updates.child_ref]), updates.child);
+        });
     }
 
     #[test]
@@ -1134,7 +1168,7 @@ fold start -> -"#,
     }
 
     #[test]
-    fn observer_sees_real_fetch_merge_and_fold_boundaries_through_the_command_entrypoint() {
+    fn observer_and_exec_hook_see_fetch_merge_and_fold_boundaries() {
         #[derive(Debug)]
         struct Observation {
             event: ExecutionEvent,
@@ -1165,8 +1199,21 @@ fold start -> -"#,
                 });
             });
             assert_eq!(
-                run(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap(),
+                run(
+                    &mut context,
+                    &[
+                        "--recursive".into(),
+                        "--exec".into(),
+                        r#"test -z "$GIT_SPLICE_COMMIT" && printf '%s:%s\n' "$GIT_SPLICE_EVENT" "$GIT_SPLICE_PATH" >> hook-events"#.into(),
+                        "vendor/a".into(),
+                    ],
+                )
+                .unwrap(),
                 0
+            );
+            assert_eq!(
+                std::fs::read_to_string("hook-events").unwrap(),
+                "after-fetch:\nafter-merge:vendor/a\nafter-merge:vendor/a/b\nbefore-fold:\nafter-fold:\n"
             );
             let observed = observations.lock().unwrap();
             assert_eq!(observed.len(), 5, "{observed:#?}");

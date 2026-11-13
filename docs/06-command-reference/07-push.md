@@ -12,8 +12,8 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] (<path>... | --all)
-    git splice push [--upstream <name>] [--branch <name>] [--force] --rebuilt-commit <commit> <path>
+    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] [--exec <command>] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force] [--exec <command>] --rebuilt-commit <commit> <path>
 ```
 
 ## Description
@@ -188,6 +188,26 @@ Why pull right away, and what `push` checks:
 
 The other way round, [`merge --rebuilt-commit`](04-merge.md#--rebuilt-commit)
 brings work committed in such a worktree into the monorepo.
+
+### `--exec`
+
+```scrut
+$ git splice push -h | check-help option --exec
+        Runs <command> through sh from the repository root at each execution
+        checkpoint. GIT_SPLICE_EVENT names the checkpoint; GIT_SPLICE_PATH
+        names its splice, and GIT_SPLICE_COMMIT its prepared or published
+        commit, when applicable. Other values are empty. Zero continues;
+        nonzero stops with completed work applied. Hooks must preserve the
+        repository inputs required by continuation. stdin is closed; stdout
+        and stderr are inherited.
+```
+
+The checkpoints are `after-rebuild` before publication and `after-push` after publication and
+tracking changes. A hook runs synchronously; the next step starts
+only after it succeeds. A failed hook ends this execution; completed changes
+remain applied, and re-running `push` goes on from there, as after a conflict.
+
+See the [drawing-checked push scenario](../09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/with-exec.md).
 
 ## Upstream branch
 

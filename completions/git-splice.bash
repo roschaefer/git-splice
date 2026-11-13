@@ -62,7 +62,7 @@ __git_splice_positionals() {
   local i count=0
   for ((i = $1 + 1; i < COMP_CWORD; i++)); do
     case "${COMP_WORDS[i]}" in
-      -m | --message | --message-template)
+      -m | --message | --message-template | --exec)
         ((i++))
         [[ "${COMP_WORDS[i]:-}" != = ]] || ((i++))
         ;;
@@ -99,10 +99,11 @@ _git_splice() {
   fi
 
   cmd="${COMP_WORDS[start]}"
-  # The word after --upstream, --branch, -m or --message-template names an
-  # upstream, its branch, a commit message or its template: nothing to offer.
+  # The word after --upstream, --branch, -m, --message-template or --exec names
+  # an upstream, its branch, a commit message, its template or a command:
+  # nothing to offer.
   local option
-  for option in --upstream --branch -m --message --message-template; do
+  for option in --upstream --branch -m --message --message-template --exec; do
     ! __git_splice_completing_value "$option" || return 0
   done
   case "$cmd" in
@@ -118,14 +119,14 @@ _git_splice() {
       elif [[ "$cmd" == merge ]]; then
         __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --rebuilt-commit -m --message --message-template -h --help
       else
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --recursive -m --message --message-template -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --recursive -m --message --message-template --exec -h --help
       fi
       ;;
     push | status | diff)
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit --exec -h --help
       else
         __git_splice_paths_or_options "$cur" --upstream -h --help
       fi
