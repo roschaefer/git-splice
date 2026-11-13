@@ -210,14 +210,14 @@ after-fetch vendor/a vendor/a/b vendor/a/b/c vendor/a/d:
 monorepo      (s)
 └─ vendor/a/  (a1)  pending: merge
    ├─ b/      (b1)  pending: merge, after vendor/a/
-   │  └─ c/   (c1)  pending: merge, after b/
+   │  └─ c/   (c1)  pending: merge, after vendor/a/b/
    └─ d/      (d1)  pending: merge, after vendor/a/
 
 after-merge vendor/a:
 monorepo      (pa*)
 └─ vendor/a/  (a2*)  done
    ├─ b/      (b1)   pending: merge
-   │  └─ c/   (c1)   pending: merge, after b/
+   │  └─ c/   (c1)   pending: merge, after vendor/a/b/
    ├─ d/      (d1)   pending: merge
    └─ e/      (e1)
 
@@ -225,7 +225,7 @@ after-fetch vendor/a/e:
 monorepo      (pa*)
 └─ vendor/a/  (a2*)  done
    ├─ b/      (b1)   pending: merge
-   │  └─ c/   (c1)   pending: merge, after b/
+   │  └─ c/   (c1)   pending: merge, after vendor/a/b/
    ├─ d/      (d1)   pending: merge
    └─ e/      (e1)   pending: merge
 
@@ -255,20 +255,20 @@ monorepo      (pd*)
 
 before-fold:
 monorepo      (pd*)
-└─ vendor/a/  (a2) … [pd'*]
-   ├─ b/      (b2) … [pc'*]
-   │  └─ c/   (c2*)
-   ├─ d/      (d2*)
-   └─ e/      (e1)
+└─ vendor/a/  (a2) … [pd'*]  done
+   ├─ b/      (b2) … [pc'*]  done
+   │  └─ c/   (c2*)          done
+   ├─ d/      (d2*)          done
+   └─ e/      (e1)           done
 next: fold
 
 after-fold:
 monorepo      (p*)
-└─ vendor/a/  (a2*) … [p'*]
-   ├─ b/      (b2*) … [p'*]
-   │  └─ c/   (c2*)
-   ├─ d/      (d2*)
-   └─ e/      (e1)
+└─ vendor/a/  (a2*) … [p'*]  done
+   ├─ b/      (b2*) … [p'*]  done
+   │  └─ c/   (c2*)          done
+   ├─ d/      (d2*)          done
+   └─ e/      (e1)           done
 next: clean up
 "#,
         "observed trees:\n{observed}"

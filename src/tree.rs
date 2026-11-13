@@ -2,14 +2,31 @@
 //! is pending or settled: for a tree drawing, or a test, to show next to
 //! each splice.
 
-/// What an operation did or still does for a splice.
+use std::collections::HashMap;
+
+/// A step an operation still has to take for a splice.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Step {
+    Fetch,
+    /// Merges go top-down: a splice's waits for the one around it.
+    Merge,
+}
+
+/// What an operation did or still does for a splice, as it decided it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Task {
+    Pending(Step),
     Done,
-    /// The step that is still to come, e.g. "merge".
-    Pending(&'static str),
-    Failed,
+    /// Its merge stopped in a conflict.
     Conflict,
+    /// Not merged: it waits on the splice at this path, which stopped in a
+    /// conflict or failed.
+    Blocked(String),
+    Failed,
+    /// The pull above removed it, or it isn't a splice any more.
+    Removed,
+    /// A copy of the splice at this path, which it's inside: not merged.
+    Copy(String),
 }
 
 /// An operation's work per splice, and its next step beyond them.
@@ -22,13 +39,14 @@ pub struct Tasks {
 }
 
 impl Tasks {
-    /// Each splice's task as text, by path: "pending: merge, after b/" for a
-    /// merge that waits on the splice around it, as merges go top-down.
-    pub fn notes(&self) -> std::collections::HashMap<String, String> {
-        let pending = |path: &str| {
+    /// Each splice's task as text, by path, naming other splices by their
+    /// path: "pending: merge, after vendor/a/" for a merge that waits on the
+    /// splice around it.
+    pub fn notes(&self) -> HashMap<String, String> {
+        let pending_merge = |path: &str| {
             self.per_splice
                 .iter()
-                .any(|(p, task)| p == path && matches!(task, Task::Pending(_)))
+                .any(|(p, task)| p == path && *task == Task::Pending(Step::Merge))
         };
         let around = |path: &str| {
             self.per_splice
@@ -36,26 +54,23 @@ impl Tasks {
                 .map(|(p, _)| p.as_str())
                 .filter(|p| path.starts_with(&format!("{p}/")))
                 .max_by_key(|p| p.len())
-                .map(str::to_string)
         };
         self.per_splice
             .iter()
             .map(|(path, task)| {
-                let mut note = match task {
+                let note = match task {
+                    Task::Pending(Step::Fetch) => "pending: fetch".to_string(),
+                    Task::Pending(Step::Merge) => match around(path).filter(|a| pending_merge(a)) {
+                        Some(above) => format!("pending: merge, after {above}/"),
+                        None => "pending: merge".to_string(),
+                    },
                     Task::Done => "done".to_string(),
-                    Task::Failed => "failed".to_string(),
                     Task::Conflict => "conflict".to_string(),
-                    Task::Pending(step) => format!("pending: {step}"),
+                    Task::Blocked(on) => format!("blocked by {on}/"),
+                    Task::Failed => "failed".to_string(),
+                    Task::Removed => "removed".to_string(),
+                    Task::Copy(of) => format!("copy of {of}/"),
                 };
-                if *task == Task::Pending("merge") {
-                    if let Some(above) = around(path).filter(|a| pending(a)) {
-                        let name = match around(&above) {
-                            Some(top) => above[top.len() + 1..].to_string(),
-                            None => above.clone(),
-                        };
-                        note.push_str(&format!(", after {name}/"));
-                    }
-                }
                 (path.clone(), note)
             })
             .collect()
