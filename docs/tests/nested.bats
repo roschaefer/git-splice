@@ -916,6 +916,30 @@ order_of() {
   [ "$(git show HEAD:vendor/a/b/c/other.txt)" = "c dev" ]
 }
 
+@test "nested: pull --recursive of a fetches a splice only on the branch c follows through b's new .splice, before merging" {
+  scenario_three_levels "$monorepo" "$upstream"
+  upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  upstream_d="$BATS_TEST_TMPDIR/upstream-d.git"
+  make_bare_repo "$upstream_d"
+  seed_bare_repo "$upstream_d" "d seed"
+  seed_bare_repo "$upstream_c" "c dev" dev other.txt
+  git clone -q --branch dev "$upstream_c" "$BATS_TEST_TMPDIR/c-work"
+  cd "$BATS_TEST_TMPDIR/c-work"
+  git config user.name Test && git config user.email test@example.com
+  splice clone "$upstream_d" d >/dev/null
+  git push -q origin dev
+  work_in_upstream_a
+  git config --file b/.splice --rename-section upstream.origin upstream.fork
+  git config --file b/.splice upstream.fork.default-branch dev
+  git commit -q -m "b: fork, on dev" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull --recursive vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"vendor/a/b/c/d fetched"*"vendor/a: pulled"* ]]
+  [ "$(git show HEAD:vendor/a/b/c/d/file.txt)" = "d seed" ]
+}
+
 @test "nested: b pushed from a clone of a's upstream, after a push of a alone, is up to date in the monorepo" {
   scenario_nested_splices "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a/b "b local"

@@ -496,7 +496,8 @@ pub(crate) struct FetchWalk {
     descend: Descend,
     level: Vec<Node>,
     first: bool,
-    /// (path, blob) of each state file fetched for.
+    /// Each splice fetched for, as (path, its state file's blob and those of
+    /// the splices around it): those decide what it fetches and follows.
     seen: HashSet<(String, String)>,
     /// Paths whose fetch failed, or whose synced commit isn't here after it,
     /// or whose state file can't be loaded.
@@ -527,13 +528,12 @@ impl FetchWalk {
         let seen = if descend == Descend::Never {
             HashSet::new()
         } else {
-            state_file_entries(repo, "HEAD")
-                .into_iter()
-                .filter_map(|(file, blob)| {
-                    Some((
-                        file.strip_suffix(&format!("/{STATE_FILE}"))?.to_string(),
-                        blob,
-                    ))
+            let files = state_file_entries(repo, "HEAD");
+            files
+                .iter()
+                .filter_map(|(file, _)| {
+                    let path = file.strip_suffix(&format!("/{STATE_FILE}"))?;
+                    Some((path.to_string(), context_of(&files, path)))
                 })
                 .collect()
         };
@@ -652,24 +652,40 @@ impl FetchWalk {
             let target = if first {
                 quietly(|| repo.resolve_upstream_target(&node.path, &branch))
             } else {
+                // As its merge will: a recursive pull merges it with the
+                // upstream --upstream names and the branch --branch names.
                 repo.with_state_rev(&node.rev, |repo| {
                     quietly(|| {
                         repo.require_upstream_list(&node.path)?;
-                        repo.resolve_upstream_target(&node.path, &branch)
+                        let upstream = repo.args.upstream.clone();
+                        let _ = repo.use_upstreams(&upstream, std::slice::from_ref(&node.path));
+                        let added = !repo.selected.contains(&node.path);
+                        if added {
+                            repo.selected.push(node.path.clone());
+                        }
+                        let target = repo.resolve_upstream_target(&node.path, &branch);
+                        if added {
+                            repo.selected.retain(|path| *path != node.path);
+                        }
+                        target
                     })
                 })
             };
             let Some(commit) = target.ok().and_then(|t| commit_of(&t.reference)) else {
                 continue;
             };
+            // The splices below it as its upstream commit has them; its own
+            // state file stays, for what they inherit from it.
             let below = format!("{}/", node.path);
+            let own = format!("{below}{STATE_FILE}");
             let mut files: Vec<(String, String)> = entries(repo, &node.rev)
                 .into_iter()
-                .filter(|(file, _)| !file.starts_with(&below))
+                .filter(|(file, _)| *file == own || !file.starts_with(&below))
                 .collect();
             files.extend(
                 entries(repo, &commit)
                     .into_iter()
+                    .filter(|(file, _)| file != STATE_FILE)
                     .map(|(file, blob)| (format!("{below}{file}"), blob)),
             );
             let Some(rev) = tree_of_files(&files) else {
@@ -677,10 +693,13 @@ impl FetchWalk {
             };
             let found: Vec<String> = files
                 .iter()
-                .filter_map(|(file, blob)| {
+                .filter_map(|(file, _)| {
                     let path = file.strip_suffix(&format!("/{STATE_FILE}"))?;
-                    (path.starts_with(&below) && self.seen.insert((path.to_string(), blob.clone())))
-                        .then(|| path.to_string())
+                    (path.starts_with(&below)
+                        && self
+                            .seen
+                            .insert((path.to_string(), context_of(&files, path))))
+                    .then(|| path.to_string())
                 })
                 .collect();
             let loaded = repo.with_state_rev(&rev, |repo| {
@@ -742,6 +761,24 @@ impl Repo<'_> {
                 && !is_commit_id(&pin)
                 && !ref_exists(&format!("refs/splices/{key}/tags/{pin}")))
     }
+}
+
+/// The blobs of splice <path>'s state file and of those of the splices
+/// around it, among <files>, outermost first.
+fn context_of(files: &[(String, String)], path: &str) -> String {
+    let mut around: Vec<&(String, String)> = files
+        .iter()
+        .filter(|(file, _)| {
+            file.strip_suffix(&format!("/{STATE_FILE}"))
+                .is_some_and(|dir| dir == path || path.starts_with(&format!("{dir}/")))
+        })
+        .collect();
+    around.sort_by_key(|(file, _)| file.len());
+    around
+        .iter()
+        .map(|(_, blob)| blob.as_str())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Splice <path> in <rev> has the id of a splice it's inside.
