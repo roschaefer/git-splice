@@ -1030,9 +1030,11 @@ order_of() {
   cd "$monorepo"
   run splice pull vendor/a vendor/x
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a: not pulled, since vendor/a/b below it wasn't fetched"* ]]
+  [[ "$output" == *"vendor/a/b: the .splice that vendor/a's upstream has for it can't be loaded -- it needs a fix there; to see it: git show $(git -C "$upstream" rev-parse --short main):b/.splice"* ]]
+  [[ "$output" != *"git config --file vendor/a/b/.splice"* ]]
+  [[ "$output" == *"vendor/a: not pulled, since vendor/a/b below it couldn't be loaded"* ]]
   [[ "$output" == *"vendor/x: pulled"* ]]
-  [[ "$output" == *"Not fetched: vendor/a/b"* ]]
+  [[ "$output" == *"Not loaded: vendor/a/b"* ]]
 }
 
 @test "nested: a pull of b made in a worktree of a's rebuild, merged back with merge --rebuilt-commit, is a pull of b in the monorepo" {

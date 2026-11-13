@@ -237,17 +237,27 @@ impl PullProgress {
                 .failures
                 .iter()
                 .find(|failed| *failed == top || failed.starts_with(&format!("{top}/")));
+            let why = |failed: &String| {
+                if self.walk.unreadable.contains(failed) {
+                    "couldn't be loaded"
+                } else {
+                    "wasn't fetched"
+                }
+            };
             match failed {
                 None => fetched.push(path.clone()),
                 Some(failed) if failed == path => {}
                 Some(failed) if path.starts_with(&format!("{failed}/")) => log_err(format!(
-                    "{path}: not pulled, since {failed} above it wasn't fetched"
+                    "{path}: not pulled, since {failed} above it {}",
+                    why(failed)
                 )),
                 Some(failed) if failed.starts_with(&format!("{path}/")) => log_err(format!(
-                    "{path}: not pulled, since {failed} below it wasn't fetched -- 'git splice merge {path}' merges what was fetched anyway"
+                    "{path}: not pulled, since {failed} below it {} -- 'git splice merge {path}' merges what was fetched anyway",
+                    why(failed)
                 )),
                 Some(failed) => log_err(format!(
-                    "{path}: not pulled, since {failed}, in the pull of {top}, wasn't fetched"
+                    "{path}: not pulled, since {failed}, in the pull of {top}, {}",
+                    why(failed)
                 )),
             }
         }
@@ -319,7 +329,18 @@ impl PullProgress {
         ));
         }
         if !self.walk.failures.is_empty() {
-            log_err(format!("Not fetched: {}", self.walk.failures.join(" ")));
+            let (unreadable, unfetched): (Vec<String>, Vec<String>) = self
+                .walk
+                .failures
+                .iter()
+                .cloned()
+                .partition(|failed| self.walk.unreadable.contains(failed));
+            if !unfetched.is_empty() {
+                log_err(format!("Not fetched: {}", unfetched.join(" ")));
+            }
+            if !unreadable.is_empty() {
+                log_err(format!("Not loaded: {}", unreadable.join(" ")));
+            }
             self.status = 1;
         }
         Ok(())

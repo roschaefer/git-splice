@@ -498,8 +498,11 @@ pub(crate) struct FetchWalk {
     first: bool,
     /// (path, blob) of each state file fetched for.
     seen: HashSet<(String, String)>,
-    /// Paths whose fetch failed, or whose synced commit isn't here after it.
+    /// Paths whose fetch failed, or whose synced commit isn't here after it,
+    /// or whose state file can't be loaded.
     pub failures: FetchFailures,
+    /// The failures whose state file can't be loaded.
+    pub unreadable: Vec<String>,
 }
 
 impl FetchWalk {
@@ -541,6 +544,7 @@ impl FetchWalk {
             first: true,
             seen,
             failures: Vec::new(),
+            unreadable: Vec::new(),
         }
     }
 
@@ -683,7 +687,8 @@ impl FetchWalk {
                 found
                     .into_iter()
                     .map(|path| {
-                        let names = contained(repo.require_upstream_list(&path))
+                        // Its own message would name the monorepo's file.
+                        let names = quietly(|| contained(repo.require_upstream_list(&path)))
                             .map(|()| repo.upstream_lists[&path].clone());
                         (path, names)
                     })
@@ -698,9 +703,16 @@ impl FetchWalk {
                     }),
                     // Its merge would refuse it: nothing to merge it with.
                     Err(_) => {
+                        let file =
+                            format!("{}:{}/{STATE_FILE}", short(&commit), &path[below.len()..]);
+                        log_err(format!(
+                            "{path}: the {STATE_FILE} that {}'s upstream has for it can't be loaded -- it needs a fix there; to see it: git show {file}",
+                            node.path
+                        ));
                         if !self.failures.contains(&path) {
-                            self.failures.push(path);
+                            self.failures.push(path.clone());
                         }
+                        self.unreadable.push(path);
                     }
                 }
             }
