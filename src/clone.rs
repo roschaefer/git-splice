@@ -15,13 +15,26 @@ pub const USAGE: &str = include_str!("usage/clone.txt");
 /// The attributes that change what a checkout writes, or what git add stores.
 const CHECKOUT_ATTRIBUTES: [&str; 5] = ["text", "eol", "filter", "ident", "working-tree-encoding"];
 
-/// The folder name `git clone` would pick for <url>.
+/// The folder name `git clone` would pick for <url>, following Git's
+/// git_url_basename: trailing separators, a final /.git, the part before the
+/// last separator or colon, and a .git suffix all go.
 fn default_clone_path(url: &str) -> String {
-    let name = url.strip_suffix('/').unwrap_or(url);
-    let name = name.strip_suffix(".git").unwrap_or(name);
-    let name = name.strip_suffix('/').unwrap_or(name);
-    let name = name.rsplit('/').next().unwrap_or(name);
-    name.rsplit(':').next().unwrap_or(name).to_string()
+    clone_path_for(url, cfg!(windows))
+}
+
+/// default_clone_path, with Windows' backslash as a separator or not.
+fn clone_path_for(url: &str, windows: bool) -> String {
+    let is_sep = |c: char| c == '/' || (windows && c == '\\');
+    let name = url.trim_end_matches(|c: char| is_sep(c) || c.is_whitespace());
+    let name = match name.strip_suffix(".git") {
+        Some(rest) if rest.ends_with(is_sep) && rest.len() > 1 => rest.trim_end_matches(is_sep),
+        _ => name,
+    };
+    let name = name
+        .rsplit(|c: char| is_sep(c) || c == ':')
+        .next()
+        .unwrap_or(name);
+    name.strip_suffix(".git").unwrap_or(name).to_string()
 }
 
 /// The mode of <path> in commit <rev>, e.g. 160000 for a submodule, or nothing
@@ -987,4 +1000,35 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     }
     args.require(USAGE, "clone", 1, 2)?;
     clone_url(&mut Repo::new(context, args), merge)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clone_path_for;
+
+    #[test]
+    fn default_clone_path_names_the_folder_as_git_clone_does() {
+        for (url, folder) in [
+            ("https://example.com/org/lib.git", "lib"),
+            ("https://example.com/org/lib", "lib"),
+            ("git@example.com:org/lib.git", "lib"),
+            ("example.com:lib.git", "lib"),
+            ("../lib/", "lib"),
+            ("../lib///", "lib"),
+            ("../lib/.git", "lib"),
+            ("../lib/.git/", "lib"),
+            ("../lib/.git//", "lib"),
+            ("../lib.git/.git", "lib"),
+        ] {
+            assert_eq!(clone_path_for(url, false), folder, "for {url}");
+            assert_eq!(clone_path_for(url, true), folder, "for {url} on Windows");
+        }
+    }
+
+    #[test]
+    fn default_clone_path_splits_at_backslashes_on_windows_only() {
+        assert_eq!(clone_path_for(r"C:\src\lib\.git", true), "lib");
+        assert_eq!(clone_path_for(r"C:\src\lib.git\", true), "lib");
+        assert_eq!(clone_path_for(r"lib\.git", false), r"lib\");
+    }
 }
