@@ -999,3 +999,10 @@ TABLE
     [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
   done
 }
+
+@test "clone --from-submodule: with core.autocrlf=true, prints no line-ending warning" {
+  add_submodule
+  git config core.autocrlf true
+  splice clone --from-submodule vendor/a 2>"$BATS_TEST_TMPDIR/stderr"
+  diff /dev/null "$BATS_TEST_TMPDIR/stderr"
+}

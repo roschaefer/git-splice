@@ -86,7 +86,7 @@ new_upstream() {
   [ -f upstream/.splice ]
 }
 
-@test "clone: with core.autocrlf=true, warns about no temporary file of its own" {
+@test "clone: with core.autocrlf=true, prints no line-ending warning" {
   new_upstream
   git config core.autocrlf true
   splice clone "$upstream" 2>"$BATS_TEST_TMPDIR/stderr"

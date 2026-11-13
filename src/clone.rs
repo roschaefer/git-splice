@@ -849,16 +849,17 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             .run(),
     )?;
     git(&["update-index", "-q", "--refresh"]).q().ok();
-    // A commit without files left no folder to write .splice into.
-    let _ = std::fs::create_dir_all(&path);
     let state_file = format!("{path}/{STATE_FILE}");
-    let content = git(&["cat-file", "blob", &blob])
-        .bytes()
-        .unwrap_or_default();
-    if std::fs::write(&state_file, content).is_err() {
-        return die(format!("{state_file}: can't write it"));
-    }
-    must(git(&["add", "-f", "--", &state_file]).run())?;
+    must(
+        git(&[
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            &format!("100644,{blob},{state_file}"),
+        ])
+        .run(),
+    )?;
+    must(git(&["checkout-index", "-f", "--", &state_file]).run())?;
     let left = git(&["config", "--file", &edited.str(), "--list"])
         .out()
         .unwrap_or_default();
