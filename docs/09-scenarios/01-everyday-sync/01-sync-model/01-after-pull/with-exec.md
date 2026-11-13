@@ -19,14 +19,9 @@ $ build_scenario scenario_after_pull
 ```
 
 The prepared commit exists locally, but the upstream still has its old tip.
-The first hook checks this drawing:
-
-![Prepared commits exist locally but have not been published](after-pull.drawio.svg)
-
-After that check succeeds, push publishes the commit. The second hook checks
-the resulting graph:
-
-![The rebuilt commits are now published upstream](01-pushed/pushed.drawio.svg)
+The first hook checks the [drawing after the pull](README.md). After that
+check succeeds, push publishes the commit, and the second hook checks the
+[drawing after the push](01-pushed/README.md).
 
 The [hook script](check-push.sh) selects each drawing using `GIT_SPLICE_EVENT`.
 It also checks the splice path and verifies that `GIT_SPLICE_COMMIT` names a
