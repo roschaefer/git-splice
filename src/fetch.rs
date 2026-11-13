@@ -58,7 +58,7 @@ pub fn fetch_by_id(url: &str, commit: &str) -> bool {
 /// Fetches tag <tag> of upstream <url> into <prefix>tags/<tag>, if upstream has
 /// it. Git doesn't move a fetched tag that moved upstream, and neither does
 /// this: it keeps the commit the tag named, and returns (old, new) then.
-fn fetch_tag(url: &str, prefix: &str, tag: &str) -> Option<(String, String)> {
+pub(crate) fn fetch_tag(url: &str, prefix: &str, tag: &str) -> Option<(String, String)> {
     let reference = format!("{prefix}tags/{tag}");
     let verify = |reference: &str| git(&["rev-parse", "--verify", "--quiet", reference]).out();
     let old = verify(&reference);
