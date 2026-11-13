@@ -102,6 +102,7 @@ Auto-merging vendor/a/file.txt
 CONFLICT (content): Merge conflict in vendor/a/file.txt
 !!   vendor/a: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
 !!   vendor/a: pull failed
+ok   vendor/a/e fetched
 !!   Not pulled yet: vendor/a/b vendor/a/b/c vendor/a/d -- resolve the conflict, run 'git commit', then re-run pull
 !!   Failed: vendor/a
 [1]
