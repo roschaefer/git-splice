@@ -643,14 +643,21 @@ impl Repo<'_> {
                 .iter()
                 .map(|name| self.url_of(path, name))
                 .find(|url| !old_urls.contains(url) && !self.fetched_urls.contains(url));
-            let missing = !synced_commit_here(path) || !self.pin_here(path);
-            if unfetched.is_some() || missing {
+            let named = match unfetched {
+                Some(url) => Some(url),
+                None if !synced_commit_here(path) => Some(format!(
+                    "commit {}",
+                    short(&splice_config(path, "commit", "HEAD"))
+                )),
+                None if !self.pin_here(path) => Some(format!(
+                    "the pin {}",
+                    upstream_config(path, &self.name_of(path), "default-pin")
+                )),
+                None => None,
+            };
+            if let Some(named) = named {
                 log_err(format!(
-                    "{path}: a merge above named {}, which this pull didn't fetch -- re-run pull",
-                    match unfetched {
-                        Some(url) => url,
-                        None => format!("commit {}", short(&splice_config(path, "commit", "HEAD"))),
-                    }
+                    "{path}: a merge above named {named}, which this pull didn't fetch -- re-run pull"
                 ));
                 return Err(Fail::Soft);
             }
@@ -1256,9 +1263,8 @@ mod tests {
 
     fn walk(repo: &mut Repo) -> crate::fetch::FetchWalk {
         let entries = repo.used_upstream_entry(&["vendor/a".into()]);
-        let known = repo.all_paths.clone();
         let mut walk =
-            crate::fetch::FetchWalk::new("main", &entries, &known, crate::fetch::Descend::All);
+            crate::fetch::FetchWalk::new(repo, "main", &entries, crate::fetch::Descend::All);
         while let Some(plan) = walk.plan(repo).unwrap() {
             let results = plan.download(repo.context);
             walk.finish(repo, results).unwrap();

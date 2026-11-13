@@ -200,9 +200,10 @@ impl Repo<'_> {
     /// (path, name) of an upstream of a splice, and each upstream once: splices
     /// with the same URL share their fetched refs, and two fetches into the
     /// same refs would fail on each other's locks. Prints what there is to say
-    /// about each entry, in their order, and returns the paths that failed.
+    /// about each entry, the splices in the order of their first entry, and
+    /// returns the paths that failed.
     pub fn fetch_all(&mut self, branch: &str, entries: &[(String, String)]) -> Res<FetchFailures> {
-        let mut walk = FetchWalk::new(branch, entries, &[], Descend::Never);
+        let mut walk = FetchWalk::new(self, branch, entries, Descend::Never);
         while let Some(plan) = walk.plan(self)? {
             let results = plan.download(self.context);
             walk.finish(self, results)?;
@@ -356,7 +357,12 @@ impl FetchPlan {
             match self.jobs.iter_mut().find(|known| known.key == job.key) {
                 Some(known) => {
                     known.commits.extend(job.commits);
-                    known.members.extend(job.members);
+                    for member in job.members {
+                        // Reported once: its entry stays without a report.
+                        if !known.members.iter().any(|m| m.path == member.path) {
+                            known.members.push(member);
+                        }
+                    }
                 }
                 None => self.jobs.push(job),
             }
@@ -498,9 +504,9 @@ pub(crate) struct FetchWalk {
 
 impl FetchWalk {
     pub(crate) fn new(
+        repo: &Repo,
         branch: &str,
         entries: &[(String, String)],
-        known: &[String],
         descend: Descend,
     ) -> Self {
         let mut level: Vec<Node> = Vec::new();
@@ -515,10 +521,19 @@ impl FetchWalk {
             }
         }
         // The monorepo's state files: fetched for, or not needed.
-        let seen = known
-            .iter()
-            .filter_map(|path| state_file_blob_in("HEAD", path).map(|blob| (path.clone(), blob)))
-            .collect();
+        let seen = if descend == Descend::Never {
+            HashSet::new()
+        } else {
+            state_file_entries(repo, "HEAD")
+                .into_iter()
+                .filter_map(|(file, blob)| {
+                    Some((
+                        file.strip_suffix(&format!("/{STATE_FILE}"))?.to_string(),
+                        blob,
+                    ))
+                })
+                .collect()
+        };
         Self {
             branch: branch.to_string(),
             descend,
@@ -609,7 +624,7 @@ impl FetchWalk {
                 let synced = splice_config(&node.path, "commit", &node.rev);
                 if !synced.is_empty() && !commit_here(&synced) {
                     log_err(format!(
-                        "{}: its synced commit {}, which a pull above brings in, isn't on its upstream any more",
+                        "{}: its synced commit {}, from a pull above, isn't on its upstream any more",
                         node.path,
                         short(&synced)
                     ));
@@ -656,26 +671,37 @@ impl FetchWalk {
             let Some(rev) = tree_of_files(&files) else {
                 continue;
             };
-            for (file, blob) in &files {
-                let Some(path) = file.strip_suffix(&format!("/{STATE_FILE}")) else {
-                    continue;
-                };
-                if !path.starts_with(&below) || !self.seen.insert((path.to_string(), blob.clone()))
-                {
-                    continue;
-                }
-                let names = repo.with_state_rev(&rev, |repo| {
-                    quietly(|| repo.require_upstream_list(path))
-                        .ok()
-                        .map(|()| repo.upstream_lists[path].clone())
-                });
-                // An unreadable state file is the merge's to report.
-                if let Some(names) = names {
-                    next.push(Node {
-                        path: path.to_string(),
+            let found: Vec<String> = files
+                .iter()
+                .filter_map(|(file, blob)| {
+                    let path = file.strip_suffix(&format!("/{STATE_FILE}"))?;
+                    (path.starts_with(&below) && self.seen.insert((path.to_string(), blob.clone())))
+                        .then(|| path.to_string())
+                })
+                .collect();
+            let loaded = repo.with_state_rev(&rev, |repo| {
+                found
+                    .into_iter()
+                    .map(|path| {
+                        let names = contained(repo.require_upstream_list(&path))
+                            .map(|()| repo.upstream_lists[&path].clone());
+                        (path, names)
+                    })
+                    .collect::<Vec<_>>()
+            });
+            for (path, names) in loaded {
+                match names {
+                    Ok(names) => next.push(Node {
+                        path,
                         rev: rev.clone(),
                         names,
-                    });
+                    }),
+                    // Its merge would refuse it: nothing to merge it with.
+                    Err(_) => {
+                        if !self.failures.contains(&path) {
+                            self.failures.push(path);
+                        }
+                    }
                 }
             }
         }
@@ -686,14 +712,23 @@ impl FetchWalk {
 
 impl Repo<'_> {
     /// Upstream <name> of splice <path> needs a fetch: this command hasn't
-    /// fetched it, or not the synced commit the state file records.
+    /// fetched it, or not the synced commit or pin the state file records.
     fn fetch_needed(&mut self, path: &str, name: &str) -> bool {
         if self.require_upstream_list(path).is_err() {
             return false;
         }
+        let url = self.url_of(path, name);
+        if !self.fetched_urls.contains(&url) {
+            return true;
+        }
         let synced = splice_config(path, "commit", &self.state_rev);
-        !self.fetched_urls.contains(&self.url_of(path, name))
-            || (!synced.is_empty() && !commit_here(&synced))
+        let pin = self.upstream_setting(path, name, "default-pin");
+        let key = self.upstream_key(&url).unwrap_or_default();
+        (!synced.is_empty() && !commit_here(&synced))
+            || (is_commit_id(&pin) && !commit_here(&pin))
+            || (!pin.is_empty()
+                && !is_commit_id(&pin)
+                && !ref_exists(&format!("refs/splices/{key}/tags/{pin}")))
     }
 }
 
@@ -710,25 +745,28 @@ fn copy_of_splice_above(rev: &str, path: &str) -> bool {
     false
 }
 
-/// The state file blob of splice <path> in <rev>, if it has one.
-pub fn state_file_blob_in(rev: &str, path: &str) -> Option<String> {
-    git(&[
-        "rev-parse",
-        "--verify",
-        "--quiet",
-        &format!("{rev}:{path}/{STATE_FILE}"),
+/// Each (file, blob) of a state file in <rev>, from one diff-tree.
+fn state_file_entries(repo: &Repo, rev: &str) -> Vec<(String, String)> {
+    let spec = format!(":(top,glob)**/{STATE_FILE}");
+    let output = git(&[
+        "diff-tree",
+        "-r",
+        "-z",
+        "--no-renames",
+        &repo.empty_tree(),
+        rev,
+        "--",
+        &spec,
     ])
     .q()
-    .out()
-}
-
-/// Each (file, blob) of a state file in <rev>.
-fn state_file_entries(repo: &Repo, rev: &str) -> Vec<(String, String)> {
-    repo.state_files(rev)
-        .into_iter()
-        .filter_map(|file| {
-            state_file_blob_in(rev, file.strip_suffix(&format!("/{STATE_FILE}"))?)
-                .map(|blob| (file, blob))
+    .bytes()
+    .unwrap_or_default();
+    // ":<old mode> <new mode> <old blob> <new blob> A", then the file.
+    nul_fields(&output)
+        .chunks(2)
+        .filter_map(|pair| {
+            let blob = pair.first()?.split(' ').nth(3)?.to_string();
+            Some((pair.get(1)?.clone(), blob))
         })
         .collect()
 }

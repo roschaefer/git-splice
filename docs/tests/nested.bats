@@ -963,12 +963,12 @@ order_of() {
   cd "$monorepo"
   run splice pull --recursive vendor/a
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a/b: not pulled, since its .splice from a merge above failed to load"* ]]
-  [[ "$output" == *"Failed: vendor/a/b"* ]]
+  [[ "$output" == *"vendor/a/b fetch failed"*"vendor/a: not pulled, since vendor/a/b below it wasn't fetched"* ]]
+  [[ "$output" == *"Not fetched: vendor/a/b"* ]]
   ! git cat-file -e HEAD:vendor/a/b/other.txt
 }
 
-@test "nested: pull --all skips b and c when c's upstream from a's pull fails to load, though b's pull would name one that loads" {
+@test "nested: pull --all skips a, b and c when c's upstream from a's pull fails to fetch, though b's pull would name one that fetches" {
   scenario_three_levels "$monorepo" "$upstream"
   upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
   upstream_c2="$BATS_TEST_TMPDIR/upstream-c2.git"
@@ -990,11 +990,13 @@ order_of() {
   mv "$upstream_c2" "$upstream_c2.gone"
   seed_bare_repo "$upstream_c" "c change" main other.txt
   cd "$monorepo"
+  head=$(git rev-parse HEAD)
   run splice pull --all
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a/b: not pulled, since vendor/a/b/c below it failed"* ]]
-  [[ "$output" == *"Failed: vendor/a/b/c vendor/a/b"* ]]
-  [ "$(git log -1 --format=%s)" = "splice: pull vendor/a from main at $(git -C "$upstream" rev-parse --short main)" ]
+  [[ "$output" == *"vendor/a: not pulled, since vendor/a/b/c below it wasn't fetched"* ]]
+  [[ "$output" == *"vendor/a/b: not pulled, since vendor/a/b/c below it wasn't fetched"* ]]
+  [[ "$output" == *"Not fetched: vendor/a/b/c"* ]]
+  [ "$(git rev-parse HEAD)" = "$head" ]
 }
 
 @test "nested: pull of a fetches every upstream of b when a's pull gives b a second one and no default, as b isn't merged" {
@@ -1014,7 +1016,7 @@ order_of() {
   [ "$(git rev-parse "refs/splices/$key/heads/main")" = "$(git -C "$upstream_fork" rev-parse main)" ]
 }
 
-@test "nested: pull of a and x skips only b when a's pull brings a .splice for b that can't be loaded, and pulls x" {
+@test "nested: pull of a and x skips a when a's pull would bring a .splice for b that can't be loaded, and pulls x" {
   scenario_nested_splices "$monorepo" "$upstream"
   upstream_x="$BATS_TEST_TMPDIR/upstream-x.git"
   make_bare_repo "$upstream_x"
@@ -1028,8 +1030,9 @@ order_of() {
   cd "$monorepo"
   run splice pull vendor/a vendor/x
   [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: not pulled, since vendor/a/b below it wasn't fetched"* ]]
   [[ "$output" == *"vendor/x: pulled"* ]]
-  [[ "$output" == *"Failed: vendor/a/b"* ]]
+  [[ "$output" == *"Not fetched: vendor/a/b"* ]]
 }
 
 @test "nested: a pull of b made in a worktree of a's rebuild, merged back with merge --rebuilt-commit, is a pull of b in the monorepo" {
@@ -1252,20 +1255,21 @@ e_added_in_upstream_a() {
   e_added_in_upstream_a
   run splice pull vendor/a
   [ "$status" -eq 0 ]
-  [[ "$output" == *"vendor/a: pulled"*"vendor/a/e fetched"* ]]
+  [[ "$output" == *"vendor/a/e fetched"*"vendor/a: pulled"* ]]
   [[ "$output" != *"vendor/a/e: pulled"* ]]
   [ "$(splice_state vendor/a/e)" = "pull" ]
 }
 
-@test "nested: pull whose fetch of a splice it brings in fails keeps its commit and says so" {
+@test "nested: pull whose fetch of a splice it would bring in fails doesn't pull, and says so" {
   scenario_nested_splices "$monorepo" "$upstream"
   e_added_in_upstream_a
   mv "$upstream_e" "$upstream_e.gone"
+  head=$(git rev-parse HEAD)
   run splice pull vendor/a
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a: pulled"* ]]
-  [[ "$output" == *"Failed: vendor/a/e"* ]]
-  git cat-file -e HEAD:vendor/a/e/.splice
+  [[ "$output" == *"vendor/a: not pulled, since vendor/a/e below it wasn't fetched"* ]]
+  [[ "$output" == *"Not fetched: vendor/a/e"* ]]
+  [ "$(git rev-parse HEAD)" = "$head" ]
 }
 
 @test "nested: clone fetches the splices the upstream has inside it" {

@@ -72,7 +72,6 @@ struct PullProgress {
     resumed_rebase: bool,
     fold_roots: Vec<String>,
     rebasing: bool,
-    fetch_failures: Vec<String>,
     /// The splices the pull starts from: a failed fetch at or below one
     /// stops its whole pull, before anything is merged.
     tops: Vec<String>,
@@ -134,7 +133,7 @@ impl PullProgress {
         } else {
             Descend::Selected
         };
-        let mut walk = FetchWalk::new(&branch, &entries, &repo.all_paths, descend);
+        let mut walk = FetchWalk::new(repo, &branch, &entries, descend);
         let phase = match walk.plan(repo)? {
             Some(plan) => PullPhase::Fetch(plan),
             None => PullPhase::Walked,
@@ -147,7 +146,6 @@ impl PullProgress {
             resumed_rebase: resumed.is_some(),
             fold_roots: Vec::new(),
             rebasing: false,
-            fetch_failures: Vec::new(),
             tops: top,
             walk,
             status: 0,
@@ -175,10 +173,7 @@ impl PullProgress {
                 };
                 Ok(None)
             }
-            PullPhase::Walked => {
-                self.fetch_failures = self.walk.failures.clone();
-                self.begin_merges(repo).map(|()| None)
-            }
+            PullPhase::Walked => self.begin_merges(repo).map(|()| None),
             PullPhase::Merge(mut merges) => {
                 let advanced = merges.advance_event(repo);
                 let event = advanced.as_ref().ok().cloned().flatten();
@@ -238,14 +233,21 @@ impl PullProgress {
                 .find(|top| *top == path || path.starts_with(&format!("{top}/")))
                 .unwrap_or(path);
             let failed = self
-                .fetch_failures
+                .walk
+                .failures
                 .iter()
                 .find(|failed| *failed == top || failed.starts_with(&format!("{top}/")));
             match failed {
                 None => fetched.push(path.clone()),
                 Some(failed) if failed == path => {}
+                Some(failed) if path.starts_with(&format!("{failed}/")) => log_err(format!(
+                    "{path}: not pulled, since {failed} above it wasn't fetched"
+                )),
+                Some(failed) if failed.starts_with(&format!("{path}/")) => log_err(format!(
+                    "{path}: not pulled, since {failed} below it wasn't fetched -- 'git splice merge {path}' merges what was fetched anyway"
+                )),
                 Some(failed) => log_err(format!(
-                    "{path}: not pulled, since {failed} wasn't fetched -- 'git splice merge {path}' merges what was fetched anyway"
+                    "{path}: not pulled, since {failed}, in the pull of {top}, wasn't fetched"
                 )),
             }
         }
@@ -301,7 +303,7 @@ impl PullProgress {
     }
 
     fn finalize(&mut self, allowed: bool) -> Res<()> {
-        if allowed && (self.status == 0 || !self.fetch_failures.is_empty()) {
+        if allowed && (self.status == 0 || !self.walk.failures.is_empty()) {
             if self.rebasing {
                 if !replay_own_commits(&self.branch)? {
                     self.status = 1;
@@ -316,8 +318,8 @@ impl PullProgress {
             "The pulls are on a detached HEAD, '{branch}' is as it was -- re-run pull to go on, or 'git switch {branch}' to give up"
         ));
         }
-        if !self.fetch_failures.is_empty() {
-            log_err(format!("Not fetched: {}", self.fetch_failures.join(" ")));
+        if !self.walk.failures.is_empty() {
+            log_err(format!("Not fetched: {}", self.walk.failures.join(" ")));
             self.status = 1;
         }
         Ok(())
@@ -1377,7 +1379,7 @@ fold start -> -"#,
             while !matches!(progress.phase, PullPhase::Finalize) {
                 progress.advance(&mut repo).unwrap();
             }
-            assert!(progress.fetch_failures.contains(&"vendor/z".into()));
+            assert!(progress.walk.failures.contains(&"vendor/z".into()));
             assert_eq!(progress.status, 0);
             assert_eq!(
                 git(&["rev-list", "--count", &format!("{before}..HEAD")]),
