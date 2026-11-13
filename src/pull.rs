@@ -7,6 +7,7 @@ use crate::fetch::{FetchPlan, FetchResults};
 use crate::merge::{apply_merge_options, MergeProgress, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
 use crate::repo::*;
+use crate::tree::{SpliceTree, Task, Tasks};
 use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/pull.txt");
@@ -40,6 +41,12 @@ pub struct PullExecution<'context> {
 impl PullExecution<'_> {
     pub fn run(&mut self) -> Res<i32> {
         self.inner.run()
+    }
+
+    /// The splice tree at HEAD, with what this pull did and still does for each
+    /// splice: see [`SpliceTree::render`].
+    pub fn splice_tree(&mut self) -> Res<SpliceTree> {
+        self.inner.splice_tree()
     }
 
     /// Pauses at a selected event. Repository identity, HEAD, branch, fetched
@@ -637,6 +644,37 @@ impl Operation for PullProgress {
     fn stopped(&self) {
         let _ = self.say_if_detached();
     }
+    fn tasks(&self) -> Tasks {
+        let pending = |step| {
+            self.selected
+                .iter()
+                .map(|path| (path.clone(), Task::Pending(step)))
+                .collect()
+        };
+        match &self.phase {
+            PullPhase::Fetch(_) => Tasks {
+                per_splice: pending("fetch"),
+                next: None,
+            },
+            PullPhase::Fetched(_) | PullPhase::Reported => Tasks {
+                per_splice: pending("merge"),
+                next: None,
+            },
+            PullPhase::Merge(merges) => Tasks {
+                per_splice: merges.tasks(),
+                next: None,
+            },
+            PullPhase::Finalize | PullPhase::Fold { .. } => Tasks {
+                per_splice: Vec::new(),
+                next: self.recursive.then_some("fold"),
+            },
+            PullPhase::Cleanup { .. } => Tasks {
+                per_splice: Vec::new(),
+                next: Some("clean up"),
+            },
+            PullPhase::Done => Tasks::default(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -828,6 +866,193 @@ mod tests {
             assert_eq!(git(&["rev-parse", "HEAD"]), head);
             assert_eq!(git(&["rev-parse", &updates.parent_ref]), updates.parent);
             assert_eq!(git(&["rev-parse", &updates.child_ref]), updates.child);
+        });
+    }
+
+    /// Builds the state of the step-by-step scenario page from its setup.bash:
+    /// a with b (with c inside) and d, then each upstream moves on and a
+    /// splices e in. Leaves the current directory in the monorepo.
+    fn step_by_step_scenario() {
+        let docs = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs");
+        let root = std::env::current_dir().unwrap();
+        let mut config = vec![
+            ("user.name".to_string(), "Test".to_string()),
+            ("user.email".to_string(), "test@example.com".to_string()),
+        ];
+        for x in ["a", "b", "c", "d", "e"] {
+            config.push((
+                format!("url.{}/upstream-{x}.git.insteadOf", root.display()),
+                format!("https://git.example.com/{x}.git"),
+            ));
+        }
+        std::env::set_var("GIT_CONFIG_COUNT", config.len().to_string());
+        for (index, (key, value)) in config.iter().enumerate() {
+            std::env::set_var(format!("GIT_CONFIG_KEY_{index}"), key);
+            std::env::set_var(format!("GIT_CONFIG_VALUE_{index}"), value);
+        }
+        let script = r#"
+            set -euo pipefail
+            source "$1"
+            source "$2"
+            scenario_recursive_pull "$PWD/monorepo" "$PWD/upstream"
+            for x in b c d; do
+              git clone -q "https://git.example.com/$x.git" "$x-work"
+              echo "$x upstream" >>"$x-work/file.txt"
+              git -C "$x-work" commit -q -am "${x}2: $x upstream"
+              git -C "$x-work" push -q origin main
+            done
+            git clone -q https://git.example.com/a.git a-work
+            add_splice a-work https://git.example.com/e.git e main "add e"
+            echo "a upstream" >>a-work/file.txt
+            git -C a-work commit -q --amend -am "a2: a upstream, and e spliced in"
+            git -C a-work push -q origin main
+        "#;
+        let status =
+            std::process::Command::new("bash")
+                .args(["-c", script, "scenario"])
+                .arg(docs.join("tests/helpers/fixtures.bash"))
+                .arg(docs.join(
+                    "09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/setup.bash",
+                ))
+                .status()
+                .unwrap();
+        assert!(status.success());
+        std::env::set_current_dir("monorepo").unwrap();
+    }
+
+    #[test]
+    fn recursive_pull_shows_each_splices_commits_and_pending_work_step_by_step() {
+        with_repository(|| {
+            step_by_step_scenario();
+            let mut named = vec![("s", git(&["rev-parse", "HEAD"]))];
+            let mut context = ExecutionContext::new();
+            let mut execution =
+                start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+            let tree = |execution: &mut PullExecution, named: &[(&str, String)]| {
+                let tree = execution
+                    .splice_tree()
+                    .unwrap()
+                    .render(crate::tree::labels(named));
+                println!("{tree}");
+                tree
+            };
+            let mut steps = vec![("start", tree(&mut execution, &named))];
+            let wanted = |event: &ExecutionEvent| {
+                matches!(
+                    event,
+                    ExecutionEvent::AfterFetch { .. }
+                        | ExecutionEvent::AfterMerge { .. }
+                        | ExecutionEvent::BeforeFold { .. }
+                        | ExecutionEvent::AfterFold { .. }
+                )
+            };
+            while let ExecutionOutcome::Paused(event) = execution.run_until(wanted).unwrap() {
+                let step = match event {
+                    ExecutionEvent::AfterMerge {
+                        path, head_after, ..
+                    } => {
+                        let name = match path.rsplit('/').next().unwrap() {
+                            "a" => "pa",
+                            "b" => "pb",
+                            "c" => "pc",
+                            "d" => "pd",
+                            other => panic!("unexpected merge of {other}"),
+                        };
+                        named.push((name, head_after));
+                        "after-merge"
+                    }
+                    ExecutionEvent::AfterFetch { .. } => "after-fetch",
+                    ExecutionEvent::BeforeFold { .. } => "before-fold",
+                    ExecutionEvent::AfterFold { head_after, .. } => {
+                        named.push(("p", head_after));
+                        "after-fold"
+                    }
+                    _ => unreachable!(),
+                };
+                println!("{step}:");
+                steps.push((step, tree(&mut execution, &named)));
+            }
+            let observed: String = steps
+                .iter()
+                .map(|(step, tree)| format!("{step}:\n{tree}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert_eq!(
+                observed,
+                r#"start:
+monorepo   H=s
+vendor/a/  B=s  U=a1  R=a1  T=a1  pending: fetch
+  b/       B=s  U=b1  R=b1  T=b1  pending: fetch
+    c/     B=s  U=c1  R=c1  T=c1  pending: fetch
+  d/       B=s  U=d1  R=d1  T=d1  pending: fetch
+
+after-fetch:
+monorepo   H=s
+vendor/a/  B=s  U=a1  R=a1  T=a2  pending: merge
+  b/       B=s  U=b1  R=b1  T=b2  pending: merge, after vendor/a/
+    c/     B=s  U=c1  R=c1  T=c2  pending: merge, after b/
+  d/       B=s  U=d1  R=d1  T=d2  pending: merge, after vendor/a/
+
+after-merge:
+monorepo   H=pa
+vendor/a/  B=pa  U=a2  R=a2  T=a2  done
+  b/       B=pa  U=b1  R=b1  T=b2  pending: merge
+    c/     B=pa  U=c1  R=c1  T=c2  pending: merge, after b/
+  d/       B=pa  U=d1  R=d1  T=d2  pending: merge
+  e/       B=-   U=?   R=-   T=-
+
+after-fetch:
+monorepo   H=pa
+vendor/a/  B=pa  U=a2  R=a2  T=a2  done
+  b/       B=pa  U=b1  R=b1  T=b2  pending: merge
+    c/     B=pa  U=c1  R=c1  T=c2  pending: merge, after b/
+  d/       B=pa  U=d1  R=d1  T=d2  pending: merge
+  e/       B=pa  U=e1  R=e1  T=e1  pending: merge
+
+after-merge:
+monorepo   H=pb
+vendor/a/  B=pa  U=a2  R=pb'  T=a2  done
+  b/       B=pb  U=b2  R=b2   T=b2  done
+    c/     B=pb  U=c1  R=c1   T=c2  pending: merge
+  d/       B=pa  U=d1  R=d1   T=d2  pending: merge
+  e/       B=pa  U=e1  R=e1   T=e1  done
+
+after-merge:
+monorepo   H=pc
+vendor/a/  B=pa  U=a2  R=pc'  T=a2  done
+  b/       B=pb  U=b2  R=pc'  T=b2  done
+    c/     B=pc  U=c2  R=c2   T=c2  done
+  d/       B=pa  U=d1  R=d1   T=d2  pending: merge
+  e/       B=pa  U=e1  R=e1   T=e1  done
+
+after-merge:
+monorepo   H=pd
+vendor/a/  B=pa  U=a2  R=pd'  T=a2  done
+  b/       B=pb  U=b2  R=pc'  T=b2  done
+    c/     B=pc  U=c2  R=c2   T=c2  done
+  d/       B=pd  U=d2  R=d2   T=d2  done
+  e/       B=pa  U=e1  R=e1   T=e1  done
+
+before-fold:
+monorepo   H=pd
+vendor/a/  B=pa  U=a2  R=pd'  T=a2
+  b/       B=pb  U=b2  R=pc'  T=b2
+    c/     B=pc  U=c2  R=c2   T=c2
+  d/       B=pd  U=d2  R=d2   T=d2
+  e/       B=pa  U=e1  R=e1   T=e1
+next: fold
+
+after-fold:
+monorepo   H=p
+vendor/a/  B=s  U=a2  R=p'  T=a2
+  b/       B=s  U=b2  R=p'  T=b2
+    c/     B=p  U=c2  R=c2  T=c2
+  d/       B=p  U=d2  R=d2  T=d2
+  e/       B=p  U=e1  R=e1  T=e1
+next: clean up
+"#,
+                "observed trees:\n{observed}"
+            );
         });
     }
 

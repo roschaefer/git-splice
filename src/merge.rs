@@ -7,6 +7,7 @@ use crate::fetch::{FetchFailures, FetchPlan, FetchResults};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
+use crate::tree::Task;
 use crate::util::*;
 use std::collections::HashMap;
 
@@ -868,6 +869,26 @@ impl MergeProgress {
 
     pub(crate) fn done(&self) -> bool {
         matches!(self.phase, MergePhase::Done)
+    }
+
+    /// Each splice merged, failed or left in a conflict so far, and each still to merge.
+    pub(crate) fn tasks(&self) -> Vec<(String, Task)> {
+        self.paths
+            .iter()
+            .enumerate()
+            .map(|(index, path)| {
+                let task = if self.skipped.contains(path) {
+                    Task::Conflict
+                } else if self.failures.contains(path) {
+                    Task::Failed
+                } else if index < self.next {
+                    Task::Done
+                } else {
+                    Task::Pending("merge")
+                };
+                (path.clone(), task)
+            })
+            .collect()
     }
 
     pub(crate) fn advance(&mut self, repo: &mut Repo) -> Res<()> {
