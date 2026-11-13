@@ -3,7 +3,7 @@
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
 use crate::execution::ExecutionEvent;
-use crate::fetch::{FetchFailures, FetchPlan, FetchResults};
+use crate::fetch::{fetch_upstream, FetchFailures, FetchPlan, FetchResults};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
@@ -51,6 +51,61 @@ fn state_file_blob(rev: &str, path: &str) -> Option<String> {
 }
 
 impl Repo<'_> {
+    /// Fetches each upstream of each splice below <path> in the commit a
+    /// conflicted pull of <path> cherry-picks, that isn't fetched yet, or
+    /// lacks the synced commit recorded there: once the conflict is
+    /// resolved, those are the splices below.
+    fn fetch_below_conflict(&mut self, path: &str) -> Res<()> {
+        let theirs = "CHERRY_PICK_HEAD";
+        let suffix = format!("/{STATE_FILE}");
+        for file in self.state_files(theirs) {
+            let Some(below) = file.strip_suffix(&suffix) else {
+                continue;
+            };
+            if !below.starts_with(&format!("{path}/")) {
+                continue;
+            }
+            let urls = git(&[
+                "config",
+                "--blob",
+                &format!("{theirs}:{file}"),
+                "--get-regexp",
+                r"^upstream\..*\.url$",
+            ])
+            .q()
+            .out()
+            .unwrap_or_default();
+            let synced = splice_config(below, "commit", theirs);
+            for url in urls
+                .lines()
+                .filter_map(|line| line.split_once(' ').map(|(_, url)| url))
+            {
+                let key = self.create_upstream_key(url)?;
+                let fetched = !git(&["for-each-ref", "--count=1", &format!("refs/splices/{key}/")])
+                    .out()
+                    .unwrap_or_default()
+                    .is_empty();
+                if fetched && (synced.is_empty() || commit_here(&synced)) {
+                    continue;
+                }
+                let (ok, output) = fetch_upstream(
+                    url,
+                    &format!("refs/splices/{key}/heads/"),
+                    std::slice::from_ref(&synced),
+                );
+                if !output.is_empty() {
+                    eprint_text(&format!("{output}\n"));
+                }
+                if ok {
+                    log_ok(format!("{below} fetched"));
+                } else {
+                    log_err(format!("{below} fetch failed"));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// record_equal_tree's choice, which push --rebuilt-commit asks too.
     pub fn equal_tree_outcome(&mut self, path: &str, target: &str) -> Res<EqualTree> {
         let synced = splice_config(path, "commit", "HEAD");
@@ -908,6 +963,11 @@ impl MergeProgress {
                             }
                         }
                     }
+                }
+                // The pull stops here: the splices the conflicted merge brings
+                // in are fetched now, as a merge without a conflict would.
+                if verb == "pull" && splice_in_progress() {
+                    repo.fetch_below_conflict(path)?;
                 }
                 if !splice_in_progress() && !self.failures.contains(path) {
                     self.phase = MergePhase::Discover(path.clone());

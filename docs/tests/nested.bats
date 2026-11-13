@@ -1257,6 +1257,27 @@ e_added_in_upstream_a() {
   [ "$(splice_state vendor/a/e)" = "pull" ]
 }
 
+@test "nested: pull that stops on a conflict fetches a splice its merge brings in, so status knows it once the conflict is resolved" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  cd "$a_work"
+  echo "a upstream" >>file.txt
+  git commit -q -am "a upstream"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  echo "a in the monorepo" >>vendor/a/file.txt
+  git commit -q -am "a in the monorepo"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: conflict"*"vendor/a/e fetched"* ]]
+  git checkout -q --theirs vendor/a/file.txt
+  git add vendor/a/file.txt
+  git commit -q --no-edit
+  run splice status vendor/a/e
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"never fetched"* ]]
+}
+
 @test "nested: pull whose fetch of a splice it brings in fails keeps its commit and says so" {
   scenario_nested_splices "$monorepo" "$upstream"
   e_added_in_upstream_a
