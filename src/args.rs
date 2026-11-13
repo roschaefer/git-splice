@@ -102,6 +102,9 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                         if value.is_empty() {
                             return die("--exec needs a command");
                         }
+                        if !args.exec.is_empty() {
+                            return die("--exec can be given once; it runs one shell command");
+                        }
                         args.exec = value;
                     }
                     "--upstream" => {

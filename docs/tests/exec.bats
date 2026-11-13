@@ -81,3 +81,11 @@ nested_updates() {
   [ "$status" -eq 0 ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "a local" ]
 }
+
+@test "exec: refuses a second --exec, which would replace the first" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice push --exec true --exec false vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"--exec can be given once; it runs one shell command"* ]]
+}

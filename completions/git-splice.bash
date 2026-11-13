@@ -99,8 +99,9 @@ _git_splice() {
   fi
 
   cmd="${COMP_WORDS[start]}"
-  # The word after --upstream, --branch, -m or --message-template names an
-  # upstream, its branch, a commit message or its template: nothing to offer.
+  # The word after --upstream, --branch, -m, --message-template or --exec names
+  # an upstream, its branch, a commit message, its template or a command:
+  # nothing to offer.
   local option
   for option in --upstream --branch -m --message --message-template --exec; do
     ! __git_splice_completing_value "$option" || return 0
