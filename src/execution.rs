@@ -1,6 +1,7 @@
 //! Typed observations and in-memory synchronization drivers.
 
 use crate::repo::{commit_of, Repo};
+use crate::tree::Tasks;
 use crate::util::*;
 use std::process::{Command, Stdio};
 
@@ -93,6 +94,10 @@ pub(crate) trait Operation {
     fn finish(&self) -> Res<i32>;
     /// Says what else an --exec hook that stopped the operation left behind.
     fn stopped(&self) {}
+    /// The work done and still to do, per splice.
+    fn tasks(&self) -> Tasks {
+        Tasks::default()
+    }
 }
 
 pub(crate) struct Execution<'context, O> {
@@ -169,6 +174,11 @@ impl<'context, O: Operation> Execution<'context, O> {
         let status = self.checked(finished)?;
         self.completed = Some(status);
         Ok(ExecutionOutcome::Complete(status))
+    }
+
+    /// The operation's work per splice, done and still to do.
+    pub(crate) fn tasks(&self) -> Tasks {
+        self.progress.tasks()
     }
 
     fn checked<T>(&mut self, result: Res<T>) -> Res<T> {
