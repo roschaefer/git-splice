@@ -86,6 +86,13 @@ new_upstream() {
   [ -f upstream/.splice ]
 }
 
+@test "clone: with core.autocrlf=true, prints no line-ending warning" {
+  new_upstream
+  git config core.autocrlf true
+  splice clone "$upstream" 2>"$BATS_TEST_TMPDIR/stderr"
+  diff /dev/null "$BATS_TEST_TMPDIR/stderr"
+}
+
 @test "clone: names the folder after the repository for a URL ending in /.git, as git clone does" {
   new_upstream
   git clone -q "$upstream" "$BATS_TEST_TMPDIR/lib"
