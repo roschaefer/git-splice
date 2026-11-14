@@ -75,7 +75,9 @@ $ git config --file vendor/a/b/.splice splice.id
 
 ## The monorepo keeps its own `vendor/a/b/`
 
-The pull of `vendor/a/` conflicts in `vendor/a/b/`:
+The pull of `vendor/a/` conflicts in `vendor/a/b/`. Before it stops, it
+fetches the replacement, which the outer upstream's `b/.splice` names:
+which `b/` stays is up to how the conflict is resolved.
 
 ```scrut
 $ git splice pull vendor/a
@@ -85,6 +87,7 @@ Auto-merging vendor/a/b/file.txt
 CONFLICT (content): Merge conflict in vendor/a/b/file.txt
 !!   vendor/a: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
 !!   vendor/a: pull failed
+ok   vendor/a/b fetched
 !!   Failed: vendor/a
 [1]
 ```

@@ -1257,6 +1257,86 @@ e_added_in_upstream_a() {
   [ "$(splice_state vendor/a/e)" = "pull" ]
 }
 
+@test "nested: pull that stops on a conflict fetches a splice its merge brings in, so status knows it once the conflict is resolved" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  a_conflicts_with_upstream_a
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: conflict"*"vendor/a/e fetched"* ]]
+  git checkout -q --theirs vendor/a/file.txt
+  git add vendor/a/file.txt
+  git commit -q --no-edit
+  run splice status vendor/a/e
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"never fetched"* ]]
+}
+
+# a's upstream and the monorepo both change a's file.
+a_conflicts_with_upstream_a() {
+  cd "$a_work"
+  echo "a upstream" >>file.txt
+  git commit -q -am "a upstream"
+  git push -q origin HEAD:main
+  cd "$monorepo"
+  echo "a in the monorepo" >>vendor/a/file.txt
+  git commit -q -am "a in the monorepo"
+}
+
+@test "nested: pull --rebase that stops on a conflict fetches a splice the pull brings in" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  a_conflicts_with_upstream_a
+  run splice pull --rebase vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"conflict while rebasing"*"vendor/a/e fetched"* ]]
+  git checkout -q --theirs vendor/a/file.txt
+  git add vendor/a/file.txt
+  GIT_EDITOR=true git rebase --continue >/dev/null
+  run splice status vendor/a/e
+  [[ "$output" != *"never fetched"* ]]
+}
+
+@test "nested: pull --rebase with the apply backend that stops on a conflict fetches a splice the pull brings in" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  a_conflicts_with_upstream_a
+  git config rebase.backend apply
+  run splice pull --rebase vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"conflict while rebasing"*"vendor/a/e fetched"* ]]
+}
+
+@test "nested: pull that stops on a conflict lists a splice it brings in whose fetch fails as failed" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  e_added_in_upstream_a
+  a_conflicts_with_upstream_a
+  mv "$upstream_e" "$upstream_e.gone"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/e fetch failed"* ]]
+  [[ "$output" == *"Failed: vendor/a vendor/a/e"* ]]
+}
+
+@test "nested: pull that stops on a conflict fetches the tag a splice it brings in is pinned at" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  upstream_e="$BATS_TEST_TMPDIR/upstream-e.git"
+  make_bare_repo "$upstream_e"
+  seed_bare_repo "$upstream_e" "e seed"
+  git -C "$upstream_e" tag v1 main
+  seed_bare_repo "$upstream_e" "e upstream"
+  work_in_upstream_a
+  splice clone "$upstream_e" e >/dev/null
+  git config --file e/.splice upstream.origin.default-pin v1
+  git commit -q -m "e: pinned at v1" -- e/.splice
+  git push -q origin HEAD:main
+  a_conflicts_with_upstream_a
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/e fetched"* ]]
+  [ -n "$(git for-each-ref 'refs/splices/*/tags/v1')" ]
+}
+
 @test "nested: pull whose fetch of a splice it brings in fails keeps its commit and says so" {
   scenario_nested_splices "$monorepo" "$upstream"
   e_added_in_upstream_a
