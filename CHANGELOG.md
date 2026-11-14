@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.22.0](https://github.com/roschaefer/git-splice/compare/v0.21.0...v0.22.0) (2026-11-14)
+
+
+### Features
+
+* **docs:** prepare Netlify hosting with reusable GoatCounter splice ([#482](https://github.com/roschaefer/git-splice/issues/482)) ([eae6958](https://github.com/roschaefer/git-splice/commit/eae6958297044452022f8d0f46349c6126054845))
+* **execution:** run --exec hooks at pull and push checkpoints ([#487](https://github.com/roschaefer/git-splice/issues/487)) ([4538e43](https://github.com/roschaefer/git-splice/commit/4538e43bcf5b8bbe08d9dee7d6916fb643d99579))
+* **pull:** fetch the splices a pull or clone brings in ([#455](https://github.com/roschaefer/git-splice/issues/455)) ([35420ed](https://github.com/roschaefer/git-splice/commit/35420ed5f571f272b797d4e278781a3b3ee52b76))
+* **pull:** pull --all goes down the tree, and a recursive pull's commit is its splice's pull ([#461](https://github.com/roschaefer/git-splice/issues/461)) ([3f737e6](https://github.com/roschaefer/git-splice/commit/3f737e61a7546e584018a2c1de5fbf6847927e4a))
+* **push:** a rebuild records each splice inside it at its own rebuild ([#465](https://github.com/roschaefer/git-splice/issues/465)) ([613e790](https://github.com/roschaefer/git-splice/commit/613e790896ddeccc1e570b78e5899597830bfaa8)), closes [#458](https://github.com/roschaefer/git-splice/issues/458)
+* **push:** pause and continue at execution events ([#479](https://github.com/roschaefer/git-splice/issues/479)) ([d0c5499](https://github.com/roschaefer/git-splice/commit/d0c54992d5cbd5151ca31f33f30ea3a7b6a194b2))
+
+
+### Bug Fixes
+
+* **clone:** name the folder after the repository for a URL ending in /.git ([#495](https://github.com/roschaefer/git-splice/issues/495)) ([29d0f67](https://github.com/roschaefer/git-splice/commit/29d0f6741b165b299687b7c5d4c230186eee33f7)), closes [#14](https://github.com/roschaefer/git-splice/issues/14)
+* **pull:** fetch the splices a conflicted pull brings in ([#493](https://github.com/roschaefer/git-splice/issues/493)) ([baaf5f4](https://github.com/roschaefer/git-splice/commit/baaf5f4d66e9d5448f12519010e87ace45b50ae0))
+* **pull:** make a lost synced commit again from the branch's own history ([#464](https://github.com/roschaefer/git-splice/issues/464)) ([32d93b3](https://github.com/roschaefer/git-splice/commit/32d93b3144d0606bdf218da691466ec574ea9914))
+* **pull:** pull --rebase --recursive rebases the monorepo's own commits once ([#462](https://github.com/roschaefer/git-splice/issues/462)) ([7b827f7](https://github.com/roschaefer/git-splice/commit/7b827f7f2a970c7f9ddc5ba9a9819c70456e3cbe)), closes [#437](https://github.com/roschaefer/git-splice/issues/437)
+* **state:** store .splice blobs without Git's working-tree filters ([#496](https://github.com/roschaefer/git-splice/issues/496)) ([51e09dd](https://github.com/roschaefer/git-splice/commit/51e09ddd9d4a81f451387526dca06a517dcd02b2)), closes [#431](https://github.com/roschaefer/git-splice/issues/431)
+
 ## [0.21.0](https://github.com/roschaefer/git-splice/compare/v0.20.0...v0.21.0) (2026-11-09)
 
 
