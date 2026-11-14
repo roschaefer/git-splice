@@ -706,13 +706,20 @@ impl Operation for PullProgress {
             ),
             PullPhase::Reported => (with(&[], Task::Pending(Step::Merge)), None),
             PullPhase::Merge(merges) => (with(&merges.tasks(), Task::Pending(Step::Merge)), None),
-            PullPhase::Finalize => {
-                let next = if self.folds() { "fold" } else { "clean up" };
-                (with(&self.merged, Task::Done), Some(next))
+            // A splice keeps its merge pending unless the merges settled it.
+            PullPhase::Finalize
+            | PullPhase::Fold { .. }
+            | PullPhase::Cleanup { .. }
+            | PullPhase::Done => {
+                let next = match &self.phase {
+                    PullPhase::Finalize if self.folds() => Some("fold"),
+                    PullPhase::Finalize => Some("clean up"),
+                    PullPhase::Fold { .. } => Some("fold"),
+                    PullPhase::Cleanup { .. } => Some("clean up"),
+                    _ => None,
+                };
+                (with(&self.merged, Task::Pending(Step::Merge)), next)
             }
-            PullPhase::Fold { .. } => (with(&self.merged, Task::Done), Some("fold")),
-            PullPhase::Cleanup { .. } => (with(&self.merged, Task::Done), Some("clean up")),
-            PullPhase::Done => (with(&self.merged, Task::Done), None),
         };
         Tasks { per_splice, next }
     }
