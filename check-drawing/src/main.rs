@@ -1,10 +1,4 @@
-//! check-drawing: checks a draw.io drawing of commit graphs against the
-//! repositories it shows. See README.md next to src/ for the drawing's
-//! vocabulary and its limits.
-//!
-//! What it reads about a splice, its boundary, rebuild, keys and the folders
-//! it had, comes from git-splice's own code, so a drawing is checked against
-//! what the tool really does.
+//! The check-drawing command: see the library, lib.rs, for what it checks.
 
 use check_drawing::check::{Checker, Labels};
 use check_drawing::{labels, placement, tree};

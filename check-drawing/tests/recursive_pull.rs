@@ -27,22 +27,41 @@ fn git(args: &[&str]) -> String {
         .to_string()
 }
 
-/// A folder of its own, ignoring the developer's Git configuration; the
-/// upstreams' https://git.example.com URLs lead to bare repositories in it.
-fn sandbox() -> PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "check-drawing-recursive-pull-{}",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(root.join("home")).unwrap();
-    let root = root.canonicalize().unwrap();
-    for name in ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG"] {
-        std::env::remove_var(name);
+const CHILD: &str = "CHECK_DRAWING_TEST_CHILD";
+
+/// A folder that is removed when it goes out of scope, also after a panic.
+struct Sandbox(PathBuf);
+
+impl Drop for Sandbox {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
     }
-    std::env::set_var("HOME", root.join("home"));
-    std::env::set_var("GIT_CONFIG_GLOBAL", "/dev/null");
-    std::env::set_var("GIT_CONFIG_NOSYSTEM", "1");
+}
+
+/// Runs test <name> in a child process of this test binary, in a folder of
+/// its own: its environment and current directory stay out of other tests,
+/// and the developer's Git configuration and GIT_* variables out of it. The
+/// upstreams' https://git.example.com URLs lead to bare repositories in that
+/// folder, which is removed afterwards.
+fn isolated(name: &str, test: impl FnOnce(&Path)) {
+    if std::env::var(CHILD).as_deref() == Ok(name) {
+        test(&std::env::current_dir().unwrap());
+        return;
+    }
+    let folder = std::env::temp_dir().join(format!("check-drawing-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&folder);
+    std::fs::create_dir_all(folder.join("home")).unwrap();
+    let sandbox = Sandbox(folder.canonicalize().unwrap());
+    let root = &sandbox.0;
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+    child
+        .args([name, "--exact", "--nocapture", "--test-threads=1"])
+        .current_dir(root);
+    for (key, _) in std::env::vars_os() {
+        if key.to_string_lossy().starts_with("GIT_") {
+            child.env_remove(&key);
+        }
+    }
     let mut config = vec![
         ("user.name".to_string(), "Test".to_string()),
         ("user.email".to_string(), "test@example.com".to_string()),
@@ -53,12 +72,19 @@ fn sandbox() -> PathBuf {
             format!("https://git.example.com/{x}.git"),
         ));
     }
-    std::env::set_var("GIT_CONFIG_COUNT", config.len().to_string());
+    child
+        .env(CHILD, name)
+        .env("HOME", root.join("home"))
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_COUNT", config.len().to_string());
     for (index, (key, value)) in config.iter().enumerate() {
-        std::env::set_var(format!("GIT_CONFIG_KEY_{index}"), key);
-        std::env::set_var(format!("GIT_CONFIG_VALUE_{index}"), value);
+        child
+            .env(format!("GIT_CONFIG_KEY_{index}"), key)
+            .env(format!("GIT_CONFIG_VALUE_{index}"), value);
     }
-    root
+    let status = child.status().unwrap();
+    assert!(status.success(), "isolated test {name} failed: {status}");
 }
 
 /// The step-by-step page's state: its setup.bash, then the same upstream
@@ -129,8 +155,11 @@ fn drawing(name: &str, revs: &[(&str, &str)]) {
 
 #[test]
 fn recursive_pull_step_by_step() {
-    let root = sandbox();
-    step_by_step_scenario(&root);
+    isolated("recursive_pull_step_by_step", step_by_step);
+}
+
+fn step_by_step(root: &Path) {
+    step_by_step_scenario(root);
     // e1 isn't here until the pull fetches e's upstream: named by its hash.
     let e1 = git(&[
         "-C",
@@ -195,8 +224,6 @@ fn recursive_pull_step_by_step() {
     }
     let observed = steps.join("\n");
     println!("{observed}");
-    std::env::set_current_dir(std::env::temp_dir()).unwrap();
-    let _ = std::fs::remove_dir_all(&root);
     assert_eq!(
         observed,
         r#"start:
@@ -272,5 +299,56 @@ monorepo      (p*)
 next: clean up
 "#,
         "observed trees:\n{observed}"
+    );
+}
+
+#[test]
+fn recursive_pull_conflict_blocks_the_splices_after_it() {
+    isolated(
+        "recursive_pull_conflict_blocks_the_splices_after_it",
+        conflict,
+    );
+}
+
+/// The monorepo changed b's file where b's upstream did too: b's merge stops
+/// in a conflict, and the splices after it wait on it.
+fn conflict(root: &Path) {
+    step_by_step_scenario(root);
+    std::fs::write(
+        "vendor/a/b/file.txt",
+        std::fs::read_to_string("vendor/a/b/file.txt").unwrap() + "b in the monorepo\n",
+    )
+    .unwrap();
+    git(&["commit", "-q", "-am", "m1: b in the monorepo"]);
+    let e1 = git(&[
+        "-C",
+        root.join("upstream-e.git").to_str().unwrap(),
+        "rev-parse",
+        "main",
+    ]);
+    let mut named = vec![("e1", e1)];
+    let mut context = ExecutionContext::new();
+    let mut execution =
+        pull::start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+    let paused = execution
+        .run_until(|event| matches!(event, ExecutionEvent::AfterMerge { .. }))
+        .unwrap();
+    let ExecutionOutcome::Paused(ExecutionEvent::AfterMerge { head_after, .. }) = paused else {
+        panic!("no merge: {paused:?}");
+    };
+    named.push(("pa", head_after));
+    assert_eq!(execution.run().unwrap(), 1);
+    let observed = tree(&execution, &named);
+    println!("{observed}");
+    assert_eq!(
+        observed,
+        r#"monorepo      (pa*)
+└─ vendor/a/  (a2*) … [pa']       done
+   ├─ b/      (b1) … [m1'] (b2!)  conflict
+   │  └─ c/   (c1)                blocked by vendor/a/b/
+   ├─ d/      (d1)                blocked by vendor/a/b/
+   └─ e/      (e1)                done
+"#,
+        "observed tree:\n{observed}"
     );
 }
