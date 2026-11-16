@@ -2,12 +2,14 @@
 
 Rust callers can pause a pull or push and continue the retained execution in the
 same process. The [public API scenarios](../../tests/pause_continue.rs) demonstrate
-this with one splice and one file. They use no private execution machinery.
+this with one splice and one file. They use no private execution machinery. Each scenario runs in a child process
+with its own working directory and Git configuration, using the shared public API
+test harness.
 
 Run both scenarios and print the diagrams:
 
 ```sh
-env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 cargo test --test pause_continue -- --nocapture
+cargo test --test pause_continue -- --nocapture
 ```
 
 The fixture declares the splice path and the file's initial and updated contents:
