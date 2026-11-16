@@ -71,8 +71,10 @@ OPTIONS
         names its splice, and GIT_SPLICE_COMMIT its prepared or published
         commit, when applicable. Other values are empty. Zero continues;
         nonzero stops with completed work applied. Hooks must preserve the
-        repository inputs required by continuation. stdin is closed; stdout
-        and stderr are inherited.
+        repository inputs required by continuation. stdin receives JSON with
+        the event and opaque continuation. A consumer can save that payload,
+        exit nonzero, then resume it with --continue-from. stdout and stderr
+        are inherited. The consumer's exit code is returned unchanged.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/push/#--exec
 

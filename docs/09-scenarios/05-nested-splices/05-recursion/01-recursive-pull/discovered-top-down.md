@@ -120,14 +120,14 @@ takes that step, then reads what's inside
 
 ```scrut
 $ git switch -q -c recursive HEAD~1 &&
->   git splice pull --recursive --branch main vendor/a --pause-after after-merge --save-to ../recursive.json
+>   git splice pull --recursive --branch main vendor/a --exec 'if [ "$GIT_SPLICE_EVENT" = after-merge ]; then cat >../recursive.json; exit 3; fi'
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
 ok   vendor/a/d fetched
 ok   vendor/a: pulled 04072ca
-ok   pull paused; continue with 'git splice pull --continue-from ../recursive.json'
-[75]
+!!   --exec stopped pull at after-merge of vendor/a, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 The new `e/` is present at *e1* and `d/` is gone. Discovery and the
@@ -146,10 +146,10 @@ Resume to the fetch checkpoint, then to the merge of `e/`. Each command
 continues the saved queue without fetching the original upstreams again:
 
 ```scrut
-$ git splice pull --continue-from ../recursive.json --pause-after after-fetch
+$ git splice pull --continue-from ../recursive.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-fetch ]; then cat >../recursive.json; exit 3; fi'
 ok   vendor/a/e fetched
-ok   pull paused; continue with 'git splice pull --continue-from ../recursive.json'
-[75]
+!!   --exec stopped pull at after-fetch, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 ```scrut
@@ -160,10 +160,10 @@ On branch recursive
 ```
 
 ```scrut
-$ git splice pull --continue-from ../recursive.json --pause-after after-merge
+$ git splice pull --continue-from ../recursive.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-merge ]; then cat >../recursive.json; exit 3; fi'
 ok   vendor/a/e: pulled 68b88a4
-ok   pull paused; continue with 'git splice pull --continue-from ../recursive.json'
-[75]
+!!   --exec stopped pull at after-merge of vendor/a/e, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 The remaining unchanged splices and the removed `d/` are handled before

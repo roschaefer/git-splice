@@ -142,3 +142,50 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(cat ../events)" = $'after-fetch\nafter-merge' ]
 }
+
+@test "continuation: a consumer saves stdin and interrupts pull with its own exit code" {
+  seed_bare_repo "$upstream" "upstream change"
+  before="$(git rev-parse HEAD)"
+  export CONTINUATION_FILE="$saved"
+  run splice pull vendor/a --exec 'cat >"$CONTINUATION_FILE"; exit 23'
+  [ "$status" -eq 23 ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -s "$saved" ]
+  run splice pull --continue-from "$saved" --exec 'echo "$GIT_SPLICE_EVENT"'
+  [ "$status" -eq 0 ]
+  [[ "$output" != *after-fetch* ]]
+  [[ "$output" == *after-merge* ]]
+  [[ "$output" != *" fetched"* ]]
+  [ "$(git show HEAD:vendor/a/file.txt | tail -1)" = "upstream change" ]
+}
+
+@test "continuation: a consumer stops before and after publication without publishing twice" {
+  commit_local "$monorepo" vendor/a "local change"
+  export CONTINUATION_FILE="$saved"
+  old="$(git --git-dir="$upstream" rev-parse main)"
+  run splice push vendor/a --exec 'cat >"$CONTINUATION_FILE"; exit 17'
+  [ "$status" -eq 17 ]
+  [ "$(git --git-dir="$upstream" rev-parse main)" = "$old" ]
+  prepared="$(git for-each-ref --format='%(objectname)' refs/splice-continuations/ | head -1)"
+  [ -n "$prepared" ]
+  git reflog expire --expire=now --all
+  git gc --prune=now --quiet
+  run splice push --continue-from "$saved" --exec 'cat >"$CONTINUATION_FILE"; exit 19'
+  [ "$status" -eq 19 ]
+  [ "$(git --git-dir="$upstream" rev-parse main)" = "$prepared" ]
+  run splice push --continue-from "$saved"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *" pushed "* ]]
+  [ -z "$(git for-each-ref refs/splice-continuations/)" ]
+}
+
+@test "continuation: successful consumers may ignore large stdin payloads without blocking or retaining refs" {
+  padding="$(printf '%10000s' x)"
+  for i in {1..10}; do
+    git config "payload.padding$i" "$padding"
+  done
+  commit_local "$monorepo" vendor/a "local change"
+  run splice push vendor/a --exec 'exit 0'
+  [ "$status" -eq 0 ]
+  [ -z "$(git for-each-ref refs/splice-continuations/)" ]
+}

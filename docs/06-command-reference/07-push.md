@@ -200,16 +200,28 @@ $ git splice push -h | check-help option --exec
         names its splice, and GIT_SPLICE_COMMIT its prepared or published
         commit, when applicable. Other values are empty. Zero continues;
         nonzero stops with completed work applied. Hooks must preserve the
-        repository inputs required by continuation. stdin is closed; stdout
-        and stderr are inherited.
+        repository inputs required by continuation. stdin receives JSON with
+        the event and opaque continuation. A consumer can save that payload,
+        exit nonzero, then resume it with --continue-from. stdout and stderr
+        are inherited. The consumer's exit code is returned unchanged.
 ```
 
 The checkpoints are `after-rebuild` before publication and `after-push` after publication and
 tracking changes. A hook runs synchronously; the next step starts
-only after it succeeds. A failed hook ends this execution; completed changes
+only after it succeeds. A nonzero hook exit ends this invocation; completed changes
 remain applied, and re-running `push` goes on from there, as after a conflict.
 
 See the [drawing-checked push scenario](../09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/with-exec.md).
+
+The consumer decides when to stop and owns the saved payload:
+
+```sh
+git splice push --all --exec 'if [ "$GIT_SPLICE_EVENT" = after-rebuild ]; then cat >../push.json; exit 3; fi'
+git splice push --continue-from ../push.json
+```
+
+The first command exits 3. The second continues after the saved checkpoint.
+To interrupt again later, supply `--exec` again on the continuation command.
 
 ### `--pause-after`
 
@@ -246,8 +258,11 @@ JSON contents are opaque and must not be edited. They retain the pending queue,
 including nested discovery and fold/rebase work. Prepared push commits are kept
 reachable through temporary Git refs until continuation consumes them.
 
-A deliberate checkpoint pause is different from a merge conflict or a failing
-hook. Those still use the existing error and conflict recovery paths.
+A consumer can save its stdin payload and exit nonzero to interrupt the
+operation. Resume that file with `--continue-from`; the consumed event and
+hook are not repeated. A failing hook that saves no payload still leaves
+completed work applied, and re-running the original command goes on from
+there. Merge conflicts keep their existing recovery paths.
 
 The [nested push scenario](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/status-and-push.md) inspects a prepared commit before publication and resumes the remaining parents.
 

@@ -64,9 +64,9 @@ Bottom-up, `c` first. Each rebuild records the one below it, and its
 push sends that record:
 
 ```scrut
-$ git splice push --all --pause-after after-rebuild --save-to ../push.json
-ok   push paused; continue with 'git splice push --continue-from ../push.json'
-[75]
+$ git splice push --all --exec 'if [ "$GIT_SPLICE_EVENT" = after-rebuild ]; then cat >../push.json; exit 3; fi'
+!!   --exec stopped push at after-rebuild of vendor/a/b/c, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run push
+[3]
 ```
 
 The prepared `c/` commit is still local; the upstream has its original
@@ -80,10 +80,10 @@ c1: c seed
 Continue just far enough to publish that prepared commit:
 
 ```scrut
-$ git splice push --continue-from ../push.json --pause-after after-push
+$ git splice push --continue-from ../push.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-push ]; then cat >../push.json; exit 3; fi'
 ok   vendor/a/b/c: pushed c36e473 to main
-ok   push paused; continue with 'git splice push --continue-from ../push.json'
-[75]
+!!   --exec stopped push at after-push of vendor/a/b/c, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run push
+[3]
 ```
 
 `c/` is published, while `b/` and `a/` are still pending:

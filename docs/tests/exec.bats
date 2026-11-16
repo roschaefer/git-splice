@@ -43,7 +43,7 @@ nested_updates() {
     nested_updates
     run splice pull --recursive --exec "test \"\$GIT_SPLICE_EVENT\" != $event" vendor/a
     [ "$status" -eq 1 ]
-    [[ "$output" == *"--exec stopped pull at $event"*", what it did so far stays -- re-run pull to go on" ]]
+    [[ "$output" == *"--exec stopped pull at $event"*", what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull" ]]
     run splice pull --recursive vendor/a
     [ "$status" -eq 0 ]
     [ "$(git rev-list --count "$start..HEAD")" -eq 1 ]
@@ -75,7 +75,7 @@ nested_updates() {
   cd "$monorepo"
   run splice push --all --exec 'test "$GIT_SPLICE_EVENT" != after-push'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"--exec stopped push at after-push of vendor/a/b, what it did so far stays -- re-run push to go on" ]]
+  [[ "$output" == *"--exec stopped push at after-push of vendor/a/b, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run push" ]]
   [ "$(git -C "$upstream" log -1 --format=%s main)" != "a local" ]
   run splice push --all
   [ "$status" -eq 0 ]

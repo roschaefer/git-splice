@@ -4,8 +4,9 @@ One `git splice pull --recursive` does a lot between its start and its
 end: it fetches every upstream, merges one splice after another, top-down,
 and makes one commit of it all. This page interrupts the real operation at
 checkpoints and resumes it in separate CLI processes, with the checked tree
-after each step. A pause exits with status 75 and saves pending work; it
-does not run that work in the background.
+after each step. The consumer saves its stdin payload and exits 3 to interrupt execution.
+The tool returns that exit code with completed changes applied. It does
+not run pending work in the background.
 
 No merge conflicts here: the monorepo has no commits of its own, and
 each upstream changed only its own files.
@@ -56,8 +57,11 @@ $ git clone -q https://git.example.com/a.git ../a-work &&
 
 ## Step by step
 
-Each continuation consumes its saved checkpoint before looking for the next
-one. The original paths and merge options stay in the file. Keep HEAD,
+Each `--exec` consumer receives the checkpoint and opaque continuation on
+stdin. Zero continues; a nonzero exit stops execution. Here the consumer
+selects an event using `GIT_SPLICE_EVENT`, saves the payload and exits 3.
+Each continuation consumes its saved checkpoint before invoking the consumer
+at the next event. The original paths and merge options stay in the file. Keep HEAD,
 fetched refs, tracked files, index and Git configuration unchanged while
 inspecting; continuation rejects a changed repository.
 
@@ -67,13 +71,13 @@ The fetches move the refs of the upstreams, and nothing else. The tree
 records what the monorepo has, so it doesn't change yet:
 
 ```scrut
-$ git splice pull --recursive vendor/a --pause-after after-fetch --save-to ../pull.json
+$ git splice pull --recursive vendor/a --exec 'if [ "$GIT_SPLICE_EVENT" = after-fetch ]; then cat >../pull.json; exit 3; fi'
 ok   vendor/a fetched (main moved 764d9c4..6d12ed8)
 ok   vendor/a/b fetched (main moved f815a3c..59ed2fb)
 ok   vendor/a/b/c fetched (main moved 8c169b6..94cad5e)
 ok   vendor/a/d fetched (main moved 2c64d15..36c850e)
-ok   pull paused; continue with 'git splice pull --continue-from ../pull.json'
-[75]
+!!   --exec stopped pull at after-fetch, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 ### 2. Merge `vendor/a/`
@@ -82,10 +86,10 @@ The pull starts, and merges `a`'s upstream first. Its *a2* brings `e/`
 in, a splice now:
 
 ```scrut
-$ git splice pull --continue-from ../pull.json --pause-after after-merge
+$ git splice pull --continue-from ../pull.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-merge ]; then cat >../pull.json; exit 3; fi'
 ok   vendor/a: pulled 6d12ed8
-ok   pull paused; continue with 'git splice pull --continue-from ../pull.json'
-[75]
+!!   --exec stopped pull at after-merge of vendor/a, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 ![The tree: the monorepo at pa, outlined blue; vendor/a/ at a2, outlined blue; b/ at b1 with c/ at c1; d/ at d1; the new e/ at e1, outlined blue](step-a.drawio.svg)
@@ -104,12 +108,12 @@ upstream merges into `vendor/a/`'s folder, which gets a commit of its
 own, *pb'*:
 
 ```scrut
-$ git splice pull --continue-from ../pull.json --pause-after after-merge
+$ git splice pull --continue-from ../pull.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-merge ]; then cat >../pull.json; exit 3; fi'
 ok   vendor/a/e fetched
 ok   vendor/a/e: nothing to pull
 ok   vendor/a/b: pulled 59ed2fb
-ok   pull paused; continue with 'git splice pull --continue-from ../pull.json'
-[75]
+!!   --exec stopped pull at after-merge of vendor/a/b, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 ![The tree: the monorepo at pb; vendor/a/ at a2, then dashed pb'; b/ at b2; c/ at c1; d/ at d1; e/ at e1; all but c1 and d1 outlined blue](step-b.drawio.svg)
@@ -126,10 +130,10 @@ ok   step-b.drawio.svg: a tree of 6 rows
 `c/` is inside `b/`, inside `vendor/a/`: both get the copy *pc'*.
 
 ```scrut
-$ git splice pull --continue-from ../pull.json --pause-after after-merge
+$ git splice pull --continue-from ../pull.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-merge ]; then cat >../pull.json; exit 3; fi'
 ok   vendor/a/b/c: pulled 94cad5e
-ok   pull paused; continue with 'git splice pull --continue-from ../pull.json'
-[75]
+!!   --exec stopped pull at after-merge of vendor/a/b/c, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 ![The tree: the monorepo at pc; vendor/a/ at a2, then dashed pc'; b/ at b2, then dashed pc'; c/ at c2; d/ at d1; e/ at e1; all but d1 outlined blue](step-c.drawio.svg)
@@ -144,10 +148,10 @@ ok   step-c.drawio.svg: a tree of 6 rows
 ### 5. Merge `d/`
 
 ```scrut
-$ git splice pull --continue-from ../pull.json --pause-after after-merge
+$ git splice pull --continue-from ../pull.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-merge ]; then cat >../pull.json; exit 3; fi'
 ok   vendor/a/d: pulled 36c850e
-ok   pull paused; continue with 'git splice pull --continue-from ../pull.json'
-[75]
+!!   --exec stopped pull at after-merge of vendor/a/d, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 ![The tree: the monorepo at pd; vendor/a/ at a2, then dashed pd'; b/ at b2, then dashed pc'; c/ at c2; d/ at d2; e/ at e1; all outlined blue](step-d.drawio.svg)
@@ -164,9 +168,9 @@ ok   step-d.drawio.svg: a tree of 6 rows
 Before folding, all four merges are present, with cleanup still pending:
 
 ```scrut
-$ git splice pull --continue-from ../pull.json --pause-after before-fold
-ok   pull paused; continue with 'git splice pull --continue-from ../pull.json'
-[75]
+$ git splice pull --continue-from ../pull.json --exec 'if [ "$GIT_SPLICE_EVENT" = before-fold ]; then cat >../pull.json; exit 3; fi'
+!!   --exec stopped pull at before-fold, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 The four pulls become one commit, *p*. Cleanup follows after the fold
@@ -174,10 +178,10 @@ checkpoint. Each splice's history has the copy *p'* where it had *pb'*,
 *pc'* or *pd'*:
 
 ```scrut
-$ git splice pull --continue-from ../pull.json --pause-after after-fold
+$ git splice pull --continue-from ../pull.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-fold ]; then cat >../pull.json; exit 3; fi'
 ok   vendor/a: 4 pulls made one commit, 9b51e79
-ok   pull paused; continue with 'git splice pull --continue-from ../pull.json'
-[75]
+!!   --exec stopped pull at after-fold, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run pull
+[3]
 ```
 
 The fold checkpoint has the final tree, before cleanup:

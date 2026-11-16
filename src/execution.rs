@@ -19,6 +19,7 @@ pub struct FetchedUpstream {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "checkpoint", rename_all = "kebab-case")]
 pub enum ExecutionEvent {
     /// Downloads are done and reported; new upstreams that all failed are forgotten.
     AfterFetch { fetched: Vec<FetchedUpstream> },
@@ -62,19 +63,26 @@ impl ExecutionEvent {
         }
     }
 
-    fn exec(&self, command: &str, operation: &str) -> Res<()> {
+    fn exec(&self, command: &str, operation: &str, input: Vec<u8>) -> Res<()> {
         let (event, path, commit) = self.hook_values();
-        let status = match Command::new("sh")
+        let mut child = match Command::new("sh")
             .args(["-c", command])
             .env("GIT_SPLICE_EVENT", event)
             .env("GIT_SPLICE_PATH", path)
             .env("GIT_SPLICE_COMMIT", commit)
-            .stdin(Stdio::null())
-            .status()
+            .stdin(Stdio::piped())
+            .spawn()
         {
-            Ok(status) => status,
+            Ok(child) => child,
             Err(error) => return die(format!("--exec: could not run command: {error}")),
         };
+        let mut stdin = child.stdin.take().ok_or(Fail::Hard)?;
+        let writer = std::thread::spawn(move || {
+            use std::io::Write;
+            stdin.write_all(&input)
+        });
+        let status = child.wait().map_err(|_| Fail::Hard)?;
+        let written = writer.join().map_err(|_| Fail::Hard)?;
         if !status.success() {
             let of = if path.is_empty() {
                 String::new()
@@ -82,9 +90,14 @@ impl ExecutionEvent {
                 format!(" of {path}")
             };
             log_err(format!(
-                "--exec stopped {operation} at {event}{of}, what it did so far stays -- re-run {operation} to go on"
+                "--exec stopped {operation} at {event}{of}, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run {operation}"
             ));
             return Err(Fail::Code(status_code(status)));
+        }
+        if let Err(error) = written {
+            if error.kind() != std::io::ErrorKind::BrokenPipe {
+                return die(format!("--exec: could not send continuation: {error}"));
+            }
         }
         Ok(())
     }
@@ -137,8 +150,8 @@ impl<'context, O: Operation> Execution<'context, O> {
         let pause_after = self.repo.args.pause_after.clone();
         if !pause_after.is_empty() {
             let outcome = self.run_until(|event| event.hook_values().0 == pause_after)?;
-            if matches!(outcome, ExecutionOutcome::Paused(_)) {
-                self.save()?;
+            if let ExecutionOutcome::Paused(ref event) = outcome {
+                self.save(event)?;
                 return Ok(75);
             }
             if let ExecutionOutcome::Complete(status) = outcome {
@@ -186,7 +199,15 @@ impl<'context, O: Operation> Execution<'context, O> {
                 }
                 let checkpoint = self.checked(PausedRepository::capture(O::CHECK_TRACKED_STATE))?;
                 if !command.is_empty() {
-                    if let Err(failure) = event.exec(&command, O::NAME) {
+                    let payload = self.payload(&checkpoint, &event);
+                    let (input, refs) = self.checked(payload)?;
+                    let executed = event.exec(&command, O::NAME, input);
+                    if !matches!(executed, Err(Fail::Code(_)))
+                        || checkpoint.validate(O::NAME).is_err()
+                    {
+                        release_refs(&refs);
+                    }
+                    if let Err(failure) = executed {
                         self.progress.stopped();
                         return self.checked(Err(failure));
                     }
@@ -205,7 +226,11 @@ impl<'context, O: Operation> Execution<'context, O> {
         Ok(ExecutionOutcome::Complete(status))
     }
 
-    fn save(&self) -> Res<()> {
+    fn payload(
+        &self,
+        checkpoint: &PausedRepository,
+        event: &ExecutionEvent,
+    ) -> Res<(Vec<u8>, Vec<String>)> {
         let mut commits = self.progress.retained_commits();
         commits.extend(self.repo.context.supplied_rebuilds.values().cloned());
         commits.extend(
@@ -239,17 +264,25 @@ impl<'context, O: Operation> Execution<'context, O> {
         }
         let saved = SavedExecution {
             format: 1,
+            event: Some(event.clone()),
             retained_refs: refs.clone(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             operation: O::NAME.to_string(),
             repository: SavedRepo::capture(&self.repo),
             progress: &self.progress,
-            checkpoint: self.paused.as_ref().ok_or(Fail::Hard)?,
+            checkpoint,
         };
-        let bytes = serde_json::to_vec_pretty(&saved).map_err(|error| {
+        let mut bytes = serde_json::to_vec_pretty(&saved).map_err(|error| {
             log_err(format!("could not encode continuation: {error}"));
             Fail::Hard
         })?;
+        bytes.push(b'\n');
+        Ok((bytes, refs))
+    }
+
+    fn save(&self, event: &ExecutionEvent) -> Res<()> {
+        let checkpoint = self.paused.as_ref().ok_or(Fail::Hard)?;
+        let (bytes, refs) = self.payload(checkpoint, event)?;
         let path = &self.repo.args.save_to;
         let temporary = format!("{path}.tmp-{}", std::process::id());
         let mut created = false;
@@ -439,6 +472,8 @@ impl TrackedState {
 #[serde(deny_unknown_fields)]
 struct SavedExecution<O, C> {
     format: u32,
+    #[serde(default)]
+    event: Option<ExecutionEvent>,
     retained_refs: Vec<String>,
     version: String,
     operation: String,
@@ -508,5 +543,11 @@ impl<O> Drop for Execution<'_, O> {
                     .ok();
             }
         }
+    }
+}
+
+fn release_refs(refs: &[String]) {
+    for reference in refs {
+        git(&["update-ref", "-d", reference]).q().ok();
     }
 }
