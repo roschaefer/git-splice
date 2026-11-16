@@ -1,20 +1,47 @@
 # Going forward
 
-Ideas `git-splice` doesn't implement. Some are planned, some are out of
-scope, and some are impossible with Git. Each page says which is which.
-These are open design questions, evaluated against the
-[Design principles](../README.md#principles), rather than current behaviour.
+`git-splice` could support more workflows across repositories, both
+through extensions and through tools built on top. Some possibilities
+need features the VCS doesn't provide today. These are open design
+questions, guided by the [design principles](../README.md#principles).
 
-- [Package managers](01-package-managers.md): what maps from npm, Yarn or
-  Cargo to nested splices, and what doesn't. Out of scope: `git-splice`
-  isn't meant to become a package manager.
-- [Mirrors](02-mirrors.md): splices with the same id are meant to have the
-  same files. A report of mirrors that drifted is possible; sharing one
-  folder isn't, with Git.
-- [Jujutsu](03-jj.md): what `git-splice` needs to work in a jj repository,
-  e.g. what stands for the current and the default branch there.
-- [Sapling](04-sapling.md): the branch after `sl goto`, and what
-  `git-splice` could do with the sync points `sl subtree` records.
-- [Weak parents](05-weak-parents.md): the sync point as a parent of the
-  commit that wrote it, which Git can't record without making it part of
-  the history. A thought experiment, with earlier proposals.
+## Tools built on top
+
+A tool could coordinate pull requests across the repositories touched by
+one monorepo change. Another could choose dependency versions and use
+splice commands to apply updates. The existing sync commands could
+provide a basis for either tool, or for dependency management built
+into the VCS itself.
+[Package managers](02-package-managers.md) explores the dependency model
+and its limits.
+
+## Extensions to syncing
+
+- **Configure an upstream branch in `.splice`.** `fetch`, `merge`, `pull`
+  and `push` already accept `--branch`; a stored default could extend
+  that selection. Supporting [Jujutsu](03-jj.md) and [Sapling](04-sapling.md)
+  also requires handling Git's detached `HEAD`.
+- **Check mirror semantics.** Copies with the same splice id should have
+  the same files. `git-splice` cannot enforce this today; it could report
+  when those semantics are violated. [Mirrors](01-mirrors.md) explains
+  the limits of enforcement, particularly for nested copies.
+
+The stored branch default and mirror check are not implemented.
+
+## What the VCS could provide
+
+A *weak parent* records upstream provenance without joining ordinary
+ancestry. The first parent carries file history; tools can follow the
+weak parent to trace where changes came from. Today, `.splice` represents
+the weak parent in a file in the working tree.
+
+![A normal merge joins both histories; a weak parent separates file history from provenance; .splice implements that provenance link in a file today](sync-records.svg)
+
+`git splice log` already shows splice history. The
+[bisect scenario](../../09-scenarios/03-branches-and-teamwork/05-bisect-into-a-pull/README.md)
+shows how to investigate a pull through a manual upstream bisect.
+Tools could follow `.splice` links to automate provenance traversal for
+`blame`, `bisect` and `log`; ordinary Git commands do not follow them.
+A dedicated [weak parent](05-weak-parents.md) in the VCS would express
+this distinction directly. It would need the upstream URL, commit and destination folder,
+and survive rebases and squash merges, as the file does today.
