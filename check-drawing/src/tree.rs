@@ -584,3 +584,18 @@ pub fn run(path: &str, name: &str, d: &Diagram, labels: &Labels) -> bool {
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Mark, Marks};
+
+    #[test]
+    fn legend_lists_only_configured_marks() {
+        let marks = Marks::from([(Mark::Conflict, "!"), (Mark::Pulled, "++")]);
+        assert_eq!(
+            marks.legend().collect::<Vec<_>>(),
+            [("++", "pulled"), ("!", "merged in, conflicts")]
+        );
+        assert_eq!(Marks::default().legend().count(), 0);
+    }
+}

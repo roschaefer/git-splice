@@ -241,13 +241,27 @@ fn ascii_splice_tree_before_and_after_recursive_pull() {
                        └─ e/      (e1)
                 "}
             );
+        },
+    );
+}
+
+#[test]
+fn ascii_uses_configured_markers_and_omits_unlisted_marks() {
+    isolated(
+        "ascii_uses_configured_markers_and_omits_unlisted_marks",
+        |root| {
+            step_by_step_scenario(root);
+            let mut context = ExecutionContext::new();
+            let mut execution =
+                pull::start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+            assert_eq!(execution.run().unwrap(), 0);
+            let marks = Marks::from([(Mark::Pulled, "*")]);
             let custom = Marks::from([(Mark::Pulled, "++")]);
             let standard = ascii(&labels(&[("p", "HEAD")]), &marks, &HashMap::new()).unwrap();
             assert_eq!(
                 ascii(&labels(&[("p", "HEAD")]), &custom, &HashMap::new()).unwrap(),
                 standard.replace('*', "++")
             );
-            assert_eq!(custom.legend().collect::<Vec<_>>(), [("++", "pulled")]);
             assert_eq!(
                 ascii(
                     &labels(&[("p", "HEAD")]),
@@ -257,7 +271,6 @@ fn ascii_splice_tree_before_and_after_recursive_pull() {
                 .unwrap(),
                 standard.replace('*', "")
             );
-            assert_eq!(Marks::default().legend().count(), 0);
         },
     );
 }
