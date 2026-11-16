@@ -1,5 +1,6 @@
-//! Check the step-by-step drawings against one real recursive pull, paused
-//! at each illustrated state.
+//! One `git splice pull --recursive`, paused at each step: the splice tree
+//! as text, with what the pull still does for each splice, and the step-by-step
+//! page's drawing of that step checked against the same state.
 
 use check_drawing::check::{Checker, Labels};
 use check_drawing::tree::{ascii, Mark, Marks};
@@ -14,6 +15,18 @@ const PAGE: &str = "docs/09-scenarios/05-nested-splices/05-recursion/01-recursiv
 
 fn docs() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join(PAGE)
+}
+
+fn git(args: &[&str]) -> String {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "git {args:?}");
+    String::from_utf8(output.stdout)
+        .unwrap()
+        .trim_end()
+        .to_string()
 }
 
 const CHILD: &str = "CHECK_DRAWING_TEST_CHILD";
@@ -117,6 +130,19 @@ fn labels(revs: &[(&str, &str)]) -> Labels {
     labels
 }
 
+/// The tree as text, each commit named by <named> or its subject, and what
+/// <execution> still does for each splice.
+fn tree(execution: &PullExecution, named: &[(&str, String)]) -> String {
+    let revs: Vec<(&str, &str)> = named.iter().map(|(l, r)| (*l, r.as_str())).collect();
+    let tasks = execution.tasks();
+    let marks = Marks::from([(Mark::Pulled, "*"), (Mark::Conflict, "!")]);
+    let mut text = ascii(&labels(&revs), &marks, &tasks.notes()).unwrap();
+    if let Some(next) = tasks.next {
+        text.push_str(&format!("next: {next}\n"));
+    }
+    text
+}
+
 /// Checks the page's drawing <name> as the page does, with labels <revs>.
 fn drawing(name: &str, revs: &[(&str, &str)]) {
     let path = docs().join(name);
@@ -179,33 +205,154 @@ fn with_checkpoints(execution: PullExecution, check: impl FnOnce(&mut Checkpoint
 
 fn step_by_step(root: &Path) {
     step_by_step_scenario(root);
+    // e1 isn't here until the pull fetches e's upstream: named by its hash.
+    let e1 = git(&[
+        "-C",
+        root.join("upstream-e.git").to_str().unwrap(),
+        "rev-parse",
+        "main",
+    ]);
+    let mut named = vec![("s", git(&["rev-parse", "HEAD"])), ("e1", e1)];
     drawing("step-0.drawio.svg", &[("s", "HEAD")]);
     let mut context = ExecutionContext::new();
     let execution = pull::start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+    let mut steps = vec![format!("start:\n{}", tree(&execution, &named))];
     with_checkpoints(execution, |checkpoints| {
         checkpoints.expect(
             Checkpoint::Fetch(vec!["vendor/a", "vendor/a/b", "vendor/a/b/c", "vendor/a/d"]),
-            |_| {},
+            |execution| {
+                steps.push(format!(
+                    "after-fetch vendor/a vendor/a/b vendor/a/b/c vendor/a/d:\n{}",
+                    tree(execution, &named)
+                ));
+            },
         );
-        checkpoints.expect(Checkpoint::Merge("vendor/a"), |_| {});
-        // e/ came with a's merge; the drawing shows its upstream fetched.
-        checkpoints.expect(Checkpoint::Fetch(vec!["vendor/a/e"]), |_| {
+        checkpoints.expect(Checkpoint::Merge("vendor/a"), |execution| {
+            named.push(("pa", git(&["rev-parse", "HEAD"])));
+            steps.push(format!(
+                "after-merge vendor/a:\n{}",
+                tree(execution, &named)
+            ));
+        });
+        checkpoints.expect(Checkpoint::Fetch(vec!["vendor/a/e"]), |execution| {
             drawing("step-a.drawio.svg", &[("pa", "HEAD")]);
+            steps.push(format!(
+                "after-fetch vendor/a/e:\n{}",
+                tree(execution, &named)
+            ));
         });
-        checkpoints.expect(Checkpoint::Merge("vendor/a/b"), |_| {
+        checkpoints.expect(Checkpoint::Merge("vendor/a/b"), |execution| {
+            named.push(("pb", git(&["rev-parse", "HEAD"])));
             drawing("step-b.drawio.svg", &[("pb", "HEAD")]);
+            steps.push(format!(
+                "after-merge vendor/a/b:\n{}",
+                tree(execution, &named)
+            ));
         });
-        checkpoints.expect(Checkpoint::Merge("vendor/a/b/c"), |_| {
+        checkpoints.expect(Checkpoint::Merge("vendor/a/b/c"), |execution| {
+            named.push(("pc", git(&["rev-parse", "HEAD"])));
             drawing("step-c.drawio.svg", &[("pc", "HEAD")]);
+            steps.push(format!(
+                "after-merge vendor/a/b/c:\n{}",
+                tree(execution, &named)
+            ));
         });
-        checkpoints.expect(Checkpoint::Merge("vendor/a/d"), |_| {
+        checkpoints.expect(Checkpoint::Merge("vendor/a/d"), |execution| {
+            named.push(("pd", git(&["rev-parse", "HEAD"])));
             drawing("step-d.drawio.svg", &[("pd", "HEAD"), ("pc", "HEAD~1")]);
+            steps.push(format!(
+                "after-merge vendor/a/d:\n{}",
+                tree(execution, &named)
+            ));
         });
-        checkpoints.expect(Checkpoint::BeforeFold, |_| {});
-        checkpoints.expect(Checkpoint::AfterFold, |_| {
+        checkpoints.expect(Checkpoint::BeforeFold, |execution| {
+            steps.push(format!("before-fold:\n{}", tree(execution, &named)));
+        });
+        checkpoints.expect(Checkpoint::AfterFold, |execution| {
+            named.push(("p", git(&["rev-parse", "HEAD"])));
             drawing("step-folded.drawio.svg", &[("p", "HEAD")]);
+            steps.push(format!("after-fold:\n{}", tree(execution, &named)));
         });
     });
+    let observed = steps.join("\n");
+    println!("{observed}");
+    assert_eq!(
+        observed,
+        indoc! {r#"
+            start:
+            monorepo      (s)
+            └─ vendor/a/  (a1)  pending: fetch
+               ├─ b/      (b1)  pending: fetch
+               │  └─ c/   (c1)  pending: fetch
+               └─ d/      (d1)  pending: fetch
+
+            after-fetch vendor/a vendor/a/b vendor/a/b/c vendor/a/d:
+            monorepo      (s)
+            └─ vendor/a/  (a1)  pending: merge
+               ├─ b/      (b1)  pending: merge, after vendor/a/
+               │  └─ c/   (c1)  pending: merge, after vendor/a/b/
+               └─ d/      (d1)  pending: merge, after vendor/a/
+
+            after-merge vendor/a:
+            monorepo      (pa*)
+            └─ vendor/a/  (a2*)  done
+               ├─ b/      (b1)   pending: merge
+               │  └─ c/   (c1)   pending: merge, after vendor/a/b/
+               ├─ d/      (d1)   pending: merge
+               └─ e/      (e1)
+
+            after-fetch vendor/a/e:
+            monorepo      (pa*)
+            └─ vendor/a/  (a2*)  done
+               ├─ b/      (b1)   pending: merge
+               │  └─ c/   (c1)   pending: merge, after vendor/a/b/
+               ├─ d/      (d1)   pending: merge
+               └─ e/      (e1)   pending: merge
+
+            after-merge vendor/a/b:
+            monorepo      (pb*)
+            └─ vendor/a/  (a2) … [pb'*]  done
+               ├─ b/      (b2*)          done
+               │  └─ c/   (c1)           pending: merge
+               ├─ d/      (d1)           pending: merge
+               └─ e/      (e1)           done
+
+            after-merge vendor/a/b/c:
+            monorepo      (pc*)
+            └─ vendor/a/  (a2) … [pc'*]  done
+               ├─ b/      (b2) … [pc'*]  done
+               │  └─ c/   (c2*)          done
+               ├─ d/      (d1)           pending: merge
+               └─ e/      (e1)           done
+
+            after-merge vendor/a/d:
+            monorepo      (pd*)
+            └─ vendor/a/  (a2) … [pd'*]  done
+               ├─ b/      (b2) … [pc'*]  done
+               │  └─ c/   (c2*)          done
+               ├─ d/      (d2*)          done
+               └─ e/      (e1)           done
+
+            before-fold:
+            monorepo      (pd*)
+            └─ vendor/a/  (a2) … [pd'*]  done
+               ├─ b/      (b2) … [pc'*]  done
+               │  └─ c/   (c2*)          done
+               ├─ d/      (d2*)          done
+               └─ e/      (e1)           done
+            next: fold
+
+            after-fold:
+            monorepo      (p*)
+            └─ vendor/a/  (a2*) … [p'*]  done
+               ├─ b/      (b2*) … [p'*]  done
+               │  └─ c/   (c2*)          done
+               ├─ d/      (d2*)          done
+               └─ e/      (e1)           done
+            next: clean up
+        "#},
+        "observed trees:\n{observed}"
+    );
 }
 
 #[test]
@@ -272,5 +419,57 @@ fn ascii_uses_configured_markers_and_omits_unlisted_marks() {
                 standard.replace('*', "")
             );
         },
+    );
+}
+
+#[test]
+fn recursive_pull_conflict_blocks_the_splices_after_it() {
+    isolated(
+        "recursive_pull_conflict_blocks_the_splices_after_it",
+        conflict,
+    );
+}
+
+/// The monorepo changed b's file where b's upstream did too: b's merge stops
+/// in a conflict, and the splices after it wait on it.
+fn conflict(root: &Path) {
+    step_by_step_scenario(root);
+    std::fs::write(
+        "vendor/a/b/file.txt",
+        std::fs::read_to_string("vendor/a/b/file.txt").unwrap() + "b in the monorepo\n",
+    )
+    .unwrap();
+    git(&["commit", "-q", "-am", "m1: b in the monorepo"]);
+    let e1 = git(&[
+        "-C",
+        root.join("upstream-e.git").to_str().unwrap(),
+        "rev-parse",
+        "main",
+    ]);
+    let mut named = vec![("e1", e1)];
+    let mut context = ExecutionContext::new();
+    let mut execution =
+        pull::start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+    let paused = execution
+        .run_until(|event| matches!(event, ExecutionEvent::AfterMerge { .. }))
+        .unwrap();
+    let ExecutionOutcome::Paused(ExecutionEvent::AfterMerge { head_after, .. }) = paused else {
+        panic!("no merge: {paused:?}");
+    };
+    named.push(("pa", head_after));
+    assert_eq!(execution.run().unwrap(), 1);
+    let observed = tree(&execution, &named);
+    println!("{observed}");
+    assert_eq!(
+        observed,
+        indoc! {r#"
+            monorepo      (pa*)
+            └─ vendor/a/  (a2*) … [pa']       done
+               ├─ b/      (b1) … [m1'] (b2!)  conflict
+               │  └─ c/   (c1)                blocked by vendor/a/b/
+               ├─ d/      (d1)                blocked by vendor/a/b/
+               └─ e/      (e1)                done
+        "#},
+        "observed tree:\n{observed}"
     );
 }

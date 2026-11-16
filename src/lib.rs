@@ -19,4 +19,5 @@ pub mod rebuild;
 pub mod repo;
 pub mod state;
 pub mod status;
+pub mod tree;
 pub mod util;

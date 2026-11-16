@@ -7,6 +7,7 @@ use crate::fetch::{FetchFailures, FetchPlan, FetchResults};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
+use crate::tree::{Step, Task};
 use crate::util::*;
 use std::collections::HashMap;
 
@@ -839,6 +840,10 @@ pub(crate) struct MergeProgress {
     loaded: HashMap<String, Option<String>>,
     failures: Vec<String>,
     skipped: Vec<String>,
+    /// What became of each path merged so far, as decided.
+    outcomes: Vec<(String, Task)>,
+    /// The path whose merge left a conflict, which the ones after it wait on.
+    conflict: Option<String>,
     recursive: bool,
     branch: String,
     verb: String,
@@ -855,6 +860,8 @@ impl MergeProgress {
             loaded: HashMap::new(),
             failures: Vec::new(),
             skipped: Vec::new(),
+            outcomes: Vec::new(),
+            conflict: None,
             recursive: repo.args.has_flag("--recursive") || (verb == "pull" && repo.args.all),
             branch: branch.to_string(),
             verb: verb.to_string(),
@@ -868,6 +875,36 @@ impl MergeProgress {
 
     pub(crate) fn done(&self) -> bool {
         matches!(self.phase, MergePhase::Done)
+    }
+
+    /// What became of each path so far, and each still to merge.
+    pub(crate) fn tasks(&self) -> Vec<(String, Task)> {
+        self.paths
+            .iter()
+            .map(|path| {
+                let task = self
+                    .outcomes
+                    .iter()
+                    .find(|(settled, _)| settled == path)
+                    .map(|(_, task)| task.clone())
+                    .unwrap_or_else(|| {
+                        if self.failures.contains(path) {
+                            Task::Failed
+                        } else if let Some(failed) = first_above(path, &self.failures)
+                            .or_else(|| first_below(path, &self.failures))
+                        {
+                            Task::Blocked(failed)
+                        } else {
+                            Task::Pending(Step::Merge)
+                        }
+                    });
+                (path.clone(), task)
+            })
+            .collect()
+    }
+
+    fn settle(&mut self, path: &str, task: Task) {
+        self.outcomes.push((path.to_string(), task));
     }
 
     pub(crate) fn advance(&mut self, repo: &mut Repo) -> Res<()> {
@@ -898,6 +935,8 @@ impl MergeProgress {
                 self.next += 1;
                 if splice_in_progress() {
                     self.skipped.push(path.clone());
+                    let waits_on = self.conflict.clone().unwrap_or_default();
+                    self.settle(path, Task::Blocked(waits_on));
                     return Ok(None);
                 }
                 // Reading its .splice again after a merge above failed, e.g. the
@@ -907,6 +946,7 @@ impl MergeProgress {
                         "{path}: not {}, since its {STATE_FILE} from a merge above failed to load",
                         past_tense(verb)
                     ));
+                    self.settle(path, Task::Failed);
                     return Ok(None);
                 }
                 if let Some(failed) = first_above(path, &self.failures) {
@@ -915,6 +955,7 @@ impl MergeProgress {
                         past_tense(verb)
                     ));
                     self.failures.push(path.clone());
+                    self.settle(path, Task::Blocked(failed));
                     return Ok(None);
                 }
                 // Its merge could change the .splice of the failed one again: then
@@ -925,6 +966,7 @@ impl MergeProgress {
                         past_tense(verb)
                     ));
                     self.failures.push(path.clone());
+                    self.settle(path, Task::Blocked(failed));
                     return Ok(None);
                 }
                 // A pull of a splice above this one may have removed it.
@@ -938,6 +980,7 @@ impl MergeProgress {
                             "{path}: not a splice any more -- nothing to {verb}"
                         )),
                     }
+                    self.settle(path, Task::Removed);
                     return Ok(None);
                 }
                 // A copy of a splice it's inside, by its id: pulling it brings in
@@ -955,6 +998,8 @@ impl MergeProgress {
                             "{path}: a copy of {above}, which it's inside -- not {}",
                             past_tense(verb)
                         ));
+                        let above = above.clone();
+                        self.settle(path, Task::Copy(above));
                         return Ok(None);
                     }
                 }
@@ -972,11 +1017,21 @@ impl MergeProgress {
                         }
                     }
                 }
+                let pull_stopped = verb == "pull" && splice_in_progress();
+                let outcome = if splice_in_progress() {
+                    self.conflict = Some(path.clone());
+                    Task::Conflict
+                } else if self.failures.contains(path) {
+                    Task::Failed
+                } else {
+                    Task::Done
+                };
+                self.settle(path, outcome);
                 // The pull stops here: the splices the conflicted merge brings
                 // in are fetched now, as a merge without a conflict would.
                 // A failure here was reported; the run's summary still comes.
-                if verb == "pull" && splice_in_progress() {
-                    return match repo.fetch_below_conflict(path, branch) {
+                if pull_stopped {
+                    return match repo.fetch_below_conflict(path, &self.branch) {
                         Err(Fail::Hard) => Err(Fail::Hard),
                         Err(_) => Ok(None),
                         Ok((event, failures)) => {
@@ -1388,6 +1443,58 @@ mod tests {
             old_child,
             new_child,
         }
+    }
+
+    #[test]
+    fn failed_reload_reports_failed_child_and_blocked_descendant_at_fetch_checkpoint() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            let incoming = incoming_child(&mut context);
+            let root = std::env::current_dir().unwrap();
+            std::fs::create_dir_all("parent/b/c").unwrap();
+            std::fs::write(
+                "parent/b/c/.splice",
+                format!(
+                    "[splice]\n id = grandchild\n commit = {}\n[upstream \"origin\"]\n url = {}\n",
+                    incoming.old_child,
+                    root.join("child").display()
+                ),
+            )
+            .unwrap();
+            git(&["-C", "parent", "add", "."]);
+            git(&["-C", "parent", "commit", "-qm", "introduce grandchild"]);
+            std::fs::rename("child", "child.offline").unwrap();
+            let mut execution =
+                crate::pull::start(&mut context, &["--recursive".into(), "vendor/a".into()])
+                    .unwrap();
+            let outcome = execution
+                .run_until(|event| {
+                    matches!(event, ExecutionEvent::AfterFetch { fetched }
+                    if fetched.iter().any(|f| f.path == "vendor/a/b" && f.failed))
+                })
+                .unwrap();
+            assert!(
+                matches!(outcome, crate::execution::ExecutionOutcome::Paused(_)),
+                "{outcome:?}"
+            );
+            assert_eq!(
+                execution.tasks().per_splice,
+                [
+                    ("vendor/a".into(), Task::Done),
+                    ("vendor/a/b".into(), Task::Failed),
+                    ("vendor/a/b/c".into(), Task::Blocked("vendor/a/b".into())),
+                ]
+            );
+            assert_eq!(execution.run().unwrap(), 1);
+            assert_eq!(
+                execution.tasks().per_splice,
+                [
+                    ("vendor/a".into(), Task::Done),
+                    ("vendor/a/b".into(), Task::Failed),
+                    ("vendor/a/b/c".into(), Task::Blocked("vendor/a/b".into())),
+                ]
+            );
+        });
     }
 
     #[test]
