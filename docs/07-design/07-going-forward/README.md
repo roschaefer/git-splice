@@ -19,7 +19,7 @@ and its limits.
 
 - **Configure an upstream branch in `.splice`.** `fetch`, `merge`, `pull`
   and `push` already accept `--branch`; a stored default could extend
-  that selection. Supporting [Jujutsu](03-jj.md) and [Sapling](04-sapling.md)
+  that selection. Supporting [Jujutsu and Sapling](03-git-compatible-vcs.md)
   also requires handling Git's detached `HEAD`.
 - **Check mirror semantics.** Copies with the same splice id should have
   the same files. `git-splice` cannot enforce this today; it could report
