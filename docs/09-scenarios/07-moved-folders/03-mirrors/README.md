@@ -9,8 +9,11 @@ and `third_party/a/`, cloned from the same upstream, stays independent.
 ## Keeping mirrors alike
 
 Edit one copy, push it, and pull every mirror before merging. Compare
-mirrors in CI without their `.splice` files; the
-[drift example](#a-mirror-drifts) below shows the command and its output.
+mirrors in CI without their `.splice` files, using
+`git diff --quiet HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice'`.
+It exits nonzero when the copies differ. The
+[drift example](#a-mirror-drifts) below shows the difference and checks
+that the mirrors match after syncing.
 If both copies changed, a pull merges the changes; resolve any remaining
 difference before treating them as mirrors again.
 
