@@ -116,18 +116,61 @@ Back at the commit before it, on a branch, `pull --recursive vendor/a`
 takes that step, then reads what's inside
 `vendor/a` from its result: `e/` is fetched and pulled, up to *e2*, and
 `d/`, selected while it was still there, was removed by the pull of
-`vendor/a`. The two pulls make one commit, *p*:
+`vendor/a`. Pause after the first merge to inspect the changed tree:
 
 ```scrut
 $ git switch -q -c recursive HEAD~1 &&
->   git splice pull --recursive --branch main vendor/a
+>   git splice pull --recursive --branch main vendor/a --pause-after after-merge --save-to ../recursive.json
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
 ok   vendor/a/d fetched
 ok   vendor/a: pulled 04072ca
+ok   pull paused; continue with 'git splice pull --continue-from ../recursive.json'
+[75]
+```
+
+The new `e/` is present at *e1* and `d/` is gone. Discovery and the
+new upstream's fetch are still pending:
+
+![The tree after merging a: e at e1, with d removed](removed-step.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/removed-step.drawio.svg" pa=HEAD
+ok   removed-step.drawio.svg: a tree of 5 rows
+```
+-->
+
+Resume to the fetch checkpoint, then to the merge of `e/`. Each command
+continues the saved queue without fetching the original upstreams again:
+
+```scrut
+$ git splice pull --continue-from ../recursive.json --pause-after after-fetch
 ok   vendor/a/e fetched
+ok   pull paused; continue with 'git splice pull --continue-from ../recursive.json'
+[75]
+```
+
+```scrut
+$ git splice status vendor/a/e
+On branch recursive
+
+  unchanged, no upstream branch  vendor/a/e
+```
+
+```scrut
+$ git splice pull --continue-from ../recursive.json --pause-after after-merge
 ok   vendor/a/e: pulled 68b88a4
+ok   pull paused; continue with 'git splice pull --continue-from ../recursive.json'
+[75]
+```
+
+The remaining unchanged splices and the removed `d/` are handled before
+folding. The two pulls make one commit, *p*:
+
+```scrut
+$ git splice pull --continue-from ../recursive.json
 ok   vendor/a/b: nothing to pull
 ok   vendor/a/b/c: nothing to pull
 ok   vendor/a/d: removed by the pull of vendor/a

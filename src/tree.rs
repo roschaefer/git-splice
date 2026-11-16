@@ -2,10 +2,12 @@
 //! is pending or settled: for a tree drawing, or a test, to show next to
 //! each splice.
 
+use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 
 /// A step an operation still has to take for a splice.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Step {
     Fetch,
     /// Merges go top-down: a splice's waits for the one around it.
@@ -13,7 +15,7 @@ pub enum Step {
 }
 
 /// What an operation did or still does for a splice, as it decided it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Task {
     Pending(Step),
     Done,

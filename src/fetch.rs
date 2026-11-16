@@ -1,5 +1,7 @@
 //! git splice fetch.
 
+use serde::{Deserialize, Serialize};
+
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
 use crate::execution::{ExecutionEvent, FetchedUpstream};
@@ -91,6 +93,7 @@ fn fetch_tag(url: &str, prefix: &str, tag: &str) -> Option<(String, String)> {
 
 /// What a fetch needs to know of one upstream of one splice: all read before
 /// the fetches start in parallel.
+#[derive(Serialize, Deserialize)]
 struct Member {
     index: usize,
     path: String,
@@ -103,7 +106,7 @@ struct Member {
 }
 
 /// What to print for an entry of a fetch.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 struct Report {
     out: String,
     err: String,
@@ -325,6 +328,7 @@ impl Repo<'_> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct FetchJob {
     key: String,
     url: String,
@@ -332,12 +336,14 @@ struct FetchJob {
     members: Vec<Member>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct FetchPlan {
     entries: Vec<(String, String)>,
     jobs: Vec<FetchJob>,
     new_keys: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct FetchResults {
     plan: FetchPlan,
     reports: Vec<Report>,

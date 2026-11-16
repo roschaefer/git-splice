@@ -1,8 +1,10 @@
 //! Parsing the arguments every command shares.
 
+use serde::{Deserialize, Serialize};
+
 use crate::util::*;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Args {
     pub all: bool,
     pub upstream: String,
@@ -11,6 +13,9 @@ pub struct Args {
     pub message: String,
     pub message_template: String,
     pub exec: String,
+    pub pause_after: String,
+    pub save_to: String,
+    pub continue_from: String,
     pub paths: Vec<String>,
     pub flags: Vec<String>,
 }
@@ -85,6 +90,9 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                 "--branch",
                 "--message-template",
                 "--exec",
+                "--pause-after",
+                "--save-to",
+                "--continue-from",
             ]
             .iter()
             .any(|o| arg == *o || arg.starts_with(&format!("{o}="))) =>
@@ -98,6 +106,20 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                     argv.get(i).cloned().unwrap_or_default()
                 };
                 match option {
+                    "--pause-after" | "--save-to" | "--continue-from" => {
+                        if value.is_empty() {
+                            return die(format!("{option} needs a value"));
+                        }
+                        let field = match option {
+                            "--pause-after" => &mut args.pause_after,
+                            "--save-to" => &mut args.save_to,
+                            _ => &mut args.continue_from,
+                        };
+                        if !field.is_empty() {
+                            return die(format!("{option} can be given once"));
+                        }
+                        *field = value;
+                    }
                     "--exec" => {
                         if value.is_empty() {
                             return die("--exec needs a command");

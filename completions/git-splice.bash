@@ -62,7 +62,7 @@ __git_splice_positionals() {
   local i count=0
   for ((i = $1 + 1; i < COMP_CWORD; i++)); do
     case "${COMP_WORDS[i]}" in
-      -m | --message | --message-template | --exec)
+      -m | --message | --message-template | --exec | --pause-after | --save-to | --continue-from)
         ((i++))
         [[ "${COMP_WORDS[i]:-}" != = ]] || ((i++))
         ;;
@@ -103,8 +103,14 @@ _git_splice() {
   # an upstream, its branch, a commit message, its template or a command:
   # nothing to offer.
   local option
-  for option in --upstream --branch -m --message --message-template --exec; do
+  for option in --upstream --branch -m --message --message-template --exec --pause-after; do
     ! __git_splice_completing_value "$option" || return 0
+  done
+  for option in --save-to --continue-from; do
+    if __git_splice_completing_value "$option"; then
+      mapfile -t COMPREPLY < <(compgen -f -- "$value_prefix")
+      return 0
+    fi
   done
   case "$cmd" in
     fetch)
@@ -119,14 +125,14 @@ _git_splice() {
       elif [[ "$cmd" == merge ]]; then
         __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --rebuilt-commit -m --message --message-template -h --help
       else
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --recursive -m --message --message-template --exec -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --recursive -m --message --message-template --exec --pause-after --save-to --continue-from -h --help
       fi
       ;;
     push | status | diff)
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit --exec -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit --exec --pause-after --save-to --continue-from -h --help
       else
         __git_splice_paths_or_options "$cur" --upstream -h --help
       fi

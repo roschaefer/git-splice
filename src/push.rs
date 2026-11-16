@@ -1,14 +1,20 @@
 //! git splice push.
 
+use serde::{Deserialize, Serialize};
+
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
-use crate::execution::{Execution, ExecutionEvent, ExecutionOutcome, Operation};
+use crate::execution::{
+    validate_continuation_options, Execution, ExecutionEvent, ExecutionOutcome, Operation,
+    CONTINUATION_OPTIONS,
+};
 use crate::merge::EqualTree;
 use crate::repo::*;
 use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/push.txt");
 
+#[derive(Serialize, Deserialize)]
 struct PreparedPush {
     path: String,
     url: String,
@@ -275,11 +281,19 @@ pub fn start<'context>(
     context: &'context mut ExecutionContext,
     argv: &[String],
 ) -> Res<PushExecution<'context>> {
-    let args = parse_args(
+    let mut args = parse_args(
         USAGE,
-        "--force --upstream --branch --track --rebuilt-commit --exec",
+        &format!(
+            "--force --upstream --branch --track --rebuilt-commit --exec {CONTINUATION_OPTIONS}"
+        ),
         argv,
     )?;
+    validate_continuation_options(&mut args, &["after-rebuild", "after-push"])?;
+    if !args.continue_from.is_empty() {
+        return Ok(PushExecution {
+            inner: Execution::restore(context, args)?,
+        });
+    }
     args.require_branch_for_track()?;
     let mut repo = Repo::new(context, args);
     repo.open()?;
@@ -310,12 +324,14 @@ impl PushExecution<'_> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 enum PushPhase {
     Prepare,
     Publish(PreparedPush),
     Done,
 }
 
+#[derive(Serialize, Deserialize)]
 struct PushProgress {
     paths: std::collections::VecDeque<String>,
     failures: Vec<String>,
@@ -446,6 +462,13 @@ impl PushProgress {
 }
 
 impl Operation for PushProgress {
+    fn retained_commits(&self) -> Vec<String> {
+        match &self.phase {
+            PushPhase::Publish(prepared) => vec![prepared.rebuilt_commit.clone()],
+            _ => Vec::new(),
+        }
+    }
+
     const NAME: &'static str = "push";
     const CHECK_TRACKED_STATE: bool = false;
 

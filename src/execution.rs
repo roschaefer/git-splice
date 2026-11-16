@@ -1,11 +1,15 @@
 //! Typed observations and in-memory synchronization drivers.
 
-use crate::repo::{commit_of, Repo};
+use serde::{Deserialize, Serialize};
+
+use crate::args::Args;
+use crate::repo::{commit_of, Repo, SavedRepo};
 use crate::tree::Tasks;
 use crate::util::*;
+use serde::de::DeserializeOwned;
 use std::process::{Command, Stdio};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FetchedUpstream {
     pub path: String,
     pub upstream: String,
@@ -14,7 +18,7 @@ pub struct FetchedUpstream {
     pub failed: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExecutionEvent {
     /// Downloads are done and reported; new upstreams that all failed are forgotten.
     AfterFetch { fetched: Vec<FetchedUpstream> },
@@ -47,7 +51,7 @@ pub enum ExecutionOutcome {
 
 impl ExecutionEvent {
     /// The event's name, splice and commit, as --exec hooks get them.
-    fn hook_values(&self) -> (&str, &str, &str) {
+    pub(crate) fn hook_values(&self) -> (&str, &str, &str) {
         match self {
             Self::AfterFetch { .. } => ("after-fetch", "", ""),
             Self::AfterMerge { path, .. } => ("after-merge", path, ""),
@@ -86,7 +90,7 @@ impl ExecutionEvent {
     }
 }
 
-pub(crate) trait Operation {
+pub(crate) trait Operation: Serialize + DeserializeOwned {
     const NAME: &'static str;
     const CHECK_TRACKED_STATE: bool;
     fn done(&self) -> bool;
@@ -94,6 +98,11 @@ pub(crate) trait Operation {
     fn finish(&self) -> Res<i32>;
     /// Says what else an --exec hook that stopped the operation left behind.
     fn stopped(&self) {}
+    /// Commits pending publication still needs after a pause.
+    fn retained_commits(&self) -> Vec<String> {
+        Vec::new()
+    }
+
     /// The work done and still to do, per splice.
     fn tasks(&self) -> Tasks {
         Tasks::default()
@@ -106,6 +115,7 @@ pub(crate) struct Execution<'context, O> {
     paused: Option<PausedRepository>,
     completed: Option<i32>,
     failed: Option<Fail>,
+    retained: Option<(String, Vec<String>)>,
 }
 
 type PausePredicate<'a> = &'a mut dyn FnMut(&ExecutionEvent) -> bool;
@@ -119,10 +129,22 @@ impl<'context, O: Operation> Execution<'context, O> {
             paused: Some(initial),
             completed: None,
             failed: None,
+            retained: None,
         })
     }
 
     pub(crate) fn run(&mut self) -> Res<i32> {
+        let pause_after = self.repo.args.pause_after.clone();
+        if !pause_after.is_empty() {
+            let outcome = self.run_until(|event| event.hook_values().0 == pause_after)?;
+            if matches!(outcome, ExecutionOutcome::Paused(_)) {
+                self.save()?;
+                return Ok(75);
+            }
+            if let ExecutionOutcome::Complete(status) = outcome {
+                return Ok(status);
+            }
+        }
         match self.drive(None)? {
             ExecutionOutcome::Complete(status) => Ok(status),
             ExecutionOutcome::Paused(_) => unreachable!("no pause predicate installed"),
@@ -145,6 +167,13 @@ impl<'context, O: Operation> Execution<'context, O> {
         if let Some(paused) = &self.paused {
             let validated = paused.validate(O::NAME);
             self.checked(validated)?;
+        }
+        if !self.repo.args.continue_from.is_empty() {
+            std::fs::remove_file(&self.repo.args.continue_from).map_err(|error| {
+                log_err(format!("could not consume continuation: {error}"));
+                Fail::Hard
+            })?;
+            self.repo.args.continue_from.clear();
         }
         self.paused = None;
         while !self.progress.done() {
@@ -176,6 +205,130 @@ impl<'context, O: Operation> Execution<'context, O> {
         Ok(ExecutionOutcome::Complete(status))
     }
 
+    fn save(&self) -> Res<()> {
+        let mut commits = self.progress.retained_commits();
+        commits.extend(self.repo.context.supplied_rebuilds.values().cloned());
+        commits.extend(
+            self.repo
+                .child_rebuilds
+                .values()
+                .filter_map(|(_, _, commit)| commit.clone()),
+        );
+        commits.sort();
+        commits.dedup();
+        let seed = format!(
+            "{} {:?}",
+            self.repo.args.save_to,
+            std::time::SystemTime::now()
+        );
+        let key = git(&["hash-object", "--stdin"])
+            .input(seed.into_bytes())
+            .out()
+            .ok_or(Fail::Hard)?;
+        let refs: Vec<String> = commits
+            .iter()
+            .map(|commit| format!("refs/splice-continuations/{key}/{commit}"))
+            .collect();
+        for (reference, commit) in refs.iter().zip(&commits) {
+            if !git(&["update-ref", reference, commit]).ok() {
+                for reference in &refs {
+                    git(&["update-ref", "-d", reference]).q().ok();
+                }
+                return die("could not retain continuation commits");
+            }
+        }
+        let saved = SavedExecution {
+            format: 1,
+            retained_refs: refs.clone(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            operation: O::NAME.to_string(),
+            repository: SavedRepo::capture(&self.repo),
+            progress: &self.progress,
+            checkpoint: self.paused.as_ref().ok_or(Fail::Hard)?,
+        };
+        let bytes = serde_json::to_vec_pretty(&saved).map_err(|error| {
+            log_err(format!("could not encode continuation: {error}"));
+            Fail::Hard
+        })?;
+        let path = &self.repo.args.save_to;
+        let temporary = format!("{path}.tmp-{}", std::process::id());
+        let mut created = false;
+        let result = (|| -> std::io::Result<()> {
+            use std::io::Write;
+            let mut options = std::fs::OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.mode(0o600);
+            }
+            let mut file = options.open(&temporary)?;
+            created = true;
+            file.write_all(&bytes)?;
+            file.sync_all()?;
+            std::fs::hard_link(&temporary, path)?;
+            std::fs::remove_file(&temporary)
+        })();
+        if let Err(error) = result {
+            if created {
+                let _ = std::fs::remove_file(&temporary);
+            }
+            for reference in &refs {
+                git(&["update-ref", "-d", reference]).q().ok();
+            }
+            return die(format!("could not save continuation to {path}: {error}"));
+        }
+        log_ok(format!(
+            "{} paused; continue with 'git splice {} --continue-from {}'",
+            O::NAME,
+            O::NAME,
+            shell_quote(path)
+        ));
+        Ok(())
+    }
+
+    pub(crate) fn restore(
+        context: &'context mut crate::context::ExecutionContext,
+        args: Args,
+    ) -> Res<Self> {
+        let bytes = std::fs::read(&args.continue_from).map_err(|error| {
+            log_err(format!("could not read continuation: {error}"));
+            Fail::Hard
+        })?;
+        let saved: SavedExecution<O, PausedRepository> =
+            serde_json::from_slice(&bytes).map_err(|error| {
+                log_err(format!("invalid continuation: {error}"));
+                Fail::Hard
+            })?;
+        if saved.format != 1
+            || saved.version != env!("CARGO_PKG_VERSION")
+            || saved.operation != O::NAME
+        {
+            return die("continuation belongs to another command or git-splice version -- start a new operation");
+        }
+        if saved.retained_refs.iter().any(|reference| {
+            !reference.starts_with("refs/splice-continuations/")
+                || !git(&["check-ref-format", reference]).q().ok()
+        }) {
+            return die("invalid continuation references");
+        }
+        saved.checkpoint.validate(O::NAME)?;
+        let retained = Some((saved.checkpoint.git_dir.clone(), saved.retained_refs));
+        let mut repo = saved.repository.restore(context)?;
+        repo.args.exec = args.exec;
+        repo.args.pause_after = args.pause_after;
+        repo.args.save_to = args.save_to;
+        repo.args.continue_from = args.continue_from;
+        Ok(Self {
+            repo,
+            progress: saved.progress,
+            paused: Some(saved.checkpoint),
+            completed: None,
+            failed: None,
+            retained,
+        })
+    }
+
     /// The operation's work per splice, done and still to do.
     pub(crate) fn tasks(&self) -> Tasks {
         self.progress.tasks()
@@ -189,7 +342,7 @@ impl<'context, O: Operation> Execution<'context, O> {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 struct PausedRepository {
     root: std::path::PathBuf,
     git_dir: String,
@@ -237,7 +390,7 @@ impl PausedRepository {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 struct TrackedState {
     index: String,
     worktree: String,
@@ -278,6 +431,82 @@ impl TrackedState {
             Ok(bytes) => Ok(Some(bytes)),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(_) => Err(Fail::Hard),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SavedExecution<O, C> {
+    format: u32,
+    retained_refs: Vec<String>,
+    version: String,
+    operation: String,
+    repository: SavedRepo,
+    progress: O,
+    checkpoint: C,
+}
+
+pub(crate) const CONTINUATION_OPTIONS: &str = "--pause-after --save-to --continue-from";
+
+pub(crate) fn validate_continuation_options(args: &mut Args, events: &[&str]) -> Res<()> {
+    if (!args.pause_after.is_empty() || !args.save_to.is_empty() || !args.continue_from.is_empty())
+        && git(&["rev-parse", "--show-prefix"])
+            .q()
+            .out()
+            .is_some_and(|prefix| !prefix.is_empty())
+    {
+        return die("run saved continuation commands from the repository root");
+    }
+    if !args.pause_after.is_empty() && !events.contains(&args.pause_after.as_str()) {
+        return die(format!("--pause-after needs one of: {}", events.join(", ")));
+    }
+    if !args.continue_from.is_empty() {
+        let mut other = args.clone();
+        other.exec.clear();
+        other.pause_after.clear();
+        other.save_to.clear();
+        other.continue_from.clear();
+        if other != Args::default() {
+            return die("--continue-from retains the original options and paths -- give only continuation options and --exec");
+        }
+        if !args.pause_after.is_empty() && args.save_to.is_empty() {
+            args.save_to = args.continue_from.clone();
+        }
+    }
+    if args.pause_after.is_empty() != args.save_to.is_empty() {
+        return die("--pause-after and --save-to must be given together");
+    }
+    if !args.save_to.is_empty() {
+        let path = std::path::Path::new(&args.save_to);
+        if path.exists() && args.save_to != args.continue_from {
+            return die("--save-to already exists -- use a new file");
+        }
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(std::path::Path::new("."));
+        if !parent.is_dir() {
+            return die("--save-to needs an existing parent directory");
+        }
+        if path.is_dir() {
+            return die("--save-to must name a file");
+        }
+    }
+    Ok(())
+}
+
+impl<O> Drop for Execution<'_, O> {
+    fn drop(&mut self) {
+        if !self.repo.args.continue_from.is_empty() {
+            return;
+        }
+        if let Some((git_dir, refs)) = &self.retained {
+            for reference in refs {
+                git(&["--git-dir", git_dir, "update-ref", "-d", reference])
+                    .q()
+                    .ok();
+            }
         }
     }
 }

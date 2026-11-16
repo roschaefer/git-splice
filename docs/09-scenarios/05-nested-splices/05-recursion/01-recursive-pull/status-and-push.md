@@ -64,8 +64,46 @@ Bottom-up, `c` first. Each rebuild records the one below it, and its
 push sends that record:
 
 ```scrut
-$ git splice push --all
+$ git splice push --all --pause-after after-rebuild --save-to ../push.json
+ok   push paused; continue with 'git splice push --continue-from ../push.json'
+[75]
+```
+
+The prepared `c/` commit is still local; the upstream has its original
+commit. Inspection does not publish it:
+
+```scrut
+$ git -C "$UPSTREAM-c.git" log -1 --format=%s main
+c1: c seed
+```
+
+Continue just far enough to publish that prepared commit:
+
+```scrut
+$ git splice push --continue-from ../push.json --pause-after after-push
 ok   vendor/a/b/c: pushed c36e473 to main
+ok   push paused; continue with 'git splice push --continue-from ../push.json'
+[75]
+```
+
+`c/` is published, while `b/` and `a/` are still pending:
+
+```scrut
+$ git splice status
+On branch main
+
+  ahead 1     vendor/a
+  ahead 1     vendor/a/b
+
+  up to date  vendor/a/b/c
+  up to date  vendor/a/d
+```
+
+Resume the remaining queue. It starts with `b/`, and does not publish
+`c/` again:
+
+```scrut
+$ git splice push --continue-from ../push.json
 ok   vendor/a/b: pushed 5302c23 to main
 ok   vendor/a/d: nothing to push
 ok   vendor/a: pushed 04ebbea to main

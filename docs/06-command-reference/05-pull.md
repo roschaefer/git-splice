@@ -14,6 +14,8 @@ NAME
 SYNOPSIS
     git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
+    git splice pull [--pause-after <event> --save-to <file>] [<option>...]
+    git splice pull --continue-from <file> [--pause-after <event> [--save-to <file>]] [--exec <command>]
 ```
 
 ## Description
@@ -218,6 +220,46 @@ remain applied, and re-running `pull` goes on from there, as after a conflict.
 
 Hooks can inspect tracked files and the index, but changing them or the
 pull markers prevents continuation.
+
+### `--pause-after`
+
+```scrut
+$ git splice pull -h | check-help option --pause-after
+        Stops at the next after-fetch, after-merge, before-fold or after-fold checkpoint matching
+        <event>, saves pending work with --save-to, and exits 75. Completed
+        work stays applied; nothing runs in the background.
+```
+
+### `--save-to`
+
+```scrut
+$ git splice pull -h | check-help option --save-to
+        Writes an opaque continuation file at a deliberate pause. Use a new
+        file on the first run. With --continue-from and --pause-after, the
+        input file is reused unless another --save-to is given.
+```
+
+### `--continue-from`
+
+```scrut
+$ git splice pull -h | check-help option --continue-from
+        Resumes the saved operation without repeating its consumed checkpoint.
+        Original options and paths are retained. Run from the same repository
+        root with unchanged HEAD, fetched refs and Git configuration; pull
+        also checks tracked files, index and pull markers. Validation failure
+        leaves the file intact; starting continuation consumes it. An --exec
+        hook must be supplied again. Use the same git-splice version.
+```
+
+Continuation files are local to this checkout and git-splice version; their
+JSON contents are opaque and must not be edited. They retain the pending queue,
+including nested discovery and fold/rebase work. Prepared push commits are kept
+reachable through temporary Git refs until continuation consumes them.
+
+A deliberate checkpoint pause is different from a merge conflict or a failing
+hook. Those still use the existing error and conflict recovery paths.
+
+See the [recursive pull, step by step](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/step-by-step.md) for pauses between real merges and folding.
 
 ## Order
 

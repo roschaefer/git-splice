@@ -34,7 +34,7 @@ function __git_splice_positional
             continue
         end
         switch $token
-            case --upstream --branch -m --message --message-template --exec
+            case --upstream --branch -m --message --message-template --exec --pause-after --save-to --continue-from
                 set skip 1
             case '-*'
             case '*'
@@ -91,3 +91,7 @@ complete -c git-splice -n "__git_splice_positional rebuild 0" -a "(__git_splice_
 complete -c git-splice -n "__git_splice_positional key 0" -a "(__git_splice_paths)" -d splice
 complete -c git-splice -n "__fish_seen_subcommand_from key fetch merge pull push status diff log" -l upstream -x -d 'upstream named in .splice'
 complete -c git-splice -n "__fish_seen_subcommand_from pull push" -l exec -x -d 'run a command at each execution checkpoint'
+complete -c git-splice -n "__fish_seen_subcommand_from pull" -l pause-after -x -a 'after-fetch after-merge before-fold after-fold' -d 'save and pause at the next matching checkpoint'
+complete -c git-splice -n "__fish_seen_subcommand_from push" -l pause-after -x -a 'after-rebuild after-push' -d 'save and pause at the next matching checkpoint'
+complete -c git-splice -n "__fish_seen_subcommand_from pull push" -l save-to -r -d 'write continuation to this file'
+complete -c git-splice -n "__fish_seen_subcommand_from pull push" -l continue-from -r -d 'resume this saved operation'

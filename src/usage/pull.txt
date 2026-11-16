@@ -4,6 +4,8 @@ NAME
 SYNOPSIS
     git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
+    git splice pull [--pause-after <event> --save-to <file>] [<option>...]
+    git splice pull --continue-from <file> [--pause-after <event> [--save-to <file>]] [--exec <command>]
 
 DESCRIPTION
     'git splice fetch' followed by 'git splice merge': fetches the splices'
@@ -92,6 +94,30 @@ OPTIONS
         and stderr are inherited.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--exec
+
+    --pause-after <event>
+        Stops at the next after-fetch, after-merge, before-fold or after-fold checkpoint matching
+        <event>, saves pending work with --save-to, and exits 75. Completed
+        work stays applied; nothing runs in the background.
+
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--pause-after
+
+    --save-to <file>
+        Writes an opaque continuation file at a deliberate pause. Use a new
+        file on the first run. With --continue-from and --pause-after, the
+        input file is reused unless another --save-to is given.
+
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--save-to
+
+    --continue-from <file>
+        Resumes the saved operation without repeating its consumed checkpoint.
+        Original options and paths are retained. Run from the same repository
+        root with unchanged HEAD, fetched refs and Git configuration; pull
+        also checks tracked files, index and pull markers. Validation failure
+        leaves the file intact; starting continuation consumes it. An --exec
+        hook must be supplied again. Use the same git-splice version.
+
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--continue-from
 
     See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#options
 

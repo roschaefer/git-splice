@@ -1,5 +1,7 @@
 //! git splice merge.
 
+use serde::{Deserialize, Serialize};
+
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
 use crate::execution::ExecutionEvent;
@@ -813,6 +815,7 @@ impl Repo<'_> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 enum MergePhase {
     Merge,
     Discover(String),
@@ -833,6 +836,7 @@ enum MergePhase {
     Done,
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct MergeProgress {
     paths: Vec<String>,
     next: usize,
