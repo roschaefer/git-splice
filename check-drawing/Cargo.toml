@@ -10,3 +10,6 @@ publish = false
 git-splice = { path = ".." }
 pulldown-cmark = { version = "0.13.6", default-features = false }
 roxmltree = "0.21.2"
+
+[dev-dependencies]
+indoc = "2.0.8"

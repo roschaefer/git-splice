@@ -2,9 +2,12 @@
 //! at each illustrated state.
 
 use check_drawing::check::{Checker, Labels};
+use check_drawing::tree::{ascii, Mark, Marks};
 use git_splice::context::ExecutionContext;
 use git_splice::execution::{ExecutionEvent, ExecutionOutcome};
 use git_splice::pull::{self, PullExecution};
+use indoc::indoc;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 const PAGE: &str = "docs/09-scenarios/05-nested-splices/05-recursion/01-recursive-pull";
@@ -203,4 +206,71 @@ fn step_by_step(root: &Path) {
             drawing("step-folded.drawio.svg", &[("p", "HEAD")]);
         });
     });
+}
+
+#[test]
+fn ascii_splice_tree_before_and_after_recursive_pull() {
+    isolated(
+        "ascii_splice_tree_before_and_after_recursive_pull",
+        |root| {
+            step_by_step_scenario(root);
+            let marks = Marks::from([(Mark::Pulled, "*")]);
+            let notes = HashMap::from([("vendor/a/b".to_string(), "nested splice".to_string())]);
+            assert_eq!(
+                ascii(&labels(&[("s", "HEAD")]), &marks, &notes).unwrap(),
+                indoc! {"
+                    monorepo      (s)
+                    └─ vendor/a/  (a1)
+                       ├─ b/      (b1)  nested splice
+                       │  └─ c/   (c1)
+                       └─ d/      (d1)
+                "}
+            );
+            let mut context = ExecutionContext::new();
+            let mut execution =
+                pull::start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+            assert_eq!(execution.run().unwrap(), 0);
+            assert_eq!(
+                ascii(&labels(&[("p", "HEAD")]), &marks, &HashMap::new()).unwrap(),
+                indoc! {"
+                    monorepo      (p*)
+                    └─ vendor/a/  (a2*) … [p'*]
+                       ├─ b/      (b2*) … [p'*]
+                       │  └─ c/   (c2*)
+                       ├─ d/      (d2*)
+                       └─ e/      (e1)
+                "}
+            );
+        },
+    );
+}
+
+#[test]
+fn ascii_uses_configured_markers_and_omits_unlisted_marks() {
+    isolated(
+        "ascii_uses_configured_markers_and_omits_unlisted_marks",
+        |root| {
+            step_by_step_scenario(root);
+            let mut context = ExecutionContext::new();
+            let mut execution =
+                pull::start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+            assert_eq!(execution.run().unwrap(), 0);
+            let marks = Marks::from([(Mark::Pulled, "*")]);
+            let custom = Marks::from([(Mark::Pulled, "++")]);
+            let standard = ascii(&labels(&[("p", "HEAD")]), &marks, &HashMap::new()).unwrap();
+            assert_eq!(
+                ascii(&labels(&[("p", "HEAD")]), &custom, &HashMap::new()).unwrap(),
+                standard.replace('*', "++")
+            );
+            assert_eq!(
+                ascii(
+                    &labels(&[("p", "HEAD")]),
+                    &Marks::default(),
+                    &HashMap::new()
+                )
+                .unwrap(),
+                standard.replace('*', "")
+            );
+        },
+    );
 }

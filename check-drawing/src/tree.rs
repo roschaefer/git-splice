@@ -21,35 +21,87 @@ pub fn is_tree(d: &Diagram) -> bool {
     d.cells.iter().any(|c| !c.edge && c.style.has("tree=1"))
 }
 
-/// Which of the lane drawing's marks a tree shows, each with a sample in
-/// its legend.
+/// A commit's meaning in the tree and its legend.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Mark {
+    Pulled,
+    Carried,
+    Conflict,
+}
+
+impl Mark {
+    fn color(self) -> &'static str {
+        match self {
+            Self::Pulled => PULLED,
+            Self::Carried => CARRIED,
+            Self::Conflict => CONFLICT,
+        }
+    }
+
+    fn description(self) -> &'static str {
+        match self {
+            Self::Pulled => "pulled",
+            Self::Carried => "carried over",
+            Self::Conflict => "merged in, conflicts",
+        }
+    }
+}
+
+/// Enabled marks and their text markers. Unlisted marks are omitted.
 #[derive(Default)]
-pub struct Marks {
-    pub pulled: bool,
-    pub carried: bool,
+pub struct Marks(HashMap<Mark, &'static str>);
+
+impl<const N: usize> From<[(Mark, &'static str); N]> for Marks {
+    fn from(marks: [(Mark, &'static str); N]) -> Self {
+        Self(HashMap::from(marks))
+    }
 }
 
 impl Marks {
+    pub fn insert(&mut self, mark: Mark, marker: &'static str) {
+        self.0.insert(mark, marker);
+    }
+
+    /// Text markers and their meanings, in a stable legend order.
+    pub fn legend(&self) -> impl Iterator<Item = (&str, &str)> {
+        [Mark::Pulled, Mark::Carried, Mark::Conflict]
+            .into_iter()
+            .filter_map(|mark| {
+                self.0
+                    .get(&mark)
+                    .map(|marker| (*marker, mark.description()))
+            })
+    }
+
+    fn enabled(&self, mark: Mark) -> bool {
+        self.0.contains_key(&mark)
+    }
+
     /// The marks drawing <d>'s legend has samples of.
     fn of(d: &Diagram) -> Marks {
-        let sampled = |color: &str| {
-            d.cells
+        let mut marks = Marks::default();
+        for (mark, marker) in [
+            (Mark::Pulled, "*"),
+            (Mark::Carried, "^"),
+            (Mark::Conflict, "!"),
+        ] {
+            if d.cells
                 .iter()
-                .any(|c| d.in_legend(c) && c.style.color("strokeColor", "black") == color)
-        };
-        Marks {
-            pulled: sampled(PULLED),
-            carried: sampled(CARRIED),
+                .any(|c| d.in_legend(c) && c.style.color("strokeColor", "black") == mark.color())
+            {
+                marks.insert(mark, marker);
+            }
         }
+        marks
     }
 
     /// The options of `check-drawing tree` that give these marks.
     fn options(&self) -> String {
         let mut options = String::new();
-        if self.pulled {
+        if self.enabled(Mark::Pulled) {
             options.push_str(" --mark pulled");
         }
-        if self.carried {
+        if self.enabled(Mark::Carried) {
             options.push_str(" --mark carried");
         }
         options
@@ -68,6 +120,8 @@ struct Circle {
 /// it hangs, its synced commit (the root's: HEAD), R, where the splice has
 /// commits of its own, and the commit a conflicted pull of it merges in.
 struct Row {
+    /// The splice's path in the monorepo; empty for the monorepo's row.
+    path: String,
     folder: String,
     depth: usize,
     synced: Option<Circle>,
@@ -148,7 +202,10 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
     let pulled = |commit: &str| pulls.contains(commit) || brought.contains(commit);
     let mut errors = Vec::new();
     let mut circle = |label: String, pulled: bool, carried: bool| {
-        let (pulled, carried) = (pulled && marks.pulled, carried && marks.carried);
+        let (pulled, carried) = (
+            pulled && marks.enabled(Mark::Pulled),
+            carried && marks.enabled(Mark::Carried),
+        );
         if pulled && carried {
             errors.push(format!(
                 "{label} is both pulled and carried over, and one outline can't show both: leave out --mark pulled or --mark carried"
@@ -169,6 +226,7 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
     };
 
     let mut rows = vec![Row {
+        path: String::new(),
         folder: "monorepo".to_string(),
         depth: 0,
         synced: Some(circle(
@@ -209,6 +267,7 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
                 dashed: false,
             });
         rows.push(Row {
+            path: splice.clone(),
             folder: format!("{folder}/"),
             depth: around.len() + 1,
             synced,
@@ -327,10 +386,10 @@ fn render(rows: &[Row], marks: &Marks) -> String {
         }
     }
     let mut items: Vec<(&str, &str)> = Vec::new();
-    if marks.pulled {
+    if marks.enabled(Mark::Pulled) {
         items.push((PULLED, "pulled"));
     }
-    if marks.carried {
+    if marks.enabled(Mark::Carried) {
         items.push((CARRIED, "carried over"));
     }
     if rows.iter().any(|r| r.theirs.is_some()) {
@@ -373,6 +432,91 @@ fn render(rows: &[Row], marks: &Marks) -> String {
     format!(
         "<mxfile host=\"Electron\"><diagram name=\"tree\" id=\"tree\"><mxGraphModel grid=\"0\" page=\"0\" background=\"#ffffff\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>\n{cells}{edges}</root></mxGraphModel></diagram></mxfile>\n"
     )
+}
+
+/// The tree of the monorepo in the current folder as text, as `tree` prints
+/// folders, with the same rows as the drawing: each splice's synced commit
+/// and, after "…", its rebuild R. A commit is (label), or [label] where no
+/// upstream branch has it (dashed in the drawing); with <marks>, a pulled
+/// one uses the configured text marker. Unlisted marks are omitted.
+/// <notes> adds text after the row of the splice it names.
+///
+/// ```text
+/// monorepo        (pb)
+/// └─ vendor/a/    (a2) … [pb']  done
+///    ├─ b/        (b2)          done
+///    │  └─ c/     (c1)          pending: merge
+///    └─ d/        (d1)          pending: merge
+/// ```
+pub fn ascii(
+    labels: &Labels,
+    marks: &Marks,
+    notes: &HashMap<String, String>,
+) -> Result<String, Vec<String>> {
+    let rows = rows(&History::default(), labels, marks)?;
+    let circle = |c: &Circle| {
+        let mark = [Mark::Pulled, Mark::Carried, Mark::Conflict]
+            .into_iter()
+            .find(|mark| c.color == Some(mark.color()))
+            .and_then(|mark| marks.0.get(&mark).copied())
+            .unwrap_or("");
+        if c.dashed {
+            format!("[{}{mark}]", c.label)
+        } else {
+            format!("({}{mark})", c.label)
+        }
+    };
+    // Whether no later row hangs from the same row as row <i>.
+    let last = |i: usize| {
+        let depth = rows[i].depth;
+        rows[i + 1..]
+            .iter()
+            .take_while(|row| row.depth >= depth)
+            .all(|row| row.depth > depth)
+    };
+    let mut lines: Vec<(String, String, String)> = Vec::new();
+    // For each depth, whether the row drawn last at it was its parent's last.
+    let mut closed: Vec<bool> = Vec::new();
+    for (i, row) in rows.iter().enumerate() {
+        let mut name = String::new();
+        if row.depth > 0 {
+            closed.truncate(row.depth);
+            for &done in closed.iter().skip(1) {
+                name.push_str(if done { "   " } else { "│  " });
+            }
+            let is_last = last(i);
+            name.push_str(if is_last { "└─ " } else { "├─ " });
+            closed.push(is_last);
+        } else {
+            closed = vec![true];
+        }
+        name.push_str(&row.folder);
+        let mut commits: Vec<String> = row.synced.iter().map(circle).collect();
+        if let Some(r) = &row.r {
+            if row.synced.is_some() {
+                commits.push("…".to_string());
+            }
+            commits.push(circle(r));
+        }
+        commits.extend(row.theirs.iter().map(circle));
+        let note = notes.get(&row.path).cloned().unwrap_or_default();
+        lines.push((name, commits.join(" "), note));
+    }
+    let width = |pick: fn(&(String, String, String)) -> &String| {
+        lines
+            .iter()
+            .map(|line| pick(line).chars().count())
+            .max()
+            .unwrap_or(0)
+    };
+    let (names, commits) = (width(|l| &l.0), width(|l| &l.1));
+    Ok(lines
+        .iter()
+        .map(|(name, circles, note)| {
+            let line = format!("{name:<names$}  {circles:<commits$}  {note}");
+            format!("{}\n", line.trim_end())
+        })
+        .collect())
 }
 
 /// `check-drawing tree [--mark pulled|carried]... [<label>=<rev>...]`:
@@ -439,4 +583,19 @@ pub fn run(path: &str, name: &str, d: &Diagram, labels: &Labels) -> bool {
         println!("!!   {id}: drawn {}, given {}", cell(&drawn), cell(&given));
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Mark, Marks};
+
+    #[test]
+    fn legend_lists_only_configured_marks() {
+        let marks = Marks::from([(Mark::Conflict, "!"), (Mark::Pulled, "++")]);
+        assert_eq!(
+            marks.legend().collect::<Vec<_>>(),
+            [("++", "pulled"), ("!", "merged in, conflicts")]
+        );
+        assert_eq!(Marks::default().legend().count(), 0);
+    }
 }

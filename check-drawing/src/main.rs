@@ -40,8 +40,8 @@ fn main() -> ExitCode {
     while let Some(arg) = rest.next() {
         if drawing == "tree" && arg == "--mark" {
             match rest.next().map(String::as_str) {
-                Some("pulled") => marks.pulled = true,
-                Some("carried") => marks.carried = true,
+                Some("pulled") => marks.insert(tree::Mark::Pulled, "*"),
+                Some("carried") => marks.insert(tree::Mark::Carried, "^"),
                 _ => {
                     eprintln!("{USAGE}");
                     return ExitCode::FAILURE;
