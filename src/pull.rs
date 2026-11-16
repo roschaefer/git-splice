@@ -7,6 +7,7 @@ use crate::fetch::{FetchPlan, FetchResults};
 use crate::merge::{apply_merge_options, MergeProgress, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
 use crate::repo::*;
+use crate::tree::{Step, Task, Tasks};
 use crate::util::*;
 
 pub const USAGE: &str = include_str!("usage/pull.txt");
@@ -42,6 +43,11 @@ impl PullExecution<'_> {
         self.inner.run()
     }
 
+    /// What this pull did and still does for each splice.
+    pub fn tasks(&self) -> Tasks {
+        self.inner.tasks()
+    }
+
     /// Pauses at a selected event. Repository identity, HEAD, branch, fetched
     /// refs, configuration, tracked files, index and pull markers must remain
     /// unchanged in the predicate and while paused.
@@ -73,8 +79,17 @@ struct PullProgress {
     fold_roots: Vec<String>,
     rebasing: bool,
     fetch_failures: Vec<String>,
+    /// What the merges did for each splice, once they are over.
+    merged: Vec<(String, Task)>,
     status: i32,
     phase: PullPhase,
+}
+
+/// Why a selected splice isn't merged after the fetch.
+enum NotFetched {
+    Itself,
+    Above(String),
+    Below(String),
 }
 
 impl PullProgress {
@@ -135,6 +150,7 @@ impl PullProgress {
             fold_roots: Vec::new(),
             rebasing: false,
             fetch_failures: Vec::new(),
+            merged: Vec::new(),
             status: 0,
             phase: PullPhase::Fetch(plan),
         })
@@ -163,11 +179,13 @@ impl PullProgress {
                 let event = advanced.as_ref().ok().cloned().flatten();
                 if advanced.is_err() {
                     self.status = 1;
+                    self.merged = merges.tasks();
                     self.phase = PullPhase::Finalize;
                 } else if merges.done() {
                     if merges.finish().is_err() {
                         self.status = 1;
                     }
+                    self.merged = merges.tasks();
                     self.phase = PullPhase::Finalize;
                 } else {
                     self.phase = PullPhase::Merge(merges);
@@ -176,7 +194,7 @@ impl PullProgress {
             }
             PullPhase::Finalize => {
                 let allowed = self.recursive && !splice_in_progress();
-                if allowed && self.status == 0 {
+                if self.folds() {
                     let observed_head = commit_of("HEAD");
                     let event = observed_head
                         .as_ref()
@@ -208,27 +226,38 @@ impl PullProgress {
         }
     }
 
+    /// Why selected splice <path> isn't merged, if a fetch failed for it.
+    fn not_fetched(&self, path: &str) -> Option<NotFetched> {
+        if self.fetch_failures.iter().any(|failed| failed == path) {
+            return Some(NotFetched::Itself);
+        }
+        if let Some(failed) = first_above(path, &self.fetch_failures) {
+            return Some(NotFetched::Above(failed));
+        }
+        // Its pull could move the synced commit of the failed one to one that
+        // wasn't fetched.
+        first_below(path, &self.fetch_failures).map(NotFetched::Below)
+    }
+
+    /// Whether the merges end in folding: a recursive pull with no conflict
+    /// left and no failure.
+    fn folds(&self) -> bool {
+        self.recursive && !splice_in_progress() && self.status == 0
+    }
+
     fn begin_merges(&mut self, repo: &mut Repo) -> Res<()> {
         let mut fetched = Vec::new();
         for path in &self.selected {
-            if self.fetch_failures.contains(path) {
-                continue;
-            }
-            if let Some(failed) = first_above(path, &self.fetch_failures) {
-                log_err(format!(
+            match self.not_fetched(path) {
+                None => fetched.push(path.clone()),
+                Some(NotFetched::Itself) => {}
+                Some(NotFetched::Above(failed)) => log_err(format!(
                     "{path}: not pulled, since {failed} above it wasn't fetched"
-                ));
-                continue;
-            }
-            // Its pull could move the synced commit of the failed one to one that
-            // wasn't fetched.
-            if let Some(failed) = first_below(path, &self.fetch_failures) {
-                log_err(format!(
+                )),
+                Some(NotFetched::Below(failed)) => log_err(format!(
                 "{path}: not pulled, since {failed} below it wasn't fetched -- 'git splice merge {path}' merges what was fetched anyway"
-            ));
-                continue;
+            )),
             }
-            fetched.push(path.clone());
         }
 
         // A recursive pull is one commit per splice it starts from, made of its
@@ -636,6 +665,63 @@ impl Operation for PullProgress {
     }
     fn stopped(&self) {
         let _ = self.say_if_detached();
+    }
+    fn tasks(&self) -> Tasks {
+        // A splice a failed fetch keeps from merging, from the report on.
+        let unfetched = |path: &String| match self.not_fetched(path)? {
+            NotFetched::Itself => Some(Task::Failed),
+            NotFetched::Above(failed) | NotFetched::Below(failed) => Some(Task::Blocked(failed)),
+        };
+        let with = |merges: &[(String, Task)], or: Task| -> Vec<(String, Task)> {
+            let mut tasks: Vec<(String, Task)> = self
+                .selected
+                .iter()
+                .map(|path| {
+                    let task = unfetched(path)
+                        .or_else(|| {
+                            merges
+                                .iter()
+                                .find(|(p, _)| p == path)
+                                .map(|(_, t)| t.clone())
+                        })
+                        .unwrap_or_else(|| or.clone());
+                    (path.clone(), task)
+                })
+                .collect();
+            // Splices the merges found below the selected ones.
+            for (path, task) in merges {
+                if !tasks.iter().any(|(p, _)| p == path) {
+                    tasks.push((path.clone(), task.clone()));
+                }
+            }
+            tasks
+        };
+        let (per_splice, next) = match &self.phase {
+            PullPhase::Fetch(_) | PullPhase::Fetched(_) => (
+                self.selected
+                    .iter()
+                    .map(|path| (path.clone(), Task::Pending(Step::Fetch)))
+                    .collect(),
+                None,
+            ),
+            PullPhase::Reported => (with(&[], Task::Pending(Step::Merge)), None),
+            PullPhase::Merge(merges) => (with(&merges.tasks(), Task::Pending(Step::Merge)), None),
+            // A splice keeps its merge pending unless the merges settled it.
+            PullPhase::Finalize
+            | PullPhase::Fold { .. }
+            | PullPhase::Cleanup { .. }
+            | PullPhase::Done => {
+                let next = match &self.phase {
+                    PullPhase::Finalize if self.folds() => Some("fold"),
+                    PullPhase::Finalize => Some("clean up"),
+                    PullPhase::Fold { .. } => Some("fold"),
+                    PullPhase::Cleanup { .. } => Some("clean up"),
+                    _ => None,
+                };
+                (with(&self.merged, Task::Pending(Step::Merge)), next)
+            }
+        };
+        Tasks { per_splice, next }
     }
 }
 
