@@ -2,7 +2,7 @@
 //! at each illustrated state.
 
 use check_drawing::check::{Checker, Labels};
-use check_drawing::tree::{ascii, Marks};
+use check_drawing::tree::{ascii, Mark, Marks};
 use git_splice::context::ExecutionContext;
 use git_splice::execution::{ExecutionEvent, ExecutionOutcome};
 use git_splice::pull::{self, PullExecution};
@@ -214,10 +214,7 @@ fn ascii_splice_tree_before_and_after_recursive_pull() {
         "ascii_splice_tree_before_and_after_recursive_pull",
         |root| {
             step_by_step_scenario(root);
-            let marks = Marks {
-                pulled: true,
-                carried: false,
-            };
+            let marks = Marks::from([(Mark::Pulled, "*")]);
             let notes = HashMap::from([("vendor/a/b".to_string(), "nested splice".to_string())]);
             assert_eq!(
                 ascii(&labels(&[("s", "HEAD")]), &marks, &notes).unwrap(),
@@ -244,6 +241,23 @@ fn ascii_splice_tree_before_and_after_recursive_pull() {
                        └─ e/      (e1)
                 "}
             );
+            let custom = Marks::from([(Mark::Pulled, "++")]);
+            let standard = ascii(&labels(&[("p", "HEAD")]), &marks, &HashMap::new()).unwrap();
+            assert_eq!(
+                ascii(&labels(&[("p", "HEAD")]), &custom, &HashMap::new()).unwrap(),
+                standard.replace('*', "++")
+            );
+            assert_eq!(custom.legend().collect::<Vec<_>>(), [("++", "pulled")]);
+            assert_eq!(
+                ascii(
+                    &labels(&[("p", "HEAD")]),
+                    &Marks::default(),
+                    &HashMap::new()
+                )
+                .unwrap(),
+                standard.replace('*', "")
+            );
+            assert_eq!(Marks::default().legend().count(), 0);
         },
     );
 }
