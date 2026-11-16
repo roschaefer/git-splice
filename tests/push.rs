@@ -1,8 +1,9 @@
 mod common;
 
-use common::{git, push_ahead, with_repository};
+use common::{git, with_repository};
 use git_splice::context::ExecutionContext;
 use git_splice::execution::ExecutionEvent;
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 #[test]
@@ -69,4 +70,30 @@ fn observer_sees_rebuilt_objects_before_publication_and_remote_ref_afterward() {
         );
         assert!(events.lock().unwrap().is_empty());
     });
+}
+
+fn push_ahead() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let output = Command::new("bash")
+        .args([
+            "-euo",
+            "pipefail",
+            "-c",
+            r#"
+source "$1/docs/tests/helpers/fixtures.bash"
+source "$1/docs/09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup.bash"
+hermetic_git_config
+scenario_push_ahead "$PWD" "$(cd .. && pwd)/upstream.git"
+"#,
+            "push-ahead",
+        ])
+        .arg(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

@@ -45,11 +45,12 @@ pub fn with_repository(test: impl FnOnce()) {
         .env("GIT_TERMINAL_PROMPT", "0")
         .output()
         .unwrap();
+    print!("{}", String::from_utf8_lossy(&output.stdout));
+    eprint!("{}", String::from_utf8_lossy(&output.stderr));
     assert!(
         output.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
+        "isolated test {name} failed: {}",
+        output.status
     );
 }
 
@@ -65,30 +66,4 @@ pub fn git(args: &[&str]) -> String {
         String::from_utf8_lossy(&output.stderr)
     );
     String::from_utf8(output.stdout).unwrap().trim_end().into()
-}
-
-pub fn push_ahead() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let output = Command::new("bash")
-        .args([
-            "-euo",
-            "pipefail",
-            "-c",
-            r#"
-source "$1/docs/tests/helpers/fixtures.bash"
-source "$1/docs/09-scenarios/01-everyday-sync/02-up-to-date/02-push-ahead/setup.bash"
-hermetic_git_config
-scenario_push_ahead "$PWD" "$(cd .. && pwd)/upstream.git"
-"#,
-            "push-ahead",
-        ])
-        .arg(root)
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
 }
