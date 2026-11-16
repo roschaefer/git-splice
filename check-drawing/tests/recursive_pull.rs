@@ -6,6 +6,7 @@ use check_drawing::tree::{ascii, Marks};
 use git_splice::context::ExecutionContext;
 use git_splice::execution::{ExecutionEvent, ExecutionOutcome};
 use git_splice::pull::{self, PullExecution};
+use indoc::indoc;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -220,13 +221,13 @@ fn ascii_splice_tree_before_and_after_recursive_pull() {
             let notes = HashMap::from([("vendor/a/b".to_string(), "nested splice".to_string())]);
             assert_eq!(
                 ascii(&labels(&[("s", "HEAD")]), &marks, &notes).unwrap(),
-                "\
-monorepo      (s)
-└─ vendor/a/  (a1)
-   ├─ b/      (b1)  nested splice
-   │  └─ c/   (c1)
-   └─ d/      (d1)
-"
+                indoc! {"
+                    monorepo      (s)
+                    └─ vendor/a/  (a1)
+                       ├─ b/      (b1)  nested splice
+                       │  └─ c/   (c1)
+                       └─ d/      (d1)
+                "}
             );
             let mut context = ExecutionContext::new();
             let mut execution =
@@ -234,14 +235,14 @@ monorepo      (s)
             assert_eq!(execution.run().unwrap(), 0);
             assert_eq!(
                 ascii(&labels(&[("p", "HEAD")]), &marks, &HashMap::new()).unwrap(),
-                "\
-monorepo      (p*)
-└─ vendor/a/  (a2*) … [p'*]
-   ├─ b/      (b2*) … [p'*]
-   │  └─ c/   (c2*)
-   ├─ d/      (d2*)
-   └─ e/      (e1)
-"
+                indoc! {"
+                    monorepo      (p*)
+                    └─ vendor/a/  (a2*) … [p'*]
+                       ├─ b/      (b2*) … [p'*]
+                       │  └─ c/   (c2*)
+                       ├─ d/      (d2*)
+                       └─ e/      (e1)
+                "}
             );
         },
     );

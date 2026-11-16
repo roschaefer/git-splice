@@ -13,6 +13,7 @@ name = "check-drawing"
 version = "0.0.0"
 dependencies = [
  "git-splice",
+ "indoc",
  "pulldown-cmark",
  "roxmltree",
 ]
@@ -24,6 +25,15 @@ version = "0.0.0"
 [[package]]
 name = "git-splice"
 version = "0.21.0"
+
+[[package]]
+name = "indoc"
+version = "2.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a37b2691796cffeb8a8cd305ac66e65841559f147f4e63231d0eafa4db5384d1"
+dependencies = [
+ "rustversion",
+]
 
 [[package]]
 name = "memchr"
@@ -50,6 +60,12 @@ checksum = "9da7f59328b09405b181fee1018925fad50f157afb43c0c0f5c522c256dd5907"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "rustversion"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "unicase"
