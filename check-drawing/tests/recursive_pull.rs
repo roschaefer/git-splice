@@ -4,7 +4,7 @@
 use check_drawing::check::{Checker, Labels};
 use git_splice::context::ExecutionContext;
 use git_splice::execution::{ExecutionEvent, ExecutionOutcome};
-use git_splice::pull;
+use git_splice::pull::{self, PullExecution};
 use std::path::{Path, PathBuf};
 
 const PAGE: &str = "docs/09-scenarios/05-nested-splices/05-recursion/01-recursive-pull";
@@ -128,66 +128,79 @@ fn recursive_pull_step_by_step() {
     isolated("recursive_pull_step_by_step", step_by_step);
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum Checkpoint<'a> {
+    Fetch(Vec<&'a str>),
+    Merge(&'a str),
+    BeforeFold,
+    AfterFold,
+}
+
+struct Checkpoints<'context> {
+    execution: PullExecution<'context>,
+}
+
+impl Checkpoints<'_> {
+    fn expect(&mut self, expected: Checkpoint<'_>, check: impl FnOnce(&PullExecution)) {
+        let outcome = self.execution.run_until(|_| true).unwrap();
+        let ExecutionOutcome::Paused(event) = outcome else {
+            panic!("expected {expected:?}, got {outcome:?}");
+        };
+        let observed = match &event {
+            ExecutionEvent::AfterFetch { fetched } => {
+                assert!(
+                    fetched.iter().all(|f| !f.failed),
+                    "fetch failed: {fetched:?}"
+                );
+                Checkpoint::Fetch(fetched.iter().map(|f| f.path.as_str()).collect())
+            }
+            ExecutionEvent::AfterMerge { path, .. } => Checkpoint::Merge(path),
+            ExecutionEvent::BeforeFold { .. } => Checkpoint::BeforeFold,
+            ExecutionEvent::AfterFold { .. } => Checkpoint::AfterFold,
+            other => panic!("expected {expected:?}, got {other:?}"),
+        };
+        assert_eq!(observed, expected);
+        check(&self.execution);
+    }
+}
+
+fn with_checkpoints(execution: PullExecution, check: impl FnOnce(&mut Checkpoints)) {
+    let mut checkpoints = Checkpoints { execution };
+    check(&mut checkpoints);
+    assert_eq!(
+        checkpoints.execution.run_until(|_| true).unwrap(),
+        ExecutionOutcome::Complete(0),
+        "unconsumed checkpoint or unsuccessful pull"
+    );
+}
+
 fn step_by_step(root: &Path) {
     step_by_step_scenario(root);
     drawing("step-0.drawio.svg", &[("s", "HEAD")]);
     let mut context = ExecutionContext::new();
-    let mut execution =
-        pull::start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
-    let mut checked = vec!["step-0.drawio.svg"];
-    let wanted = |event: &ExecutionEvent| {
-        matches!(
-            event,
-            ExecutionEvent::AfterFetch { .. }
-                | ExecutionEvent::AfterMerge { .. }
-                | ExecutionEvent::BeforeFold { .. }
-                | ExecutionEvent::AfterFold { .. }
-        )
-    };
-    while let ExecutionOutcome::Paused(event) = execution.run_until(wanted).unwrap() {
-        match event {
-            ExecutionEvent::AfterFetch { fetched } => {
-                let paths: Vec<String> = fetched.into_iter().map(|f| f.path).collect();
-                // e/ came with a's merge; the page's drawing of that merge
-                // shows it fetched, as it is only from here on.
-                if paths == ["vendor/a/e"] {
-                    drawing("step-a.drawio.svg", &[("pa", "HEAD")]);
-                    checked.push("step-a.drawio.svg");
-                }
-            }
-            ExecutionEvent::AfterMerge { path, .. } => {
-                let page = match path.as_str() {
-                    "vendor/a" => None,
-                    "vendor/a/b" => Some(("step-b.drawio.svg", vec![("pb", "HEAD")])),
-                    "vendor/a/b/c" => Some(("step-c.drawio.svg", vec![("pc", "HEAD")])),
-                    "vendor/a/d" => {
-                        Some(("step-d.drawio.svg", vec![("pd", "HEAD"), ("pc", "HEAD~1")]))
-                    }
-                    other => panic!("unexpected merge of {other}"),
-                };
-                if let Some((file, revs)) = page {
-                    drawing(file, &revs);
-                    checked.push(file);
-                }
-            }
-            ExecutionEvent::BeforeFold { .. } => {}
-            ExecutionEvent::AfterFold { .. } => {
-                drawing("step-folded.drawio.svg", &[("p", "HEAD")]);
-                checked.push("step-folded.drawio.svg");
-            }
-            _ => unreachable!(),
-        };
-    }
-    assert_eq!(execution.run().unwrap(), 0);
-    assert_eq!(
-        checked,
-        [
-            "step-0.drawio.svg",
-            "step-a.drawio.svg",
-            "step-b.drawio.svg",
-            "step-c.drawio.svg",
-            "step-d.drawio.svg",
-            "step-folded.drawio.svg",
-        ]
-    );
+    let execution = pull::start(&mut context, &["--recursive".into(), "vendor/a".into()]).unwrap();
+    with_checkpoints(execution, |checkpoints| {
+        checkpoints.expect(
+            Checkpoint::Fetch(vec!["vendor/a", "vendor/a/b", "vendor/a/b/c", "vendor/a/d"]),
+            |_| {},
+        );
+        checkpoints.expect(Checkpoint::Merge("vendor/a"), |_| {});
+        // e/ came with a's merge; the drawing shows its upstream fetched.
+        checkpoints.expect(Checkpoint::Fetch(vec!["vendor/a/e"]), |_| {
+            drawing("step-a.drawio.svg", &[("pa", "HEAD")]);
+        });
+        checkpoints.expect(Checkpoint::Merge("vendor/a/b"), |_| {
+            drawing("step-b.drawio.svg", &[("pb", "HEAD")]);
+        });
+        checkpoints.expect(Checkpoint::Merge("vendor/a/b/c"), |_| {
+            drawing("step-c.drawio.svg", &[("pc", "HEAD")]);
+        });
+        checkpoints.expect(Checkpoint::Merge("vendor/a/d"), |_| {
+            drawing("step-d.drawio.svg", &[("pd", "HEAD"), ("pc", "HEAD~1")]);
+        });
+        checkpoints.expect(Checkpoint::BeforeFold, |_| {});
+        checkpoints.expect(Checkpoint::AfterFold, |_| {
+            drawing("step-folded.drawio.svg", &[("p", "HEAD")]);
+        });
+    });
 }
