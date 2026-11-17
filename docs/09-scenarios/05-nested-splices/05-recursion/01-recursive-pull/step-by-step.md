@@ -253,3 +253,20 @@ ok   vendor/a/e: nothing to pull
 $ git rev-parse --quiet --verify SPLICE_PULL_START || echo 'pull ended'
 pull ended
 ```
+
+## The history it leaves
+
+The monorepo's history has *p* only: *pa*, *pb*, *pc* and *pd* were
+steps on the way, and the fold replaced them. `vendor/a/` and `b/` each
+get the copy *p'*, for the records of the splices inside them. `c/`,
+`d/` and `e/` get none: their files are their upstream's, *c2*, *d2*
+and *e1*.
+
+![The monorepo's history s, p, main at p; p outlined blue. Below, one lane per splice, each with its upstream's main: vendor/a/ a1, a2, then the dashed copy p'; vendor/a/b/ b1, b2, then p'; vendor/a/b/c/ c1, c2; vendor/a/d/ d1, d2; vendor/a/e/ e1. The upstream commits that came in are outlined blue, and so are the copies of p](step-lanes.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/step-lanes.drawio.svg" s=HEAD~1 p=HEAD
+ok   step-lanes.drawio.svg: 13 commits, 13 arrows, 6 boxes, 5 lanes
+```
+-->
