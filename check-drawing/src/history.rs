@@ -561,22 +561,39 @@ impl History {
 
     /// The pulls commit <commit> records: each state file, with the synced
     /// commit its first parent records and its own, where they differ. A
-    /// state file the parent lacks, as after a clone, records none; one
-    /// whose parent records no synced commit yet, as after an init, does.
+    /// state file the parent lacks, as after a clone, records none, unless
+    /// it is inside a splice the commit pulls: that pull brought it in, with
+    /// all of its history. One whose parent records no synced commit yet, as
+    /// after an init, does.
     pub fn pulls_in(&self, commit: &str) -> Vec<(String, String, String)> {
         let Some(parent) = self.parents_of(commit).first().cloned() else {
             return Vec::new();
         };
-        let mut pulls = Vec::new();
+        let (mut pulls, mut added) = (Vec::new(), Vec::new());
         for file in self.state_files(commit).iter() {
             let now = self.config(&format!("{commit}:{file}"), "splice.commit");
             let earlier = format!("{parent}:{file}");
-            if now.is_empty() || self.rev_parse(&earlier).is_none() {
+            if now.is_empty() {
+                continue;
+            }
+            if self.rev_parse(&earlier).is_none() {
+                added.push((file.clone(), now));
                 continue;
             }
             let before = self.config(&earlier, "splice.commit");
             if before != now {
                 pulls.push((file.clone(), before, now));
+            }
+        }
+        let folder = |file: &str| file.strip_suffix(".splice").unwrap_or(file).to_string();
+        let pulled: Vec<String> = pulls.iter().map(|(file, _, _)| folder(file)).collect();
+        for (file, now) in added {
+            let inside = folder(&file);
+            if pulled
+                .iter()
+                .any(|f| inside.starts_with(f.as_str()) && inside != *f)
+            {
+                pulls.push((file, String::new(), now));
             }
         }
         pulls
@@ -639,10 +656,16 @@ impl History {
                 if !before.is_empty() {
                     range.push(format!("^{before}"));
                 }
-                for subject in self.log(&range).iter() {
+                let history = self.log(&range);
+                for subject in history.iter() {
                     if !own.contains(&self.copy_key(&subject.hash)) {
                         brought.insert(subject.hash.clone());
                     }
+                }
+                // Not fetched yet, e.g. a splice the pull just brought in:
+                // its synced commit came in all the same.
+                if history.is_empty() && self.commit(&range[0]).is_none() {
+                    brought.insert(range[0].clone());
                 }
             }
         }
