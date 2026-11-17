@@ -63,12 +63,3 @@ Keeping both formats in sync would be harder:
 The [metadata scenario](../../09-scenarios/09-vcs-compatibility/01-sapling-metadata/README.md)
 shows a deleted file returning after a squash loses the newer record.
 Sapling record import and writing both formats are not planned yet.
-
-## Related jj proposals
-
-jj has separate discussions about
-[submodule support](https://github.com/jj-vcs/jj/blob/main/docs/design/git-submodules.md)
-and [merging submodules](https://github.com/jj-vcs/jj/issues/1405).
-[Composable histories](https://github.com/jj-vcs/jj/issues/10179) was a
-closed draft proposal for working across repositories. These aren't
-released commands or commitments to splice support.
