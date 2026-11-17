@@ -87,9 +87,10 @@ OPTIONS
         checkpoint. GIT_SPLICE_EVENT names the checkpoint; GIT_SPLICE_PATH
         names its splice, and GIT_SPLICE_COMMIT its prepared or published
         commit, when applicable. Other values are empty. Zero continues;
-        nonzero stops with completed work applied. Hooks must preserve the
-        repository inputs required by continuation. stdin is closed; stdout
-        and stderr are inherited.
+        nonzero stops with completed work applied. A hook that exits zero
+        must leave HEAD, the branch, fetched refs, Git configuration,
+        tracked files and the index as they were, or pull stops. stdin is
+        closed; stdout and stderr are inherited.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--exec
 
