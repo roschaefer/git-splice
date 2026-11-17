@@ -7,6 +7,8 @@ setup() {
   load '../../check-drawing/check-drawing'
   hermetic_git_config
   load '../09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/setup'
+  load '../09-scenarios/05-nested-splices/01-nested-splices/setup'
+  load '../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -333,6 +335,7 @@ legend_cells() {
     case "$mark" in
       orange) style="ellipse;strokeColor=#E07000;" ;;
       blue) style="ellipse;strokeColor=#0070E0;" ;;
+      red) style="ellipse;strokeColor=#D00000;" ;;
       dashed) style="ellipse;dashed=1;" ;;
       prime) style="ellipse;" value="a'" ;;
     esac
@@ -837,4 +840,60 @@ XML
   run check_drawing "$drawing" c=HEAD x1="$x1"
   [ "$status" -eq 1 ]
   [ "$output" = "!!   x1 is outlined blue, but it neither records a pull nor came in with one: outline it black" ]
+}
+
+# A pull --rebase of vendor/a/b, three levels deep, stopped at a conflict:
+# the monorepo's commit m and b's upstream both add to its file.txt. The
+# drawing shows m, in the style $1, and a legend with a red sample.
+stopped_rebase() {
+  scenario_three_levels "$BATS_TEST_TMPDIR/three" "$BATS_TEST_TMPDIR/three.git"
+  cd "$BATS_TEST_TMPDIR/three"
+  commit_local . vendor/a/b "m: b local"
+  seed_bare_repo "$BATS_TEST_TMPDIR/three-b.git" "b upstream"
+  run splice pull --rebase vendor/a/b
+  [ "$status" -ne 0 ]
+  [ -n "$(git rev-parse --verify --quiet REBASE_HEAD)" ]
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="m" parent="1" vertex="1" style="$1" value="m"><mxGeometry x="-200" y="0" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="la" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="vendor/a/"><mxGeometry x="-250" y="100" width="400" height="300" as="geometry" /></mxCell>
+<mxCell id="lb" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="vendor/a/b/"><mxGeometry x="-230" y="150" width="360" height="230" as="geometry" /></mxCell>
+<mxCell id="lc" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="vendor/a/b/c/"><mxGeometry x="-210" y="200" width="320" height="160" as="geometry" /></mxCell>
+$(legend_cells red)
+</root></mxGraphModel></diagram></mxfile>
+XML
+}
+
+@test "drawing: with a red sample in the legend, the commit a stopped rebase replays is outlined red" {
+  stopped_rebase 'ellipse;'
+  run check_drawing "$drawing" m=REBASE_HEAD
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   m is the commit a stopped rebase replays: outline it red, #D00000" ]
+  edit_drawing -u '//mxCell[@id="m"]/@style' -v 'ellipse;strokeColor=#D00000;'
+  run check_drawing "$drawing" m=REBASE_HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: once the rebase ends, the commit it replayed isn't outlined red, though Git keeps REBASE_HEAD" {
+  stopped_rebase 'ellipse;strokeColor=#D00000;'
+  m="$(git rev-parse REBASE_HEAD)"
+  git checkout -q --theirs vendor/a/b/file.txt
+  git add vendor/a/b/file.txt
+  GIT_EDITOR=true git rebase --continue >/dev/null
+  [ -n "$(git rev-parse --verify --quiet REBASE_HEAD)" ]
+  run check_drawing "$drawing" m="$m"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   m is outlined red, but no stopped pull or rebase conflicts on it: outline it black"* ]]
+}
+
+@test "drawing: a commit no stopped pull or rebase conflicts on isn't outlined red" {
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="e" parent="1" vertex="1" style="ellipse;strokeColor=#D00000;" value="e"><mxGeometry x="-200" y="0" width="70" height="70" as="geometry" /></mxCell>
+$(legend_cells red)
+</root></mxGraphModel></diagram></mxfile>
+XML
+  run check_drawing "$drawing" e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   e is outlined red, but no stopped pull or rebase conflicts on it: outline it black" ]
 }

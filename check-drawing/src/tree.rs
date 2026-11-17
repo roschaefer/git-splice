@@ -118,7 +118,8 @@ struct Circle {
 
 /// A row: the splice's folder, relative to the row it hangs from, how deep
 /// it hangs, its synced commit (the root's: HEAD), R, where the splice has
-/// commits of its own, and the commit a conflicted pull of it merges in.
+/// commits of its own, and the commit a conflicted pull of it merges in (the
+/// root's: the commit a stopped rebase replays).
 struct Row {
     /// The splice's path in the monorepo; empty for the monorepo's row.
     path: String,
@@ -238,7 +239,11 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
             walked.contains(&head) && copied.contains(&git.copy_key(&head)),
         )),
         r: None,
-        theirs: None,
+        theirs: git.stopped_rebase().map(|commit| Circle {
+            label: label(&commit),
+            color: Some(CONFLICT),
+            dashed: false,
+        }),
     }];
     for splice in &splices {
         let truth = &truths[splice];
@@ -395,7 +400,9 @@ fn render(rows: &[Row], marks: &Marks) -> String {
     if marks.enabled(Mark::Carried) {
         items.push((CARRIED, "carried over"));
     }
-    if rows.iter().any(|r| r.theirs.is_some()) {
+    if rows[0].theirs.is_some() {
+        items.push((CONFLICT, "replayed, conflicts"));
+    } else if rows.iter().any(|r| r.theirs.is_some()) {
         items.push((CONFLICT, "merged in, conflicts"));
     }
     if !items.is_empty() {

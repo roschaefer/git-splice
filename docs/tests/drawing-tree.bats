@@ -114,6 +114,19 @@ cell() {
   [ "$(cell lt0 value)" = "merged in, conflicts" ]
 }
 
+@test "drawing tree: the commit a stopped rebase replays, outlined red after HEAD, and the monorepo's row says so" {
+  commit_local "$monorepo" vendor/a/b "b local"
+  seed_bare_repo "$BATS_TEST_TMPDIR/upstream-b.git" "b2: b upstream"
+  run splice pull --rebase vendor/a/b
+  [ "$status" -ne 0 ]
+  [ -n "$(git rev-parse --verify --quiet REBASE_HEAD)" ]
+  write_tree m=REBASE_HEAD
+  [ "$(cell t0 value)" = m ]
+  [[ "$(cell t0 style)" == *"strokeColor=#D00000;"* ]]
+  [ "$(cell f0 value)" = "monorepo   conflict" ]
+  [ "$(cell lt0 value)" = "replayed, conflicts" ]
+}
+
 @test "drawing tree: with --mark pulled, a pull and what it brought in are outlined blue" {
   seed_bare_repo "$BATS_TEST_TMPDIR/upstream-c.git" "c2: c upstream"
   splice pull vendor/a/b/c >/dev/null
