@@ -78,6 +78,17 @@ On branch main
   up to date  c
 ```
 
+Each app's `c/` and the monorepo's own `c/` are at the library's *c1*:
+
+![The tree: the monorepo at s; a/ at a1, with c/ at c1 in it; b/ at b1, with c/ at c1 in it; c/ at c1](diamond-start.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diamond-start.drawio.svg" s=HEAD a1=$(git config --file a/.splice splice.commit) b1=$(git config --file b/.splice splice.commit) c1=$(git config --file c/.splice splice.commit)
+ok   diamond-start.drawio.svg: a tree of 6 rows
+```
+-->
+
 Each is a splice of its own, with its own id: each app ran `clone` for
 the library, and so did the monorepo
 ([splice identity](../../../03-concepts/03-splice-identity.md)). All three share the
@@ -146,6 +157,19 @@ $ git splice push c
 ok   c: pushed 2f685c3 to main
 ```
 
+The monorepo's fix *f* is in `c/`'s rebuild as *f'*, solid: the library's
+upstream has it. `a/c/` and `b/c/` are still at *c1*:
+
+![The tree: the monorepo at f; a/ at a1, with c/ at c1 in it; b/ at b1, with c/ at c1 in it; c/ at c1, then f', solid](diamond-pushed-c.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diamond-pushed-c.drawio.svg" s=HEAD~1 f=HEAD a1=$(git config --file a/.splice splice.commit) b1=$(git config --file b/.splice splice.commit) c1=$(git config --file c/.splice splice.commit) f\'=$(git rev-parse refs/splices/c/heads/main)
+ok   diamond-pushed-c.drawio.svg: a tree of 6 rows
+```
+-->
+
+
 Now `a/c/` and `b/c/` are behind the library's upstream:
 
 ```scrut
@@ -185,14 +209,38 @@ $ git diff --stat HEAD:c HEAD:a/c -- ':!.splice'
  1 file changed, 1 deletion(-)
 ```
 
-Each pulls it in, and `a/` and `b/` are then ahead of their upstreams,
-by the new `c/` content and `c/.splice`:
+Each pulls it in. A hook stops the pull after `a/c/`'s merge:
+
+```scrut
+$ git splice pull a/c b/c --exec 'test "$GIT_SPLICE_EVENT" != after-merge'
+ok   a/c fetched
+ok   b/c fetched
+ok   a/c: pulled 2f685c3
+!!   --exec stopped pull at after-merge of a/c, what it did so far stays -- re-run pull to go on
+[1]
+```
+
+The library is at two versions in the monorepo now: `a/c/` at *f'*,
+`b/c/` still at *c1*. `a/` has the pull's copy, *pa'*, on top, dashed:
+its upstream doesn't have the new `c/` yet:
+
+![The tree: the monorepo at pa; a/ at a1, then dashed pa', with c/ at f' in it; b/ at b1, with c/ at c1 in it; c/ at c1, then f', solid](diamond-pulled-a.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diamond-pulled-a.drawio.svg" s=HEAD~2 f=HEAD~1 pa=HEAD a1=$(git config --file a/.splice splice.commit) b1=$(git config --file b/.splice splice.commit) c1=$(git config --file c/.splice splice.commit) f\'=$(git rev-parse refs/splices/c/heads/main) pa\'=$(git splice rebuild a)
+ok   diamond-pulled-a.drawio.svg: a tree of 6 rows
+```
+-->
+
+Run again, `b/c/` follows, and `a/` and `b/` are then ahead of their
+upstreams, by the new `c/` content and `c/.splice`:
 
 ```scrut
 $ git splice pull a/c b/c
 ok   a/c fetched
 ok   b/c fetched
-ok   a/c: pulled 2f685c3
+ok   a/c: nothing to pull
 ok   b/c: pulled 2f685c3
 ```
 
@@ -208,11 +256,44 @@ On branch main
   up to date  c
 ```
 
+A hook stops the push after `a`'s:
+
+```scrut
+$ git splice push a b --exec 'test "$GIT_SPLICE_EVENT" != after-push'
+ok   a: pushed 7f874c1 to main
+!!   --exec stopped push at after-push of a, what it did so far stays -- re-run push to go on
+[1]
+```
+
+*pa'* is solid now, as `a`'s upstream has it; *pb'* isn't yet:
+
+![The tree: the monorepo at pb; a/ at a1, then pa', solid, with c/ at f' in it; b/ at b1, then dashed pb', with c/ at f' in it; c/ at c1, then f', solid](diamond-pushed-a.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diamond-pushed-a.drawio.svg" s=HEAD~3 f=HEAD~2 pa=HEAD~1 pb=HEAD a1=$(git config --file a/.splice splice.commit) b1=$(git config --file b/.splice splice.commit) c1=$(git config --file c/.splice splice.commit) f\'=$(git rev-parse refs/splices/c/heads/main) pa\'=$(git splice rebuild a) pb\'=$(git splice rebuild b)
+ok   diamond-pushed-a.drawio.svg: a tree of 6 rows
+```
+-->
+
+Run again, `b` follows:
+
 ```scrut
 $ git splice push a b
-ok   a: pushed 7f874c1 to main
+ok   a: nothing to push
 ok   b: pushed e9b20a7 to main
 ```
+
+Both apps' upstreams have the library's new version:
+
+![The tree: the monorepo at pb; a/ at a1, then pa', solid, with c/ at f' in it; b/ at b1, then pb', solid, with c/ at f' in it; c/ at c1, then f', solid](diamond-end.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/diamond-end.drawio.svg" s=HEAD~3 f=HEAD~2 pa=HEAD~1 pb=HEAD a1=$(git config --file a/.splice splice.commit) b1=$(git config --file b/.splice splice.commit) c1=$(git config --file c/.splice splice.commit) f\'=$(git rev-parse refs/splices/c/heads/main) pa\'=$(git splice rebuild a) pb\'=$(git splice rebuild b)
+ok   diamond-end.drawio.svg: a tree of 6 rows
+```
+-->
 
 A clone of one app on its own, e.g. by an outside contributor, has the
 library's new version, as plain files, with the `.splice` that lets
