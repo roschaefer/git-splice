@@ -64,8 +64,58 @@ Bottom-up, `c` first. Each rebuild records the one below it, and its
 push sends that record:
 
 ```scrut
-$ git splice push --all
+$ git splice push --all --exec 'test "$GIT_SPLICE_EVENT" != after-rebuild'
+!!   --exec stopped push at after-rebuild of vendor/a/b/c, what it did so far stays -- re-run push to go on
+[1]
+```
+
+The prepared `c/` commit is still local; the upstream has its original
+commit. Inspection does not publish it:
+
+```scrut
+$ git -C "$UPSTREAM-c.git" log -1 --format=%s main
+c1: c seed
+```
+
+Run again, the push publishes that commit and stops after it:
+
+```scrut
+$ git splice push --all --exec 'test "$GIT_SPLICE_EVENT" != after-push'
 ok   vendor/a/b/c: pushed c36e473 to main
+!!   --exec stopped push at after-push of vendor/a/b/c, what it did so far stays -- re-run push to go on
+[1]
+```
+
+`c/` is published, while `b/` and `a/` are still pending:
+
+```scrut
+$ git splice status
+On branch main
+
+  ahead 1     vendor/a
+  ahead 1     vendor/a/b
+
+  up to date  vendor/a/b/c
+  up to date  vendor/a/d
+```
+
+`c`'s *m1'* is solid now, as its upstream has it; `b/`'s and
+`vendor/a/`'s are still dashed:
+
+![The tree after the push of c/: the monorepo at m1; vendor/a/ at a1, then dashed m1'; b/ at b1, then the same; c/ at c1, then m1', solid: c's upstream has it; d/ at d1](push-pushed-only-c.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-pushed-only-c.drawio.svg" m1=HEAD
+ok   push-pushed-only-c.drawio.svg: a tree of 5 rows
+```
+-->
+
+A last run finds `c/` up to date and pushes the rest:
+
+```scrut
+$ git splice push --all
+ok   vendor/a/b/c: nothing to push
 ok   vendor/a/b: pushed 5302c23 to main
 ok   vendor/a/d: nothing to push
 ok   vendor/a: pushed 04ebbea to main
@@ -175,3 +225,5 @@ On branch main
   up to date  vendor/a/b/c
   up to date  vendor/a/d
 ```
+
+So one changed file in `c/` takes a push to every upstream above it, `b`'s and `a`'s: the rebuild of a splice records the rebuilds of all splices inside it, however deep.
