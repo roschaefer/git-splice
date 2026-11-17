@@ -57,8 +57,10 @@ $ git clone -q https://git.example.com/a.git ../a-work &&
 The `--exec` hook `test "$GIT_SPLICE_EVENT" != <event>` fails at that
 event, which stops the pull with what it did so far applied. Run again,
 the pull fetches again, finds the splices it merged up to date, and goes
-on with the next one. Its merges still make one commit at the end: the
-pull remembers where it started, in `SPLICE_PULL_START`.
+on with the next one. Each step commits on `main` what a plain
+`git splice pull` of that one splice would, on top of the step before.
+The commits stay until the end, where the pull folds them into one: it
+remembers where it started, in `SPLICE_PULL_START`.
 
 ### 1. Discover
 
@@ -118,6 +120,20 @@ ok   vendor/a/b: pulled 59ed2fb
 !!   --exec stopped pull at after-merge of vendor/a/b, what it did so far stays -- re-run pull to go on
 [1]
 ```
+
+<!--
+A plain pull of `b/` from *pa* makes *pb*, files and message:
+
+```scrut
+$ git worktree add -q -B plain ../plain HEAD~1 &&
+>   (cd ../plain && git splice pull --branch main vendor/a/b >/dev/null) &&
+>   git diff --quiet plain HEAD &&
+>   test "$(git log -1 --format=%B plain)" = "$(git log -1 --format=%B HEAD)" &&
+>   echo 'same as pb' &&
+>   git worktree remove ../plain && git branch -q -D plain
+same as pb
+```
+-->
 
 ![The tree: the monorepo at pb; vendor/a/ at a2, then dashed pb'; b/ at b2; c/ at c1; d/ at d1; e/ at e1; all but c1 and d1 outlined blue](step-b.drawio.svg)
 
@@ -201,6 +217,21 @@ ok   vendor/a/e: nothing to pull
 [1]
 ```
 
+`main` has a commit for each: *pa*, *pb*, *pc*, *pd*. The copies in the
+splices pile up the same way: `vendor/a/` has *pb'*, *pc'* and *pd'*,
+one for each change to a record inside it, and `b/` has *pc'*. *pa*
+moved `vendor/a/` to *a2* and changed nothing else in it, so it has no
+copy:
+
+![The monorepo's history s, pa, pb, pc, pd, main at pd; pa to pd outlined blue. Below, one lane per splice, each with its upstream's main: vendor/a/ a1, a2, then the dashed copies pb', pc', pd'; vendor/a/b/ b1, b2, then the dashed copy pc'; vendor/a/b/c/ c1, c2; vendor/a/d/ d1, d2; vendor/a/e/ e1. The upstream commits that came in are outlined blue, and so are the copies](step-lanes-unfolded.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/step-lanes-unfolded.drawio.svg" s=HEAD~4 pa=HEAD~3 pb=HEAD~2 pc=HEAD~1 pd=HEAD
+ok   step-lanes-unfolded.drawio.svg: 18 commits, 18 arrows, 6 boxes, 5 lanes
+```
+-->
+
 The four pulls become one commit, *p*. Each splice's history has the copy
 *p'* where it had *pb'*, *pc'* or *pd'*:
 
@@ -219,6 +250,18 @@ ok   vendor/a/e: nothing to pull
 ok   vendor/a: 4 pulls made one commit, 9b51e79
 !!   --exec stopped pull at after-fold, what it did so far stays -- re-run pull to go on
 [1]
+```
+
+*p* has the files of *pd*, and the subjects of all four in its message:
+
+```scrut
+$ git diff --quiet HEAD@{1} HEAD && git log -1 --format=%B
+splice: pull vendor/a from main at 6d12ed8
+
+splice: pull vendor/a/b from main at 59ed2fb
+splice: pull vendor/a/b/c from main at 94cad5e
+splice: pull vendor/a/d from main at 36c850e
+
 ```
 
 The tree is the final one:
