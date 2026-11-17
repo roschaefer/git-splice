@@ -183,7 +183,7 @@ ok   vendor/a/e: nothing to pull
 ok   vendor/a: 4 pulls made one commit, 9252b9b
 ```
 
-![The tree: the monorepo at p, the one commit for the whole pull, outlined blue; vendor/a/ at a2, outlined blue, then dashed p', outlined blue; b/ at b2, then the same; c/ at c2, then the same; d/ at d2, outlined blue; e/ at e1](tree-pulled.drawio.svg)
+![The tree: the monorepo at p, the one commit for the whole pull, outlined blue; vendor/a/ at a2, outlined blue, then dashed p', outlined blue; b/ at b2, then the same; c/ at c2, then the same; d/ at d2, outlined blue; e/ at e1, outlined blue](tree-pulled.drawio.svg)
 
 <!--
 ```scrut

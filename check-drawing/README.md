@@ -195,7 +195,9 @@ does.
     commit than its first parent's, and the upstream commits that brought
     in: in the new synced commit's history but not the old one's, or all
     of it after an `init`, which recorded none. A commit that adds a
-    `.splice`, like a clone's, records no pull, and a copy of the
+    `.splice`, like a clone's, records no pull, unless it adds it inside
+    a splice it pulls: that pull brought the splice in, with its synced
+    commit and its history, fetched or not. A copy of the
     monorepo's own commit, which a push sent and a pull brought back,
     didn't come in with one. A commit that is orange too can't show
     both: the drawing's legend has to drop one of the two samples.

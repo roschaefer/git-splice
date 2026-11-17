@@ -787,3 +787,54 @@ XML
   [ "$status" -eq 1 ]
   [ "$output" = "!!   pushed points at x', the code says x" ]
 }
+
+# A monorepo with lib/ from upstream y, whose y1 splices x in at x/; x's
+# upstream has x1. With $1 = pull, the monorepo pulls y1 as p; with $1 =
+# clone, it clones x in itself, at vendor/x, as c.
+nested_x() {
+  local y="$BATS_TEST_TMPDIR/y.git" x="$BATS_TEST_TMPDIR/x.git" m="$BATS_TEST_TMPDIR/m"
+  make_bare_repo "$x" && seed_bare_repo "$x" x1
+  make_bare_repo "$y" && seed_bare_repo "$y" "y seed"
+  init_monorepo "$m"
+  add_splice "$m" "$y" lib
+  # The lanes: lib/ with x/ in it, after the pull; lib/ and vendor/x/ side
+  # by side, after the clone. x1 is in x's.
+  local lanes='<mxCell id="lib" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="lib/"><mxGeometry x="-250" y="100" width="400" height="300" as="geometry" /></mxCell>
+<mxCell id="xl" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="lib/x/"><mxGeometry x="-230" y="150" width="360" height="200" as="geometry" /></mxCell>'
+  if [[ "$1" == pull ]]; then
+    git clone -q "$y" "$BATS_TEST_TMPDIR/y-work"
+    git -C "$BATS_TEST_TMPDIR/y-work" config user.name Test
+    git -C "$BATS_TEST_TMPDIR/y-work" config user.email test@example.com
+    add_splice "$BATS_TEST_TMPDIR/y-work" "$x" x main y1
+    git -C "$BATS_TEST_TMPDIR/y-work" push -q origin HEAD:main
+    (cd "$m" && splice pull lib -m p >/dev/null)
+  else
+    add_splice "$m" "$x" vendor/x main c
+    lanes='<mxCell id="lib" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="lib/"><mxGeometry x="-250" y="100" width="400" height="100" as="geometry" /></mxCell>
+<mxCell id="xl" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="vendor/x/"><mxGeometry x="-250" y="220" width="400" height="180" as="geometry" /></mxCell>'
+  fi
+  cd "$m"
+  x1="$(git --git-dir="$x" rev-parse main)"
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="top" parent="1" vertex="1" style="ellipse;strokeColor=#0070E0;" value="$2"><mxGeometry x="-200" y="0" width="70" height="70" as="geometry" /></mxCell>
+$lanes
+<mxCell id="x1" parent="1" vertex="1" style="ellipse;strokeColor=#0070E0;" value="x1"><mxGeometry x="-100" y="260" width="70" height="70" as="geometry" /></mxCell>
+$(legend_cells blue)
+</root></mxGraphModel></diagram></mxfile>
+XML
+}
+
+@test "drawing: a splice a pull brings in inside the pulled one came in with that pull" {
+  nested_x pull p
+  run check_drawing "$drawing" p=HEAD x1="$x1"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: a splice the monorepo clones in didn't come in with a pull" {
+  nested_x clone c
+  edit_drawing -u '//mxCell[@id="top"]/@style' -v 'ellipse;'
+  run check_drawing "$drawing" c=HEAD x1="$x1"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   x1 is outlined blue, but it neither records a pull nor came in with one: outline it black" ]
+}
