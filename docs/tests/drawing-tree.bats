@@ -66,6 +66,12 @@ cell() {
   [ "$(cell s0 value)" = "$(git log -1 --format=%s | sed 's/: .*//')" ]
 }
 
+@test "drawing tree: a label given for a splice, like vendor/a/b/x=<rev>, names another commit in each" {
+  write_tree vendor/a/x=refs/splices/upstream/heads/main vendor/a/b/x=refs/splices/upstream-b/heads/main
+  [ "$(cell s1 value)" = x ]
+  [ "$(cell s2 value)" = x ]
+}
+
 @test "drawing tree: R after the dots, dashed, named after the commit it copies, with a '" {
   commit_local "$monorepo" vendor/a/b/c "c local"
   write_tree m=HEAD
