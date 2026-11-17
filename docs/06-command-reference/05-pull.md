@@ -206,18 +206,16 @@ $ git splice pull -h | check-help option --exec
         checkpoint. GIT_SPLICE_EVENT names the checkpoint; GIT_SPLICE_PATH
         names its splice, and GIT_SPLICE_COMMIT its prepared or published
         commit, when applicable. Other values are empty. Zero continues;
-        nonzero stops with completed work applied. Hooks must preserve the
-        repository inputs required by continuation. stdin is closed; stdout
-        and stderr are inherited.
+        nonzero stops with completed work applied. A hook that exits zero
+        must leave HEAD, the branch, fetched refs, Git configuration,
+        tracked files and the index as they were, or pull stops. stdin is
+        closed; stdout and stderr are inherited.
 ```
 
 The checkpoints are `after-fetch`, `after-merge`, and, for recursive pulls, `before-fold` and
 `after-fold`. A hook runs synchronously; the next step starts
 only after it succeeds. A failed hook ends this execution; completed changes
 remain applied, and re-running `pull` goes on from there, as after a conflict.
-
-Hooks can inspect tracked files and the index, but changing them or the
-pull markers prevents continuation.
 
 ## Order
 

@@ -89,3 +89,33 @@ nested_updates() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"--exec can be given once; it runs one shell command"* ]]
 }
+
+@test "exec: a pull hook that changes HEAD, the configuration, a tracked file or the index stops the pull" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  local change
+  for change in \
+    'git commit -q --allow-empty -m hook' \
+    'git config hook.changed true' \
+    'echo changed >>vendor/a/file.txt' \
+    'echo new >new.txt && git add new.txt'; do
+    seed_bare_repo "$upstream" "change for $change"
+    run splice pull --exec "test \"\$GIT_SPLICE_EVENT\" != after-fetch || { $change; }" vendor/a
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"repository state changed at a pull checkpoint -- start a new pull" ]]
+    git reset -q --hard
+    git clean -qfd
+    git config --unset hook.changed || true
+  done
+}
+
+@test "exec: a push hook that changes the configuration stops the push before publishing" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  commit_local "$monorepo" vendor/a "local change"
+  before="$(git --git-dir="$upstream" rev-parse main)"
+  run splice push --exec 'test "$GIT_SPLICE_EVENT" != after-rebuild || git config hook.changed true' vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"repository state changed at a push checkpoint -- start a new push" ]]
+  [ "$(git --git-dir="$upstream" rev-parse main)" = "$before" ]
+}
