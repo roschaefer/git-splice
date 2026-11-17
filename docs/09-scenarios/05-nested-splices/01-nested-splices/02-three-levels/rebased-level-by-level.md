@@ -100,6 +100,18 @@ ok   rebased-at-the-conflict.drawio.svg: a tree of 4 rows
 ```
 -->
 
+As lanes: `main` is still at *c*, and the pull *p* is beside it, on
+*s*. The rebuilds have *p'*, and nothing of *c* yet:
+
+![The monorepo's history: s, then c with main at it, and beside it p, outlined blue, where HEAD is detached. Below, one lane per splice, each with its upstream's main: vendor/a/ k, then the dashed copy p'; vendor/a/b/ l, then p'; vendor/a/b/c/ n, then u. u and the copies of p are outlined blue](rebased-at-the-conflict-lanes.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/rebased-at-the-conflict-lanes.drawio.svg" s="$s" c=main p=HEAD k="$k" l="$l" n="$n" u="$u"
+ok   rebased-at-the-conflict-lanes.drawio.svg: 9 commits, 9 arrows, 4 boxes, 3 lanes
+```
+-->
+
 ```scrut
 $ printf 'c seed\nc local\nc upstream\n' >vendor/a/b/c/file.txt &&
 >   git add vendor/a/b/c/file.txt &&

@@ -108,7 +108,7 @@ ok   vendor/a/e fetched
 [1]
 ```
 
-![The tree as before, without colors, and a2, outlined red, with a red dashed arrow into vendor/a/'s m1': merged in, it conflicts](tree-a-conflicts.drawio.svg)
+![The tree as before, without colors, and a2, outlined red, after vendor/a/'s m1': merged in, it conflicts](tree-a-conflicts.drawio.svg)
 
 <!--
 ```scrut

@@ -88,6 +88,18 @@ CONFLICT (content): Merge conflict in vendor/a/b/c/file.txt
 [1]
 ```
 
+`vendor/a/` and `b/` are as before. In `c/`, *u* is merged into *c'*
+and conflicts, since both change `file.txt`:
+
+![The tree: the monorepo at c; vendor/a/ at k, then dashed c'; b/ at l, then the same; c/ at n, then the same, and u, outlined red: merged in, it conflicts](levels-c-conflicts.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/levels-c-conflicts.drawio.svg" c="$c" k="$k" l="$l" n="$n" u="$u"
+ok   levels-c-conflicts.drawio.svg: a tree of 4 rows
+```
+-->
+
 ```scrut
 $ printf 'c seed\nc local\nc upstream\n' >vendor/a/b/c/file.txt &&
 >   git add vendor/a/b/c/file.txt &&
