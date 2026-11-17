@@ -14,8 +14,6 @@ NAME
 SYNOPSIS
     git splice push [--upstream <name>] [--branch <name> [--track]] [--force] [--exec <command>] (<path>... | --all)
     git splice push [--upstream <name>] [--branch <name>] [--force] [--exec <command>] --rebuilt-commit <commit> <path>
-    git splice push [--pause-after <event> --save-to <file>] [<option>...]
-    git splice push --continue-from <file> [--pause-after <event> [--save-to <file>]] [--exec <command>]
 ```
 
 ## Description
@@ -200,71 +198,16 @@ $ git splice push -h | check-help option --exec
         names its splice, and GIT_SPLICE_COMMIT its prepared or published
         commit, when applicable. Other values are empty. Zero continues;
         nonzero stops with completed work applied. Hooks must preserve the
-        repository inputs required by continuation. stdin receives JSON with
-        the event and opaque continuation. A consumer can save that payload,
-        exit nonzero, then resume it with --continue-from. stdout and stderr
-        are inherited. The consumer's exit code is returned unchanged.
+        repository inputs required by continuation. stdin is closed; stdout
+        and stderr are inherited.
 ```
 
 The checkpoints are `after-rebuild` before publication and `after-push` after publication and
 tracking changes. A hook runs synchronously; the next step starts
-only after it succeeds. A nonzero hook exit ends this invocation; completed changes
+only after it succeeds. A failed hook ends this execution; completed changes
 remain applied, and re-running `push` goes on from there, as after a conflict.
 
 See the [drawing-checked push scenario](../09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/with-exec.md).
-
-The consumer decides when to stop and owns the saved payload:
-
-```sh
-git splice push --all --exec 'if [ "$GIT_SPLICE_EVENT" = after-rebuild ]; then cat >../push.json; exit 3; fi'
-git splice push --continue-from ../push.json
-```
-
-The first command exits 3. The second continues after the saved checkpoint.
-To interrupt again later, supply `--exec` again on the continuation command.
-
-### `--pause-after`
-
-```scrut
-$ git splice push -h | check-help option --pause-after
-        Stops at the next after-rebuild or after-push checkpoint matching
-        <event>, saves pending work with --save-to, and exits 75. Completed
-        work stays applied; nothing runs in the background.
-```
-
-### `--save-to`
-
-```scrut
-$ git splice push -h | check-help option --save-to
-        Writes an opaque continuation file at a deliberate pause. Use a new
-        file on the first run. With --continue-from and --pause-after, the
-        input file is reused unless another --save-to is given.
-```
-
-### `--continue-from`
-
-```scrut
-$ git splice push -h | check-help option --continue-from
-        Resumes the saved operation without repeating its consumed checkpoint.
-        Original options and paths are retained. Run from the same repository
-        root with unchanged HEAD, fetched refs and Git configuration; pull
-        also checks tracked files, index and pull markers. Validation failure
-        leaves the file intact; starting continuation consumes it. An --exec
-        hook must be supplied again. Use the same git-splice version.
-```
-
-Continuation files are local to this checkout and git-splice version; their
-JSON contents are opaque and must not be edited. They retain the pending queue,
-including nested discovery and fold/rebase work. Prepared push commits are kept
-reachable through temporary Git refs until continuation consumes them.
-
-A consumer can save its stdin payload and exit nonzero to interrupt the
-operation. Resume that file with `--continue-from`; the consumed event and
-hook are not repeated. A failing hook that saves no payload still leaves
-completed work applied, and re-running the original command goes on from
-there. Merge conflicts keep their existing recovery paths.
-
-The [nested push scenario](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/status-and-push.md) inspects a prepared commit before publication and resumes the remaining parents.
 
 ## Upstream branch
 

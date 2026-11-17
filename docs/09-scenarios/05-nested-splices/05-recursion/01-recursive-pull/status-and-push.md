@@ -64,9 +64,9 @@ Bottom-up, `c` first. Each rebuild records the one below it, and its
 push sends that record:
 
 ```scrut
-$ git splice push --all --exec 'if [ "$GIT_SPLICE_EVENT" = after-rebuild ]; then cat >../push.json; exit 3; fi'
-!!   --exec stopped push at after-rebuild of vendor/a/b/c, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run push
-[3]
+$ git splice push --all --exec 'test "$GIT_SPLICE_EVENT" != after-rebuild'
+!!   --exec stopped push at after-rebuild of vendor/a/b/c, what it did so far stays -- re-run push to go on
+[1]
 ```
 
 The prepared `c/` commit is still local; the upstream has its original
@@ -77,13 +77,13 @@ $ git -C "$UPSTREAM-c.git" log -1 --format=%s main
 c1: c seed
 ```
 
-Continue just far enough to publish that prepared commit:
+Run again, the push publishes that commit and stops after it:
 
 ```scrut
-$ git splice push --continue-from ../push.json --exec 'if [ "$GIT_SPLICE_EVENT" = after-push ]; then cat >../push.json; exit 3; fi'
+$ git splice push --all --exec 'test "$GIT_SPLICE_EVENT" != after-push'
 ok   vendor/a/b/c: pushed c36e473 to main
-!!   --exec stopped push at after-push of vendor/a/b/c, what it did so far stays -- resume a saved stdin payload with --continue-from, or re-run push
-[3]
+!!   --exec stopped push at after-push of vendor/a/b/c, what it did so far stays -- re-run push to go on
+[1]
 ```
 
 `c/` is published, while `b/` and `a/` are still pending:
@@ -99,11 +99,11 @@ On branch main
   up to date  vendor/a/d
 ```
 
-Resume the remaining queue. It starts with `b/`, and does not publish
-`c/` again:
+A last run finds `c/` up to date and pushes the rest:
 
 ```scrut
-$ git splice push --continue-from ../push.json
+$ git splice push --all
+ok   vendor/a/b/c: nothing to push
 ok   vendor/a/b: pushed 5302c23 to main
 ok   vendor/a/d: nothing to push
 ok   vendor/a: pushed 04ebbea to main

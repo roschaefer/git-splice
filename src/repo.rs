@@ -1,7 +1,5 @@
 //! Discovery of the splices, their upstreams, keys and targets.
 
-use serde::{Deserialize, Serialize};
-
 use crate::args::Args;
 use crate::context::ExecutionContext;
 use crate::message::{Message, Template};
@@ -16,7 +14,7 @@ pub const DEFAULT_UPSTREAM: &str = "origin";
 const KEY_LOCK_TRIES: u32 = 50;
 
 /// What a splice syncs with on the current branch.
-#[derive(Clone, Copy, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub enum TargetKind {
     #[default]
     Branch,
@@ -24,7 +22,7 @@ pub enum TargetKind {
     Commit,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug)]
 pub struct Target {
     pub kind: TargetKind,
     /// The branch's or tag's name, or the commit id.
@@ -62,7 +60,7 @@ impl Target {
 }
 
 /// A splice's sync state.
-#[derive(Clone, Copy, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub enum State {
     #[default]
     NeverFetched,
@@ -77,7 +75,7 @@ pub enum State {
 }
 
 /// Results of classify_splice, for the splice classified last.
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug)]
 pub struct Classified {
     pub state: State,
     pub upstream_branch: String,
@@ -89,7 +87,7 @@ pub struct Classified {
 }
 
 /// Results of compare_with_default_branch.
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug)]
 pub struct Compared {
     pub rebuilt: String,
     pub default_branch: String,
@@ -142,100 +140,6 @@ pub struct Repo<'context> {
     pub state_rev: String,
 }
 
-#[derive(Serialize, Deserialize)]
-pub(crate) struct SavedRepo {
-    args: Args,
-    all_paths: Vec<String>,
-    upstream_lists: HashMap<String, Vec<String>>,
-    upstream_urls: Vec<((String, String), String)>,
-    default_upstreams: HashMap<String, String>,
-    upstream_names: HashMap<String, String>,
-    urls: HashMap<String, String>,
-    keys: HashMap<String, String>,
-    selected: Vec<String>,
-    monorepo_branch: String,
-    uncommitted: HashMap<String, Uncommitted>,
-    remade: HashMap<String, String>,
-    child_rebuilds: HashMap<String, (String, String, Option<String>)>,
-    unrebuilt_child: Option<String>,
-    rebuild_without_synced: bool,
-    joins_rewritten: bool,
-    merge_bump: bool,
-    merge_rebase: bool,
-    merge_no_fork_point: bool,
-    c: Classified,
-    d: Compared,
-    state_rev: String,
-    supplied_rebuilds: HashMap<String, String>,
-}
-
-impl SavedRepo {
-    pub(crate) fn capture(repo: &Repo) -> Self {
-        let mut args = repo.args.clone();
-        args.exec.clear();
-        args.pause_after.clear();
-        args.save_to.clear();
-        args.continue_from.clear();
-        Self {
-            args,
-            all_paths: repo.all_paths.clone(),
-            upstream_lists: repo.upstream_lists.clone(),
-            upstream_urls: repo
-                .upstream_urls
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
-            default_upstreams: repo.default_upstreams.clone(),
-            upstream_names: repo.upstream_names.clone(),
-            urls: repo.urls.clone(),
-            keys: repo.keys.clone(),
-            selected: repo.selected.clone(),
-            monorepo_branch: repo.monorepo_branch.clone(),
-            uncommitted: repo.uncommitted.clone(),
-            remade: repo.remade.clone(),
-            child_rebuilds: repo.child_rebuilds.clone(),
-            unrebuilt_child: repo.unrebuilt_child.clone(),
-            rebuild_without_synced: repo.rebuild_without_synced,
-            joins_rewritten: repo.joins_rewritten,
-            merge_bump: repo.merge_bump,
-            merge_rebase: repo.merge_rebase,
-            merge_no_fork_point: repo.merge_no_fork_point,
-            c: repo.c.clone(),
-            d: repo.d.clone(),
-            state_rev: repo.state_rev.clone(),
-            supplied_rebuilds: repo.context.supplied_rebuilds.clone(),
-        }
-    }
-
-    pub(crate) fn restore(self, context: &mut ExecutionContext) -> Res<Repo<'_>> {
-        context.supplied_rebuilds = self.supplied_rebuilds;
-        let mut repo = Repo::new(context, self.args);
-        repo.all_paths = self.all_paths;
-        repo.upstream_lists = self.upstream_lists;
-        repo.upstream_urls = self.upstream_urls.into_iter().collect();
-        repo.default_upstreams = self.default_upstreams;
-        repo.upstream_names = self.upstream_names;
-        repo.urls = self.urls;
-        repo.keys = self.keys;
-        repo.selected = self.selected;
-        repo.monorepo_branch = self.monorepo_branch;
-        repo.uncommitted = self.uncommitted;
-        repo.remade = self.remade;
-        repo.child_rebuilds = self.child_rebuilds;
-        repo.unrebuilt_child = self.unrebuilt_child;
-        repo.rebuild_without_synced = self.rebuild_without_synced;
-        repo.joins_rewritten = self.joins_rewritten;
-        repo.merge_bump = self.merge_bump;
-        repo.merge_rebase = self.merge_rebase;
-        repo.merge_no_fork_point = self.merge_no_fork_point;
-        repo.c = self.c;
-        repo.d = self.d;
-        repo.state_rev = self.state_rev;
-        repo.message_template = Template::given(&repo.args.message_template)?;
-        Ok(repo)
-    }
-}
-
 /// What Repo knows of each splice's upstreams, as read from one revision.
 #[derive(Default)]
 pub struct UpstreamState {
@@ -247,7 +151,7 @@ pub struct UpstreamState {
     keys: HashMap<String, String>,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Uncommitted {
     Changes,
     NoChanges,

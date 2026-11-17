@@ -1,13 +1,8 @@
 //! git splice pull.
 
-use serde::{Deserialize, Serialize};
-
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
-use crate::execution::{
-    validate_continuation_options, Execution, ExecutionEvent, ExecutionOutcome, Operation,
-    CONTINUATION_OPTIONS,
-};
+use crate::execution::{Execution, ExecutionEvent, ExecutionOutcome, Operation};
 use crate::fetch::{FetchPlan, FetchResults};
 use crate::merge::{apply_merge_options, MergeProgress, MERGE_OPTIONS};
 use crate::message::{Message, KNOWN};
@@ -26,20 +21,7 @@ pub fn start<'context>(
     context: &'context mut ExecutionContext,
     argv: &[String],
 ) -> Res<PullExecution<'context>> {
-    let mut args = parse_args(
-        USAGE,
-        &format!("{MERGE_OPTIONS} --recursive --exec {CONTINUATION_OPTIONS}"),
-        argv,
-    )?;
-    validate_continuation_options(
-        &mut args,
-        &["after-fetch", "after-merge", "before-fold", "after-fold"],
-    )?;
-    if !args.continue_from.is_empty() {
-        return Ok(PullExecution {
-            inner: Execution::restore(context, args)?,
-        });
-    }
+    let args = parse_args(USAGE, &format!("{MERGE_OPTIONS} --recursive --exec"), argv)?;
     args.require_one_splice_for_message()?;
     args.require_branch_for_track()?;
     let mut repo = Repo::new(context, args);
@@ -77,7 +59,6 @@ impl PullExecution<'_> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
 enum PullPhase {
     Fetch(FetchPlan),
     Fetched(FetchResults),
@@ -89,7 +70,6 @@ enum PullPhase {
     Done,
 }
 
-#[derive(Serialize, Deserialize)]
 struct PullProgress {
     branch: String,
     selected: Vec<String>,
