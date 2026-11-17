@@ -48,6 +48,9 @@ commit header. An import command could read the newest record and write
 `.splice`, much as `clone --from-submodule` converts a submodule. The
 recorded commit would become the sync point without fetching it again.
 The folder could then use `git splice push` to send fixes back.
+If a Git squash had already dropped the newest record, the import would
+take an older one, with the wrong merge base described below; the
+remaining records don't show that one is missing.
 
 `.splice` has no source-path key: it represents the upstream root.
 The import would reject records with a nonempty source folder, since

@@ -148,7 +148,7 @@ behaviour is:
 | --- | --- |
 | `commit --amend` | Kept |
 | `cherry-pick` | Dropped |
-| `rebase`, including `-i` and `--apply` | Dropped |
+| `rebase`, including `-i` and `--apply` | Dropped from each commit that gets a new parent; a `reword` that keeps the parent amends, and keeps it |
 | `merge --squash` | Dropped |
 | `merge` | Kept on the merged commit; not copied to the merge commit |
 
