@@ -48,16 +48,83 @@ ok   tree.drawio.svg: a tree of 4 rows
 ```
 -->
 
-The monorepo changes `vendor/a/b/c/` and pushes all three, bottom-up:
+The monorepo changes `vendor/a/b/c/` in *m*:
 
 ```scrut
 $ echo "c local" >>vendor/a/b/c/file.txt &&
->   git commit -q -a -m "c local" &&
->   git splice push vendor/a/b/c vendor/a/b vendor/a
-ok   vendor/a/b/c: pushed 8dd94ad to main
-ok   vendor/a/b: pushed ea26c6f to main
-ok   vendor/a: pushed ede9b5c to main
+>   git commit -q -a -m "m: c local"
 ```
+
+Each level's rebuild has a copy of it, *m'*, dashed: no upstream has it
+yet.
+
+![The tree: the monorepo at m; vendor/a/ at a1, then dashed m'; b/ at b1, then the same; c/ at c1, then the same](push-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-before.drawio.svg" s=HEAD~1 m=HEAD a1=$(git config --file vendor/a/.splice splice.commit) b1=$(git config --file vendor/a/b/.splice splice.commit) c1=$(git config --file vendor/a/b/c/.splice splice.commit)
+ok   push-before.drawio.svg: a tree of 4 rows
+```
+-->
+
+It pushes all three, bottom-up. A hook stops the push after each
+upstream gets its copy:
+
+```scrut
+$ git splice push vendor/a/b/c vendor/a/b vendor/a --exec 'test "$GIT_SPLICE_EVENT" != after-push'
+ok   vendor/a/b/c: pushed 5437766 to main
+!!   --exec stopped push at after-push of vendor/a/b/c, what it did so far stays -- re-run push to go on
+[1]
+```
+
+`c`'s upstream has its *m'*, so it's solid; the two above are still
+dashed:
+
+![The tree: the monorepo at m; vendor/a/ at a1, then dashed m'; b/ at b1, then the same; c/ at c1, then m', solid](push-pushed-c.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-pushed-c.drawio.svg" s=HEAD~1 m=HEAD a1=$(git config --file vendor/a/.splice splice.commit) b1=$(git config --file vendor/a/b/.splice splice.commit) c1=$(git config --file vendor/a/b/c/.splice splice.commit)
+ok   push-pushed-c.drawio.svg: a tree of 4 rows
+```
+-->
+
+```scrut
+$ git splice push vendor/a/b/c vendor/a/b vendor/a --exec 'test "$GIT_SPLICE_EVENT" != after-push'
+ok   vendor/a/b/c: nothing to push
+ok   vendor/a/b: pushed 9fa0509 to main
+!!   --exec stopped push at after-push of vendor/a/b, what it did so far stays -- re-run push to go on
+[1]
+```
+
+`b`'s *m'* is solid too. It records `c`'s *m'* as the commit of `c/`:
+
+![The tree: the monorepo at m; vendor/a/ at a1, then dashed m'; b/ at b1, then m', solid; c/ at c1, then m', solid](push-pushed-b.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-pushed-b.drawio.svg" s=HEAD~1 m=HEAD a1=$(git config --file vendor/a/.splice splice.commit) b1=$(git config --file vendor/a/b/.splice splice.commit) c1=$(git config --file vendor/a/b/c/.splice splice.commit)
+ok   push-pushed-b.drawio.svg: a tree of 4 rows
+```
+-->
+
+```scrut
+$ git splice push vendor/a/b/c vendor/a/b vendor/a
+ok   vendor/a/b/c: nothing to push
+ok   vendor/a/b: nothing to push
+ok   vendor/a: pushed 576310d to main
+```
+
+All three upstreams have their *m'*:
+
+![The tree: the monorepo at m; vendor/a/ at a1, then m', solid; b/ at b1, then the same; c/ at c1, then the same](push-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-pushed.drawio.svg" s=HEAD~1 m=HEAD a1=$(git config --file vendor/a/.splice splice.commit) b1=$(git config --file vendor/a/b/.splice splice.commit) c1=$(git config --file vendor/a/b/c/.splice splice.commit)
+ok   push-pushed.drawio.svg: a tree of 4 rows
+```
+-->
 
 `b/.splice`, as the outer upstream has it now, names the middle
 upstream's commit with the change: the rebuild of `vendor/a/` records
@@ -68,7 +135,7 @@ upstream gets with the same push:
 $ git -C "$UPSTREAM" show main:b/.splice |
 >   git config --file - splice.commit |
 >   xargs git -C "$UPSTREAM-b.git" log -1 --format=%s
-c local
+m: c local
 ```
 
 ## Another monorepo splices the outer upstream in
@@ -82,7 +149,7 @@ $ git init -q -b main ../other &&
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
-ok   vendor/a: cloned ede9b5c from main
+ok   vendor/a: cloned 576310d from main
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
 ```
@@ -122,5 +189,5 @@ On branch main
 ```scrut
 $ git splice log vendor/a/b/c
 ===  vendor/a/b/c (main)
-< 014dd58 c other  (Other <other@example.com>)
+< 514918f c other  (Other <other@example.com>)
 ```
