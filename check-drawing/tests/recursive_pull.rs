@@ -299,7 +299,7 @@ fn step_by_step(root: &Path) {
                ├─ b/      (b1)   pending: merge
                │  └─ c/   (c1)   pending: merge, after vendor/a/b/
                ├─ d/      (d1)   pending: merge
-               └─ e/      (e1)
+               └─ e/      (e1*)
 
             after-fetch vendor/a/e:
             monorepo      (pa*)
@@ -307,7 +307,7 @@ fn step_by_step(root: &Path) {
                ├─ b/      (b1)   pending: merge
                │  └─ c/   (c1)   pending: merge, after vendor/a/b/
                ├─ d/      (d1)   pending: merge
-               └─ e/      (e1)   pending: merge
+               └─ e/      (e1*)  pending: merge
 
             after-merge vendor/a/b:
             monorepo      (pb*)
@@ -348,7 +348,7 @@ fn step_by_step(root: &Path) {
                ├─ b/      (b2*) … [p'*]  done
                │  └─ c/   (c2*)          done
                ├─ d/      (d2*)          done
-               └─ e/      (e1)           done
+               └─ e/      (e1*)          done
             next: clean up
         "#},
         "observed trees:\n{observed}"
@@ -385,7 +385,7 @@ fn ascii_splice_tree_before_and_after_recursive_pull() {
                        ├─ b/      (b2*) … [p'*]
                        │  └─ c/   (c2*)
                        ├─ d/      (d2*)
-                       └─ e/      (e1)
+                       └─ e/      (e1*)
                 "}
             );
         },
@@ -468,7 +468,7 @@ fn conflict(root: &Path) {
                ├─ b/      (b1) … [m1'] (b2!)  conflict
                │  └─ c/   (c1)                blocked by vendor/a/b/
                ├─ d/      (d1)                blocked by vendor/a/b/
-               └─ e/      (e1)                done
+               └─ e/      (e1*)               done
         "#},
         "observed tree:\n{observed}"
     );

@@ -101,7 +101,7 @@ On branch main
   behind 1  vendor/a/e
 ```
 
-![The tree: the monorepo at pa, outlined blue; vendor/a/ at a2, outlined blue; in it, b/ at b1, with c/ at c1 in it, and the new e/ at e1; no d/](removed-step.drawio.svg)
+![The tree: the monorepo at pa, outlined blue; vendor/a/ at a2, outlined blue; in it, b/ at b1, with c/ at c1 in it, and the new e/ at e1, outlined blue; no d/](removed-step.drawio.svg)
 
 <!--
 ```scrut
