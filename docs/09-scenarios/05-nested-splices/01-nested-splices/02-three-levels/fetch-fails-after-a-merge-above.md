@@ -111,6 +111,19 @@ $ git clone -q https://git.example.com/b.git ../b-work &&
 >   git -C ../b-work push -q origin main
 ```
 
+Before the pull, the monorepo is at *p2*, and `vendor/a/` at *a2*,
+which follows `c.git` again. `b/` has *a2'* on top of *b1*: *a2*
+changed the `c/.splice` inside it.
+
+![The tree: the monorepo at p2; vendor/a/ at a2; b/ at b1, then dashed a2'; c/ at c1](fetch-fails-before.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/fetch-fails-before.drawio.svg" p2=HEAD a2=$(git config --file vendor/a/.splice splice.commit) b1=$(git config --file vendor/a/b/.splice splice.commit) c1=$(git config --file vendor/a/b/c/.splice splice.commit) a2\'=$(git splice rebuild vendor/a/b)
+ok   fetch-fails-before.drawio.svg: a tree of 4 rows
+```
+-->
+
 ## `pull --all`
 
 The pull of `vendor/a/` points `vendor/a/b/c/` at `c2.git`, and its
@@ -139,6 +152,18 @@ and the repository exists.
 $ git log -1 --format=%s
 splice: pull vendor/a from main at 684386f
 ```
+
+Only the pull of `vendor/a/` is in, *p3*, up to *a3*; `b/` and `c/` are
+as they were:
+
+![The tree: the monorepo at p3, outlined blue; vendor/a/ at a3, outlined blue; b/ at b1, then dashed a3'; c/ at c1](fetch-fails-after.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/fetch-fails-after.drawio.svg" p3=HEAD a3=$(git config --file vendor/a/.splice splice.commit) b1=$(git config --file vendor/a/b/.splice splice.commit) c1=$(git config --file vendor/a/b/c/.splice splice.commit) a3\'=$(git splice rebuild vendor/a/b)
+ok   fetch-fails-after.drawio.svg: a tree of 4 rows
+```
+-->
 
 ```scrut
 $ cat vendor/a/b/c/file.txt

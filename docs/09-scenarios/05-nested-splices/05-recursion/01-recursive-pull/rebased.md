@@ -112,11 +112,11 @@ $ printf "c1: c seed\nc in b's upstream\nc upstream\n" >vendor/a/b/c/file.txt &&
 >   git commit -q --no-edit
 ```
 
-The pulls are done, and make *p*. `a`'s conflict comes up when *m1* is
-rebased onto it:
+Run again, the pulls are done and make *p*. A hook stops the pull right
+after that, at `after-fold`:
 
 ```scrut
-$ git splice pull --rebase --recursive vendor/a
+$ git splice pull --rebase --recursive vendor/a --exec 'test "$GIT_SPLICE_EVENT" != after-fold'
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ok   vendor/a/b/c fetched
@@ -128,6 +128,38 @@ ok   vendor/a/b/c: nothing to pull
 ok   vendor/a/d: pulled 36c850e
 ok   vendor/a/e: nothing to pull
 ok   vendor/a: 4 pulls made one commit, 4695060
+!!   --exec stopped pull at after-fold, what it did so far stays -- re-run pull to go on
+!!   The pulls are on a detached HEAD, 'main' is as it was -- re-run pull to go on, or 'git switch main' to give up
+[1]
+```
+
+*p* is on the detached `HEAD`, beside *m1*: the pulls started from *s*,
+not from `main`. The splices have the copies *p'*, and nothing of *m1*
+yet:
+
+![The monorepo's history: s, then m1 with main at it, and beside it p, where HEAD is detached; p outlined blue and filled red: it stopped at a conflict. Below, one lane per splice, each with its upstream's main: vendor/a/ a1, a2, then the dashed copy p'; vendor/a/b/ b1, b2, then p'; vendor/a/b/c/ c1, c2, then p'; vendor/a/d/ d1, d2; vendor/a/e/ e1. The upstream commits that came in are outlined blue, and so are the copies of p](rebased-folded.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/rebased-folded.drawio.svg" s=HEAD~1 p=HEAD m1=main
+ok   rebased-folded.drawio.svg: 15 commits, 15 arrows, 6 boxes, 5 lanes
+```
+-->
+
+Run once more, *m1* is rebased onto *p*, and `a`'s conflict comes up:
+
+```scrut
+$ git splice pull --rebase --recursive vendor/a
+ok   vendor/a fetched
+ok   vendor/a/b fetched
+ok   vendor/a/b/c fetched
+ok   vendor/a/d fetched
+ok   vendor/a/e fetched
+ok   vendor/a: nothing to pull
+ok   vendor/a/b: nothing to pull
+ok   vendor/a/b/c: nothing to pull
+ok   vendor/a/d: nothing to pull
+ok   vendor/a/e: nothing to pull
 Auto-merging vendor/a/file.txt
 CONFLICT (content): Merge conflict in vendor/a/file.txt
 error: could not apply 74d923b... m1: a and b in the monorepo
