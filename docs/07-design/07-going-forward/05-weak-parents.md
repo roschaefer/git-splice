@@ -5,6 +5,25 @@ Native support for weak parents would give the provenance recorded in
 [overview](README.md#what-the-vcs-could-provide) defines the term and shows
 how the file represents a weak parent today.
 
+## A merge parent or a file
+
+A pull could have been a merge, with U(H) as its second parent, as
+`git subtree pull` without `--squash` creates
+([`git subtree` compared](../../05-comparisons/01-git/02-git-subtree.md)).
+Both record that the folder continues U(H):
+
+| | U(H) as a second parent | `commit = U(H)` in `.splice` |
+|---|---|---|
+| Who sees it | Git: `log`, `merge-base`, `bisect` and `blame` walk into the library's history | Only `git-splice`; the monorepo's history stays linear |
+| U(H)'s objects | Required: every full clone fetches U(H) and its ancestors | Optional: `git-splice` fetches U(H) when it needs it |
+| Which folder | Unknown: U(H) has the library at its root, so `git subtree` needs `--prefix` | Where the file is; `git mv` moves it along |
+| Finding the current U(H) | Search the history for the newest such merge | Read one file at `HEAD` |
+| Rebase, squash merge | Lost: `rebase` drops merges without `--rebase-merges`, and a squash merge keeps one parent | Kept, like the folder's other files |
+
+The last row is the reason for the file. The two also claim different
+things: a merge says U(H)'s whole history is part of the monorepo's;
+`.splice` says only that the folder's files came from U(H).
+
 ## What a weak parent would need
 
 - Merges would not treat it as another source of files.
