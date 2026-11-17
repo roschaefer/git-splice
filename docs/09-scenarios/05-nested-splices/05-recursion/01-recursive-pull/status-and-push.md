@@ -225,3 +225,5 @@ On branch main
   up to date  vendor/a/b/c
   up to date  vendor/a/d
 ```
+
+So one changed file in `c/` takes a push to every upstream above it, `b`'s and `a`'s: the rebuild of a splice records the rebuilds of all splices inside it, however deep.
