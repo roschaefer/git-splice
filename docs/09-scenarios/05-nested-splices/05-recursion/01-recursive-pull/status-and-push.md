@@ -99,6 +99,18 @@ On branch main
   up to date  vendor/a/d
 ```
 
+`c`'s *m1'* is solid now, as its upstream has it; `b/`'s and
+`vendor/a/`'s are still dashed:
+
+![The tree after the push of c/: the monorepo at m1; vendor/a/ at a1, then dashed m1'; b/ at b1, then the same; c/ at c1, then m1', solid: c's upstream has it; d/ at d1](push-pushed-only-c.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/push-pushed-only-c.drawio.svg" m1=HEAD
+ok   push-pushed-only-c.drawio.svg: a tree of 5 rows
+```
+-->
+
 A last run finds `c/` up to date and pushes the rest:
 
 ```scrut
