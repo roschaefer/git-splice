@@ -672,6 +672,17 @@ impl History {
         (pulls, brought)
     }
 
+    /// The commit a rebase that stopped at a conflict replays. Git keeps
+    /// REBASE_HEAD after the rebase ends, so only while one is under way.
+    pub fn stopped_rebase(&self) -> Option<String> {
+        let under_way = ["rebase-merge", "rebase-apply"].iter().any(|dir| {
+            git(&["rev-parse", "--git-path", dir])
+                .out()
+                .is_some_and(|path| std::path::Path::new(&path).is_dir())
+        });
+        under_way.then(|| self.rev_parse("REBASE_HEAD")).flatten()
+    }
+
     pub fn head(&self) -> String {
         self.rev_parse("HEAD").unwrap_or_default()
     }
