@@ -158,8 +158,11 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
         // A full hash names a commit the repository may not have, e.g. a
         // synced commit that isn't here: labelled all the same.
         let full_hash = matches!(rev.len(), 40 | 64) && rev.bytes().all(|b| b.is_ascii_hexdigit());
+        // Given for a splice, e.g. vendor/a/b/m'=<rev>, as in a lane
+        // drawing: one label names another commit in each splice.
+        let name = label.rsplit('/').next().unwrap_or(label);
         if let Some(commit) = git.commit(rev).or_else(|| full_hash.then(|| rev.clone())) {
-            given.insert(commit, label.clone());
+            given.insert(commit, name.to_string());
         }
     }
     // Each commit of the monorepo's history, by what its copies share with it.

@@ -94,7 +94,7 @@ CONFLICT (content): Merge conflict in vendor/a/file.txt
 [1]
 ```
 
-![The tree: the monorepo at pd, outlined blue; vendor/a/ at a1, then dashed pd', outlined blue, and a2, outlined red, with a red dashed arrow into pd'; in it, b/ at b1 with c/ at c1, and d/ at d2, outlined blue](update-conflicts.drawio.svg)
+![The tree: the monorepo at pd, outlined blue; vendor/a/ at a1, then dashed pd', outlined blue, and a2, outlined red, after pd': merged in, it conflicts; in it, b/ at b1 with c/ at c1, and d/ at d2, outlined blue](update-conflicts.drawio.svg)
 
 <!--
 ```scrut
