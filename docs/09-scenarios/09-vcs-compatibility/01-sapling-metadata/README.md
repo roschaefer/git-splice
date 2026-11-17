@@ -138,3 +138,21 @@ ok   vendor/lib: pulled 18fd6f7
 $ ls vendor/lib/src
 parse.txt
 ```
+
+## Other Git rewrites
+
+A custom header isn't carried with the files. For Git 2.56, the header
+behaviour is:
+
+| Command | Custom header |
+| --- | --- |
+| `commit --amend` | Kept |
+| `cherry-pick` | Dropped |
+| `rebase`, including `-i` and `--apply` | Dropped from each commit that gets a new parent; a `reword` that keeps the parent amends, and keeps it |
+| `merge --squash` | Dropped |
+| `merge` | Kept on the merged commit; not copied to the merge commit |
+
+Sapling's own rewrites can preserve its record, but Git rewrites and
+forge squash merges can lose it. The
+[weak parents discussion](../../../07-design/07-going-forward/05-weak-parents.md)
+explains why the sync point is stored in `.splice`.
