@@ -146,7 +146,7 @@ to [install `git-splice`](docs/01-getting-started/README.md), try it in a
 
 ## Contribute
 
-- [Contributing](docs/10-contributing/README.md)
+- [Contributing](docs/08-contributing/README.md)
 
 ## License
 
