@@ -10,5 +10,6 @@ pub mod check;
 pub mod diagram;
 pub mod history;
 pub mod labels;
+pub mod legend;
 pub mod placement;
 pub mod tree;
