@@ -954,7 +954,7 @@ impl<'a> Checker<'a> {
         let (pulls, brought) = self.git.pulls_among(&drawn);
         // Where a pull or a rebase stopped at a conflict: the commit it
         // merges in, or replays.
-        let merged_in = self.git.rev_parse("CHERRY_PICK_HEAD");
+        let merged_in = self.git.stopped_pull().map(|(_, commit)| commit);
         let replayed = self.git.stopped_rebase();
         // Whether the legend has a sample of <color> as <attr>.
         let explained = |attr: &str, plain: &str, color: &str| {

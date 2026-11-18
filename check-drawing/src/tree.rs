@@ -140,9 +140,8 @@ fn rows(git: &History, labels: &Labels, marks: &Marks) -> Result<Vec<Row>, Vec<S
     let truths: HashMap<String, _> = splices.iter().map(|s| (s.clone(), git.truth(s))).collect();
     // The splice a pull merges into with a conflict, and what it merges in.
     let conflict = git
-        .rev_parse("CHERRY_PICK_HEAD")
-        .and_then(|pick| git.pulls_in(&pick).into_iter().next())
-        .and_then(|(file, _, now)| Some((file.strip_suffix("/.splice")?.to_string(), now)));
+        .stopped_pull()
+        .and_then(|(file, now)| Some((file.strip_suffix("/.splice")?.to_string(), now)));
 
     let mut drawn = vec![head.clone()];
     for truth in truths.values() {

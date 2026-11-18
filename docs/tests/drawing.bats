@@ -897,3 +897,24 @@ XML
   [ "$status" -eq 1 ]
   [ "$output" = "!!   e is outlined red, but no stopped pull or rebase conflicts on it: outline it black" ]
 }
+
+@test "drawing: with a red sample in the legend, the upstream commit a stopped pull merges in is outlined red" {
+  scenario_three_levels "$BATS_TEST_TMPDIR/three" "$BATS_TEST_TMPDIR/three.git"
+  cd "$BATS_TEST_TMPDIR/three"
+  commit_local . vendor/a/b "m: b local"
+  seed_bare_repo "$BATS_TEST_TMPDIR/three-b.git" "b2: b upstream"
+  run splice pull vendor/a/b
+  [ "$status" -ne 0 ]
+  [ -n "$(git rev-parse --verify --quiet CHERRY_PICK_HEAD)" ]
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="la" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="vendor/a/"><mxGeometry x="-250" y="100" width="400" height="300" as="geometry" /></mxCell>
+<mxCell id="lb" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="vendor/a/b/"><mxGeometry x="-230" y="150" width="360" height="230" as="geometry" /></mxCell>
+<mxCell id="lc" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="vendor/a/b/c/"><mxGeometry x="-210" y="300" width="320" height="70" as="geometry" /></mxCell>
+<mxCell id="b2" parent="1" vertex="1" style="ellipse;strokeColor=#D00000;" value="b2"><mxGeometry x="-100" y="200" width="70" height="70" as="geometry" /></mxCell>
+$(legend_cells red)
+</root></mxGraphModel></diagram></mxfile>
+XML
+  run check_drawing "$drawing" b2="$(git rev-parse "$(upstream_refs "$BATS_TEST_TMPDIR/three-b.git")main")"
+  [ "$status" -eq 0 ]
+}

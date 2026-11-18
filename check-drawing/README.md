@@ -202,7 +202,8 @@ does.
     didn't come in with one. A commit that is orange too can't show
     both: the drawing's legend has to drop one of the two samples.
   - Outlined red, `#D00000`, if the legend has a red sample: the commit
-    a pull that stopped at a conflict merges in (`CHERRY_PICK_HEAD`), or
+    a pull that stopped at a conflict merges in, the upstream commit the
+    `CHERRY_PICK_HEAD` git-splice made records, or
     a rebase that stopped at one replays (`REBASE_HEAD`, while the
     rebase is under way).
   - Without the color's sample, every commit is outlined black and white

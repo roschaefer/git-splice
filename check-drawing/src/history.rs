@@ -672,6 +672,15 @@ impl History {
         (pulls, brought)
     }
 
+    /// The splice a pull that stopped at a conflict merges into, as its
+    /// state file, and the upstream commit it merges in. CHERRY_PICK_HEAD is
+    /// the commit git-splice made to merge it, which records that one.
+    pub fn stopped_pull(&self) -> Option<(String, String)> {
+        let pick = self.rev_parse("CHERRY_PICK_HEAD")?;
+        let (file, _, now) = self.pulls_in(&pick).into_iter().next()?;
+        Some((file, now))
+    }
+
     /// The commit a rebase that stopped at a conflict replays. Git keeps
     /// REBASE_HEAD after the rebase ends, so only while one is under way.
     pub fn stopped_rebase(&self) -> Option<String> {
