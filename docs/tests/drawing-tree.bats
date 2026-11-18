@@ -143,7 +143,7 @@ cell() {
   [[ "$(cell s0 style)" == *"strokeColor=#E07000;"* ]]
   [[ "$(cell r3 style)" == *"strokeColor=#E07000;"* ]]
   [[ "$(cell s3 style)" != *"strokeColor="* ]]
-  [ "$(cell lt0 value)" = "carried over" ]
+  [ "$(cell lt0 value)" = "commits carried over" ]
 }
 
 @test "drawing tree: one commit can't be both pulled and carried over" {

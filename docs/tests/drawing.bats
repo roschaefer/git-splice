@@ -897,3 +897,10 @@ XML
   [ "$status" -eq 1 ]
   [ "$output" = "!!   e is outlined red, but no stopped pull or rebase conflicts on it: outline it black" ]
 }
+
+@test "drawing: a legend calls a shared color by the shared legend's words" {
+  edit_drawing -u '//mxCell[@id="legend_orange_text"]/@value' -v "carried over"
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = '!!   the legend calls an orange outline "carried over": write "commits carried over", as every drawing does' ]
+}
