@@ -38,6 +38,39 @@ The same function builds the state for every test that needs it:
   [`recursive_pull.rs`](../../check-drawing/tests/recursive_pull.rs)
   checks the drawings of `05-recursion/01-recursive-pull/`.
 
+## Scenario output
+
+Under "Output", each document first calls its folder's scenario
+function, so it runs in the state the bats tests use. You can also
+[explore scenarios in a sandbox](../01-getting-started/01-sandbox.md):
+
+    $ build_scenario scenario_pull_ahead
+
+`build_scenario` runs the function with a monorepo and an upstream, hides
+what it prints, and changes into the monorepo. It comes from
+[`readme-setup.sh`](readme-setup.sh). The splice is `vendor/a/` unless
+the document says otherwise, and the upstream's path shows as
+`$UPSTREAM`.
+
+## Adding a scenario
+
+1. Pick the chapter, and a number that puts the scenario between the
+   more common and the rarer ones; renumber the folders after it. Create
+   `<chapter>/<NN>-<name>/setup.bash` with a function `scenario_<name>`,
+   with `_` for `-`. If it continues from a scenario in the same chapter,
+   create it inside that scenario's folder, source `../setup.bash` and
+   call the parent's function first. If that scenario is in another
+   chapter, source its `setup.bash` by its path from `../../` instead.
+2. Write one `.md` file per behavior. Copy the "Output" start from another
+   scenario at the same depth, change the function name, and add a `scrut`
+   block per command with just its `$ ` line.
+3. Run `just docs-check --write` to fill in the output, including the
+   new folder's line under "Every scenario". Read it: it's the
+   documentation, so it has to say what the prose claims. Run
+   `just docs-check` once more: output that differs between runs is a
+   bug in the setup.
+4. Add a bats test that asserts the state, e.g. in `docs/tests/status.bats`.
+
 ## Every scenario
 
 This check lists every scenario folder, with how many documents it has.
@@ -126,36 +159,3 @@ ok 09-vcs-compatibility/02-sapling-git-index (1 document)
 ok 09-vcs-compatibility/03-jujutsu-named-branch (1 document)
 ok 10-platform-compatibility/01-platform-restrictions (2 documents)
 ```
-
-## Scenario output
-
-Under "Output", each document first calls its folder's scenario
-function, so it runs in the state the bats tests use. You can also
-[explore scenarios in a sandbox](../01-getting-started/01-sandbox.md):
-
-    $ build_scenario scenario_pull_ahead
-
-`build_scenario` runs the function with a monorepo and an upstream, hides
-what it prints, and changes into the monorepo. It comes from
-[`readme-setup.sh`](readme-setup.sh). The splice is `vendor/a/` unless
-the document says otherwise, and the upstream's path shows as
-`$UPSTREAM`.
-
-## Adding a scenario
-
-1. Pick the chapter, and a number that puts the scenario between the
-   more common and the rarer ones; renumber the folders after it. Create
-   `<chapter>/<NN>-<name>/setup.bash` with a function `scenario_<name>`,
-   with `_` for `-`. If it continues from a scenario in the same chapter,
-   create it inside that scenario's folder, source `../setup.bash` and
-   call the parent's function first. If that scenario is in another
-   chapter, source its `setup.bash` by its path from `../../` instead.
-2. Write one `.md` file per behavior. Copy the "Output" start from another
-   scenario at the same depth, change the function name, and add a `scrut`
-   block per command with just its `$ ` line.
-3. Run `just docs-check --write` to fill in the output, including the
-   new folder's line under "Every scenario". Read it: it's the
-   documentation, so it has to say what the prose claims. Run
-   `just docs-check` once more: output that differs between runs is a
-   bug in the setup.
-4. Add a bats test that asserts the state, e.g. in `docs/tests/status.bats`.
