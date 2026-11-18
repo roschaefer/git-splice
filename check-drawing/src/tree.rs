@@ -8,13 +8,18 @@ use crate::diagram::{cell_lines, diagram_xml, Diagram};
 use crate::history::History;
 use std::collections::HashMap;
 
-const PULLED: &str = "#0070E0";
-const CARRIED: &str = "#E07000";
-const CONFLICT: &str = "#D00000";
+use crate::legend::{
+    CARRIED_OUTLINE as CARRIED, CONFLICT_OUTLINE as CONFLICT, PULLED_OUTLINE as PULLED,
+};
 const FONT: &str = "fontFamily=Roboto Mono,monospace;";
 const ROW: f64 = 60.0;
 const CIRCLE: f64 = 36.0;
 const GAP: f64 = 26.0;
+
+/// The shared legend's words <n> for outline <color>.
+fn words(color: &str, n: usize) -> &'static str {
+    crate::legend::mark("strokeColor", color).map_or("", |m| m.words[n])
+}
 
 /// Whether drawing <d> is a splice tree: its root text is styled tree=1.
 pub fn is_tree(d: &Diagram) -> bool {
@@ -40,9 +45,9 @@ impl Mark {
 
     fn description(self) -> &'static str {
         match self {
-            Self::Pulled => "pulled",
-            Self::Carried => "carried over",
-            Self::Conflict => "merged in, conflicts",
+            Self::Pulled => words(PULLED, 0),
+            Self::Carried => words(CARRIED, 0),
+            Self::Conflict => words(CONFLICT, 0),
         }
     }
 }
@@ -394,15 +399,15 @@ fn render(rows: &[Row], marks: &Marks) -> String {
     }
     let mut items: Vec<(&str, &str)> = Vec::new();
     if marks.enabled(Mark::Pulled) {
-        items.push((PULLED, "pulled"));
+        items.push((PULLED, words(PULLED, 0)));
     }
     if marks.enabled(Mark::Carried) {
-        items.push((CARRIED, "carried over"));
+        items.push((CARRIED, words(CARRIED, 0)));
     }
     if rows[0].theirs.is_some() {
-        items.push((CONFLICT, "replayed, conflicts"));
+        items.push((CONFLICT, words(CONFLICT, 1)));
     } else if rows.iter().any(|r| r.theirs.is_some()) {
-        items.push((CONFLICT, "merged in, conflicts"));
+        items.push((CONFLICT, words(CONFLICT, 0)));
     }
     if !items.is_empty() {
         let height = 20.0 + 30.0 * items.len().div_ceil(2) as f64;
