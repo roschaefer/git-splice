@@ -7,95 +7,101 @@ different tradeoff revisits the principle it departs from.
 
 ## Principles
 
-- **Keep each repository's history relevant to its users.** A pull adds
-  one commit to the monorepo, not the library's history. A push sends
-  the splice's changes since the last sync, not the monorepo's other
-  work, and not what the folder held before it became a splice: that
-  may never have been meant for this upstream.
-- **Store as little state as possible.** A `.splice` file records one
-  upstream commit, the last sync. Everything else, like which monorepo
-  commits the next push sends, is worked out from history each time, so
-  no second record can fall out of step. `git-subrepo` shows the cost:
-  every push commits a record to the monorepo, and
-  [a squash merge loses it](../05-comparisons/02-third-party/01-git-subrepo.md#problem-3-after-a-squash-merge-the-last-sync-is-lost)
+- **Keep each repository's history relevant to its users.** The
+  monorepo's users don't need the library's whole history, and the
+  library's users don't need the monorepo's unrelated work. So changes
+  cross the splice, and the histories stay apart: a pull adds one
+  commit. What the folder held before it became a splice may never have
+  been meant for this upstream, so a push follows the splice, not the
+  path.
+- **Store as little state as possible.** Two records of the same thing
+  can disagree, and every update is a chance to leave them so. What
+  history, configuration and file locations already tell is worked out
+  from them instead of stored again: `.splice` records only the last
+  sync. Redundant records in `git-subrepo`, which
+  [a squash merge strands](../05-comparisons/02-third-party/01-git-subrepo.md#problem-3-after-a-squash-merge-the-last-sync-is-lost),
+  motivated this
   ([state rationale](02-state.md#derive-state-instead-of-storing-redundant-records)).
-- **Nesting should not change a splice's meaning.** `vendor/a/b/` in the
-  monorepo syncs as `b/` does in a clone of `a`'s repository, so a
-  library needs no other workflow because it sits inside another one.
-  That needs [state that travels with the folder](02-state.md#sync-state-belongs-in-versioned-files),
-  inner history that a squash above it hid
+- **Nesting should not change a splice's meaning.** A project shouldn't
+  need another workflow for its dependencies because it sits inside
+  another repository. So `vendor/a/b/` syncs as `b/` does in a clone of
+  `a`'s repository. That needs
+  [state that travels with the folder](02-state.md#sync-state-belongs-in-versioned-files),
+  inner history recovered from under a squash
   ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/pushed-and-made-above.md)),
-  and outer rebuilds that record each inner splice at the commit its own
-  upstream gets in the same push, so a clone of the outer upstream
-  rebuilds the inner splice as the monorepo does
+  and outer rebuilds that record each inner splice as its own upstream
+  gets it
   ([scenario](../09-scenarios/05-nested-splices/01-nested-splices/rebuilt-in-layers.md)).
-- **Rebuild deterministically.** Rebuilding the same history gives the
-  same commit IDs, so the next push fast-forwards from the last one
-  without a monorepo commit recording it. Rebuilt commits keep their
-  original author, committer and dates and aren't signed: the current
-  time, user or a signature would change the IDs
+- **Rebuild deterministically.** A push should need no monorepo commit
+  to record it. If the same history always rebuilds to the same
+  commits, the next push simply fast-forwards from the last one. So
+  nothing that changes between runs goes in: rebuilt commits keep their
+  original metadata and aren't signed
   ([sync model](../03-concepts/02-sync-model.md#r-is-computed-not-stored)).
-- **Keep repeated syncs scalable.** A rebuild starts at the last sync
-  point, so its cost grows with the commits since then, not with all of
-  history, as [`git subtree split --squash`](../05-comparisons/01-git/02-git-subtree.md#problem-2-with---squash-split-walks-everything)
-  does. Moving the sync point costs a monorepo commit, so a
-  [bump](../04-advanced-workflows/03-bump.md) does it when you choose,
-  not on every push.
-- **Preserving monorepo commit topology is a non-goal.** A rebuild
-  follows first parents, so a branch merged in the monorepo reaches
-  upstream as one commit
+- **Keep repeated syncs scalable.** A sync shouldn't get slower as
+  history grows, as [`git subtree split --squash`](../05-comparisons/01-git/02-git-subtree.md#problem-2-with---squash-split-walks-everything)
+  does. Moving the sync point forward keeps rebuilds short, but costs a
+  monorepo commit, so a [bump](../04-advanced-workflows/03-bump.md)
+  leaves that tradeoff to the user instead of making it on every push.
+- **Preserving monorepo commit topology is a non-goal.** Following
+  first parents is enough for the use cases so far, and the original
+  history stays in the monorepo
   ([scenario](../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/02-merge-in-monorepo/README.md)).
-  The branch's own commits stay in the monorepo. Mapping every merge, as
   [`git subtree`](../05-comparisons/01-git/02-git-subtree.md) and
-  [Josh](../05-comparisons/02-third-party/02-josh.md) do, adds much
-  complexity for little benefit so far.
-- **Inspection must predict publication.** `status`, `diff` and `log`
-  look at the same rebuilt commits that `push` sends, so what they show
-  is what the upstream gets
+  [Josh](../05-comparisons/02-third-party/02-josh.md) show that mapping
+  history faithfully adds much complexity for little benefit. A use case
+  that needs it can reopen the question.
+- **Inspection must predict publication.** If `status` or `diff` read
+  local changes differently from `push`, they could promise something a
+  push doesn't send. So they compare the same rebuilt history that
+  `push` publishes
   ([sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)).
-- **Ask “what would Git do?”** Where Git solved a problem well,
-  `git-splice` does the closest equivalent, like
+- **Ask “what would Git do?”** Git has far more experience with version
+  control problems. Where its solution works well, `git-splice` does the
+  closest equivalent, like
   [branch-tracking settings](../09-scenarios/03-branches-and-teamwork/07-tracked-branch/README.md)
   and [reflogs](../09-scenarios/06-rewritten-history/04-patch-branch-rebased/README.md).
   Where a Git design causes problems, like the global tag namespace or
-  submodules, it doesn't
+  submodules, that's a reason not to copy it
   ([upstream choices](03-upstreams.md),
   [submodule comparison](../05-comparisons/01-git/01-git-submodule.md)).
-- **Git's words keep Git's meaning.** A word Git uses means the same
-  here: `pull` fetches and merges, as `git pull` does. Where the meaning
-  differs, `git-splice` takes a word Git hasn't, like
+- **Git's words keep Git's meaning.** Users bring their expectations
+  from Git, so a word Git uses names the same thing here. Where the
+  meaning differs, `git-splice` takes a word Git hasn't, like
   [splice](01-name.md#noun-and-verb).
-- **Take advantage of Git's full power.**
-  [Rebasing a pushed feature branch](../04-advanced-workflows/README.md)
-  or [editing rebuilt commits before a push](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md)
-  is done with Git. `git-splice` combines its commands with Git's rather
-  than becoming another history editor.
+- **Take advantage of Git's full power.** Git already shapes history
+  well, as in [rebasing](../04-advanced-workflows/README.md) or
+  [editing rebuilt commits](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md).
+  Doing that again would solve a solved problem worse and narrow the
+  user's choices. `git-splice` streamlines work across repositories
+  and leaves history editing to Git.
 - **Use the user's Git so repository operations remain observable.**
-  `git-splice` runs the installed `git`, so it uses your version, and
-  `GIT_TRACE` lists every Git command it runs
+  Running the installed `git` uses the user's version and lets them
+  see every command it runs on their machine
   ([scenario](../09-scenarios/01-everyday-sync/05-git-trace/README.md)).
   A library such as gitoxide would hide that, and be another
-  implementation of Git to maintain.
+  implementation to maintain.
 - **Make information easy to discover and side effects deliberate.**
-  Without a path, `status`, `diff`, `log` and `fetch` cover every
-  splice, so a change in a splice you forgot about still shows up.
-  `pull`, `merge` and `push` need a path or `--all`, so they never
-  change or publish a splice you didn't name.
+  A wrong scope costs little when looking and much when writing. Having
+  to name splices before looking at them can hide the very change you
+  need to see; the same broad default on a write could change or
+  publish unrelated work. So `status` and `diff` cover every splice,
+  and `pull` and `push` need a path or `--all`.
 - **Design for pull requests across repositories.** A monorepo feature
-  branch is work to submit upstream, so `push` sends it to the upstream
-  branch of the same name, ready for a PR to that upstream. Until
-  there's something to push, the splice is compared with upstream's
-  default branch
+  branch is work to submit upstream, so matching branch names connect
+  it to the upstream PRs. Before a feature branch exists upstream,
+  its default branch is what the work is compared with, and the branch
+  is made only when there are commits to submit
   ([branch rationale](03-upstreams.md#matching-branch-names-keep-a-feature-together)).
-- **Refuse rather than guess.** A guess can discard changes or publish
-  to the wrong place. When two branches pulled the same splice, merging
-  them conflicts on the synced commit, and `git-splice` doesn't pick
-  one: `pull` refuses to start until you
-  [resolve it](../09-scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md),
-  and a `.splice` committed with conflict markers stops every command.
-- **Weigh every fix against its complexity.** A fix can bring more
-  failure modes than it removes, and every later change pays for it.
-  A rare case can be documented or tracked as an
+- **Refuse rather than guess.** A guess about ambiguous history, targets
+  or inputs can discard changes or publish to the wrong place. A refusal
+  that explains the ambiguity lets the user decide before anything
+  changes, as with
+  [two pulls of the same splice](../09-scenarios/03-branches-and-teamwork/04-concurrent-pulls/README.md).
+- **Weigh every fix against its complexity.** A fix can add more failure
+  modes than it removes, and every later change pays for its
+  complexity. So weigh how often a case happens and how much fixing it
+  helps; a rare case can be documented or tracked as an
   [edge case](https://github.com/roschaefer/git-splice/issues?q=label%3A%22edge+case%22)
   instead of complicating the ordinary workflow.
 
