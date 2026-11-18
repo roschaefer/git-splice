@@ -925,3 +925,35 @@ XML
   [ "$status" -eq 1 ]
   [ "$output" = '!!   the legend calls an orange outline "carried over": write "commits carried over", as every drawing does' ]
 }
+
+# The state the "same name above and below" scenario draws: vendor/a/ and
+# vendor/a/b/, each with a fork beside its upstream, both fetched.
+outer_forks() {
+  load '../09-scenarios/05-nested-splices/01-nested-splices/01-outer-fork/setup'
+  local m="$BATS_TEST_TMPDIR/forks" u="$BATS_TEST_TMPDIR/forks.git"
+  export GIT_CONFIG_COUNT=3 \
+    GIT_CONFIG_KEY_0="url.${u%.git}-b.git.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/b.git \
+    GIT_CONFIG_KEY_1="url.${u%.git}-fork.git.insteadOf" GIT_CONFIG_VALUE_1=https://git.example.com/company/a.git \
+    GIT_CONFIG_KEY_2="url.${u%.git}-b-fork.git.insteadOf" GIT_CONFIG_VALUE_2=https://git.example.com/company/b.git
+  scenario_outer_fork "$m" "$u" https://git.example.com/b.git
+  cd "$m"
+  git config --file vendor/a/.splice upstream.fork.url https://git.example.com/company/a.git
+  git config --file vendor/a/.splice splice.default-upstream origin
+  git config --file vendor/a/b/.splice upstream.fork.url https://git.example.com/company/b.git
+  git config --file vendor/a/b/.splice splice.default-upstream origin
+  git commit -q -m "add the company forks" -- vendor/a/.splice vendor/a/b/.splice
+  splice fetch >/dev/null
+  xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
+    "$BATS_TEST_DIRNAME/../09-scenarios/05-nested-splices/01-nested-splices/01-outer-fork/same-name-below.drawio.svg" >"$drawing" 2>/dev/null
+  local l
+  l="$(git config --file vendor/a/.splice splice.commit)"
+  revs=(a=HEAD~1 c=HEAD k="$l~1" l="$l" m="$(git config --file vendor/a/b/.splice splice.commit)")
+}
+
+@test "drawing: a label given per lane names another commit in each lane, on sides too" {
+  outer_forks
+  edit_drawing -u '//mxCell[@id="q" or @id="n"]/@value' -v x
+  run check_drawing "$drawing" "${revs[@]}" \
+    vendor/a/x=refs/splices/a/heads/main vendor/a/b/x=refs/splices/company-b/heads/main
+  [ "$status" -eq 0 ]
+}

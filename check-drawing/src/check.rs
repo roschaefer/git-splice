@@ -745,7 +745,13 @@ impl<'a> Checker<'a> {
                     ));
                     continue;
                 }
-                if let Some(&other) = self.id_of_label.get(&label) {
+                // In another lane, the same label may name another commit,
+                // given per lane, e.g. vendor/a/b/r'=<rev>.
+                if let Some(&other) = self
+                    .id_of_label
+                    .get(&label)
+                    .filter(|&&other| self.place(other).lane == lane)
+                {
                     let other_side = self.side_name(other);
                     if !other_side.is_empty() {
                         if self.commit(other) != hash {
