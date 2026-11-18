@@ -880,7 +880,7 @@ XML
   git checkout -q --theirs vendor/a/b/file.txt
   git add vendor/a/b/file.txt
   GIT_EDITOR=true git rebase --continue >/dev/null
-  [ -n "$(git rev-parse --verify --quiet REBASE_HEAD)" ]
+  [ "$(git rev-parse --verify --quiet REBASE_HEAD)" = "$m" ]
   run check_drawing "$drawing" m="$m"
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   m is outlined red, but no stopped pull or rebase conflicts on it: outline it black"* ]]

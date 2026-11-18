@@ -25,6 +25,11 @@ write_tree() {
   "$CHECK_DRAWING_TOOL" tree "$@" >"$written"
 }
 
+# cell_x <id>: where the written tree's cell <id> starts, left to right.
+cell_x() {
+  xmlstarlet sel -t -v "//mxCell[@id='$1']/mxGeometry/@x" "$written" | cut -d. -f1
+}
+
 # cell <id> <attribute>: the attribute of the written tree's cell <id>.
 cell() {
   xmlstarlet sel -t -v "//mxCell[@id='$1']/@$2" "$written"
@@ -120,8 +125,10 @@ cell() {
   run splice pull --rebase vendor/a/b
   [ "$status" -ne 0 ]
   [ -n "$(git rev-parse --verify --quiet REBASE_HEAD)" ]
-  write_tree m=REBASE_HEAD
+  write_tree h=HEAD m=REBASE_HEAD
+  [ "$(cell s0 value)" = h ]
   [ "$(cell t0 value)" = m ]
+  (($(cell_x s0) < $(cell_x t0)))
   [[ "$(cell t0 style)" == *"strokeColor=#D00000;"* ]]
   [ "$(cell f0 value)" = "monorepo   conflict" ]
   [ "$(cell lt0 value)" = "replayed, conflicts" ]
