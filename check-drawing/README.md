@@ -201,6 +201,11 @@ does.
     monorepo's own commit, which a push sent and a pull brought back,
     didn't come in with one. A commit that is orange too can't show
     both: the drawing's legend has to drop one of the two samples.
+  - Outlined red, `#D00000`, if the legend has a red sample: the commit
+    a pull that stopped at a conflict merges in, the upstream commit the
+    `CHERRY_PICK_HEAD` git-splice made records, or
+    a rebase that stopped at one replays (`REBASE_HEAD`, while the
+    rebase is under way).
   - Without the color's sample, every commit is outlined black and white
     inside.
     In a drawing without splices, e.g. of what `git subtree` makes,
@@ -240,6 +245,10 @@ command that writes it.
 - **Merged in with a conflict**: during a pull that stopped at a
   conflict, the commit it merges in, outlined red, and the row's folder
   followed by `conflict`.
+- **Replayed with a conflict**: during a rebase that stopped at a
+  conflict, the commit it replays, outlined red after `HEAD` in the
+  monorepo's row, which is followed by `conflict`. Git keeps `REBASE_HEAD`
+  after the rebase ends; only a rebase under way counts.
 - **Marks**: `--mark pulled` outlines blue, and `--mark carried` orange,
   what the lane drawing outlines in those colors, with a sample in the
   legend. One commit can't be both.

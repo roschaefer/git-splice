@@ -89,13 +89,13 @@ Could not apply *... # c local (glob)
 [1]
 ```
 
-While *c* is replayed, `HEAD` is the pull, *p*: `c/` is at *u*, and each level above has *p'*, which records the new commit below it:
+While *c* is replayed, red as it conflicts, `HEAD` is the pull, *p*: `c/` is at *u*, and each level above has *p'*, which records the new commit below it:
 
-![The tree at the pull, p, outlined blue, while c is replayed: vendor/a/ at k, then dashed p', outlined blue; b/ at l, then the same; c/ at u, outlined blue, with no commits of its own](rebased-at-the-conflict.drawio.svg)
+![The tree at the pull, p, outlined blue, while c is replayed: c after it, outlined red, replayed and conflicting; vendor/a/ at k, then dashed p', outlined blue; b/ at l, then the same; c/ at u, outlined blue, with no commits of its own](rebased-at-the-conflict.drawio.svg)
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/rebased-at-the-conflict.drawio.svg" k="$k" l="$l" u="$u" p=HEAD
+$ check_drawing "$TESTDIR/rebased-at-the-conflict.drawio.svg" c="$c" k="$k" l="$l" u="$u" p=HEAD
 ok   rebased-at-the-conflict.drawio.svg: a tree of 4 rows
 ```
 -->
@@ -103,7 +103,7 @@ ok   rebased-at-the-conflict.drawio.svg: a tree of 4 rows
 As lanes: `main` is still at *c*, and the pull *p* is beside it, on
 *s*. The rebuilds have *p'*, and nothing of *c* yet:
 
-![The monorepo's history: s, then c with main at it, and beside it p, outlined blue, where HEAD is detached. Below, one lane per splice, each with its upstream's main: vendor/a/ k, then the dashed copy p'; vendor/a/b/ l, then p'; vendor/a/b/c/ n, then u. u and the copies of p are outlined blue](rebased-at-the-conflict-lanes.drawio.svg)
+![The monorepo's history: s, then c, outlined red, replayed and conflicting, with main at it, and beside it p, outlined blue, where HEAD is detached. Below, one lane per splice, each with its upstream's main: vendor/a/ k, then the dashed copy p'; vendor/a/b/ l, then p'; vendor/a/b/c/ n, then u. u and the copies of p are outlined blue](rebased-at-the-conflict-lanes.drawio.svg)
 
 <!--
 ```scrut

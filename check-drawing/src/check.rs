@@ -12,6 +12,7 @@ mod arrows;
 const CARRIED_OUTLINE: &str = "#E07000";
 const WALKED_FILL: &str = "#E0E0E0";
 const PULLED_OUTLINE: &str = "#0070E0";
+const CONFLICT_OUTLINE: &str = "#D00000";
 
 /// A mark a drawing's legend may add to the central legend's whose meaning
 /// check_drawing knows: once the legend has a sample of it, every commit with
@@ -31,7 +32,7 @@ struct Mark {
 /// Whether a cell has some mark.
 type CellTest = fn(&Cell) -> bool;
 
-const MARKS: [Mark; 3] = [
+const MARKS: [Mark; 4] = [
     Mark {
         attr: "fillColor",
         color: WALKED_FILL,
@@ -53,6 +54,14 @@ const MARKS: [Mark; 3] = [
         fix: "outline it blue",
         unwanted:
             "is outlined blue, but it neither records a pull nor came in with one: outline it black",
+    },
+    Mark {
+        attr: "strokeColor",
+        color: CONFLICT_OUTLINE,
+        name: "a red outline",
+        fix: "outline it red",
+        unwanted:
+            "is outlined red, but no stopped pull or rebase conflicts on it: outline it black",
     },
 ];
 
@@ -943,6 +952,10 @@ impl<'a> Checker<'a> {
             .walked_and_copied(self.splices.iter().filter_map(|s| self.truth.get(s)));
         let drawn: Vec<String> = self.commits.iter().map(|&c| self.commit(c)).collect();
         let (pulls, brought) = self.git.pulls_among(&drawn);
+        // Where a pull or a rebase stopped at a conflict: the commit it
+        // merges in, or replays.
+        let merged_in = self.git.stopped_pull().map(|(_, commit)| commit);
+        let replayed = self.git.stopped_rebase();
         // Whether the legend has a sample of <color> as <attr>.
         let explained = |attr: &str, plain: &str, color: &str| {
             self.legend_samples
@@ -1010,6 +1023,13 @@ impl<'a> Checker<'a> {
                     Some("a commit that records a pull")
                 } else if brought.contains(&commit) {
                     Some("a commit a pull brought in")
+                } else {
+                    None
+                },
+                if replayed.as_deref() == Some(commit.as_str()) {
+                    Some("the commit a stopped rebase replays")
+                } else if merged_in.as_deref() == Some(commit.as_str()) {
+                    Some("the commit a stopped pull merges in")
                 } else {
                     None
                 },
