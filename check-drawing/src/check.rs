@@ -5,56 +5,50 @@
 
 use crate::diagram::{is_box_label, is_lane_label, Cell, Diagram};
 use crate::history::{History, Truth};
+use crate::legend::{self, Attr, Facts, Meaning};
 use std::collections::{HashMap, HashSet};
 
 mod arrows;
 
-const CARRIED_OUTLINE: &str = "#E07000";
-const WALKED_FILL: &str = "#E0E0E0";
-const PULLED_OUTLINE: &str = "#0070E0";
-
-/// A mark a drawing's legend may add to the central legend's whose meaning
-/// check_drawing knows: once the legend has a sample of it, every commit with
-/// that meaning has it, and no other. A legend may explain any other color
-/// too, which nothing checks.
-struct Mark {
-    /// The style key it sets.
-    attr: &'static str,
-    color: &'static str,
-    name: &'static str,
-    /// How to give a commit the mark.
-    fix: &'static str,
-    /// What a commit with the mark but without its meaning is told.
-    unwanted: &'static str,
-}
-
 /// Whether a cell has some mark.
 type CellTest = fn(&Cell) -> bool;
 
-const MARKS: [Mark; 3] = [
-    Mark {
-        attr: "fillColor",
-        color: WALKED_FILL,
-        name: "a grey fill",
-        fix: "fill it grey",
-        unwanted: "is filled, but the rebuild doesn't walk it: leave it white",
-    },
-    Mark {
-        attr: "strokeColor",
-        color: CARRIED_OUTLINE,
-        name: "an orange outline",
-        fix: "outline it orange",
-        unwanted: "is outlined in color, but the rebuild doesn't carry it across: outline it black",
-    },
-    Mark {
-        attr: "strokeColor",
-        color: PULLED_OUTLINE,
-        name: "a blue outline",
-        fix: "outline it blue",
-        unwanted:
-            "is outlined blue, but it neither records a pull nor came in with one: outline it black",
-    },
-];
+/// A color's name, for messages: the ones the default legend uses, else the
+/// color itself.
+fn color_name(color: &str) -> String {
+    match color.to_uppercase().as_str() {
+        "#E0E0E0" => "grey",
+        "#E07000" => "orange",
+        "#0070E0" => "blue",
+        "#F8CECC" | "#D00000" => "red",
+        other => return other.to_string(),
+    }
+    .to_string()
+}
+
+/// "a blue outline", "an orange outline", "a #8000FF fill".
+fn mark_name(attr: Attr, color: &str) -> String {
+    let name = color_name(color);
+    let article = if name.starts_with(['a', 'e', 'i', 'o', 'u']) {
+        "an"
+    } else {
+        "a"
+    };
+    let what = if attr == Attr::Fill {
+        "fill"
+    } else {
+        "outline"
+    };
+    format!("{article} {name} {what}")
+}
+
+/// The style key, the color without one, and the words for <attr>.
+fn attr_keys(attr: Attr) -> (&'static str, &'static str, &'static str, &'static str) {
+    match attr {
+        Attr::Fill => ("fillColor", "white", "filled", "leave it white"),
+        Attr::Outline => ("strokeColor", "black", "outlined", "outline it black"),
+    }
+}
 
 /// What a shape of the drawing is.
 #[derive(Clone, Copy, PartialEq)]
@@ -927,27 +921,62 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// What the next rebuild does with a commit, if the drawing's legend says
-    /// so. With an orange sample in the legend, a change it carries across is
-    /// outlined orange, on both ends: a commit R copies, from the monorepo's
-    /// first-parent history since B, and its copy in R. With a grey sample in
-    /// the legend, each monorepo commit the rebuild walks, on that history, is
-    /// filled grey, e.g. to count them. With a blue sample, each pull the
-    /// drawing shows, at any level, is outlined blue: the commit that records
-    /// it and the upstream commits it brought in.
-    /// Every other commit is outlined black and white inside. Without
-    /// splices, e.g. in a drawing of git subtree, none is checked.
+    /// The words next to legend sample <sample>: the legend's text to its
+    /// right, on its row.
+    fn sample_words(&self, sample: usize) -> String {
+        let s = &self.d.cells[sample];
+        self.d
+            .cells
+            .iter()
+            .filter(|t| t.parent == s.parent && !t.style.is_ellipse() && !t.value.is_empty())
+            .filter(|t| t.x > s.x && t.y < s.y + s.height && s.y < t.y + t.height)
+            .min_by(|a, b| a.x.total_cmp(&b.x))
+            .map(|t| t.value.clone())
+            .unwrap_or_default()
+    }
+
+    /// The meanings the legend's samples give their styles: by their words,
+    /// or by their style without words. A sample with words no meaning has
+    /// gives none, and its style goes unchecked.
+    fn legend_meanings(&self) -> Vec<(Attr, String, &'static Meaning)> {
+        let mut meanings = Vec::new();
+        for &sample in &self.legend_samples {
+            let words = self.sample_words(sample);
+            for attr in [Attr::Fill, Attr::Outline] {
+                let (key, plain, _, _) = attr_keys(attr);
+                let color = self.d.cells[sample].style.color(key, plain);
+                if color == plain {
+                    continue;
+                }
+                let meaning = if words.is_empty() {
+                    legend::by_style(attr, &color)
+                } else {
+                    legend::by_words(&words).filter(|m| m.attr == attr)
+                };
+                if let Some(meaning) = meaning {
+                    meanings.push((attr, color, meaning));
+                }
+            }
+        }
+        meanings
+    }
+
+    /// Each commit has the fills and outlines the legend's meanings give it,
+    /// by what the repository says about it, and no other. Without splices,
+    /// e.g. in a drawing of git subtree, none is checked.
     fn check_colors(&mut self) {
         let (walked, copied) = self
             .git
             .walked_and_copied(self.splices.iter().filter_map(|s| self.truth.get(s)));
         let drawn: Vec<String> = self.commits.iter().map(|&c| self.commit(c)).collect();
         let (pulls, brought) = self.git.pulls_among(&drawn);
+        let meanings = self.legend_meanings();
         // Whether the legend has a sample of <color> as <attr>.
-        let explained = |attr: &str, plain: &str, color: &str| {
+        let explained = |attr: Attr, color: &str| {
+            let (key, plain, _, _) = attr_keys(attr);
             self.legend_samples
                 .iter()
-                .any(|&s| self.d.cells[s].style.color(attr, plain) == color)
+                .any(|&s| self.d.cells[s].style.color(key, plain) == color)
         };
         // Each walked monorepo commit's label, by what its copy in R shares
         // with it: author, dates and message.
@@ -967,7 +996,6 @@ impl<'a> Checker<'a> {
             let primed = value.ends_with('\'');
             let splice = self.splice_of(cell);
             let truth = self.truth(&splice);
-            let (mut is_walked, mut is_carried) = (false, false);
             // R's copy of a drawn commit is labelled after it, with a '.
             if !primed
                 && !splice.is_empty()
@@ -982,68 +1010,59 @@ impl<'a> Checker<'a> {
                     continue;
                 }
             }
+            let mut facts = Facts {
+                records_pull: pulls.contains(&commit),
+                brought_in: brought.contains(&commit),
+                message: self.git.message(&commit),
+                copy: primed,
+                ..Facts::default()
+            };
             if primed {
                 if !splice.is_empty()
                     && !truth.r.is_empty()
                     && self.git.is_ancestor(&commit, &truth.r)
                     && !self.git.is_ancestor(&commit, &truth.s)
                 {
-                    is_carried = true;
+                    facts.carried = Some("R's copy of a commit since B");
                 }
             } else if self.in_monorepo(&commit)
                 && (self.lanes.is_empty() || self.lane_of(cell).is_empty())
                 && walked.contains(&commit)
             {
-                is_walked = true;
-                is_carried = copied.contains(&self.git.copy_key(&commit));
+                facts.walked = true;
+                facts.carried = copied
+                    .contains(&self.git.copy_key(&commit))
+                    .then_some("a commit R copies");
             }
-
-            // Why the commit has each of MARKS, in its order.
-            let reasons = [
-                is_walked.then_some("a commit the rebuild walks"),
-                is_carried.then_some(if primed {
-                    "R's copy of a commit since B"
-                } else {
-                    "a commit R copies"
-                }),
-                if pulls.contains(&commit) {
-                    Some("a commit that records a pull")
-                } else if brought.contains(&commit) {
-                    Some("a commit a pull brought in")
-                } else {
-                    None
-                },
-            ];
-            let style = &self.d.cells[cell].style;
-            for (attr, plain, word, fix) in [
-                ("fillColor", "white", "filled", "leave it white"),
-                ("strokeColor", "black", "outlined", "outline it black"),
-            ] {
-                let have = style.color(attr, plain);
-                let wanted: Vec<_> = MARKS
+            let style = self.d.cells[cell].style.clone();
+            for attr in [Attr::Fill, Attr::Outline] {
+                let (key, plain, word, fix) = attr_keys(attr);
+                let have = style.color(key, plain);
+                let wanted: Vec<(&String, &str)> = meanings
                     .iter()
-                    .zip(reasons)
-                    .filter(|(m, r)| {
-                        m.attr == attr && r.is_some() && explained(attr, plain, m.color)
-                    })
+                    .filter(|(a, _, _)| *a == attr)
+                    .filter_map(|(_, color, m)| m.reason(&facts).map(|r| (color, r)))
                     .collect();
                 // One outline can't show two meanings.
                 if wanted.len() > 1 {
-                    let reasons: Vec<&str> = wanted.iter().filter_map(|(_, r)| *r).collect();
+                    let reasons: Vec<&str> = wanted.iter().map(|(_, r)| *r).collect();
                     self.errors.push(format!(
                         "{value} is {}: one {} can't show both -- drop one of their samples from the legend",
                         reasons.join(" and "),
-                        if attr == "fillColor" { "fill" } else { "outline" }
+                        if attr == Attr::Fill { "fill" } else { "outline" }
                     ));
                     continue;
                 }
-                if let Some((mark, reason)) = wanted.first() {
-                    if have != mark.color {
+                if let Some((color, reason)) = wanted.first() {
+                    if have != **color {
+                        let verb = if attr == Attr::Fill {
+                            "fill"
+                        } else {
+                            "outline"
+                        };
                         self.errors.push(format!(
-                            "{value} is {}: {}, {}",
-                            reason.unwrap_or_default(),
-                            mark.fix,
-                            mark.color
+                            "{value} is {reason}: {verb} it {}, {color}",
+                            color_name(color)
                         ));
                     }
                     continue;
@@ -1051,18 +1070,24 @@ impl<'a> Checker<'a> {
                 if have == plain {
                     continue;
                 }
-                if let Some((mark, reason)) = MARKS
+                if let Some((_, _, meaning)) = meanings
                     .iter()
-                    .zip(reasons)
-                    .find(|(m, _)| m.attr == attr && m.color == have)
+                    .find(|(a, color, _)| *a == attr && *color == have)
                 {
-                    // With the meaning, the legend's check asks for a sample.
-                    if reason.is_none() {
-                        self.errors.push(format!("{value} {}", mark.unwanted));
-                    }
+                    self.errors.push(format!("{value} {}", meaning.unwanted));
                     continue;
                 }
-                if !explained(attr, plain, &have) {
+                // A default style without its sample: its default meaning
+                // judges it, and the legend's check asks for a sample.
+                if let Some(meaning) = legend::by_style(attr, &have) {
+                    if !explained(attr, &have) {
+                        if meaning.reason(&facts).is_none() {
+                            self.errors.push(format!("{value} {}", meaning.unwanted));
+                        }
+                        continue;
+                    }
+                }
+                if !explained(attr, &have) {
                     self.errors.push(format!(
                         "{value} is {word} {have}, a color the legend doesn't explain: {fix}"
                     ));
@@ -1102,18 +1127,16 @@ impl<'a> Checker<'a> {
             }
         }
         // Each color: the known marks, and any other a sample shows.
-        for (attr, plain, word) in [
-            ("fillColor", "white", "fill"),
-            ("strokeColor", "black", "outline"),
-        ] {
+        for attr in [Attr::Fill, Attr::Outline] {
+            let (key, plain, _, _) = attr_keys(attr);
             let mut colors: Vec<String> = self
                 .legend_samples
                 .iter()
-                .map(|&c| self.d.cells[c].style.color(attr, plain))
+                .map(|&c| self.d.cells[c].style.color(key, plain))
                 .filter(|color| color != plain)
                 .collect();
             colors.extend(
-                MARKS
+                legend::DEFAULT
                     .iter()
                     .filter(|m| m.attr == attr)
                     .map(|m| m.color.to_string()),
@@ -1121,11 +1144,8 @@ impl<'a> Checker<'a> {
             colors.sort();
             colors.dedup();
             for color in colors {
-                let name = MARKS
-                    .iter()
-                    .find(|m| m.attr == attr && m.color == color)
-                    .map_or(format!("a {color} {word}"), |m| m.name.to_string());
-                let has = |c: usize| self.d.cells[c].style.color(attr, plain) == color;
+                let name = mark_name(attr, &color);
+                let has = |c: usize| self.d.cells[c].style.color(key, plain) == color;
                 let uses = self.commits.iter().any(|&c| has(c));
                 let explains = self.legend_samples.iter().any(|&c| has(c));
                 if uses && !explains && self.legends == 0 {
