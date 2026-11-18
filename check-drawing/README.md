@@ -175,7 +175,7 @@ does.
   colors below have a meaning `check_drawing` knows and checks; any
   other color the legend explains is the drawing's own, and unchecked. A dash and
   a trailing `'` are the
-  [central legend's](../docs/10-contributing/02-writing.md#reading-the-drawings),
+  [central legend's](../docs/08-contributing/02-writing.md#reading-the-drawings),
   which explains them for every drawing, so a `legend=1` doesn't. A
   legend styled `legend=full`, as in the README, explains them too.
 - **Filled and outlined**: what the next rebuild does with a commit,

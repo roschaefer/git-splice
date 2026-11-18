@@ -14,7 +14,7 @@ merge request: the feature branch is compared with the default branch.
 </div>
 
 The drawings in these docs share one language, the
-[central legend](../10-contributing/02-writing.md#reading-the-drawings):
+[central legend](../08-contributing/02-writing.md#reading-the-drawings):
 boxes name commits, lanes are splices, and dashed commits aren't on the
 upstream yet.
 

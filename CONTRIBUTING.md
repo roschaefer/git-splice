@@ -1,3 +1,3 @@
 # Contributing
 
-See [Contributing](docs/10-contributing/README.md).
+See [Contributing](docs/08-contributing/README.md).
