@@ -145,6 +145,20 @@ b/file.txt
 file.txt
 ```
 
+As lanes: each upstream has its copy of *n*, *n'*, which is T and R. The
+monorepo still records *l* and *m*, its synced commits: a push doesn't
+move them.
+
+![The monorepo's a and n, H at n. In the lane vendor/a/, k, then l, U(H), then n', solid, T and R. Inside it, vendor/a/b/: m, U(H), which l records, then n', solid, T and R](nested-pushed-lanes.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/nested-pushed-lanes.drawio.svg" a=HEAD~1 n=HEAD \
+>   k=$(git config --file vendor/a/.splice splice.commit)~1 l=$(git config --file vendor/a/.splice splice.commit) m=$(git config --file vendor/a/b/.splice splice.commit)
+ok   nested-pushed-lanes.drawio.svg: 7 commits, 9 arrows, 5 boxes, 2 lanes
+```
+-->
+
 ## The outer upstream pulls the inner one
 
 Someone working in the outer upstream pulls the inner upstream's new
@@ -218,6 +232,22 @@ $ git -C "$UPSTREAM-b.git" log --graph --format=%s main
 ```scrut
 $ check_drawing "$TESTDIR/nested-end.drawio.svg" p=HEAD a2=$(git config --file vendor/a/.splice splice.commit) b2=$(git config --file vendor/a/b/.splice splice.commit)
 ok   nested-end.drawio.svg: a tree of 3 rows
+```
+-->
+
+As lanes: the outer upstream has *o*, its pull of the inner upstream's
+*u*, on top of *n'*. That's T and U(H) of `vendor/a/`, and R is *p'*, the
+copy of the monorepo's pull, which merges *o* with the dashed *n2'*. In
+`vendor/a/b/`, the push joined *n2'* and *u* in *p'*, T and R; *u* is
+U(H), the commit *o* records.
+
+![The monorepo's a, n, n2 and p, H at p. In the lane vendor/a/: k, l, n', then o on n', T and U(H), and the dashed n2' on n'; the dashed p' merges n2' and o, R. Inside it, vendor/a/b/: m, n', then u and n2' on n'; p' merges them, T and R; u is U(H), which o records](nested-pulled-lanes.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/nested-pulled-lanes.drawio.svg" a=HEAD~3 n=HEAD~2 n2=HEAD~1 p=HEAD \
+>   o=$(git config --file vendor/a/.splice splice.commit) k=$(git config --file vendor/a/.splice splice.commit)~3 l=$(git config --file vendor/a/.splice splice.commit)~2 u=$(git config --file vendor/a/b/.splice splice.commit) m=$(git config --file vendor/a/b/.splice splice.commit)~2
+ok   nested-pulled-lanes.drawio.svg: 15 commits, 19 arrows, 5 boxes, 2 lanes
 ```
 -->
 
