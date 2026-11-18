@@ -5,65 +5,13 @@
 
 use crate::diagram::{is_box_label, is_lane_label, Cell, Diagram};
 use crate::history::{History, Truth};
+use crate::legend::{Facts, MARKS};
 use std::collections::{HashMap, HashSet};
 
 mod arrows;
 
-const CARRIED_OUTLINE: &str = "#E07000";
-const WALKED_FILL: &str = "#E0E0E0";
-const PULLED_OUTLINE: &str = "#0070E0";
-const CONFLICT_OUTLINE: &str = "#D00000";
-
-/// A mark a drawing's legend may add to the central legend's whose meaning
-/// check_drawing knows: once the legend has a sample of it, every commit with
-/// that meaning has it, and no other. A legend may explain any other color
-/// too, which nothing checks.
-struct Mark {
-    /// The style key it sets.
-    attr: &'static str,
-    color: &'static str,
-    name: &'static str,
-    /// How to give a commit the mark.
-    fix: &'static str,
-    /// What a commit with the mark but without its meaning is told.
-    unwanted: &'static str,
-}
-
 /// Whether a cell has some mark.
 type CellTest = fn(&Cell) -> bool;
-
-const MARKS: [Mark; 4] = [
-    Mark {
-        attr: "fillColor",
-        color: WALKED_FILL,
-        name: "a grey fill",
-        fix: "fill it grey",
-        unwanted: "is filled, but the rebuild doesn't walk it: leave it white",
-    },
-    Mark {
-        attr: "strokeColor",
-        color: CARRIED_OUTLINE,
-        name: "an orange outline",
-        fix: "outline it orange",
-        unwanted: "is outlined in color, but the rebuild doesn't carry it across: outline it black",
-    },
-    Mark {
-        attr: "strokeColor",
-        color: PULLED_OUTLINE,
-        name: "a blue outline",
-        fix: "outline it blue",
-        unwanted:
-            "is outlined blue, but it neither records a pull nor came in with one: outline it black",
-    },
-    Mark {
-        attr: "strokeColor",
-        color: CONFLICT_OUTLINE,
-        name: "a red outline",
-        fix: "outline it red",
-        unwanted:
-            "is outlined red, but no stopped pull or rebase conflicts on it: outline it black",
-    },
-];
 
 /// What a shape of the drawing is.
 #[derive(Clone, Copy, PartialEq)]
@@ -1011,29 +959,22 @@ impl<'a> Checker<'a> {
                 is_carried = copied.contains(&self.git.copy_key(&commit));
             }
 
-            // Why the commit has each of MARKS, in its order.
-            let reasons = [
-                is_walked.then_some("a commit the rebuild walks"),
-                is_carried.then_some(if primed {
+            let facts = Facts {
+                walked: is_walked,
+                carried: is_carried.then_some(if primed {
                     "R's copy of a commit since B"
                 } else {
                     "a commit R copies"
                 }),
-                if pulls.contains(&commit) {
-                    Some("a commit that records a pull")
-                } else if brought.contains(&commit) {
-                    Some("a commit a pull brought in")
-                } else {
-                    None
-                },
-                if replayed.as_deref() == Some(commit.as_str()) {
-                    Some("the commit a stopped rebase replays")
-                } else if merged_in.as_deref() == Some(commit.as_str()) {
-                    Some("the commit a stopped pull merges in")
-                } else {
-                    None
-                },
-            ];
+                records_pull: pulls.contains(&commit),
+                brought_in: brought.contains(&commit),
+                merged_in: merged_in.as_deref() == Some(commit.as_str()),
+                replayed: replayed.as_deref() == Some(commit.as_str()),
+                message: self.git.message(&commit),
+                copy: primed,
+            };
+            // Why the commit has each of MARKS, in its order.
+            let reasons = MARKS.each_ref().map(|m| m.reason(&facts));
             let style = &self.d.cells[cell].style;
             for (attr, plain, word, fix) in [
                 ("fillColor", "white", "filled", "leave it white"),
@@ -1091,11 +1032,47 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// The words next to legend sample <sample>: the legend's text to its
+    /// right, on its row; of two that overlap it, the one centered nearer
+    /// its row, then the nearer one.
+    fn sample_words(&self, sample: usize) -> String {
+        let s = &self.d.cells[sample];
+        self.d
+            .cells
+            .iter()
+            .filter(|t| t.parent == s.parent && !t.style.is_ellipse() && !t.value.is_empty())
+            .filter(|t| t.x > s.x && t.y < s.y + s.height && s.y < t.y + t.height)
+            .min_by(|a, b| {
+                let off = |t: &Cell| (t.y + t.height / 2.0 - s.y - s.height / 2.0).abs();
+                off(a).total_cmp(&off(b)).then(a.x.total_cmp(&b.x))
+            })
+            .map(|t| t.value.clone())
+            .unwrap_or_default()
+    }
+
     /// The legend explains each mark the drawing's commits use, by a sample
     /// commit with that mark next to the words for it, and no other mark.
+    /// A color of the shared legend takes its words, as in every drawing.
     fn check_legend(&mut self) {
         if self.other_tool() {
             return;
+        }
+        for &sample in &self.legend_samples {
+            let words = self.sample_words(sample);
+            if words.is_empty() {
+                continue;
+            }
+            for attr in ["fillColor", "strokeColor"] {
+                let color = self.d.cells[sample].style.color(attr, "");
+                if let Some(mark) = crate::legend::mark(attr, &color) {
+                    if !mark.words.contains(&words.as_str()) {
+                        self.errors.push(format!(
+                            "the legend calls {} \"{words}\": write \"{}\", as every drawing does",
+                            mark.name, mark.words[0]
+                        ));
+                    }
+                }
+            }
         }
         // The central legend, in writing.md, explains these for every drawing.
         let central: [(&str, CellTest); 2] = [
