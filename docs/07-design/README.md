@@ -17,8 +17,8 @@ different tradeoff revisits the principle it departs from.
 - **Store as little state as possible.** Two records of the same thing
   can disagree, and every update is a chance to leave them so. What
   history, configuration and file locations already tell is worked out
-  from them instead of stored again: `.splice` records only the last
-  sync. Redundant records in `git-subrepo`, which
+  from them instead of stored again: the last sync is the only sync
+  state `.splice` records. Redundant records in `git-subrepo`, which
   [a squash merge strands](../05-comparisons/02-third-party/01-git-subrepo.md#problem-3-after-a-squash-merge-the-last-sync-is-lost),
   motivated this
   ([state rationale](02-state.md#derive-state-instead-of-storing-redundant-records)).
