@@ -1,21 +1,9 @@
 # Design
 
-The other documentation chapters explain what `git-splice` does and how
-to use it: [getting started](../01-getting-started/README.md),
-[concepts](../03-concepts/README.md),
-[workflows](../04-advanced-workflows/README.md),
-comparisons with [Git's tools](../05-comparisons/01-git/README.md),
-[third-party tools](../05-comparisons/02-third-party/README.md) and
-[other VCS tools](../05-comparisons/03-vcs/README.md),
-[the command reference](../06-command-reference/README.md) and
-[scenarios](../09-scenarios/README.md). Design explains why: the principles, tradeoffs
-and constraints behind that behaviour. Mechanisms appear here where they
-explain a choice; behaviour and usage belong in the relevant chapters.
-
-These principles also guide future features. Contributors, including AI
-agents, should use them to evaluate proposed behaviour, not just to describe
-the current implementation. A change that needs a different tradeoff should
-explicitly reconsider the affected principle and its rationale.
+A handful of principles explain why `git-splice` behaves the way it
+does, and they decide what it does next: a
+[change](../08-contributing/README.md#pull-requests) that needs a
+different tradeoff revisits the principle it departs from.
 
 ## Principles
 
@@ -128,10 +116,11 @@ explicitly reconsider the affected principle and its rationale.
 
 </div>
 
-[Why the name "splice"](01-name.md) introduces the terminology, including
-“splicing in” and “splicing out”, and the naming motivations. The following
-chapters develop the rationale for [state](02-state.md) and
-[upstreams](03-upstreams.md).
-[Going forward](07-going-forward/README.md) explores potential features and
-open questions, including directions that are out of scope; these proposals
-do not describe released behaviour or promise an implementation.
+## Read more
+
+- [Why the name "splice"](01-name.md), including "splicing in" and
+  "splicing out"
+- Why [state](02-state.md) and [upstreams](03-upstreams.md) work the way
+  they do
+- [Going forward](07-going-forward/README.md): ideas and open questions,
+  not released behaviour
