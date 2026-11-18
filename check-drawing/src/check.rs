@@ -1033,7 +1033,8 @@ impl<'a> Checker<'a> {
     }
 
     /// The words next to legend sample <sample>: the legend's text to its
-    /// right, on its row.
+    /// right, on its row; of two that overlap it, the one centered nearer
+    /// its row, then the nearer one.
     fn sample_words(&self, sample: usize) -> String {
         let s = &self.d.cells[sample];
         self.d
@@ -1041,7 +1042,10 @@ impl<'a> Checker<'a> {
             .iter()
             .filter(|t| t.parent == s.parent && !t.style.is_ellipse() && !t.value.is_empty())
             .filter(|t| t.x > s.x && t.y < s.y + s.height && s.y < t.y + t.height)
-            .min_by(|a, b| a.x.total_cmp(&b.x))
+            .min_by(|a, b| {
+                let off = |t: &Cell| (t.y + t.height / 2.0 - s.y - s.height / 2.0).abs();
+                off(a).total_cmp(&off(b)).then(a.x.total_cmp(&b.x))
+            })
             .map(|t| t.value.clone())
             .unwrap_or_default()
     }
