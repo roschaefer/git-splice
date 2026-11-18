@@ -109,7 +109,7 @@ CONFLICT (content): Merge conflict in vendor/a/b/c/file.txt
 ```scrut
 $ printf "c1: c seed\nc in b's upstream\nc upstream\n" >vendor/a/b/c/file.txt &&
 >   git add vendor/a/b/c/file.txt &&
->   git commit -q --no-edit
+>   git commit -q -m "splice: pull vendor/a/b/c (resolved)"
 ```
 
 Run again, the pulls are done and make *p*. A hook stops the pull right
@@ -127,7 +127,7 @@ ok   vendor/a/b: nothing to pull
 ok   vendor/a/b/c: nothing to pull
 ok   vendor/a/d: pulled 36c850e
 ok   vendor/a/e: nothing to pull
-ok   vendor/a: 4 pulls made one commit, 4695060
+ok   vendor/a: 4 pulls made one commit, 0c8813b
 !!   --exec stopped pull at after-fold, what it did so far stays -- re-run pull to go on
 !!   The pulls are on a detached HEAD, 'main' is as it was -- re-run pull to go on, or 'git switch main' to give up
 [1]
@@ -171,12 +171,13 @@ Could not apply 74d923b... # m1: a and b in the monorepo
 ```scrut
 $ printf 'a seed\na in the monorepo\na upstream\n' >vendor/a/file.txt &&
 >   git add vendor/a/file.txt &&
+>   git commit -q -m "m1: a and b in the monorepo (resolved)" &&
 >   git rebase --continue >/dev/null
 ```
 
 ```scrut
 $ git log --format=%s
-m1: a and b in the monorepo
+m1: a and b in the monorepo (resolved)
 splice: pull vendor/a from main at 6d12ed8
 add vendor/a
 initial commit

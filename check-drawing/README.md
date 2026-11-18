@@ -172,8 +172,11 @@ does.
   for each mark the drawing's commits use, and the words for it next to
   it. Its shapes are no commits, boxes or texts of the drawing. It
   explains each color the drawing's commits use, and no other. The
-  colors below have a meaning `check_drawing` knows and checks; any
-  other color the legend explains is the drawing's own, and unchecked. A dash and
+  colors below are the shared legend's, in
+  [`src/legend.rs`](src/legend.rs): each with its meaning, the rule
+  that decides it, and the words a legend writes next to its sample, the
+  same in every drawing. Any other color the legend explains is the
+  drawing's own, and unchecked. A dash and
   a trailing `'` are the
   [central legend's](../docs/08-contributing/02-writing.md#reading-the-drawings),
   which explains them for every drawing, so a `legend=1` doesn't. A
@@ -206,6 +209,11 @@ does.
     `CHERRY_PICK_HEAD` git-splice made records, or
     a rebase that stopped at one replays (`REBASE_HEAD`, while the
     rebase is under way).
+  - Filled red, `#F8CECC`, if the legend has a red-fill sample: a commit
+    that resolved a conflict, which says so in its message with
+    `(resolved)`, written in the scenario's code block. Nothing else in
+    the repository remembers the conflict afterwards. A rebuilt copy has
+    the same message but resolved nothing.
   - Without the color's sample, every commit is outlined black and white
     inside.
     In a drawing without splices, e.g. of what `git subtree` makes,
