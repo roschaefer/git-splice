@@ -1,36 +1,42 @@
 # Scenarios
 
-Each folder here is one reusable test setup: a state a splice and its
-upstream can be in, or a situation a command has to handle. A folder may
-contain several Markdown documents, but each document explains and executes
-one problem. `status`'s [sync states](../06-command-reference/README.md#output)
-link to them as examples. Some show a bug as it is today; [Known
-bugs](99-known-bugs.md) lists them.
+Each scenario describes a situation, runs git-splice in it, and checks
+what it prints. That makes the chapter
+[specification by example](https://en.wikipedia.org/wiki/Specification_by_example)
+and the acceptance tests of
+[acceptance test-driven development](https://en.wikipedia.org/wiki/Acceptance_test-driven_development):
+the documentation and the test are the same file. Some scenarios show a
+bug as it is today; [Known bugs](99-known-bugs.md) lists them.
 
-The scenarios are grouped into numbered chapters by topic, from the
-situations every user meets to the edge cases: everyday sync, starting a
-splice, branches and teamwork, upstreams, nested splices, rewritten
-history, moved and copied folders, VCS compatibility, and platform compatibility. Within a chapter, the numbers order the
-scenarios the same way. The site drops the numbers from its URLs, and
-takes a chapter's name from its `_category_.json`.
+## Shared test setups
 
-A scenario folder has:
+Each scenario folder builds one state of a monorepo and a bare upstream.
+Its `setup.bash` defines a function named after the folder without its
+number: `scenario_pull_ahead` in `01-pull-ahead/`. Given the two paths,
+it builds that state out of the helpers in
+[`fixtures.bash`](../tests/helpers/fixtures.bash).
 
-- `setup.bash` defines one function, named after the folder without its
-  number (`scenario_pull_ahead` in `01-pull-ahead/`). Given two paths, it builds a
-  monorepo and a bare repository as its upstream in that state, out of the
-  helpers in [`docs/tests/helpers/fixtures.bash`](../tests/helpers/fixtures.bash). The
-  bats tests and every document in the folder share that setup.
-- Child folders, for scenarios that continue from this one. A child's
-  `setup.bash` sources only its parent's, calls the parent's function, and
-  adds its own steps: `02-up-to-date/02-push-ahead/` is `02-up-to-date/`
-  plus one local commit. A scenario that continues from one in an earlier
-  chapter sits at the top of its own chapter and sources that scenario's
-  `setup.bash` instead: `03-branches-and-teamwork/01-feature-branch-unchanged/`
-  builds on `01-everyday-sync/02-up-to-date/`. A document only calls its
-  own folder's setup, so following the `source` lines shows every step.
-- One or more `.md` files. Each describes one behavior and shows what the
-  tool prints under "Output".
+A child folder continues from its parent: its `setup.bash` sources only
+the parent's, calls its function, then adds steps.
+`02-up-to-date/02-push-ahead/` is `02-up-to-date/` plus one local
+commit. A scenario that continues from another chapter sits at the top
+of its own chapter and sources that setup instead:
+`03-branches-and-teamwork/01-feature-branch-unchanged/` builds on
+`01-everyday-sync/02-up-to-date/`. Following the `source` lines shows
+every step.
+
+The same function builds the state for every test that needs it:
+
+- The folder's documents call it first under "Output", through
+  `build_scenario` (see [Scenario output](#scenario-output)).
+- bats tests `load` the setup and call the function with temporary
+  paths. [`status.bats`](../tests/status.bats) loads the setups of the
+  sync states and checks the state each one shows.
+- Rust tests source `fixtures.bash` and the setup in a `bash -c` script:
+  [`tests/push.rs`](../../tests/push.rs) starts from
+  `scenario_push_ahead`, and
+  [`recursive_pull.rs`](../../check-drawing/tests/recursive_pull.rs)
+  checks the drawings of `05-recursion/01-recursive-pull/`.
 
 ## Every scenario
 
@@ -123,9 +129,9 @@ ok 10-platform-compatibility/01-platform-restrictions (2 documents)
 
 ## Scenario output
 
-The docs use [specification by example](../01-getting-started/01-sandbox.md).
 Under "Output", each document first calls its folder's scenario
-function, so it runs in the state the bats tests use:
+function, so it runs in the state the bats tests use. You can also
+[explore scenarios in a sandbox](../01-getting-started/01-sandbox.md):
 
     $ build_scenario scenario_pull_ahead
 
