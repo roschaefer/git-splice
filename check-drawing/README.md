@@ -156,11 +156,17 @@ does.
     branch.
   - A commit both upstreams have is drawn on each side, with one
     label: the two circles are one commit. Each side draws it once.
+  - R goes to every upstream, so its history may be drawn on each
+    side, dashed where that side's upstream lacks it, even a commit
+    another upstream has, like a fork's commit R builds on. Counted
+    from the side's branch, the dashed commits are what `status` reports
+    as ahead of that upstream.
   - Arrows and boxes stay on their commit's side, as they stay in its
     lane.
 - **Dashed**: commits and arrows into them that aren't in the upstream's
   history yet: no upstream branch has them, like R's copies of monorepo
-  commits, or commits a rewrite of the upstream removed. A solid commit
+  commits, or commits a rewrite of the upstream removed. On a side of a
+  split lane, the upstream is that side's. A solid commit
   that T lacks needs a box for an upstream branch that has it.
   - A dashed box in a lane names a branch of the monorepo, not the
     upstream's, e.g. one checked out in a worktree of the rebuild. The

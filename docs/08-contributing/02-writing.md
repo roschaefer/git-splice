@@ -204,8 +204,10 @@ ok   central-legend.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
   commits inside are its upstream's, like *k*, and those outside every
   lane the monorepo's, like *a* and *c*. Lanes nest like the folders do.
 - Dashed is what no upstream has yet: a commit or the arrow into it,
-  like *c'* and *o*. A dashed box names a branch only the monorepo has,
-  like `work-on-a`, checked out in a worktree.
+  like *c'* and *o*. On a lane split into one side per upstream, it's
+  what that side's upstream doesn't have yet. A dashed box names a
+  branch only the monorepo has, like `work-on-a`, checked out in a
+  worktree.
 - A `'` marks a rebuilt copy: *c'* is the rebuild's copy of the
   monorepo's *c*, with the same changes and message, in the upstream's
   layout.
