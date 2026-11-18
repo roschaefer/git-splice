@@ -12,7 +12,8 @@ Run `just docs-check` to test every page. After an intended change, run
 - Put detailed behaviour in [Scenarios](../09-scenarios/README.md), keeping
   earlier user-facing chapters concise.
 - [Design](../07-design/README.md) explains why decisions were made, not
-  merely what the tool does.
+  merely what the tool does. It names a mechanism only where the
+  mechanism explains a choice.
 - Follow the [design principles](../07-design/README.md#principles) for
   future features, or revise them with strong justification.
 - Use [acceptance-test-driven development](01-development.md#testing):
