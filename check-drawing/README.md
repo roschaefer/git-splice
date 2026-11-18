@@ -306,9 +306,9 @@ What no drawing has needed yet, it doesn't handle:
 - **Several upstreams without a separator**: a lane that isn't split is
   checked against the splice's default upstream only.
 - **Split lanes beyond the drawings here**: a split lane may leave out
-  an upstream, or a shared commit's copy on one side; a label in two
-  split lanes is read as one commit; and the splice needs a default
-  upstream.
+  an upstream, or a shared commit's copy on one side; and the splice
+  needs a default upstream. A label in two split lanes names one commit
+  in each lane only when given per lane, e.g. `vendor/a/b/r'=<rev>`.
 - **B with several splices**: outside every lane, B can't say which
   splice's boundary it is, so drawings with several splices leave it out.
 - **Trees of other states**: a tree shows the splices at `HEAD`; a pull
