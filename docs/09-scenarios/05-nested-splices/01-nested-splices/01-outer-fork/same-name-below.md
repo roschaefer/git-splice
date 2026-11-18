@@ -80,17 +80,56 @@ Top-down, as every pull: the outer fork's patch to `b/` first, then the
 inner fork's patch. Since `vendor/a/b/` is selected too, its `fork` is
 the inner fork, and it pulls from that one. It's fetched from both of
 its upstreams, as when it isn't selected: the outer fork may move its
-synced commit to one only the inner upstream has.
+synced commit to one only the inner upstream has. A hook stops the pull
+after `vendor/a/`'s merge:
+
+```scrut
+$ git splice pull --upstream fork --all --exec 'test "$GIT_SPLICE_EVENT" != after-merge'
+ok   vendor/a fetched from fork
+ok   vendor/a/b fetched from origin
+ok   vendor/a/b fetched from fork
+ok   vendor/a: pulled 1b1cea6
+!!   --exec stopped pull at after-merge of vendor/a, what it did so far stays -- re-run pull to go on
+[1]
+```
+
+`vendor/a/` is at *q*, from the outer fork. Its patch to `b/` is `b/`'s
+own commit for now, *q'* on top of *m*: `b/` hasn't pulled from its fork
+yet.
+
+![The tree: the monorepo at pa, outlined blue; vendor/a/ at q, outlined blue, then dashed pa', outlined blue; b/ at m, then dashed q', outlined blue](same-name-below-stop.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/same-name-below-stop.drawio.svg" pa=HEAD q=refs/splices/a/heads/main m=refs/splices/b/heads/main q\'=$(git splice rebuild vendor/a/b)
+ok   same-name-below-stop.drawio.svg: a tree of 3 rows
+```
+-->
+
+Run again, `b/` pulls from the inner fork, and the two pulls make one
+commit, *p*:
 
 ```scrut
 $ git splice pull --upstream fork --all
 ok   vendor/a fetched from fork
 ok   vendor/a/b fetched from origin
 ok   vendor/a/b fetched from fork
-ok   vendor/a: pulled 1b1cea6
+ok   vendor/a: nothing to pull
 ok   vendor/a/b: pulled d5d5b62
 ok   vendor/a: 2 pulls made one commit, [0-9a-f]{7} (regex)
 ```
+
+`b/` is at *n*, from the inner fork, and each splice has the copy *p'*
+of the one commit:
+
+![The tree: the monorepo at p, outlined blue; vendor/a/ at q, outlined blue, then dashed p', outlined blue; b/ at n, outlined blue, then the same](same-name-below-end.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/same-name-below-end.drawio.svg" p=HEAD q=refs/splices/a/heads/main n=refs/splices/company-b/heads/main
+ok   same-name-below-end.drawio.svg: a tree of 3 rows
+```
+-->
 
 ```scrut
 $ git splice status --upstream fork
