@@ -14,11 +14,12 @@ different tradeoff revisits the principle it departs from.
   stay separate. A folder's earlier history may never have been intended
   for that upstream, so publication must follow the splice's identity
   rather than include everything that once occupied its path.
-- **Store as little state as possible.** Redundant records can disagree,
-  and every update becomes another opportunity to leave them inconsistent.
-  Derive what existing history, configuration and file locations already
-  tell us instead of storing it again. Redundant bookkeeping in
-  `git-subrepo` motivated this principle
+- **Store as little state as possible.** A `.splice` file records one
+  upstream commit, the last sync. Everything else, like which monorepo
+  commits the next push sends, is worked out from history each time, so
+  no second record can fall out of step. `git-subrepo` shows the cost:
+  every push commits a record to the monorepo, and
+  [a squash merge loses it](../05-comparisons/02-third-party/01-git-subrepo.md#problem-3-after-a-squash-merge-the-last-sync-is-lost)
   ([state rationale](02-state.md#derive-state-instead-of-storing-redundant-records)).
 - **Nesting should not change a splice's meaning.** Given equivalent
   history, upstream state and settings, syncing `vendor/a/b/` should produce
@@ -52,10 +53,9 @@ different tradeoff revisits the principle it departs from.
   [Josh](../05-comparisons/02-third-party/02-josh.md) was that equivalent
   history mapping adds complexity with little benefit. More faithful
   topology can be reconsidered when a use case justifies it.
-- **Inspection must predict publication.** Different interpretations of
-  local changes could make inspection promise something a push does not
-  send. Comparing the same rebuilt history makes inspection a useful
-  preview of publication
+- **Inspection must predict publication.** `status`, `diff` and `log`
+  look at the same rebuilt commits that `push` sends, so what they show
+  is what the upstream gets
   ([sync model](../03-concepts/02-sync-model.md#how-r-and-t-determine-the-status)).
 - **Ask “what would Git do?”** Git has much more experience solving
   version-control problems. Where its solution works well, implement the
@@ -86,11 +86,10 @@ different tradeoff revisits the principle it departs from.
   another implementation of repository operations
   ([tracing scenario](../09-scenarios/01-everyday-sync/05-git-trace/README.md)).
 - **Make information easy to discover and side effects deliberate.**
-  Requiring users to enumerate splices before inspecting them can hide the
-  very changes they need to discover. Applying that same broad default to
-  writes risks changing or publishing unrelated work. This difference in
-  the cost of a wrong scope motivates broad inspection and explicit write
-  targets.
+  Without a path, `status`, `diff`, `log` and `fetch` cover every
+  splice, so a change in a splice you forgot about still shows up.
+  `pull`, `merge` and `push` need a path or `--all`, so they never
+  change or publish a splice you didn't name.
 - **Design for pull requests across repositories.** A monorepo feature
   branch represents work to submit upstream, so matching branch names
   connect its changes to the corresponding upstream PRs. The upstream
