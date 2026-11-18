@@ -131,6 +131,23 @@ ok   same-name-below-end.drawio.svg: a tree of 3 rows
 ```
 -->
 
+As lanes: each splice is at its fork's commit now, *q* and *n*, and R
+builds on it, on the fork side. In `vendor/a/`, R is *p'*, which merges
+*c'*, still on *l*, with *q*. The origin sides stay where they were: the
+pull went to the forks.
+
+![The monorepo's a, c and p, H at p; c and p outlined orange. The lane vendor/a/, split: origin with k and l, l being T and U(B); fork with k, l and q, q being main and U(H), and the dashed c' on l; p', dashed, merges c' and q and is R. Inside it, vendor/a/b/, split: origin with m, T and U(B); fork with m and n, n being main and U(H), and the dashed p' on n, R. c', both p' and the monorepo's c and p are outlined orange](same-name-below-pulled.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/same-name-below-pulled.drawio.svg" \
+>   a=HEAD~2 c=HEAD~1 p=HEAD k=refs/splices/upstream/heads/main~1 l=refs/splices/upstream/heads/main \
+>   q=refs/splices/a/heads/main m=refs/splices/b/heads/main n=refs/splices/company-b/heads/main \
+>   vendor/a/p\'=$(git splice rebuild vendor/a) vendor/a/b/p\'=$(git splice rebuild vendor/a/b)
+ok   same-name-below-pulled.drawio.svg: 14 commits, 17 arrows, 7 boxes, 2 lanes, 4 upstreams
+```
+-->
+
 ```scrut
 $ git splice status --upstream fork
 On branch main
