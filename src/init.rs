@@ -127,27 +127,26 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
             }
         }
     }
-    // The upstream is empty, so refs fetched from it before name branches it
-    // no longer has.
-    let key = repo.upstream_key(&url)?;
-    if !key.is_empty() {
-        let refs = git(&[
-            "for-each-ref",
-            "--format=delete %(refname)",
-            &format!("refs/splices/{key}/"),
-        ])
-        .out();
-        let removed = refs.is_some_and(|refs| {
-            refs.is_empty()
-                || git(&["update-ref", "--stdin"])
-                    .input(format!("{refs}\n"))
-                    .ok()
-        });
-        if !removed {
-            return die(format!(
-                "{path}: couldn't remove the refs fetched from {url} before"
-            ));
-        }
+    // Recorded as a fetch would: the upstream is known to be empty here, unlike
+    // in a fresh clone of the monorepo. Refs fetched from it before name
+    // branches it no longer has.
+    let key = repo.create_upstream_key(&url)?;
+    let refs = git(&[
+        "for-each-ref",
+        "--format=delete %(refname)",
+        &format!("refs/splices/{key}/"),
+    ])
+    .out();
+    let removed = refs.is_some_and(|refs| {
+        refs.is_empty()
+            || git(&["update-ref", "--stdin"])
+                .input(format!("{refs}\n"))
+                .ok()
+    });
+    if !removed {
+        return die(format!(
+            "{path}: couldn't remove the refs fetched from {url} before"
+        ));
     }
     let id = new_splice_id(&path, &url, "");
     let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");
