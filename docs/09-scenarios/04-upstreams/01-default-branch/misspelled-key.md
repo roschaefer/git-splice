@@ -19,9 +19,28 @@ $ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFI
 $ build_scenario scenario_default_branch https://git.example.com/a.git
 ```
 
+Before the typo, the splice syncs with `master`, T:
+
+<div align="center">
+
+![The monorepo commits a and c, H at c; in vendor/a/, k, which T = U(H) names, and on top of k, dashed, c prime, R](misspelled-key-before.drawio.svg)
+
+</div>
+
+<!--
 ```scrut
-$ sed -i 's/default-branch/defualt-branch/' vendor/a/.splice &&
->   git commit -q -m "misspell default-branch" vendor/a/.splice
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/misspelled-key-before.drawio.svg" k="$k" a=HEAD~1 c=HEAD
+ok   misspelled-key-before.drawio.svg: 4 commits, 5 arrows, 3 boxes, 1 lanes
+```
+-->
+
+The commit *m* misspells the key:
+
+```scrut
+$ git config --file vendor/a/.splice --unset upstream.origin.default-branch &&
+>   git config --file vendor/a/.splice upstream.origin.defualt-branch master &&
+>   git commit -q -m "m: misspell default-branch" vendor/a/.splice
 ```
 
 ```scrut
@@ -35,7 +54,21 @@ $ cat vendor/a/.splice
 ```
 
 Without `default-branch`, the splice follows the monorepo's `main`,
-which the upstream doesn't have:
+which the upstream doesn't have, so the splice has no T:
+
+<div align="center">
+
+![The monorepo commits a, c and m, H at m; in vendor/a/, k, which master = U(H) names, and on top of k, dashed, c prime, R](misspelled-key-after.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ k="$(git config --file vendor/a/.splice splice.commit)" &&
+>   check_drawing "$TESTDIR/misspelled-key-after.drawio.svg" k="$k" a=HEAD~2 c=HEAD~1
+ok   misspelled-key-after.drawio.svg: 5 commits, 6 arrows, 3 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git splice status
