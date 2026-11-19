@@ -815,6 +815,17 @@ impl<'a> Checker<'a> {
         !self.upstream_has(commit, key)
     }
 
+    /// Who lacks a commit drawn dashed in cell <cell>: on a side, that
+    /// side's upstream; elsewhere, every upstream.
+    fn lacking(&self, cell: usize) -> String {
+        let side = self.side_name(cell);
+        if side.is_empty() {
+            "no upstream branch".to_string()
+        } else {
+            format!("no branch of {side}")
+        }
+    }
+
     fn check_lanes_of_commits(&mut self) {
         for &cell in &self.commits {
             let commit = self.commit(cell);
@@ -852,7 +863,11 @@ impl<'a> Checker<'a> {
                 if self.upstream_has(&commit, &self.side_key(cell)) {
                     continue;
                 }
-                if !self.not_upstream_of(&commit, &lane) {
+                // R goes to every upstream: its history may sit on each
+                // side, dashed where that side's upstream lacks it.
+                let truth = self.truth(&lane);
+                let in_r = !truth.r.is_empty() && self.git.is_ancestor(&commit, &truth.r);
+                if !in_r && !self.not_upstream_of(&commit, &lane) {
                     self.errors.push(format!("{value} is on the {side} side, but no fetched branch of {side} has it: draw it on the side of an upstream that has it"));
                     continue;
                 }
@@ -875,7 +890,8 @@ impl<'a> Checker<'a> {
             if self.not_upstream(&commit, &self.splice_of(cell), &self.side_key(cell)) {
                 if !self.dashed(cell) {
                     self.errors.push(format!(
-                        "{value} is solid, but no upstream branch has it: dash it"
+                        "{value} is solid, but {} has it: dash it",
+                        self.lacking(cell)
                     ));
                 }
             } else if self.dashed(cell) {

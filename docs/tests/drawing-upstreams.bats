@@ -136,3 +136,43 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   fork patch names one commit on the origin side and another on the fork side: label them apart"* ]]
 }
+
+# After a pull from the fork, R is the fork's f, which origin lacks: drawn
+# on both sides, solid on the fork's, dashed on origin's, where the next
+# push would bring it. $1 styles origin's f.
+pulled_from_fork() {
+  splice pull --upstream fork vendor/a >/dev/null
+  cat >"$drawing" <<XML
+<mxfile><diagram id="d"><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="lane" parent="1" vertex="1" style="rounded=1;fillColor=none;" value="vendor/a/"><mxGeometry x="422" y="30" width="990" height="354" as="geometry" /></mxCell>
+<mxCell id="sep" parent="1" vertex="1" style="line;direction=south;dashed=1;" value=""><mxGeometry x="1060" y="60" width="20" height="304" as="geometry" /></mxCell>
+<mxCell id="side_o" parent="1" vertex="1" style="text;" value="origin"><mxGeometry x="440" y="64" width="120" height="24" as="geometry" /></mxCell>
+<mxCell id="side_f" parent="1" vertex="1" style="text;" value="fork"><mxGeometry x="1090" y="64" width="120" height="24" as="geometry" /></mxCell>
+<mxCell id="p" parent="1" vertex="1" style="ellipse;" value="p"><mxGeometry x="229" y="40" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="c" parent="1" vertex="1" style="ellipse;" value="c"><mxGeometry x="229" y="140" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="ko" parent="1" vertex="1" style="ellipse;" value="k"><mxGeometry x="521" y="274" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="fo" parent="1" vertex="1" style="$1" value="f"><mxGeometry x="521" y="140" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="kf" parent="1" vertex="1" style="ellipse;" value="k"><mxGeometry x="1160" y="274" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="f" parent="1" vertex="1" style="ellipse;" value="f"><mxGeometry x="1160" y="140" width="70" height="70" as="geometry" /></mxCell>
+<mxCell id="eko" parent="1" edge="1" source="ko" target="fo" style="$2"><mxGeometry relative="1" as="geometry" /></mxCell>
+<mxCell id="ekf" parent="1" edge="1" source="kf" target="f" style=""><mxGeometry relative="1" as="geometry" /></mxCell>
+<mxCell id="ecp" parent="1" edge="1" source="c" target="p" style=""><mxGeometry relative="1" as="geometry" /></mxCell>
+<mxCell id="tr" parent="1" vertex="1" style="rounded=1;" value="trunk"><mxGeometry x="1280" y="155" width="98" height="40" as="geometry" /></mxCell>
+<mxCell id="etr" parent="1" edge="1" source="tr" target="f" style=""><mxGeometry relative="1" as="geometry" /></mxCell>
+</root></mxGraphModel></diagram></mxfile>
+XML
+}
+
+@test "drawing upstreams: R's commit an upstream lacks is drawn dashed on that upstream's side" {
+  pulled_from_fork 'ellipse;dashed=1;' 'dashed=1;'
+  run check_drawing "$drawing" c=HEAD~1 p=HEAD "${revs[2]}" "${revs[3]}"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing upstreams: R's commit an upstream lacks is solid on no side of it" {
+  pulled_from_fork 'ellipse;' ''
+  run check_drawing "$drawing" c=HEAD~1 p=HEAD "${revs[2]}" "${revs[3]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   f is solid, but no branch of origin has it: dash it"* ]]
+  [[ "$output" == *"!!   k -> f is solid, but no branch of origin has f: dash it"* ]]
+}

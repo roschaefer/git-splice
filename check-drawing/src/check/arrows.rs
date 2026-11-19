@@ -214,7 +214,8 @@ impl Checker<'_> {
         } else if self.not_upstream(&ct, &self.splice_of(t), &self.side_key(t)) {
             if !dashed {
                 self.errors.push(format!(
-                    "{vs} -> {vt} is solid, but no upstream branch has {vt}: dash it"
+                    "{vs} -> {vt} is solid, but {} has {vt}: dash it",
+                    self.lacking(t)
                 ));
             }
         } else if dashed {
