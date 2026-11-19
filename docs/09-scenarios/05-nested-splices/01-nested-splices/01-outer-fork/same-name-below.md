@@ -57,11 +57,14 @@ The outer fork has *q* (`a fork patch to b`) on top of *k* (`a seed`)
 and *l* (`add b`); the inner fork has *n* (`b fork patch`) on top of *m*
 (`b seed`). *c* (`add the company forks`) changed `vendor/a/b/.splice`,
 a file of `vendor/a/` too, so R of `vendor/a/` is *c'*, its copy on top
-of *l*, which no upstream has yet:
+of *l*, which no upstream has yet. R goes to every upstream, so it's on
+both sides: on the fork side, *c'* is what `status` counts as ahead, and
+*q* as behind. In `b/`, R is *m*, which the inner fork is one commit
+past:
 
 <div align="center">
 
-![The monorepo's a and c, H; the lane vendor/a/ split in two: origin with c prime, dashed, which is R, on top of l on top of k, l being T, U(H) and U(B); fork with q on top of l on top of k, its main; inside it, the lane vendor/a/b/, also split: origin with m, which is T, R, U(H) and U(B); fork with n on top of m, its main](same-name-below.drawio.svg)
+![The monorepo's a and c, H; the lane vendor/a/ split in two: origin with c prime, dashed, which is R, on top of l on top of k, l being T, U(H) and U(B); fork with q and the dashed c prime, R, both on top of l on top of k, q being main; inside it, the lane vendor/a/b/, also split: origin with m, which is T, R, U(H) and U(B); fork with n on top of m, n being main and m R](same-name-below.drawio.svg)
 
 </div>
 
@@ -70,7 +73,7 @@ of *l*, which no upstream has yet:
 $ check_drawing "$TESTDIR/same-name-below.drawio.svg" \
 >   a=HEAD~1 c=HEAD k=refs/splices/upstream/heads/main~1 l=refs/splices/upstream/heads/main \
 >   q=refs/splices/a/heads/main m=refs/splices/b/heads/main n=refs/splices/company-b/heads/main
-ok   same-name-below.drawio.svg: 11 commits, 12 arrows, 6 boxes, 2 lanes, 4 upstreams
+ok   same-name-below.drawio.svg: 12 commits, 15 arrows, 8 boxes, 2 lanes, 4 upstreams
 ```
 -->
 
