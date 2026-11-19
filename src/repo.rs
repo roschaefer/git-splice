@@ -1367,7 +1367,8 @@ impl<'context> Repo<'context> {
     }
 
     /// The monorepo's default branch: the target of origin/HEAD, else
-    /// init.defaultBranch, else nothing.
+    /// init.defaultBranch if the monorepo has that branch, locally or as
+    /// origin's, else nothing.
     pub fn monorepo_default_branch(&self) -> String {
         self.monorepo_default
             .get_or_init(|| {
@@ -1383,10 +1384,17 @@ impl<'context> Repo<'context> {
                 if !name.is_empty() {
                     return name.strip_prefix("origin/").unwrap_or(&name).to_string();
                 }
-                git(&["config", "--get", "init.defaultBranch"])
+                let name = git(&["config", "--get", "init.defaultBranch"])
                     .q()
                     .out()
-                    .unwrap_or_default()
+                    .unwrap_or_default();
+                if ref_exists(&format!("refs/heads/{name}"))
+                    || ref_exists(&format!("refs/remotes/origin/{name}"))
+                {
+                    name
+                } else {
+                    String::new()
+                }
             })
             .clone()
     }
