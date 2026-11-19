@@ -10,6 +10,8 @@ back here.
 | --- | --- | --- |
 | [init-then-cloned](02-starting-a-splice/05-init-then-cloned/README.md) | [#11](https://github.com/roschaefer/git-splice/issues/11) | Until a fresh clone fetches, the upstream reads as empty though it has commits. |
 | [init-then-cloned: push before the fetch](02-starting-a-splice/05-init-then-cloned/push-before-fetch.md) | [#11](https://github.com/roschaefer/git-splice/issues/11) | A push before the first fetch says it creates the upstream branch, which already exists. |
+| [monorepo-line-endings: attributes added later](02-starting-a-splice/08-clone-from-submodule/04-monorepo-line-endings/README.md) | [#311](https://github.com/roschaefer/git-splice/issues/311) | A `.gitattributes` rule added after the line `clone` asked for applies to the splice's files again, and no command says so. |
+| [upstream-macro](02-starting-a-splice/08-clone-from-submodule/06-upstream-macro/README.md) | [#311](https://github.com/roschaefer/git-splice/issues/311) | `clone` refuses an upstream whose `.gitattributes` defines a macro, without naming it; a copy of the definition in the monorepo's root `.gitattributes` gets past it. |
 | [bumped-on-a-feature-branch: moved after the bump](03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.md) | [#466](https://github.com/roschaefer/git-splice/issues/466) | A synced commit that a bump recorded and the upstream lost isn't made again once the splice moved since. |
 | [lfs-upstream](04-upstreams/08-lfs-upstream/README.md) | [#407](https://github.com/roschaefer/git-splice/issues/407) | `clone` of an upstream that stores files in Git LFS fails; Git LFS isn't supported yet. |
 | [lfs-upstream: retrained-upstream](04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md) | [#407](https://github.com/roschaefer/git-splice/issues/407) | `pull` of a changed Git LFS file fails, as `clone` does. |
@@ -46,6 +48,8 @@ $ source "$TESTDIR/readme-setup.sh"
 $ check_known_bugs
 ok 02-starting-a-splice/05-init-then-cloned/README.md #11
 ok 02-starting-a-splice/05-init-then-cloned/push-before-fetch.md #11
+ok 02-starting-a-splice/08-clone-from-submodule/04-monorepo-line-endings/README.md #311
+ok 02-starting-a-splice/08-clone-from-submodule/06-upstream-macro/README.md #311
 ok 03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.md #466
 ok 04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md #407
 ok 04-upstreams/08-lfs-upstream/README.md #407

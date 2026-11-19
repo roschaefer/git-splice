@@ -25,7 +25,8 @@ for those of the monorepo
 ([monorepo-line-endings](04-monorepo-line-endings/README.md)), or of a
 splice above it ([line-endings-in-splice-above](05-line-endings-in-splice-above/README.md)).
 A macro upstream's own `.gitattributes` defines would be lost, and no
-such line helps ([upstream-macro](06-upstream-macro/README.md)).
+such line helps; a copy of its definition in the monorepo's root
+`.gitattributes` does ([upstream-macro](06-upstream-macro/README.md)).
 
 ## Output
 

@@ -1,5 +1,7 @@
 # Scenario: clone-from-submodule, under the monorepo's line endings
 
+> **Known bug, [#311](https://github.com/roschaefer/git-splice/issues/311).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../99-known-bugs.md).
+
 Git applies a repository's `.gitattributes` to its own files, never to a
 submodule's. Once the submodule is a folder, the monorepo's attributes
 would apply to its files too. Where they would change a checkout --
