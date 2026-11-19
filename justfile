@@ -27,7 +27,7 @@ fmt-check:
 # Run the Rust unit tests, then the bats tests, one job per CPU
 test: build
     cargo test --workspace --quiet
-    bats --jobs "$(nproc)" docs/tests
+    bats --jobs "$(nproc)" docs/tests check-drawing/tests
 
 # Time commands on a synthetic monorepo; see `just bench --help`
 [positional-arguments]

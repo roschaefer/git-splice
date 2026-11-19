@@ -227,7 +227,7 @@
             pkgs.bashInteractive
             pkgs.just
             pkgs.hyperfine
-            # Edits the diagrams embedded in the .drawio.svg drawings, in docs/tests/drawing*.bats.
+            # Edits the diagrams embedded in the .drawio.svg drawings, in check-drawing/tests/*.bats.
             pkgs.xmlstarlet
             # Renders the walkthrough chapters in the walkthrough shell.
             pkgs.glow
@@ -263,7 +263,7 @@
           packages = [
             nixpkgs-scrut.legacyPackages.${system}.drawio-headless
             git
-            # For docs/tests/drawing-export.bats.
+            # For check-drawing/tests/drawing-export.bats.
             pkgs.bats
           ];
           # The fonts draw.io measures labels with, e.g. for a label's
