@@ -144,7 +144,10 @@ UPSTREAM BRANCH
     The upstream branch is the one named like the current branch; on the
     monorepo's default branch, the upstream's default-branch if it has one,
     or the tag or commit its default-pin names. On a branch the upstream
-    doesn't have, there's nothing to merge. --branch names another.
+    doesn't have, there's nothing to merge: status compares with the
+    upstream's default branch there, as for a PR, but merge doesn't take
+    it, and says how many of its commits the splice lacks. --branch names
+    another.
 
     See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#upstream-branch
 

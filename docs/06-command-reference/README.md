@@ -104,10 +104,10 @@ $ git splice status -h | check-help section no-upstream-branch
     For a splice whose upstream has no branch named like the current one,
     the comparison is with upstream's default branch, as for a PR: "new"
     counts the commits the push that creates the branch would publish, and
-    how many the default branch has that this one lacks. "unchanged" means
-    a PR from the branch would show no changes: the default branch has
-    every commit, or the others change no files, e.g. a change and its
-    revert.
+    "behind <n> on <branch>" the commits the default branch has that the
+    splice lacks, which pull and merge don't bring in. "unchanged" means a
+    PR from the branch would show no changes: the default branch has every
+    commit, or the others change no files, e.g. a change and its revert.
 ```
 
 On a branch the upstream doesn't have, the splice is compared with
@@ -127,6 +127,7 @@ the branch yours was cut from. `git splice push` creates the branch only
 in that case
 ([unchanged](../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/README.md),
 [changed](../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/README.md),
+[behind `main`](../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/03-default-branch-moved/README.md),
 [from `main`](../09-scenarios/03-branches-and-teamwork/02-feature-branch-from-main/README.md),
 [stacked](../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/01-stacked-branch/README.md)).
 
