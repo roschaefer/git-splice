@@ -957,3 +957,14 @@ outer_forks() {
     vendor/a/x=refs/splices/a/heads/main vendor/a/b/x=refs/splices/company-b/heads/main
   [ "$status" -eq 0 ]
 }
+
+@test "drawing: a label on both sides of a lane names one commit, whatever lane the drawing lists in between" {
+  outer_forks
+  seed_bare_repo "$BATS_TEST_TMPDIR/forks.git" "a fork patch to b" main other.txt
+  splice fetch >/dev/null
+  edit_drawing -u '//mxCell[@id="ko" or @id="q" or @id="mo"]/@value' -v 'a fork patch to b'
+  edit_drawing -m '//mxCell[@id="q"]' '/mxfile/diagram/mxGraphModel/root'
+  run check_drawing "$drawing" "${revs[@]}" "vendor/a/b/a fork patch to b=refs/splices/b/heads/main"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   a fork patch to b names one commit on the origin side and another on the fork side: label them apart"* ]]
+}
