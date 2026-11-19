@@ -18,6 +18,20 @@ struct PreparedPush {
     fetched_ref: String,
 }
 
+/// Whether a `url.<base>.pushInsteadOf` rule sends a push to <url> to another
+/// URL than a fetch from it reads. Git applies such a rule to every URL that
+/// starts with its value.
+fn push_goes_elsewhere(url: &str) -> bool {
+    let rules = git(&["config", "-z", "--get-regexp", r"^url\..*\.pushinsteadof$"])
+        .q()
+        .bytes()
+        .unwrap_or_default();
+    String::from_utf8_lossy(&rules)
+        .split('\0')
+        .filter_map(|entry| entry.split_once('\n'))
+        .any(|(_, value)| url.starts_with(value))
+}
+
 impl Repo<'_> {
     fn prepare_push(&mut self, path: &str, branch: &str, force: bool) -> Res<Option<PreparedPush>> {
         match self.has_uncommitted_changes(path) {
@@ -155,8 +169,15 @@ impl Repo<'_> {
         if git(&args).run() != 0 {
             return fail(format!("{path}: push failed"));
         }
-        // Pushing to a URL updates no ref here, so record what upstream has now.
         let fetched = &prepared.fetched_ref;
+        if push_goes_elsewhere(url) {
+            log_ok(format!("{path}: pushed {} to {label}", short(rebuilt)));
+            log_warn(format!(
+                "{path}: pushInsteadOf sent the push to another URL than fetches read, so it isn't recorded in {fetched} -- 'git splice fetch {option}{path}' reads upstream again"
+            ));
+            return self.remind_pull(path, &selection);
+        }
+        // Pushing to a URL updates no ref here, so record what upstream has now.
         if !git(&["update-ref", "--create-reflog", fetched, rebuilt]).ok() {
             return fail(format!(
                 "{path}: pushed, but couldn't record it in {fetched} -- run 'git splice fetch {option}{path}'"
