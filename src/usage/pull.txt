@@ -2,7 +2,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template> [--shortlog <n>]] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 
 DESCRIPTION
@@ -70,6 +70,12 @@ OPTIONS
         see 'git splice merge --help'.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--message-template
+
+    --shortlog <n>
+        Lists at most <n> commits in {shortlog}, with --message-template;
+        see 'git splice merge --help'.
+
+        See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--shortlog
 
     --recursive
         Also pulls every splice below each one given, and any a pull above
