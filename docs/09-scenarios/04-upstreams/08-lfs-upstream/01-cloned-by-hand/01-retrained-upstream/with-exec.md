@@ -113,12 +113,11 @@ oid sha256:6c93425e5465e1c1cfe0a87e974b4930f5899422f82b34d8092f3e148b7d4cc4
 size 19
 ```
 
-and `git lfs ls-files` marks with `*` a file whose content is in the
-local store:
+and the content is in the local store, under its SHA-256:
 
 ```scrut
-$ git lfs ls-files
-6c93425e54 * vendor/a/model.bin
+$ ls .git/lfs/objects/6c/93/
+6c93425e5465e1c1cfe0a87e974b4930f5899422f82b34d8092f3e148b7d4cc4
 ```
 
 ```scrut
