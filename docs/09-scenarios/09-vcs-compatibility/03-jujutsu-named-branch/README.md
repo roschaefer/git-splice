@@ -33,7 +33,6 @@ $ git submodule add -q https://git.example.com/lib.git vendor/lib &&
 Done importing changes from the underlying Git repo.
 ignoring git submodule at "vendor/lib"
 Initialized repo in "."
-[0]
 ```
 
 ```scrut
@@ -42,7 +41,6 @@ $ echo "fix" >>vendor/lib/src/parse.txt &&
 >   jj diff --stat
 app/main.txt | 1 +
 1 file changed, 1 insertion(+), 0 deletions(-)
-[0]
 ```
 
 The commands now run in the monorepo with a splice:
