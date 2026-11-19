@@ -18,6 +18,7 @@ setup() {
     04-upstreams/01-default-branch \
     04-upstreams/03-shared-remote-url \
     02-starting-a-splice/04-init-new-upstream \
+    02-starting-a-splice/05-init-then-cloned \
     01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
     05-nested-splices/01-nested-splices \
     03-branches-and-teamwork/06-teammate-pulled; do
@@ -104,6 +105,14 @@ assert_state() {
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
   [ "$(splice_state lib/a)" = missing-branch ]
+}
+
+@test "state: never-fetched, not missing-branch, in a fresh clone of the monorepo after init and push, though .splice records no synced commit" {
+  scenario_init_then_cloned "$monorepo" "$upstream"
+  cd "$monorepo"
+  [ -z "$(splice_config lib/a commit)" ]
+  git -C "$upstream" rev-parse --verify --quiet main
+  [ "$(splice_state lib/a)" = never-fetched ]
 }
 
 @test "state: never-fetched in a fresh clone of the monorepo, though it could make the synced commit of a splice made by init again" {
