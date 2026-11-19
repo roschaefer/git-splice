@@ -344,15 +344,6 @@ fn upstream_key_candidate(name: &str) -> String {
     }
 }
 
-/// <candidate> with "-<n>" appended, for when the candidate is taken: cut
-/// short first so the key stays within 64 characters.
-fn numbered_upstream_key(candidate: &str, n: u32) -> String {
-    let suffix = format!("-{n}");
-    let stem = &candidate[..candidate.len().min(64 - suffix.len())];
-    let stem = stem.trim_end_matches(|c| "._-".contains(c));
-    format!("{stem}{suffix}")
-}
-
 /// The keys upstream <url> could get, most readable first: its last path
 /// component without .git, then with more of the path in front, up to the
 /// host. Falls back to "upstream" if no part of the URL is usable.
@@ -1260,13 +1251,16 @@ impl<'context> Repo<'context> {
         if key.is_empty() {
             let last = &candidates[candidates.len() - 1];
             let mut n = 2;
-            while self.upstream_key_taken(&numbered_upstream_key(last, n))? {
+            while self.upstream_key_taken(&format!("{last}-{n}"))? {
                 n += 1;
             }
-            key = numbered_upstream_key(last, n);
+            key = format!("{last}-{n}");
         }
         if !valid_upstream_key(&key) {
-            return die(format!("couldn't find a valid key for {url}"));
+            return die(format!(
+                "couldn't make a valid key for {url} -- record one yourself: git config --local splice.<key>.url {}",
+                shell_quote(url)
+            ));
         }
         if !git(&["config", "--local", &format!("splice.{key}.url"), url]).ok() {
             return die(format!(
@@ -1622,29 +1616,5 @@ impl<'context> Repo<'context> {
             Some(template) => template.render(&message),
             None => Template::default(default)?.render(&message),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn numbered_upstream_key_shortens_a_60_character_candidate_to_stay_a_valid_key() {
-        let candidate = "a".repeat(59) + "b";
-        for n in [2, 999, 1000, 99999] {
-            let key = numbered_upstream_key(&candidate, n);
-            assert!(valid_upstream_key(&key), "'{key}' isn't a valid key");
-            assert!(key.ends_with(&format!("-{n}")), "'{key}' lost its number");
-        }
-    }
-
-    #[test]
-    fn numbered_upstream_key_trims_a_separator_left_at_the_cut() {
-        let candidate = "a".repeat(58) + ".b";
-        assert_eq!(
-            numbered_upstream_key(&candidate, 1000),
-            "a".repeat(58) + "-1000"
-        );
     }
 }
