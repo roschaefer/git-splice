@@ -3,8 +3,8 @@
 By default, every splice follows the upstream branch named like the
 monorepo's current branch. If upstream has no such branch,
 `git-splice` compares the splice with upstream's default branch
-instead, as a pull request compares a feature branch with the default
-branch.
+instead, as a pull request or merge request compares a feature branch
+with the default branch.
 
 <div align="center">
 
@@ -12,12 +12,15 @@ branch.
 
 </div>
 
-Boxes are commits, lanes are splices, and dashed commits aren't on the
-upstream yet ([legend](../08-contributing/02-writing.md#reading-the-drawings)).
+Every drawing in these docs uses one
+[legend](../08-contributing/02-writing.md#reading-the-drawings): circles
+are commits, boxes name a commit or a branch, lanes are splices, and
+dashed is what the upstream doesn't have yet.
 
-In the [walkthrough sandbox](../01-getting-started/02-walkthrough.md),
-both splices start on `main`. Switch the monorepo to `feature`; neither
-upstream has that branch:
+Each splice decides on its own. In the
+[walkthrough sandbox](../01-getting-started/02-walkthrough.md), both
+start on `main`. Switch the monorepo to `feature`; neither upstream has
+that branch:
 
 <!-- Builds a fresh sandbox; see `just docs-check`.
 ```scrut {fail_fast: true, output_stream: combined}
