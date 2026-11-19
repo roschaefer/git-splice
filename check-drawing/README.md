@@ -330,12 +330,7 @@ What no drawing has needed yet, it doesn't handle:
 
 ## Tests
 
-In `git-splice`, [`docs/tests/drawing.bats`](../docs/tests/drawing.bats) and
-[`docs/tests/drawing-lanes.bats`](../docs/tests/drawing-lanes.bats) and
-[`docs/tests/drawing-upstreams.bats`](../docs/tests/drawing-upstreams.bats) and
-[`docs/tests/drawing-tracked.bats`](../docs/tests/drawing-tracked.bats) and
-[`docs/tests/drawing-local-branch.bats`](../docs/tests/drawing-local-branch.bats) and
-[`docs/tests/drawing-tree.bats`](../docs/tests/drawing-tree.bats) run it against
-`git-splice`'s test scenarios, and each [scenario](../docs/09-scenarios/)
-with a drawing checks it in its README. [`docs/tests/drawing-export.bats`](../docs/tests/drawing-export.bats)
+The bats tests in [`tests/`](tests/) run it against `git-splice`'s test
+scenarios, and each [scenario](../docs/09-scenarios/) with a drawing
+checks it in its README. [`tests/drawing-export.bats`](tests/drawing-export.bats)
 tests `check-export`, with draw.io.

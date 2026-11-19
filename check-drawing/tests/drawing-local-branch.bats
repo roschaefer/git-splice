@@ -3,10 +3,10 @@
 # of the rebuild, drawn in the splice's lane with its commits dashed.
 
 setup() {
-  load 'helpers/fixtures'
-  load '../../check-drawing/check-drawing'
+  load '../../docs/tests/helpers/fixtures'
+  load '../check-drawing'
   hermetic_git_config
-  load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
+  load '../../docs/09-scenarios/01-everyday-sync/02-up-to-date/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"

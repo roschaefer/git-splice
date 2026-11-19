@@ -3,11 +3,11 @@
 # gives, against the three-levels scenario.
 
 setup() {
-  load 'helpers/fixtures'
-  load '../../check-drawing/check-drawing'
+  load '../../docs/tests/helpers/fixtures'
+  load '../check-drawing'
   hermetic_git_config
-  load '../09-scenarios/05-nested-splices/01-nested-splices/setup'
-  load '../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/setup'
+  load '../../docs/09-scenarios/05-nested-splices/01-nested-splices/setup'
+  load '../../docs/09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -15,7 +15,7 @@ setup() {
   cd "$monorepo"
   drawing="$BATS_TEST_TMPDIR/tree.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/../09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/tree.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/../../docs/09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/tree.drawio.svg" >"$drawing" 2>/dev/null
   revs=(s=HEAD a1=refs/splices/upstream/heads/main b1=refs/splices/upstream-b/heads/main c1=refs/splices/upstream-c/heads/main)
   written="$BATS_TEST_TMPDIR/written.drawio"
 }
@@ -173,7 +173,7 @@ cell() {
 }
 
 @test "drawing tree: a splice after an init has no synced commit, only R, without the dots" {
-  load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load '../../docs/09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
   local other="$BATS_TEST_TMPDIR/other" other_upstream="$BATS_TEST_TMPDIR/other.git"
   scenario_init_new_upstream "$other" "$other_upstream"
   cd "$other"

@@ -4,10 +4,10 @@
 # drawn on each side.
 
 setup() {
-  load 'helpers/fixtures'
-  load '../../check-drawing/check-drawing'
+  load '../../docs/tests/helpers/fixtures'
+  load '../check-drawing'
   hermetic_git_config
-  load '../09-scenarios/04-upstreams/02-several-upstreams/setup'
+  load '../../docs/09-scenarios/04-upstreams/02-several-upstreams/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -22,7 +22,7 @@ setup() {
   splice fetch >/dev/null
   drawing="$BATS_TEST_TMPDIR/fork-default-branch.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
-    "$BATS_TEST_DIRNAME/../09-scenarios/04-upstreams/02-several-upstreams/fork-default-branch.drawio.svg" >"$drawing" 2>/dev/null
+    "$BATS_TEST_DIRNAME/../../docs/09-scenarios/04-upstreams/02-several-upstreams/fork-default-branch.drawio.svg" >"$drawing" 2>/dev/null
   revs=(a=HEAD~1 c=HEAD k="refs/splices/$(git splice key --upstream origin vendor/a)/heads/main"
     f="refs/splices/$(git splice key --upstream fork vendor/a)/heads/trunk")
 }

@@ -3,9 +3,9 @@
 # `nix develop .#drawings`, as `just drawings-check` does.
 
 setup() {
-  command -v drawio >/dev/null || skip "needs draw.io: nix develop .#drawings --command bats docs/tests/drawing-export.bats"
+  command -v drawio >/dev/null || skip "needs draw.io: nix develop .#drawings --command bats check-drawing/tests/drawing-export.bats"
   drawing="$BATS_TEST_TMPDIR/fork.drawio.svg"
-  cp "$BATS_TEST_DIRNAME/../09-scenarios/04-upstreams/07-contributing-through-a-fork/fork.drawio.svg" "$drawing"
+  cp "$BATS_TEST_DIRNAME/../../docs/09-scenarios/04-upstreams/07-contributing-through-a-fork/fork.drawio.svg" "$drawing"
 }
 
 # Renames the box fix/parser in the diagram only, as an edit without
@@ -15,30 +15,30 @@ rename_in_diagram() {
 }
 
 @test "drawing-export: a drawing as draw.io exported it passes" {
-  run "$BATS_TEST_DIRNAME/../../check-drawing/check-export" "$drawing"
+  run "$BATS_TEST_DIRNAME/../check-export" "$drawing"
   [ "$status" -eq 0 ]
   [ "$output" = "ok   1 drawings show their diagrams" ]
 }
 
 @test "drawing-export: a diagram edited without exporting again fails" {
   rename_in_diagram
-  run "$BATS_TEST_DIRNAME/../../check-drawing/check-export" "$drawing"
+  run "$BATS_TEST_DIRNAME/../check-export" "$drawing"
   [ "$status" -eq 1 ]
   [ "$output" = "!!   $drawing: the picture isn't its diagram's export: run 'just drawings-check --write'" ]
 }
 
 @test "drawing-export: a picture edited by hand fails" {
   sed -i 's/>fix\/parser</>fix\/lexer</' "$drawing"
-  run "$BATS_TEST_DIRNAME/../../check-drawing/check-export" "$drawing"
+  run "$BATS_TEST_DIRNAME/../check-export" "$drawing"
   [ "$status" -eq 1 ]
 }
 
 @test "drawing-export: --write exports the diagram again, into the picture" {
   rename_in_diagram
-  run "$BATS_TEST_DIRNAME/../../check-drawing/check-export" --write "$drawing"
+  run "$BATS_TEST_DIRNAME/../check-export" --write "$drawing"
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "wrote $drawing" ]
   grep -q '>fix/lexer<' "$drawing"
-  run "$BATS_TEST_DIRNAME/../../check-drawing/check-export" "$drawing"
+  run "$BATS_TEST_DIRNAME/../check-export" "$drawing"
   [ "$status" -eq 0 ]
 }
