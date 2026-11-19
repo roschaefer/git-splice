@@ -58,12 +58,12 @@ vendor/a/run.bat: text: unspecified
 vendor/a/run.bat: eol: unspecified
 ```
 
-So the conversion refuses, without a line to add:
+So the conversion refuses, and names the macro:
 
 ```scrut
 $ git splice clone --from-submodule vendor/a
 ===  vendor/a: fetching https://git.example.com/a.git
-!!   vendor/a: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that
+!!   vendor/a: vendor/a/.gitattributes defines macro 'crlf-text', which Git reads only in a repository's top-level .gitattributes
 [1]
 ```
 
@@ -72,7 +72,7 @@ And so does a plain `clone` of the same upstream:
 ```scrut
 $ git splice clone https://git.example.com/a.git vendor/b
 ===  vendor/b: fetching https://git.example.com/a.git
-!!   vendor/b: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that
+!!   vendor/b: vendor/b/.gitattributes defines macro 'crlf-text', which Git reads only in a repository's top-level .gitattributes
 [1]
 ```
 
