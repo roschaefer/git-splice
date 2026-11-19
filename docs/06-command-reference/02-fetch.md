@@ -132,6 +132,22 @@ Upstreams are fetched and pushed by URL, with no Git remote, so a plain
 `git push` can't send the whole monorepo to one by mistake
 ([refs instead of remotes](../07-design/03-upstreams.md#upstream-connections-must-not-become-ordinary-git-remotes)).
 
+## Git LFS
+
+```scrut
+$ git splice fetch -h | check-help section git-lfs
+    Where the commit a merge would take stores files in Git LFS, also
+    downloads their content from the upstream's LFS server, which the
+    monorepo's doesn't have yet; clone and pull do so too. The monorepo's
+    next push uploads it to the monorepo's. With GIT_LFS_SKIP_SMUDGE=1,
+    files stay pointers and nothing is downloaded.
+```
+
+The [lfs-upstream scenario](../09-scenarios/04-upstreams/08-lfs-upstream/README.md)
+clones, pulls and pushes an upstream that stores a file in Git LFS, and
+[step by step](../09-scenarios/04-upstreams/08-lfs-upstream/01-cloned/01-retrained-upstream/step-by-step.md)
+shows where the content goes.
+
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
 $ git splice fetch -h | check-help document "$TESTDIR/$TESTFILE"
