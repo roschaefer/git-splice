@@ -31,6 +31,40 @@ $ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFI
 $ build_scenario scenario_init_then_cloned https://git.example.com/a.git
 ```
 
+In the monorepo where `init` ran, *i* made `lib/a/` a splice, and the
+pushes published it and *b* as *i'* and *b'*, which that monorepo has
+fetched as `main`:
+
+<div align="center">
+
+![In the monorepo where init ran: a, i and b, H at b; in lib/a/, i prime and b prime, main at b prime](init-then-published.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ (cd ../monorepo-original &&
+>   check_drawing "$TESTDIR/init-then-published.drawio.svg" a=HEAD~2 i=HEAD~1 b=HEAD)
+ok   init-then-published.drawio.svg: 5 commits, 5 arrows, 2 boxes, 1 lanes
+```
+-->
+
+The fresh clone has the same monorepo commits, and nothing fetched from
+the upstream of `lib/a/`:
+
+<div align="center">
+
+![In the fresh clone: a, i and b, H at b; lib/a/ is empty](init-then-cloned.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/init-then-cloned.drawio.svg" a=HEAD~2 i=HEAD~1 b=HEAD
+ok   init-then-cloned.drawio.svg: 3 commits, 3 arrows, 1 boxes, 1 lanes
+```
+-->
+
 `.splice` has no synced commit:
 
 ```scrut
@@ -88,6 +122,21 @@ After a fetch, the clone sees the upstream as it is:
 $ git splice fetch
 ok   lib/a fetched
 ```
+
+It has what the monorepo where `init` ran has:
+
+<div align="center">
+
+![In the clone after the fetch: a, i and b, H at b; in lib/a/, i prime and b prime, main at b prime](init-then-published.drawio.svg)
+
+</div>
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/init-then-published.drawio.svg" a=HEAD~2 i=HEAD~1 b=HEAD
+ok   init-then-published.drawio.svg: 5 commits, 5 arrows, 2 boxes, 1 lanes
+```
+-->
 
 ```scrut
 $ git splice status
