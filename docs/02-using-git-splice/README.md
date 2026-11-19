@@ -18,7 +18,7 @@ The drawings in these docs share one language, the
 boxes name commits, lanes are splices, and dashed commits aren't on the
 upstream yet.
 
-This works across all the repositories involved. In the
+Each splice decides on its own. In the
 [walkthrough sandbox](../01-getting-started/02-walkthrough.md), both splices start on `main`. Switch the
 monorepo to `feature`; neither upstream has that branch:
 

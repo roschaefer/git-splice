@@ -68,6 +68,18 @@ A change in `vendor/a/b/` is a change in `vendor/a/` too:
 $ echo "b local" >>vendor/a/b/file.txt && git commit -q -a -m "b local"
 ```
 
+As a tree: the monorepo's commit, *n*, is on top of each splice's synced
+commit, as the copy *n'*, dashed: no upstream has it yet.
+
+![The tree: the monorepo at n; vendor/a/ at l, then dashed n'; b/ at m, then the same](nested-changed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/nested-changed.drawio.svg" n=HEAD l=$(git config --file vendor/a/.splice splice.commit) m=$(git config --file vendor/a/b/.splice splice.commit)
+ok   nested-changed.drawio.svg: a tree of 3 rows
+```
+-->
+
 ```scrut
 $ git splice status
 On branch main
@@ -76,14 +88,48 @@ On branch main
   ahead 1  vendor/a/b
 ```
 
-Each push sends its own folder, bottom-up: the inner upstream gets the change,
-without `.splice`:
+Each push sends its own folder, bottom-up. A hook stops the push once
+the inner upstream has its copy:
+
+```scrut
+$ git splice push vendor/a/b vendor/a --exec 'test "$GIT_SPLICE_EVENT" != after-push'
+ok   vendor/a/b: pushed 701ab17 to main
+!!   --exec stopped push at after-push of vendor/a/b, what it did so far stays -- re-run push to go on
+[1]
+```
+
+`b/`'s *n'* is solid now. `vendor/a/`'s isn't yet: its rebuild records
+`b/` at the commit the inner upstream just got.
+
+![The tree: the monorepo at n; vendor/a/ at l, then dashed n'; b/ at m, then n', solid](nested-pushed-b.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/nested-pushed-b.drawio.svg" n=HEAD l=$(git config --file vendor/a/.splice splice.commit) m=$(git config --file vendor/a/b/.splice splice.commit)
+ok   nested-pushed-b.drawio.svg: a tree of 3 rows
+```
+-->
+
+Run again, the outer upstream gets its copy too:
 
 ```scrut
 $ git splice push vendor/a/b vendor/a
-ok   vendor/a/b: pushed 701ab17 to main
+ok   vendor/a/b: nothing to push
 ok   vendor/a: pushed f3a4007 to main
 ```
+
+Both copies are solid:
+
+![The tree: the monorepo at n; vendor/a/ at l, then n', solid; b/ at m, then the same](nested-pushed.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/nested-pushed.drawio.svg" n=HEAD l=$(git config --file vendor/a/.splice splice.commit) m=$(git config --file vendor/a/b/.splice splice.commit)
+ok   nested-pushed.drawio.svg: a tree of 3 rows
+```
+-->
+
+The inner upstream got the change without `.splice`:
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main
@@ -98,6 +144,20 @@ b/.splice
 b/file.txt
 file.txt
 ```
+
+As lanes: each upstream has its copy of *n*, *n'*, which is T and R. The
+monorepo still records *l* and *m*, its synced commits: a push doesn't
+move them.
+
+![The monorepo's a and n, H at n. In the lane vendor/a/, k, then l, U(H), then n', solid, T and R. Inside it, vendor/a/b/: m, U(H), which l records, then n', solid, T and R](nested-pushed-lanes.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/nested-pushed-lanes.drawio.svg" a=HEAD~1 n=HEAD \
+>   k=$(git config --file vendor/a/.splice splice.commit)~1 l=$(git config --file vendor/a/.splice splice.commit) m=$(git config --file vendor/a/b/.splice splice.commit)
+ok   nested-pushed-lanes.drawio.svg: 7 commits, 9 arrows, 5 boxes, 2 lanes
+```
+-->
 
 ## The outer upstream pulls the inner one
 
@@ -162,6 +222,34 @@ $ git -C "$UPSTREAM-b.git" log --graph --format=%s main
 * b local
 * b seed
 ```
+
+`b/` has pushed its copy of the pull, *p'*; `vendor/a/` still has its own
+*p'* to push, which records `b/` at that new commit.
+
+![The tree: the monorepo at p; vendor/a/ at a2, then dashed p'; b/ at b2, then p', solid](nested-end.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/nested-end.drawio.svg" p=HEAD a2=$(git config --file vendor/a/.splice splice.commit) b2=$(git config --file vendor/a/b/.splice splice.commit)
+ok   nested-end.drawio.svg: a tree of 3 rows
+```
+-->
+
+As lanes: the outer upstream has *o*, its pull of the inner upstream's
+*u*, on top of *n'*. That's T and U(H) of `vendor/a/`, and R is *p'*, the
+copy of the monorepo's pull, which merges *o* with the dashed *n2'*. In
+`vendor/a/b/`, the push joined *n2'* and *u* in *p'*, T and R; *u* is
+U(H), the commit *o* records.
+
+![The monorepo's a, n, n2 and p, H at p. In the lane vendor/a/: k, l, n', then o on n', T and U(H), and the dashed n2' on n'; the dashed p' merges n2' and o, R. Inside it, vendor/a/b/: m, n', then u and n2' on n'; p' merges them, T and R; u is U(H), which o records](nested-pulled-lanes.drawio.svg)
+
+<!--
+```scrut
+$ check_drawing "$TESTDIR/nested-pulled-lanes.drawio.svg" a=HEAD~3 n=HEAD~2 n2=HEAD~1 p=HEAD \
+>   o=$(git config --file vendor/a/.splice splice.commit) k=$(git config --file vendor/a/.splice splice.commit)~3 l=$(git config --file vendor/a/.splice splice.commit)~2 u=$(git config --file vendor/a/b/.splice splice.commit) m=$(git config --file vendor/a/b/.splice splice.commit)~2
+ok   nested-pulled-lanes.drawio.svg: 15 commits, 19 arrows, 5 boxes, 2 lanes
+```
+-->
 
 If the monorepo had pulled `vendor/a/b/` as well, to a different commit,
 the pull of `vendor/a/` would have conflicted. The
