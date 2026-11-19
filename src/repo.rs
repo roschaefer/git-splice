@@ -133,6 +133,8 @@ pub struct Repo<'context> {
     pub merge_rebase: bool,
     pub merge_no_fork_point: bool,
     message_template: Option<Template>,
+    /// The unknown state file keys warned about, as "<file>: <key>".
+    warned_keys: HashSet<String>,
     pub c: Classified,
     pub d: Compared,
     /// The commit or tree whose state files the splices' upstreams are read
@@ -286,6 +288,19 @@ pub fn require_usable_splice_path(path: &str, fix: &str) -> Res<()> {
     die(format!(
         "'{path}' isn't supported as a splice path yet -- {fix} (e.g. no spaces)"
     ))
+}
+
+/// The keys a state file can have, as a warning about another one lists them.
+const STATE_KEYS: &str = "splice.id, splice.commit, splice.default-upstream, upstream.<name>.url, upstream.<name>.default-branch, upstream.<name>.default-pin";
+
+/// Whether <key>, as `git config --list` writes it, is one of STATE_KEYS.
+fn known_state_key(key: &str) -> bool {
+    if let Some(rest) = key.strip_prefix("upstream.") {
+        return rest.rsplit_once('.').is_some_and(|(name, variable)| {
+            !name.is_empty() && ["url", "default-branch", "default-pin"].contains(&variable)
+        });
+    }
+    ["splice.id", "splice.commit", "splice.default-upstream"].contains(&key)
 }
 
 fn valid_upstream_name(name: &str) -> bool {
@@ -513,6 +528,7 @@ impl<'context> Repo<'context> {
             merge_rebase: Default::default(),
             merge_no_fork_point: Default::default(),
             message_template: Default::default(),
+            warned_keys: Default::default(),
             c: Default::default(),
             d: Default::default(),
             state_rev: "HEAD".to_string(),
@@ -773,6 +789,12 @@ impl<'context> Repo<'context> {
             // <key>, a newline, and the value -- or only <key>, for a key
             // without "= <value>", which git config --get reads as empty.
             let (key, value) = record.split_once('\n').unwrap_or((&record, ""));
+            if !known_state_key(key) && key != "splice.default-branch" {
+                let warning = format!("{path}/{STATE_FILE}: unknown key {key}");
+                if self.warned_keys.insert(warning.clone()) {
+                    log_warn(format!("{warning} -- the keys are {STATE_KEYS}"));
+                }
+            }
             if let Some(name) = key
                 .strip_prefix("upstream.")
                 .and_then(|rest| rest.strip_suffix(".url"))
@@ -1610,5 +1632,26 @@ impl<'context> Repo<'context> {
             Some(template) => template.render(&message),
             None => Template::default(default)?.render(&message),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_state_key_takes_the_upstream_keys_for_any_name_dots_included() {
+        assert!(known_state_key("upstream.origin.url"));
+        assert!(known_state_key("upstream.my.fork.default-pin"));
+        assert!(known_state_key("upstream.Fork.default-branch"));
+    }
+
+    #[test]
+    fn known_state_key_refuses_a_misspelled_key_or_one_without_an_upstream_name() {
+        assert!(!known_state_key("upstream.origin.defualt-branch"));
+        assert!(!known_state_key("upstream.url"));
+        assert!(!known_state_key("upstream..url"));
+        assert!(!known_state_key("splice.url"));
+        assert!(!known_state_key("origin.url"));
     }
 }
