@@ -3,8 +3,8 @@
 Git applies a repository's `.gitattributes` to its own files, never to a
 submodule's. Once the submodule is a folder, the monorepo's attributes
 would apply to its files too. Where they would change a checkout --
-`text` and `eol` for line endings, as here, `filter`, `ident` and
-`working-tree-encoding` -- the conversion refuses, and names the line
+`text` and `eol` for line endings, as here, `filter`, `ident`,
+`working-tree-encoding` and Git's older `crlf` -- the conversion refuses, and names the line
 that unsets them for the folder. With that line committed, it converts.
 
 - **Monorepo, on `main`**: `.gitattributes` wants `.bat` files with
@@ -50,7 +50,7 @@ nothing changes:
 ```scrut
 $ git splice clone --from-submodule vendor/a
 ===  vendor/a: fetching https://git.example.com/a.git
-!!   vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again
+!!   vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes, commit it, and run clone again
 [1]
 ```
 
@@ -58,7 +58,7 @@ The line it names unsets them, and the other attributes that change a
 checkout, for the folder again. Commit it:
 
 ```scrut
-$ echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' >>.gitattributes && git commit -q -m "keep the monorepo's line endings off vendor/a" .gitattributes
+$ echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' >>.gitattributes && git commit -q -m "keep the monorepo's line endings off vendor/a" .gitattributes
 ```
 
 ```scrut

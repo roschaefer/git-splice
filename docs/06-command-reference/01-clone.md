@@ -196,13 +196,13 @@ splice changed by then
 ```scrut
 $ git splice clone -h | check-help section attributes
     In upstream, and in a submodule, only upstream's own .gitattributes
-    apply to its files. Where text, eol, filter, ident or
-    working-tree-encoding set above <path> would change what a checkout
-    writes or what git add stores, clone refuses, and names the line that
-    unsets these for <path>: add it to that .gitattributes, commit it, and
-    run clone again. Without that line, the monorepo's attributes would
-    apply to upstream's files, and push would send them as these store
-    them.
+    apply to its files. Where text, eol, filter, ident,
+    working-tree-encoding or Git's older crlf set above <path> would change
+    what a checkout writes or what git add stores, clone refuses, and names
+    the line that unsets these for <path>: add it to that .gitattributes,
+    commit it, and run clone again. Without that line, the monorepo's
+    attributes would apply to upstream's files, and push would send them as
+    these store them.
 ```
 
 The monorepo's `.gitattributes` mustn't change how the upstream's files
