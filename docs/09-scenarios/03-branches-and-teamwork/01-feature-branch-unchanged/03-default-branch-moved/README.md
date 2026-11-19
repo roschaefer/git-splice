@@ -44,13 +44,13 @@ ok   default-branch-moved.drawio.svg: 3 commits, 4 arrows, 3 boxes, 1 lanes
 $ git splice status
 On branch feature
 
-  unchanged, no upstream branch  vendor/a
+  unchanged, behind 1 on main  vendor/a
 ```
 
 ```scrut
 $ git splice pull vendor/a
 ok   vendor/a fetched
-ok   vendor/a: upstream has no 'feature' branch -- nothing to pull
+ok   vendor/a: upstream has no 'feature' branch -- nothing to pull ('main' has 1 commit this splice lacks)
 ```
 
 ### A change on the feature branch
@@ -78,11 +78,11 @@ ok   changed-on-feature.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 $ git splice status
 On branch feature
 
-  new, ahead 1, behind 1  vendor/a  push creates the branch
+  new, ahead 1, behind 1 on main  vendor/a  push creates the branch
 ```
 
 ```scrut
 $ git splice pull vendor/a
 ok   vendor/a fetched
-ok   vendor/a: upstream has no 'feature' branch -- nothing to pull
+ok   vendor/a: upstream has no 'feature' branch -- nothing to pull ('main' has 1 commit this splice lacks)
 ```
