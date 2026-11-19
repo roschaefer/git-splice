@@ -184,6 +184,129 @@ pub fn upstream_has_state_file(commit: &str) -> bool {
         .ok()
 }
 
+/// What a state file names: its upstreams' names and URLs, in order, and the
+/// default upstream, empty with several upstreams and none named.
+pub struct StateFile {
+    pub names: Vec<String>,
+    pub urls: Vec<String>,
+    pub default: String,
+}
+
+/// Why a state file can't be read: the fact, starting with the file's name,
+/// and how to fix it in the monorepo, or nothing.
+pub struct Unreadable {
+    pub fact: String,
+    pub hint: String,
+}
+
+fn unreadable<T>(fact: String, hint: String) -> Result<T, Unreadable> {
+    Err(Unreadable { fact, hint })
+}
+
+/// Reads state file <blob>, e.g. HEAD:vendor/a/.splice, called <file> in
+/// messages, as every command reads a splice's .splice.
+pub fn read_state_file(blob: &str, file: &str) -> Result<StateFile, Unreadable> {
+    let Some((status, output)) = git(&["config", "--blob", blob, "--list", "-z"])
+        .q()
+        .bytes_and_status()
+    else {
+        return unreadable(format!("{file} can't be read"), String::new());
+    };
+    if !status.success() {
+        let error = git(&["config", "--blob", blob, "--list"]).err_text();
+        let error = error.lines().next().unwrap_or("");
+        let error = error.strip_prefix("error: ").unwrap_or(error);
+        return unreadable(
+            format!("{file} can't be read ({error})"),
+            "fix it and commit it".to_string(),
+        );
+    }
+    let mut urls: Vec<String> = Vec::new();
+    let mut names: Vec<String> = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+    let mut defaults: Vec<String> = Vec::new();
+    let mut id = String::new();
+    let mut default = String::new();
+    for record in nul_fields(&output) {
+        // <key>, a newline, and the value -- or only <key>, for a key
+        // without "= <value>", which git config --get reads as empty.
+        let (key, value) = record.split_once('\n').unwrap_or((&record, ""));
+        if let Some(name) = key
+            .strip_prefix("upstream.")
+            .and_then(|rest| rest.strip_suffix(".url"))
+        {
+            if !valid_upstream_name(name) {
+                return unreadable(
+                    format!("{file}: '{name}' isn't supported as an upstream's name"),
+                    "use letters, digits, '.', '_' and '-'".to_string(),
+                );
+            }
+            if seen.iter().any(|s| s == name) {
+                return unreadable(
+                    format!("{file} names upstream '{name}' twice"),
+                    "keep one".to_string(),
+                );
+            }
+            seen.push(name.to_string());
+            // An empty URL names no upstream.
+            if !value.is_empty() {
+                urls.push(value.to_string());
+                names.push(name.to_string());
+            }
+        } else if key == "splice.id" {
+            id = value.to_string();
+        } else if key == "splice.default-upstream" {
+            default = value.to_string();
+        } else if key == "splice.default-branch" {
+            return unreadable(
+                format!("{file} has default-branch in [splice], from an earlier version"),
+                "it belongs to an upstream now: upstream.<name>.default-branch".to_string(),
+            );
+        } else if key.starts_with("upstream.")
+            && (key.ends_with(".default-branch") || key.ends_with(".default-pin"))
+        {
+            defaults.push(key[..key.rfind('.').unwrap_or(key.len())].to_string());
+        }
+    }
+    let q_file = shell_quote(file);
+    defaults.sort();
+    if let Some(name) = defaults.windows(2).find(|pair| pair[0] == pair[1]) {
+        let name = &name[0];
+        return unreadable(
+            format!("{file} has both default-branch and default-pin for {name}"),
+            format!(
+                "follow the branch or pin, not both: git config --file {q_file} --unset {name}.default-pin"
+            ),
+        );
+    }
+    if urls.is_empty() {
+        return unreadable(
+            format!("{file} names no upstream"),
+            format!("add one: git config --file {q_file} upstream.{DEFAULT_UPSTREAM}.url <url>"),
+        );
+    }
+    if !default.is_empty() && !names.contains(&default) {
+        return unreadable(
+            format!(
+                "{file}: default-upstream '{default}' isn't one of its upstreams ({})",
+                join_names(&names)
+            ),
+            format!("fix it: git config --file {q_file} splice.default-upstream <name>"),
+        );
+    }
+    if id.is_empty() {
+        return unreadable(format!("{file} has no id"), String::new());
+    }
+    if names.len() <= 1 {
+        default = names[0].clone();
+    }
+    Ok(StateFile {
+        names,
+        urls,
+        default,
+    })
+}
+
 /// The folder's tree in commit <rev>, if there's a folder there.
 pub fn folder_tree(rev: &str, path: &str) -> Option<String> {
     let object = git(&["rev-parse", "--verify", "--quiet", &format!("{rev}:{path}")])
@@ -616,6 +739,22 @@ impl<'context> Repo<'context> {
             .collect()
     }
 
+    /// Fails splice <path>'s <verb> of upstream commit <commit> if a state
+    /// file below its root can't be read: each would become a splice's
+    /// .splice, which every command reads first.
+    pub fn refuse_unreadable_state_files(&self, path: &str, commit: &str, verb: &str) -> Res<()> {
+        let short = short(commit);
+        for dir in self.nested_splices(commit) {
+            let file = format!("{short}:{dir}/{STATE_FILE}");
+            if let Err(Unreadable { fact, .. }) = read_state_file(&file, &file) {
+                return fail(format!(
+                    "{path}: {fact} -- a {verb} would commit a {STATE_FILE} no command can read"
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// A folder with a committed .splice is a splice, also below another
     /// splice. Committed, not staged: every command reads a splice's state
     /// from HEAD.
@@ -748,90 +887,17 @@ impl<'context> Repo<'context> {
     /// uses its default one, or ends the command explaining what's wrong with
     /// the file.
     pub fn load_splice_upstream(&mut self, path: &str) -> Res<()> {
-        let blob = format!("{}:{path}/{STATE_FILE}", self.state_rev);
-        let Some((status, output)) = git(&["config", "--blob", &blob, "--list", "-z"])
-            .q()
-            .bytes_and_status()
-        else {
-            return die(format!("{path}/{STATE_FILE} can't be read"));
+        let file = format!("{path}/{STATE_FILE}");
+        let blob = format!("{}:{file}", self.state_rev);
+        let StateFile {
+            names,
+            urls,
+            default,
+        } = match read_state_file(&blob, &file) {
+            Ok(read) => read,
+            Err(Unreadable { fact, hint }) if hint.is_empty() => return die(fact),
+            Err(Unreadable { fact, hint }) => return die(format!("{fact} -- {hint}")),
         };
-        if !status.success() {
-            let error = git(&["config", "--blob", &blob, "--list"]).err_text();
-            let error = error.lines().next().unwrap_or("");
-            let error = error.strip_prefix("error: ").unwrap_or(error);
-            return die(format!(
-                "{path}/{STATE_FILE} can't be read ({error}) -- fix it and commit it"
-            ));
-        }
-        let mut urls: Vec<String> = Vec::new();
-        let mut names: Vec<String> = Vec::new();
-        let mut seen: Vec<String> = Vec::new();
-        let mut defaults: Vec<String> = Vec::new();
-        let mut id = String::new();
-        let mut default = String::new();
-        for record in nul_fields(&output) {
-            // <key>, a newline, and the value -- or only <key>, for a key
-            // without "= <value>", which git config --get reads as empty.
-            let (key, value) = record.split_once('\n').unwrap_or((&record, ""));
-            if let Some(name) = key
-                .strip_prefix("upstream.")
-                .and_then(|rest| rest.strip_suffix(".url"))
-            {
-                if !valid_upstream_name(name) {
-                    return die(format!(
-                        "{path}/{STATE_FILE}: '{name}' isn't supported as an upstream's name -- use letters, digits, '.', '_' and '-'"
-                    ));
-                }
-                if seen.iter().any(|s| s == name) {
-                    return die(format!(
-                        "{path}/{STATE_FILE} names upstream '{name}' twice -- keep one"
-                    ));
-                }
-                seen.push(name.to_string());
-                // An empty URL names no upstream.
-                if !value.is_empty() {
-                    urls.push(value.to_string());
-                    names.push(name.to_string());
-                }
-            } else if key == "splice.id" {
-                id = value.to_string();
-            } else if key == "splice.default-upstream" {
-                default = value.to_string();
-            } else if key == "splice.default-branch" {
-                return die(format!(
-                    "{path}/{STATE_FILE} has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"
-                ));
-            } else if key.starts_with("upstream.")
-                && (key.ends_with(".default-branch") || key.ends_with(".default-pin"))
-            {
-                defaults.push(key[..key.rfind('.').unwrap_or(key.len())].to_string());
-            }
-        }
-        let q_file = shell_quote(&format!("{path}/{STATE_FILE}"));
-        defaults.sort();
-        if let Some(name) = defaults.windows(2).find(|pair| pair[0] == pair[1]) {
-            let name = &name[0];
-            return die(format!(
-                "{path}/{STATE_FILE} has both default-branch and default-pin for {name} -- follow the branch or pin, not both: git config --file {q_file} --unset {name}.default-pin"
-            ));
-        }
-        if urls.is_empty() {
-            return die(format!(
-                "{path}/{STATE_FILE} names no upstream -- add one: git config --file {q_file} upstream.{DEFAULT_UPSTREAM}.url <url>"
-            ));
-        }
-        if !default.is_empty() && !names.contains(&default) {
-            return die(format!(
-                "{path}/{STATE_FILE}: default-upstream '{default}' isn't one of its upstreams ({}) -- fix it: git config --file {q_file} splice.default-upstream <name>",
-                join_names(&names)
-            ));
-        }
-        if id.is_empty() {
-            return die(format!("{path}/{STATE_FILE} has no id"));
-        }
-        if names.len() <= 1 {
-            default = names[0].clone();
-        }
         for (name, url) in names.iter().zip(&urls) {
             self.upstream_urls
                 .insert((path.to_string(), name.clone()), url.clone());
