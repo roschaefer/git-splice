@@ -646,6 +646,7 @@ impl<'a> Checker<'a> {
     /// The commit each circle's label names.
     fn find_commits(&mut self) {
         let mut drawn_on_side: HashSet<(String, Option<usize>, String)> = HashSet::new();
+        let mut first_on_a_side: HashMap<(String, Option<usize>), usize> = HashMap::new();
         for cell in self.commits.clone() {
             let label = self.value(cell).to_string();
             let primed = label.ends_with('\'');
@@ -745,15 +746,16 @@ impl<'a> Checker<'a> {
                     ));
                     continue;
                 }
-                if let Some(&other) = self.id_of_label.get(&label) {
-                    let other_side = self.side_name(other);
-                    if !other_side.is_empty() {
-                        if self.commit(other) != hash {
-                            self.errors.push(format!("{label} names one commit on the {other_side} side and another on the {side} side: label them apart"));
-                        }
-                        continue;
+                // In another lane, the same label may name another commit,
+                // given per lane, e.g. vendor/a/b/r'=<rev>.
+                if let Some(&other) = first_on_a_side.get(&(label.clone(), lane)) {
+                    if self.commit(other) != hash {
+                        let other_side = self.side_name(other);
+                        self.errors.push(format!("{label} names one commit on the {other_side} side and another on the {side} side: label them apart"));
                     }
+                    continue;
                 }
+                first_on_a_side.insert((label.clone(), lane), cell);
             }
             self.label_of.insert(hash, label.clone());
             self.id_of_label.insert(label.clone(), cell);
