@@ -1591,7 +1591,8 @@ impl<'context> Repo<'context> {
     /// before it writes anything if the template is broken or needs a value
     /// <known> doesn't have (see message::KNOWN).
     pub fn require_message_template(&mut self, known: Message) -> Res<()> {
-        let Some(template) = Template::given(&self.args.message_template)? else {
+        let Some(template) = Template::given(&self.args.message_template, self.args.shortlog)?
+        else {
             return Ok(());
         };
         template.require(&known)?;

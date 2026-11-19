@@ -12,7 +12,7 @@ NAME
     git-splice-pull - Fetch and splice in upstream changes
 
 SYNOPSIS
-    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] [--recursive] [--exec <command>] (<path>... | --all)
+    git splice pull [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template> [--shortlog <n>]] [--recursive] [--exec <command>] (<path>... | --all)
     git splice pull [<option>...] -m <message> <path>
 ```
 
@@ -165,6 +165,45 @@ ok   vendor/pkg-b: pulled 24c1958
 ```scrut
 $ git log -1 --format=%s
 chore(deps): pull vendor/pkg-b to 24c1958
+```
+
+### `--shortlog`
+
+```scrut
+$ git splice pull -h | check-help option --shortlog
+        Lists at most <n> commits in {shortlog}, with --message-template;
+        see 'git splice merge --help'.
+```
+
+It limits the list as for [`merge`](04-merge.md#--shortlog). With three
+new commits upstream, `--shortlog=2` lists two of them:
+
+```scrut
+$ echo "pkg-b: one" >>../pkg-b/file.txt &&
+>   git -C ../pkg-b commit -qam "pkg-b: one" &&
+>   echo "pkg-b: two" >>../pkg-b/file.txt &&
+>   git -C ../pkg-b commit -qam "pkg-b: two" &&
+>   echo "pkg-b: three" >>../pkg-b/file.txt &&
+>   git -C ../pkg-b commit -qam "pkg-b: three" &&
+>   git -C ../pkg-b push -q
+```
+
+```scrut
+$ git splice pull --shortlog=2 --message-template 'chore(deps): {command} {path} ({count} commits)
+> 
+> {shortlog}' vendor/pkg-b
+ok   vendor/pkg-b fetched (main moved 24c1958..c5ff18c)
+ok   vendor/pkg-b: pulled c5ff18c
+```
+
+```scrut
+$ git log -1 --format=%B
+chore(deps): pull vendor/pkg-b (3 commits)
+
+  pkg-b: three
+  pkg-b: two
+  ...
+
 ```
 
 ### `--recursive`

@@ -1216,7 +1216,7 @@ pub fn apply_merge_options(repo: &mut Repo) -> Res<()> {
 }
 
 pub const MERGE_OPTIONS: &str =
-    "--upstream --branch --track --bump --rebase --no-fork-point -m --message-template";
+    "--upstream --branch --track --bump --rebase --no-fork-point -m --message-template --shortlog";
 
 impl Repo<'_> {
     /// For --rebuilt-commit: merges <commit>, which continues the splice's

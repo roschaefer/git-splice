@@ -10,6 +10,8 @@ pub struct Args {
     pub branch: String,
     pub message: String,
     pub message_template: String,
+    /// --shortlog: at most this many commits in {shortlog}.
+    pub shortlog: Option<usize>,
     pub exec: String,
     pub paths: Vec<String>,
     pub flags: Vec<String>,
@@ -84,6 +86,7 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                 "--rebuilt-commit",
                 "--branch",
                 "--message-template",
+                "--shortlog",
                 "--exec",
             ]
             .iter()
@@ -125,6 +128,14 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                         }
                         args.message_template = value;
                     }
+                    "--shortlog" => match value.parse() {
+                        Ok(limit) if value.bytes().all(|b| b.is_ascii_digit()) => {
+                            args.shortlog = Some(limit)
+                        }
+                        _ => {
+                            return die("--shortlog needs a number of commits, e.g. --shortlog=50")
+                        }
+                    },
                     _ => {
                         if value.is_empty() {
                             return die("--branch needs an upstream branch's name");
@@ -172,6 +183,11 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
     }
     if !args.message.is_empty() && !args.message_template.is_empty() {
         return die("-m and --message-template both give the message -- give one");
+    }
+    if args.shortlog.is_some() && args.message_template.is_empty() {
+        return die(
+            "--shortlog limits {shortlog} in the template --message-template gives -- add --message-template <template>",
+        );
     }
     Ok(args)
 }
