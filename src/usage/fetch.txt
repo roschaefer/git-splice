@@ -45,3 +45,12 @@ REFS
     splice key' prints and renames keys.
 
     See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#refs
+
+GIT LFS
+    Where the commit a merge would take stores files in Git LFS, also
+    downloads their content from the upstream's LFS server, which the
+    monorepo's doesn't have yet; clone and pull do so too. The monorepo's
+    next push uploads it to the monorepo's. With GIT_LFS_SKIP_SMUDGE=1,
+    files stay pointers and nothing is downloaded.
+
+    See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#git-lfs
