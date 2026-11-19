@@ -43,7 +43,7 @@ ok   vendor/a: cloned 74902fd from the submodule
 ===  vendor/a: pinned at 74902fd, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin
 ===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
 ===  vendor/a/libs/inner: fetching https://git.example.com/inner.git
-!!   vendor/a/libs/inner: attributes in vendor/a/.gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' to vendor/a/.gitattributes, commit it, and run clone again
+!!   vendor/a/libs/inner: attributes in vendor/a/.gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'libs/inner/** !text !eol !filter !ident !working-tree-encoding !crlf' to vendor/a/.gitattributes, commit it, and run clone again
 !!   vendor/a/libs/inner: not converted -- vendor/a and what was converted before stay; fix the above, then run 'git splice clone --from-submodule --recursive vendor/a/libs/inner'
 [1]
 ```
@@ -52,7 +52,7 @@ The line it names goes to the `.gitattributes` of the splice above, the
 deepest one above the folder, where it wins over the line it undoes:
 
 ```scrut
-$ echo 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' >>vendor/a/.gitattributes && git commit -q -m "keep vendor/a's line endings off libs/inner" vendor/a/.gitattributes
+$ echo 'libs/inner/** !text !eol !filter !ident !working-tree-encoding !crlf' >>vendor/a/.gitattributes && git commit -q -m "keep vendor/a's line endings off libs/inner" vendor/a/.gitattributes
 ```
 
 and clone on `libs/inner` resumes:
