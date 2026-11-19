@@ -590,7 +590,7 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
             ));
         }
         log_step(format!(
-            "{path}: upstream has no '{upstream_branch}' branch -- using '{}'; your first push creates '{upstream_branch}'",
+            "{path}: upstream has no '{upstream_branch}' branch -- using '{}'",
             found.upstream_default
         ));
         upstream_branch = found.upstream_default.clone();
