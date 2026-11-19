@@ -6,7 +6,8 @@ The upstream changed a file it stores in Git LFS, and `pull` fails the
 way [`clone`](../../README.md) does: Git LFS looks for the new content on
 the monorepo's LFS server. `git-splice` doesn't support Git LFS yet,
 [#407](https://github.com/roschaefer/git-splice/issues/407). Pulling by
-hand works, as [cloning by hand](../../clone-by-hand.md) does.
+hand works, as [cloning by hand](../../clone-by-hand.md) does, and so
+does [a hook](with-exec.md) that downloads the content before the merge.
 
 - **Monorepo (`vendor/a/`)**: [cloned by hand](../README.md), with
   version 1 of `model.bin`.
