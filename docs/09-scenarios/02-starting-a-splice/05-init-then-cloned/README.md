@@ -1,11 +1,8 @@
 # Scenario: init-then-cloned
 
-> **Known bug, [#11](https://github.com/roschaefer/git-splice/issues/11).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
-
 A splice made by `init` was published, and a colleague clones the
-monorepo. Until the clone fetches, `status`, `log` and `diff` treat the
-upstream as empty, though it has commits. This is a known bug,
-[#11](https://github.com/roschaefer/git-splice/issues/11).
+monorepo. Until the clone fetches, commands say the upstream was never
+fetched, as for a splice made by `clone`.
 
 - **Monorepo (`lib/a/`)**: a fresh clone of a monorepo in which `lib/a/` was
   made a splice with `init` and pushed twice.
@@ -14,16 +11,11 @@ upstream as empty, though it has commits. This is a known bug,
   `second version`.
 
 A splice made by `init` records no synced commit, and `push` doesn't write
-one. A fresh clone has no fetched refs either, so it can't tell this
-splice from one whose upstream is still empty. A splice made by `clone`
-records its synced commit, and a fresh clone says it was
-[never fetched](../../01-everyday-sync/04-never-fetched/README.md).
-
-Workaround: `git splice fetch` (or `pull`, which fetches) in the clone.
-Nothing is lost meanwhile: the rebuild produces the commits the upstream
-already has, so a push without a fetch adds to them, or changes nothing.
-[A push before the fetch](push-before-fetch.md) shows that, though its
-message is wrong too.
+one. `init` records the upstream's key instead, as a fetch does, so the
+monorepo it ran in knows the upstream is empty. A fresh clone has neither
+the key nor fetched refs, so it [hasn't
+fetched](../../01-everyday-sync/04-never-fetched/README.md) the upstream
+yet. [A push before the fetch](push-before-fetch.md) refuses too.
 
 ## Output
 
@@ -49,14 +41,13 @@ $ cat lib/a/.splice
 	url = https://git.example.com/a.git
 ```
 
-`status` takes the splice for new, as if the upstream had no such branch,
-though it has:
+`status` says the upstream wasn't fetched here:
 
 ```scrut
 $ git splice status
 On branch main
 
-  new, ahead 2  lib/a  push creates the branch
+  ?? never fetched  lib/a  run 'git splice fetch lib/a'
 ```
 
 ```scrut
@@ -65,17 +56,23 @@ second version
 splice: init lib/a
 ```
 
-`log` shows both published commits as unpushed:
+`log` and `diff` say so too:
 
 ```scrut
 $ git splice log
-===  lib/a (upstream has no 'main' branch)
-< f9832ad second version  (Test <test@example.com>)
-< f0fcdd0 splice: init lib/a  (Test <test@example.com>)
+??   lib/a: not fetched -- run 'git splice fetch lib/a' first
+!!   Failed: lib/a
+[1]
 ```
 
-`merge` doesn't: it never fetches, so it can't tell an empty upstream
-from one it hasn't fetched, and says so, even after a
+```scrut
+$ git splice diff
+??   lib/a: not fetched -- run 'git splice fetch lib/a' first
+!!   Failed: lib/a
+[1]
+```
+
+`merge` never fetches, so it says the same, even after a
 [failed first fetch](first-fetch-failed.md):
 
 ```scrut
@@ -83,21 +80,6 @@ $ git splice merge lib/a
 ??   lib/a: not fetched yet -- run 'git splice fetch lib/a' first
 !!   Failed: lib/a
 [1]
-```
-
-`diff` shows the whole folder as a change to push:
-
-```scrut
-$ git splice diff
-===  lib/a
-diff --git a/file.txt b/file.txt
-new file mode 100644
-index 0000000..57be07d
---- /dev/null
-+++ b/file.txt
-@@ -0,0 +1,2 @@
-+first version
-+second version
 ```
 
 After a fetch, the clone sees the upstream as it is:
