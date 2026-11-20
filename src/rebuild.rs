@@ -4,6 +4,7 @@
 //! branch without remembering anything about earlier pushes. See
 //! docs/07-design/README.md.
 
+use crate::rebuild_cache::{is_fixed_lower, is_id, Key, Step};
 use crate::repo::*;
 use crate::state::{state_blob_in, tree_with};
 use crate::util::*;
@@ -412,8 +413,8 @@ impl Repo<'_> {
     /// Folder tree <tree> of splice <path> at monorepo commit <rev>, with each
     /// splice inside it recorded at its own rebuild as of <rev>, rather than
     /// at the synced commit the monorepo recorded: what its upstream gets
-    /// with the same push.
-    fn record_children(&mut self, path: &str, rev: &str, tree: &str) -> Res<String> {
+    /// with the same push. Also whether there are splices inside it.
+    fn record_children(&mut self, path: &str, rev: &str, tree: &str) -> Res<(String, bool)> {
         let dirs = self.nested_splices(tree);
         // The splices right inside this one: the ones deeper are inside them,
         // and their rebuilds record those.
@@ -451,7 +452,7 @@ impl Repo<'_> {
             folders.push((dir.clone(), Some(format!("{rebuilt}^{{tree}}"))));
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
-        tree_with(tree, &folders, &files)
+        Ok((tree_with(tree, &folders, &files)?, !dirs.is_empty()))
     }
 
     /// The rebuild of splice <child> at monorepo commit <rev>, for the record
@@ -506,7 +507,7 @@ impl Repo<'_> {
     /// rebuild. What an upstream commit's tree is compared with.
     pub fn published_tree(&mut self, rev: &str, path: &str) -> Res<Option<String>> {
         match self.content_tree(rev, path)? {
-            Some(tree) => Ok(Some(self.record_children(path, rev, &tree)?)),
+            Some(tree) => Ok(Some(self.record_children(path, rev, &tree)?.0)),
             None => Ok(None),
         }
     }
@@ -923,10 +924,6 @@ impl Repo<'_> {
         range: &str,
     ) -> Res<Option<String>> {
         let mut prev = start;
-        let mut prev_tree = match &prev {
-            Some(commit) => Some(tree_of(commit).ok_or(Fail::Soft)?),
-            None => None,
-        };
         // Every field ends with a NUL; tformat adds a newline after each
         // commit, which then starts the next hash.
         let format = format!("--pretty=tformat:%H%x00{COPY_FORMAT}%x00");
@@ -952,7 +949,43 @@ impl Repo<'_> {
             let hash = commit[0].strip_prefix(b"\n").unwrap_or(commit[0]);
             String::from_utf8_lossy(hash).into_owned()
         };
-        let queries: String = commits
+
+        // The walk goes on from the newest step an earlier run remembered,
+        // if its rebuilt commit is still here.
+        let lower = range.split_once("..").map_or("", |(lower, _)| lower);
+        let key_start = prev.clone().unwrap_or_default();
+        let cached = is_fixed_lower(lower) && (key_start.is_empty() || is_id(&key_start));
+        let key = |commit: String| Key {
+            path: path.to_string(),
+            start: key_start.clone(),
+            lower: lower.to_string(),
+            commit,
+        };
+        let mut done = 0;
+        let mut prev_tree = None;
+        if cached {
+            let cache = self.context.rebuild_cache();
+            let newest = commits
+                .iter()
+                .enumerate()
+                .rev()
+                .find_map(|(n, commit)| Some((n, cache.get(&key(hash_of(commit)))?.clone())));
+            if let Some((n, step)) = newest {
+                if commit_here(&step.copy) {
+                    done = n + 1;
+                    prev = Some(step.copy);
+                    prev_tree = Some(step.tree);
+                }
+            }
+        }
+        if done == 0 {
+            prev_tree = match &prev {
+                Some(commit) => Some(tree_of(commit).ok_or(Fail::Soft)?),
+                None => None,
+            };
+        }
+
+        let queries: String = commits[done..]
             .iter()
             .map(|commit| format!("{}:{path}\n", hash_of(commit)))
             .collect();
@@ -960,24 +993,39 @@ impl Repo<'_> {
             .input(queries)
             .out()
             .ok_or(Fail::Soft)?;
-        for (commit, object) in commits.iter().zip(objects.lines()) {
+        // A splice inside this one gets recorded at its own rebuild, which
+        // depends on more than this walk's commits, e.g. on the objects
+        // fetched: from there on, the steps aren't remembered.
+        let mut nested = false;
+        for (commit, object) in commits[done..].iter().zip(objects.lines()) {
             let mut words = object.split(' ');
-            let (Some(folder), Some("tree")) = (words.next(), words.next()) else {
-                continue;
-            };
-            let tree = self.context.strip_state_tree(folder)?;
-            let tree = self.record_children(path, &hash_of(commit), &tree)?;
-            if Some(&tree) == prev_tree.as_ref() {
-                continue;
+            if let (Some(folder), Some("tree")) = (words.next(), words.next()) {
+                let tree = self.context.strip_state_tree(folder)?;
+                let (tree, children) = self.record_children(path, &hash_of(commit), &tree)?;
+                nested |= children;
+                if Some(&tree) != prev_tree.as_ref() {
+                    let parents: Vec<String> = prev.iter().cloned().collect();
+                    let copy = write_copy(
+                        &Copied::from_fields(&hash_of(commit), &commit[1..])?,
+                        &tree,
+                        &parents,
+                    )?;
+                    prev = Some(copy);
+                    prev_tree = Some(tree);
+                }
             }
-            let parents: Vec<String> = prev.iter().cloned().collect();
-            let copy = write_copy(
-                &Copied::from_fields(&hash_of(commit), &commit[1..])?,
-                &tree,
-                &parents,
-            )?;
-            prev = Some(copy);
-            prev_tree = Some(tree);
+            if let (true, false, Some(copy), Some(tree)) = (cached, nested, &prev, &prev_tree) {
+                let step = Step {
+                    copy: copy.clone(),
+                    tree: tree.clone(),
+                };
+                self.context
+                    .rebuild_cache()
+                    .insert(key(hash_of(commit)), step);
+            }
+        }
+        if cached {
+            self.context.rebuild_cache().save();
         }
         Ok(prev)
     }

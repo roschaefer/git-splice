@@ -58,9 +58,11 @@ $ grep -c -- --show-toplevel ../trace
 ## What a push sends
 
 A file also keeps the commands apart from the output. To see what a push writes,
-start with an empty file and look for the commands that write. `commit-tree`
-makes the rebuilt commit, `push` sends it, and `update-ref` records that the
-upstream has it now:
+start with an empty file and look for the commands that write. `push` sends the
+rebuilt commit, and `update-ref` records that the upstream has it now. There's
+no `commit-tree`: `status` made the rebuilt commit above, and the push finds it
+in `.git/splice-rebuilds`
+([sync model](../../../03-concepts/02-sync-model.md#r-is-computed-not-stored)):
 
 ```scrut
 $ : >../trace &&
@@ -71,7 +73,6 @@ ok   lib: pushed 0fd98a6 to main
 ```scrut
 $ sed -n 's/.*trace: built-in: //p' ../trace |
 >     grep -E '^git (commit-tree|push|update-ref) '
-git commit-tree --no-gpg-sign 5f5ab219661c5dba1f8904855aaa5867a97f2dc9 -p bde416459fbcc09c9b585f3b65a94cab3f68bfcd
 git push --quiet -- https://git.example.com/lib.git 0fd98a6c01e5ee8559e8c043c4593ed9d8dd6271:refs/heads/main
 git update-ref --create-reflog refs/splices/lib/heads/main 0fd98a6c01e5ee8559e8c043c4593ed9d8dd6271
 ```
@@ -81,7 +82,7 @@ itself, here `pack-objects` for the push.
 
 ## What the trace doesn't show
 
-Three things `git-splice` does without a `git` command:
+Four things `git-splice` does without a `git` command:
 
 - `init` and `clone --from-submodule` write `<path>/.splice` to the folder, then
   `git add` and `git commit` it, as you would. `clone --from-submodule` also
@@ -89,5 +90,7 @@ Three things `git-splice` does without a `git` command:
   same way.
 - While it records an upstream's key, a folder `.git/splice-keys.lock` keeps
   other `git-splice` commands from picking the same one.
+- It remembers the commits it rebuilt in the file `.git/splice-rebuilds`, so
+  the next command doesn't make them again.
 - It writes temporary files outside the repository, for `git config --file` and
   a temporary `GIT_INDEX_FILE`.
