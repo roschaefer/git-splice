@@ -554,14 +554,35 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
 }
 
 /// The names of the macros a .gitattributes file defines, in `[attr]<name>`
-/// lines, in order.
+/// lines, and a pattern line in it uses, as `<name>`, `-<name>` or `!<name>`,
+/// in order.
 fn macro_names(content: &str) -> Vec<String> {
-    content
-        .lines()
-        .filter_map(|line| line.trim_start().strip_prefix("[attr]"))
+    let lines: Vec<&str> = content.lines().map(str::trim_start).collect();
+    let used: Vec<&str> = lines
+        .iter()
+        .filter(|line| !line.starts_with('#') && !line.starts_with("[attr]"))
+        .flat_map(|line| attribute_tokens(line))
+        .map(|token| token.trim_start_matches(['-', '!']))
+        .collect();
+    lines
+        .iter()
+        .filter_map(|line| line.strip_prefix("[attr]"))
         .filter_map(|rest| rest.split_whitespace().next())
+        .filter(|name| used.contains(name))
         .map(str::to_string)
         .collect()
+}
+
+/// The attribute tokens of a .gitattributes pattern line, after its pattern,
+/// which may be quoted.
+fn attribute_tokens(line: &str) -> std::str::SplitWhitespace<'_> {
+    let rest = match line.strip_prefix('"') {
+        Some(quoted) => quoted.split_once('"').map_or("", |(_, rest)| rest),
+        None => line
+            .split_once(char::is_whitespace)
+            .map_or("", |(_, rest)| rest),
+    };
+    rest.split_whitespace()
 }
 
 /// "macro 'a'", or "macros 'a', 'b' and 'c'".
@@ -1057,9 +1078,14 @@ mod tests {
 
     #[test]
     fn macro_names_reads_attr_lines_only_not_comments_or_quoted_patterns() {
-        let content =
-            "# [attr]comment text\n\"[attr]quoted\" text\n  [attr]lf text eol=lf\n*.sh lf\n";
+        let content = "# [attr]comment text\n\"[attr]quoted\" text\n  [attr]lf text eol=lf\n*.sh lf\n\"a b\" quoted comment\n";
         assert_eq!(macro_names(content), ["lf"]);
+    }
+
+    #[test]
+    fn macro_names_skips_macros_no_pattern_line_uses_as_an_attribute() {
+        let content = "[attr]unused text\n[attr]set text\n[attr]unset text\n[attr]unspecified text\n[attr]pattern text\n[attr]other text\n*.a set\n*.b -unset\n*.c !unspecified\npattern text\n[attr]other unused\n# *.d other\n";
+        assert_eq!(macro_names(content), ["set", "unset", "unspecified"]);
     }
 
     #[test]
