@@ -1289,6 +1289,35 @@ impl<'context> Repo<'context> {
         Ok(())
     }
 
+    /// Upstream <url>'s key after a command wrote refs under <key>, which it
+    /// looked up before: under the lock, so a rename in another worktree is
+    /// done with the refs and the config. If the key changed meanwhile, the
+    /// refs just written under <key> belong to no key and are removed -- unless
+    /// <key> names another upstream by now.
+    pub fn key_after_writing(&mut self, key: &str, url: &str) -> Res<String> {
+        let _lock = self.lock_upstream_keys()?;
+        self.reload_upstream_keys()?;
+        let now = self.key_of_url.get(url).cloned().unwrap_or_default();
+        if now != key && !self.url_of_key.contains_key(key) {
+            let refs = git(&[
+                "for-each-ref",
+                "--format=delete %(refname)",
+                &format!("refs/splices/{key}/"),
+            ])
+            .out()
+            .unwrap_or_default();
+            if !git(&["update-ref", "--stdin"])
+                .input(format!("{refs}\n"))
+                .ok()
+            {
+                return die(format!(
+                    "couldn't remove refs/splices/{key}/, left by a key renamed meanwhile"
+                ));
+            }
+        }
+        Ok(now)
+    }
+
     /// Rereads the keys under a lock taken for a rename.
     pub fn reread_upstream_keys(&mut self) -> Res<()> {
         self.reload_upstream_keys()
