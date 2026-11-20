@@ -842,6 +842,8 @@ pub(crate) struct MergeProgress {
     loaded: HashMap<String, Option<String>>,
     failures: Vec<String>,
     skipped: Vec<String>,
+    /// Splices the command left out: their .splice can't be read.
+    unreadable: Vec<String>,
     /// What became of each path merged so far, as decided.
     outcomes: Vec<(String, Task)>,
     /// The path whose merge left a conflict, which the ones after it wait on.
@@ -862,6 +864,7 @@ impl MergeProgress {
             loaded: HashMap::new(),
             failures: Vec::new(),
             skipped: Vec::new(),
+            unreadable: repo.skipped.clone(),
             outcomes: Vec::new(),
             conflict: None,
             recursive: repo.args.has_flag("--recursive") || (verb == "pull" && repo.args.all),
@@ -1169,9 +1172,12 @@ impl MergeProgress {
                 self.skipped.join(" ")
             ));
         }
-        if !self.failures.is_empty() {
-            log_err(format!("Failed: {}", self.failures.join(" ")));
+        if !self.unreadable.is_empty() || !self.failures.is_empty() {
+            let mut failed = self.unreadable.clone();
+            failed.extend(self.failures.iter().cloned());
+            log_err(format!("Failed: {}", failed.join(" ")));
         }
+        // The caller fails for the unreadable ones once it's done.
         if self.skipped.is_empty() && self.failures.is_empty() {
             Ok(())
         } else {
@@ -1394,7 +1400,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
     repo.merge_paths(&branch, "merge", &selected)?;
-    Ok(0)
+    Ok(if repo.skipped.is_empty() { 0 } else { 1 })
 }
 
 #[cfg(test)]

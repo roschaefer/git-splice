@@ -101,6 +101,11 @@ pub struct Repo<'context> {
     pub context: &'context mut ExecutionContext,
     pub args: Args,
     pub all_paths: Vec<String>,
+    /// Splices whose committed .splice can't be read, with why.
+    pub unreadable: HashMap<String, String>,
+    /// Splices a command over every splice leaves out: their .splice can't
+    /// be read.
+    pub skipped: Vec<String>,
     pub upstream_lists: HashMap<String, Vec<String>>,
     pub upstream_urls: HashMap<(String, String), String>,
     pub default_upstreams: HashMap<String, String>,
@@ -611,6 +616,8 @@ impl<'context> Repo<'context> {
             context,
             args,
             all_paths: Default::default(),
+            unreadable: Default::default(),
+            skipped: Default::default(),
             upstream_lists: Default::default(),
             upstream_urls: Default::default(),
             default_upstreams: Default::default(),
@@ -778,8 +785,14 @@ impl<'context> Repo<'context> {
             require_usable_splice_path(&path, "rename the folder")?;
             self.all_paths.push(path);
         }
+        self.unreadable.clear();
         for path in self.all_paths.clone() {
-            self.load_splice_upstream(&path)?;
+            match self.read_splice_state(&path) {
+                Ok(state) => self.use_state_file(&path, state)?,
+                Err(why) => {
+                    self.unreadable.insert(path, why);
+                }
+            }
         }
         Ok(())
     }
@@ -789,15 +802,33 @@ impl<'context> Repo<'context> {
     }
 
     pub fn require_splice(&self, path: &str) -> Res<()> {
+        if let Some(why) = self.unreadable.get(path) {
+            return die(why);
+        }
         if self.is_splice_path(path) {
             return Ok(());
         }
         die(format!("not a splice: {path}"))
     }
 
+    /// Ends the command if a selected splice is inside or around one whose
+    /// .splice can't be read: commands read the splices around and inside
+    /// the ones they act on.
+    fn refuse_nested_unreadable(&self) -> Res<()> {
+        let unreadable: Vec<String> = self.unreadable.keys().cloned().collect();
+        for path in &self.selected {
+            let nested = first_above(path, &unreadable).or_else(|| first_below(path, &unreadable));
+            if let Some(nested) = nested {
+                return die(&self.unreadable[&nested]);
+            }
+        }
+        Ok(())
+    }
+
     /// Resolves which splices a command acts on, into `selected`.
     pub fn select_paths(&mut self, kind: Kind, command: &str) -> Res<()> {
         self.selected.clear();
+        self.skipped.clear();
         if self.args.all && !self.args.paths.is_empty() {
             return die("give either paths or --all, not both");
         }
@@ -812,9 +843,25 @@ impl<'context> Repo<'context> {
                     "which splice? -- name one or more paths, or pass --all (splices: {splices})"
                 ));
             }
-            self.selected = self.all_paths.clone();
-            if self.selected.is_empty() {
+            if self.all_paths.is_empty() {
                 return die(format!("no splices found -- nothing to {command}"));
+            }
+            let (skipped, selected) = self
+                .all_paths
+                .iter()
+                .cloned()
+                .partition(|path| self.unreadable.contains_key(path));
+            self.selected = selected;
+            self.skipped = skipped;
+            self.refuse_nested_unreadable()?;
+            // status shows them as rows of their own.
+            if command != "status" {
+                for path in &self.skipped {
+                    log_err(&self.unreadable[path]);
+                }
+                if self.selected.is_empty() {
+                    return Err(Fail::Hard);
+                }
             }
             return Ok(());
         }
@@ -843,7 +890,7 @@ impl<'context> Repo<'context> {
                 }
             }
         }
-        Ok(())
+        self.refuse_nested_unreadable()
     }
 
     /// The splices below <path> in HEAD that weren't splices when the command
@@ -887,17 +934,34 @@ impl<'context> Repo<'context> {
     /// uses its default one, or ends the command explaining what's wrong with
     /// the file.
     pub fn load_splice_upstream(&mut self, path: &str) -> Res<()> {
+        match self.read_splice_state(path) {
+            Ok(state) => self.use_state_file(path, state),
+            Err(why) => die(why),
+        }
+    }
+
+    /// Reads splice <path>'s state file from the state revision, or says why
+    /// it can't be read.
+    fn read_splice_state(&self, path: &str) -> Result<StateFile, String> {
         let file = format!("{path}/{STATE_FILE}");
         let blob = format!("{}:{file}", self.state_rev);
+        read_state_file(&blob, &file).map_err(|Unreadable { fact, hint }| {
+            if hint.is_empty() {
+                fact
+            } else {
+                format!("{fact} -- {hint}")
+            }
+        })
+    }
+
+    /// Makes commands use the upstreams of splice <path> as read from its
+    /// state file, and its default one.
+    fn use_state_file(&mut self, path: &str, state: StateFile) -> Res<()> {
         let StateFile {
             names,
             urls,
             default,
-        } = match read_state_file(&blob, &file) {
-            Ok(read) => read,
-            Err(Unreadable { fact, hint }) if hint.is_empty() => return die(fact),
-            Err(Unreadable { fact, hint }) => return die(format!("{fact} -- {hint}")),
-        };
+        } = state;
         for (name, url) in names.iter().zip(&urls) {
             self.upstream_urls
                 .insert((path.to_string(), name.clone()), url.clone());

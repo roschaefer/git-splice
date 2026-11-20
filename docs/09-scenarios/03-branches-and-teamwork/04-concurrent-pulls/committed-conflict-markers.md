@@ -2,9 +2,9 @@
 
 In the [same state](README.md), the conflict in `vendor/a/.splice` is
 committed with its markers. `git-splice` reads `.splice` with `git config`,
-which can't read past the first marker. So every command stops with Git's
-message, before a half-read `.splice` could make the splice look
-unrelated to its upstream and suggest `push --force`
+which can't read past the first marker. So every command on the splice
+stops with Git's message, before a half-read `.splice` could make the
+splice look unrelated to its upstream and suggest `push --force`
 ([#37](https://github.com/roschaefer/git-splice/issues/37)).
 
 ## Output
@@ -38,11 +38,14 @@ error: bad config line 3 in blob HEAD:vendor/a/.splice
 [1]
 ```
 
-Neither can `git-splice`, so it stops:
+Neither can `git-splice`: `status` shows why, and a command on the splice
+stops:
 
 ```scrut
 $ git splice status
-!!   vendor/a/.splice can't be read (bad config line 3 in blob HEAD:vendor/a/.splice) -- fix it and commit it
+On branch main
+
+  !! can't use .splice  vendor/a  vendor/a/.splice can't be read (bad config line 3 in blob HEAD:vendor/a/.splice); fix it and commit it
 [1]
 ```
 
