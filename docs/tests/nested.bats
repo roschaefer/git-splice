@@ -1617,6 +1617,77 @@ a_conflicts_with_upstream_a() {
   [[ "$output" != *"fetching"* ]]
 }
 
+@test "nested: every command refuses a splice with any upstream that is a remote of the monorepo, not only its default one" {
+  init_monorepo "$monorepo"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  add_splice "$monorepo" "$upstream" vendor/a
+  local own="$BATS_TEST_TMPDIR/m.git"
+  make_bare_repo "$own"
+  cd "$monorepo"
+  git remote add origin "$own"
+  git config --file vendor/a/.splice upstream.fork.url "$own"
+  git config --file vendor/a/.splice splice.default-upstream origin
+  git commit -q -am "a fork upstream"
+  run splice status
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/.splice: upstream 'fork' is $own, remote origin of this monorepo"* ]]
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/.splice: upstream 'fork' is $own, remote origin of this monorepo"* ]]
+}
+
+@test "nested: a splice inside another with an upstream that is a remote of the monorepo is refused too" {
+  init_monorepo "$monorepo"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  add_splice "$monorepo" "$upstream" vendor/a
+  make_bare_repo "$upstream_b"
+  seed_bare_repo "$upstream_b" "b seed"
+  add_splice "$monorepo" "$upstream_b" vendor/a/b
+  local own="$BATS_TEST_TMPDIR/m.git"
+  make_bare_repo "$own"
+  cd "$monorepo"
+  git remote add origin "$own"
+  git config --file vendor/a/b/.splice upstream.mirror.url "$own"
+  git config --file vendor/a/b/.splice splice.default-upstream origin
+  git commit -q -am "a mirror upstream for b"
+  run splice status vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/b/.splice: upstream 'mirror' is $own, remote origin of this monorepo"* ]]
+}
+
+@test "nested: pull refuses an upstream whose splice inside has the monorepo as its second upstream" {
+  load '../09-scenarios/05-nested-splices/04-cycle/setup'
+  local up="$BATS_TEST_TMPDIR/up"
+  make_bare_repo "$up"
+  seed_bare_repo "$up" "seed"
+  make_bare_repo "$upstream_b"
+  seed_bare_repo "$upstream_b" "b seed"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$up" vendor/a
+  local own="$BATS_TEST_TMPDIR/m.git"
+  make_bare_repo "$own"
+  git -C "$monorepo" remote add origin "$own"
+  # a's upstream splices b in, with the monorepo as b's second upstream.
+  local work="$BATS_TEST_TMPDIR/a-work"
+  git clone -q "$up" "$work"
+  git -C "$work" config user.name "Test"
+  git -C "$work" config user.email "test@example.com"
+  add_splice "$work" "$upstream_b" b
+  git -C "$work" config --file b/.splice upstream.fork.url "$own"
+  git -C "$work" config --file b/.splice splice.default-upstream origin
+  git -C "$work" commit -q -am "b with a fork upstream"
+  git -C "$work" push -q origin HEAD:main
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: its upstream splices this monorepo back in, at vendor/a/b from $own, remote origin here"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "nested: push refuses a splice of the monorepo's own URL, which would replace the monorepo's branch with a copy" {
   load '../09-scenarios/05-nested-splices/04-cycle/setup'
   scenario_cycle "$monorepo" "$BATS_TEST_TMPDIR/up"
@@ -1631,7 +1702,7 @@ a_conflicts_with_upstream_a() {
   before="$(git -C "$BATS_TEST_TMPDIR/up-m" rev-parse main)"
   run splice push vendor/a/i
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a/i: https://git.example.com/m.git is this monorepo's own, remote origin here -- pushing it would replace the monorepo's branch with an older copy"* ]]
+  [[ "$output" == *"vendor/a/i/.splice: upstream 'origin' is https://git.example.com/m.git, remote origin of this monorepo -- a splice of the monorepo nests another copy of it on each pull; remove it: git config --file vendor/a/i/.splice --remove-section upstream.origin"* ]]
   [ "$(git -C "$BATS_TEST_TMPDIR/up-m" rev-parse main)" = "$before" ]
 }
 

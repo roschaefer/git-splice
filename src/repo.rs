@@ -1197,6 +1197,13 @@ impl<'context> Repo<'context> {
         };
         let path = splice.path.as_str();
         for (name, url) in names.iter().zip(&urls) {
+            if let Some(remote) = self.own_remote(url) {
+                return die(format!(
+                    "{path}/{STATE_FILE}: upstream '{name}' is {url}, remote {remote} of this monorepo -- a splice of the monorepo nests another copy of it on each pull; remove it: git config --file {q_file} --remove-section upstream.{name}"
+                ));
+            }
+        }
+        for (name, url) in names.iter().zip(&urls) {
             self.upstream_urls
                 .insert((path.to_string(), name.clone()), url.clone());
         }

@@ -298,16 +298,10 @@ impl Repo<'_> {
     }
 
     /// Refuses to merge <target> into splice <path> if that puts the
-    /// monorepo inside itself: <path>'s upstream is the monorepo, or a splice
-    /// in <target> is.
+    /// monorepo inside itself: a splice in <target> has the monorepo as an
+    /// upstream. <path>'s own upstreams were checked when its .splice was read.
     fn refuse_monorepo_inside(&self, path: &str, target: &str) -> Res<()> {
-        let names = self.upstream_lists.get(path).cloned().unwrap_or_default();
-        let why = names
-            .iter()
-            .filter_map(|name| self.upstream_urls.get(&(path.to_string(), name.clone())))
-            .find_map(|url| self.is_own_url(path, url))
-            .or_else(|| self.splices_monorepo_back_in(path, target));
-        match why {
+        match self.splices_monorepo_back_in(path, target) {
             Some(why) => fail(why),
             None => Ok(()),
         }
