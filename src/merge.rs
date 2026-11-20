@@ -713,15 +713,13 @@ impl Repo<'_> {
                 entries.push((path.to_string(), name));
             }
         }
-        // A new upstream may lack them, and the one in use have them.
+        // Any upstream the splice names may have them: the pull above may have
+        // taken them from another one than this pull uses.
         if !synced_commit_here(path) || !self.pin_here(path) {
-            let more = if upstream.is_some() {
+            if upstream.is_some() {
                 used_is_new = true;
-                vec![(path.to_string(), self.name_of(path))]
-            } else {
-                self.every_upstream_entry(&[path.to_string()])?
-            };
-            for entry in more {
+            }
+            for entry in self.every_upstream_entry(&[path.to_string()])? {
                 if !entries.contains(&entry) {
                     entries.push(entry);
                 }
