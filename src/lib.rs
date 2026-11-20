@@ -16,6 +16,7 @@ pub mod pager;
 pub mod pull;
 pub mod push;
 pub mod rebuild;
+mod rebuild_cache;
 pub mod repo;
 pub mod state;
 pub mod status;

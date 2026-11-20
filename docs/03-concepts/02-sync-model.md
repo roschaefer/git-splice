@@ -211,8 +211,8 @@ shows each pull becoming a separate merge in R's history.
 
 ### R is computed, not stored
 
-R is never stored. It's computed from `HEAD` each time, and the same
-`HEAD` always gives the same R. So a commit pushed once is rebuilt
+R is never committed. It's computed from `HEAD`, and the same `HEAD`
+always gives the same R. So a commit pushed once is rebuilt
 identically, and the next push is a fast-forward. Since R is computed,
 `.splice` needs no monorepo commit ids, which a rebase or a squash merge
 would invalidate
@@ -228,7 +228,11 @@ After `git splice push --rebuilt-commit`, R doesn't contain the edited
 commit. `git splice pull --bump` must record it as U(H) before the next
 change, as `push` reminds you
 ([scenario](../09-scenarios/06-rewritten-history/01-edited-before-push/README.md)).
-Rebuilding walks every commit since B, pushed or not;
+Rebuilding walks every commit since B, pushed or not. Each clone
+remembers the commits it rebuilt in `.git/splice-rebuilds`, so later
+runs only walk the commits added since. The file is a cache: deleting
+it is safe, and the next run walks everything again, as the first run
+in a fresh clone does.
 [`pull --bump`](../04-advanced-workflows/03-bump.md) moves B forward where that cost
 matters.
 
