@@ -208,14 +208,40 @@ $ git splice pull -h | check-help option --exec
         commit, when applicable. Other values are empty. Zero continues;
         nonzero stops with completed work applied. A hook that exits zero
         must leave HEAD, the branch, fetched refs, Git configuration,
-        tracked files and the index as they were, or pull stops. stdin is
-        closed; stdout and stderr are inherited.
+        tracked files and the index as they were, or pull stops. stdin gets
+        the checkpoint as one line of JSON: the event, with its fields, and
+        each splice's task. stdout and stderr are inherited.
 ```
 
 The checkpoints are `after-fetch`, `after-merge`, and, for recursive pulls, `before-fold` and
 `after-fold`. A hook runs synchronously; the next step starts
 only after it succeeds. A failed hook ends this execution; completed changes
 remain applied, and re-running `pull` goes on from there, as after a conflict.
+
+#### Payload
+
+The hook's stdin is one line of JSON, `{"event": {...}, "tasks":
+{...}}`. `event.name` is `GIT_SPLICE_EVENT`; the other fields depend on
+it:
+
+| `event.name` | Fields |
+|---|---|
+| `after-fetch` | `fetched`: each upstream fetched, with `path`, `upstream`, `url` and `failed` |
+| `after-merge` | `path`; `head_before` and `head_after`, the monorepo's `HEAD` around the merge |
+| `before-fold` | `roots`, the splices whose pulls fold into one commit each; `head` |
+| `after-fold` | `roots`; `head_before` and `head_after` |
+| `after-rebuild`, `after-push` | `path` and `commit`, for [`push`](07-push.md#--exec) |
+
+`tasks.splices` lists each splice the pull deals with, top-down, with
+its `path` and `task`: `pending` (with `step`, `fetch` or `merge`),
+`done`, `conflict`, `blocked` (with `by`, the splice it waits on),
+`failed`, `removed`, or `copy` (with `of`). `tasks.next` names a step
+beyond the splices, like `fold`, or is `null`.
+
+A [log](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/log.md)
+of a recursive pull shows the JSON at every checkpoint, and a
+[progress hook](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/progress.md)
+counts the splices done.
 
 ## Order
 

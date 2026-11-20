@@ -199,14 +199,19 @@ $ git splice push -h | check-help option --exec
         commit, when applicable. Other values are empty. Zero continues;
         nonzero stops with completed work applied. A hook that exits zero
         must leave HEAD, the branch, fetched refs and Git configuration as
-        they were, or push stops. stdin is closed; stdout and stderr are
-        inherited.
+        they were, or push stops. stdin gets the checkpoint as one line of
+        JSON: the event, with its fields. stdout and stderr are inherited.
 ```
 
 The checkpoints are `after-rebuild` before publication and `after-push` after publication and
 tracking changes. A hook runs synchronously; the next step starts
 only after it succeeds. A failed hook ends this execution; completed changes
 remain applied, and re-running `push` goes on from there, as after a conflict.
+
+The hook's stdin is the event as JSON, as for
+[`pull`](05-pull.md#payload): `after-rebuild` and `after-push` carry
+`path` and `commit`. `tasks.splices` is empty: `push` doesn't list its
+tasks yet.
 
 See the [drawing-checked push scenario](../09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/with-exec.md).
 
