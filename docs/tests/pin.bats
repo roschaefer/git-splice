@@ -127,7 +127,7 @@ pinned_to_v1() {
   pinned_to_v1
   git config --file vendor/a/.splice upstream.origin.default-branch main
   git commit -q -m "vendor/a: follow and pin" -- vendor/a/.splice
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   vendor/a/.splice has both default-branch and default-pin for upstream.origin -- follow the branch or pin, not both: git config --file vendor/a/.splice --unset upstream.origin.default-pin"* ]]
 }

@@ -96,7 +96,7 @@ add_upstream() {
   scenario_several_upstreams "$monorepo" "$upstream"
   cd "$monorepo"
   add_upstream vendor/a fork "$fork" mirror
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a/.splice: default-upstream 'mirror' isn't one of its upstreams ('origin' and 'fork') -- fix it: git config --file vendor/a/.splice splice.default-upstream <name>" ]
 }
@@ -106,13 +106,13 @@ add_upstream() {
   cd "$monorepo"
   git config --file vendor/a/.splice --add upstream.origin.url "$fork"
   git commit -q -am "origin twice"
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a/.splice names upstream 'origin' twice -- keep one" ]
   git config --file vendor/a/.splice --unset-all upstream.origin.url
   git config --file vendor/a/.splice "upstream.my fork.url" "$fork"
   git commit -q -am "a name with a space"
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a/.splice: 'my fork' isn't supported as an upstream's name -- use letters, digits, '.', '_' and '-'" ]
 }
@@ -123,7 +123,7 @@ add_upstream() {
   for second in '\turl\n' '\turl = \n'; do
     printf "[upstream \"origin\"]\n$second" >>vendor/a/.splice
     git commit -q -am "origin twice, the second time empty"
-    run splice status
+    run splice status vendor/a
     [ "$status" -eq 1 ]
     [ "$output" = "!!   vendor/a/.splice names upstream 'origin' twice -- keep one" ]
     git reset -q --hard HEAD~
@@ -151,7 +151,7 @@ add_upstream() {
   cd "$monorepo"
   git config --file vendor/a/.splice splice.default-branch master
   git commit -q -m "the earlier format" -- vendor/a/.splice
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"* ]]
 }
