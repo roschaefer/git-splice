@@ -238,6 +238,8 @@
             pkgs.josh
             # Runs in the Git LFS scenarios, docs/09-scenarios/04-upstreams/08-lfs-upstream/.
             pkgs.git-lfs
+            # Reads --exec hooks' JSON in docs/09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/.
+            pkgs.jq
             jujutsu
           ] ++ lib.optionals pkgs.stdenv.isLinux [
             sapling
