@@ -93,7 +93,7 @@ ok 01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-
 ok 01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes (1 document)
 ok 01-everyday-sync/02-up-to-date/02-push-ahead/03-diverged-common-ancestor (1 document)
 ok 01-everyday-sync/02-up-to-date/03-diverged-then-pulled (1 document)
-ok 01-everyday-sync/03-many-splices (5 documents)
+ok 01-everyday-sync/03-many-splices (6 documents)
 ok 01-everyday-sync/04-never-fetched (1 document)
 ok 01-everyday-sync/05-git-trace (1 document)
 ok 02-starting-a-splice/01-clone-copied-content (1 document)

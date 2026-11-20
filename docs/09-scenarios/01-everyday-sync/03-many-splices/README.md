@@ -10,9 +10,10 @@ only where it differs from the monorepo's, like `theme`'s `master`.
 
 The other documents here show the same monorepo
 [on a feature branch](feature-branch.md),
-[with uncommitted changes](uncommitted-changes.md) and
-[in a fresh clone](fresh-clone.md), and
-[what a release tagged in it contains](release-contents.md).
+[with uncommitted changes](uncommitted-changes.md),
+[in a fresh clone](fresh-clone.md),
+[what a release tagged in it contains](release-contents.md), and
+[with a `.splice` that can't be read](unreadable-splice.md).
 
 ## Output
 
