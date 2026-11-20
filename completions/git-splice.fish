@@ -68,6 +68,7 @@ complete -c git-splice -n "__fish_seen_subcommand_from $commands" -s h -l help -
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull push status diff log fetch" -a "(__git_splice_paths)" -d splice
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull push" -l all -d 'every splice'
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l force -d "overwrite upstream's branch"
+complete -c git-splice -n "__fish_seen_subcommand_from push" -l force-if-includes -d "overwrite only what the monorepo pulled or pushed"
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l bump -d 'move the synced commit up to the upstream branch'
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l no-fork-point -d 'merge a rewritten upstream branch from the merge base'
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull" -l rebase -d 'rebase onto the upstream branch instead of merging'

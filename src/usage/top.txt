@@ -13,7 +13,7 @@ Splicing in or out -- name the splices, or pass --all:
                                       splice in already-fetched upstream changes
   pull [--upstream <n>] (<path>... | --all)
                                       fetch, then merge
-  push [--upstream <n>] [--force] (<path>... | --all)
+  push [--upstream <n>] [--force | --force-if-includes] (<path>... | --all)
                                       publish local changes upstream
 
 Looking -- every splice unless paths are given:
