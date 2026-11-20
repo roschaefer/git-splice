@@ -58,19 +58,90 @@ impl ExecutionEvent {
         }
     }
 
-    fn exec(&self, command: &str, operation: &str) -> Res<()> {
+    /// The event as JSON: its name and its fields, by their Rust names.
+    pub fn to_json(&self) -> String {
+        let (name, _, _) = self.hook_values();
+        let strings = |values: &[String]| {
+            let items: Vec<String> = values.iter().map(|value| json_string(value)).collect();
+            format!("[{}]", items.join(","))
+        };
+        let fields: Vec<(&str, String)> = match self {
+            Self::AfterFetch { fetched } => {
+                let items: Vec<String> = fetched
+                    .iter()
+                    .map(|entry| {
+                        json_object(&[
+                            ("path", json_string(&entry.path)),
+                            ("upstream", json_string(&entry.upstream)),
+                            ("url", json_string(&entry.url)),
+                            ("failed", entry.failed.to_string()),
+                        ])
+                    })
+                    .collect();
+                vec![("fetched", format!("[{}]", items.join(",")))]
+            }
+            Self::AfterMerge {
+                path,
+                head_before,
+                head_after,
+            } => vec![
+                ("path", json_string(path)),
+                ("head_before", json_string(head_before)),
+                ("head_after", json_string(head_after)),
+            ],
+            Self::AfterRebuild { path, commit } | Self::AfterPush { path, commit } => {
+                vec![("path", json_string(path)), ("commit", json_string(commit))]
+            }
+            Self::BeforeFold { roots, head } => {
+                vec![("roots", strings(roots)), ("head", json_string(head))]
+            }
+            Self::AfterFold {
+                roots,
+                head_before,
+                head_after,
+            } => vec![
+                ("roots", strings(roots)),
+                ("head_before", json_string(head_before)),
+                ("head_after", json_string(head_after)),
+            ],
+        };
+        let mut all = vec![("name", json_string(name))];
+        all.extend(fields);
+        json_object(&all)
+    }
+
+    fn exec(&self, command: &str, operation: &str, tasks: &Tasks) -> Res<()> {
         let (event, path, commit) = self.hook_values();
-        let status = match Command::new("sh")
+        let payload = format!(
+            "{}\n",
+            json_object(&[("event", self.to_json()), ("tasks", tasks.to_json())])
+        );
+        let child = Command::new("sh")
             .args(["-c", command])
             .env("GIT_SPLICE_EVENT", event)
             .env("GIT_SPLICE_PATH", path)
             .env("GIT_SPLICE_COMMIT", commit)
-            .stdin(Stdio::null())
-            .status()
-        {
+            .stdin(Stdio::piped())
+            .spawn();
+        let mut child = match child {
+            Ok(child) => child,
+            Err(error) => return die(format!("--exec: could not run command: {error}")),
+        };
+        // From a thread: a hook that never reads its stdin mustn't block it.
+        // One that exits before reading it all just doesn't get the rest.
+        let writer = child.stdin.take().map(|mut stdin| {
+            std::thread::spawn(move || {
+                use std::io::Write;
+                let _ = stdin.write_all(payload.as_bytes());
+            })
+        });
+        let status = match child.wait() {
             Ok(status) => status,
             Err(error) => return die(format!("--exec: could not run command: {error}")),
         };
+        if let Some(writer) = writer {
+            let _ = writer.join();
+        }
         if !status.success() {
             let of = if path.is_empty() {
                 String::new()
@@ -157,7 +228,8 @@ impl<'context, O: Operation> Execution<'context, O> {
                 }
                 let checkpoint = self.checked(PausedRepository::capture(O::CHECK_TRACKED_STATE))?;
                 if !command.is_empty() {
-                    if let Err(failure) = event.exec(&command, O::NAME) {
+                    let tasks = self.progress.tasks();
+                    if let Err(failure) = event.exec(&command, O::NAME, &tasks) {
                         self.progress.stopped();
                         return self.checked(Err(failure));
                     }
@@ -279,5 +351,34 @@ impl TrackedState {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(_) => Err(Fail::Hard),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn events_as_json_carry_their_name_and_fields() {
+        let fetch = ExecutionEvent::AfterFetch {
+            fetched: vec![FetchedUpstream {
+                path: "vendor/a".into(),
+                upstream: "origin".into(),
+                url: "https://example.com/a \"b\".git".into(),
+                failed: true,
+            }],
+        };
+        assert_eq!(
+            fetch.to_json(),
+            r#"{"name":"after-fetch","fetched":[{"path":"vendor/a","upstream":"origin","url":"https://example.com/a \"b\".git","failed":true}]}"#
+        );
+        let fold = ExecutionEvent::BeforeFold {
+            roots: vec!["a".into(), "c".into()],
+            head: "1234".into(),
+        };
+        assert_eq!(
+            fold.to_json(),
+            r#"{"name":"before-fold","roots":["a","c"],"head":"1234"}"#
+        );
     }
 }

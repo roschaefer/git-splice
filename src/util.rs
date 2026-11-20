@@ -99,6 +99,34 @@ pub fn status_code(status: ExitStatus) -> i32 {
     status.code().unwrap_or(1)
 }
 
+/// <value> as a JSON string.
+pub fn json_string(value: &str) -> String {
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('"');
+    for c in value.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// A JSON object of <fields>, each a key and its value as JSON already.
+pub fn json_object(fields: &[(&str, String)]) -> String {
+    let items: Vec<String> = fields
+        .iter()
+        .map(|(key, value)| format!("{}:{value}", json_string(key)))
+        .collect();
+    format!("{{{}}}", items.join(","))
+}
+
 /// A git command to run.
 pub struct Git {
     command: Command,
@@ -395,6 +423,11 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn json_string_escapes_quotes_backslashes_and_control_characters() {
+        assert_eq!(json_string("a\"b\\c\nd\u{1}é"), r#""a\"b\\c\nd\u0001é""#);
+    }
 
     #[test]
     fn shell_quote_leaves_words_without_special_characters_as_they_are() {

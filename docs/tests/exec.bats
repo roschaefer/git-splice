@@ -119,3 +119,36 @@ nested_updates() {
   [[ "$output" == *"repository state changed at a push checkpoint -- start a new push" ]]
   [ "$(git --git-dir="$upstream" rev-parse main)" = "$before" ]
 }
+
+@test "exec: a pull hook gets each checkpoint as a line of JSON on stdin" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull --exec 'cat >>../payload.jsonl' vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(wc -l <../payload.jsonl)" -eq 2 ]
+  [ "$(jq -r 'select(.event.name == "after-fetch") | .event.fetched[] | "\(.path) \(.upstream) \(.failed)"' ../payload.jsonl)" = "vendor/a origin false" ]
+  [ "$(jq -r 'select(.event.name == "after-merge") | "\(.event.path) \(.event.head_before) \(.event.head_after)"' ../payload.jsonl)" = "vendor/a $before $(git rev-parse HEAD)" ]
+  [ "$(jq -r 'select(.event.name == "after-merge") | .tasks.splices[] | "\(.path) \(.task)"' ../payload.jsonl)" = "vendor/a done" ]
+}
+
+@test "exec: a push hook gets the published commit as JSON on stdin" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a "a local"
+  cd "$monorepo"
+  run splice push --exec 'cat >>../payload.jsonl' vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(jq -r 'select(.event.name == "after-push") | "\(.event.path) \(.event.commit)"' ../payload.jsonl)" = "vendor/a $(git -C "$upstream" rev-parse main)" ]
+  [ "$(jq -c 'select(.event.name == "after-push") | .tasks' ../payload.jsonl)" = '{"splices":[],"next":null}' ]
+}
+
+@test "exec: a hook that closes its stdin unread doesn't stop the pull" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "upstream change"
+  cd "$monorepo"
+  run splice pull --exec 'exec 0<&-' vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok   vendor/a: pulled"* ]]
+}

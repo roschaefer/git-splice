@@ -95,8 +95,9 @@ OPTIONS
         commit, when applicable. Other values are empty. Zero continues;
         nonzero stops with completed work applied. A hook that exits zero
         must leave HEAD, the branch, fetched refs, Git configuration,
-        tracked files and the index as they were, or pull stops. stdin is
-        closed; stdout and stderr are inherited.
+        tracked files and the index as they were, or pull stops. stdin gets
+        the checkpoint as one line of JSON: the event, with its fields, and
+        each splice's task. stdout and stderr are inherited.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--exec
 
