@@ -18,8 +18,9 @@ That keeps each upstream complete: anyone can clone an app without
 `git-splice`. It also means a cycle would nest forever. See the
 [diamond](../../09-scenarios/05-nested-splices/03-diamond/README.md) and
 [cycle](../../09-scenarios/05-nested-splices/04-cycle/README.md) scenarios.
-Cycles aren't supported or prevented yet. Skipping a repeated dependency
-would require a reference where today there are files.
+Cycles aren't supported: a splice of one of the monorepo's own remotes
+is refused. Skipping a repeated dependency would require a reference
+where today there are files.
 
 ## Versions and identity
 

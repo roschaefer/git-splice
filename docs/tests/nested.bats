@@ -1415,11 +1415,112 @@ a_conflicts_with_upstream_a() {
   load '../09-scenarios/05-nested-splices/04-cycle/setup'
   scenario_cycle "$monorepo" "$BATS_TEST_TMPDIR/up"
   cd "$monorepo"
+  # Without the remote, the pull can't tell the inner upstream is the monorepo.
+  git remote remove origin
   splice pull vendor/a >/dev/null
   run splice pull --all
   [ "$status" -eq 0 ]
   [[ "$output" == *"vendor/a/i/vendor/a: a copy of vendor/a, which it's inside -- not pulled"* ]]
   ! git cat-file -e HEAD:vendor/a/i/vendor/a/i/.splice
+}
+
+@test "nested: pull refuses an upstream that splices the monorepo back in, naming the folder and the URL" {
+  load '../09-scenarios/05-nested-splices/04-cycle/setup'
+  scenario_cycle "$monorepo" "$BATS_TEST_TMPDIR/up"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: its upstream splices this monorepo back in, at vendor/a/i from https://git.example.com/m.git, remote origin here -- each pull would nest another copy"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "nested: pull --rebase refuses an upstream that splices the monorepo back in" {
+  load '../09-scenarios/05-nested-splices/04-cycle/setup'
+  scenario_cycle "$monorepo" "$BATS_TEST_TMPDIR/up"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull --rebase vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: its upstream splices this monorepo back in, at vendor/a/i"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "nested: the monorepo's own URL is recognized after url.<base>.insteadOf" {
+  load '../09-scenarios/05-nested-splices/04-cycle/setup'
+  scenario_cycle "$monorepo" "$BATS_TEST_TMPDIR/up"
+  cd "$monorepo"
+  git remote set-url origin "$BATS_TEST_TMPDIR/up-m"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"at vendor/a/i from https://git.example.com/m.git, remote origin here"* ]]
+}
+
+@test "nested: a push URL of the monorepo counts as its own" {
+  load '../09-scenarios/05-nested-splices/04-cycle/setup'
+  scenario_cycle "$monorepo" "$BATS_TEST_TMPDIR/up"
+  cd "$monorepo"
+  git remote set-url origin "$BATS_TEST_TMPDIR/elsewhere.git"
+  git remote set-url --push origin https://git.example.com/m.git
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"at vendor/a/i from https://git.example.com/m.git, remote origin here"* ]]
+}
+
+@test "nested: clone refuses an upstream that splices the monorepo in" {
+  load '../09-scenarios/05-nested-splices/04-cycle/setup'
+  local up="$BATS_TEST_TMPDIR/up"
+  make_bare_repo "$up"
+  seed_bare_repo "$up" "seed"
+  init_monorepo "$monorepo"
+  make_bare_repo "$up-m"
+  cd "$monorepo"
+  git config "url.$up-m.insteadOf" https://git.example.com/m.git
+  git config "url.$up.insteadOf" https://git.example.com/a.git
+  echo "m" >m.txt
+  git add m.txt
+  git commit -q -m "m"
+  git remote add origin https://git.example.com/m.git
+  git push -q origin main
+  splice_into_upstream "$up" https://git.example.com/m.git "$up-m" i
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice clone https://git.example.com/a.git vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: its upstream splices this monorepo back in, at vendor/a/i from https://git.example.com/m.git, remote origin here -- each pull would nest another copy"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "nested: clone refuses the monorepo's own URL" {
+  init_monorepo "$monorepo"
+  make_bare_repo "$upstream"
+  cd "$monorepo"
+  git remote add origin "$upstream"
+  git push -q origin main
+  run splice clone "$upstream" vendor/self
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/self: $upstream is this monorepo's own, remote origin here -- splicing it in would nest another copy on each pull"* ]]
+  [[ "$output" != *"fetching"* ]]
+}
+
+@test "nested: push refuses a splice of the monorepo's own URL, which would replace the monorepo's branch with a copy" {
+  load '../09-scenarios/05-nested-splices/04-cycle/setup'
+  scenario_cycle "$monorepo" "$BATS_TEST_TMPDIR/up"
+  cd "$monorepo"
+  git remote remove origin
+  splice pull vendor/a >/dev/null
+  git remote add origin https://git.example.com/m.git
+  echo "note" >vendor/a/i/note.txt
+  git add vendor/a/i/note.txt
+  git commit -q -m "note in i"
+  local before
+  before="$(git -C "$BATS_TEST_TMPDIR/up-m" rev-parse main)"
+  run splice push vendor/a/i
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a/i: https://git.example.com/m.git is this monorepo's own, remote origin here -- pushing it would replace the monorepo's branch with an older copy"* ]]
+  [ "$(git -C "$BATS_TEST_TMPDIR/up-m" rev-parse main)" = "$before" ]
 }
 
 # The monorepo's own commit since the last pull: notes in vendor/a/b,

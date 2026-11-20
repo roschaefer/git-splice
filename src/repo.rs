@@ -116,6 +116,7 @@ pub struct Repo<'context> {
     keys_loaded: bool,
     monorepo_default: OnceCell<String>,
     empty_tree: OnceCell<String>,
+    own_remotes: OnceCell<OwnRemotes>,
     pub uncommitted: HashMap<String, Uncommitted>,
     /// Splices whose synced commit was made again here, with the newest
     /// commit in its history that the upstream branch has.
@@ -149,6 +150,63 @@ pub struct UpstreamState {
     upstream_names: HashMap<String, String>,
     urls: HashMap<String, String>,
     keys: HashMap<String, String>,
+}
+
+/// The monorepo's remotes, each with its URLs, and Git's
+/// url.<base>.insteadOf rules, as (base, prefix).
+#[derive(Default)]
+struct OwnRemotes {
+    remotes: Vec<(String, String)>,
+    rules: Vec<(String, String)>,
+}
+
+impl OwnRemotes {
+    fn read() -> Self {
+        let output = git(&[
+            "config",
+            "-z",
+            "--get-regexp",
+            r"^(remote\..+\.(url|pushurl)|url\..+\.insteadof)$",
+        ])
+        .q()
+        .bytes()
+        .unwrap_or_default();
+        let mut own = OwnRemotes::default();
+        for record in nul_fields(&output) {
+            let Some((key, value)) = record.split_once('\n') else {
+                continue;
+            };
+            if let Some(base) = key
+                .strip_prefix("url.")
+                .and_then(|rest| rest.strip_suffix(".insteadof"))
+            {
+                own.rules.push((base.to_string(), value.to_string()));
+            } else if let Some(name) = key.strip_prefix("remote.").and_then(|rest| {
+                rest.strip_suffix(".url")
+                    .or_else(|| rest.strip_suffix(".pushurl"))
+            }) {
+                own.remotes.push((name.to_string(), value.to_string()));
+            }
+        }
+        own.remotes = own
+            .remotes
+            .iter()
+            .map(|(name, url)| (name.clone(), own.rewrite(url)))
+            .collect();
+        own
+    }
+
+    /// <url> as Git reaches it: the longest insteadOf prefix replaced.
+    fn rewrite(&self, url: &str) -> String {
+        self.rules
+            .iter()
+            .filter(|(_, prefix)| url.starts_with(prefix.as_str()))
+            .max_by_key(|(_, prefix)| prefix.len())
+            .map_or_else(
+                || url.to_string(),
+                |(base, prefix)| format!("{base}{}", &url[prefix.len()..]),
+            )
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -503,6 +561,7 @@ impl<'context> Repo<'context> {
             keys_loaded: Default::default(),
             monorepo_default: Default::default(),
             empty_tree: Default::default(),
+            own_remotes: Default::default(),
             uncommitted: Default::default(),
             remade: Default::default(),
             child_rebuilds: Default::default(),
@@ -614,6 +673,71 @@ impl<'context> Repo<'context> {
             .iter()
             .filter_map(|file| file.strip_suffix(&suffix).map(str::to_string))
             .collect()
+    }
+
+    /// The monorepo's remote that <url> names, if any: one whose URL or push
+    /// URL is <url>, both as Git reaches them after url.<base>.insteadOf.
+    /// Other spellings of the same repository, e.g. SSH for HTTPS, aren't
+    /// recognized.
+    pub fn own_remote(&self, url: &str) -> Option<String> {
+        let own = self.own_remotes.get_or_init(OwnRemotes::read);
+        if url.is_empty() {
+            return None;
+        }
+        let url = own.rewrite(url);
+        own.remotes
+            .iter()
+            .find(|(_, remote)| *remote == url)
+            .map(|(name, _)| name.clone())
+    }
+
+    /// Why splicing in <commit> at <path> would put the monorepo inside
+    /// itself, if it would: a splice inside <commit> whose upstream is one of
+    /// the monorepo's remotes. Each pull of <path> would then bring in a
+    /// copy of the monorepo, with <path> in it, one level deeper each time.
+    pub fn splices_monorepo_back_in(&self, path: &str, commit: &str) -> Option<String> {
+        // Without remotes, there's nothing to read the splices for.
+        if self
+            .own_remotes
+            .get_or_init(OwnRemotes::read)
+            .remotes
+            .is_empty()
+        {
+            return None;
+        }
+        let tree = tree_of(commit)?;
+        for dir in self.nested_splices(&tree) {
+            let output = git(&[
+                "config",
+                "-z",
+                "--blob",
+                &format!("{tree}:{dir}/{STATE_FILE}"),
+                "--get-regexp",
+                r"^upstream\..+\.url$",
+            ])
+            .q()
+            .bytes()
+            .unwrap_or_default();
+            for record in nul_fields(&output) {
+                let url = record.split_once('\n').map_or("", |(_, url)| url);
+                if let Some(remote) = self.own_remote(url) {
+                    return Some(format!(
+                        "{path}: its upstream splices this monorepo back in, at {path}/{dir} from {url}, remote {remote} here -- each pull would nest another copy"
+                    ));
+                }
+            }
+        }
+        None
+    }
+
+    /// Why splicing in upstream <url> at <path> would put the monorepo inside
+    /// itself, if it would: <url> is one of the monorepo's remotes.
+    pub fn is_own_url(&self, path: &str, url: &str) -> Option<String> {
+        self.own_remote(url).map(|remote| {
+            format!(
+                "{path}: {url} is this monorepo's own, remote {remote} here -- splicing it in would nest another copy on each pull"
+            )
+        })
     }
 
     /// A folder with a committed .splice is a splice, also below another

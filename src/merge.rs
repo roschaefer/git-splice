@@ -243,6 +243,7 @@ impl Repo<'_> {
                 "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE}"
             ));
         }
+        self.refuse_monorepo_inside(path, &target)?;
         let merge_base = if let Some(fork) = self.fork_point() {
             // Only a folder that ends up with exactly the rewritten branch's
             // files lets the rebuild start there again. Anything else is
@@ -281,6 +282,22 @@ impl Repo<'_> {
         }
         log_ok(format!("{path}: {} {}", past_tense(verb), short(&target)));
         Ok(())
+    }
+
+    /// Refuses to merge <target> into splice <path> if that puts the
+    /// monorepo inside itself: <path>'s upstream is the monorepo, or a splice
+    /// in <target> is.
+    fn refuse_monorepo_inside(&self, path: &str, target: &str) -> Res<()> {
+        let names = self.upstream_lists.get(path).cloned().unwrap_or_default();
+        let why = names
+            .iter()
+            .filter_map(|name| self.upstream_urls.get(&(path.to_string(), name.clone())))
+            .find_map(|url| self.is_own_url(path, url))
+            .or_else(|| self.splices_monorepo_back_in(path, target));
+        match why {
+            Some(why) => fail(why),
+            None => Ok(()),
+        }
     }
 
     /// For --rebase: the newest first-parent commit since the synced commit
@@ -408,6 +425,7 @@ impl Repo<'_> {
                 "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE}"
             ));
         }
+        self.refuse_monorepo_inside(path, &target)?;
         if c.synced.is_empty() {
             return fail(format!(
                 "{path}: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; {verb} without --rebase"
