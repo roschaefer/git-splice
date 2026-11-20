@@ -40,6 +40,64 @@ pub fn fetch_upstream(url: &str, prefix: &str, commits: &[String]) -> (bool, Str
     (true, output)
 }
 
+/// Whether GIT_LFS_SKIP_SMUDGE asks Git LFS to check files out as pointers:
+/// their content isn't needed here then.
+fn lfs_skipped() -> bool {
+    std::env::var("GIT_LFS_SKIP_SMUDGE").is_ok_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
+/// Whether a .gitattributes in <commit> stores files in Git LFS.
+fn uses_lfs(commit: &str) -> bool {
+    git(&[
+        "grep",
+        "--quiet",
+        "--fixed-strings",
+        "filter=lfs",
+        commit,
+        "--",
+        ":(glob)**/.gitattributes",
+    ])
+    .q()
+    .ok()
+}
+
+/// Downloads the Git LFS content of <commit>'s files from upstream <url>'s LFS
+/// server into this repository's LFS store. A checkout of <commit> looks for
+/// it there before it asks the monorepo's own LFS server, which doesn't have it
+/// yet; the monorepo's next push uploads it there. Content that's here already
+/// isn't downloaded again. On failure, returns what to say.
+pub fn download_lfs(url: &str, commit: &str) -> Result<(), String> {
+    if commit.is_empty() || lfs_skipped() || !uses_lfs(commit) {
+        return Ok(());
+    }
+    // lfs.fetchinclude and lfs.fetchexclude name the monorepo's paths, not the
+    // upstream's.
+    let (ok, output) = git_merged_output(&[
+        "lfs",
+        "fetch",
+        "--include=",
+        "--exclude=",
+        "--",
+        url,
+        commit,
+    ]);
+    if ok {
+        return Ok(());
+    }
+    if !git(&["lfs", "version"]).q().ok() {
+        return Err(format!(
+            "{} stores files in Git LFS, which isn't installed here",
+            short(commit)
+        ));
+    }
+    Err(output)
+}
+
 pub fn fetch_by_id(url: &str, commit: &str) -> bool {
     git(&[
         "fetch",
@@ -100,6 +158,8 @@ struct Member {
     target_ref: String,
     old_sha: Option<String>,
     tag: String,
+    /// A default-pin that names a commit.
+    pinned_commit: String,
 }
 
 /// What to print for an entry of a fetch.
@@ -147,8 +207,36 @@ fn fetch_shared_upstream(
             moved_tags.push((member.tag.clone(), moved));
         }
     }
+    let mut downloaded: Vec<(String, Result<(), String>)> = Vec::new();
     for (i, member) in members.iter().enumerate() {
         let new_sha = git(&["rev-parse", "--verify", "--quiet", &member.target_ref]).out();
+        // What a merge would check out: the branch, or else the pin.
+        let target = match &new_sha {
+            Some(sha) => sha.clone(),
+            None if !member.tag.is_empty() => {
+                commit_of(&format!("{prefix}tags/{}", member.tag)).unwrap_or_default()
+            }
+            None => member.pinned_commit.clone(),
+        };
+        let download = match downloaded.iter().find(|(commit, _)| *commit == target) {
+            Some((_, result)) => result.clone(),
+            None => {
+                let result = download_lfs(url, &target);
+                downloaded.push((target.clone(), result.clone()));
+                result
+            }
+        };
+        if let Err(output) = download {
+            reports.push((
+                member.index,
+                Report {
+                    out: String::new(),
+                    err: format!("{output}\n!!   {}", member.failed_label),
+                    failed: true,
+                },
+            ));
+            continue;
+        }
         let out = match (&member.old_sha, &new_sha) {
             (Some(old), Some(new)) if old != new => format!(
                 "ok   {} ({} moved {}..{})",
@@ -260,11 +348,11 @@ impl Repo<'_> {
                 // fetches it: a feature branch compares with it when upstream
                 // has no branch like it.
                 let pin = self.upstream_setting(path, name, "default-pin");
-                let tag = if is_commit_id(&pin) {
+                let (tag, pinned_commit) = if is_commit_id(&pin) {
                     commits.push(pin.clone());
-                    String::new()
+                    (String::new(), pin.clone())
                 } else {
-                    pin.clone()
+                    (pin.clone(), String::new())
                 };
                 // A splice pinned on this branch has no branch that could move.
                 let follows_branch = pin.is_empty()
@@ -287,6 +375,7 @@ impl Repo<'_> {
                     target_ref,
                     old_sha,
                     tag,
+                    pinned_commit,
                 });
             }
             jobs.push(FetchJob {
