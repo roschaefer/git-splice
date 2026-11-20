@@ -92,6 +92,13 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: --force-if-includes only for push" {
+  run complete_words git-splice push --force-
+  [ "$output" = "--force-if-includes" ]
+  run complete_words git-splice pull --force-
+  [ -z "$output" ]
+}
+
 @test "completion: --bump and --rebase only for merge and pull" {
   local option
   for option in --bump --rebase; do
@@ -384,6 +391,12 @@ fish_complete() {
   [[ "$output" == *"--branch"* ]]
 }
 
+@test "zsh completion: push completes --force-if-includes" {
+  require_shell zsh
+  run zsh_complete "git-splice push --force-"
+  [[ "$output" == *"--force-if-includes"* ]]
+}
+
 @test "zsh completion: pull completes --bump, --rebase and --branch" {
   require_shell zsh
   run zsh_complete "git-splice pull --bu"
@@ -423,6 +436,12 @@ fish_complete() {
   require_shell fish
   run fish_complete "git-splice push vendor/"
   [[ "$output" == *"vendor/a"* ]]
+}
+
+@test "fish completion: push completes --force-if-includes" {
+  require_shell fish
+  run fish_complete "git-splice push --force-i"
+  [ "$output" = "--force-if-includes" ]
 }
 
 @test "fish completion: init completes the path, and nothing for the url" {

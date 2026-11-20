@@ -12,8 +12,8 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] [--exec <command>] (<path>... | --all)
-    git splice push [--upstream <name>] [--branch <name>] [--force] [--exec <command>] --rebuilt-commit <commit> <path>
+    git splice push [--upstream <name>] [--branch <name> [--track]] [--force | --force-if-includes] [--exec <command>] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force | --force-if-includes] [--exec <command>] --rebuilt-commit <commit> <path>
 ```
 
 ## Description
@@ -113,6 +113,26 @@ When the upstream was rebuilt from scratch, and the two sides share no
 history, `push` refuses and prints the ways to pick a side; `--force`
 keeps the monorepo's
 ([unrelated-history](../09-scenarios/06-rewritten-history/03-diverged-unrelated-history/README.md)).
+
+### `--force-if-includes`
+
+```scrut
+$ git splice push -h | check-help option --force-if-includes
+        Overwrites the upstream branch only where it has nothing the
+        monorepo lacks: the branch must still be where the last fetch or
+        push saw it, and that commit must be one a pull recorded in HEAD's
+        history, or one this clone pushed -- e.g. after a rebase rewrote
+        pushed commits. Like 'git push --force-with-lease
+        --force-if-includes'. A commit the upstream got elsewhere is
+        refused: pull it, or discard it with --force.
+```
+
+Git's counterpart is `git push --force-with-lease --force-if-includes`,
+or `--force-with-lease` with `push.useForceIfIncludes=true`. The lease is the splice ref the last
+`fetch` or `push` wrote, `refs/splices/<key>/heads/<branch>`. It covers
+pushed commits that a rebase rewrote
+([pushed-then-rebased](../09-scenarios/06-rewritten-history/05-pushed-then-rebased/README.md)).
+To discard commits you fetched but never pulled, use plain `--force`.
 
 ### `--rebuilt-commit`
 
