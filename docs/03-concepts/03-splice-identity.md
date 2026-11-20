@@ -77,7 +77,8 @@ something to fix. [Mirrors](../09-scenarios/07-moved-folders/03-mirrors/README.m
 
 With [nesting](04-nesting.md), a `.splice` with the same id as one
 above it means a splice contains itself. The id is what makes that
-visible, though nothing refuses it yet
+visible, and `pull --all` stops there. A splice of one of the monorepo's
+remotes is refused before that
 ([cycle](../09-scenarios/05-nested-splices/04-cycle/README.md)).
 
 ## What an id is
