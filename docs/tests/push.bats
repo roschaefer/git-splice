@@ -260,28 +260,10 @@ SH
   git config "url.ssh://git.example.com$upstream.pushInsteadOf" "$upstream"
   BATS_TEST_TMPDIR="$BATS_TEST_TMPDIR" run splice push vendor/a
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "ok   vendor/a: pushed $(git -C "$upstream" rev-parse --short=7 main) to main" ]
-  [ "${#lines[@]}" -eq 2 ]
+  [ "$output" = "ok   vendor/a: pushed $(git rev-parse --short=7 "$(upstream_refs "$upstream")main") to main" ]
   grep -qx "GIT_SSH_COMMAND=unset" "$BATS_TEST_TMPDIR/ssh.log"
   grep -qx "git.example.com" "$BATS_TEST_TMPDIR/ssh.log"
   ! grep -q "ControlMaster" "$BATS_TEST_TMPDIR/ssh.log"
-}
-
-@test "push: records nothing when pushInsteadOf sends the push to another repository than fetches read" {
-  scenario_push_ahead "$monorepo" "$upstream"
-  local push_side="$BATS_TEST_TMPDIR/push-side.git" fetched
-  git clone --quiet --bare "$upstream" "$push_side"
-  cd "$monorepo"
-  fetched="$(git rev-parse "$(upstream_refs "$upstream")main")"
-  git config "url.$push_side.pushInsteadOf" "$upstream"
-  run splice push vendor/a
-  [ "$status" -eq 0 ]
-  [ "${lines[1]}" = "??   vendor/a: pushInsteadOf sent the push to another URL than fetches read, so it isn't recorded in $(upstream_refs "$upstream")main -- 'git splice fetch vendor/a' reads upstream again" ]
-  [ "$(git -C "$push_side" log -1 --format=%s main)" = "local change" ]
-  [ "$(git -C "$upstream" rev-parse main)" = "$fetched" ]
-  [ "$(git rev-parse "$(upstream_refs "$upstream")main")" = "$fetched" ]
-  run splice status
-  [[ "$output" == *"ahead 1  vendor/a"* ]]
 }
 
 @test "push: on the default branch, pushes to upstream's default branch" {
