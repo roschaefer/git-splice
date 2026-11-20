@@ -126,11 +126,6 @@ impl Repo<'_> {
         }
 
         let url = self.url_in_use(path);
-        if let Some(remote) = self.own_remote(&url) {
-            return fail(format!(
-                "{path}: {url} is this monorepo's own, remote {remote} here -- pushing it would replace the monorepo's branch with an older copy"
-            ));
-        }
         // Before the push, so a failure to record the key can't follow a push
         // that already happened.
         self.ensure_splice_key(path)?;

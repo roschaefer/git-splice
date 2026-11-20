@@ -13,10 +13,10 @@ a cycle is an endless tree of folders, one level deeper on every pull.
       └─────┘   A's upstream splices M in at i/
 ```
 
-So `clone`, `merge` and `pull` refuse a splice whose upstream, or a
-splice inside it, is one of the monorepo's remotes, and `push` refuses
-to push to one. Two URLs are the same if they are equal as Git reaches
-them, after `url.<base>.insteadOf`.
+So no upstream of a `.splice` may be one of the monorepo's remotes:
+each command refuses such a `.splice` in the monorepo, and `clone`,
+`merge` and `pull` one in what they bring in. Two URLs are the same if
+they are equal as Git reaches them, after `url.<base>.insteadOf`.
 
 - **Monorepo** (remote `origin`, `https://git.example.com/m.git`):
   `vendor/a/`, a splice of the upstream below.
@@ -146,7 +146,8 @@ $ echo "note" >vendor/a/i/note.txt &&
 >   git commit -q -m "n: note in i"
 ```
 
-With the remote back, the push refuses:
+With the remote back, every command refuses the `.splice` of
+`vendor/a/i/`, the push too:
 
 ```scrut
 $ git remote add origin https://git.example.com/m.git
@@ -154,8 +155,7 @@ $ git remote add origin https://git.example.com/m.git
 
 ```scrut
 $ git splice push vendor/a/i
-!!   vendor/a/i: https://git.example.com/m.git is this monorepo's own, remote origin here -- pushing it would replace the monorepo's branch with an older copy
-!!   Failed: vendor/a/i
+!!   vendor/a/i/.splice: upstream 'origin' is https://git.example.com/m.git, remote origin of this monorepo -- a splice of the monorepo nests another copy of it on each pull; remove it: git config --file vendor/a/i/.splice --remove-section upstream.origin
 [1]
 ```
 
