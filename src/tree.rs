@@ -2,6 +2,7 @@
 //! is pending or settled: for a tree drawing, or a test, to show next to
 //! each splice.
 
+use crate::util::{json_object, json_string};
 use std::collections::HashMap;
 
 /// A step an operation still has to take for a splice.
@@ -39,6 +40,41 @@ pub struct Tasks {
 }
 
 impl Tasks {
+    /// The tasks as JSON: an object with each splice's task, top-down, and
+    /// the next step beyond them, or null.
+    pub fn to_json(&self) -> String {
+        let splices: Vec<String> = self
+            .per_splice
+            .iter()
+            .map(|(path, task)| {
+                let mut fields = vec![("path", json_string(path))];
+                let step = |step: &Step| match step {
+                    Step::Fetch => "fetch",
+                    Step::Merge => "merge",
+                };
+                let (name, extra) = match task {
+                    Task::Pending(s) => ("pending", Some(("step", step(s).to_string()))),
+                    Task::Done => ("done", None),
+                    Task::Conflict => ("conflict", None),
+                    Task::Blocked(by) => ("blocked", Some(("by", by.clone()))),
+                    Task::Failed => ("failed", None),
+                    Task::Removed => ("removed", None),
+                    Task::Copy(of) => ("copy", Some(("of", of.clone()))),
+                };
+                fields.push(("task", json_string(name)));
+                if let Some((key, value)) = extra {
+                    fields.push((key, json_string(&value)));
+                }
+                json_object(&fields)
+            })
+            .collect();
+        let next = self.next.map_or("null".to_string(), json_string);
+        json_object(&[
+            ("splices", format!("[{}]", splices.join(","))),
+            ("next", next),
+        ])
+    }
+
     /// Each splice's task as text, by path, naming other splices by their
     /// path: "pending: merge, after vendor/a/" for a merge that waits on the
     /// splice around it.
@@ -74,5 +110,33 @@ impl Tasks {
                 (path.clone(), note)
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tasks_as_json_name_each_task_and_what_it_waits_on() {
+        let tasks = Tasks {
+            per_splice: vec![
+                ("a".into(), Task::Done),
+                ("a/b".into(), Task::Pending(Step::Merge)),
+                ("a/c".into(), Task::Blocked("a/b".into())),
+                ("a/a".into(), Task::Copy("a".into())),
+            ],
+            next: Some("fold"),
+        };
+        assert_eq!(
+            tasks.to_json(),
+            concat!(
+                r#"{"splices":[{"path":"a","task":"done"},"#,
+                r#"{"path":"a/b","task":"pending","step":"merge"},"#,
+                r#"{"path":"a/c","task":"blocked","by":"a/b"},"#,
+                r#"{"path":"a/a","task":"copy","of":"a"}],"next":"fold"}"#
+            )
+        );
+        assert_eq!(Tasks::default().to_json(), r#"{"splices":[],"next":null}"#);
     }
 }

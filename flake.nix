@@ -240,6 +240,8 @@
             pkgs.git-lfs
             # Runs in the git-crypt scenario, docs/09-scenarios/04-upstreams/09-encrypted-upstream/.
             pkgs.git-crypt
+            # Reads --exec hooks' JSON in docs/09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/.
+            pkgs.jq
             jujutsu
           ] ++ lib.optionals pkgs.stdenv.isLinux [
             sapling
