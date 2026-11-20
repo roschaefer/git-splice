@@ -341,7 +341,7 @@ impl PushProgress {
         repo.load_uncommitted_changes(&selected);
         Ok(Self {
             paths: splices_in_order(true, &selected).into(),
-            failures: Vec::new(),
+            failures: repo.skipped.clone(),
             branch: repo.monorepo_branch.clone(),
             force,
             tracked_branch: repo

@@ -502,7 +502,7 @@ assert_candidates() {
   cd "$monorepo"
   git config --file vendor/a/.splice --unset splice.id
   git commit -q -am "no id"
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [ "$output" = "!!   vendor/a/.splice has no id" ]
 }
@@ -512,12 +512,12 @@ assert_candidates() {
   cd "$monorepo"
   git config --file vendor/a/.splice --remove-section upstream.origin
   git commit -q -am "no upstream"
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice names no upstream"* ]]
   git config --file vendor/a/.splice upstream.origin.url ""
   git commit -q -am "empty upstream URL"
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice names no upstream"* ]]
 }
@@ -527,7 +527,7 @@ assert_candidates() {
   cd "$monorepo"
   printf '<<<<<<< HEAD\n' >>vendor/a/.splice
   git commit -q -am "conflict markers"
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice can't be read (bad config line "*") -- fix it and commit it"* ]]
 }
@@ -538,7 +538,7 @@ assert_candidates() {
   { printf '<<<<<<< HEAD\n'; cat vendor/a/.splice; } >vendor/a/.splice.new
   mv vendor/a/.splice.new vendor/a/.splice
   git commit -q -am "conflict markers first"
-  run splice status
+  run splice status vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice can't be read (bad config line 1 "*") -- fix it and commit it"* ]]
 }
@@ -550,6 +550,108 @@ assert_candidates() {
   git commit -q -am "newline in the URL"
   fetch_fake_url $'/srv/a\nb.git' vendor/a >/dev/null 2>&1 || true
   [ "$(git config --local "splice.$(splice key vendor/a).url")" = $'/srv/a\nb.git' ]
+}
+
+# vendor/a, a commit ahead and a commit behind its upstream, next to
+# vendor/b, whose .splice can't be read.
+splices_next_to_unreadable() {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  make_bare_repo "$upstream-b"
+  seed_bare_repo "$upstream-b" "seed"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream" vendor/a
+  add_splice "$monorepo" "$upstream-b" vendor/b
+  commit_local "$monorepo" vendor/a "local change" local.txt
+  printf '<<<<<<< HEAD\n' >>"$monorepo/vendor/b/.splice"
+  git -C "$monorepo" commit -q -am "conflict markers in vendor/b"
+  cd "$monorepo"
+}
+
+@test "discovery: a .splice that can't be read stops no command that names other splices" {
+  splices_next_to_unreadable
+  run splice status vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf 'On branch main\n\n  ahead 1  vendor/a')" ]
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
+}
+
+@test "discovery: a command that names the splice whose .splice can't be read stops with why" {
+  splices_next_to_unreadable
+  before="$(git -C "$upstream-b" rev-parse main)"
+  run splice push vendor/a vendor/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == "!!   vendor/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "seed" ]
+  [ "$(git -C "$upstream-b" rev-parse main)" = "$before" ]
+}
+
+@test "status: a splice whose .splice can't be read is a problem row with why, the others show as usual, and status fails" {
+  splices_next_to_unreadable
+  splice fetch vendor/a >/dev/null
+  run splice status
+  [ "$status" -eq 1 ]
+  [ "${lines[1]}" = "  !! can't use .splice  vendor/b  vendor/b/.splice can't be read (bad config line 6 in blob HEAD:vendor/b/.splice); fix it and commit it" ]
+  [ "${lines[2]}" = "  ahead 1               vendor/a" ]
+}
+
+@test "push --all: pushes the other splices, names the one whose .splice can't be read, and fails" {
+  splices_next_to_unreadable
+  run splice push --all
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == "!!   vendor/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  [[ "$output" == *"ok   vendor/a: pushed "* ]]
+  [ "${lines[-1]}" = "!!   Failed: vendor/b" ]
+  [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
+}
+
+@test "fetch: fetches the other splices, names the one whose .splice can't be read, and fails" {
+  splices_next_to_unreadable
+  seed_bare_repo "$upstream" "upstream change"
+  run splice fetch
+  [ "$status" -eq 1 ]
+  [ "${lines[-1]}" = "!!   Failed: vendor/b" ]
+  [ "$(git rev-parse "refs/splices/$(splice key vendor/a)/heads/main")" = "$(git -C "$upstream" rev-parse main)" ]
+}
+
+@test "pull --all: pulls the other splices as one commit, names the one whose .splice can't be read, and fails" {
+  splices_next_to_unreadable
+  seed_bare_repo "$upstream" "upstream change"
+  before="$(git rev-parse HEAD)"
+  run splice pull --all
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == "!!   vendor/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  [ "${lines[-1]}" = "!!   Failed: vendor/b" ]
+  [ "$(git rev-list --count "$before..HEAD")" = 1 ]
+  grep -q "upstream change" vendor/a/file.txt
+  run git rev-parse --verify --quiet SPLICE_PULL_START
+  [ "$status" -ne 0 ]
+}
+
+@test "merge --all: merges the other splices, names the one whose .splice can't be read, and fails" {
+  splices_next_to_unreadable
+  seed_bare_repo "$upstream" "upstream change"
+  splice fetch vendor/a >/dev/null
+  before="$(git rev-parse HEAD)"
+  run splice merge --all
+  [ "$status" -eq 1 ]
+  [ "${lines[-1]}" = "!!   Failed: vendor/b" ]
+  [ "$(git rev-list --count "$before..HEAD")" = 1 ]
+  grep -q "upstream change" vendor/a/file.txt
+}
+
+@test "discovery: a .splice that can't be read stops every command on the splices around and inside it" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  printf '<<<<<<< HEAD\n' >>vendor/a/b/.splice
+  git commit -q -am "conflict markers in vendor/a/b"
+  for command in status "status vendor/a" "push vendor/a"; do
+    run splice $command
+    [ "$status" -eq 1 ]
+    [[ "$output" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  done
 }
 
 @test "discovery: refuses a splice path that isn't valid UTF-8, naming the folder to rename" {

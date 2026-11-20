@@ -3,9 +3,9 @@
 `git-splice` reads each splice's `.splice` with `git config`. A typo, a
 committed conflict marker or a `.splice` that `git-crypt` encrypted
 ([#56](https://github.com/roschaefer/git-splice/issues/56)) leave one it
-can't read. Today that stops every command, also the ones for the other
-splices
-([#57](https://github.com/roschaefer/git-splice/issues/57)).
+can't read. A command that names that splice stops. The other splices
+work as before, and a command over every splice reports the one it left
+out and fails.
 
 ## Output
 
@@ -56,46 +56,53 @@ $ echo "  default branch = main" >>libs/http/.splice &&
 $ check_drawing "$TESTDIR/unreadable-splice.drawio.svg" \
 >   a=HEAD~7 b=HEAD~6 c=HEAD~5 d=HEAD~4 e=HEAD~3 f=HEAD~2 g=HEAD~1 \
 >   o=refs/splices/upstream-store/heads/main
-!!   f': no such commit
-!!   g': no such commit
-!!   o is in the lane libs/store/, but isn't in that splice's upstream history or R
-!!   seed is solid, but no upstream branch has it: dash it
-!!   seed is solid, but no upstream branch has it: dash it
-!!   seed is solid, but no upstream branch has it: dash it
-!!   o is solid, but no upstream branch has it: dash it
-!!   seed is solid, but no upstream branch has it: dash it
-!!   f is outlined in color, but the rebuild doesn't carry it across: outline it black
-!!   g is outlined in color, but the rebuild doesn't carry it across: outline it black
-!!   T points at seed, but there's no T
-!!   R points at seed, but there's no R
-!!   T points at seed, but there's no T
-!!   R points at f', but there's no R
-!!   seed -> o is solid, but no upstream branch has o: dash it
-!!   T points at o, but there's no T
-!!   R points at g', but there's no R
-!!   T points at seed, but there's no T
-!!   R points at seed, but there's no R
-[1]
+ok   unreadable-splice.drawio.svg: 15 commits, 17 arrows, 7 boxes, 5 lanes
 ```
 -->
 
+`status` shows it first, with why:
+
 ```scrut
 $ git splice status
-!!   libs/http/.splice can't be read (bad config line 6 in blob HEAD:libs/http/.splice) -- fix it and commit it
+On branch main
+
+  !! can't use .splice  libs/http  libs/http/.splice can't be read (bad config line 6 in blob HEAD:libs/http/.splice); fix it and commit it
+  ahead 1, behind 1     libs/store
+  ahead 1               libs/parser
+
+  up to date            libs/cli
+  up to date            libs/theme -> master
 [1]
 ```
+
+A command over every splice does the others:
 
 ```scrut
 $ git splice fetch
 !!   libs/http/.splice can't be read (bad config line 6 in blob HEAD:libs/http/.splice) -- fix it and commit it
+ok   libs/cli fetched
+ok   libs/parser fetched
+ok   libs/store fetched
+ok   libs/theme fetched
+!!   Failed: libs/http
 [1]
 ```
 
+A command that names another splice works as before:
+
 ```scrut
 $ git splice diff libs/parser
-!!   libs/http/.splice can't be read (bad config line 6 in blob HEAD:libs/http/.splice) -- fix it and commit it
-[1]
+===  libs/parser
+diff --git a/file.txt b/file.txt
+index e31de1f..d939bfa 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1 +1,2 @@
+ seed
++local change
 ```
+
+A command that names it stops:
 
 ```scrut
 $ git splice push libs/http

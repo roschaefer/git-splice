@@ -224,11 +224,20 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     let branch = repo.monorepo_branch.clone();
     let selected = repo.selected.clone();
     repo.load_uncommitted_changes(&selected);
-    let mut rows = Vec::new();
+    let mut rows: Vec<Row> = repo
+        .skipped
+        .iter()
+        .map(|path| Row {
+            rank: PROBLEM,
+            label: format!("!! can't use {STATE_FILE}"),
+            path: path.clone(),
+            hint: repo.unreadable[path].replacen(" -- ", "; ", 1),
+        })
+        .collect();
     for path in &selected {
         rows.push(classify_row(&mut repo, path, &branch)?);
     }
     say(format!("On branch {branch}\n"));
     print_rows(&rows);
-    Ok(0)
+    Ok(if repo.skipped.is_empty() { 0 } else { 1 })
 }

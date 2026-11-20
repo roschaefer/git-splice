@@ -79,6 +79,9 @@ struct PullProgress {
     fold_roots: Vec<String>,
     rebasing: bool,
     fetch_failures: Vec<String>,
+    /// Splices left out of a pull --all: their .splice can't be read.
+    skipped: Vec<String>,
+    merges_reported: bool,
     /// What the merges did for each splice, once they are over.
     merged: Vec<(String, Task)>,
     status: i32,
@@ -150,6 +153,8 @@ impl PullProgress {
             fold_roots: Vec::new(),
             rebasing: false,
             fetch_failures: Vec::new(),
+            skipped: repo.skipped.clone(),
+            merges_reported: false,
             merged: Vec::new(),
             status: 0,
             phase: PullPhase::Fetch(plan),
@@ -182,6 +187,7 @@ impl PullProgress {
                     self.merged = merges.tasks();
                     self.phase = PullPhase::Finalize;
                 } else if merges.done() {
+                    self.merges_reported = true;
                     if merges.finish().is_err() {
                         self.status = 1;
                     }
@@ -269,7 +275,9 @@ impl PullProgress {
         let tops: Vec<String> = if repo.args.all {
             repo.all_paths
                 .iter()
-                .filter(|path| first_above(path, &repo.all_paths).is_none())
+                .filter(|path| {
+                    first_above(path, &repo.all_paths).is_none() && !self.skipped.contains(path)
+                })
                 .cloned()
                 .collect()
         } else {
@@ -323,6 +331,13 @@ impl PullProgress {
         self.say_if_detached()?;
         if !self.fetch_failures.is_empty() {
             log_err(format!("Not fetched: {}", self.fetch_failures.join(" ")));
+            self.status = 1;
+        }
+        if !self.skipped.is_empty() {
+            // The merges' report has named them, if there were any.
+            if !self.merges_reported {
+                log_err(format!("Failed: {}", self.skipped.join(" ")));
+            }
             self.status = 1;
         }
         Ok(())
