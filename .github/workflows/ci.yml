@@ -87,6 +87,7 @@ jobs:
             "github:NixOS/nixpkgs/nixos-23.05#git" \
             "nixpkgs#bashInteractive" \
             "nixpkgs#bats" \
+            "nixpkgs#jq" \
             "nixpkgs#parallel" \
             "nixpkgs#zsh" \
             "nixpkgs#xmlstarlet" \
