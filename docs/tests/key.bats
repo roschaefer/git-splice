@@ -175,3 +175,53 @@ setup() {
   [ "$(splice key vendor/a)" = mine ]
   git rev-parse --verify --quiet refs/splices/mine/heads/main
 }
+
+# Serves the upstream through Git's ext:: transport, after renaming the key
+# the way 'git splice key' in another worktree would: between the lookup of
+# the key and the write of the refs under it.
+rename_key_while_serving() {
+  local new="$1"
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat >"$BATS_TEST_TMPDIR/bin/rename-then-serve" <<SCRIPT
+#!/bin/sh
+(unset GIT_DIR GIT_WORK_TREE; cd "$monorepo" && "$ENTRYPOINT" key vendor/a $new) >&2
+unset GIT_DIR GIT_WORK_TREE
+exec git "\${1#git-}" "\$2"
+SCRIPT
+  chmod +x "$BATS_TEST_TMPDIR/bin/rename-then-serve"
+  git config --local protocol.ext.allow always
+  git config --local "url.ext::rename-then-serve %S $upstream.insteadOf" "$upstream"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+}
+
+@test "key: a fetch racing a rename leaves no refs under the old key, and asks to run again" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice fetch >/dev/null
+  seed_bare_repo "$upstream" "on a branch" feature/x
+  rename_key_while_serving lib
+  run splice fetch vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "ok   vendor/a: renamed key 'upstream' to 'lib'" ]
+  [ "${lines[1]}" = "!!   vendor/a: its upstream's key 'upstream' was renamed to 'lib' meanwhile -- run the command again" ]
+  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = refs/splices/lib/heads/main ]
+  git config --local --unset "url.ext::rename-then-serve %S $upstream.insteadOf"
+  splice fetch vendor/a >/dev/null
+  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = "refs/splices/lib/heads/feature/x"$'\n'"refs/splices/lib/heads/main" ]
+}
+
+@test "key: a push racing a rename leaves no refs under the old key, and asks to fetch" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo change >vendor/a/new.txt
+  git add vendor/a/new.txt
+  git commit -qm "change vendor/a"
+  rename_key_while_serving lib
+  run splice push vendor/a
+  [ "$status" -eq 1 ]
+  [ "${lines[1]}" = "!!   vendor/a: pushed, but its upstream's key 'upstream' was renamed to 'lib' meanwhile -- run 'git splice fetch vendor/a'" ]
+  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = refs/splices/lib/heads/main ]
+  git config --local --unset "url.ext::rename-then-serve %S $upstream.insteadOf"
+  splice fetch vendor/a >/dev/null
+  [ "$(git rev-parse refs/splices/lib/heads/main)" = "$(git -C "$upstream" rev-parse main)" ]
+}
