@@ -526,9 +526,63 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
             "{path}: attributes in {file} or above it would change how Git checks out or stores some of its files, unlike in upstream -- add '{line}' to {file}, commit it, and run clone again"
         ));
     }
+    let content = git(&["cat-file", "blob", &format!("{commit}:.gitattributes")])
+        .q()
+        .bytes()
+        .unwrap_or_default();
+    let macros = macro_names(&String::from_utf8_lossy(&content));
+    if !macros.is_empty() {
+        return die(format!(
+            "{path}: {path}/.gitattributes defines {}, which Git reads only in a repository's top-level .gitattributes",
+            macro_list(&macros)
+        ));
+    }
     die(format!(
         "{path}: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"
     ))
+}
+
+/// The names of the macros a .gitattributes file defines, in `[attr]<name>`
+/// lines, and a pattern line in it uses, as `<name>`, `-<name>` or `!<name>`,
+/// in order.
+fn macro_names(content: &str) -> Vec<String> {
+    let lines: Vec<&str> = content.lines().map(str::trim_start).collect();
+    let used: Vec<&str> = lines
+        .iter()
+        .filter(|line| !line.starts_with('#') && !line.starts_with("[attr]"))
+        .flat_map(|line| attribute_tokens(line))
+        .map(|token| token.trim_start_matches(['-', '!']))
+        .collect();
+    lines
+        .iter()
+        .filter_map(|line| line.strip_prefix("[attr]"))
+        .filter_map(|rest| rest.split_whitespace().next())
+        .filter(|name| used.contains(name))
+        .map(str::to_string)
+        .collect()
+}
+
+/// The attribute tokens of a .gitattributes pattern line, after its pattern,
+/// which may be quoted.
+fn attribute_tokens(line: &str) -> std::str::SplitWhitespace<'_> {
+    let rest = match line.strip_prefix('"') {
+        Some(quoted) => quoted.split_once('"').map_or("", |(_, rest)| rest),
+        None => line
+            .split_once(char::is_whitespace)
+            .map_or("", |(_, rest)| rest),
+    };
+    rest.split_whitespace()
+}
+
+/// "macro 'a'", or "macros 'a', 'b' and 'c'".
+fn macro_list(names: &[String]) -> String {
+    let quoted: Vec<String> = names.iter().map(|name| format!("'{name}'")).collect();
+    match quoted.split_last() {
+        Some((last, rest)) if !rest.is_empty() => {
+            format!("macros {} and {last}", rest.join(", "))
+        }
+        _ => format!("macro {}", quoted.concat()),
+    }
 }
 
 fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
@@ -1005,7 +1059,29 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 
 #[cfg(test)]
 mod tests {
-    use super::clone_path_for;
+    use super::{clone_path_for, macro_list, macro_names};
+
+    #[test]
+    fn macro_names_reads_attr_lines_only_not_comments_or_quoted_patterns() {
+        let content = "# [attr]comment text\n\"[attr]quoted\" text\n  [attr]lf text eol=lf\n*.sh lf\n\"a b\" quoted comment\n";
+        assert_eq!(macro_names(content), ["lf"]);
+    }
+
+    #[test]
+    fn macro_names_skips_macros_no_pattern_line_uses_as_an_attribute() {
+        let content = "[attr]unused text\n[attr]set text\n[attr]unset text\n[attr]unspecified text\n[attr]pattern text\n[attr]other text\n*.a set\n*.b -unset\n*.c !unspecified\npattern text\n[attr]other unused\n# *.d other\n";
+        assert_eq!(macro_names(content), ["set", "unset", "unspecified"]);
+    }
+
+    #[test]
+    fn macro_list_joins_the_last_name_with_and() {
+        let names = |list: &[&str]| list.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+        assert_eq!(macro_list(&names(&["a"])), "macro 'a'");
+        assert_eq!(
+            macro_list(&names(&["a", "b", "c"])),
+            "macros 'a', 'b' and 'c'"
+        );
+    }
 
     #[test]
     fn default_clone_path_names_the_folder_as_git_clone_does() {
