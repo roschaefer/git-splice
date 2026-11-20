@@ -238,6 +238,8 @@
             pkgs.josh
             # Runs in the Git LFS scenarios, docs/09-scenarios/04-upstreams/08-lfs-upstream/.
             pkgs.git-lfs
+            # Runs in the git-crypt scenario, docs/09-scenarios/04-upstreams/09-encrypted-upstream/.
+            pkgs.git-crypt
             jujutsu
           ] ++ lib.optionals pkgs.stdenv.isLinux [
             sapling
