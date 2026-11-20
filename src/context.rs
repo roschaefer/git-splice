@@ -1,6 +1,7 @@
 //! State shared by the operations in one execution.
 
 use crate::execution::ExecutionEvent;
+use crate::rebuild_cache::RebuildCache;
 use crate::repo::STATE_FILE;
 use crate::util::*;
 use std::collections::HashMap;
@@ -12,6 +13,7 @@ pub struct ExecutionContext {
     observer: Option<Observer>,
     content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
+    rebuild_cache: Option<RebuildCache>,
 }
 
 impl ExecutionContext {
@@ -48,6 +50,11 @@ impl ExecutionContext {
         if let Some(observer) = &mut self.observer {
             observer(&event);
         }
+    }
+
+    /// The rebuilt commits of earlier runs, read on first use.
+    pub(crate) fn rebuild_cache(&mut self) -> &mut RebuildCache {
+        self.rebuild_cache.get_or_insert_with(RebuildCache::load)
     }
 
     /// Folder tree <tree> without its state file. The same folder tree recurs
