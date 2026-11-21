@@ -265,6 +265,18 @@ new_upstream() {
   [ "$status" -eq 0 ]
 }
 
+@test "clone: an init.defaultBranch naming a branch the monorepo doesn't have isn't its default branch" {
+  new_upstream master
+  git config init.defaultBranch master
+  ! git rev-parse --quiet --verify refs/heads/master
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice clone "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream's default branch is 'master', and the monorepo's can't be determined"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "clone: refuses where the monorepo's attributes would apply to upstream's files, naming the line; with it committed, clones the files as upstream committed them" {
   scenario_clone_under_monorepo_attributes "$monorepo" "$upstream"
   cd "$monorepo"
