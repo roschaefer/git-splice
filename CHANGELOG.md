@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.23.0](https://github.com/roschaefer/git-splice/compare/v0.22.0...v0.23.0) (2026-11-21)
+
+
+### Features
+
+* **check-drawing:** dash per side what that side's upstream lacks ([#521](https://github.com/roschaefer/git-splice/issues/521)) ([d70320e](https://github.com/roschaefer/git-splice/commit/d70320ecfe245be2f8e7da84a65f01fb0c33a99e))
+
+
+### Bug Fixes
+
+* **check-drawing:** let a per-lane label name another commit on a side ([#520](https://github.com/roschaefer/git-splice/issues/520)) ([68a3305](https://github.com/roschaefer/git-splice/commit/68a3305014920dc080e10372f8a8864896fcbc8d))
+* **init:** refuse an upstream that has tags but no branches ([#527](https://github.com/roschaefer/git-splice/issues/527)) ([3993986](https://github.com/roschaefer/git-splice/commit/399398674556702f9b8c53fe523b93292541ecbd)), closes [#19](https://github.com/roschaefer/git-splice/issues/19)
+* **key:** refuse a numbered fallback key longer than 64 characters ([#525](https://github.com/roschaefer/git-splice/issues/525)) ([391be07](https://github.com/roschaefer/git-splice/commit/391be07c4317a72111aff6abac45e9ba2ad9275c)), closes [#64](https://github.com/roschaefer/git-splice/issues/64)
+
 ## [0.22.0](https://github.com/roschaefer/git-splice/compare/v0.21.0...v0.22.0) (2026-11-18)
 
 
