@@ -1256,6 +1256,12 @@ impl<'context> Repo<'context> {
             }
             key = format!("{last}-{n}");
         }
+        if !valid_upstream_key(&key) {
+            return die(format!(
+                "couldn't make a valid key for {url} -- record one yourself: git config --local splice.<key>.url {}",
+                shell_quote(url)
+            ));
+        }
         if !git(&["config", "--local", &format!("splice.{key}.url"), url]).ok() {
             return die(format!(
                 "couldn't record the key of {url} in the repository's config"
