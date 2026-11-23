@@ -117,6 +117,19 @@ new_upstream() {
   [ "$(splice_state vendor/a)" = missing-branch ]
 }
 
+@test "clone: on a branch upstream lacks, promises no push creates it, as a push right after creates nothing" {
+  scenario_clone_on_feature_branch "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice clone "$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"===  vendor/a: upstream has no 'feature' branch -- using 'main'"$'\n'* ]]
+  [[ "$output" != *"push"* ]]
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nothing to push (upstream has no 'feature' branch"* ]]
+  [ -z "$(git -C "$upstream" branch --list feature)" ]
+}
+
 @test "clone: a folder with exactly upstream's content only gets a .splice" {
   scenario_clone_copied_content "$monorepo" "$upstream"
   cd "$monorepo"
