@@ -243,6 +243,7 @@ impl Repo<'_> {
                 "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE}"
             ));
         }
+        self.refuse_unreadable_state_files(path, &target, verb)?;
         let merge_base = if let Some(fork) = self.fork_point() {
             // Only a folder that ends up with exactly the rewritten branch's
             // files lets the rebuild start there again. Anything else is
@@ -408,6 +409,7 @@ impl Repo<'_> {
                 "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE}"
             ));
         }
+        self.refuse_unreadable_state_files(path, &target, verb)?;
         if c.synced.is_empty() {
             return fail(format!(
                 "{path}: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; {verb} without --rebase"
@@ -1253,6 +1255,8 @@ impl Repo<'_> {
                 short(&given)
             ));
         }
+        self.refuse_unreadable_state_files(path, &given, "merge")
+            .map_err(|_| Fail::Hard)?;
         refuse_changed_submodule(path, &base, &given)?;
         self.refuse_upstream_commits(path, &rebuilt, &given)?;
         let count = git(&["rev-list", "--count", &format!("{base}..{given}")])

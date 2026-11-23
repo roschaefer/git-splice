@@ -868,6 +868,18 @@ impl<'context> Repo<'context> {
         })
     }
 
+    pub fn refuse_unreadable_state_files(&self, path: &str, tree: &str, verb: &str) -> Res<()> {
+        for splice in self.read_splices(tree)?.read() {
+            if let Err(Unreadable { fact, .. }) = splice.state {
+                return fail(format!(
+                    "{path}: {}:{fact} -- a {verb} would commit a {STATE_FILE} no command can read",
+                    short(tree)
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// A folder with a committed .splice is a splice, also below another
     /// splice. Committed, not staged: every command reads a splice's state
     /// from HEAD.

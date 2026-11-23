@@ -606,6 +606,8 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
             "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
         ));
     }
+    repo.refuse_unreadable_state_files(&path, &target, "clone")
+        .map_err(|_| Fail::Hard)?;
     if let Some(inner) = upstream_submodule(&target) {
         return die(format!(
             "{path}: upstream has a submodule, {inner}, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
@@ -772,6 +774,8 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
         ));
     }
+    repo.refuse_unreadable_state_files(&path, &commit, "clone")
+        .map_err(|_| Fail::Hard)?;
     if let Some(inner) = upstream_submodule(&commit) {
         if !recursive {
             return die(format!(
