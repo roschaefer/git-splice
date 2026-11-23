@@ -322,9 +322,29 @@ struct ReadSplice {
     warnings: Vec<String>,
 }
 
+struct SpliceTree {
+    tree: String,
+    files: Vec<String>,
+}
+
+impl SpliceTree {
+    fn read(self) -> impl Iterator<Item = ReadSplice> {
+        self.files
+            .into_iter()
+            .map(move |file| read_splice(&self.tree, &file))
+    }
+}
+
 fn read_splice(tree: &str, file: &str) -> ReadSplice {
     let mut warnings = Vec::new();
-    let state = read_state_file(&format!("{tree}:{file}"), file, &mut warnings);
+    let state = if file.contains(char::REPLACEMENT_CHARACTER) {
+        unreadable(
+            format!("'{file}' isn't supported as a splice path"),
+            "rename the folder: its name isn't valid UTF-8".to_string(),
+        )
+    } else {
+        read_state_file(&format!("{tree}:{file}"), file, &mut warnings)
+    };
     ReadSplice {
         path: file
             .strip_suffix(&format!("/{STATE_FILE}"))
@@ -834,11 +854,14 @@ impl<'context> Repo<'context> {
             .collect()
     }
 
-    fn read_splices(&self, tree: &str) -> Vec<ReadSplice> {
-        self.state_files(tree)
-            .iter()
-            .map(|file| read_splice(tree, file))
-            .collect()
+    fn read_splices(&self, rev: &str) -> Res<SpliceTree> {
+        let Some(tree) = tree_of(rev) else {
+            return die(format!("can't read the tree of {rev}"));
+        };
+        Ok(SpliceTree {
+            files: self.state_files(&tree),
+            tree,
+        })
     }
 
     /// A folder with a committed .splice is a splice, also below another
@@ -846,23 +869,23 @@ impl<'context> Repo<'context> {
     /// from HEAD.
     pub fn discover_splices(&mut self) -> Res<()> {
         self.all_paths.clear();
-        let splices = self.read_splices("HEAD");
-        for splice in &splices {
-            let path = &splice.path;
-            if path.contains(char::REPLACEMENT_CHARACTER) {
+        let splices = self.read_splices("HEAD")?;
+        for file in &splices.files {
+            if file.contains(char::REPLACEMENT_CHARACTER) {
                 return die(format!(
-                    "'{path}/{STATE_FILE}' isn't supported as a splice path -- rename the folder: its name isn't valid UTF-8"
+                    "'{file}' isn't supported as a splice path -- rename the folder: its name isn't valid UTF-8"
                 ));
             }
-            if path == STATE_FILE {
+            if file == STATE_FILE {
                 return die(format!(
                     "a {STATE_FILE} at the repository root isn't supported -- a splice must be a folder"
                 ));
             }
+            let path = file.strip_suffix(&format!("/{STATE_FILE}")).unwrap_or(file);
             require_usable_splice_path(path, "rename the folder")?;
-            self.all_paths.push(path.clone());
+            self.all_paths.push(path.to_string());
         }
-        for splice in splices {
+        for splice in splices.read() {
             self.load_read_splice(splice)?;
         }
         Ok(())
@@ -1784,6 +1807,37 @@ impl<'context> Repo<'context> {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    #[test]
+    fn read_splices_refuses_lossy_paths_instead_of_reading_another_paths_blob() {
+        use crate::util::test_repo::{git, with_repository};
+        use std::os::unix::ffi::OsStringExt;
+        with_repository(|| {
+            let valid = "[splice]\n id = test\n[upstream \"origin\"]\n url = ../upstream.git\n";
+            let invalid = std::ffi::OsString::from_vec(b"vendor/\xff".to_vec());
+            for path in [
+                std::path::Path::new(&invalid),
+                std::path::Path::new("vendor/�"),
+            ] {
+                std::fs::create_dir_all(path).unwrap();
+                std::fs::write(path.join(STATE_FILE), valid).unwrap();
+            }
+            git(&["add", "."]);
+            git(&["commit", "-qm", "colliding decoded paths"]);
+            let mut context = ExecutionContext::new();
+            let repo = Repo::new(&mut context, Default::default());
+            let splices: Vec<_> = repo.read_splices("HEAD").unwrap().read().collect();
+            assert_eq!(splices.len(), 2);
+            for splice in splices {
+                assert_eq!(splice.path, "vendor/�");
+                assert_eq!(
+                    splice.state.err().unwrap().fact,
+                    "'vendor/�/.splice' isn't supported as a splice path"
+                );
+            }
+        });
+    }
+
     #[test]
     fn read_splices_reads_the_given_tree_and_keeps_errors_and_warnings_for_the_caller() {
         use crate::util::test_repo::{git, with_repository};
@@ -1801,11 +1855,10 @@ mod tests {
             let tree = git(&["write-tree"]);
             let mut context = ExecutionContext::new();
             let repo = Repo::new(&mut context, Default::default());
-            assert!(repo
-                .read_splices("HEAD")
-                .iter()
-                .all(|splice| splice.state.is_ok()));
-            let splices = repo.read_splices(&tree);
+            let head_splices = repo.read_splices("HEAD").unwrap();
+            git(&["commit", "-qm", "broken upstream state"]);
+            assert!(head_splices.read().all(|splice| splice.state.is_ok()));
+            let splices: Vec<_> = repo.read_splices(&tree).unwrap().read().collect();
             assert_eq!(
                 splices
                     .iter()
@@ -1826,6 +1879,7 @@ mod tests {
             assert!(repo.all_paths.is_empty());
             assert!(repo.upstream_urls.is_empty());
             assert!(repo.warned_keys.is_empty());
+            assert!(repo.read_splices("missing").is_err());
         });
     }
 
