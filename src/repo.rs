@@ -205,23 +205,25 @@ fn unreadable<T>(fact: String, hint: String) -> Result<T, Unreadable> {
     Err(Unreadable { fact, hint })
 }
 
-/// Reads state file <blob>, e.g. HEAD:vendor/a/.splice, called <file> in
-/// messages, as every command reads a splice's .splice.
+/// Reads <file> from <tree>, using <rev> to name its source in diagnostics.
 fn read_state_file(
-    blob: &str,
+    tree: &str,
+    rev: &str,
     file: &str,
     warnings: &mut Vec<String>,
 ) -> Result<StateFile, Unreadable> {
-    let Some((status, output)) = git(&["config", "--blob", blob, "--list", "-z"])
+    let blob = format!("{tree}:{file}");
+    let Some((status, output)) = git(&["config", "--blob", &blob, "--list", "-z"])
         .q()
         .bytes_and_status()
     else {
         return unreadable(format!("{file} can't be read"), String::new());
     };
     if !status.success() {
-        let error = git(&["config", "--blob", blob, "--list"]).err_text();
+        let error = git(&["config", "--blob", &blob, "--list"]).err_text();
         let error = error.lines().next().unwrap_or("");
         let error = error.strip_prefix("error: ").unwrap_or(error);
+        let error = error.replace(&format!("in blob {blob}"), &format!("in blob {rev}:{file}"));
         return unreadable(
             format!("{file} can't be read ({error})"),
             "fix it and commit it".to_string(),
@@ -323,6 +325,7 @@ struct ReadSplice {
 }
 
 struct SpliceTree {
+    rev: String,
     tree: String,
     files: Vec<String>,
 }
@@ -331,11 +334,11 @@ impl SpliceTree {
     fn read(self) -> impl Iterator<Item = ReadSplice> {
         self.files
             .into_iter()
-            .map(move |file| read_splice(&self.tree, &file))
+            .map(move |file| read_splice(&self.tree, &self.rev, &file))
     }
 }
 
-fn read_splice(tree: &str, file: &str) -> ReadSplice {
+fn read_splice(tree: &str, rev: &str, file: &str) -> ReadSplice {
     let mut warnings = Vec::new();
     let state = if file.contains(char::REPLACEMENT_CHARACTER) {
         unreadable(
@@ -343,7 +346,7 @@ fn read_splice(tree: &str, file: &str) -> ReadSplice {
             "rename the folder: its name isn't valid UTF-8".to_string(),
         )
     } else {
-        read_state_file(&format!("{tree}:{file}"), file, &mut warnings)
+        read_state_file(tree, rev, file, &mut warnings)
     };
     ReadSplice {
         path: file
@@ -859,6 +862,7 @@ impl<'context> Repo<'context> {
             return die(format!("can't read the tree of {rev}"));
         };
         Ok(SpliceTree {
+            rev: rev.to_string(),
             files: self.state_files(&tree),
             tree,
         })
@@ -995,6 +999,7 @@ impl<'context> Repo<'context> {
     /// the file.
     pub fn load_splice_upstream(&mut self, path: &str) -> Res<()> {
         self.load_read_splice(read_splice(
+            &self.state_rev,
             &self.state_rev,
             &format!("{path}/{STATE_FILE}"),
         ))
@@ -1806,6 +1811,27 @@ impl<'context> Repo<'context> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn syntax_error_names_requested_revision_even_after_head_moves() {
+        use crate::util::test_repo::{git, with_repository};
+        with_repository(|| {
+            std::fs::create_dir_all("vendor/a").unwrap();
+            std::fs::write("vendor/a/.splice", "[broken\n").unwrap();
+            git(&["add", "."]);
+            git(&["commit", "-qm", "broken state file"]);
+            let mut context = ExecutionContext::new();
+            let repo = Repo::new(&mut context, Default::default());
+            let splices = repo.read_splices("HEAD").unwrap();
+            git(&["rm", "-q", "vendor/a/.splice"]);
+            git(&["commit", "-qm", "remove state file"]);
+            let splice = splices.read().next().unwrap();
+            assert_eq!(
+                splice.state.err().unwrap().fact,
+                "vendor/a/.splice can't be read (bad config line 1 in blob HEAD:vendor/a/.splice)"
+            );
+        });
+    }
 
     #[cfg(unix)]
     #[test]
