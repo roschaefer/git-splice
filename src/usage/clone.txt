@@ -61,12 +61,12 @@ OPTIONS
 
 UPSTREAM BRANCH
     The upstream branch is the one named like the current branch, else the
-    upstream's default branch; your first push then creates the missing
-    branch. If the upstream's default branch is named differently from the
-    monorepo's, .splice records it as the upstream's default-branch. Inside
-    another splice, it's compared with that splice's default branch
-    instead, and on the monorepo's default branch, that's the upstream
-    branch: the monorepo's branch name isn't tried.
+    upstream's default branch; a push creates the missing branch once a PR
+    from it would show changes. If the upstream's default branch is named
+    differently from the monorepo's, .splice records it as the upstream's
+    default-branch. Inside another splice, it's compared with that splice's
+    default branch instead, and on the monorepo's default branch, that's
+    the upstream branch: the monorepo's branch name isn't tried.
 
     See also: https://git-splice.roschaefer.de/docs/command-reference/clone/#upstream-branch
 
