@@ -90,6 +90,20 @@ setup() {
   [[ "$output" == *"has commits already -- to combine them with lib/a, use 'git splice clone --merge"* ]]
 }
 
+@test "init: refuses an upstream whose commits are only reachable through a tag" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "release"
+  git -C "$upstream" tag v1 main
+  git -C "$upstream" update-ref -d refs/heads/main
+  [ -z "$(git ls-remote --heads "$upstream")" ]
+  cd "$monorepo"
+  before="$(git rev-parse HEAD)"
+  run splice init lib/a "$upstream"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"$upstream has no branches, but refs/tags/v1 -- 'git splice init' needs an upstream without any refs"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "init: refuses a folder that isn't committed, and an existing splice" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

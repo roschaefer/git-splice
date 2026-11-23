@@ -108,6 +108,10 @@ impl Repo<'_> {
         self.container_default_branch(path)?;
         self.register_new_upstream(path, url)?;
         if !self.splice_fetched(path) {
+            let refs = advertised_refs(url).unwrap_or_default();
+            if !refs.is_empty() {
+                return die(no_branches_but(url, &refs));
+            }
             return die(format!(
                 "{url} has no branches yet -- to publish {path} there, use 'git splice init {} {}'",
                 shell_quote(path),
