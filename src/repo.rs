@@ -290,17 +290,70 @@ pub fn require_usable_splice_path(path: &str, fix: &str) -> Res<()> {
     ))
 }
 
-/// The keys a state file can have, as a warning about another one lists them.
-const STATE_KEYS: &str = "splice.id, splice.commit, splice.default-upstream, upstream.<name>.url, upstream.<name>.default-branch, upstream.<name>.default-pin";
+enum StateKey {
+    Value(&'static str),
+    Section(&'static str, &'static [StateKey]),
+    Subsection(&'static str, &'static [StateKey]),
+}
 
-/// Whether <key>, as `git config --list` writes it, is one of STATE_KEYS.
-fn known_state_key(key: &str) -> bool {
-    if let Some(rest) = key.strip_prefix("upstream.") {
-        return rest.rsplit_once('.').is_some_and(|(name, variable)| {
-            !name.is_empty() && ["url", "default-branch", "default-pin"].contains(&variable)
-        });
+const STATE_SCHEMA: &[StateKey] = &[
+    StateKey::Section(
+        "splice",
+        &[
+            StateKey::Value("id"),
+            StateKey::Value("commit"),
+            StateKey::Value("default-upstream"),
+        ],
+    ),
+    StateKey::Section(
+        "upstream",
+        &[StateKey::Subsection(
+            "<name>",
+            &[
+                StateKey::Value("url"),
+                StateKey::Value("default-branch"),
+                StateKey::Value("default-pin"),
+            ],
+        )],
+    ),
+];
+
+impl StateKey {
+    fn accepts(&self, key: &str) -> bool {
+        match self {
+            Self::Value(name) => key == *name,
+            Self::Section(name, children) => key.split_once('.').is_some_and(|(section, rest)| {
+                section == *name && children.iter().any(|child| child.accepts(rest))
+            }),
+            Self::Subsection(_, children) => key.rsplit_once('.').is_some_and(|(name, rest)| {
+                !name.is_empty() && children.iter().any(|child| child.accepts(rest))
+            }),
+        }
     }
-    ["splice.id", "splice.commit", "splice.default-upstream"].contains(&key)
+
+    fn list_keys(&self, prefix: &str, keys: &mut Vec<String>) {
+        match self {
+            Self::Value(name) => keys.push(format!("{prefix}{name}")),
+            Self::Section(name, children) | Self::Subsection(name, children) => {
+                let prefix = format!("{prefix}{name}.");
+                for child in *children {
+                    child.list_keys(&prefix, keys);
+                }
+            }
+        }
+    }
+}
+
+fn known_state_key(key: &str) -> bool {
+    STATE_SCHEMA.iter().any(|entry| entry.accepts(key))
+}
+
+fn state_keys() -> String {
+    let mut keys = Vec::new();
+    for entry in STATE_SCHEMA {
+        entry.list_keys("", &mut keys);
+    }
+    keys.join(", ")
 }
 
 fn valid_upstream_name(name: &str) -> bool {
@@ -792,7 +845,7 @@ impl<'context> Repo<'context> {
             if !known_state_key(key) && key != "splice.default-branch" {
                 let warning = format!("{path}/{STATE_FILE}: unknown key {key}");
                 if self.warned_keys.insert(warning.clone()) {
-                    log_warn(format!("{warning} -- the keys are {STATE_KEYS}"));
+                    log_warn(format!("{warning} -- the keys are {}", state_keys()));
                 }
             }
             if let Some(name) = key
@@ -1644,6 +1697,17 @@ impl<'context> Repo<'context> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn listed_state_keys_are_accepted_by_the_schema() {
+        assert_eq!(
+            state_keys(),
+            "splice.id, splice.commit, splice.default-upstream, upstream.<name>.url, upstream.<name>.default-branch, upstream.<name>.default-pin"
+        );
+        for key in state_keys().split(", ") {
+            assert!(known_state_key(&key.replace("<name>", "my.fork")));
+        }
+    }
 
     #[test]
     fn known_state_key_takes_the_upstream_keys_for_any_name_dots_included() {
