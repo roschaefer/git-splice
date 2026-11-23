@@ -259,9 +259,9 @@ $ git splice merge -h | check-help option --message-template
         command has no value for, e.g. {old} for clone, stops it before it
         writes anything. A splice without a synced commit, in a clone made
         between init and its push, fails on {old}, {count} and {shortlog}
-        like a refused splice. It
-        doesn't go with -m, nor with --rebuilt-commit, whose commit keeps
-        the message of the one it merges. Without it, the template is the default:
+        like a refused splice. It doesn't go with -m, nor with
+        --rebuilt-commit, whose commit keeps the message of the one it
+        merges. Without it, the template is the default:
 
             splice: {command} {path} from {upstream} at {new}
 ```
@@ -299,8 +299,7 @@ its own values.
 $ git splice merge -h | check-help option --shortlog
         Lists at most <n> commits in {shortlog} instead of 20, then "...",
         like 'git merge --log=<n>'; 0 leaves it empty, all lists every commit.
-        It goes with
-        --message-template, as --track goes with --branch.
+        It goes with --message-template, as --track goes with --branch.
 ```
 
 A lower limit keeps a long pull's message within a commit linter's
