@@ -141,12 +141,12 @@ Upstream: $old..$new" ]
   [ "$(git log -1 --format=%B)" = "pull vendor/a (3 commits)" ]
 }
 
-@test "message template: --shortlog refuses what isn't a number of commits, before pulling anything" {
+@test "message template: --shortlog refuses what isn't a number of commits, or one too big for 'git log --max-count', before pulling anything" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   local before value
   before="$(git rev-parse HEAD)"
-  for value in "" -1 ten 2x; do
+  for value in "" -1 ten 2x 2147483647 99999999999; do
     run splice pull --shortlog="$value" --message-template '{shortlog}' vendor/a
     [ "$status" -eq 1 ]
     [ "$output" = "!!   --shortlog needs a number of commits or all, e.g. --shortlog=50 or --shortlog=all" ]

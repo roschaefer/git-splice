@@ -131,7 +131,7 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                     }
                     "--shortlog" if value == "all" => args.shortlog = Some(Shortlog::All),
                     "--shortlog" => match value.parse() {
-                        Ok(limit) if value.bytes().all(|b| b.is_ascii_digit()) => {
+                        Ok(limit) if value.bytes().all(|b| b.is_ascii_digit()) && limit < i32::MAX as usize => {
                             args.shortlog = Some(Shortlog::Limit(limit))
                         }
                         _ => {
