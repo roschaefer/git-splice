@@ -830,13 +830,19 @@ impl<'context> Repo<'context> {
 
     /// Every state file in commit <commit>, at any depth.
     pub fn state_files(&self, commit: &str) -> Vec<String> {
+        self.state_files_since(&self.empty_tree(), commit)
+    }
+
+    /// The state files <commit> adds or changes since <base>.
+    fn state_files_since(&self, base: &str, commit: &str) -> Vec<String> {
         let spec = format!(":(top,glob)**/{STATE_FILE}");
         let output = git(&[
             "diff-tree",
             "-r",
             "--name-only",
+            "--diff-filter=d",
             "-z",
-            &self.empty_tree(),
+            base,
             commit,
             "--",
             &spec,
@@ -868,12 +874,34 @@ impl<'context> Repo<'context> {
         })
     }
 
-    pub fn refuse_unreadable_state_files(&self, path: &str, tree: &str, verb: &str) -> Res<()> {
-        for splice in self.read_splices(tree)?.read() {
+    /// Refuses <target> if a state file it adds or changes since <base>, or
+    /// any without a <base>, can't be read: committing it would stop every
+    /// later command in discovery.
+    pub fn refuse_unreadable_state_files(
+        &self,
+        path: &str,
+        base: Option<&str>,
+        target: &str,
+        verb: &str,
+        hint: &str,
+    ) -> Res<()> {
+        let Some(tree) = tree_of(target) else {
+            return die(format!("can't read the tree of {target}"));
+        };
+        let files = match base {
+            Some(base) => self.state_files_since(base, &tree),
+            None => self.state_files(&tree),
+        };
+        let splices = SpliceTree {
+            rev: short(target).to_string(),
+            tree,
+            files,
+        };
+        for splice in splices.read() {
             if let Err(Unreadable { fact, .. }) = splice.state {
                 return fail(format!(
-                    "{path}: {}:{fact} -- a {verb} would commit a {STATE_FILE} no command can read",
-                    short(tree)
+                    "{path}: in {}, {fact} -- a {verb} would commit a {STATE_FILE} no command can read; {hint}",
+                    short(target)
                 ));
             }
         }

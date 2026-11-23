@@ -243,7 +243,6 @@ impl Repo<'_> {
                 "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE}"
             ));
         }
-        self.refuse_unreadable_state_files(path, &target, verb)?;
         let merge_base = if let Some(fork) = self.fork_point() {
             // Only a folder that ends up with exactly the rewritten branch's
             // files lets the rebuild start there again. Anything else is
@@ -263,6 +262,8 @@ impl Repo<'_> {
                 .unwrap_or_default()
         };
         refuse_changed_submodule(path, &merge_base, &target)?;
+        let since = Some(merge_base.as_str()).filter(|base| !base.is_empty());
+        self.refuse_unreadable_state_files(path, since, &target, verb, FIX_UPSTREAM)?;
         let base_folder = self.own_records_in(path, &merge_base, &target)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
@@ -409,12 +410,12 @@ impl Repo<'_> {
                 "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE}"
             ));
         }
-        self.refuse_unreadable_state_files(path, &target, verb)?;
         if c.synced.is_empty() {
             return fail(format!(
                 "{path}: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; {verb} without --rebase"
             ));
         }
+        self.refuse_unreadable_state_files(path, Some(&c.synced), &target, verb, FIX_UPSTREAM)?;
         self.refuse_remade(path)?;
         self.refuse_lacking_synced(path)?;
         let base = self.sync_point_commit(path)?;
@@ -1189,6 +1190,8 @@ pub fn synced_commit_here(path: &str) -> bool {
 /// Refuses the first submodule upstream commit <target> adds, or moves to
 /// another commit, since upstream commit <base>. One it leaves alone merges
 /// cleanly: the monorepo's side keeps what it has there.
+const FIX_UPSTREAM: &str = "fix it in the upstream";
+
 fn refuse_changed_submodule(path: &str, base: &str, target: &str) -> Res<()> {
     let changes = git(&["diff-tree", "-r", "--no-renames", base, target])
         .out()
@@ -1255,8 +1258,14 @@ impl Repo<'_> {
                 short(&given)
             ));
         }
-        self.refuse_unreadable_state_files(path, &given, "merge")
-            .map_err(|_| Fail::Hard)?;
+        self.refuse_unreadable_state_files(
+            path,
+            Some(&base),
+            &given,
+            "merge",
+            &format!("fix it in a commit on top of {}", short(&given)),
+        )
+        .map_err(|_| Fail::Hard)?;
         refuse_changed_submodule(path, &base, &given)?;
         self.refuse_upstream_commits(path, &rebuilt, &given)?;
         let count = git(&["rev-list", "--count", &format!("{base}..{given}")])

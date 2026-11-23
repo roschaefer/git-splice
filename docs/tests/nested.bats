@@ -1029,10 +1029,29 @@ order_of() {
   synced_a="$(splice_config vendor/a commit)"
   run splice pull vendor/a vendor/x
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a: $(git -C "$upstream" rev-parse --short main):b/.splice names no upstream -- a pull would commit a .splice no command can read"* ]]
+  [[ "$output" == *"vendor/a: in $(git -C "$upstream" rev-parse --short main), b/.splice names no upstream -- a pull would commit a .splice no command can read; fix it in the upstream"* ]]
   [[ "$output" == *"vendor/x: pulled"* ]]
   [[ "$output" == *"Failed: vendor/a"* ]]
   [ "$(splice_config vendor/a commit)" = "$synced_a" ]
+  git config --blob HEAD:vendor/a/b/.splice upstream.origin.url
+}
+
+@test "nested: pull of a goes ahead when a's upstream still has the .splice for b that can't be loaded, which the monorepo fixed" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  work_in_upstream_a
+  git config --file b/.splice --unset upstream.origin.url
+  git commit -q -m "b: no URL" -- b/.splice
+  git push -q origin main
+  broken="$(git rev-parse HEAD)"
+  cd "$monorepo"
+  splice fetch vendor/a
+  # The monorepo took the commit in, keeping b's URL.
+  git config --file vendor/a/.splice splice.commit "$broken"
+  git commit -q -m "a: take $broken in, keep b's URL" -- vendor/a/.splice
+  seed_bare_repo "$upstream" "unrelated" main other.txt
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$(git -C "$upstream" rev-parse main)" ]
   git config --blob HEAD:vendor/a/b/.splice upstream.origin.url
 }
 
@@ -1049,7 +1068,8 @@ unreadable_splice_added_in_upstream() {
   head="$(git rev-parse HEAD)"
   run splice clone "$upstream" lib
   [ "$status" -ne 0 ]
-  [[ "$output" == *"lib: $(git -C "$upstream" rev-parse --short main):extra/.splice can't be read (bad config line 1 in blob "*") -- a clone would commit a .splice no command can read"* ]]
+  short="$(git -C "$upstream" rev-parse --short main)"
+  [[ "$output" == *"lib: in $short, extra/.splice can't be read (bad config line 1 in blob $short:extra/.splice) -- a clone would commit a .splice no command can read; fix it in the upstream"* ]]
   [ "$(git rev-parse HEAD)" = "$head" ]
   [ -z "$(git status --porcelain)" ]
   splice status
@@ -1063,7 +1083,8 @@ unreadable_splice_added_in_upstream() {
   head="$(git rev-parse HEAD)"
   run splice merge vendor/a
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a: $(git -C "$upstream" rev-parse --short main):extra/.splice can't be read ("*") -- a merge would commit a .splice no command can read"* ]]
+  short="$(git -C "$upstream" rev-parse --short main)"
+  [[ "$output" == *"vendor/a: in $short, extra/.splice can't be read (bad config line 1 in blob $short:extra/.splice) -- a merge would commit a .splice no command can read; fix it in the upstream"* ]]
   [ "$(git rev-parse HEAD)" = "$head" ]
   [ -z "$(git status --porcelain)" ]
   splice status
@@ -1076,7 +1097,8 @@ unreadable_splice_added_in_upstream() {
   head="$(git rev-parse HEAD)"
   run splice pull vendor/a
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a: $(git -C "$upstream" rev-parse --short main):extra/.splice can't be read ("*") -- a pull would commit a .splice no command can read"* ]]
+  short="$(git -C "$upstream" rev-parse --short main)"
+  [[ "$output" == *"vendor/a: in $short, extra/.splice can't be read (bad config line 1 in blob $short:extra/.splice) -- a pull would commit a .splice no command can read; fix it in the upstream"* ]]
   [ "$(git rev-parse HEAD)" = "$head" ]
   [ -z "$(git status --porcelain)" ]
   splice status
@@ -1091,7 +1113,8 @@ unreadable_splice_added_in_upstream() {
   head="$(git rev-parse HEAD)"
   run splice pull --rebase vendor/a
   [ "$status" -ne 0 ]
-  [[ "$output" == *"vendor/a: $(git -C "$upstream" rev-parse --short main):extra/.splice can't be read ("*") -- a pull would commit a .splice no command can read"* ]]
+  short="$(git -C "$upstream" rev-parse --short main)"
+  [[ "$output" == *"vendor/a: in $short, extra/.splice can't be read (bad config line 1 in blob $short:extra/.splice) -- a pull would commit a .splice no command can read; fix it in the upstream"* ]]
   [ "$(git rev-parse HEAD)" = "$head" ]
   [ -z "$(git status --porcelain)" ]
 }
