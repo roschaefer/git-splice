@@ -72,8 +72,8 @@ OPTIONS
         See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--message-template
 
     --shortlog <n>
-        Lists at most <n> commits in {shortlog}, with --message-template;
-        see 'git splice merge --help'.
+        Lists at most <n> commits in {shortlog}, or all with --shortlog=all;
+        requires --message-template; see 'git splice merge --help'.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/pull/#--shortlog
 

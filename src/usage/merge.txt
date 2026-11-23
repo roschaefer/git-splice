@@ -141,7 +141,8 @@ OPTIONS
 
     --shortlog <n>
         Lists at most <n> commits in {shortlog} instead of 20, then "...",
-        like 'git merge --log=<n>'; 0 leaves it empty. It goes with
+        like 'git merge --log=<n>'; 0 leaves it empty, all lists every commit.
+        It goes with
         --message-template, as --track goes with --branch.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/merge/#--shortlog

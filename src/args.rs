@@ -1,5 +1,6 @@
 //! Parsing the arguments every command shares.
 
+use crate::message::Shortlog;
 use crate::util::*;
 
 #[derive(Default, Clone)]
@@ -10,8 +11,8 @@ pub struct Args {
     pub branch: String,
     pub message: String,
     pub message_template: String,
-    /// --shortlog: at most this many commits in {shortlog}.
-    pub shortlog: Option<usize>,
+    /// --shortlog: a commit limit or all commits in {shortlog}.
+    pub shortlog: Option<Shortlog>,
     pub exec: String,
     pub paths: Vec<String>,
     pub flags: Vec<String>,
@@ -128,12 +129,13 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                         }
                         args.message_template = value;
                     }
+                    "--shortlog" if value == "all" => args.shortlog = Some(Shortlog::All),
                     "--shortlog" => match value.parse() {
                         Ok(limit) if value.bytes().all(|b| b.is_ascii_digit()) => {
-                            args.shortlog = Some(limit)
+                            args.shortlog = Some(Shortlog::Limit(limit))
                         }
                         _ => {
-                            return die("--shortlog needs a number of commits, e.g. --shortlog=50")
+                            return die("--shortlog needs a number of commits or all, e.g. --shortlog=50 or --shortlog=all")
                         }
                     },
                     _ => {

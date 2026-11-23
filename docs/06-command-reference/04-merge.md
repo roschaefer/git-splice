@@ -298,12 +298,13 @@ its own values.
 ```scrut
 $ git splice merge -h | check-help option --shortlog
         Lists at most <n> commits in {shortlog} instead of 20, then "...",
-        like 'git merge --log=<n>'; 0 leaves it empty. It goes with
+        like 'git merge --log=<n>'; 0 leaves it empty, all lists every commit.
+        It goes with
         --message-template, as --track goes with --branch.
 ```
 
 A lower limit keeps a long pull's message within a commit linter's
-line limit, and a higher one lists every commit, e.g. for a changelog
+line limit, and `--shortlog=all` lists every commit, e.g. for a changelog
 ([an example](05-pull.md#--shortlog)).
 
 ## Upstream branch

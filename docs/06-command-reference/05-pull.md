@@ -171,11 +171,12 @@ chore(deps): pull vendor/pkg-b to 24c1958
 
 ```scrut
 $ git splice pull -h | check-help option --shortlog
-        Lists at most <n> commits in {shortlog}, with --message-template;
-        see 'git splice merge --help'.
+        Lists at most <n> commits in {shortlog}, or all with --shortlog=all;
+        requires --message-template; see 'git splice merge --help'.
 ```
 
-It limits the list as for [`merge`](04-merge.md#--shortlog). With three
+Use `--shortlog=all` to list every non-merge commit without truncation.
+A numeric limit works as for [`merge`](04-merge.md#--shortlog). With three
 new commits upstream, `--shortlog=2` lists two of them:
 
 ```scrut

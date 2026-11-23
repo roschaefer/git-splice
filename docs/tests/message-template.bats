@@ -119,6 +119,18 @@ Upstream: $old..$new" ]
   [ "$(tail -1 <<<"$message")" = "  change 1" ]
 }
 
+@test "message template: --shortlog=all lists every non-merge commit without truncation" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  push_upstream_commits "$upstream" 24
+  cd "$monorepo"
+  splice pull --shortlog=all --message-template '{shortlog}' --all
+  local message
+  message="$(git log -1 --format=%B)"
+  [ "$(wc -l <<<"$message")" -eq 25 ]
+  [ "$(head -1 <<<"$message")" = "  side work" ]
+  [ "$(tail -1 <<<"$message")" = "  change 1" ]
+}
+
 @test "message template: --shortlog=0 leaves {shortlog} empty, as 'git merge --log=0' adds no log" {
   scenario_up_to_date "$monorepo" "$upstream"
   push_upstream_commits "$upstream" 2
@@ -137,7 +149,7 @@ Upstream: $old..$new" ]
   for value in "" -1 ten 2x; do
     run splice pull --shortlog="$value" --message-template '{shortlog}' vendor/a
     [ "$status" -eq 1 ]
-    [ "$output" = "!!   --shortlog needs a number of commits, e.g. --shortlog=50" ]
+    [ "$output" = "!!   --shortlog needs a number of commits or all, e.g. --shortlog=50 or --shortlog=all" ]
   done
   [ "$(git rev-parse HEAD)" = "$before" ]
 }
