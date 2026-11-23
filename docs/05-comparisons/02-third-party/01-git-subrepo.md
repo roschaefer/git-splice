@@ -418,7 +418,7 @@ $ cd ../splice-monorepo &&
 >   git splice clone https://git.example.com/other.git vendor/lib &&
 >   git switch -q main
 ===  vendor/lib: fetching https://git.example.com/other.git
-===  vendor/lib: upstream has no 'other' branch -- using 'main'; your first push creates 'other'
+===  vendor/lib: upstream has no 'other' branch -- using 'main'
 ok   vendor/lib: cloned 3ea1a83 from main
 ```
 
