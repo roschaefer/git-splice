@@ -133,6 +133,8 @@ pub struct Repo<'context> {
     pub merge_rebase: bool,
     pub merge_no_fork_point: bool,
     message_template: Option<Template>,
+    /// The unknown state file keys warned about, as "<file>: <key>".
+    warned_keys: HashSet<String>,
     pub c: Classified,
     pub d: Compared,
     /// The commit or tree whose state files the splices' upstreams are read
@@ -286,6 +288,72 @@ pub fn require_usable_splice_path(path: &str, fix: &str) -> Res<()> {
     die(format!(
         "'{path}' isn't supported as a splice path yet -- {fix} (e.g. no spaces)"
     ))
+}
+
+enum StateKey {
+    Value(&'static str),
+    Section(&'static str, &'static [StateKey]),
+    Subsection(&'static str, &'static [StateKey]),
+}
+
+const STATE_SCHEMA: &[StateKey] = &[
+    StateKey::Section(
+        "splice",
+        &[
+            StateKey::Value("id"),
+            StateKey::Value("commit"),
+            StateKey::Value("default-upstream"),
+        ],
+    ),
+    StateKey::Section(
+        "upstream",
+        &[StateKey::Subsection(
+            "<name>",
+            &[
+                StateKey::Value("url"),
+                StateKey::Value("default-branch"),
+                StateKey::Value("default-pin"),
+            ],
+        )],
+    ),
+];
+
+impl StateKey {
+    fn accepts(&self, key: &str) -> bool {
+        match self {
+            Self::Value(name) => key == *name,
+            Self::Section(name, children) => key.split_once('.').is_some_and(|(section, rest)| {
+                section == *name && children.iter().any(|child| child.accepts(rest))
+            }),
+            Self::Subsection(_, children) => key.rsplit_once('.').is_some_and(|(name, rest)| {
+                !name.is_empty() && children.iter().any(|child| child.accepts(rest))
+            }),
+        }
+    }
+
+    fn list_keys(&self, prefix: &str, keys: &mut Vec<String>) {
+        match self {
+            Self::Value(name) => keys.push(format!("{prefix}{name}")),
+            Self::Section(name, children) | Self::Subsection(name, children) => {
+                let prefix = format!("{prefix}{name}.");
+                for child in *children {
+                    child.list_keys(&prefix, keys);
+                }
+            }
+        }
+    }
+}
+
+fn known_state_key(key: &str) -> bool {
+    STATE_SCHEMA.iter().any(|entry| entry.accepts(key))
+}
+
+fn state_keys() -> String {
+    let mut keys = Vec::new();
+    for entry in STATE_SCHEMA {
+        entry.list_keys("", &mut keys);
+    }
+    keys.join(", ")
 }
 
 fn valid_upstream_name(name: &str) -> bool {
@@ -513,6 +581,7 @@ impl<'context> Repo<'context> {
             merge_rebase: Default::default(),
             merge_no_fork_point: Default::default(),
             message_template: Default::default(),
+            warned_keys: Default::default(),
             c: Default::default(),
             d: Default::default(),
             state_rev: "HEAD".to_string(),
@@ -773,6 +842,12 @@ impl<'context> Repo<'context> {
             // <key>, a newline, and the value -- or only <key>, for a key
             // without "= <value>", which git config --get reads as empty.
             let (key, value) = record.split_once('\n').unwrap_or((&record, ""));
+            if !known_state_key(key) && key != "splice.default-branch" {
+                let warning = format!("{path}/{STATE_FILE}: unknown key {key}");
+                if self.warned_keys.insert(warning.clone()) {
+                    log_warn(format!("{warning} -- the keys are {}", state_keys()));
+                }
+            }
             if let Some(name) = key
                 .strip_prefix("upstream.")
                 .and_then(|rest| rest.strip_suffix(".url"))
@@ -1256,6 +1331,12 @@ impl<'context> Repo<'context> {
             }
             key = format!("{last}-{n}");
         }
+        if !valid_upstream_key(&key) {
+            return die(format!(
+                "couldn't make a valid key for {url} -- record one yourself: git config --local splice.<key>.url {}",
+                shell_quote(url)
+            ));
+        }
         if !git(&["config", "--local", &format!("splice.{key}.url"), url]).ok() {
             return die(format!(
                 "couldn't record the key of {url} in the repository's config"
@@ -1610,5 +1691,37 @@ impl<'context> Repo<'context> {
             Some(template) => template.render(&message),
             None => Template::default(default)?.render(&message),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn listed_state_keys_are_accepted_by_the_schema() {
+        assert_eq!(
+            state_keys(),
+            "splice.id, splice.commit, splice.default-upstream, upstream.<name>.url, upstream.<name>.default-branch, upstream.<name>.default-pin"
+        );
+        for key in state_keys().split(", ") {
+            assert!(known_state_key(&key.replace("<name>", "my.fork")));
+        }
+    }
+
+    #[test]
+    fn known_state_key_takes_the_upstream_keys_for_any_name_dots_included() {
+        assert!(known_state_key("upstream.origin.url"));
+        assert!(known_state_key("upstream.my.fork.default-pin"));
+        assert!(known_state_key("upstream.Fork.default-branch"));
+    }
+
+    #[test]
+    fn known_state_key_refuses_a_misspelled_key_or_one_without_an_upstream_name() {
+        assert!(!known_state_key("upstream.origin.defualt-branch"));
+        assert!(!known_state_key("upstream.url"));
+        assert!(!known_state_key("upstream..url"));
+        assert!(!known_state_key("splice.url"));
+        assert!(!known_state_key("origin.url"));
     }
 }
