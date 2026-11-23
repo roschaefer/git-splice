@@ -163,6 +163,20 @@ new_upstream() {
   [[ "$output" == *"has no branches yet -- to publish vendor/b there, use 'git splice init"* ]]
 }
 
+@test "clone: an upstream with only a tag has no branches, and isn't sent to init" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  tagged="$BATS_TEST_TMPDIR/tagged.git"
+  make_bare_repo "$tagged"
+  seed_bare_repo "$tagged" "release"
+  git -C "$tagged" tag v1 main
+  git -C "$tagged" update-ref -d refs/heads/main
+  run splice clone "$tagged" vendor/b
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"$tagged has no branches, but refs/tags/v1"* ]]
+  [[ "$output" != *"git splice init"* ]]
+}
+
 @test "clone: refuses a monorepo without commits up front" {
   scenario_clone_without_commits "$monorepo" "$upstream"
   cd "$monorepo"
