@@ -1,25 +1,25 @@
-//! The rebuilt commits of earlier runs, kept in the file `splice-rebuilds` in
+//! Where earlier runs' rebuilds ended, kept in the file `splice-rebuilds` in
 //! the repository's common Git directory, so a rebuild only walks the commits
 //! added since (#245).
 //!
 //! A step of the rebuild's walk is a pure function of its inputs, all of them
 //! commit ids: the splice's path, the upstream commit the walk starts on, the
 //! commit the walk's range starts after, and the monorepo commit it has
-//! reached. Those are the key; the rebuilt commit and its tree after that step
-//! are the value. Keys never change meaning, so nothing needs invalidating.
-//! Losing the file costs time only: each step is computed again.
+//! reached. Those are the key; the rebuilt commit after that step is the
+//! value. Keys never change meaning, so nothing needs invalidating. Only a
+//! walk's last step is kept, which a later walk on the same branch goes on
+//! from. Losing the file costs time only: each step is computed again.
 
 use crate::util::*;
 use std::collections::HashMap;
-use std::io::Write;
 use std::path::PathBuf;
 
 /// The file's first line. A file without it, from another format, is
 /// started over.
-const HEADER: &[u8] = b"git-splice rebuilds 1\n";
+const HEADER: &[u8] = b"git-splice rebuilds 2\n";
 /// Started over past this many steps, so the file can't grow without bound.
-const MAX_STEPS: usize = 200_000;
-const FIELDS: usize = 6;
+const MAX_STEPS: usize = 10_000;
+const FIELDS: usize = 5;
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 pub(crate) struct Key {
@@ -29,20 +29,12 @@ pub(crate) struct Key {
     pub commit: String,
 }
 
-#[derive(Clone)]
-pub(crate) struct Step {
-    pub copy: String,
-    pub tree: String,
-}
-
 #[derive(Default)]
 pub(crate) struct RebuildCache {
     file: Option<PathBuf>,
-    steps: HashMap<Key, Step>,
-    /// The file must be written again from the start: it's missing, or what
-    /// it has can't be appended to.
-    rewrite: bool,
-    added: Vec<u8>,
+    /// The rebuilt commit of each step.
+    steps: HashMap<Key, String>,
+    changed: bool,
 }
 
 /// A full object id, SHA-1 or SHA-256.
@@ -59,62 +51,29 @@ pub(crate) fn is_fixed_lower(lower: &str) -> bool {
     lower.is_empty() || is_id(lower.strip_suffix("^1").unwrap_or(lower))
 }
 
-fn record(key: &Key, step: &Step) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    for field in [
-        &key.path,
-        &key.start,
-        &key.lower,
-        &key.commit,
-        &step.copy,
-        &step.tree,
-    ] {
-        bytes.extend_from_slice(field.as_bytes());
-        bytes.push(0);
+/// The steps in <data>, NUL-separated records of five fields after the
+/// header; None if it isn't one. A wrong key never matches, and a wrong
+/// rebuilt commit isn't found, which costs a full walk.
+fn parse(data: &[u8]) -> Option<HashMap<Key, String>> {
+    let text = std::str::from_utf8(data.strip_prefix(HEADER)?).ok()?;
+    let fields: Vec<&str> = text.strip_suffix('\0')?.split('\0').collect();
+    if !fields.len().is_multiple_of(FIELDS) {
+        return None;
     }
-    bytes
-}
-
-/// The steps in <data>, NUL-separated records of six fields after the header.
-/// A record cut off at the end, by a write that didn't finish, is left out;
-/// None if anything else is wrong.
-fn parse(data: &[u8]) -> Option<(HashMap<Key, Step>, bool)> {
-    let body = data.strip_prefix(HEADER)?;
-    let mut fields: Vec<&[u8]> = body.split(|&byte| byte == 0).collect();
-    // What follows the last NUL: nothing, or a field cut off.
-    let mut complete = fields.pop().is_some_and(<[u8]>::is_empty);
-    let whole = fields.len() - fields.len() % FIELDS;
-    complete &= whole == fields.len();
-    let mut steps = HashMap::new();
-    for chunk in fields[..whole].chunks_exact(FIELDS) {
-        let text: Vec<&str> = chunk
-            .iter()
-            .map(|field| std::str::from_utf8(field).ok())
-            .collect::<Option<_>>()?;
-        let [path, start, lower, commit, copy, tree] = text[..] else {
-            return None;
-        };
-        if path.is_empty()
-            || !(start.is_empty() || is_id(start))
-            || !is_fixed_lower(lower)
-            || ![commit, copy, tree].into_iter().all(is_id)
-        {
-            return None;
-        }
-        steps.insert(
-            Key {
-                path: path.to_string(),
-                start: start.to_string(),
-                lower: lower.to_string(),
-                commit: commit.to_string(),
-            },
-            Step {
-                copy: copy.to_string(),
-                tree: tree.to_string(),
-            },
-        );
-    }
-    Some((steps, complete))
+    Some(
+        fields
+            .chunks_exact(FIELDS)
+            .map(|record| {
+                let key = Key {
+                    path: record[0].to_string(),
+                    start: record[1].to_string(),
+                    lower: record[2].to_string(),
+                    commit: record[3].to_string(),
+                };
+                (key, record[4].to_string())
+            })
+            .collect(),
+    )
 }
 
 impl RebuildCache {
@@ -130,57 +89,50 @@ impl RebuildCache {
             return Self::default();
         }
         let file = dir.join("splice-rebuilds");
-        let parsed = std::fs::read(&file).ok().and_then(|data| parse(&data));
-        let (steps, complete) = match parsed {
-            Some((steps, complete)) if steps.len() <= MAX_STEPS => (steps, complete),
-            _ => (HashMap::new(), false),
-        };
+        let steps = std::fs::read(&file)
+            .ok()
+            .and_then(|data| parse(&data))
+            .filter(|steps| steps.len() <= MAX_STEPS)
+            .unwrap_or_default();
         Self {
             file: Some(file),
             steps,
-            rewrite: !complete,
-            added: Vec::new(),
+            changed: false,
         }
     }
 
-    pub(crate) fn get(&self, key: &Key) -> Option<&Step> {
+    pub(crate) fn get(&self, key: &Key) -> Option<&String> {
         self.steps.get(key)
     }
 
-    pub(crate) fn insert(&mut self, key: Key, step: Step) {
-        if self.file.is_none() {
-            return;
+    pub(crate) fn insert(&mut self, key: Key, rebuilt: String) {
+        if self.file.is_some() {
+            self.steps.insert(key, rebuilt);
+            self.changed = true;
         }
-        self.added.extend(record(&key, &step));
-        self.steps.insert(key, step);
     }
 
-    /// Writes the steps added since the last save. Failing to is no error:
-    /// the next run computes them again.
+    /// Writes the file again, whole, if a step was added. Failing to is no
+    /// error: the next run computes the steps again. Two runs writing at once
+    /// keep the steps of the one that renames last.
     pub(crate) fn save(&mut self) {
         let Some(file) = &self.file else { return };
-        if self.added.is_empty() && !self.rewrite {
+        if !self.changed {
             return;
         }
-        if self.rewrite {
-            let mut bytes = HEADER.to_vec();
-            for (key, step) in &self.steps {
-                bytes.extend(record(key, step));
+        let mut bytes = HEADER.to_vec();
+        for (key, rebuilt) in &self.steps {
+            for field in [&key.path, &key.start, &key.lower, &key.commit, rebuilt] {
+                bytes.extend_from_slice(field.as_bytes());
+                bytes.push(0);
             }
-            let temporary = file.with_extension(format!("{}.tmp", std::process::id()));
-            if std::fs::write(&temporary, bytes).is_ok()
-                && std::fs::rename(&temporary, file).is_ok()
-            {
-                self.rewrite = false;
-            } else {
-                let _ = std::fs::remove_file(&temporary);
-            }
-        } else if let Ok(mut out) = std::fs::OpenOptions::new().append(true).open(file) {
-            // One write, so another process appending at the same time
-            // doesn't interleave inside a record.
-            let _ = out.write_all(&self.added);
         }
-        self.added.clear();
+        let temporary = file.with_extension(format!("{}.tmp", std::process::id()));
+        if std::fs::write(&temporary, bytes).is_err() || std::fs::rename(&temporary, file).is_err()
+        {
+            let _ = std::fs::remove_file(&temporary);
+        }
+        self.changed = false;
     }
 }
 
@@ -191,52 +143,36 @@ mod tests {
     const A: &str = "1111111111111111111111111111111111111111";
     const B: &str = "2222222222222222222222222222222222222222";
 
-    fn key(n: usize) -> Key {
+    fn key() -> Key {
         Key {
             path: "vendor/a b".into(),
             start: A.into(),
             lower: format!("{B}^1"),
-            commit: format!("{n:040x}"),
+            commit: B.into(),
         }
     }
 
-    fn file_with(steps: usize) -> Vec<u8> {
+    fn file() -> Vec<u8> {
         let mut data = HEADER.to_vec();
-        for n in 0..steps {
-            data.extend(record(
-                &key(n),
-                &Step {
-                    copy: A.into(),
-                    tree: B.into(),
-                },
-            ));
+        for field in ["vendor/a b", A, &format!("{B}^1"), B, A] {
+            data.extend_from_slice(field.as_bytes());
+            data.push(0);
         }
         data
     }
 
     #[test]
     fn a_written_step_reads_back() {
-        let (steps, complete) = parse(&file_with(1)).unwrap();
-        assert!(complete);
-        assert_eq!(steps[&key(0)].copy, A);
+        assert_eq!(parse(&file()).unwrap()[&key()], A);
     }
 
     #[test]
-    fn a_step_cut_off_at_the_end_is_left_out_and_the_file_rewritten() {
-        let data = file_with(2);
-        for cut in 1..60 {
-            let (steps, complete) = parse(&data[..data.len() - cut]).unwrap();
-            assert!(!complete, "cut {cut}");
-            assert_eq!(steps.len(), 1, "cut {cut}");
+    fn a_file_cut_off_or_without_the_header_is_ignored() {
+        let data = file();
+        for cut in 1..data.len() - HEADER.len() {
+            assert!(parse(&data[..data.len() - cut]).is_none(), "cut {cut}");
         }
-    }
-
-    #[test]
-    fn a_file_without_the_header_or_with_garbage_is_ignored() {
         assert!(parse(b"something else\n").is_none());
-        let mut data = file_with(1);
-        data.extend(b"not\0an\0id\0at\0all\0!\0");
-        assert!(parse(&data).is_none());
     }
 
     #[test]

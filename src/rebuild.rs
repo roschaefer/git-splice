@@ -4,7 +4,7 @@
 //! branch without remembering anything about earlier pushes. See
 //! docs/07-design/README.md.
 
-use crate::rebuild_cache::{is_fixed_lower, is_id, Key, Step};
+use crate::rebuild_cache::{is_fixed_lower, is_id, Key};
 use crate::repo::*;
 use crate::state::{state_blob_in, tree_with};
 use crate::util::*;
@@ -950,7 +950,7 @@ impl Repo<'_> {
             String::from_utf8_lossy(hash).into_owned()
         };
 
-        // The walk goes on from the newest step an earlier run remembered,
+        // The walk goes on from where an earlier one on these commits ended,
         // if its rebuilt commit is still here.
         let lower = range.split_once("..").map_or("", |(lower, _)| lower);
         let key_start = prev.clone().unwrap_or_default();
@@ -970,11 +970,11 @@ impl Repo<'_> {
                 .enumerate()
                 .rev()
                 .find_map(|(n, commit)| Some((n, cache.get(&key(hash_of(commit)))?.clone())));
-            if let Some((n, step)) = newest {
-                if commit_here(&step.copy) {
+            if let Some((n, copy)) = newest {
+                if let Some(tree) = tree_of(&copy) {
                     done = n + 1;
-                    prev = Some(step.copy);
-                    prev_tree = Some(step.tree);
+                    prev = Some(copy);
+                    prev_tree = Some(tree);
                 }
             }
         }
@@ -995,37 +995,34 @@ impl Repo<'_> {
             .ok_or(Fail::Soft)?;
         // A splice inside this one gets recorded at its own rebuild, which
         // depends on more than this walk's commits, e.g. on the objects
-        // fetched: from there on, the steps aren't remembered.
+        // fetched: such a walk isn't remembered.
         let mut nested = false;
         for (commit, object) in commits[done..].iter().zip(objects.lines()) {
             let mut words = object.split(' ');
-            if let (Some(folder), Some("tree")) = (words.next(), words.next()) {
-                let tree = self.context.strip_state_tree(folder)?;
-                let (tree, children) = self.record_children(path, &hash_of(commit), &tree)?;
-                nested |= children;
-                if Some(&tree) != prev_tree.as_ref() {
-                    let parents: Vec<String> = prev.iter().cloned().collect();
-                    let copy = write_copy(
-                        &Copied::from_fields(&hash_of(commit), &commit[1..])?,
-                        &tree,
-                        &parents,
-                    )?;
-                    prev = Some(copy);
-                    prev_tree = Some(tree);
-                }
+            let (Some(folder), Some("tree")) = (words.next(), words.next()) else {
+                continue;
+            };
+            let tree = self.context.strip_state_tree(folder)?;
+            let (tree, children) = self.record_children(path, &hash_of(commit), &tree)?;
+            nested |= children;
+            if Some(&tree) == prev_tree.as_ref() {
+                continue;
             }
-            if let (true, false, Some(copy), Some(tree)) = (cached, nested, &prev, &prev_tree) {
-                let step = Step {
-                    copy: copy.clone(),
-                    tree: tree.clone(),
-                };
-                self.context
-                    .rebuild_cache()
-                    .insert(key(hash_of(commit)), step);
-            }
+            let parents: Vec<String> = prev.iter().cloned().collect();
+            let copy = write_copy(
+                &Copied::from_fields(&hash_of(commit), &commit[1..])?,
+                &tree,
+                &parents,
+            )?;
+            prev = Some(copy);
+            prev_tree = Some(tree);
         }
-        if cached {
-            self.context.rebuild_cache().save();
+        if let (true, false, Some(last), Some(copy)) =
+            (cached, nested, commits[done..].last(), &prev)
+        {
+            let cache = self.context.rebuild_cache();
+            cache.insert(key(hash_of(last)), copy.clone());
+            cache.save();
         }
         Ok(prev)
     }

@@ -1,4 +1,4 @@
-# The rebuilt commits remembered between runs, in .git/splice-rebuilds:
+# Where the rebuilds of earlier runs ended, in .git/splice-rebuilds:
 # they save time and change no answer.
 
 setup() {
@@ -64,22 +64,13 @@ commits_written() {
   [ -f "$object" ]
 }
 
-@test "rebuild cache: a file cut off by an unfinished write is ignored from the cut" {
-  three_unpushed
-  local rebuilt
-  rebuilt="$(splice rebuild vendor/a)"
-  truncate -s -10 .git/splice-rebuilds
-  [ "$(splice rebuild vendor/a)" = "$rebuilt" ]
-  [ "$(commits_written rebuild vendor/a)" -eq 0 ]
-}
-
 @test "rebuild cache: a file that isn't one is ignored and started over" {
   three_unpushed
   local rebuilt
   rebuilt="$(splice rebuild vendor/a)"
   printf 'something else\n' >.git/splice-rebuilds
   [ "$(splice rebuild vendor/a)" = "$rebuilt" ]
-  [ "$(head -n 1 .git/splice-rebuilds)" = "git-splice rebuilds 1" ]
+  [ "$(head -n 1 .git/splice-rebuilds)" = "git-splice rebuilds 2" ]
   [ "$(commits_written rebuild vendor/a)" -eq 0 ]
 }
 
