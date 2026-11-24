@@ -115,6 +115,10 @@ impl Repo<'_> {
         self.container_default_branch(path)?;
         self.register_new_upstream(path, url)?;
         if !self.splice_fetched(path) {
+            let refs = advertised_refs(url).unwrap_or_default();
+            if !refs.is_empty() {
+                return die(no_branches_but(url, &refs));
+            }
             return die(format!(
                 "{url} has no branches yet -- to publish {path} there, use 'git splice init {} {}'",
                 shell_quote(path),
@@ -597,7 +601,7 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
             ));
         }
         log_step(format!(
-            "{path}: upstream has no '{upstream_branch}' branch -- using '{}'; your first push creates '{upstream_branch}'",
+            "{path}: upstream has no '{upstream_branch}' branch -- using '{}'",
             found.upstream_default
         ));
         upstream_branch = found.upstream_default.clone();
@@ -609,6 +613,8 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
             "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
         ));
     }
+    repo.refuse_unreadable_state_files(&path, None, &target, "clone", "fix it in the upstream")
+        .map_err(|_| Fail::Hard)?;
     if let Some(inner) = upstream_submodule(&target) {
         return die(format!(
             "{path}: upstream has a submodule, {inner}, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
@@ -775,6 +781,8 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
         ));
     }
+    repo.refuse_unreadable_state_files(&path, None, &commit, "clone", "fix it in the upstream")
+        .map_err(|_| Fail::Hard)?;
     if let Some(inner) = upstream_submodule(&commit) {
         if !recursive {
             return die(format!(

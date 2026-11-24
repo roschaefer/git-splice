@@ -2,6 +2,7 @@ setup() {
   load 'helpers/fixtures'
   hermetic_git_config
   load '../09-scenarios/02-starting-a-splice/04-init-new-upstream/setup'
+  load '../09-scenarios/02-starting-a-splice/05-init-then-cloned/setup'
   load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
@@ -70,15 +71,40 @@ setup() {
   ! git -C "$upstream" rev-parse --verify --quiet feature
 }
 
-@test "init: the first push records the key before it pushes, so a failure to record it pushes nothing" {
+@test "init: records the upstream's key, so its empty upstream reads as fetched here" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
   splice init lib/a "$upstream" >/dev/null
+  [ "$(git config --local --get-regexp '^splice\..*\.url$' | cut -d' ' -f2)" = "$upstream" ]
+}
+
+@test "init: commits nothing when it can't record the upstream's key" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
   mkdir .git/splice-keys.lock
-  run splice push lib/a
+  run splice init lib/a "$upstream"
   [ "$status" -eq 1 ]
   [[ "$output" == *"another git splice is recording an upstream key"* ]]
-  [ -z "$(git -C "$upstream" for-each-ref refs/heads)" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e lib/a/.splice ]
+}
+
+@test "init: in a fresh clone of the monorepo, push refuses until a fetch, rather than announcing it creates the branch the upstream has" {
+  scenario_init_then_cloned "$monorepo" "$upstream"
+  cd "$monorepo"
+  local tip
+  tip="$(git -C "$upstream" rev-parse main)"
+  run splice push lib/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"??   lib/a: not fetched -- run 'git splice fetch lib/a' first"* ]]
+  [[ "$output" != *"creates it"* ]]
+  [ "$(git -C "$upstream" rev-parse main)" = "$tip" ]
+  splice fetch lib/a >/dev/null
+  run splice push lib/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nothing to push"* ]]
 }
 
 @test "init: refuses an upstream that has commits" {
@@ -88,6 +114,20 @@ setup() {
   run splice init lib/a "$upstream"
   [ "$status" -eq 1 ]
   [[ "$output" == *"has commits already -- to combine them with lib/a, use 'git splice clone --merge"* ]]
+}
+
+@test "init: refuses an upstream whose commits are only reachable through a tag" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "release"
+  git -C "$upstream" tag v1 main
+  git -C "$upstream" update-ref -d refs/heads/main
+  [ -z "$(git ls-remote --heads "$upstream")" ]
+  cd "$monorepo"
+  before="$(git rev-parse HEAD)"
+  run splice init lib/a "$upstream"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"$upstream has no branches, but refs/tags/v1 -- 'git splice init' needs an upstream without any refs"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
 }
 
 @test "init: refuses a folder that isn't committed, and an existing splice" {

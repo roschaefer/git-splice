@@ -156,6 +156,73 @@ add_upstream() {
   [[ "$output" == *"vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch"* ]]
 }
 
+known_keys="the keys are splice.id, splice.commit, splice.default-upstream, upstream.<name>.url, upstream.<name>.default-branch, upstream.<name>.default-pin"
+
+@test "upstreams: an unknown key in .splice gets a warning that lists the known keys, and the command goes on" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.origin.defualt-branch master
+  git commit -q -m "a typo" -- vendor/a/.splice
+  run splice status
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf '%s\n' \
+    "??   vendor/a/.splice: unknown key upstream.origin.defualt-branch -- $known_keys" \
+    "On branch main" \
+    "" \
+    "  up to date  vendor/a")" ]
+}
+
+@test "upstreams: each unknown key gets one warning per command, though pull --all reads a .splice below again after the pull above" {
+  scenario_outer_fork "$monorepo" "$upstream"
+  local b_fork="$BATS_TEST_TMPDIR/upstream-b-fork.git" work="$BATS_TEST_TMPDIR/a"
+  git clone -q "$upstream" "$work"
+  (
+    cd "$work"
+    git config user.name Test && git config user.email test@example.com
+    git config --file b/.splice upstream.origin.defualt-branch main
+    git config --file b/.splice splice.colour blue
+    git commit -q -m "b: two unknown keys" -- b/.splice
+    git push -q origin HEAD:main
+  )
+  cd "$monorepo"
+  splice pull --all >/dev/null 2>&1
+  [ "$(git config --file vendor/a/b/.splice splice.colour)" = blue ]
+  (
+    cd "$work"
+    add_upstream b fork "$b_fork" fork
+    git push -q origin HEAD:main
+  )
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^??' <<<"$output")" -eq 2 ]
+  [[ "$output" == *"??   vendor/a/b/.splice: unknown key upstream.origin.defualt-branch -- $known_keys"* ]]
+  [[ "$output" == *"??   vendor/a/b/.splice: unknown key splice.colour -- $known_keys"* ]]
+  [ "$(splice_config vendor/a/b commit)" = "$(git -C "$b_fork" rev-parse main)" ]
+}
+
+@test "upstreams: a misspelled url key gets a warning before the refusal that the file names no upstream" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice --unset upstream.origin.url
+  git config --file vendor/a/.splice upstream.origin.uri "$upstream"
+  git commit -q -m "uri, not url" -- vendor/a/.splice
+  run splice status
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "??   vendor/a/.splice: unknown key upstream.origin.uri -- $known_keys" ]
+  [[ "${lines[1]}" == "!!   vendor/a/.splice names no upstream -- "* ]]
+}
+
+@test "upstreams: the keys a .splice can have get no warning, in any case Git reads them in" {
+  scenario_several_upstreams "$monorepo" "$upstream"
+  cd "$monorepo"
+  printf '[Upstream "fork"]\n\tURL = %s\n\tDefault-Pin = v1\n[upstream "origin"]\n\tdefault-branch = main\n[SPLICE]\n\tDefault-Upstream = origin\n' \
+    "$fork" >>vendor/a/.splice
+  git commit -q -m "every key" -- vendor/a/.splice
+  run splice status
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"??"* ]]
+}
+
 @test "merge --bump: the bump names the upstream branch it records, like a pull" {
   scenario_several_upstreams "$monorepo" "$upstream"
   local mirror="$BATS_TEST_TMPDIR/mirror.git" target

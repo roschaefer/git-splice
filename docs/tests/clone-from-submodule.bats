@@ -39,6 +39,19 @@ add_submodule() {
   [ "$(splice_state vendor/a)" = up-to-date ]
 }
 
+@test "clone --from-submodule: refuses a submodule with a .splice below its root that can't be read, and commits nothing" {
+  seed_bare_repo "$upstream" "not a config line" main extra/.splice
+  add_submodule
+  local head pinned
+  head="$(git rev-parse HEAD)"
+  pinned="$(git rev-parse --short HEAD:vendor/a)"
+  run splice clone --from-submodule vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: in $pinned, extra/.splice can't be read (bad config line 1 in blob $pinned:extra/.splice) -- a clone would commit a .splice no command can read; fix it in the upstream"* ]]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  [ "$(path_mode HEAD vendor/a)" = 160000 ]
+}
+
 @test "clone --from-submodule -m: the commit gets the message" {
   add_submodule
   run splice clone --from-submodule -m "a: vendor/a as a splice" vendor/a

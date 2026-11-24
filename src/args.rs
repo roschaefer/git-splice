@@ -1,5 +1,6 @@
 //! Parsing the arguments every command shares.
 
+use crate::message::Shortlog;
 use crate::util::*;
 
 #[derive(Default, Clone)]
@@ -10,6 +11,8 @@ pub struct Args {
     pub branch: String,
     pub message: String,
     pub message_template: String,
+    /// --shortlog: a commit limit or all commits in {shortlog}.
+    pub shortlog: Option<Shortlog>,
     pub exec: String,
     pub paths: Vec<String>,
     pub flags: Vec<String>,
@@ -84,6 +87,7 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                 "--rebuilt-commit",
                 "--branch",
                 "--message-template",
+                "--shortlog",
                 "--exec",
             ]
             .iter()
@@ -125,6 +129,15 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                         }
                         args.message_template = value;
                     }
+                    "--shortlog" if value == "all" => args.shortlog = Some(Shortlog::All),
+                    "--shortlog" => match value.parse() {
+                        Ok(limit) if value.bytes().all(|b| b.is_ascii_digit()) && limit < i32::MAX as usize => {
+                            args.shortlog = Some(Shortlog::Limit(limit))
+                        }
+                        _ => {
+                            return die("--shortlog needs a number of commits or all, e.g. --shortlog=50 or --shortlog=all")
+                        }
+                    },
                     _ => {
                         if value.is_empty() {
                             return die("--branch needs an upstream branch's name");
@@ -172,6 +185,11 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
     }
     if !args.message.is_empty() && !args.message_template.is_empty() {
         return die("-m and --message-template both give the message -- give one");
+    }
+    if args.shortlog.is_some() && args.message_template.is_empty() {
+        return die(
+            "--shortlog limits {shortlog} in the template --message-template gives -- add --message-template <template>",
+        );
     }
     Ok(args)
 }

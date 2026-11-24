@@ -174,6 +174,16 @@ setup() {
   [ "$output" = "$(git rev-parse HEAD~2)" ]
 }
 
+@test "boundary: fails when it can't write the rebuild it reads B off, e.g. into a read-only object database" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  find .git/objects -type d -exec chmod a-w {} +
+  run splice boundary vendor/a
+  find .git/objects -type d -exec chmod u+w {} +
+  [ "$status" -ne 0 ]
+  [[ "$output" != *"$(git rev-parse HEAD^)"* ]]
+}
+
 @test "boundary: takes exactly one splice" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
