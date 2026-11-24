@@ -185,8 +185,19 @@ impl Repo<'_> {
                         shell_quote(path)
                     ));
                 }
+                let behind = match quietly(|| self.compare_with_default_branch(path)) {
+                    Ok(()) if self.d.behind_commits != "0" => {
+                        let n = &self.d.behind_commits;
+                        let plural = if n == "1" { "" } else { "s" };
+                        format!(
+                            " ('{}' has {n} commit{plural} this splice lacks)",
+                            self.d.default_branch
+                        )
+                    }
+                    _ => String::new(),
+                };
                 log_ok(format!(
-                    "{path}: upstream has no '{label}' branch -- nothing to {verb}"
+                    "{path}: upstream has no '{label}' branch -- nothing to {verb}{behind}"
                 ));
                 return Ok(());
             }

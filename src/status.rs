@@ -69,15 +69,24 @@ fn classify_row(repo: &mut Repo, path: &str, branch: &str) -> Res<Row> {
                     };
                     (WARNING, "?? no upstream branch".to_string(), hint)
                 }
-                Ok(()) if repo.d.no_changes => (
-                    UNCHANGED,
-                    "unchanged, no upstream branch".to_string(),
-                    String::new(),
-                ),
+                Ok(()) if repo.d.no_changes => {
+                    let label = if repo.d.behind_commits == "0" {
+                        "unchanged, no upstream branch".to_string()
+                    } else {
+                        format!(
+                            "unchanged, behind {} on {}",
+                            repo.d.behind_commits, repo.d.default_branch
+                        )
+                    };
+                    (UNCHANGED, label, String::new())
+                }
                 Ok(()) => {
                     let mut label = format!("new, ahead {}", repo.d.new_commits);
                     if repo.d.behind_commits != "0" {
-                        label.push_str(&format!(", behind {}", repo.d.behind_commits));
+                        label.push_str(&format!(
+                            ", behind {} on {}",
+                            repo.d.behind_commits, repo.d.default_branch
+                        ));
                     }
                     (NEW, label, "push creates the branch".to_string())
                 }
