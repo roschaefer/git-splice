@@ -5,7 +5,14 @@
 The outer splice contains the inner one, as in the [README](README.md).
 Then the two `.splice` files trade places, ids and URLs included, and
 the folder `vendor/a/` names the inner upstream, `vendor/a/b/` the outer
-one. Nobody planned for this; this page records what `git-splice` does:
+one.
+
+```text
+before:  vendor/a    id a, a's upstream      after:  vendor/a    id b, b's upstream
+           b/        id b, b's upstream                b/        id a, a's upstream
+```
+
+Nobody planned for this; this page records what `git-splice` does:
 
 - **Nothing refuses it.** No id repeats in one line of nesting, so it
   isn't a cycle either, a splice that contains itself
@@ -21,7 +28,7 @@ one. Nobody planned for this; this page records what `git-splice` does:
 
 <!--
 ```scrut {fail_fast: true, output_stream: combined}
-$ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.$UPSTREAM-b.git.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/b.git
+$ source "$TESTDIR/../../readme-setup.sh" && export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0="url.$UPSTREAM-b.git.insteadOf" GIT_CONFIG_VALUE_0=https://git.example.com/b.git GIT_CONFIG_KEY_1="url.$UPSTREAM.insteadOf" GIT_CONFIG_VALUE_1=https://git.example.com/a.git
 ```
 -->
 
@@ -30,13 +37,13 @@ the outer upstream with the inner one spliced in at `b/`, cloned into
 the monorepo:
 
 ```scrut
-$ build_scenario scenario_nested_splices https://git.example.com/b.git
+$ build_scenario scenario_nested_splices https://git.example.com/b.git https://git.example.com/a.git
 ```
 
 ```scrut
 $ git grep -e 'id = ' -e 'url = ' -- '*/.splice' | tr '\t' ' '
-vendor/a/.splice: id = [0-9a-f]{16} (regex)
-vendor/a/.splice: url = $UPSTREAM
+vendor/a/.splice: id = b5df2a6e9b4ef0fb
+vendor/a/.splice: url = https://git.example.com/a.git
 vendor/a/b/.splice: id = 548ac82ad47ea22d
 vendor/a/b/.splice: url = https://git.example.com/b.git
 ```
@@ -48,7 +55,7 @@ As a tree: the monorepo at *a*, `vendor/a/` at the outer upstream's
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/swapped-ids-before.drawio.svg" a=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main
+$ check_drawing "$TESTDIR/swapped-ids-before.drawio.svg" a=HEAD l=refs/splices/a/heads/main m=refs/splices/b/heads/main
 ok   swapped-ids-before.drawio.svg: a tree of 3 rows
 ```
 -->
@@ -66,8 +73,8 @@ $ git mv vendor/a/.splice tmp.splice &&
 $ git grep -e 'id = ' -e 'url = ' -- '*/.splice' | tr '\t' ' '
 vendor/a/.splice: id = 548ac82ad47ea22d
 vendor/a/.splice: url = https://git.example.com/b.git
-vendor/a/b/.splice: id = [0-9a-f]{16} (regex)
-vendor/a/b/.splice: url = $UPSTREAM
+vendor/a/b/.splice: id = b5df2a6e9b4ef0fb
+vendor/a/b/.splice: url = https://git.example.com/a.git
 ```
 
 Each splice follows its id back to the other's old path. So `vendor/a/`
@@ -78,7 +85,7 @@ upstream's *l*, each with the swap, *s'*, to push:
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/swapped-ids-swapped.drawio.svg" s=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main
+$ check_drawing "$TESTDIR/swapped-ids-swapped.drawio.svg" s=HEAD l=refs/splices/a/heads/main m=refs/splices/b/heads/main
 ok   swapped-ids-swapped.drawio.svg: a tree of 3 rows
 ```
 -->
@@ -121,7 +128,7 @@ The inner upstream has *s'* now, a fast-forward from *m*:
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/swapped-ids-pushed.drawio.svg" s=HEAD l=refs/splices/upstream/heads/main m=refs/splices/b/heads/main~1
+$ check_drawing "$TESTDIR/swapped-ids-pushed.drawio.svg" s=HEAD l=refs/splices/a/heads/main m=refs/splices/b/heads/main~1
 ok   swapped-ids-pushed.drawio.svg: a tree of 3 rows
 ```
 -->
@@ -188,7 +195,7 @@ upstream doesn't nest again.
 
 <!--
 ```scrut
-$ check_drawing "$TESTDIR/swapped-ids-end.drawio.svg" s=HEAD l=refs/splices/upstream/heads/main~1 n=refs/splices/upstream/heads/main m=refs/splices/b/heads/main~1
+$ check_drawing "$TESTDIR/swapped-ids-end.drawio.svg" s=HEAD l=refs/splices/a/heads/main~1 n=refs/splices/a/heads/main m=refs/splices/b/heads/main~1
 ok   swapped-ids-end.drawio.svg: a tree of 3 rows
 ```
 -->
