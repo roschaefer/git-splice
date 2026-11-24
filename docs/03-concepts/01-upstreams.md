@@ -45,9 +45,11 @@ names one URL. For example, `https://github.com/acme/shared-lib.git` gets
 the key `shared-lib`, so its `main` branch is fetched to
 `refs/splices/shared-lib/heads/main`.
 
-The first fetch records the mapping and fetches the upstream's branches to
-`refs/splices/<key>/heads/`. These are ordinary Git refs, so commands such
-as `git log` can read them and `git worktree add` can check them out
+The first fetch records the mapping, unless
+[`git splice init`](../06-command-reference/08-init.md) has already, and
+fetches the upstream's branches to `refs/splices/<key>/heads/`. These are
+ordinary Git refs, so commands such as `git log` can read them and
+`git worktree add` can check them out
 ([example](../06-command-reference/02-fetch.md#looking-at-an-upstream)).
 
 <!--

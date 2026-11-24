@@ -69,11 +69,11 @@ $ git log --oneline -1 splices/a/heads/main
 ```scrut
 $ git splice key -h | check-help section keys
     A key belongs to an upstream URL, so splices with the same URL share it.
-    The first fetch of an upstream records its key in the repository's
-    config, as splice.<key>.url, from the end of its URL: lib for
-    https://github.com/x/lib.git, or x-lib, then github.com-x-lib, if that's
-    taken. A key is lower-case letters, digits, ".", "_" and "-", at most 64
-    long.
+    The first fetch of an upstream, or the init that creates its splice,
+    records its key in the repository's config, as splice.<key>.url, from
+    the end of its URL: lib for https://github.com/x/lib.git, or x-lib, then
+    github.com-x-lib, if that's taken. A key is lower-case letters, digits,
+    ".", "_" and "-", at most 64 long.
 ```
 
 A key belongs to an upstream URL, so every splice of that URL shares it
