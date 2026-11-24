@@ -28,7 +28,7 @@ $ build_scenario scenario_default_branch_moved
 
 <div align="center">
 
-![The monorepo's H, main and feature at a; the upstream's k, recorded by a, and l on top of it on main](default-branch-moved.drawio.svg)
+![The monorepo's B, H, main and feature at a; the upstream's k, U(B) and U(H), and l on top of it on main](default-branch-moved.drawio.svg)
 
 </div>
 
@@ -44,13 +44,13 @@ ok   default-branch-moved.drawio.svg: 3 commits, 4 arrows, 3 boxes, 1 lanes
 $ git splice status
 On branch feature
 
-  unchanged, no upstream branch  vendor/a
+  unchanged, behind 1 on main  vendor/a
 ```
 
 ```scrut
 $ git splice pull vendor/a
 ok   vendor/a fetched
-ok   vendor/a: upstream has no 'feature' branch -- nothing to pull
+ok   vendor/a: upstream has no 'feature' branch -- nothing to pull ('main' has 1 commit this splice lacks)
 ```
 
 ### A change on the feature branch
@@ -62,7 +62,7 @@ $ echo "b" >>vendor/a/file.txt &&
 
 <div align="center">
 
-![The monorepo's main at a and H and feature at b; the upstream's main at l on top of k, and b prime, R, dashed on top of k](changed-on-feature.drawio.svg)
+![The monorepo's B and main at a and H and feature at b; the upstream's main at l on top of k, U(B) and U(H), and b prime, R, dashed on top of k](changed-on-feature.drawio.svg)
 
 </div>
 
@@ -78,11 +78,11 @@ ok   changed-on-feature.drawio.svg: 5 commits, 8 arrows, 5 boxes, 1 lanes
 $ git splice status
 On branch feature
 
-  new, ahead 1, behind 1  vendor/a  push creates the branch
+  new, ahead 1, behind 1 on main  vendor/a  push creates the branch
 ```
 
 ```scrut
 $ git splice pull vendor/a
 ok   vendor/a fetched
-ok   vendor/a: upstream has no 'feature' branch -- nothing to pull
+ok   vendor/a: upstream has no 'feature' branch -- nothing to pull ('main' has 1 commit this splice lacks)
 ```

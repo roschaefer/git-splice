@@ -17,6 +17,8 @@ setup() {
   load '../09-scenarios/06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit/setup'
   load '../04-advanced-workflows/rebase-setup'
   load '../09-scenarios/03-branches-and-teamwork/06-teammate-pulled/setup'
+  load '../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/03-default-branch-moved/setup'
+  load '../09-scenarios/03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed/setup'
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
@@ -234,13 +236,45 @@ setup() {
   local target
   target="$(git rev-parse "$(upstream_refs "$upstream")patches")"
   run splice merge vendor/a
-  [ "$output" = "ok   vendor/a: upstream has no 'take-the-release' branch -- nothing to merge" ]
+  [ "$output" = "ok   vendor/a: upstream has no 'take-the-release' branch -- nothing to merge ('patches' has 2 commits this splice lacks)" ]
   run splice merge --branch patches vendor/a
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: merged ${target:0:7}" ]
   [ "$(splice_config vendor/a commit)" = "$target" ]
   [ "$(git config --file vendor/a/.splice upstream.origin.default-branch)" = patches ]
   [ "$(git log -1 --format=%s)" = "splice: merge vendor/a from patches at ${target:0:7}" ]
+}
+
+@test "merge: on a branch the upstream lacks, merges nothing, and says how many commits upstream's default branch has that the splice lacks" {
+  scenario_default_branch_moved "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: upstream has no 'feature' branch -- nothing to merge ('main' has 1 commit this splice lacks)" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "pull: on a branch the upstream lacks, pulls nothing, and counts the commits of upstream's default branch with a local change too" {
+  scenario_default_branch_moved "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "another fix"
+  commit_local "$monorepo" vendor/a "local change"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = "ok   vendor/a: upstream has no 'feature' branch -- nothing to pull ('main' has 2 commits this splice lacks)" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "pull: on a branch the upstream lacks, says only that there's nothing to pull while upstream's default branch has nothing the splice lacks" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = "ok   vendor/a: upstream has no 'feature' branch -- nothing to pull" ]
 }
 
 @test "merge: --branch naming a branch the upstream lacks, e.g. a typo, fails, unlike the monorepo branch's own missing name" {
