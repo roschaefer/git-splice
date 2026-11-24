@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.23.1](https://github.com/roschaefer/git-splice/compare/v0.23.0...v0.23.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **clone:** compare and unset Git's older crlf attribute too ([#526](https://github.com/roschaefer/git-splice/issues/526)) ([f6a41b7](https://github.com/roschaefer/git-splice/commit/f6a41b7e2fb3eadab75386e6baf8c0f0a9fc73bd)), closes [#312](https://github.com/roschaefer/git-splice/issues/312)
+* **init:** forget the upstream's key when init's commit fails ([#563](https://github.com/roschaefer/git-splice/issues/563)) ([1df2fe1](https://github.com/roschaefer/git-splice/commit/1df2fe1898edcc01940290ab4b2c73952ed85a78))
+* **pull:** fetch a moved synced commit from every upstream the splice names ([#549](https://github.com/roschaefer/git-splice/issues/549)) ([5ff0666](https://github.com/roschaefer/git-splice/commit/5ff06660ba2317b45e890d32571c62bb10996e46))
+* **repo:** trust init.defaultBranch only for a branch the monorepo has ([#529](https://github.com/roschaefer/git-splice/issues/529)) ([89a4c95](https://github.com/roschaefer/git-splice/commit/89a4c958ecf0236d2229299010b0b622f7c3542e)), closes [#20](https://github.com/roschaefer/git-splice/issues/20)
+* **status:** say a missing branch is behind the default branch, by name ([#537](https://github.com/roschaefer/git-splice/issues/537)) ([d70466d](https://github.com/roschaefer/git-splice/commit/d70466dff46a12cbfe7865f4b6a2036a0392eff2)), closes [#339](https://github.com/roschaefer/git-splice/issues/339)
+
 ## [0.23.0](https://github.com/roschaefer/git-splice/compare/v0.22.0...v0.23.0) (2026-11-24)
 
 
