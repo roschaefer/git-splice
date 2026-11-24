@@ -28,7 +28,7 @@ $ build_scenario scenario_default_branch_moved
 
 <div align="center">
 
-![The monorepo's main and feature at a; the upstream's k, recorded by a, and l on top of it on main](default-branch-moved.drawio.svg)
+![The monorepo's H, main and feature at a; the upstream's k, recorded by a, and l on top of it on main](default-branch-moved.drawio.svg)
 
 </div>
 
@@ -62,7 +62,7 @@ $ echo "b" >>vendor/a/file.txt &&
 
 <div align="center">
 
-![The monorepo's main at a and feature at b; the upstream's main at l on top of k, and b prime, R, dashed on top of k](changed-on-feature.drawio.svg)
+![The monorepo's main at a and H and feature at b; the upstream's main at l on top of k, and b prime, R, dashed on top of k](changed-on-feature.drawio.svg)
 
 </div>
 
