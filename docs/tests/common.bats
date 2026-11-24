@@ -81,6 +81,34 @@ setup() {
   [[ "$output" == *"must be a folder"* ]]
 }
 
+@test "discovery: a folder named .splice is not a root state file, and invalid paths open no blobs" {
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  mkdir .splice
+  echo invalid >.splice/.splice
+  git add .splice && git commit -q -m "a folder named .splice"
+  export SPLICE_BLOB_READS="$BATS_TEST_TMPDIR/blob-reads"
+  stub_git 'if [[ "$1 $2" == "config --blob" ]]; then echo "$3" >>"$SPLICE_BLOB_READS"; fi'
+  run splice status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'.splice' isn't supported as a splice path yet -- rename the folder"* ]]
+  [ ! -e "$SPLICE_BLOB_READS" ]
+}
+
+@test "discovery: an unreadable first splice stops before opening later state files" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice --remove-section upstream.origin
+  git commit -q -am "no upstream for a"
+  export SPLICE_BLOB_READS="$BATS_TEST_TMPDIR/blob-reads"
+  stub_git 'if [[ "$1 $2" == "config --blob" ]]; then echo "$3" >>"$SPLICE_BLOB_READS"; fi'
+  run splice status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice names no upstream"* ]]
+  [ "$(wc -l <"$SPLICE_BLOB_READS")" -eq 1 ]
+  [[ "$(cat "$SPLICE_BLOB_READS")" == *":vendor/a/.splice" ]]
+}
+
 @test "paths: splicing in or out needs paths or --all" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"

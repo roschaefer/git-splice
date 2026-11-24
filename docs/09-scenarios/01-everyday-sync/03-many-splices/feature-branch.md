@@ -37,12 +37,12 @@ $ git commit -q -am "feature work"
 $ git splice status
 On branch feature
 
-  new, ahead 1                   libs/cli     push creates the branch
-  new, ahead 1                   libs/parser  push creates the branch
-  new, ahead 1, behind 1         libs/store   push creates the branch
+  new, ahead 1                    libs/cli     push creates the branch
+  new, ahead 1                    libs/parser  push creates the branch
+  new, ahead 1, behind 1 on main  libs/store   push creates the branch
 
-  unchanged, no upstream branch  libs/http
-  unchanged, no upstream branch  libs/theme
+  unchanged, behind 2 on main     libs/http
+  unchanged, no upstream branch   libs/theme
 ```
 
 After the push, the upstream has the branch, and `cli` is up to date with
@@ -58,10 +58,10 @@ ok   libs/cli: pushed 4dd9993 to feature
 $ git splice status
 On branch feature
 
-  new, ahead 1                   libs/parser  push creates the branch
-  new, ahead 1, behind 1         libs/store   push creates the branch
+  new, ahead 1                    libs/parser  push creates the branch
+  new, ahead 1, behind 1 on main  libs/store   push creates the branch
 
-  up to date                     libs/cli
-  unchanged, no upstream branch  libs/http
-  unchanged, no upstream branch  libs/theme
+  up to date                      libs/cli
+  unchanged, behind 2 on main     libs/http
+  unchanged, no upstream branch   libs/theme
 ```

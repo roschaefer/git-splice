@@ -18,9 +18,9 @@ SYNOPSIS
 
 ```scrut
 $ git splice fetch -h | check-help section description
-    Fetches every branch of each splice's upstreams, in parallel and each
-    upstream once, and reports when the branch a splice syncs with has
-    moved. Branches deleted upstream are pruned.
+    Fetches every branch of each splice's upstreams, in parallel (at most
+    8 at a time) and each upstream once, and reports when the branch a
+    splice syncs with has moved. Branches deleted upstream are pruned.
 ```
 
 In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), someone pushes another

@@ -1,12 +1,7 @@
 # Push before the fetch
 
-> **Known bug, [#11](https://github.com/roschaefer/git-splice/issues/11).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
-
 In the [same state](README.md), a fresh clone after `init`, a push before
-the first fetch says it creates the upstream branch, though the upstream
-has it already. It sends nothing new: the rebuild produces the two commits
-the upstream has, so the upstream stays as it was. This is part of
-[#11](https://github.com/roschaefer/git-splice/issues/11).
+the first fetch refuses: it can't tell what the upstream has.
 
 ## Output
 
@@ -24,8 +19,9 @@ $ build_scenario scenario_init_then_cloned
 
 ```scrut
 $ git splice push lib/a
-??   lib/a: upstream has no 'main' branch yet -- this push creates it
-ok   lib/a: pushed f9832ad to main
+??   lib/a: not fetched -- run 'git splice fetch lib/a' first
+!!   Failed: lib/a
+[1]
 ```
 
 ```scrut
@@ -34,12 +30,18 @@ second version
 splice: init lib/a
 ```
 
-A successful push records what the upstream has now, so the clone sees it
-as up to date even without a fetch:
+The clone still has fetched nothing, as before the push: *a*, *i* and
+*b* are the monorepo's own commits, and `lib/a/` is empty:
 
+<div align="center">
+
+![In the fresh clone: a, i and b, H at b; lib/a/ is empty](init-then-cloned.drawio.svg)
+
+</div>
+
+<!--
 ```scrut
-$ git splice status
-On branch main
-
-  up to date  lib/a
+$ check_drawing "$TESTDIR/init-then-cloned.drawio.svg" a=HEAD~2 i=HEAD~1 b=HEAD
+ok   init-then-cloned.drawio.svg: 3 commits, 3 arrows, 1 boxes, 1 lanes
 ```
+-->
