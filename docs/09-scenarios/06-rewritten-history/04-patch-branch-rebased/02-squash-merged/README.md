@@ -36,7 +36,7 @@ Without `--branch`, there's nothing to pull:
 ```scrut
 $ git switch -q -c take-the-release && git splice pull vendor/a
 ok   vendor/a fetched
-ok   vendor/a: upstream has no 'take-the-release' branch -- nothing to pull
+ok   vendor/a: upstream has no 'take-the-release' branch -- nothing to pull ('patches' has 2 commits this splice lacks)
 ```
 
 ```scrut
