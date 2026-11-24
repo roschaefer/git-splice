@@ -11,8 +11,15 @@ pub const DEFAULT_FROM_SUBMODULE: &str = "splice: clone {path} from submodule at
 /// The default for init, which has no synced commit yet.
 pub const DEFAULT_INIT: &str = "splice: init {path}";
 
-/// At most this many commits in {shortlog}, like 'git merge --log'.
-const SHORTLOG_LIMIT: usize = 20;
+/// At most this many commits in {shortlog} without --shortlog, like
+/// 'git merge --log'.
+const SHORTLOG_LIMIT: Shortlog = Shortlog::Limit(20);
+
+#[derive(Clone, Copy)]
+pub enum Shortlog {
+    Limit(usize),
+    All,
+}
 
 const PLACEHOLDERS: [&str; 9] = [
     "command", "path", "upstream", "old", "new", "full-old", "full-new", "count", "shortlog",
@@ -37,7 +44,7 @@ impl Message<'_> {
     /// The value of placeholder <name>, which Template::missing found it has;
     /// fails the splice if Git can't list the commits {count} and
     /// {shortlog} need.
-    fn value(&self, name: &str) -> Res<String> {
+    fn value(&self, name: &str, limit: Shortlog) -> Res<String> {
         let old = self.old.unwrap_or_default();
         let new = self.new.unwrap_or_default();
         let range = format!("{old}..{new}");
@@ -63,30 +70,36 @@ impl Message<'_> {
                     .q()
                     .out(),
             )?,
-            "shortlog" => shortlog(&listed(
-                git(&[
-                    "log",
-                    "--no-show-signature",
-                    "--no-merges",
-                    "--format=%s",
-                    &format!("--max-count={}", SHORTLOG_LIMIT + 1),
-                    &range,
-                ])
-                .q()
-                .out(),
-            )?),
+            // Like 'git merge --log=0': no list, not even "...".
+            "shortlog" if matches!(limit, Shortlog::Limit(0)) => String::new(),
+            "shortlog" => {
+                let mut args = vec![
+                    "log".to_string(),
+                    "--no-show-signature".to_string(),
+                    "--no-merges".to_string(),
+                    "--format=%s".to_string(),
+                ];
+                if let Shortlog::Limit(limit) = limit {
+                    args.push(format!("--max-count={}", limit.saturating_add(1)));
+                }
+                args.push(range);
+                let args: Vec<&str> = args.iter().map(String::as_str).collect();
+                shortlog(&listed(git(&args).q().out())?, limit)
+            }
             _ => String::new(),
         })
     }
 }
 
 /// <subjects>, newest first, as 'git merge --log' lists them: one per line,
-/// indented, and "..." after the first SHORTLOG_LIMIT.
-fn shortlog(subjects: &str) -> String {
+/// indented, and "..." after the first <limit>.
+fn shortlog(subjects: &str, limit: Shortlog) -> String {
     let mut lines: Vec<String> = subjects.lines().map(|s| format!("  {s}")).collect();
-    if lines.len() > SHORTLOG_LIMIT {
-        lines.truncate(SHORTLOG_LIMIT);
-        lines.push("  ...".to_string());
+    if let Shortlog::Limit(limit) = limit {
+        if lines.len() > limit {
+            lines.truncate(limit);
+            lines.push("  ...".to_string());
+        }
     }
     lines.join("\n")
 }
@@ -100,17 +113,23 @@ pub struct Template {
     /// Where the template comes from, for messages: the option or the key.
     source: &'static str,
     pieces: Vec<Piece>,
+    /// Which commits to include in {shortlog}.
+    shortlog: Shortlog,
 }
 
 impl Template {
-    /// The template --message-template gives, or nothing without one.
-    pub fn given(text: &str) -> Res<Option<Template>> {
+    /// The template --message-template gives, or nothing without one, with
+    /// --shortlog's limit, if given.
+    pub fn given(text: &str, shortlog: Option<Shortlog>) -> Res<Option<Template>> {
         if text.is_empty() {
             return Ok(None);
         }
         let source = "--message-template";
         match Template::parse(source, text) {
-            Ok(template) => Ok(Some(template)),
+            Ok(template) => Ok(Some(Template {
+                shortlog: shortlog.unwrap_or(SHORTLOG_LIMIT),
+                ..template
+            })),
             Err(problem) => die(format!("{source}: {problem}")),
         }
     }
@@ -170,7 +189,11 @@ impl Template {
         if !literal.is_empty() {
             pieces.push(Piece::Text(literal));
         }
-        Ok(Template { source, pieces })
+        Ok(Template {
+            source,
+            pieces,
+            shortlog: SHORTLOG_LIMIT,
+        })
     }
 
     /// The first placeholder <message> has no value for.
@@ -215,7 +238,7 @@ impl Template {
         for piece in &self.pieces {
             match piece {
                 Piece::Text(literal) => text.push_str(literal),
-                Piece::Placeholder(name) => text.push_str(&message.value(name)?),
+                Piece::Placeholder(name) => text.push_str(&message.value(name, self.shortlog)?),
             }
         }
         Ok(text.trim_end().to_string())

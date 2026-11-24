@@ -36,13 +36,14 @@ impl Repo<'_> {
             remade_early = Some(self.remake_synced(path, &c.synced.clone()));
         }
         if !self.splice_fetched(path) && !pin_here {
-            // Without a synced commit, the splice came from init: its upstream
-            // was empty, so a fetch that brings nothing is the expected state.
-            // With one that's here, a fetch happened, and the upstream has no
-            // branches left. Only a fresh clone of the monorepo has neither
-            // refs nor commit. A pin that isn't here then is missing, not a
-            // branch.
-            c.state = if c.synced.is_empty() || commit_here(&c.synced) {
+            // Without a synced commit, the splice came from init, which
+            // records the key of its empty upstream: with a key, a fetch that
+            // brings nothing is the expected state. Without one, e.g. in a
+            // fresh clone of the monorepo, the upstream is unknown here. With
+            // a synced commit that's here, a fetch happened, and the upstream
+            // has no branches left. A pin that isn't here then is missing, not
+            // a branch.
+            c.state = if (c.synced.is_empty() && fetch_tried) || commit_here(&c.synced) {
                 if pinned {
                     State::MissingPin
                 } else {
