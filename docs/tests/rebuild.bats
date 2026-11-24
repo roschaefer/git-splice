@@ -966,3 +966,41 @@ squash_merge_rebased_pull() {
   [[ "$output" != *"has no content yet"* ]]
   [[ "$output" == *"insufficient permission"* ]]
 }
+
+@test "rebuild: local commits pushed to a pull request's branch that was then rewritten away stay commits of their own, not part of a later pull's copy" {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "k: seed"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  # 1. Commits on main change the splice and go to a pull request's branch.
+  commit_local "$monorepo" vendor/a "c1: local" local.txt
+  commit_local "$monorepo" vendor/a "c2: local" local.txt
+  splice push --branch docs vendor/a >/dev/null 2>&1
+  # 2. Pulls from the upstream's main.
+  seed_bare_repo "$upstream" "n: upstream"
+  splice pull -m "pull n" vendor/a >/dev/null
+  seed_bare_repo "$upstream" "x: upstream"
+  splice pull -m "pull x" vendor/a >/dev/null
+  # 3. The pull request's branch is rebased and force-pushed.
+  seed_bare_repo "$upstream" "y: upstream"
+  local work="$BATS_TEST_TMPDIR/work"
+  git clone -q -b docs "$upstream" "$work"
+  git -C "$work" -c user.name=T -c user.email=t@example.com rebase -q origin/main
+  git -C "$work" -c user.name=T -c user.email=t@example.com commit -q --amend -m "c2: local, reworded"
+  git -C "$work" push -q -f origin docs
+  # 4. A branch cut from main pulls main, commits, and rebuilds.
+  git switch -q -c feature
+  splice pull --branch main -m "pull y" vendor/a >/dev/null
+  commit_local "$monorepo" vendor/a "d: docs" d.txt
+  local rebuilt pull_copy
+  rebuilt="$(splice rebuild vendor/a)"
+  [ "$(git log -1 --format=%s "$rebuilt")" = "d: docs" ]
+  pull_copy="$(git rev-parse "$rebuilt^")"
+  [ "$(git log -1 --format=%s "$pull_copy")" = "pull y" ]
+  # The pull's copy is a merge with y: the local changes come from its
+  # first parent, under their own messages, not from the merge.
+  [ "$(git rev-parse "$pull_copy^2")" = "$(splice_config vendor/a commit)" ]
+  [ -z "$(git diff "$pull_copy^1" "$pull_copy" -- local.txt)" ]
+  [ "$(git log --no-merges --format=%s "$pull_copy" -- local.txt)" = "c2: local"$'\n'"c1: local" ]
+}
