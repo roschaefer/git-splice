@@ -17,8 +17,8 @@ any `refs/` path, and `git-splice` keeps each upstream's branches under
 `refs/splices/<key>/heads/`, laid out like a repository's own. The key
 is the upstream's short name in this repository, from its URL, so
 `https://git.example.com/a.git` gets `a`.
-The first fetch records it in the repository's config, and
-`git splice key` prints and renames it.
+The first fetch, or `git splice init`, records it in the repository's
+config, and `git splice key` prints and renames it.
 
 A ref costs one line in `.git/packed-refs`, or a small file. The commits it
 names, and their trees and files, are what cost space.
