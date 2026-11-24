@@ -206,7 +206,7 @@ known_keys="the keys are splice.id, splice.commit, splice.default-upstream, upst
   git config --file vendor/a/.splice --unset upstream.origin.url
   git config --file vendor/a/.splice upstream.origin.uri "$upstream"
   git commit -q -m "uri, not url" -- vendor/a/.splice
-  run splice status
+  run splice diff vendor/a
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "??   vendor/a/.splice: unknown key upstream.origin.uri -- $known_keys" ]
   [[ "${lines[1]}" == "!!   vendor/a/.splice names no upstream -- "* ]]

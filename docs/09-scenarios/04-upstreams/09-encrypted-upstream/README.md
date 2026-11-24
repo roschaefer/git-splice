@@ -74,11 +74,13 @@ A commit stores it encrypted:
 $ git commit -q -m "c: store the .splice again"
 ```
 
-and every command refuses:
+and no command can use the splice:
 
 ```scrut
 $ git splice status
-!!   vendor/a/.splice can't be read (bad config line 1 in blob HEAD:vendor/a/.splice) -- fix it and commit it
+On branch main
+
+  !! can't use .splice  vendor/a  vendor/a/.splice can't be read (bad config line 1 in blob HEAD:vendor/a/.splice); fix it and commit it
 [1]
 ```
 

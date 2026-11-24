@@ -959,10 +959,11 @@ impl<'context> Repo<'context> {
         }
         self.unreadable.clear();
         for splice in splices.read() {
-            match &splice.state {
-                Ok(_) => self.load_read_splice(splice)?,
+            self.warn_unknown_keys(&splice.warnings);
+            match splice.state {
+                Ok(state) => self.use_state_file(&splice.path, state)?,
                 Err(why) => {
-                    self.unreadable.insert(splice.path.clone(), why.message());
+                    self.unreadable.insert(splice.path, why.message());
                 }
             }
         }
@@ -1114,20 +1115,29 @@ impl<'context> Repo<'context> {
     }
 
     fn load_read_splice(&mut self, splice: ReadSplice) -> Res<()> {
-        for warning in splice.warnings {
+        self.warn_unknown_keys(&splice.warnings);
+        match splice.state {
+            Ok(state) => self.use_state_file(&splice.path, state),
+            Err(why) => die(why.message()),
+        }
+    }
+
+    fn warn_unknown_keys(&mut self, warnings: &[String]) {
+        for warning in warnings {
             if self.warned_keys.insert(warning.clone()) {
                 log_warn(format!("{warning} -- the keys are {}", state_keys()));
             }
         }
+    }
+
+    /// Makes commands use the upstreams of splice <path> as read from its
+    /// state file, and its default one.
+    fn use_state_file(&mut self, path: &str, state: StateFile) -> Res<()> {
         let StateFile {
             names,
             urls,
             default,
-        } = match splice.state {
-            Ok(state) => state,
-            Err(why) => return die(why.message()),
-        };
-        let path = splice.path.as_str();
+        } = state;
         for (name, url) in names.iter().zip(&urls) {
             self.upstream_urls
                 .insert((path.to_string(), name.clone()), url.clone());

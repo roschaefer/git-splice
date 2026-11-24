@@ -95,7 +95,7 @@ setup() {
   [ ! -e "$SPLICE_BLOB_READS" ]
 }
 
-@test "discovery: an unreadable first splice stops before opening later state files" {
+@test "discovery: an unreadable first splice doesn't stop it from reading the later state files" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
   git config --file vendor/a/.splice --remove-section upstream.origin
@@ -105,8 +105,8 @@ setup() {
   run splice status
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a/.splice names no upstream"* ]]
-  [ "$(wc -l <"$SPLICE_BLOB_READS")" -eq 1 ]
-  [[ "$(cat "$SPLICE_BLOB_READS")" == *":vendor/a/.splice" ]]
+  [[ "$(sed -n 1p "$SPLICE_BLOB_READS")" == *":vendor/a/.splice" ]]
+  [[ "$(sed -n 2p "$SPLICE_BLOB_READS")" == *":vendor/b/.splice" ]]
 }
 
 @test "paths: splicing in or out needs paths or --all" {
