@@ -178,12 +178,12 @@ convert it in a fork of yours instead
 ```scrut
 $ git splice clone -h | check-help section upstream-branch
     The upstream branch is the one named like the current branch, else the
-    upstream's default branch; your first push then creates the missing
-    branch. If the upstream's default branch is named differently from the
-    monorepo's, .splice records it as the upstream's default-branch. Inside
-    another splice, it's compared with that splice's default branch
-    instead, and on the monorepo's default branch, that's the upstream
-    branch: the monorepo's branch name isn't tried.
+    upstream's default branch; a push creates the missing branch once a PR
+    from it would show changes. If the upstream's default branch is named
+    differently from the monorepo's, .splice records it as the upstream's
+    default-branch. Inside another splice, it's compared with that splice's
+    default branch instead, and on the monorepo's default branch, that's
+    the upstream branch: the monorepo's branch name isn't tried.
 ```
 
 On a branch the upstream doesn't have, `clone` takes the upstream's
@@ -209,6 +209,9 @@ The monorepo's `.gitattributes` mustn't change how the upstream's files
 are checked out or stored, or `clone` refuses and names the line that
 fixes it
 ([clone-under-monorepo-attributes](../09-scenarios/02-starting-a-splice/09-clone-under-monorepo-attributes/README.md)).
+An upstream that encrypts its files, e.g. with git-crypt, leaves the
+`.splice` out of the filter with `.splice !filter !diff`
+([encrypted-upstream](../09-scenarios/04-upstreams/09-encrypted-upstream/README.md)).
 
 ## Submodules
 

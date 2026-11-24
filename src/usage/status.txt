@@ -45,10 +45,10 @@ NO UPSTREAM BRANCH
     For a splice whose upstream has no branch named like the current one,
     the comparison is with upstream's default branch, as for a PR: "new"
     counts the commits the push that creates the branch would publish, and
-    how many the default branch has that this one lacks. "unchanged" means
-    a PR from the branch would show no changes: the default branch has
-    every commit, or the others change no files, e.g. a change and its
-    revert.
+    "behind <n> on <branch>" the commits the default branch has that the
+    splice lacks, which pull and merge don't bring in. "unchanged" means a
+    PR from the branch would show no changes: the default branch has every
+    commit, or the others change no files, e.g. a change and its revert.
 
     See also: https://git-splice.roschaefer.de/docs/command-reference/#no-upstream-branch
 
