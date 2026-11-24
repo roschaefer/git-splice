@@ -5,6 +5,8 @@ use crate::context::ExecutionContext;
 use crate::execution::{ExecutionEvent, FetchedUpstream};
 use crate::repo::*;
 use crate::util::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 pub const USAGE: &str = include_str!("usage/fetch.txt");
 
@@ -325,6 +327,28 @@ impl Repo<'_> {
     }
 }
 
+/// How many upstreams fetch at once: under OpenSSH's default MaxStartups of
+/// 10, beyond which sshd drops new connections at random.
+const MAX_CONCURRENT_FETCHES: usize = 8;
+
+/// Reports every member of a fetch that panicked as failed, so that it isn't
+/// taken for fetched.
+fn crashed(members: &[Member]) -> Vec<(usize, Report)> {
+    members
+        .iter()
+        .map(|member| {
+            (
+                member.index,
+                Report {
+                    out: String::new(),
+                    err: format!("!!   {}", member.failed_label),
+                    failed: true,
+                },
+            )
+        })
+        .collect()
+}
+
 struct FetchJob {
     key: String,
     url: String,
@@ -347,24 +371,26 @@ pub(crate) struct FetchResults {
 impl FetchPlan {
     pub(crate) fn download(self) -> FetchResults {
         let mut reports = vec![Report::default(); self.entries.len()];
+        let next = AtomicUsize::new(0);
+        let done = Mutex::new(Vec::new());
         std::thread::scope(|scope| {
-            let handles: Vec<_> = self
-                .jobs
-                .iter()
-                .map(|job| {
-                    scope.spawn(move || {
-                        fetch_shared_upstream(&job.key, &job.url, &job.commits, &job.members)
-                    })
-                })
-                .collect();
-            for handle in handles {
-                if let Ok(done) = handle.join() {
-                    for (index, report) in done {
-                        reports[index] = report;
+            for _ in 0..self.jobs.len().min(MAX_CONCURRENT_FETCHES) {
+                scope.spawn(|| {
+                    while let Some(job) = self.jobs.get(next.fetch_add(1, Ordering::Relaxed)) {
+                        let fetched = std::panic::catch_unwind(|| {
+                            fetch_shared_upstream(&job.key, &job.url, &job.commits, &job.members)
+                        })
+                        .unwrap_or_else(|_| crashed(&job.members));
+                        done.lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .extend(fetched);
                     }
-                }
+                });
             }
         });
+        for (index, report) in done.into_inner().unwrap_or_else(|e| e.into_inner()) {
+            reports[index] = report;
+        }
 
         let mut fetched = Vec::new();
         for job in &self.jobs {
@@ -504,6 +530,32 @@ mod tests {
         repo.open().unwrap();
         repo.select_paths(Kind::Overview, "fetch").unwrap();
         repo
+    }
+
+    #[test]
+    fn a_fetch_that_panicked_fails_every_splice_of_its_upstream() {
+        let member = |index: usize, path: &str| Member {
+            index,
+            path: path.into(),
+            label: format!("{path} fetched"),
+            failed_label: format!("{path} fetch failed"),
+            upstream_branch: "main".into(),
+            target_ref: String::new(),
+            old_sha: None,
+            tag: String::new(),
+        };
+        let reports = crashed(&[member(0, "vendor/a"), member(2, "vendor/b")]);
+        let summary: Vec<_> = reports
+            .iter()
+            .map(|(index, report)| (*index, report.failed, report.err.as_str()))
+            .collect();
+        assert_eq!(
+            summary,
+            [
+                (0, true, "!!   vendor/a fetch failed"),
+                (2, true, "!!   vendor/b fetch failed")
+            ]
+        );
     }
 
     #[test]

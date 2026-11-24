@@ -105,7 +105,7 @@ upstream lacks it, and the next push of `vendor/a/b/` sends it.
 
 <div align="center">
 
-![The monorepo's a, c and p, H at p; the lane vendor/a/ split in two: origin with l on top of k, which is T; fork with q on top of l on top of k, which is U(H), U(B), R and its main; inside it, the lane vendor/a/b/ with q prime, dashed, which is R, on top of m, which is T and U(H)](outer-fork.drawio.svg)
+![The monorepo's a, c and p, H and B at p; the lane vendor/a/ split in two: origin with l on top of k, which is T; fork with q on top of l on top of k, which is U(H), U(B), R and its main; inside it, the lane vendor/a/b/ with q prime, dashed, which is R, on top of m, which is T and U(H)](outer-fork.drawio.svg)
 
 </div>
 
