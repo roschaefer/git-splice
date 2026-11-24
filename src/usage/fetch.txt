@@ -5,9 +5,9 @@ SYNOPSIS
     git splice fetch [--upstream <name>] [--branch <name> --track | --no-track] [path...]
 
 DESCRIPTION
-    Fetches every branch of each splice's upstreams, in parallel and each
-    upstream once, and reports when the branch a splice syncs with has
-    moved. Branches deleted upstream are pruned.
+    Fetches every branch of each splice's upstreams, in parallel (at most
+    8 at a time) and each upstream once, and reports when the branch a
+    splice syncs with has moved. Branches deleted upstream are pruned.
 
     See also: https://git-splice.roschaefer.de/docs/command-reference/fetch/#description
 

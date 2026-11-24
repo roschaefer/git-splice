@@ -26,7 +26,7 @@ $ build_scenario scenario_clone_on_feature_branch
 ```scrut
 $ git splice clone "$UPSTREAM" vendor/a
 ===  vendor/a: fetching $UPSTREAM
-===  vendor/a: upstream has no 'feature' branch -- using 'main'; your first push creates 'feature'
+===  vendor/a: upstream has no 'feature' branch -- using 'main'
 ok   vendor/a: cloned bde4164 from main
 ```
 

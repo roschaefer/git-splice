@@ -128,6 +128,11 @@ does.
   and T have in common. Several
   names
   are joined by ` = `, e.g. `U(H) = U(B)`: each must name that commit.
+  Every `U(x)` needs a drawn label for `x`: a box term for H or B
+  (including an alias), or the commit label for a drawn commit.
+  Plain `B` is enough for one splice, or when all splices share the same
+  boundary commit. When their boundaries differ, qualify the boundary box
+  as `B(vendor/a/)`: it identifies B for `U(B)` in that folder's lane.
 - **Lane**: a shape labelled with a splice's folder, e.g. `vendor/a/`,
   holds that splice's upstream commits and boxes.
   - A monorepo with several splices needs a lane for each of them, so a
@@ -314,8 +319,6 @@ What no drawing has needed yet, it doesn't handle:
 - **Split lanes beyond the drawings here**: a split lane may leave out
   an upstream, or a shared commit's copy on one side; and the splice
   needs a default upstream.
-- **B with several splices**: outside every lane, B can't say which
-  splice's boundary it is, so drawings with several splices leave it out.
 - **Trees of other states**: a tree shows the splices at `HEAD`; a pull
   in progress shows only what its conflict merges in, not the splices it
   adds or drops.

@@ -99,11 +99,11 @@ _git_splice() {
   fi
 
   cmd="${COMP_WORDS[start]}"
-  # The word after --upstream, --branch, -m, --message-template or --exec names
-  # an upstream, its branch, a commit message, its template or a command:
-  # nothing to offer.
+  # The word after --upstream, --branch, -m, --message-template, --shortlog or
+  # --exec names an upstream, its branch, a commit message, its template, a
+  # number of commits or a command: nothing to offer.
   local option
-  for option in --upstream --branch -m --message --message-template --exec; do
+  for option in --upstream --branch -m --message --message-template --shortlog --exec; do
     ! __git_splice_completing_value "$option" || return 0
   done
   case "$cmd" in
@@ -117,9 +117,9 @@ _git_splice() {
       if [[ "$cmd" == merge ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == merge ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --rebuilt-commit -m --message --message-template -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --rebuilt-commit -m --message --message-template --shortlog -h --help
       else
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --recursive -m --message --message-template --exec -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --bump --rebase --no-fork-point --recursive -m --message --message-template --shortlog --exec -h --help
       fi
       ;;
     push | status | diff)

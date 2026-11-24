@@ -11,6 +11,7 @@ setup() {
     01-everyday-sync/04-never-fetched \
     03-branches-and-teamwork/01-feature-branch-unchanged \
     03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-changed \
+    03-branches-and-teamwork/01-feature-branch-unchanged/03-default-branch-moved \
     01-everyday-sync/02-up-to-date/03-diverged-then-pulled \
     01-everyday-sync/02-up-to-date/02-push-ahead/01-pushed-then-pulled/01-pushed-then-changed \
     03-branches-and-teamwork/03-squash-merged-pull \
@@ -18,6 +19,7 @@ setup() {
     04-upstreams/01-default-branch \
     04-upstreams/03-shared-remote-url \
     02-starting-a-splice/04-init-new-upstream \
+    02-starting-a-splice/05-init-then-cloned \
     01-everyday-sync/02-up-to-date/02-push-ahead/02-uncommitted-changes \
     05-nested-splices/01-nested-splices \
     03-branches-and-teamwork/06-teammate-pulled; do
@@ -106,6 +108,14 @@ assert_state() {
   [ "$(splice_state lib/a)" = missing-branch ]
 }
 
+@test "state: never-fetched, not missing-branch, in a fresh clone of the monorepo after init and push, though .splice records no synced commit" {
+  scenario_init_then_cloned "$monorepo" "$upstream"
+  cd "$monorepo"
+  [ -z "$(splice_config lib/a commit)" ]
+  git -C "$upstream" rev-parse --verify --quiet main
+  [ "$(splice_state lib/a)" = never-fetched ]
+}
+
 @test "state: never-fetched in a fresh clone of the monorepo, though it could make the synced commit of a splice made by init again" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"
@@ -190,13 +200,23 @@ EOF
   [ "${lines[1]}" = "  new, ahead 1  vendor/a  push creates the branch" ]
 }
 
-@test "status: a missing branch also counts the commits upstream's default branch has and it lacks, as a PR would" {
+@test "status: a missing branch also counts the commits upstream's default branch has and it lacks, as a PR would, behind that branch by name" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   seed_bare_repo "$upstream" "upstream change"
   fetch_splice "$monorepo" "$upstream" vendor/a
   cd "$monorepo"
   run splice status
-  [ "${lines[1]}" = "  new, ahead 1, behind 1  vendor/a  push creates the branch" ]
+  [ "${lines[1]}" = "  new, ahead 1, behind 1 on main  vendor/a  push creates the branch" ]
+}
+
+@test "status: an unchanged missing branch shows that it's behind upstream's default branch, by name" {
+  scenario_default_branch_moved "$monorepo" "$upstream"
+  cd "$monorepo"
+  [ -z "$(git ls-remote --heads "$upstream" feature)" ]
+  [ "$(git rev-list --count "$(splice_config vendor/a commit)..$(upstream_refs "$upstream")main")" = 1 ]
+  run splice status
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = "  unchanged, behind 1 on main  vendor/a" ]
 }
 
 @test "status: says how to start without splices" {
@@ -329,14 +349,14 @@ EOF
   [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
 }
 
-@test "status: a missing branch with a change and its revert stays unchanged after upstream's default branch moves on" {
+@test "status: a missing branch with a change and its revert stays unchanged after upstream's default branch moves on, behind it" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   git -C "$monorepo" revert --no-edit HEAD >/dev/null
   seed_bare_repo "$upstream" "upstream change"
   fetch_splice "$monorepo" "$upstream" vendor/a
   cd "$monorepo"
   run splice status
-  [ "${lines[1]}" = "  unchanged, no upstream branch  vendor/a" ]
+  [ "${lines[1]}" = "  unchanged, behind 1 on main  vendor/a" ]
 }
 
 @test "status: a missing branch that can't be rebuilt warns, without the rebuild's error" {
@@ -433,7 +453,7 @@ EOF2
 On branch feature
 
   unchanged, no upstream branch  libs/cli
-  unchanged, no upstream branch  libs/http
+  unchanged, behind 2 on main    libs/http
   unchanged, no upstream branch  libs/theme
 EOF2
   )" ]
