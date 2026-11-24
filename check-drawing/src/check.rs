@@ -199,6 +199,12 @@ impl<'a> Checker<'a> {
         self.splices.is_empty()
     }
 
+    fn common_boundary(&self) -> Option<&str> {
+        let first = self.truth(self.splices.first()?).b.as_str();
+        (!first.is_empty() && self.splices.iter().all(|path| self.truth(path).b == first))
+            .then_some(first)
+    }
+
     fn splice_of(&self, cell: usize) -> String {
         self.splice_of.get(&cell).cloned().unwrap_or_default()
     }
@@ -1186,6 +1192,7 @@ impl<'a> Checker<'a> {
         }
         match term {
             "H" => self.head.clone(),
+            "B" if splice.is_empty() => self.common_boundary().unwrap_or_default().to_string(),
             "B" => truth.b.clone(),
             _ if is_term(term, "B") => self
                 .truth(argument(term, "B").trim_end_matches('/'))

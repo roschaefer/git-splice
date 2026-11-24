@@ -243,8 +243,8 @@ impl Checker<'_> {
                 let k = argument(&term, "U");
                 term = format!("U({})", aliases.get(k).map_or(k, String::as_str));
             }
-            if term == "B" && splice.is_empty() {
-                self.errors.push("B outside every lane doesn't say which splice's boundary it is: with several splices, qualify B with its folder, e.g. B(vendor/a/)".to_string());
+            if term == "B" && splice.is_empty() && self.common_boundary().is_none() {
+                self.errors.push("the splices have different boundaries: qualify B with its folder, e.g. B(vendor/a/)".to_string());
                 continue;
             }
             if is_term(&term, "U") {
@@ -256,7 +256,11 @@ impl Checker<'_> {
                             if k == "B" && is_term(label, "B") {
                                 argument(label, "B").trim_end_matches('/') == splice
                             } else {
-                                label == k && (k != "B" || self.splice_of(cell) == splice)
+                                label == k
+                                    && (k != "B"
+                                        || self.splice_of(cell) == splice
+                                        || (self.splice_of(cell).is_empty()
+                                            && self.common_boundary().is_some()))
                             }
                         })
                     });

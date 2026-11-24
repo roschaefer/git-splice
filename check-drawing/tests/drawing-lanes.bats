@@ -128,11 +128,20 @@ edit_drawing() {
   [ "${lines[0]}" = "!!   the lane vendor/a/b/ is a folder inside vendor/a/: draw it inside that lane" ]
 }
 
-@test "drawing lanes: with several splices, B outside every lane says why it can't be checked" {
-  edit_drawing -u '//mxCell[@value="H"]/@value' -v B
+@test "drawing lanes: a shared B needs no folder even with several splices" {
+  edit_drawing -u '//mxCell[@value="H"]/@value' -v 'H = B' \
+    -u '//mxCell[@id="box1"]/@value' -v 'U(B)'
   run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing lanes: different boundaries require B to specify its folder" {
+  git config --file vendor/a/b/.splice upstream.other.url "$upstream"
+  git commit -q -am "add another upstream below"
+  edit_drawing -u '//mxCell[@value="H"]/@value' -v B
+  run check_drawing "$drawing" a=HEAD~1 "${revs[@]:1}"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   B outside every lane doesn't say which splice's boundary it is: with several splices, qualify B with its folder, e.g. B(vendor/a/)" ]
+  [[ "$output" == *"the splices have different boundaries: qualify B with its folder, e.g. B(vendor/a/)"* ]]
 }
 
 @test "drawing lanes: a label given for its lane, <lane>/<label>=<rev>, names another commit in each lane it's drawn in" {
