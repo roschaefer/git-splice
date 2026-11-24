@@ -874,6 +874,23 @@ layer_with_a_commit() {
   [ "$(splice_state vendor/a)" = "push" ]
 }
 
+@test "merge --rebuilt-commit refuses a commit that brings a .splice that can't be read, and commits nothing" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  layer_with_a_commit
+  mkdir "$BATS_TEST_TMPDIR/layer/extra"
+  echo "not a config line" >"$BATS_TEST_TMPDIR/layer/extra/.splice"
+  git -C "$BATS_TEST_TMPDIR/layer" add extra/.splice
+  git -C "$BATS_TEST_TMPDIR/layer" commit -q -m "extra: a broken .splice"
+  local head layer
+  head="$(git rev-parse HEAD)"
+  layer="$(git rev-parse --short layer)"
+  run splice merge --rebuilt-commit layer vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: in $layer, extra/.splice can't be read (bad config line 1 in blob $layer:extra/.splice) -- a merge would commit a .splice no command can read; fix it in a commit on top of $layer"* ]]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
 @test "merge --rebuilt-commit also keeps what the monorepo changed in the folder since the rebuild" {
   scenario_up_to_date "$monorepo" "$upstream"
   layer_with_a_commit
