@@ -13,7 +13,14 @@ use std::process::Command;
 pub const USAGE: &str = include_str!("usage/clone.txt");
 
 /// The attributes that change what a checkout writes, or what git add stores.
-const CHECKOUT_ATTRIBUTES: [&str; 5] = ["text", "eol", "filter", "ident", "working-tree-encoding"];
+const CHECKOUT_ATTRIBUTES: [&str; 6] = [
+    "text",
+    "eol",
+    "filter",
+    "ident",
+    "working-tree-encoding",
+    "crlf",
+];
 
 /// The folder name `git clone` would pick for <url>, following Git's
 /// git_url_basename: trailing separators, a final /.git, the part before the

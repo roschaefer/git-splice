@@ -888,7 +888,7 @@ commit_attributes() {
   add_submodule
   run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
+  [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes"* ]]
 }
 
 @test "clone --from-submodule: refuses where the monorepo's attributes would apply to upstream's files, naming the line that unsets them" {
@@ -899,7 +899,7 @@ commit_attributes() {
   before="$(git rev-parse HEAD)"
   run splice clone --from-submodule vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again"* ]]
+  [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes, commit it, and run clone again"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
   [ "$(path_mode HEAD vendor/a)" = 160000 ]
   [ -z "$(git status --porcelain)" ]
@@ -908,7 +908,7 @@ commit_attributes() {
 @test "clone --from-submodule: with the line it names committed, the conversion keeps files as upstream committed them" {
   commit_raw_file "$upstream" build.bat 'echo build\r\n'
   commit_raw_file "$upstream" run.bat 'echo run\n'
-  commit_attributes '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding\n'
+  commit_attributes '*.bat text eol=crlf\nvendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf\n'
   add_submodule
   run splice clone --from-submodule vendor/a
   [ "$status" -eq 0 ]
@@ -929,10 +929,10 @@ commit_attributes() {
   git -c protocol.file.allow=always submodule -q update --init --recursive
   run splice clone --from-submodule --recursive vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a/libs/inner: attributes in vendor/a/.gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' to vendor/a/.gitattributes, commit it, and run clone again"* ]]
+  [[ "$output" == *"vendor/a/libs/inner: attributes in vendor/a/.gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'libs/inner/** !text !eol !filter !ident !working-tree-encoding !crlf' to vendor/a/.gitattributes, commit it, and run clone again"* ]]
   [ "$(path_mode HEAD vendor/a)" = 040000 ]
   [ "$(path_mode HEAD vendor/a/libs/inner)" = 160000 ]
-  echo 'libs/inner/** !text !eol !filter !ident !working-tree-encoding' >>vendor/a/.gitattributes
+  echo 'libs/inner/** !text !eol !filter !ident !working-tree-encoding !crlf' >>vendor/a/.gitattributes
   git commit -q -a -m "keep the splice's line endings off libs/inner"
   run splice clone --from-submodule --recursive vendor/a/libs/inner
   [ "$status" -eq 0 ]
@@ -946,7 +946,7 @@ commit_attributes() {
   git commit -q -m "add #a"
   run splice clone --from-submodule "#a"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"add '\#a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
+  [[ "$output" == *"add '\#a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes"* ]]
 }
 
 @test "clone --from-submodule: the line it names escapes a leading character a .gitattributes line would read otherwise" {
@@ -958,7 +958,7 @@ commit_attributes() {
     git commit -q -m "add $path"
     run splice clone --from-submodule "$path"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"add '$expected !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]] || {
+    [[ "$output" == *"add '$expected !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes"* ]] || {
       echo "$path: $output, expected $expected"
       return 1
     }
@@ -1009,8 +1009,27 @@ TABLE
       echo "$attributes: $output"
       return 1
     }
-    [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes"* ]]
+    [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes"* ]]
   done
+}
+
+@test "clone --from-submodule: refuses where the monorepo's older crlf attribute would apply to upstream's files, which Git reads where text is unspecified; with the line it names committed, converts" {
+  commit_raw_file "$upstream" run.bat 'echo hi\r\n'
+  add_submodule
+  local line='vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf'
+  local attributes
+  for attributes in '*.bat -crlf' '*.bat crlf=input'; do
+    commit_attributes "$attributes\n"
+    run splice clone --from-submodule vendor/a
+    [ "$status" -eq 1 ] || {
+      echo "$attributes: $output"
+      return 1
+    }
+    [[ "$output" == *"add '$line' to .gitattributes"* ]]
+  done
+  commit_attributes "*.bat -crlf\n$line\n"
+  run splice clone --from-submodule vendor/a
+  [ "$status" -eq 0 ]
 }
 
 @test "clone --from-submodule: with core.autocrlf=true, prints no line-ending warning" {

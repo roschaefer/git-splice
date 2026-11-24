@@ -39,14 +39,14 @@ refuses:
 ```scrut
 $ git splice clone https://git.example.com/a.git vendor/a
 ===  vendor/a: fetching https://git.example.com/a.git
-!!   vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again
+!!   vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes, commit it, and run clone again
 [1]
 ```
 
 With the line it names committed, the clone goes through:
 
 ```scrut
-$ echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' >>.gitattributes && git commit -q -m "keep the monorepo's line endings off vendor/a" .gitattributes
+$ echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' >>.gitattributes && git commit -q -m "keep the monorepo's line endings off vendor/a" .gitattributes
 ```
 
 ```scrut

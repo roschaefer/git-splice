@@ -297,10 +297,10 @@ new_upstream() {
   before="$(git rev-parse HEAD)"
   run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes, commit it, and run clone again"* ]]
+  [[ "$output" == *"vendor/a: attributes in .gitattributes or above it would change how Git checks out or stores some of its files, unlike in upstream -- add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes, commit it, and run clone again"* ]]
   [ "$(git rev-parse HEAD)" = "$before" ]
   [ ! -e vendor/a ]
-  echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' >>.gitattributes
+  echo 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' >>.gitattributes
   git commit -q -a -m "keep the monorepo's line endings off vendor/a"
   run splice clone "$upstream" vendor/a
   [ "$status" -eq 0 ]
@@ -318,7 +318,7 @@ new_upstream() {
   git commit -q -m "notes, and a link to them"
   run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding' to .gitattributes,"* ]]
+  [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes,"* ]]
 }
 
 @test "clone: refuses without naming a line where unsetting the monorepo's attributes can't make them upstream's" {
