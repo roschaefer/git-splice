@@ -130,6 +130,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     // Recorded as a fetch would: the upstream is known to be empty here, unlike
     // in a fresh clone of the monorepo. Refs fetched from it before name
     // branches it no longer has.
+    let had_key = !repo.upstream_key(&url)?.is_empty();
     let key = repo.create_upstream_key(&url)?;
     let refs = git(&[
         "for-each-ref",
@@ -186,6 +187,9 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         },
     )?;
     if commit_state_files(&files, &message).is_err() {
+        if !had_key {
+            repo.forget_upstream_key(&key)?;
+        }
         return fail(format!("{path}: init failed"));
     }
     log_ok(format!(
