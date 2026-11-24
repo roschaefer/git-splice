@@ -506,19 +506,9 @@ mod tests {
             )
             .unwrap();
             // As init records it: the empty upstream reads as known here.
-            git(&[
-                "config",
-                "--local",
-                &format!(
-                    "splice.{}.url",
-                    std::path::Path::new(splice.upstream)
-                        .file_stem()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                ),
-                splice.upstream,
-            ]);
+            Repo::new(&mut ExecutionContext::new(), Default::default())
+                .create_upstream_key(splice.upstream)
+                .unwrap();
             git(&["add", "--", splice.path]);
         }
         git(&["commit", "-qm", "mount splices"]);
@@ -1134,7 +1124,9 @@ vendor/b.git/topic -> B (offline)"#,
                 "[splice]\n id = parent\n[upstream \"origin\"]\n url = upstream.git\n",
             )
             .unwrap();
-            git(&["config", "--local", "splice.upstream.url", "upstream.git"]);
+            Repo::new(&mut context, Default::default())
+                .create_upstream_key("upstream.git")
+                .unwrap();
             git(&["add", "vendor/.splice"]);
             git(&["commit", "-qm", "mount parent"]);
             let (mut repo, mut progress) = progress(&mut context);

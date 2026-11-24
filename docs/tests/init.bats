@@ -91,6 +91,31 @@ setup() {
   [ ! -e lib/a/.splice ]
 }
 
+@test "init: leaves no key behind when a hook rejects its commit" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  printf '#!/bin/sh\nexit 1\n' >.git/hooks/pre-commit
+  chmod +x .git/hooks/pre-commit
+  run splice init lib/a "$upstream"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"lib/a: init failed"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -z "$(git config --local --get-regexp '^splice\..*\.url$')" ]
+}
+
+@test "init: keeps the key recorded before when a hook rejects its commit" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --local splice.mine.url "$upstream"
+  printf '#!/bin/sh\nexit 1\n' >.git/hooks/pre-commit
+  chmod +x .git/hooks/pre-commit
+  run splice init lib/a "$upstream"
+  [ "$status" -eq 1 ]
+  [ "$(git config --local splice.mine.url)" = "$upstream" ]
+}
+
 @test "init: in a fresh clone of the monorepo, push refuses until a fetch, rather than announcing it creates the branch the upstream has" {
   scenario_init_then_cloned "$monorepo" "$upstream"
   cd "$monorepo"
