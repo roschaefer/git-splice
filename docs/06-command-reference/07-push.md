@@ -259,6 +259,11 @@ $ git splice push -h | check-help section read-more
 - A splice moved with `git mv` keeps its unpushed commits: the push
   after the move sends them as they were
   ([moved-with-unpushed-commits](../09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/README.md)).
+- After a push, `refs/splices/<key>/heads/<branch>` is set to what was
+  pushed, as `git push` sets `refs/remotes/origin/<branch>`. Like Git, this
+  assumes a `url.<base>.pushInsteadOf` rule points at the same repository
+  the fetches read, e.g. SSH for pushes and HTTPS for fetches. If it points
+  elsewhere, `status` is wrong until the next `git splice fetch`.
 - Why the rebuild is deterministic: [design](../07-design/README.md#principles).
 
 <!-- Checks that every linked help section appears above, in order.
