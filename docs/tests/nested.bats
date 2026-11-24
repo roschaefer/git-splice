@@ -1119,6 +1119,31 @@ unreadable_splice_added_in_upstream() {
   [ -z "$(git status --porcelain)" ]
 }
 
+@test "nested: pull --rebase refuses an upstream that still has the .splice that can't be read, which the monorepo fixed after taking it in" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  unreadable_splice_added_in_upstream
+  broken="$(git -C "$upstream" rev-parse main)"
+  cd "$monorepo"
+  splice fetch vendor/a
+  # The monorepo took the commit in as it was, then fixed the file: --rebase
+  # pulls on top of the commit that took it in, and replays the fix after it.
+  mkdir vendor/a/extra
+  git show "$broken:extra/.splice" >vendor/a/extra/.splice
+  git config --file vendor/a/.splice splice.commit "$broken"
+  git add vendor/a
+  git commit -q -m "a: take $broken in"
+  git rm -q vendor/a/extra/.splice
+  git commit -q -m "a: drop the .splice nobody can read"
+  seed_bare_repo "$upstream" "unrelated" main other.txt
+  head="$(git rev-parse HEAD)"
+  run splice pull --rebase vendor/a
+  [ "$status" -ne 0 ]
+  short="$(git -C "$upstream" rev-parse --short main)"
+  [[ "$output" == *"vendor/a: in $short, extra/.splice can't be read (bad config line 1 in blob $short:extra/.splice) -- a pull would commit a .splice no command can read; fix it in the upstream"* ]]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
 @test "nested: a pull of b made in a worktree of a's rebuild, merged back with merge --rebuilt-commit, is a pull of b in the monorepo" {
   scenario_nested_splices "$monorepo" "$upstream"
   seed_bare_repo "$upstream_b" "b upstream" main other.txt

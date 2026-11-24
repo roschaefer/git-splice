@@ -415,7 +415,7 @@ impl Repo<'_> {
                 "{path}: no synced commit recorded yet, e.g. after init -- nothing to rebase onto; {verb} without --rebase"
             ));
         }
-        self.refuse_unreadable_state_files(path, Some(&c.synced), &target, verb, FIX_UPSTREAM)?;
+        self.refuse_unreadable_state_files(path, None, &target, verb, FIX_UPSTREAM)?;
         self.refuse_remade(path)?;
         self.refuse_lacking_synced(path)?;
         let base = self.sync_point_commit(path)?;
@@ -1187,11 +1187,11 @@ pub fn synced_commit_here(path: &str) -> bool {
     synced.is_empty() || commit_here(&synced)
 }
 
+const FIX_UPSTREAM: &str = "fix it in the upstream";
+
 /// Refuses the first submodule upstream commit <target> adds, or moves to
 /// another commit, since upstream commit <base>. One it leaves alone merges
 /// cleanly: the monorepo's side keeps what it has there.
-const FIX_UPSTREAM: &str = "fix it in the upstream";
-
 fn refuse_changed_submodule(path: &str, base: &str, target: &str) -> Res<()> {
     let changes = git(&["diff-tree", "-r", "--no-renames", base, target])
         .out()

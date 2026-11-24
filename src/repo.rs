@@ -831,10 +831,12 @@ impl<'context> Repo<'context> {
     /// Every state file in commit <commit>, at any depth.
     pub fn state_files(&self, commit: &str) -> Vec<String> {
         self.state_files_since(&self.empty_tree(), commit)
+            .unwrap_or_default()
     }
 
-    /// The state files <commit> adds or changes since <base>.
-    fn state_files_since(&self, base: &str, commit: &str) -> Vec<String> {
+    /// The state files <commit> adds or changes since <base>, if Git can
+    /// compare the two, e.g. not when the history lacks <base>.
+    fn state_files_since(&self, base: &str, commit: &str) -> Option<Vec<String>> {
         let spec = format!(":(top,glob)**/{STATE_FILE}");
         let output = git(&[
             "diff-tree",
@@ -848,9 +850,8 @@ impl<'context> Repo<'context> {
             &spec,
         ])
         .q()
-        .bytes()
-        .unwrap_or_default();
-        nul_fields(&output)
+        .bytes()?;
+        Some(nul_fields(&output))
     }
 
     /// The folders of the splices inside tree <tree>, at any depth: the
@@ -876,7 +877,8 @@ impl<'context> Repo<'context> {
 
     /// Refuses <target> if a state file it adds or changes since <base>, or
     /// any without a <base>, can't be read: committing it would stop every
-    /// later command in discovery.
+    /// later command in discovery. Stops the command if Git can't compare
+    /// <target> with <base>: no file would be checked.
     pub fn refuse_unreadable_state_files(
         &self,
         path: &str,
@@ -889,7 +891,16 @@ impl<'context> Repo<'context> {
             return die(format!("can't read the tree of {target}"));
         };
         let files = match base {
-            Some(base) => self.state_files_since(base, &tree),
+            Some(base) => match self.state_files_since(base, &tree) {
+                Some(files) => files,
+                None => {
+                    return die(format!(
+                        "{path}: can't list the {STATE_FILE} files {} changes since {}, e.g. as the history lacks it -- a {verb} could commit a {STATE_FILE} no command can read; fetch the missing history, e.g. with 'git fetch --unshallow'",
+                        short(target),
+                        short(base)
+                    ));
+                }
+            },
             None => self.state_files(&tree),
         };
         let splices = SpliceTree {
@@ -1871,6 +1882,28 @@ mod tests {
                 splice.state.err().unwrap().fact,
                 "vendor/a/.splice can't be read (bad config line 1 in blob HEAD:vendor/a/.splice)"
             );
+        });
+    }
+
+    #[test]
+    fn refuse_unreadable_state_files_stops_when_the_history_lacks_the_commit_to_compare_with() {
+        use crate::util::test_repo::{git, with_repository};
+        with_repository(|| {
+            std::fs::create_dir_all("extra").unwrap();
+            std::fs::write("extra/.splice", "not a config line\n").unwrap();
+            git(&["add", "."]);
+            git(&["commit", "-qm", "unreadable state file"]);
+            let mut context = ExecutionContext::new();
+            let repo = Repo::new(&mut context, Default::default());
+            let missing = "0123456789abcdef0123456789abcdef01234567";
+            let result = repo.refuse_unreadable_state_files(
+                "vendor/a",
+                Some(missing),
+                "HEAD",
+                "pull",
+                "fix it",
+            );
+            assert!(matches!(result, Err(Fail::Hard)));
         });
     }
 
