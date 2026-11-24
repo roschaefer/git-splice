@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.23.0](https://github.com/roschaefer/git-splice/compare/v0.22.0...v0.23.0) (2026-11-24)
+
+
+### Features
+
+* **check-drawing:** dash per side what that side's upstream lacks ([#521](https://github.com/roschaefer/git-splice/issues/521)) ([d70320e](https://github.com/roschaefer/git-splice/commit/d70320ecfe245be2f8e7da84a65f01fb0c33a99e))
+* **config:** warn about unknown keys in .splice ([#528](https://github.com/roschaefer/git-splice/issues/528)) ([724b0fd](https://github.com/roschaefer/git-splice/commit/724b0fdeb733175a48af2892cd521080ae0c9765))
+* **merge,pull:** limit {shortlog} with --shortlog &lt;n&gt; ([#536](https://github.com/roschaefer/git-splice/issues/536)) ([092c6ff](https://github.com/roschaefer/git-splice/commit/092c6ffa6af02c38543e786df57f513c7c1be233)), closes [#424](https://github.com/roschaefer/git-splice/issues/424)
+
+
+### Bug Fixes
+
+* **check-drawing:** let a per-lane label name another commit on a side ([#520](https://github.com/roschaefer/git-splice/issues/520)) ([68a3305](https://github.com/roschaefer/git-splice/commit/68a3305014920dc080e10372f8a8864896fcbc8d))
+* **check-drawing:** require labels for synced commit arguments ([#562](https://github.com/roschaefer/git-splice/issues/562)) ([5b9cbdf](https://github.com/roschaefer/git-splice/commit/5b9cbdfe391627cded8207c6de0aa0dc91a6ca4a))
+* **clone:** stop promising the first push creates the missing branch ([#530](https://github.com/roschaefer/git-splice/issues/530)) ([01eb7ac](https://github.com/roschaefer/git-splice/commit/01eb7ac3045804dffa98979c2527e3211aa51873)), closes [#273](https://github.com/roschaefer/git-splice/issues/273)
+* **fetch:** run at most 8 upstream fetches at once ([#532](https://github.com/roschaefer/git-splice/issues/532)) ([194592b](https://github.com/roschaefer/git-splice/commit/194592b293ba02bf62cbcbde2fdb924a12b7f651)), closes [#180](https://github.com/roschaefer/git-splice/issues/180)
+* **init:** refuse an upstream that has tags but no branches ([#527](https://github.com/roschaefer/git-splice/issues/527)) ([3993986](https://github.com/roschaefer/git-splice/commit/399398674556702f9b8c53fe523b93292541ecbd)), closes [#19](https://github.com/roschaefer/git-splice/issues/19)
+* **key:** refuse a numbered fallback key longer than 64 characters ([#525](https://github.com/roschaefer/git-splice/issues/525)) ([391be07](https://github.com/roschaefer/git-splice/commit/391be07c4317a72111aff6abac45e9ba2ad9275c)), closes [#64](https://github.com/roschaefer/git-splice/issues/64)
+* **nested:** refuse an upstream whose nested .splice can't be read ([#534](https://github.com/roschaefer/git-splice/issues/534)) ([7ff9f5e](https://github.com/roschaefer/git-splice/commit/7ff9f5e03299da3c6c85f7212b2c011c44c99c97)), closes [#70](https://github.com/roschaefer/git-splice/issues/70)
+* **state:** report never-fetched in a fresh clone after init ([#535](https://github.com/roschaefer/git-splice/issues/535)) ([fb5f85f](https://github.com/roschaefer/git-splice/commit/fb5f85f8b195f7ef577dc298113318045e1334e8)), closes [#11](https://github.com/roschaefer/git-splice/issues/11)
+
 ## [0.22.0](https://github.com/roschaefer/git-splice/compare/v0.21.0...v0.22.0) (2026-11-18)
 
 

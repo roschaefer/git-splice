@@ -128,11 +128,20 @@ edit_drawing() {
   [ "${lines[0]}" = "!!   the lane vendor/a/b/ is a folder inside vendor/a/: draw it inside that lane" ]
 }
 
-@test "drawing lanes: with several splices, B outside every lane says why it can't be checked" {
-  edit_drawing -u '//mxCell[@value="H"]/@value' -v B
+@test "drawing lanes: a shared B needs no folder even with several splices" {
+  edit_drawing -u '//mxCell[@value="H"]/@value' -v 'H = B' \
+    -u '//mxCell[@id="box1"]/@value' -v 'U(B)'
   run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing lanes: different boundaries require B to specify its folder" {
+  git config --file vendor/a/b/.splice upstream.other.url "$upstream"
+  git commit -q -am "add another upstream below"
+  edit_drawing -u '//mxCell[@value="H"]/@value' -v B
+  run check_drawing "$drawing" a=HEAD~1 "${revs[@]:1}"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   B outside every lane doesn't say which splice's boundary it is: with several splices, leave B out" ]
+  [[ "$output" == *"the splices have different boundaries: qualify B with its folder, e.g. B(vendor/a/)"* ]]
 }
 
 @test "drawing lanes: a label given for its lane, <lane>/<label>=<rev>, names another commit in each lane it's drawn in" {
@@ -148,4 +157,39 @@ edit_drawing() {
   run check_drawing "$drawing" a=HEAD l=refs/splices/upstream/heads/main x=refs/splices/upstream/heads/main~1
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   x is in the lane vendor/a/b/, but isn't in that splice's upstream history or R"* ]]
+}
+
+@test "drawing lanes: a boundary qualified by folder names that splice's monorepo commit" {
+  edit_drawing -u '//mxCell[@value="H"]/@value' -v 'H = B(vendor/a/) = B(vendor/a/b/)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing lanes: a boundary qualified by an unknown folder is rejected" {
+  edit_drawing -u '//mxCell[@value="H"]/@value' -v 'H = B(vendor/missing/)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"there's no B(vendor/missing/)"* ]]
+}
+
+@test "drawing lanes: U(B) accepts the boundary box for its own folder" {
+  edit_drawing -u '//mxCell[@id="box0"]/@value' -v 'H = B(vendor/a/b/)' \
+    -u '//mxCell[@id="box1"]/@value' -v 'U(B)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing lanes: U(B) cannot use another folder's boundary box" {
+  edit_drawing -u '//mxCell[@id="box0"]/@value' -v 'H = B(vendor/a/)' \
+    -u '//mxCell[@id="box1"]/@value' -v 'U(B)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(B) points at m, but no B label is drawn: add a box naming B" ]
+}
+
+@test "drawing lanes: a qualified boundary pointing at another commit is rejected" {
+  edit_drawing -u '//mxCell[@id="box1"]/@value' -v 'B(vendor/a/)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   B(vendor/a/) points at m, the code says a" ]
 }

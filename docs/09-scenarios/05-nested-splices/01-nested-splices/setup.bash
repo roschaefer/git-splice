@@ -1,9 +1,10 @@
 # See README.md in this directory. b's upstream is the bare
 # repository <upstream>-b.git (without .git), reached as $3 if given, e.g.
-# a URL that url.<path>.insteadOf maps to it.
+# a URL that url.<path>.insteadOf maps to it; the monorepo reaches a's
+# upstream as $4 if given, the same way.
 scenario_nested_splices() {
   local monorepo="$1" upstream="$2" upstream_b="${2%.git}-b.git" work
-  local b_url="${3:-$upstream_b}"
+  local b_url="${3:-$upstream_b}" a_url="${4:-$upstream}"
   make_bare_repo "$upstream_b"
   seed_bare_repo "$upstream_b" "b seed"
   make_bare_repo "$upstream"
@@ -17,6 +18,6 @@ scenario_nested_splices() {
   git -C "$work" push -q origin HEAD:main
   rm -rf "$work"
   init_monorepo "$monorepo"
-  add_splice "$monorepo" "$upstream" vendor/a
+  add_splice "$monorepo" "$a_url" vendor/a
   fetch_splice "$monorepo" "$b_url" vendor/a/b
 }
