@@ -93,6 +93,91 @@ Upstream: $old..$new" ]
   [ "$(wc -l <<<"$message")" -eq 23 ]
 }
 
+@test "message template: --shortlog=<n> lists at most <n> commits in {shortlog}, then '...', as 'git merge --log=<n>' does" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  push_upstream_commits "$upstream" 4
+  cd "$monorepo"
+  splice pull --shortlog=2 --message-template '{count} commits
+
+{shortlog}' vendor/a
+  [ "$(git log -1 --format=%B)" = "5 commits
+
+  side work
+  change 4
+  ..." ]
+}
+
+@test "message template: --shortlog <n> above 20 lists more than the default, e.g. all of them" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  push_upstream_commits "$upstream" 24
+  cd "$monorepo"
+  splice pull --shortlog 25 --message-template '{shortlog}' --all
+  local message
+  message="$(git log -1 --format=%B)"
+  [ "$(wc -l <<<"$message")" -eq 25 ]
+  [ "$(head -1 <<<"$message")" = "  side work" ]
+  [ "$(tail -1 <<<"$message")" = "  change 1" ]
+}
+
+@test "message template: --shortlog=all lists every non-merge commit without truncation" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  push_upstream_commits "$upstream" 24
+  cd "$monorepo"
+  splice pull --shortlog=all --message-template '{shortlog}' --all
+  local message
+  message="$(git log -1 --format=%B)"
+  [ "$(wc -l <<<"$message")" -eq 25 ]
+  [ "$(head -1 <<<"$message")" = "  side work" ]
+  [ "$(tail -1 <<<"$message")" = "  change 1" ]
+}
+
+@test "message template: --shortlog=0 leaves {shortlog} empty, as 'git merge --log=0' adds no log" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  push_upstream_commits "$upstream" 2
+  cd "$monorepo"
+  splice pull --shortlog=0 --message-template '{command} {path} ({count} commits)
+
+{shortlog}' vendor/a
+  [ "$(git log -1 --format=%B)" = "pull vendor/a (3 commits)" ]
+}
+
+@test "message template: --shortlog refuses what isn't a number of commits, or one too big for 'git log --max-count', before pulling anything" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before value
+  before="$(git rev-parse HEAD)"
+  for value in "" -1 ten 2x 2147483647 99999999999; do
+    run splice pull --shortlog="$value" --message-template '{shortlog}' vendor/a
+    [ "$status" -eq 1 ]
+    [ "$output" = "!!   --shortlog needs a number of commits or all, e.g. --shortlog=50 or --shortlog=all" ]
+  done
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "message template: --shortlog needs --message-template, as only a template has a {shortlog}, the way --track needs --branch" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice pull --shortlog=5 vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --shortlog limits {shortlog} in the template --message-template gives -- add --message-template <template>" ]
+  run splice pull --shortlog=5 -m "take the upstream change" vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --shortlog limits {shortlog} in the template --message-template gives -- add --message-template <template>" ]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "message template: --shortlog is only for merge and pull, the commands whose commits have a {shortlog}" {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  init_monorepo "$monorepo"
+  cd "$monorepo"
+  run splice clone --shortlog=5 "$upstream" vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   unknown option: --shortlog" ]]
+}
+
 @test "message template: refuses -m with it, as both give the message" {
   scenario_pull_ahead "$monorepo" "$upstream"
   cd "$monorepo"

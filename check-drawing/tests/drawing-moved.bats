@@ -119,8 +119,7 @@ edit_drawing() {
   mkdir libs
   git mv vendor/a libs/a
   git commit -q -m "reorganize folders"
-  # With two splices, B outside every lane can't say whose it is.
-  edit_drawing -d '//mxCell[@id="box3" or @source="box3"]'
+  edit_drawing -u '//mxCell[@id="box3"]/@value' -v 'B(libs/a/)'
   # Every splice gets a lane, the mirror too.
   sed -i 's#</root>#<mxCell id="lane_orig" parent="1" vertex="1" value="vendor/orig/" style="rounded=1;fillColor=none;"><mxGeometry x="2000" y="0" width="200" height="100" as="geometry" /></mxCell></root>#' "$drawing"
   run check_drawing "$drawing" "${revs[@]}"

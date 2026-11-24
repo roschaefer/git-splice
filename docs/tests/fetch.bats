@@ -119,3 +119,28 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(git -C vendor/sub rev-parse origin/main)" = "$before" ]
 }
+
+@test "fetch: runs at most 8 fetches at once, under sshd's default MaxStartups of 10" {
+  local i running="$BATS_TEST_TMPDIR/running" peaks="$BATS_TEST_TMPDIR/peaks"
+  init_monorepo "$monorepo"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "upstream"
+  for i in $(seq 1 12); do
+    cp -R "$upstream" "$BATS_TEST_TMPDIR/upstream$i.git"
+    add_splice "$monorepo" "$BATS_TEST_TMPDIR/upstream$i.git" "vendor/lib$i"
+  done
+  cd "$monorepo"
+  mkdir "$running"
+  stub_git "
+    if [[ \" \$* \" == *' fetch '* && \"\$*\" == *'refs/heads/*:'* ]]; then
+      mkdir '$running'/\$\$
+      ls '$running' | wc -l >>'$peaks'
+      sleep 0.5
+      rmdir '$running'/\$\$
+    fi"
+  run splice fetch
+  [ "$status" -eq 0 ]
+  [ "$(grep -c "fetched" <<<"$output")" -eq 12 ]
+  [ "$(wc -l <"$peaks")" -eq 12 ]
+  [ "$(sort -n "$peaks" | tail -n 1)" -le 8 ]
+}
