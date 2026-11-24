@@ -243,18 +243,22 @@ impl Checker<'_> {
                 let k = argument(&term, "U");
                 term = format!("U({})", aliases.get(k).map_or(k, String::as_str));
             }
-            // With several splices, only a lane says whose B is.
             if term == "B" && splice.is_empty() {
-                self.errors.push("B outside every lane doesn't say which splice's boundary it is: with several splices, leave B out".to_string());
+                self.errors.push("B outside every lane doesn't say which splice's boundary it is: with several splices, qualify B with its folder, e.g. B(vendor/a/)".to_string());
                 continue;
             }
             if is_term(&term, "U") {
                 let k = argument(&term, "U");
                 if matches!(k, "H" | "B") {
                     let drawn = self.boxes.iter().any(|&cell| {
-                        self.value(cell)
-                            .split(" = ")
-                            .any(|label| aliases.get(label).map_or(label, String::as_str) == k)
+                        self.value(cell).split(" = ").any(|label| {
+                            let label = aliases.get(label).map_or(label, String::as_str);
+                            if k == "B" && is_term(label, "B") {
+                                argument(label, "B").trim_end_matches('/') == splice
+                            } else {
+                                label == k && (k != "B" || self.splice_of(cell) == splice)
+                            }
+                        })
                     });
                     if !drawn {
                         self.errors.push(format!(

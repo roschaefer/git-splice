@@ -71,6 +71,7 @@ fn argument<'a>(term: &'a str, function: &str) -> &'a str {
 /// tracked(b) or merge-base(R,T).
 fn is_branch_term(term: &str) -> bool {
     !matches!(term, "H" | "B" | "T" | "R" | "merge-base(R,T)")
+        && !is_term(term, "B")
         && !is_term(term, "U")
         && !is_term(term, "tracked")
 }
@@ -1186,6 +1187,10 @@ impl<'a> Checker<'a> {
         match term {
             "H" => self.head.clone(),
             "B" => truth.b.clone(),
+            _ if is_term(term, "B") => self
+                .truth(argument(term, "B").trim_end_matches('/'))
+                .b
+                .clone(),
             "T" => truth.t.clone(),
             "R" => truth.r.clone(),
             "merge-base(R,T)" => truth.base.clone(),

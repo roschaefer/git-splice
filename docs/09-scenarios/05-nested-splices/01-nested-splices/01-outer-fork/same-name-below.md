@@ -64,7 +64,7 @@ past:
 
 <div align="center">
 
-![The monorepo's a and c, H; the lane vendor/a/ split in two: origin with c prime, dashed, which is R, on top of l on top of k, l being T, U(H) and U(a); fork with q and the dashed c prime, R, both on top of l on top of k, q being main; inside it, the lane vendor/a/b/, also split: origin with m, which is T, R, U(H) and U(a); fork with n on top of m, n being main and m R](same-name-below.drawio.svg)
+![The monorepo's a, B(vendor/a/), and c, H and B(vendor/a/b/); the lane vendor/a/ split in two: origin with c prime, dashed, which is R, on top of l on top of k, l being T, U(H) and U(B); fork with q and the dashed c prime, R, both on top of l on top of k, q being main; inside it, the lane vendor/a/b/, also split: origin with m, which is T, R, U(H) and U(B); fork with n on top of m, n being main and m R](same-name-below.drawio.svg)
 
 </div>
 
@@ -73,7 +73,7 @@ past:
 $ check_drawing "$TESTDIR/same-name-below.drawio.svg" \
 >   a=HEAD~1 c=HEAD k=refs/splices/upstream/heads/main~1 l=refs/splices/upstream/heads/main \
 >   q=refs/splices/a/heads/main m=refs/splices/b/heads/main n=refs/splices/company-b/heads/main
-ok   same-name-below.drawio.svg: 12 commits, 15 arrows, 8 boxes, 2 lanes, 4 upstreams
+ok   same-name-below.drawio.svg: 12 commits, 16 arrows, 9 boxes, 2 lanes, 4 upstreams
 ```
 -->
 
@@ -141,7 +141,7 @@ dashed where that side's upstream doesn't have it yet. The origin
 branches stay where they were, so on the origin side *q* and *n* are
 dashed too: the pull went to the forks.
 
-![The monorepo's a, c and p, H at p; c and p outlined orange. The lane vendor/a/, split: origin with k and l, l being T and U(a), and on l the dashed q and c', merged by the dashed p', R; fork with k, l and q, q being main and U(H), and the dashed c' on l; p', dashed, merges c' and q and is R. Inside it, vendor/a/b/, split: origin with m, T and U(a), the dashed n on m and the dashed p' on n, R; fork with m and n, n being main and U(H), and the dashed p' on n, R. Every c' and p' and the monorepo's c and p are outlined orange](same-name-below-pulled.drawio.svg)
+![The monorepo's a, B(vendor/a/), c, B(vendor/a/b/), and p, H at p; c and p outlined orange. The lane vendor/a/, split: origin with k and l, l being T and U(B), and on l the dashed q and c', merged by the dashed p', R; fork with k, l and q, q being main and U(H), and the dashed c' on l; p', dashed, merges c' and q and is R. Inside it, vendor/a/b/, split: origin with m, T and U(B), the dashed n on m and the dashed p' on n, R; fork with m and n, n being main and U(H), and the dashed p' on n, R. Every c' and p' and the monorepo's c and p are outlined orange](same-name-below-pulled.drawio.svg)
 
 <!--
 ```scrut
@@ -149,7 +149,7 @@ $ check_drawing "$TESTDIR/same-name-below-pulled.drawio.svg" \
 >   a=HEAD~2 c=HEAD~1 p=HEAD k=refs/splices/upstream/heads/main~1 l=refs/splices/upstream/heads/main \
 >   q=refs/splices/a/heads/main m=refs/splices/b/heads/main n=refs/splices/company-b/heads/main \
 >   vendor/a/p\'=$(git splice rebuild vendor/a) vendor/a/b/p\'=$(git splice rebuild vendor/a/b)
-ok   same-name-below-pulled.drawio.svg: 19 commits, 25 arrows, 9 boxes, 2 lanes, 4 upstreams
+ok   same-name-below-pulled.drawio.svg: 19 commits, 27 arrows, 11 boxes, 2 lanes, 4 upstreams
 ```
 -->
 
