@@ -210,6 +210,41 @@ SCRIPT
   [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = "refs/splices/lib/heads/feature/x"$'\n'"refs/splices/lib/heads/main" ]
 }
 
+@test "key: a first fetch racing a rename keeps the renamed key, and asks to run again" {
+  scenario_never_fetched "$monorepo" "$upstream"
+  cd "$monorepo"
+  rename_key_while_serving lib
+  run splice fetch vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: its upstream's key 'upstream' was renamed to 'lib' meanwhile -- run the command again"* ]]
+  [ "${lines[-1]}" = "!!   Failed: vendor/a" ]
+  [ "$(git config --local splice.lib.url)" = "$upstream" ]
+  [ -z "$(git for-each-ref refs/splices/)" ]
+  git config --local --unset "url.ext::rename-then-serve %S $upstream.insteadOf"
+  splice fetch vendor/a >/dev/null
+  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = refs/splices/lib/heads/main ]
+}
+
+@test "key: a fetch whose refs a rename already moved asks to run again" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice fetch >/dev/null
+  seed_bare_repo "$upstream" "on a branch" feature/x
+  touch "$BATS_TEST_TMPDIR/rename-once"
+  cat >.git/hooks/reference-transaction <<HOOK
+#!/bin/sh
+[ "\$1" = committed ] && [ -e "$BATS_TEST_TMPDIR/rename-once" ] || exit 0
+grep -q ' refs/splices/upstream/' || exit 0
+rm "$BATS_TEST_TMPDIR/rename-once"
+"$ENTRYPOINT" key vendor/a lib >&2
+HOOK
+  chmod +x .git/hooks/reference-transaction
+  run splice fetch vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: its upstream's key 'upstream' was renamed to 'lib' meanwhile -- run the command again"* ]]
+  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = "refs/splices/lib/heads/feature/x"$'\n'"refs/splices/lib/heads/main" ]
+}
+
 @test "key: a push racing a rename leaves no refs under the old key, and asks to fetch" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"

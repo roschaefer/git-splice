@@ -434,6 +434,7 @@ impl FetchResults {
     pub(crate) fn finish(mut self, repo: &mut Repo) -> Res<(FetchFailures, ExecutionEvent)> {
         // A rename in another worktree may have moved the key's refs while
         // the fetch ran, which then wrote under the old key.
+        let mut overtaken = Vec::new();
         for job in &self.plan.jobs {
             if job.members.iter().all(|m| self.reports[m.index].failed) {
                 continue;
@@ -442,6 +443,7 @@ impl FetchResults {
             if now == job.key {
                 continue;
             }
+            overtaken.push(job.key.clone());
             let renamed = key_changed(&job.key, &now);
             for member in &job.members {
                 let report = &mut self.reports[member.index];
@@ -478,6 +480,7 @@ impl FetchResults {
         }
         for job in &self.plan.jobs {
             if self.plan.new_keys.contains(&job.key)
+                && !overtaken.contains(&job.key)
                 && job.members.iter().all(|m| self.reports[m.index].failed)
             {
                 repo.forget_upstream_key(&job.key)?;

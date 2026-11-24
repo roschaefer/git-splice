@@ -1552,9 +1552,10 @@ impl<'context> Repo<'context> {
             ])
             .out()
             .unwrap_or_default();
-            if !git(&["update-ref", "--stdin"])
-                .input(format!("{refs}\n"))
-                .ok()
+            if !refs.is_empty()
+                && !git(&["update-ref", "--stdin"])
+                    .input(format!("{refs}\n"))
+                    .ok()
             {
                 return die(format!(
                     "couldn't remove refs/splices/{key}/, left by a key renamed meanwhile"
