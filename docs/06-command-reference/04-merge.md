@@ -316,8 +316,9 @@ $ git splice merge -h | check-help section upstream-branch
     or the tag or commit its default-pin names. On a branch the upstream
     doesn't have, there's nothing to merge: status compares with the
     upstream's default branch there, as for a PR, but merge doesn't take
-    it, and says how many of its commits the splice lacks. --branch names
-    another.
+    it, and says how many of its commits the splice lacks. If the splice
+    tracks a branch the upstream doesn't have, merge fails instead. --branch
+    names another.
 ```
 
 On a feature branch the upstream doesn't have, there's nothing to merge:
