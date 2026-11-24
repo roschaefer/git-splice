@@ -209,6 +209,9 @@ The monorepo's `.gitattributes` mustn't change how the upstream's files
 are checked out or stored, or `clone` refuses and names the line that
 fixes it
 ([clone-under-monorepo-attributes](../09-scenarios/02-starting-a-splice/09-clone-under-monorepo-attributes/README.md)).
+An upstream that encrypts its files, e.g. with git-crypt, leaves the
+`.splice` out of the filter with `.splice !filter !diff`
+([encrypted-upstream](../09-scenarios/04-upstreams/09-encrypted-upstream/README.md)).
 
 ## Submodules
 
