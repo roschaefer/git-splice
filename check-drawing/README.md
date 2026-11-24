@@ -128,6 +128,8 @@ does.
   and T have in common. Several
   names
   are joined by ` = `, e.g. `U(H) = U(B)`: each must name that commit.
+  Every `U(x)` needs a drawn label for `x`: a box term for H or B
+  (including an alias), or the commit label for a drawn commit.
 - **Lane**: a shape labelled with a splice's folder, e.g. `vendor/a/`,
   holds that splice's upstream commits and boxes.
   - A monorepo with several splices needs a lane for each of them, so a

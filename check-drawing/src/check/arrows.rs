@@ -250,7 +250,19 @@ impl Checker<'_> {
             }
             if is_term(&term, "U") {
                 let k = argument(&term, "U");
-                if k != "H" && k != "B" {
+                if matches!(k, "H" | "B") {
+                    let drawn = self.boxes.iter().any(|&cell| {
+                        self.value(cell)
+                            .split(" = ")
+                            .any(|label| aliases.get(label).map_or(label, String::as_str) == k)
+                    });
+                    if !drawn {
+                        self.errors.push(format!(
+                            "{shown} points at {vt}, but no {k} label is drawn: add a box naming {k}"
+                        ));
+                        continue;
+                    }
+                } else {
                     let drawn = self
                         .id_of_label
                         .get(k)
