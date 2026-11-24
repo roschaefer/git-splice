@@ -28,6 +28,8 @@ it. Only the `.splice` committed in `HEAD` counts. Here,
 `default-branch = master` maps the monorepo's default branch, say `main`,
 to upstream `master`
 ([example](../09-scenarios/04-upstreams/01-default-branch/README.md)).
+Each command warns about a key it doesn't know, e.g. a misspelled one
+([example](../09-scenarios/04-upstreams/01-default-branch/misspelled-key.md)).
 
 To pin the monorepo's default branch at a tag or complete commit ID, use
 `default-pin` in place of `default-branch`:

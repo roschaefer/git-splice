@@ -132,6 +132,22 @@ complete_words() {
   [ -z "$output" ]
 }
 
+@test "completion: --shortlog only for merge and pull, nothing for its number, and the number is no path" {
+  local command
+  for command in merge pull; do
+    run complete_words git-splice "$command" --sho
+    [ "$output" = "--shortlog" ]
+  done
+  for command in clone init push; do
+    run complete_words git-splice "$command" --sho
+    [ -z "$output" ]
+  done
+  run complete_words git-splice pull --shortlog ""
+  [ -z "$output" ]
+  run complete_words git-splice merge --shortlog = ""
+  [ -z "$output" ]
+}
+
 @test "completion: nothing to offer for the branch after --branch" {
   run complete_words git-splice pull --branch ""
   [ -z "$output" ]
@@ -514,6 +530,26 @@ fish_complete() {
   [ "$output" = "--rebase" ]
   run fish_complete "git-splice pull --br"
   [ "$output" = "--branch" ]
+}
+
+@test "zsh completion: merge and pull complete --shortlog, init doesn't" {
+  require_shell zsh
+  run zsh_complete "git-splice pull --sho"
+  [[ "$output" == *"--shortlog"* ]]
+  run zsh_complete "git-splice merge --sho"
+  [[ "$output" == *"--shortlog"* ]]
+  run zsh_complete "git-splice init --sho"
+  [[ "$output" != *"--shortlog"* ]]
+}
+
+@test "fish completion: merge and pull complete --shortlog, init doesn't" {
+  require_shell fish
+  run fish_complete "git-splice pull --sho"
+  [ "$output" = "--shortlog" ]
+  run fish_complete "git-splice merge --sho"
+  [ "$output" = "--shortlog" ]
+  run fish_complete "git-splice init --sho"
+  [ -z "$output" ]
 }
 
 @test "fish completion: init completes --message, and the path after its message" {
