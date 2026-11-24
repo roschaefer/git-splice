@@ -327,6 +327,30 @@ pub fn join_names(names: &[String]) -> String {
     out
 }
 
+/// The refs <url> advertises besides HEAD, e.g. refs/heads/main and
+/// refs/tags/v1, without the peeled ^{} lines; None if it can't be reached.
+pub fn advertised_refs(url: &str) -> Option<Vec<String>> {
+    let listing = git(&["ls-remote", "--", url]).out()?;
+    Some(
+        listing
+            .lines()
+            .filter_map(|line| line.split_once('\t').map(|(_, name)| name))
+            .filter(|name| *name != "HEAD" && !name.ends_with("^{}"))
+            .map(str::to_string)
+            .collect(),
+    )
+}
+
+/// "<url> has no branches, but <the first of refs>", and how many more.
+pub fn no_branches_but(url: &str, refs: &[String]) -> String {
+    let first = refs.first().map(String::as_str).unwrap_or_default();
+    match refs.len() {
+        0 | 1 => format!("{url} has no branches, but {first}"),
+        2 => format!("{url} has no branches, but {first} and 1 more ref"),
+        n => format!("{url} has no branches, but {first} and {} more refs", n - 1),
+    }
+}
+
 /// The path without a leading "./" and trailing slashes, as splice paths are
 /// compared and stored.
 pub fn normalize_path(path: &str) -> String {
@@ -386,6 +410,26 @@ mod tests {
         assert_eq!(shell_quote("my lib"), "'my lib'");
         assert_eq!(shell_quote("a;rm -rf"), "'a;rm -rf'");
         assert_eq!(shell_quote("$HOME"), "'$HOME'");
+    }
+
+    #[test]
+    fn no_branches_but_names_the_first_ref_and_counts_the_others() {
+        let refs = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+        assert_eq!(
+            no_branches_but("u", &refs(&["refs/tags/v1"])),
+            "u has no branches, but refs/tags/v1"
+        );
+        assert_eq!(
+            no_branches_but("u", &refs(&["refs/tags/v1", "refs/tags/v2"])),
+            "u has no branches, but refs/tags/v1 and 1 more ref"
+        );
+        assert_eq!(
+            no_branches_but(
+                "u",
+                &refs(&["refs/tags/v1", "refs/tags/v2", "refs/notes/x"])
+            ),
+            "u has no branches, but refs/tags/v1 and 2 more refs"
+        );
     }
 
     #[test]

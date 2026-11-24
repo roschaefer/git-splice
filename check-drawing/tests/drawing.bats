@@ -968,3 +968,33 @@ outer_forks() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"!!   a fork patch to b names one commit on the origin side and another on the fork side: label them apart"* ]]
 }
+
+@test "drawing: U(H) requires an H label even when HEAD's commit is drawn" {
+  edit_drawing -d '//mxCell[@id="refH" or @source="refH"]'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(H) points at n, but no H label is drawn: add a box naming H" ]
+}
+
+@test "drawing: U(B) requires a B label even when the boundary commit is drawn" {
+  edit_drawing -d '//mxCell[@id="refB" or @source="refB"]'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(B) points at k, but no B label is drawn: add a box naming B" ]
+}
+
+@test "drawing: H and B labels can share a box with branch names" {
+  git branch boundary HEAD~4
+  edit_drawing -u '//mxCell[@id="refH"]/@value' -v 'H = main' \
+    -u '//mxCell[@id="refB"]/@value' -v 'B = boundary'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing: an alias for U(H) still requires a drawn H label" {
+  edit_drawing -d '//mxCell[@id="refH" or @source="refH"]' \
+    -u '//mxCell[@id="refT"]/@value' -v 'T = SYNCED'
+  run check_drawing "$drawing" --alias 'SYNCED=U(H)' a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   SYNCED points at n, but no H label is drawn: add a box naming H" ]
+}

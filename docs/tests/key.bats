@@ -153,3 +153,25 @@ setup() {
   [ -n "$(git for-each-ref refs/splices/upstream/)" ]
   [ ! -e .git/splice-keys.lock ]
 }
+
+@test "fetch: refuses to record a numbered key longer than 64 characters, and takes one recorded by hand" {
+  local name
+  name="$(printf 'a%.0s' {1..60})"
+  upstream="$BATS_TEST_TMPDIR/$name.git"
+  scenario_never_fetched "$monorepo" "$upstream"
+  cd "$monorepo"
+  {
+    printf '[splice "%s"]\n\turl = https://example.com/0.git\n' "$name"
+    for n in $(seq 2 999); do
+      printf '[splice "%s-%s"]\n\turl = https://example.com/%s.git\n' "$name" "$n" "$n"
+    done
+  } >>.git/config
+  run splice fetch vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   couldn't make a valid key for $upstream -- record one yourself: git config --local splice.<key>.url $upstream" ]
+  [ -z "$(git config --local "splice.$name-1000.url" || true)" ]
+  git config --local splice.mine.url "$upstream"
+  splice fetch vendor/a >/dev/null
+  [ "$(splice key vendor/a)" = mine ]
+  git rev-parse --verify --quiet refs/splices/mine/heads/main
+}

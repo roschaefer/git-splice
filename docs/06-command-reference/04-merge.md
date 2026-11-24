@@ -12,7 +12,7 @@ NAME
     git-splice-merge - Splice in fetched upstream changes
 
 SYNOPSIS
-    git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template>] (<path>... | --all)
+    git splice merge [--upstream <name>] [--branch <name> [--track]] [--bump | --rebase] [--no-fork-point] [--message-template <template> [--shortlog <n>]] (<path>... | --all)
     git splice merge [<option>...] -m <message> <path>
     git splice merge [-m <message>] --rebuilt-commit <commit> <path>
 ```
@@ -254,13 +254,14 @@ $ git splice merge -h | check-help option --message-template
         synced commit before and after; {full-old} and {full-new}
         unabbreviated), and {count} and {shortlog} for the commits from
         {old} to {new}, merge commits left out: their number, and their
-        subjects as 'git merge --log' lists them, at most 20. {{ and }} are
-        literal braces. A placeholder the command has no value for, e.g.
-        {old} for clone, stops it before it writes anything. A splice
-        without a synced commit, in a clone made between init and its push,
-        fails on {old}, {count} and {shortlog} like a refused splice. It
-        doesn't go with -m, nor with --rebuilt-commit, whose commit keeps
-        the message of the one it merges. Without it, the template is the default:
+        subjects as 'git merge --log' lists them, at most 20 (see
+        --shortlog). {{ and }} are literal braces. A placeholder the
+        command has no value for, e.g. {old} for clone, stops it before it
+        writes anything. A splice without a synced commit, in a clone made
+        between init and its push, fails on {old}, {count} and {shortlog}
+        like a refused splice. It doesn't go with -m, nor with
+        --rebuilt-commit, whose commit keeps the message of the one it
+        merges. Without it, the template is the default:
 
             splice: {command} {path} from {upstream} at {new}
 ```
@@ -292,6 +293,20 @@ chore(deps): merge vendor/pkg-a to 703b936
 Unlike `-m`, it takes several splices or `--all`: each commit fills in
 its own values.
 
+### `--shortlog`
+
+```scrut
+$ git splice merge -h | check-help option --shortlog
+        Lists at most <n> commits in {shortlog} instead of 20, then "...",
+        like 'git merge --log=<n>'; 0 leaves it empty, all lists every
+        non-merge commit. It goes with --message-template, as --track goes
+        with --branch.
+```
+
+A lower limit keeps a long pull's message within a commit linter's
+line limit, and `--shortlog=all` lists every non-merge commit, e.g. for
+a changelog ([an example](05-pull.md#--shortlog)).
+
 ## Upstream branch
 
 ```scrut
@@ -299,7 +314,11 @@ $ git splice merge -h | check-help section upstream-branch
     The upstream branch is the one named like the current branch; on the
     monorepo's default branch, the upstream's default-branch if it has one,
     or the tag or commit its default-pin names. On a branch the upstream
-    doesn't have, there's nothing to merge. --branch names another.
+    doesn't have, there's nothing to merge: status compares with the
+    upstream's default branch there, as for a PR, but merge doesn't take
+    it, and says how many of its commits the splice lacks. If the splice
+    tracks a branch the upstream doesn't have, merge fails instead. --branch
+    names another.
 ```
 
 On a feature branch the upstream doesn't have, there's nothing to merge:
