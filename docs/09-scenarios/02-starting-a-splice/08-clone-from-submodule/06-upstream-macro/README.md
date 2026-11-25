@@ -1,12 +1,15 @@
 # Scenario: clone-from-submodule, with a macro in upstream's attributes
 
+> **Known bug, [#311](https://github.com/roschaefer/git-splice/issues/311).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../99-known-bugs.md).
+
 Upstream's own `.gitattributes` defines a macro. Git accepts macro
 definitions only in the top-level `.gitattributes`, which upstream's is
 in its own repository and in a submodule, but not in a splice's folder.
 A converted submodule and a plain `clone` alike would lose the macro's
 attributes, and no line above the folder can bring them back: both
-refuse, and leave the decision to you. This is a known gap
-([#311](https://github.com/roschaefer/git-splice/issues/311)).
+refuse. A copy of the definition in the monorepo's root
+`.gitattributes` brings them back, and upstream's own file stays as it
+is.
 
 - **Monorepo, on `main`**: no `.gitattributes`. `vendor/a/` is a
   submodule of the upstream, checked out at `add run.bat`.
@@ -71,4 +74,56 @@ $ git splice clone https://git.example.com/a.git vendor/b
 ===  vendor/b: fetching https://git.example.com/a.git
 !!   vendor/b: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that
 [1]
+```
+
+## The definition in the monorepo's root
+
+Git reads macro definitions in the monorepo's top-level
+`.gitattributes`. Copy the definition there, and commit it:
+
+```scrut
+$ echo '[attr]crlf-text text eol=crlf' >>.gitattributes &&
+>   git add .gitattributes &&
+>   git commit -q -m "define crlf-text for vendor/a"
+```
+
+```scrut
+$ cat .gitattributes
+[attr]crlf-text text eol=crlf
+```
+
+Git still warns about the definition in `vendor/a/.gitattributes`, but
+the rule below it now gets the attributes from the root's:
+
+```scrut
+$ git check-attr text eol -- vendor/a/run.bat
+[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1
+vendor/a/run.bat: text: set
+vendor/a/run.bat: eol: crlf
+```
+
+So the conversion goes through, with the warning each time Git reads
+the file:
+
+```scrut
+$ git splice clone --from-submodule vendor/a
+===  vendor/a: fetching https://git.example.com/a.git
+[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1 (equal+)
+ok   vendor/a: cloned 374055d from the submodule
+===  vendor/a: pinned at 374055d, as the submodule was -- pull brings in nothing and push refuses on main until it follows a branch: git config --file vendor/a/.splice --unset upstream.origin.default-pin
+===  vendor/a: the submodule's repository stays in .*/monorepo/\.git/modules/vendor/a -- remove it once you don't need it (regex)
+```
+
+`run.bat` is checked out with CRLF, as in the submodule:
+
+```scrut
+$ cat -A vendor/a/run.bat
+echo run^M$
+```
+
+Nothing shows as changed:
+
+```scrut
+$ git status --short
+[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1
 ```
