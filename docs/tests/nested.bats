@@ -750,6 +750,50 @@ b_moved_to_a_commit_no_branch_has() {
   git cat-file -e "$synced^{commit}"
 }
 
+# b names a second upstream, fork, in the monorepo too; then a's upstream
+# pulls "b fork change" into b/ from fork, and fork drops it from main: the
+# synced commit a's upstream records for b is on no branch, and only fork
+# has it.
+b_moved_to_a_commit_only_fork_has() {
+  scenario_nested_splices "$monorepo" "$upstream"
+  upstream_fork="$BATS_TEST_TMPDIR/upstream-fork.git"
+  git clone -q --bare --no-local "$upstream_b" "$upstream_fork"
+  work_in_upstream_a
+  git config --file b/.splice upstream.fork.url "$upstream_fork"
+  git config --file b/.splice splice.default-upstream origin
+  git commit -q -m "b: a fork" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  splice pull vendor/a >/dev/null
+  seed_bare_repo "$upstream_fork" "b fork change" main other.txt
+  cd "$a_work"
+  splice pull --upstream fork b >/dev/null
+  git push -q origin main
+  git -C "$upstream_fork" update-ref refs/heads/main refs/heads/main^
+  cd "$monorepo"
+}
+
+@test "nested: pull --all fetches the synced commit the pull of a moves b to from b's other upstream, the one that has it" {
+  b_moved_to_a_commit_only_fork_has
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [ "$(git show HEAD:vendor/a/b/other.txt)" = "b fork change" ]
+}
+
+@test "nested: pull --all fetches the synced commit the pull of a moves b to from b's other upstream, also when the pull of a adds a third upstream to b" {
+  b_moved_to_a_commit_only_fork_has
+  upstream_mirror="$BATS_TEST_TMPDIR/upstream-mirror.git"
+  git clone -q --bare --no-local "$upstream_b" "$upstream_mirror"
+  cd "$a_work"
+  git config --file b/.splice upstream.mirror.url "$upstream_mirror"
+  git commit -q -m "b: a mirror" -- b/.splice
+  git push -q origin main
+  cd "$monorepo"
+  run splice pull --all
+  [ "$status" -eq 0 ]
+  [ "$(git show HEAD:vendor/a/b/other.txt)" = "b fork change" ]
+}
+
 @test "nested: pull --all fetches the tag the pull of a pins b at" {
   scenario_nested_splices "$monorepo" "$upstream"
   git -C "$upstream_b" tag v1 main
