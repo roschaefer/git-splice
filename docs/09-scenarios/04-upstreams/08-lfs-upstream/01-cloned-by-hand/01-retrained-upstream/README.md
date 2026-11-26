@@ -1,6 +1,6 @@
 # Scenario: retrained-upstream
 
-> **Known bug, [#407](https://github.com/roschaefer/git-splice/issues/407).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../../99-known-bugs.md).
+> **Known bug, [#407](https://github.com/roschaefer/git-splice/issues/407).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../../../99-known-bugs.md#known-bugs).
 
 The upstream changed a file it stores in Git LFS, and `pull` fails the
 way [`clone`](../../README.md) does: Git LFS looks for the new content on

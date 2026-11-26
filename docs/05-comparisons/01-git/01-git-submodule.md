@@ -362,7 +362,8 @@ removed
 
 One limit: two fetches at the same time, in two worktrees, may both try to
 move the same ref. Then one fails with `cannot lock ref`, and running it
-again fixes it, as with two `git fetch` at once.
+again fixes it. Plain Git does the same with two `git fetch` at once
+([two fetches at once](../../09-scenarios/04-upstreams/05-splice-refs/two-fetches-at-once.md)).
 
 ## Problem 4: moving the library's folder
 

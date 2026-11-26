@@ -140,44 +140,9 @@ change has an older U(H) than one that pulled it, with the same files
 
 ### Mirrors that swap paths
 
-Mirrors are one splice, so the rebuild can't tell them apart. Unlike
-[independent splices](../02-swapped-splices/README.md),
-each path keeps its own history, whichever mirror's files it has now. A commit in each mirror, not pushed yet:
-
-```scrut
-$ echo "not for upstream" >vendor/a/secret.txt &&
->   git add vendor/a &&
->   git commit -q -m "a secret"
-```
-
-```scrut
-$ echo "copy change" >>vendor/a-copy/file.txt && git commit -q -am "copy change"
-```
-
-Then they swap paths:
-
-```scrut
-$ git mv vendor/a tmp &&
->   git mv vendor/a-copy vendor/a &&
->   git mv tmp vendor/a-copy &&
->   git commit -q -m "swap the mirrors"
-```
-
-`vendor/a/` no longer has the secret, but a push still sends `a secret`,
-then the swap that removes it:
-
-```scrut
-$ git splice log vendor/a
-===  vendor/a (main)
-< c5e6540 swap the mirrors  (Test <test@example.com>)
-< 920226f a secret  (Test <test@example.com>)
-```
-
-Nothing in the monorepo tells this swap apart from edits that make one
-splice look like the other
-([#193](https://github.com/roschaefer/git-splice/issues/193)). To avoid
-it, keep mirrors alike: push one, and pull the others right away
-([mirrors](../../../07-design/07-going-forward/01-mirrors.md#meanwhile-discipline)).
+Mirrors are one splice, so the rebuild can't tell them apart: after they
+swap paths, a push can publish what a mirror removed
+([mirrors that swap paths](swapped-paths.md)).
 
 ### Which mirror a move came from
 

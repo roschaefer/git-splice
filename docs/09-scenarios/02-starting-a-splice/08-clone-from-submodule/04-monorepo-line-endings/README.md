@@ -1,6 +1,6 @@
 # Scenario: clone-from-submodule, under the monorepo's line endings
 
-> **Known bug, [#311](https://github.com/roschaefer/git-splice/issues/311).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../99-known-bugs.md).
+> **Known bug, [#311](https://github.com/roschaefer/git-splice/issues/311).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../../99-known-bugs.md#known-bugs).
 
 Git applies a repository's `.gitattributes` to its own files, never to a
 submodule's. Once the submodule is a folder, the monorepo's attributes

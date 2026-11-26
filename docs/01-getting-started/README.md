@@ -24,7 +24,7 @@ Requires:
 
 - Git >= 2.40. `git subtree` isn't needed.
 
-See [known bugs and platform restrictions](../09-scenarios/99-known-bugs.md).
+See [known bugs and limitations](../09-scenarios/99-known-bugs.md).
 
 ## Shell completions
 

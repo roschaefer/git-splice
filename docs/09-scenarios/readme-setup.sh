@@ -83,28 +83,59 @@ check_scenario_setups() {
   done < <(find "$TESTDIR" -mindepth 2 -name setup.bash | sed 's#/setup\.bash$##' | LC_ALL=C sort)
 }
 
-# Used by 99-known-bugs.md to list every document with a known-bug banner,
-# the line right after its title, and its issue. Fails if the banner
-# doesn't link to 99-known-bugs.md, or if the table's rows, document and
-# issue, aren't exactly the banners' pairs. An issue only counts as
-# "[#N](.../issues/N)", with the same N twice.
+# Used by 99-known-bugs.md to list every document with a banner, the line
+# right after its title: what it says (bug, undecided or limitation), and
+# the issue a bug or an undecided one names. Fails if the banner doesn't
+# link to its section of 99-known-bugs.md, or if the rows of each section,
+# document and issue, aren't exactly its banners' pairs. An issue only
+# counts as "[#N](.../issues/N)", with the same N twice.
 check_known_bugs() {
-  local document relative banner issue listed found=
+  local document relative banner page kind issue line listed='' found=''
   local link='\[(#[0-9]+)\]\(https://github\.com/roschaefer/git-splice/issues/([0-9]+)\)'
-  listed="$(grep -E '^\| \[' "$TESTDIR/99-known-bugs.md" |
-    sed -E "s@^\| \[[^]]*\]\(([^)]*)\) \| $link \|.*@\1 \2 \3@" | LC_ALL=C sort)"
+  while IFS= read -r line; do
+    case "$line" in
+      '## Known bugs') kind=bug ;;
+      '## Undecided') kind=undecided ;;
+      '## Limitations') kind=limitation ;;
+      '## '*) kind= ;;
+      '| ['*)
+        [[ -n "$kind" ]] || continue
+        if [[ "$kind" == limitation ]]; then
+          listed+="$(sed -E 's@^\| \[[^]]*\]\(([^)]*)\) \|.*@\1@' <<<"$line") $kind"$'\n'
+        else
+          listed+="$(sed -E "s@^\| \[[^]]*\]\(([^)]*)\) \| $link \|.*@\1 $kind \2 \3@" <<<"$line")"$'\n'
+        fi
+        ;;
+    esac
+  done <"$TESTDIR/99-known-bugs.md"
   while IFS= read -r document; do
     relative="${document#"$TESTDIR/"}"
     banner="$(sed -n 3p "$document")"
-    [[ "$banner" == '> **Known bug, ['* ]] || continue
-    issue="$(sed -E "s@^> \*\*Known bug, $link\.\*\*.*@\1 \2@" <<<"$banner")"
-    [[ "$banner" == *"[all known bugs]($(realpath --relative-to="$(dirname "$document")" "$TESTDIR/99-known-bugs.md"))." ]] || return
-    printf 'ok %s %s\n' "$relative" "${issue% *}"
-    found+="$relative $issue"$'\n'
+    page="$(realpath --relative-to="$(dirname "$document")" "$TESTDIR/99-known-bugs.md")"
+    case "$banner" in
+      '> **Known bug, ['*)
+        issue=" $(sed -E "s@^> \*\*Known bug, $link\.\*\*.*@\1 \2@" <<<"$banner")"
+        [[ "$banner" == *"[known bugs and limitations]($page#known-bugs)." ]] || return
+        kind=bug
+        ;;
+      '> **Undecided, ['*)
+        issue=" $(sed -E "s@^> \*\*Undecided, $link\.\*\*.*@\1 \2@" <<<"$banner")"
+        [[ "$banner" == *"[known bugs and limitations]($page#undecided)." ]] || return
+        kind=undecided
+        ;;
+      '> **Limitation.**'*)
+        issue=
+        [[ "$banner" == *"[known bugs and limitations]($page#limitations)." ]] || return
+        kind=limitation
+        ;;
+      *) continue ;;
+    esac
+    printf 'ok %s %s%s\n' "$relative" "$kind" "${issue% *}"
+    found+="$relative $kind$issue"$'\n'
   done < <(find "$TESTDIR" -mindepth 2 -name '*.md' | LC_ALL=C sort)
-  [[ "$listed" == "$(LC_ALL=C sort <<<"${found%$'\n'}")" ]] || return
+  [[ "$(LC_ALL=C sort <<<"${listed%$'\n'}")" == "$(LC_ALL=C sort <<<"${found%$'\n'}")" ]] || return
   # The same N twice in each pair: "#4 4".
-  ! grep -vE ' #([0-9]+) \1$' <<<"$listed" | grep -q .
+  ! grep -E ' (bug|undecided) ' <<<"$listed" | grep -vE ' #([0-9]+) \1$' | grep -q .
 }
 
 # Once the scenario is built, the READMEs show what a terminal shows,

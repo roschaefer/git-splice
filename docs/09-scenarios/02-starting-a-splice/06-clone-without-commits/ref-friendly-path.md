@@ -1,10 +1,7 @@
 # Scenario: a splice path must be ref-friendly
 
 A splice path must be valid in a Git ref name, e.g. without spaces, so
-`git splice clone` rejects such a path before it fetches anything. Paths
-used to be part of the splice's ref names. Since refs are keyed by the
-upstream's URL, the limit only remains until every command is tested with
-such paths.
+`git splice clone` rejects such a path before it fetches anything.
 
 ## Output
 

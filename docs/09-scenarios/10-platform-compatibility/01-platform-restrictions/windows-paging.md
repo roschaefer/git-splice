@@ -1,8 +1,10 @@
 # Scenario: paging output on Windows
 
+> **Limitation.** This page shows behaviour `git-splice` keeps on purpose, and the way out. See [known bugs and limitations](../../99-known-bugs.md#limitations).
+
 On Windows, `git splice log` and `diff` currently write directly to the
 terminal instead of starting Git's configured pager. Pipe their output to
-a pager explicitly. See [known bugs and restrictions](../../99-known-bugs.md#input-and-platform-restrictions).
+a pager explicitly.
 
 The commands below use `more`, available in Git Bash as well as on the
 POSIX systems used by the documentation checks. They check the explicit

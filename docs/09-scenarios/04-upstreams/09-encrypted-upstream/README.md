@@ -171,4 +171,5 @@ ok   pulled.drawio.svg: 10 commits, 10 arrows, 2 boxes, 1 lanes
 - **The upstream must encrypt with the same key and attributes.**
   git-crypt encrypts deterministically, so the same file gives the same
   blob only with the same key.
-- **The `.splice` is unencrypted**, upstream URL included.
+- **The `.splice` is unencrypted**, upstream URL included
+  ([the `.splice` in plaintext](splice-in-plaintext.md)).

@@ -1,6 +1,6 @@
 # A monorepo commit as the synced commit
 
-> **Known bug, [#7](https://github.com/roschaefer/git-splice/issues/7).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
+> **Known bug, [#7](https://github.com/roschaefer/git-splice/issues/7).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
 
 `.splice` records the synced commit, the upstream commit the next push
 builds on. When an edit of `.splice` names a monorepo commit there

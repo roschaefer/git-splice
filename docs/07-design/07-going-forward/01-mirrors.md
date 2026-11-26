@@ -39,5 +39,5 @@ copies from differing while work is in progress.
 Edit one copy, push it, then pull the others. Clone a copy that should
 have its own history. The [mirrors scenario](../../09-scenarios/07-moved-folders/03-mirrors/README.md)
 shows how to compare copies and resolve drift, and why
-[swapping their paths](../../09-scenarios/07-moved-folders/03-mirrors/README.md#mirrors-that-swap-paths)
+[swapping their paths](../../09-scenarios/07-moved-folders/03-mirrors/swapped-paths.md)
 can send unexpected history upstream.

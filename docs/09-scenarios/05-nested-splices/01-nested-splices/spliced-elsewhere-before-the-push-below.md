@@ -1,6 +1,6 @@
 # Scenario: nested-splices, spliced elsewhere before the push below
 
-> **Known bug, [#467](https://github.com/roschaefer/git-splice/issues/467).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
+> **Known bug, [#467](https://github.com/roschaefer/git-splice/issues/467).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
 
 As in [spliced elsewhere](spliced-elsewhere.md), another monorepo
 splices the outer upstream in, but the monorepo pushed only `vendor/a/`,

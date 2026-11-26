@@ -1,10 +1,11 @@
 # Scenario: non-UTF-8 input
 
+> **Limitation.** This page shows behaviour `git-splice` keeps on purpose, and the way out. See [known bugs and limitations](../../99-known-bugs.md#limitations).
+
 Some repositories created by older tools contain names encoded in a legacy
 character set. `git-splice` currently refuses non-UTF-8 arguments, paths and
 commit author/committer identities rather than silently changing them.
 Commit messages do not have this restriction.
-See [known bugs and restrictions](../../99-known-bugs.md#input-and-platform-restrictions).
 
 ## Output
 
