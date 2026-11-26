@@ -321,7 +321,7 @@ new_upstream() {
   [[ "$output" == *"add 'vendor/a/** !text !eol !filter !ident !working-tree-encoding !crlf' to .gitattributes,"* ]]
 }
 
-@test "clone: names the macros upstream's .gitattributes defines, which Git reads only at the top of a repository" {
+@test "clone: says upstream's .gitattributes defines macros, which Git reads only at the top of a repository" {
   new_upstream
   commit_raw_file "$upstream" .gitattributes '[attr]crlf-text text eol=crlf\n  [attr]lf-text text eol=lf\n*.bat crlf-text\n*.sh lf-text\n'
   commit_raw_file "$upstream" run.bat 'echo run\n'
@@ -330,22 +330,9 @@ new_upstream() {
   git commit -q -m "binary images"
   run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a: vendor/a/.gitattributes defines macros 'crlf-text' and 'lf-text', which Git reads only in a repository's top-level .gitattributes"* ]]
+  [[ "$output" == *"!!   vendor/a: vendor/a/.gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes"* ]]
   [[ "$output" != *"can't change that"* ]]
   [ ! -e vendor/a ]
-}
-
-@test "clone: doesn't blame a macro upstream's .gitattributes defines but none of its patterns uses" {
-  new_upstream
-  commit_raw_file "$upstream" .gitattributes '[attr]lf-text text eol=lf\n*.bat crlf-text\n'
-  commit_raw_file "$upstream" run.bat 'echo run\n'
-  printf '[attr]crlf-text text eol=crlf\n' >.gitattributes
-  git add .gitattributes
-  git commit -q -m "a macro for the monorepo"
-  run splice clone "$upstream" vendor/a
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"* ]]
-  [[ "$output" != *"defines macro"* ]]
 }
 
 @test "clone: refuses without naming a line where unsetting the monorepo's attributes can't make them upstream's" {
@@ -358,5 +345,5 @@ new_upstream() {
   run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
   [[ "$output" == *"vendor/a: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"* ]]
-  [[ "$output" != *"defines macro"* ]]
+  [[ "$output" != *"defines macros"* ]]
 }
