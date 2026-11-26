@@ -1,7 +1,5 @@
 # splice-refs: key renamed while fetching
 
-> **Known bug, [#61](https://github.com/roschaefer/git-splice/issues/61).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
-
 `git splice key` renames an upstream's key: it moves the refs under
 `refs/splices/<key>/` and the key's entry in the repository's config. A
 `fetch`, `pull` or `push` looks the key up when it starts and writes its
@@ -9,7 +7,9 @@ refs under it seconds later, after the network. If a rename in another
 worktree of the same repository falls between the two, the command writes
 under the old key and reports success. A `push` records what it pushed
 there too. `git remote rename` has the
-[same gap](#plain-git-does-the-same).
+[same gap](#plain-git-does-the-same), and Git accepts it for a rare,
+manual rename; so does `git-splice`. The next fetch
+[repairs it](#the-next-fetch-repairs-it).
 
 ## Output
 
@@ -102,6 +102,44 @@ $ git splice status
 On branch main
 
   up to date  vendor/a
+```
+
+### The next fetch repairs it
+
+Fetching again, without the script, fills the renamed key:
+
+```scrut
+$ git config --unset "url.ext::rename-then-serve %S $UPSTREAM.insteadOf" &&
+>   git config "url.$UPSTREAM.insteadOf" https://git.example.com/a.git
+```
+
+```scrut
+$ git splice fetch
+ok   vendor/a fetched (main moved bde4164..6045a98)
+```
+
+```scrut
+$ git splice status
+On branch main
+
+  behind 1  vendor/a
+```
+
+The refs under the old key stay, as no key names them: `git gc` keeps
+refs, and `fetch` only prunes under the current key. They cost little,
+but keep their commits and the name `a` taken. A folder under
+`refs/splices/` with no `splice.<key>.url` in the config is such a
+leftover, and can be deleted:
+
+```scrut
+$ git for-each-ref --format='delete %(refname)' refs/splices/a/ |
+>     git update-ref --stdin
+```
+
+```scrut
+$ git for-each-ref --format='%(refname)' refs/splices
+refs/splices/lib/heads/fix-parser
+refs/splices/lib/heads/main
 ```
 
 ### Plain Git does the same
