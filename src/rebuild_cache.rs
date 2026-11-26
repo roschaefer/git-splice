@@ -82,8 +82,7 @@ fn parse(data: &[u8]) -> Option<HashMap<Key, String>> {
 /// Whether Git may read a commit as another under its id: through replace
 /// refs or grafts. Unsure counts as yes.
 fn commits_swapped() -> bool {
-    let base = std::env::var("GIT_REPLACE_REF_BASE").unwrap_or_else(|_| "refs/replace/".into());
-    let replaced = git(&["for-each-ref", "--count=1", "--format=x", &base])
+    let replaced = git(&["replace", "--list"])
         .q()
         .out()
         .is_none_or(|refs| !refs.is_empty());

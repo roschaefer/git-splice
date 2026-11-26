@@ -125,3 +125,14 @@ head_with_other_contents() {
   [ "$grafted" != "$before" ]
   [ "$(commits_written rebuild vendor/a)" -gt 0 ]
 }
+
+@test "rebuild cache: replace refs under GIT_REPLACE_REF_BASE count too" {
+  three_unpushed
+  local before replaced
+  before="$(splice rebuild vendor/a)"
+  export GIT_REPLACE_REF_BASE=refs/elsewhere/
+  git replace HEAD "$(head_with_other_contents)"
+  replaced="$(splice rebuild vendor/a)"
+  [ "$replaced" != "$before" ]
+  [ "$(git show "$replaced:other.txt")" = replaced ]
+}
