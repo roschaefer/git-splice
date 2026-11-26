@@ -208,10 +208,10 @@ tracking changes. A hook runs synchronously; the next step starts
 only after it succeeds. A failed hook ends this execution; completed changes
 remain applied, and re-running `push` goes on from there, as after a conflict.
 
-The hook's stdin is the event as JSON, as for
-[`pull`](05-pull.md#payload): `after-rebuild` and `after-push` carry
-`path` and `commit`. `tasks.splices` is empty: `push` doesn't list its
-tasks yet.
+The hook's stdin is the same `{"event": {...}, "tasks": {...}}` line as
+for [`pull`](05-pull.md#payload): `event` of `after-rebuild` and
+`after-push` carries `path` and `commit`. `tasks.splices` is empty:
+`push` doesn't list its tasks yet.
 
 See the [drawing-checked push scenario](../09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/with-exec.md).
 

@@ -263,8 +263,8 @@ remain applied, and re-running `pull` goes on from there, as after a conflict.
 The hook's stdin is one line of JSON, `{"event": {...}, "tasks":
 {...}}`, one record of JSONL, as the [JSON Lines
 specification](https://jsonlines.org/) defines it: a hook that appends
-its stdin to a file, like `cat >>pull.jsonl`, writes a JSONL log. `event.name` is `GIT_SPLICE_EVENT`; the other fields depend on
-it:
+its stdin to a file, like `cat >>pull.jsonl`, writes a JSONL log.
+`event.name` is `GIT_SPLICE_EVENT`; the other fields depend on it:
 
 | `event.name` | Fields |
 |---|---|
