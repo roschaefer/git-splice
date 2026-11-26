@@ -44,17 +44,13 @@ fn clone_path_for(url: &str, windows: bool) -> String {
     name.strip_suffix(".git").unwrap_or(name).to_string()
 }
 
-/// The mode of <path> in commit <rev>, e.g. 160000 for a submodule, or nothing
-/// if it isn't there.
-fn path_mode(rev: &str, path: &str) -> String {
+/// Commit <rev> has a submodule at <path>.
+fn is_submodule(rev: &str, path: &str) -> bool {
     let entry = git(&["ls-tree", "-z", rev, "--", path])
         .bytes()
         .unwrap_or_default();
     let entry = text(&entry).replace('\0', "");
-    match entry.split_once('\t') {
-        Some((fields, name)) if name == path => fields.split(' ').next().unwrap_or("").to_string(),
-        _ => String::new(),
-    }
+    matches!(entry.split_once('\t'), Some((fields, name)) if name == path && fields.split(' ').next() == Some(GITLINK))
 }
 
 /// The path of the first submodule in upstream commit <commit>, if any. A
@@ -64,7 +60,7 @@ fn upstream_submodule(commit: &str) -> Option<String> {
     let listing = git(&["ls-tree", "-r", commit]).out().unwrap_or_default();
     listing.lines().find_map(|line| {
         let (fields, file) = line.split_once('\t')?;
-        fields.starts_with("160000 ").then(|| file.to_string())
+        (fields.split(' ').next() == Some(GITLINK)).then(|| file.to_string())
     })
 }
 
@@ -299,7 +295,7 @@ fn resolve_submodule_url(url: &str, base: &str) -> Res<String> {
         let empty = in_dir(&["hash-object", "-t", "tree", "--stdin"])
             .input("")
             .out()?;
-        let entry = format!("160000,{empty},s");
+        let entry = format!("{GITLINK},{empty},s");
         (in_dir(&["config", "remote.origin.url", &base]).ok()
             && in_dir(&["config", "--file", ".gitmodules", "submodule.s.path", "s"]).ok()
             && in_dir(&["config", "--file", ".gitmodules", "submodule.s.url", url]).ok()
@@ -582,7 +578,7 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         return die(format!("{path} is a splice already"));
     }
     require_no_splice_in_progress()?;
-    if path_mode("HEAD", &path) == "160000" {
+    if is_submodule("HEAD", &path) {
         return die(format!(
             "{path} is a submodule -- 'git splice clone --from-submodule {}' turns it into a splice",
             shell_quote(&path)
@@ -706,7 +702,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         return die(format!("{path} is a splice already"));
     }
     require_no_splice_in_progress()?;
-    if path_mode("HEAD", &path) != "160000" {
+    if !is_submodule("HEAD", &path) {
         return die(format!("{path}: no submodule committed here"));
     }
     let above = splice_above_in("HEAD", &path);
@@ -969,7 +965,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         let Some((fields, sub)) = entry.split_once('\t') else {
             continue;
         };
-        if !fields.starts_with("160000 ") {
+        if fields.split(' ').next() != Some(GITLINK) {
             continue;
         }
         // A process each: every conversion discovers the splices anew, and a
@@ -983,7 +979,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             continue;
         }
         // Converted, but one below it wasn't: that one said so.
-        if path_mode("HEAD", sub) != "160000" {
+        if !is_submodule("HEAD", sub) {
             return Ok(1);
         }
         let template = if repo.args.message_template.is_empty() {

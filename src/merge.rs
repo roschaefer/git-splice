@@ -1207,7 +1207,7 @@ fn refuse_changed_submodule(path: &str, base: &str, target: &str) -> Res<()> {
         .unwrap_or_default();
     let inner = changes.lines().find_map(|line| {
         let (fields, file) = line.split_once('\t')?;
-        (fields.split(' ').nth(1) == Some("160000")).then_some(file)
+        (fields.split(' ').nth(1) == Some(GITLINK)).then_some(file)
     });
     if let Some(inner) = inner {
         return fail(format!(
