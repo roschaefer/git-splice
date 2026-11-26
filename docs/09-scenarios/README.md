@@ -6,7 +6,8 @@ what it prints. That makes the chapter
 and the acceptance tests of
 [acceptance test-driven development](https://en.wikipedia.org/wiki/Acceptance_test-driven_development):
 the documentation and the test are the same file. Some scenarios show a
-bug as it is today; [Known bugs](99-known-bugs.md) lists them.
+bug or a limitation as it is today;
+[Known bugs and limitations](99-known-bugs.md) lists them.
 
 ## Shared test setups
 

@@ -1,5 +1,7 @@
 # Scenario: cycle
 
+> **Undecided, [#86](https://github.com/roschaefer/git-splice/issues/86).** This page shows what `git-splice` does today; whether to change it is open. See [known bugs and limitations](../../99-known-bugs.md#undecided).
+
 The upstream of `vendor/a/` splices in the monorepo, so the monorepo
 contains a copy of itself, which contains a copy of itself, and so on: a
 *cycle*. A package manager can allow cycles, since it installs each

@@ -227,8 +227,8 @@ The folders in `docs/` are the sidebar. The numbers in their names set
 its order, and the site leaves them out of the URLs.
 
 Scenario chapters and the scenarios in them go from the situations
-every user meets to the rare edge cases. Keep Known bugs last under
-Scenarios. Its `99-` prefix is reserved; give new
+every user meets to the rare edge cases. Keep Known bugs and
+limitations last under Scenarios. Its `99-` prefix is reserved; give new
 scenario chapters lower numbers.
 
 A page that would be alone in its folder is a file instead, named like
