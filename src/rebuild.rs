@@ -1020,9 +1020,9 @@ impl Repo<'_> {
         if let (true, false, Some(last), Some(copy)) =
             (cached, nested, commits[done..].last(), &prev)
         {
-            let cache = self.context.rebuild_cache();
-            cache.insert(key(hash_of(last)), copy.clone());
-            cache.save();
+            self.context
+                .rebuild_cache()
+                .remember(key(hash_of(last)), copy.clone());
         }
         Ok(prev)
     }

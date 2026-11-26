@@ -9,9 +9,9 @@
 //! value. Keys never change meaning, so nothing needs invalidating, except
 //! where Git reads some commits as others, through replace refs or grafts:
 //! then nothing is remembered, as Git doesn't use its commit-graph file then
-//! either. Only a
-//! walk's last step is kept, which a later walk on the same branch goes on
-//! from. Losing the file costs time only: each step is computed again.
+//! either. Only a walk's last step is kept, which a later walk on the same
+//! branch goes on from. Losing the file costs time only: each step is
+//! computed again.
 
 use crate::util::*;
 use std::collections::HashMap;
@@ -24,7 +24,7 @@ const HEADER: &[u8] = b"git-splice rebuilds 2\n";
 const MAX_STEPS: usize = 10_000;
 const FIELDS: usize = 5;
 
-#[derive(Clone, Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq)]
 pub(crate) struct Key {
     pub path: String,
     pub start: String,
@@ -37,7 +37,6 @@ pub(crate) struct RebuildCache {
     file: Option<PathBuf>,
     /// The rebuilt commit of each step.
     steps: HashMap<Key, String>,
-    changed: bool,
 }
 
 /// A full object id, SHA-1 or SHA-256.
@@ -86,18 +85,16 @@ fn commits_swapped() -> bool {
         .q()
         .out()
         .is_none_or(|refs| !refs.is_empty());
-    let grafts = match std::env::var_os("GIT_GRAFT_FILE") {
-        Some(file) => Some(PathBuf::from(file)),
-        None => git(&[
-            "rev-parse",
-            "--path-format=absolute",
-            "--git-path",
-            "info/grafts",
-        ])
-        .q()
-        .bytes()
-        .and_then(|path| path_from_output(path).ok()),
-    };
+    // --git-path gives GIT_GRAFT_FILE where it's set.
+    let grafts = git(&[
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-path",
+        "info/grafts",
+    ])
+    .q()
+    .bytes()
+    .and_then(|path| path_from_output(path).ok());
     replaced || grafts.is_none_or(|file| file.exists())
 }
 
@@ -106,16 +103,13 @@ impl RebuildCache {
         if commits_swapped() {
             return Self::default();
         }
-        let dir = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"])
+        let Some(dir) = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"])
             .q()
             .bytes()
-            .unwrap_or_default();
-        let Ok(dir) = path_from_output(dir) else {
+            .and_then(|dir| path_from_output(dir).ok())
+        else {
             return Self::default();
         };
-        if dir.as_os_str().is_empty() {
-            return Self::default();
-        }
         let file = dir.join("splice-rebuilds");
         let steps = std::fs::read(&file)
             .ok()
@@ -125,7 +119,6 @@ impl RebuildCache {
         Self {
             file: Some(file),
             steps,
-            changed: false,
         }
     }
 
@@ -133,21 +126,12 @@ impl RebuildCache {
         self.steps.get(key)
     }
 
-    pub(crate) fn insert(&mut self, key: Key, rebuilt: String) {
-        if self.file.is_some() {
-            self.steps.insert(key, rebuilt);
-            self.changed = true;
-        }
-    }
-
-    /// Writes the file again, whole, if a step was added. Failing to is no
+    /// Adds the step and writes the file again, whole. Failing to is no
     /// error: the next run computes the steps again. Two runs writing at once
     /// keep the steps of the one that renames last.
-    pub(crate) fn save(&mut self) {
+    pub(crate) fn remember(&mut self, key: Key, rebuilt: String) {
         let Some(file) = &self.file else { return };
-        if !self.changed {
-            return;
-        }
+        self.steps.insert(key, rebuilt);
         let mut bytes = HEADER.to_vec();
         for (key, rebuilt) in &self.steps {
             for field in [&key.path, &key.start, &key.lower, &key.commit, rebuilt] {
@@ -160,7 +144,6 @@ impl RebuildCache {
         {
             let _ = std::fs::remove_file(&temporary);
         }
-        self.changed = false;
     }
 }
 

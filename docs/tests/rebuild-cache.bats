@@ -136,3 +136,14 @@ head_with_other_contents() {
   [ "$replaced" != "$before" ]
   [ "$(git show "$replaced:other.txt")" = replaced ]
 }
+
+@test "rebuild cache: grafts in GIT_GRAFT_FILE count too" {
+  three_unpushed
+  local before grafted
+  before="$(splice rebuild vendor/a)"
+  git config advice.graftFileDeprecated false
+  export GIT_GRAFT_FILE="$BATS_TEST_TMPDIR/grafts"
+  echo "$(git rev-parse HEAD) $(git rev-parse HEAD~3)" >"$GIT_GRAFT_FILE"
+  grafted="$(splice rebuild vendor/a)"
+  [ "$grafted" != "$before" ]
+}
