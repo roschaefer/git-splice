@@ -473,7 +473,7 @@ impl Repo<'_> {
                     Ok(previous)
                 } else {
                     let range = format!("{before}..{rev}");
-                    quietly(|| self.rebuild_walk(child, previous, &range))
+                    quietly(|| self.rebuild_walk(child, previous, &range, false))
                 });
             }
         }
@@ -608,7 +608,7 @@ impl Repo<'_> {
         // or as a root, after init.
         let start = (!previous.is_empty()).then_some(previous);
         let range = format!("{before}..{first}");
-        matches!(self.rebuild_walk(path, start, &range), Ok(Some(made)) if made == synced)
+        matches!(self.rebuild_walk(path, start, &range, false), Ok(Some(made)) if made == synced)
     }
 
     /// The upstream commit that represents the splice as of monorepo commit
@@ -906,9 +906,9 @@ impl Repo<'_> {
             start = Some(mount.mount);
         }
 
-        let mut prev = self.rebuild_walk(&at, prev, &range)?;
+        let mut prev = self.rebuild_walk(&at, prev, &range, true)?;
         for segment in moves.iter().rev() {
-            prev = self.rebuild_walk(&segment.path, prev, &segment.range)?;
+            prev = self.rebuild_walk(&segment.path, prev, &segment.range, true)?;
         }
         Ok((prev, start))
     }
@@ -916,12 +916,14 @@ impl Repo<'_> {
     /// The rebuild of the splice along <range>, on top of upstream commit
     /// <start> (nothing: a new root): one commit per first-parent commit whose
     /// folder differs from the one before. A merge in the monorepo becomes one
-    /// ordinary commit.
+    /// ordinary commit. With <remember>, a later walk goes on from where this
+    /// one ended; one-off walks, such as a splice inside's per commit, aren't.
     fn rebuild_walk(
         &mut self,
         path: &str,
         start: Option<String>,
         range: &str,
+        remember: bool,
     ) -> Res<Option<String>> {
         let mut prev = start;
         // Every field ends with a NUL; tformat adds a newline after each
@@ -954,7 +956,8 @@ impl Repo<'_> {
         // if its rebuilt commit is still here.
         let lower = range.split_once("..").map_or("", |(lower, _)| lower);
         let key_start = prev.clone().unwrap_or_default();
-        let cached = is_fixed_lower(lower) && (key_start.is_empty() || is_id(&key_start));
+        let cached =
+            remember && is_fixed_lower(lower) && (key_start.is_empty() || is_id(&key_start));
         let key = |commit: String| Key {
             path: path.to_string(),
             start: key_start.clone(),

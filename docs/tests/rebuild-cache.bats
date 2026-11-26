@@ -147,3 +147,15 @@ head_with_other_contents() {
   grafted="$(splice rebuild vendor/a)"
   [ "$grafted" != "$before" ]
 }
+
+@test "rebuild cache: the walks of a splice inside, one per commit of the splice around it, aren't remembered" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  local n
+  for n in 1 2 3 4; do
+    commit_local "$monorepo" vendor/a/b "b change $n" "b$n.txt"
+  done
+  cd "$monorepo"
+  splice rebuild vendor/a >/dev/null
+  run grep -c -x vendor/a/b < <(tr '\0' '\n' <.git/splice-rebuilds)
+  [ "$output" -le 1 ]
+}
