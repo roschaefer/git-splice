@@ -162,14 +162,9 @@ impl Repo<'_> {
                 "{path}: pushed, but couldn't record it in {fetched} -- run 'git splice fetch {option}{path}'"
             ));
         }
-        // A rename in another worktree may have moved the key's refs while
-        // the push ran, which then recorded it under the old key.
-        let key = self.key_of(path);
-        let now = self.key_after_writing(&key, url)?;
-        if now != key {
+        if self.key_renamed(&self.key_of(path), url)? {
             return fail(format!(
-                "{path}: pushed, but {} -- run 'git splice fetch {option}{path}'",
-                crate::fetch::key_changed(&key, &now)
+                "{path}: pushed, but its upstream key was renamed meanwhile -- run 'git splice fetch {option}{path}'"
             ));
         }
         log_ok(format!("{path}: pushed {} to {label}", short(rebuilt)));

@@ -193,15 +193,6 @@ fn fetch_shared_upstream(
     reports
 }
 
-/// How a command's upstream key changed while it wrote refs under it.
-pub(crate) fn key_changed(old: &str, now: &str) -> String {
-    if now.is_empty() {
-        format!("its upstream's key '{old}' was removed meanwhile")
-    } else {
-        format!("its upstream's key '{old}' was renamed to '{now}' meanwhile")
-    }
-}
-
 /// Paths whose fetch failed.
 pub type FetchFailures = Vec<String>;
 
@@ -431,41 +422,7 @@ impl FetchPlan {
 impl FetchResults {
     /// Prints the reports and forgets the keys of new upstreams that all
     /// failed. The event follows, so it describes a finished fetch.
-    pub(crate) fn finish(mut self, repo: &mut Repo) -> Res<(FetchFailures, ExecutionEvent)> {
-        // A rename in another worktree may have moved the key's refs while
-        // the fetch ran, which then wrote under the old key.
-        let mut overtaken = Vec::new();
-        for job in &self.plan.jobs {
-            if job.members.iter().all(|m| self.reports[m.index].failed) {
-                continue;
-            }
-            let now = repo.key_after_writing(&job.key, &job.url)?;
-            if now == job.key {
-                continue;
-            }
-            overtaken.push(job.key.clone());
-            let renamed = key_changed(&job.key, &now);
-            for member in &job.members {
-                let report = &mut self.reports[member.index];
-                if report.failed {
-                    continue;
-                }
-                report.out.clear();
-                if !report.err.is_empty() {
-                    report.err.push('\n');
-                }
-                report.err.push_str(&format!(
-                    "!!   {}: {renamed} -- run the command again",
-                    member.path
-                ));
-                report.failed = true;
-            }
-        }
-        if let ExecutionEvent::AfterFetch { fetched } = &mut self.event {
-            for (entry, report) in fetched.iter_mut().zip(&self.reports) {
-                entry.failed = report.failed;
-            }
-        }
+    pub(crate) fn finish(self, repo: &mut Repo) -> Res<(FetchFailures, ExecutionEvent)> {
         let mut failures = Vec::new();
         for ((path, _), report) in self.plan.entries.iter().zip(&self.reports) {
             if !report.out.is_empty() {
@@ -480,10 +437,19 @@ impl FetchResults {
         }
         for job in &self.plan.jobs {
             if self.plan.new_keys.contains(&job.key)
-                && !overtaken.contains(&job.key)
                 && job.members.iter().all(|m| self.reports[m.index].failed)
             {
                 repo.forget_upstream_key(&job.key)?;
+            }
+        }
+        for job in &self.plan.jobs {
+            if job.members.iter().any(|m| !self.reports[m.index].failed)
+                && repo.key_renamed(&job.key, &job.url)?
+            {
+                return die(format!(
+                    "upstream key '{}' was renamed while fetching -- run the command again",
+                    job.key
+                ));
             }
         }
         Ok((failures, self.event))
