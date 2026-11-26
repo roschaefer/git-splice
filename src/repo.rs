@@ -990,7 +990,7 @@ impl<'context> Repo<'context> {
     /// The splice whose .splice can't be read in the tree of splice <path>:
     /// the outermost splice around <path> and every splice inside it.
     /// <path> itself if its own can't be read, else the first in discovery
-    /// order.
+    /// order. <path> may be a folder about to become a splice.
     /// Commands read the splices around and inside the ones they act on.
     pub fn unreadable_in_tree(&self, path: &str) -> Option<&str> {
         if self.unreadable.is_empty() {
@@ -1009,8 +1009,23 @@ impl<'context> Repo<'context> {
         let tree = top(path);
         self.all_paths
             .iter()
-            .find(|other| self.unreadable.contains_key(*other) && top(other) == tree)
+            .find(|other| {
+                self.unreadable.contains_key(*other)
+                    && (top(other) == tree || other.starts_with(&format!("{path}/")))
+            })
             .map(String::as_str)
+    }
+
+    /// Ends a clone or init that would make <path> a splice in the tree of
+    /// an unreadable .splice: every command would leave it out.
+    pub fn refuse_unreadable_tree(&self, path: &str, command: &str) -> Res<()> {
+        if let Some(unreadable) = self.unreadable_in_tree(path) {
+            log_err(&self.unreadable[unreadable]);
+            return die(format!(
+                "{path}: can't {command} here, as {unreadable} in its splice tree can't be read"
+            ));
+        }
+        Ok(())
     }
 
     pub fn why_unusable(&self, path: &str, unreadable: &str) -> String {

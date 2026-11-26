@@ -679,6 +679,21 @@ splice_trees_one_unreadable() {
   [ "$output" = "!!   not a splice: vendor/a/typo" ]
 }
 
+@test "clone and init: refuse a folder in the tree of an unreadable .splice, whose splices every command leaves out" {
+  splice_trees_one_unreadable
+  before="$(git rev-parse HEAD)"
+  run splice clone "$upstream-x" vendor/a/new
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  [ "${lines[1]}" = "!!   vendor/a/new: can't clone here, as vendor/a/b in its splice tree can't be read" ]
+  mkdir vendor/a/sub && echo x >vendor/a/sub/file.txt
+  git add vendor/a/sub && git commit -q -m "a folder to init"
+  run splice init vendor/a/sub "$upstream-x"
+  [ "$status" -eq 1 ]
+  [ "${lines[1]}" = "!!   vendor/a/sub: can't init here, as vendor/a/b in its splice tree can't be read" ]
+  [ "$(git rev-parse HEAD~1)" = "$before" ]
+}
+
 @test "discovery: with two unreadable .splice files in one tree, each shows its own reason, and the others name the outermost" {
   splice_trees_one_unreadable
   printf '<<<<<<< HEAD\n' >>vendor/a/.splice
