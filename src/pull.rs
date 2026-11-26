@@ -413,33 +413,17 @@ fn rewind_to_last_pull(tops: &[String], branch: &str) -> Res<()> {
             fail(format!("{START} couldn't be updated"))
         };
     }
-    let since = format!("{base}..HEAD");
-    let merges = git(&["rev-list", "--min-parents=2", "--count", &since])
-        .out()
-        .unwrap_or_default();
-    if merges != "0" {
-        return fail(format!(
-            "there's a merge commit since the last pull, {}, whose own changes --rebase would drop -- pull without --rebase",
-            short(&base)
-        ));
-    }
-    let commits = git(&["rev-list", &since]).out().unwrap_or_default();
-    let oldest = commits.lines().last().unwrap_or("");
-    let published = git(&[
-        "for-each-ref",
-        "--count=1",
-        "--contains",
-        oldest,
-        "--format=%(refname:short)",
-        "refs/remotes/",
-    ])
-    .out()
-    .unwrap_or_default();
-    if !published.is_empty() {
-        return fail(format!(
-            "'{published}' has commits since the last pull, {}, which --rebase would rewrite -- pull on a branch nobody else has, e.g. a pull request's",
-            short(&base)
-        ));
+    if let Some(blocker) = rebase_blocker(&base) {
+        return fail(match blocker {
+            RebaseBlocker::Merge => format!(
+                "there's a merge commit since the last pull, {}, whose own changes --rebase would drop -- pull without --rebase",
+                short(&base)
+            ),
+            RebaseBlocker::Published(published) => format!(
+                "'{published}' has commits since the last pull, {}, which --rebase would rewrite -- pull on a branch nobody else has, e.g. a pull request's",
+                short(&base)
+            ),
+        });
     }
     if !git(&["diff-index", "--quiet", "HEAD", "--"]).ok() {
         return fail("the work tree has changes -- commit or stash them, then pull --rebase");
@@ -473,30 +457,20 @@ fn replay_own_commits(branch: &str) -> Res<bool> {
         }
         return Ok(true);
     }
-    let rebased = git(&[
-        "-c",
-        "advice.mergeConflict=false",
-        "rebase",
-        "-q",
-        "--no-update-refs",
-        "--no-autostash",
-        "--onto",
-        &pulled,
-        &base,
-        branch,
-    ])
-    .run();
-    if rebased != 0 {
-        if rebase_in_progress() {
+    match rebase_onto(&pulled, &base, Some(branch)) {
+        Rebased::Done => {}
+        Rebased::Conflict => {
             log_err(
                 "conflict while rebasing onto the pull -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)",
             );
             return Ok(false);
         }
-        return fail(format!(
-            "git rebase didn't start, see above -- the pulls are at {}",
-            short(&pulled)
-        ));
+        Rebased::NotStarted => {
+            return fail(format!(
+                "git rebase didn't start, see above -- the pulls are at {}",
+                short(&pulled)
+            ));
+        }
     }
     let plural = if count == "1" { "" } else { "s" };
     log_ok(format!(
