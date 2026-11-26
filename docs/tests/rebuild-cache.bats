@@ -71,7 +71,7 @@ commits_written() {
   rebuilt="$(splice rebuild vendor/a)"
   printf 'something else\n' >.git/splice-rebuilds
   [ "$(splice rebuild vendor/a)" = "$rebuilt" ]
-  [ "$(head -n 1 .git/splice-rebuilds)" = "git-splice rebuilds 2" ]
+  grep -q '^{"version":3,' .git/splice-rebuilds
   [ "$(commits_written rebuild vendor/a)" -eq 0 ]
 }
 
@@ -92,8 +92,7 @@ commits_written() {
   rebuilt="$(splice rebuild vendor/a)"
   [ "$(commits_written rebuild vendor/a)" -gt 0 ]
   [ "$(splice rebuild vendor/a)" = "$rebuilt" ]
-  run grep -c -x vendor/a < <(tr '\0' '\n' <.git/splice-rebuilds)
-  [ "$output" = 0 ]
+  [ "$(grep -o '"path":"vendor/a"' .git/splice-rebuilds | wc -l)" -eq 0 ]
 }
 
 # Prints the id of a commit like HEAD, with vendor/a/other.txt changed.
@@ -157,8 +156,7 @@ head_with_other_contents() {
   done
   cd "$monorepo"
   splice rebuild vendor/a >/dev/null
-  run grep -c -x vendor/a/b < <(tr '\0' '\n' <.git/splice-rebuilds)
-  [ "$output" -le 1 ]
+  [ "$(grep -o '"path":"vendor/a/b"' .git/splice-rebuilds | wc -l)" -le 1 ]
 }
 
 @test "rebuild cache: in a shallow clone, which hides parents until a deeper fetch, nothing is remembered" {
