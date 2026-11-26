@@ -254,15 +254,17 @@ pub fn state_blob(path: &str, settings: &[(&str, &str)]) -> Res<String> {
     state_blob_in(path, "HEAD", settings)
 }
 
+/// Git's mode for a regular file, as trees and the index record it.
+pub const REGULAR_FILE: &str = "100644";
+
 /// Tree <tree> (or commit <tree>'s) with each (folder, tree) of <folders> in
 /// place of that folder (none: no folder), then each (file, blob) of <files>
-/// written in mode <mode>. Uses a temporary index, so neither the worktree nor
-/// the real index changes.
+/// written as a regular file. Uses a temporary index, so neither the worktree
+/// nor the real index changes.
 pub fn tree_with(
     tree: &str,
     folders: &[(String, Option<String>)],
     files: &[(String, String)],
-    mode: &str,
 ) -> Res<String> {
     if folders.is_empty() && files.is_empty() {
         return Ok(tree.to_string());
@@ -289,7 +291,7 @@ pub fn tree_with(
         }
     }
     for (file, blob) in files {
-        let entry = format!("{mode},{blob},{file}");
+        let entry = format!("{REGULAR_FILE},{blob},{file}");
         ok = ok && indexed(&["update-index", "--add", "--cacheinfo", &entry]).ok();
     }
     if !ok {
@@ -306,7 +308,7 @@ pub fn reroot_tree(path: &str, folder: Option<&str>, blob: Option<&str>, rev: &s
         .map(|blob| (format!("{path}/{STATE_FILE}"), blob.to_string()))
         .into_iter()
         .collect();
-    tree_with(rev, &folders, &files, "100644")
+    tree_with(rev, &folders, &files)
 }
 
 /// Commits the state files <files>, each a (path, blob) pair, on top of HEAD.
@@ -314,7 +316,7 @@ pub fn reroot_tree(path: &str, folder: Option<&str>, blob: Option<&str>, rev: &s
 /// overwrite local changes and applies checkout attributes. Then 'git commit'
 /// commits just these files, as for any commit of the user's.
 pub fn commit_state_files(files: &[(String, String)], message: &str) -> Res<()> {
-    let tree = tree_with("HEAD", &[], files, "100644")?;
+    let tree = tree_with("HEAD", &[], files)?;
     git(&["update-index", "-q", "--refresh"]).q().ok();
     let (ok, output) = git_merged_output(&["read-tree", "-m", "-u", "HEAD", &tree]);
     if !ok {

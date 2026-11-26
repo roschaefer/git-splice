@@ -446,17 +446,6 @@ fn checkout_attributes(tree: &str, prefix: &str, names: &[u8]) -> Option<Vec<Str
     )
 }
 
-/// Tree <tree> with file <file> replaced by blob <blob>, in the file's mode.
-fn tree_with_blob(tree: &str, file: &str, blob: &str) -> Option<String> {
-    let listing = git(&["ls-tree", tree, "--", file])
-        .out()
-        .unwrap_or_default();
-    let mode = listing.split(' ').next().filter(|mode| !mode.is_empty());
-    let mode = mode.unwrap_or("100644");
-    let files = [(file.to_string(), blob.to_string())];
-    tree_with(tree, &[], &files, mode).ok()
-}
-
 /// Ends the command where Git would apply other checkout attributes to the files
 /// of a new splice at <path>, at upstream commit <commit>, in monorepo tree
 /// <tree>, than in upstream, where only upstream's own .gitattributes count.
@@ -518,7 +507,7 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
         let fixes = git(&["hash-object", "-w", "--stdin"])
             .input(content)
             .out()
-            .and_then(|blob| tree_with_blob(tree, file, &blob))
+            .and_then(|blob| tree_with(tree, &[], &[(file.clone(), blob)]).ok())
             .and_then(|fixed| checkout_attributes(&fixed, &format!("{path}/"), &names))
             .is_some_and(|fixed| fixed == upstream);
         if fixes {
@@ -889,7 +878,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             "update-index",
             "--add",
             "--cacheinfo",
-            &format!("100644,{blob},{state_file}"),
+            &format!("{REGULAR_FILE},{blob},{state_file}"),
         ])
         .run(),
     )?;

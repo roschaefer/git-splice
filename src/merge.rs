@@ -360,7 +360,7 @@ impl Repo<'_> {
             };
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
-        tree_with(&tree, &[], &files, "100644")
+        tree_with(&tree, &[], &files)
     }
 
     /// The first-parent commit of the monorepo that upstream commit <copy>
