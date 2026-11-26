@@ -42,7 +42,6 @@ A problem without a scenario is only in the
 
 | Scenario | What happens | Way out |
 | --- | --- | --- |
-| [a splice path must be ref-friendly](02-starting-a-splice/06-clone-without-commits/ref-friendly-path.md) | `clone` refuses a path that isn't valid in a ref name, e.g. with a space. | Choose another folder name. |
 | [non-UTF-8 input](10-platform-compatibility/01-platform-restrictions/README.md) | Arguments, repository and splice paths, and author or committer identities that aren't UTF-8 are refused, not changed. | Rename paths, and rewrite identities to UTF-8, before using them with `git-splice`. |
 | [paging output on Windows](10-platform-compatibility/01-platform-restrictions/windows-paging.md) | `log` and `diff` write to the terminal without a pager. | Pipe the output to a pager. |
 
@@ -61,7 +60,6 @@ $ source "$TESTDIR/readme-setup.sh"
 ```scrut {output_stream: combined}
 $ check_known_bugs
 ok 01-everyday-sync/02-up-to-date/monorepo-commit-as-synced-commit.md bug #7
-ok 02-starting-a-splice/06-clone-without-commits/ref-friendly-path.md limitation
 ok 02-starting-a-splice/08-clone-from-submodule/04-monorepo-line-endings/README.md bug #311
 ok 02-starting-a-splice/08-clone-from-submodule/06-upstream-macro/README.md bug #311
 ok 03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.md bug #466
