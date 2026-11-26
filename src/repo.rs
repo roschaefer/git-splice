@@ -993,6 +993,9 @@ impl<'context> Repo<'context> {
     /// order.
     /// Commands read the splices around and inside the ones they act on.
     pub fn unreadable_in_tree(&self, path: &str) -> Option<&str> {
+        if self.unreadable.is_empty() {
+            return None;
+        }
         let top = |path: &str| {
             self.all_paths
                 .iter()
