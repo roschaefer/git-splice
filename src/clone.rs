@@ -537,6 +537,18 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
             "{path}: attributes in {file} or above it would change how Git checks out or stores some of its files, unlike in upstream -- add '{line}' to {file}, commit it, and run clone again"
         ));
     }
+    let content = git(&["cat-file", "blob", &format!("{commit}:.gitattributes")])
+        .q()
+        .out()
+        .unwrap_or_default();
+    if content
+        .lines()
+        .any(|line| line.trim_start().starts_with("[attr]"))
+    {
+        return die(format!(
+            "{path}: upstream's .gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes, not in {path}/"
+        ));
+    }
     die(format!(
         "{path}: Git would check out or store some of its files otherwise than in upstream, and unsetting attributes above it can't change that"
     ))
