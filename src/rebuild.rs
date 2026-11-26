@@ -448,10 +448,10 @@ impl Repo<'_> {
             let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {
                 continue;
             };
-            folders.push((dir.clone(), format!("{rebuilt}^{{tree}}")));
+            folders.push((dir.clone(), Some(format!("{rebuilt}^{{tree}}"))));
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
-        tree_with(tree, &folders, &files)
+        tree_with(tree, &folders, &files, "100644")
     }
 
     /// The rebuild of splice <child> at monorepo commit <rev>, for the record
@@ -536,7 +536,7 @@ impl Repo<'_> {
             };
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
-        tree_with(tree, &[], &files)
+        tree_with(tree, &[], &files, "100644")
     }
 
     /// Whether splice <path>'s folder in commit <rev> is upstream tree <tree>,

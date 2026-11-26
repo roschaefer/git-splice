@@ -453,11 +453,8 @@ fn tree_with_blob(tree: &str, file: &str, blob: &str) -> Option<String> {
         .unwrap_or_default();
     let mode = listing.split(' ').next().filter(|mode| !mode.is_empty());
     let mode = mode.unwrap_or("100644");
-    let index = Temp::new();
-    let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
-    let entry = format!("{mode},{blob},{file}");
-    (indexed(&["read-tree", tree]).ok() && indexed(&["update-index", "--cacheinfo", &entry]).ok())
-        .then(|| indexed(&["write-tree"]).out())?
+    let files = [(file.to_string(), blob.to_string())];
+    tree_with(tree, &[], &files, mode).ok()
 }
 
 /// Ends the command where Git would apply other checkout attributes to the files
