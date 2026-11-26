@@ -215,6 +215,9 @@ impl Repo<'_> {
 /// record it.
 pub const GITLINK: &str = "160000";
 
+/// Git's mode for a regular file, as trees and the index record it.
+pub const REGULAR_FILE: &str = "100644";
+
 /// A blob: splice <path>'s state file as committed in <rev>, or a new one, with
 /// each (key, value) set (an empty value unsets it). A key without a section is
 /// in [splice], e.g. "commit"; others are given in full, e.g.
@@ -254,12 +257,13 @@ pub fn state_blob(path: &str, settings: &[(&str, &str)]) -> Res<String> {
     state_blob_in(path, "HEAD", settings)
 }
 
-/// Tree <tree> with each (folder, tree) of <folders> in place of that folder,
-/// then each (file, blob) of <files> written. Uses a temporary index, so
-/// neither the worktree nor the real index changes.
+/// Tree <tree> (or commit <tree>'s) with each (folder, tree) of <folders> in
+/// place of that folder (none: no folder), then each (file, blob) of <files>
+/// written as a regular file. Uses a temporary index, so neither the worktree
+/// nor the real index changes.
 pub fn tree_with(
     tree: &str,
-    folders: &[(String, String)],
+    folders: &[(String, Option<String>)],
     files: &[(String, String)],
 ) -> Res<String> {
     if folders.is_empty() && files.is_empty() {
@@ -281,11 +285,13 @@ pub fn tree_with(
                 "--",
                 &spec,
             ])
-            .ok()
-            && indexed(&["read-tree", &format!("--prefix={folder}/"), content]).ok();
+            .ok();
+        if let (true, Some(content)) = (ok, content) {
+            ok = indexed(&["read-tree", &format!("--prefix={folder}/"), content]).ok();
+        }
     }
     for (file, blob) in files {
-        let entry = format!("100644,{blob},{file}");
+        let entry = format!("{REGULAR_FILE},{blob},{file}");
         ok = ok && indexed(&["update-index", "--add", "--cacheinfo", &entry]).ok();
     }
     if !ok {
@@ -295,35 +301,14 @@ pub fn tree_with(
 }
 
 /// A tree: commit <rev>'s, with folder <path> replaced by <folder> (none: no
-/// folder) plus state file blob <blob> (none: none). Uses a temporary index, so
-/// neither the worktree nor the real index changes.
+/// folder) plus state file blob <blob> (none: none).
 pub fn reroot_tree(path: &str, folder: Option<&str>, blob: Option<&str>, rev: &str) -> Res<String> {
-    let index = Temp::new();
-    let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
-    let spec = format!(":(top,literal){path}");
-    let mut ok = indexed(&["read-tree", rev]).ok()
-        && indexed(&[
-            "rm",
-            "-r",
-            "-q",
-            "-f",
-            "--cached",
-            "--ignore-unmatch",
-            "--",
-            &spec,
-        ])
-        .ok();
-    if let (true, Some(folder)) = (ok, folder) {
-        ok = indexed(&["read-tree", &format!("--prefix={path}/"), folder]).ok();
-    }
-    if let (true, Some(blob)) = (ok, blob) {
-        let entry = format!("100644,{blob},{path}/{STATE_FILE}");
-        ok = indexed(&["update-index", "--add", "--cacheinfo", &entry]).ok();
-    }
-    if !ok {
-        return Err(Fail::Soft);
-    }
-    indexed(&["write-tree"]).out().ok_or(Fail::Soft)
+    let folders = [(path.to_string(), folder.map(str::to_string))];
+    let files: Vec<(String, String)> = blob
+        .map(|blob| (format!("{path}/{STATE_FILE}"), blob.to_string()))
+        .into_iter()
+        .collect();
+    tree_with(rev, &folders, &files)
 }
 
 /// Commits the state files <files>, each a (path, blob) pair, on top of HEAD.
@@ -331,17 +316,7 @@ pub fn reroot_tree(path: &str, folder: Option<&str>, blob: Option<&str>, rev: &s
 /// overwrite local changes and applies checkout attributes. Then 'git commit'
 /// commits just these files, as for any commit of the user's.
 pub fn commit_state_files(files: &[(String, String)], message: &str) -> Res<()> {
-    let index = Temp::new();
-    let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
-    let mut ok = indexed(&["read-tree", "HEAD"]).ok();
-    for (file, blob) in files {
-        let entry = format!("100644,{blob},{file}");
-        ok = ok && indexed(&["update-index", "--add", "--cacheinfo", &entry]).ok();
-    }
-    if !ok {
-        return Err(Fail::Soft);
-    }
-    let tree = indexed(&["write-tree"]).out().ok_or(Fail::Soft)?;
+    let tree = tree_with("HEAD", &[], files)?;
     git(&["update-index", "-q", "--refresh"]).q().ok();
     let (ok, output) = git_merged_output(&["read-tree", "-m", "-u", "HEAD", &tree]);
     if !ok {

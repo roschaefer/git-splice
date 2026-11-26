@@ -448,7 +448,7 @@ impl Repo<'_> {
             let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {
                 continue;
             };
-            folders.push((dir.clone(), format!("{rebuilt}^{{tree}}")));
+            folders.push((dir.clone(), Some(format!("{rebuilt}^{{tree}}"))));
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
         tree_with(tree, &folders, &files)
