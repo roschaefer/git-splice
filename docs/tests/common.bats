@@ -679,7 +679,7 @@ splice_trees_one_unreadable() {
   [ "$output" = "!!   not a splice: vendor/a/typo" ]
 }
 
-@test "clone and init: refuse a folder in the tree of an unreadable .splice, whose splices every command leaves out" {
+@test "clone and init: refuse a folder in or around the tree of an unreadable .splice, whose splices every command leaves out" {
   splice_trees_one_unreadable
   before="$(git rev-parse HEAD)"
   run splice clone "$upstream-x" vendor/a/new
@@ -691,6 +691,9 @@ splice_trees_one_unreadable() {
   run splice init vendor/a/sub "$upstream-x"
   [ "$status" -eq 1 ]
   [ "${lines[1]}" = "!!   vendor/a/sub: can't init here, as vendor/a/b in its splice tree can't be read" ]
+  run splice init vendor "$upstream-x"
+  [ "$status" -eq 1 ]
+  [ "${lines[1]}" = "!!   vendor: can't init here, as vendor/a/b in its splice tree can't be read" ]
   [ "$(git rev-parse HEAD~1)" = "$before" ]
 }
 
