@@ -672,6 +672,13 @@ splice_trees_one_unreadable() {
   [[ "${lines[4]}" == *"  vendor/x" ]]
 }
 
+@test "discovery: a folder in the tree of an unreadable .splice that isn't a splice is refused as not a splice" {
+  splice_trees_one_unreadable
+  run splice push vendor/a/typo
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   not a splice: vendor/a/typo" ]
+}
+
 @test "discovery: with two unreadable .splice files in one tree, each shows its own reason, and the others name the outermost" {
   splice_trees_one_unreadable
   printf '<<<<<<< HEAD\n' >>vendor/a/.splice

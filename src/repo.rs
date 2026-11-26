@@ -975,16 +975,16 @@ impl<'context> Repo<'context> {
     }
 
     pub fn require_splice(&self, path: &str) -> Res<()> {
+        if !self.is_splice_path(path) {
+            return die(format!("not a splice: {path}"));
+        }
         if let Some(unreadable) = self.unreadable_in_tree(path) {
             if unreadable != path {
                 log_err(&self.unreadable[unreadable]);
             }
             return die(self.why_unusable(path, unreadable));
         }
-        if self.is_splice_path(path) {
-            return Ok(());
-        }
-        die(format!("not a splice: {path}"))
+        Ok(())
     }
 
     /// The splice whose .splice can't be read in the tree of splice <path>:
