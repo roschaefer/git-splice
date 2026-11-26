@@ -31,9 +31,9 @@ test: test-rust test-bats
 test-rust:
     cargo test --workspace --quiet
 
-# Run the bats tests, one job per CPU
-test-bats: build
-    bats --jobs "$(nproc)" docs/tests check-drawing/tests
+# Run the bats tests, or the given bats files, one job per CPU
+test-bats *files: build
+    bats --jobs "$(nproc)" {{ if files == "" { "docs/tests check-drawing/tests" } else { files } }}
 
 # Time commands on a synthetic monorepo; see `just bench --help`
 [positional-arguments]

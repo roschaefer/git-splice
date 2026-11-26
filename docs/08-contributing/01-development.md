@@ -29,7 +29,7 @@ Available recipes:
     site-build             # Build the documentation site into website/build; fails on broken links
     site-serve             # Serve the documentation site locally, reloading on changes
     test                   # Run the Rust tests, then the bats tests
-    test-bats              # Run the bats tests, one job per CPU
+    test-bats *files       # Run the bats tests, or the given bats files, one job per CPU
     test-rust              # Run the Rust unit and integration tests
 ```
 
