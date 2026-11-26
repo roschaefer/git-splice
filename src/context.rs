@@ -8,6 +8,8 @@ use std::collections::HashMap;
 
 type Observer = Box<dyn FnMut(&ExecutionEvent) + Send + Sync>;
 
+/// State shared by the operations run in one repository. Use a new context
+/// for another repository: it reads the rebuild cache of the first one.
 #[derive(Default)]
 pub struct ExecutionContext {
     observer: Option<Observer>,
