@@ -3,9 +3,10 @@
 use crate::repo::{commit_of, Repo};
 use crate::tree::Tasks;
 use crate::util::*;
+use serde::Serialize;
 use std::process::{Command, Stdio};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct FetchedUpstream {
     pub path: String,
     pub upstream: String,
@@ -14,7 +15,8 @@ pub struct FetchedUpstream {
     pub failed: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "name", rename_all = "kebab-case")]
 pub enum ExecutionEvent {
     /// Downloads are done and reported; new upstreams that all failed are forgotten.
     AfterFetch { fetched: Vec<FetchedUpstream> },
@@ -58,16 +60,37 @@ impl ExecutionEvent {
         }
     }
 
-    fn exec(&self, command: &str, operation: &str) -> Res<()> {
+    fn exec(&self, command: &str, operation: &str, tasks: &Tasks) -> Res<()> {
         let (event, path, commit) = self.hook_values();
-        let status = match Command::new("sh")
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            event: &'a ExecutionEvent,
+            tasks: &'a Tasks,
+        }
+        let payload = format!(
+            "{}\n",
+            serde_json::to_string(&Payload { event: self, tasks }).unwrap()
+        );
+        let child = Command::new("sh")
             .args(["-c", command])
             .env("GIT_SPLICE_EVENT", event)
             .env("GIT_SPLICE_PATH", path)
             .env("GIT_SPLICE_COMMIT", commit)
-            .stdin(Stdio::null())
-            .status()
-        {
+            .stdin(Stdio::piped())
+            .spawn();
+        let mut child = match child {
+            Ok(child) => child,
+            Err(error) => return die(format!("--exec: could not run command: {error}")),
+        };
+        // From a thread: a hook that never reads its stdin mustn't block it.
+        // One that exits before reading it all just doesn't get the rest.
+        if let Some(mut stdin) = child.stdin.take() {
+            std::thread::spawn(move || {
+                use std::io::Write;
+                let _ = stdin.write_all(payload.as_bytes());
+            });
+        }
+        let status = match child.wait() {
             Ok(status) => status,
             Err(error) => return die(format!("--exec: could not run command: {error}")),
         };
@@ -157,7 +180,8 @@ impl<'context, O: Operation> Execution<'context, O> {
                 }
                 let checkpoint = self.checked(PausedRepository::capture(O::CHECK_TRACKED_STATE))?;
                 if !command.is_empty() {
-                    if let Err(failure) = event.exec(&command, O::NAME) {
+                    let tasks = self.progress.tasks();
+                    if let Err(failure) = event.exec(&command, O::NAME, &tasks) {
                         self.progress.stopped();
                         return self.checked(Err(failure));
                     }
@@ -278,6 +302,70 @@ impl TrackedState {
             Ok(bytes) => Ok(Some(bytes)),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(_) => Err(Fail::Hard),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn events_as_json_carry_their_name_and_fields() {
+        let fetch = ExecutionEvent::AfterFetch {
+            fetched: vec![FetchedUpstream {
+                path: "vendor/a".into(),
+                upstream: "origin".into(),
+                url: "https://example.com/a \"b\".git".into(),
+                failed: true,
+            }],
+        };
+        assert_eq!(
+            serde_json::to_string(&fetch).unwrap(),
+            r#"{"name":"after-fetch","fetched":[{"path":"vendor/a","upstream":"origin","url":"https://example.com/a \"b\".git","failed":true}]}"#
+        );
+        let fold = ExecutionEvent::BeforeFold {
+            roots: vec!["a".into(), "c".into()],
+            head: "1234".into(),
+        };
+        assert_eq!(
+            serde_json::to_string(&fold).unwrap(),
+            r#"{"name":"before-fold","roots":["a","c"],"head":"1234"}"#
+        );
+        let others = [
+            (
+                ExecutionEvent::AfterMerge {
+                    path: "a".into(),
+                    head_before: "1".into(),
+                    head_after: "2".into(),
+                },
+                r#"{"name":"after-merge","path":"a","head_before":"1","head_after":"2"}"#,
+            ),
+            (
+                ExecutionEvent::AfterRebuild {
+                    path: "a".into(),
+                    commit: "3".into(),
+                },
+                r#"{"name":"after-rebuild","path":"a","commit":"3"}"#,
+            ),
+            (
+                ExecutionEvent::AfterPush {
+                    path: "a".into(),
+                    commit: "3".into(),
+                },
+                r#"{"name":"after-push","path":"a","commit":"3"}"#,
+            ),
+            (
+                ExecutionEvent::AfterFold {
+                    roots: vec!["a".into()],
+                    head_before: "1".into(),
+                    head_after: "2".into(),
+                },
+                r#"{"name":"after-fold","roots":["a"],"head_before":"1","head_after":"2"}"#,
+            ),
+        ];
+        for (event, json) in others {
+            assert_eq!(serde_json::to_string(&event).unwrap(), json);
         }
     }
 }
