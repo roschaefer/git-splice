@@ -6,7 +6,10 @@
 //! commit ids: the splice's path, the upstream commit the walk starts on, the
 //! commit the walk's range starts after, and the monorepo commit it has
 //! reached. Those are the key; the rebuilt commit after that step is the
-//! value. Keys never change meaning, so nothing needs invalidating. Only a
+//! value. Keys never change meaning, so nothing needs invalidating, except
+//! where Git reads some commits as others, through replace refs or grafts:
+//! then nothing is remembered, as Git doesn't use its commit-graph file then
+//! either. Only a
 //! walk's last step is kept, which a later walk on the same branch goes on
 //! from. Losing the file costs time only: each step is computed again.
 
@@ -76,8 +79,34 @@ fn parse(data: &[u8]) -> Option<HashMap<Key, String>> {
     )
 }
 
+/// Whether Git may read a commit as another under its id: through replace
+/// refs or grafts. Unsure counts as yes.
+fn commits_swapped() -> bool {
+    let base = std::env::var("GIT_REPLACE_REF_BASE").unwrap_or_else(|_| "refs/replace/".into());
+    let replaced = git(&["for-each-ref", "--count=1", "--format=x", &base])
+        .q()
+        .out()
+        .is_none_or(|refs| !refs.is_empty());
+    let grafts = match std::env::var_os("GIT_GRAFT_FILE") {
+        Some(file) => Some(PathBuf::from(file)),
+        None => git(&[
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-path",
+            "info/grafts",
+        ])
+        .q()
+        .bytes()
+        .and_then(|path| path_from_output(path).ok()),
+    };
+    replaced || grafts.is_none_or(|file| file.exists())
+}
+
 impl RebuildCache {
     pub(crate) fn load() -> Self {
+        if commits_swapped() {
+            return Self::default();
+        }
         let dir = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"])
             .q()
             .bytes()

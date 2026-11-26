@@ -94,3 +94,34 @@ commits_written() {
   run grep -c -x vendor/a < <(tr '\0' '\n' <.git/splice-rebuilds)
   [ "$output" = 0 ]
 }
+
+# Prints the id of a commit like HEAD, with vendor/a/other.txt changed.
+head_with_other_contents() {
+  local tree
+  tree="$(printf 'replaced\n' | git hash-object -w --stdin)"
+  tree="$(git ls-tree HEAD:vendor/a | sed "s/[0-9a-f]\{40,\}\tother.txt\$/$tree\tother.txt/" | git mktree)"
+  tree="$(git ls-tree HEAD | sed "s/[0-9a-f]\{40,\}\tvendor\$/$(printf '040000 tree %s\ta\n' "$tree" | git mktree)\tvendor/" | git mktree)"
+  git commit-tree "$tree" -p HEAD^1 -m three
+}
+
+@test "rebuild cache: with replace refs, Git reads other commits under the same ids, so nothing is remembered" {
+  three_unpushed
+  local before replaced
+  before="$(splice rebuild vendor/a)"
+  git replace HEAD "$(head_with_other_contents)"
+  replaced="$(splice rebuild vendor/a)"
+  [ "$replaced" != "$before" ]
+  [ "$(git show "$replaced:other.txt")" = replaced ]
+  [ "$(commits_written rebuild vendor/a)" -gt 0 ]
+}
+
+@test "rebuild cache: with grafts, Git reads other parents under the same ids, so nothing is remembered" {
+  three_unpushed
+  local before grafted
+  before="$(splice rebuild vendor/a)"
+  git config advice.graftFileDeprecated false
+  echo "$(git rev-parse HEAD) $(git rev-parse HEAD~3)" >.git/info/grafts
+  grafted="$(splice rebuild vendor/a)"
+  [ "$grafted" != "$before" ]
+  [ "$(commits_written rebuild vendor/a)" -gt 0 ]
+}
