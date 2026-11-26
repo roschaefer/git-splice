@@ -466,8 +466,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         repo.every_upstream_entry(&selected)?
     };
     let fetch_failures = repo.fetch_all(&branch, &entries)?;
-    let mut failures = repo.skipped.clone();
-    failures.extend(fetch_failures.iter().cloned());
+    let mut failures = fetch_failures.clone();
 
     for path in &selected {
         if fetch_failures.contains(path) {

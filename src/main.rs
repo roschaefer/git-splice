@@ -69,7 +69,7 @@ fn dispatch(argv: &[String]) -> Res<i32> {
     };
     let rest = &argv[1..];
     let context = &mut ExecutionContext::new();
-    match command.as_str() {
+    let code = match command.as_str() {
         "-h" | "--help" => {
             say(USAGE.trim_end_matches('\n'));
             Ok(0)
@@ -95,7 +95,12 @@ fn dispatch(argv: &[String]) -> Res<i32> {
             eprint_text(USAGE);
             Ok(1)
         }
-    }
+    }?;
+    Ok(if code == 0 && context.left_out_splices() {
+        1
+    } else {
+        code
+    })
 }
 
 fn main() -> ExitCode {

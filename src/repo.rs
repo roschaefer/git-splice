@@ -975,8 +975,11 @@ impl<'context> Repo<'context> {
     }
 
     pub fn require_splice(&self, path: &str) -> Res<()> {
-        if let Some(why) = self.unreadable.get(path) {
-            return die(why);
+        if let Some(unreadable) = self.unreadable_in_tree(path) {
+            if unreadable != path {
+                log_err(&self.unreadable[unreadable]);
+            }
+            return die(self.why_unusable(path, unreadable));
         }
         if self.is_splice_path(path) {
             return Ok(());
@@ -984,18 +987,30 @@ impl<'context> Repo<'context> {
         die(format!("not a splice: {path}"))
     }
 
-    /// Ends the command if a selected splice is inside or around one whose
-    /// .splice can't be read: commands read the splices around and inside
-    /// the ones they act on.
-    fn refuse_nested_unreadable(&self) -> Res<()> {
-        let unreadable: Vec<String> = self.unreadable.keys().cloned().collect();
-        for path in &self.selected {
-            let nested = first_above(path, &unreadable).or_else(|| first_below(path, &unreadable));
-            if let Some(nested) = nested {
-                return die(&self.unreadable[&nested]);
-            }
+    /// The splice whose .splice can't be read in the tree of splice <path>:
+    /// the outermost splice around <path> and every splice inside it.
+    /// Commands read the splices around and inside the ones they act on.
+    pub fn unreadable_in_tree(&self, path: &str) -> Option<&str> {
+        let top = |path: &str| {
+            self.all_paths
+                .iter()
+                .filter(|above| path.starts_with(&format!("{above}/")))
+                .min_by_key(|above| above.len())
+                .map_or(path.to_string(), String::clone)
+        };
+        let tree = top(path);
+        self.unreadable
+            .keys()
+            .find(|unreadable| top(unreadable) == tree)
+            .map(String::as_str)
+    }
+
+    pub fn why_unusable(&self, path: &str, unreadable: &str) -> String {
+        if path == unreadable {
+            self.unreadable[path].clone()
+        } else {
+            format!("{path}: not used, as {unreadable} in its splice tree can't be read")
         }
-        Ok(())
     }
 
     /// Resolves which splices a command acts on, into `selected`.
@@ -1023,14 +1038,16 @@ impl<'context> Repo<'context> {
                 .all_paths
                 .iter()
                 .cloned()
-                .partition(|path| self.unreadable.contains_key(path));
+                .partition(|path| self.unreadable_in_tree(path).is_some());
             self.selected = selected;
             self.skipped = skipped;
-            self.refuse_nested_unreadable()?;
+            if !self.skipped.is_empty() {
+                self.context.left_out_splices = true;
+            }
             // status shows them as rows of their own.
             if command != "status" {
                 for path in &self.skipped {
-                    log_err(&self.unreadable[path]);
+                    log_err(self.why_unusable(path, self.unreadable_in_tree(path).unwrap()));
                 }
                 if self.selected.is_empty() {
                     return Err(Fail::Hard);
@@ -1063,7 +1080,7 @@ impl<'context> Repo<'context> {
                 }
             }
         }
-        self.refuse_nested_unreadable()
+        Ok(())
     }
 
     /// The splices below <path> in HEAD that weren't splices when the command

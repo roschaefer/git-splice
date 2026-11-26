@@ -16,11 +16,18 @@ pub struct ExecutionContext {
     content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
     rebuild_cache: Option<RebuildCache>,
+    pub(crate) left_out_splices: bool,
 }
 
 impl ExecutionContext {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Whether a command over every splice left some out, as a .splice in
+    /// their tree can't be read: the command then fails once it is done.
+    pub fn left_out_splices(&self) -> bool {
+        self.left_out_splices
     }
 
     /// Observes completed steps synchronously. No observer is installed by default.

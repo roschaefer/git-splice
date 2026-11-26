@@ -81,7 +81,7 @@ fn diff_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
 /// quit, and nobody reads the rest.
 pub fn run_each_splice(repo: &mut Repo, step: fn(&mut Repo, &str, &str) -> Res<()>) -> i32 {
     let branch = repo.monorepo_branch.clone();
-    let mut failures = repo.skipped.clone();
+    let mut failures = Vec::new();
     for path in repo.selected.clone() {
         match step(repo, &path, &branch) {
             Ok(()) => {}

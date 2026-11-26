@@ -603,7 +603,6 @@ splices_next_to_unreadable() {
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == "!!   vendor/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
   [[ "$output" == *"ok   vendor/a: pushed "* ]]
-  [ "${lines[-1]}" = "!!   Failed: vendor/b" ]
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
 }
 
@@ -612,7 +611,6 @@ splices_next_to_unreadable() {
   seed_bare_repo "$upstream" "upstream change"
   run splice fetch
   [ "$status" -eq 1 ]
-  [ "${lines[-1]}" = "!!   Failed: vendor/b" ]
   [ "$(git rev-parse "refs/splices/$(splice key vendor/a)/heads/main")" = "$(git -C "$upstream" rev-parse main)" ]
 }
 
@@ -623,7 +621,6 @@ splices_next_to_unreadable() {
   run splice pull --all
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == "!!   vendor/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
-  [ "${lines[-1]}" = "!!   Failed: vendor/b" ]
   [ "$(git rev-list --count "$before..HEAD")" = 1 ]
   grep -q "upstream change" vendor/a/file.txt
   run git rev-parse --verify --quiet SPLICE_PULL_START
@@ -637,21 +634,54 @@ splices_next_to_unreadable() {
   before="$(git rev-parse HEAD)"
   run splice merge --all
   [ "$status" -eq 1 ]
-  [ "${lines[-1]}" = "!!   Failed: vendor/b" ]
   [ "$(git rev-list --count "$before..HEAD")" = 1 ]
   grep -q "upstream change" vendor/a/file.txt
 }
 
-@test "discovery: a .splice that can't be read stops every command on the splices around and inside it" {
+# vendor/a/b can't be read; vendor/a and vendor/a/c share its tree, vendor/x
+# doesn't.
+splice_trees_one_unreadable() {
   scenario_nested_splices "$monorepo" "$upstream"
+  make_bare_repo "$upstream-x"
+  seed_bare_repo "$upstream-x" "x seed"
+  add_splice "$monorepo" "$upstream-x" vendor/a/c
+  add_splice "$monorepo" "$upstream-x" vendor/x
   cd "$monorepo"
   printf '<<<<<<< HEAD\n' >>vendor/a/b/.splice
   git commit -q -am "conflict markers in vendor/a/b"
-  for command in status "status vendor/a" "push vendor/a"; do
+}
+
+@test "discovery: a .splice that can't be read leaves out its whole splice tree, around, inside and beside it; other trees go on" {
+  splice_trees_one_unreadable
+  seed_bare_repo "$upstream-x" "x change"
+  run splice fetch
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/a: not used, as vendor/a/b in its splice tree can't be read" ]
+  [[ "${lines[1]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  [ "${lines[2]}" = "!!   vendor/a/c: not used, as vendor/a/b in its splice tree can't be read" ]
+  [ "$(git rev-parse "refs/splices/$(splice key vendor/x)/heads/main")" = "$(git -C "$upstream-x" rev-parse main)" ]
+}
+
+@test "status: every splice in the tree of an unreadable .splice is a problem row, the other trees show as usual, and status fails" {
+  splice_trees_one_unreadable
+  run splice status
+  [ "$status" -eq 1 ]
+  [ "${lines[1]}" = "  !! can't use .splice  vendor/a    not used, as vendor/a/b in its splice tree can't be read" ]
+  [[ "${lines[2]}" == "  !! can't use .splice  vendor/a/b  vendor/a/b/.splice can't be read (bad config line "*"); fix it and commit it" ]]
+  [ "${lines[3]}" = "  !! can't use .splice  vendor/a/c  not used, as vendor/a/b in its splice tree can't be read" ]
+  [[ "${lines[4]}" == *"  vendor/x" ]]
+}
+
+@test "discovery: a command that names a splice in the tree of an unreadable .splice stops with why" {
+  splice_trees_one_unreadable
+  for command in "status vendor/a" "push vendor/a/c"; do
     run splice $command
     [ "$status" -eq 1 ]
-    [[ "$output" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+    [[ "${lines[0]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+    [ "${lines[1]}" = "!!   ${command#* }: not used, as vendor/a/b in its splice tree can't be read" ]
   done
+  run splice status vendor/x
+  [ "$status" -eq 0 ]
 }
 
 @test "discovery: refuses a splice path that isn't valid UTF-8, naming the folder to rename" {

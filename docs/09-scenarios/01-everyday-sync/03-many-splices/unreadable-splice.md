@@ -84,7 +84,6 @@ ok   libs/cli fetched
 ok   libs/parser fetched
 ok   libs/store fetched
 ok   libs/theme fetched
-!!   Failed: libs/http
 [1]
 ```
 
