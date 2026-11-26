@@ -211,9 +211,9 @@ shows each pull becoming a separate merge in R's history.
 
 ### R is computed, not stored
 
-R is never committed. It's computed from `HEAD`, and the same `HEAD`
-always gives the same R. So a commit pushed once is rebuilt
-identically, and the next push is a fast-forward. Since R is computed,
+R is never recorded in the monorepo's history. It's computed from
+`HEAD`, and the same `HEAD` always gives the same R. So a commit pushed
+once is rebuilt identically, and the next push is a fast-forward. Since R is computed,
 `.splice` needs no monorepo commit ids, which a rebase or a squash merge
 would invalidate
 ([design](../07-design/README.md#principles)).
