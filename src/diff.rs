@@ -76,23 +76,18 @@ fn diff_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
     }
 }
 
-/// Runs <step> for each splice, and reports the splices it failed for. Stops,
+/// Runs <step> for each splice, and leaves out the ones it failed for. Stops,
 /// with status 141, as soon as SIGPIPE ends a step: a pager it writes to was
 /// quit, and nobody reads the rest.
 pub fn run_each_splice(repo: &mut Repo, step: fn(&mut Repo, &str, &str) -> Res<()>) -> i32 {
     let branch = repo.monorepo_branch.clone();
-    let mut failures = Vec::new();
     for path in repo.selected.clone() {
         match step(repo, &path, &branch) {
             Ok(()) => {}
             Err(Fail::Code(141)) => return 141,
             Err(Fail::Hard) => return 1,
-            Err(_) => failures.push(path),
+            Err(_) => repo.context.leave_out(&path),
         }
-    }
-    if !failures.is_empty() {
-        log_err(format!("Failed: {}", failures.join(" ")));
-        return 1;
     }
     0
 }

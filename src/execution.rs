@@ -196,6 +196,7 @@ impl<'context, O: Operation> Execution<'context, O> {
         }
         let finished = self.progress.finish();
         let status = self.checked(finished)?;
+        let status = self.repo.context.exit_code(status);
         self.completed = Some(status);
         Ok(ExecutionOutcome::Complete(status))
     }

@@ -16,14 +16,7 @@ pub struct ExecutionContext {
     content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
     rebuild_cache: Option<RebuildCache>,
-    left_out: Vec<LeftOut>,
-}
-
-/// A splice a command left out, and why.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LeftOut {
-    pub path: String,
-    pub why: String,
+    left_out: Vec<String>,
 }
 
 impl ExecutionContext {
@@ -31,19 +24,26 @@ impl ExecutionContext {
         Self::default()
     }
 
-    /// The splices the operations left out so far, e.g. a command over
-    /// every splice those in the tree of a .splice that can't be read. A
-    /// command that left any out fails once it is done.
-    pub fn left_out(&self) -> &[LeftOut] {
+    /// The splices the operations failed for or left out so far, e.g. a
+    /// command over every splice those in the tree of a .splice that can't
+    /// be read. Each says why as it happens; the command fails once it is
+    /// done, naming them all.
+    pub fn left_out(&self) -> &[String] {
         &self.left_out
     }
 
-    pub(crate) fn leave_out(&mut self, path: &str, why: String) {
-        if !self.left_out.iter().any(|left| left.path == path) {
-            self.left_out.push(LeftOut {
-                path: path.to_string(),
-                why,
-            });
+    /// <code>, or a failure if an operation left a splice out.
+    pub fn exit_code(&self, code: i32) -> i32 {
+        if self.left_out.is_empty() {
+            code
+        } else {
+            code.max(1)
+        }
+    }
+
+    pub(crate) fn leave_out(&mut self, path: &str) {
+        if !self.left_out.iter().any(|left| left == path) {
+            self.left_out.push(path.to_string());
         }
     }
 

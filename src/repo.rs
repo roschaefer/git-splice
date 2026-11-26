@@ -1061,7 +1061,7 @@ impl<'context> Repo<'context> {
                         if command != "status" {
                             log_err(&why);
                         }
-                        self.context.leave_out(&path, why);
+                        self.context.leave_out(&path);
                     }
                 }
             }

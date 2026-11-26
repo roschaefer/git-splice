@@ -96,11 +96,12 @@ fn dispatch(argv: &[String]) -> Res<i32> {
             Ok(1)
         }
     }?;
-    Ok(if code == 0 && !context.left_out().is_empty() {
-        1
-    } else {
-        code
-    })
+    let left_out = context.left_out();
+    // status shows them as rows of their own.
+    if !left_out.is_empty() && command != "status" {
+        log_err(format!("Failed: {}", left_out.join(" ")));
+    }
+    Ok(context.exit_code(code))
 }
 
 fn main() -> ExitCode {
