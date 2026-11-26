@@ -1,6 +1,6 @@
 # Scenario: Jujutsu and a named Git branch
 
-> **Known bug, [#41](https://github.com/roschaefer/git-splice/issues/41).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
+> **Known bug, [#41](https://github.com/roschaefer/git-splice/issues/41).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
 
 A colocated jj repository shares Git's storage and working copy. A
 submodule's contents are not managed by jj; a splice's ordinary files are.

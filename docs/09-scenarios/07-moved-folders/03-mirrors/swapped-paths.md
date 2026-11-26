@@ -1,6 +1,6 @@
 # mirrors: mirrors that swap paths
 
-> **Known bug, [#193](https://github.com/roschaefer/git-splice/issues/193).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
+> **Known bug, [#193](https://github.com/roschaefer/git-splice/issues/193).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
 
 Mirrors are one splice, so the rebuild can't tell them apart. Unlike
 [independent splices](../02-swapped-splices/README.md),

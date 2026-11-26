@@ -1,6 +1,6 @@
 # Scenario: clone-from-submodule, with a macro in upstream's attributes
 
-> **Known bug, [#311](https://github.com/roschaefer/git-splice/issues/311).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../../99-known-bugs.md).
+> **Known bug, [#311](https://github.com/roschaefer/git-splice/issues/311).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../../99-known-bugs.md#known-bugs).
 
 Upstream's own `.gitattributes` defines a macro. Git accepts macro
 definitions only in the top-level `.gitattributes`, which upstream's is

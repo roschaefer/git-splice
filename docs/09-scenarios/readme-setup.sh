@@ -115,7 +115,7 @@ check_known_bugs() {
     case "$banner" in
       '> **Known bug, ['*)
         issue=" $(sed -E "s@^> \*\*Known bug, $link\.\*\*.*@\1 \2@" <<<"$banner")"
-        [[ "$banner" == *"[all known bugs]($page)." ]] || return
+        [[ "$banner" == *"[known bugs and limitations]($page#known-bugs)." ]] || return
         kind=bug
         ;;
       '> **Undecided, ['*)

@@ -28,6 +28,10 @@ A macro upstream's own `.gitattributes` defines would be lost, and no
 such line helps; a copy of its definition in the monorepo's root
 `.gitattributes` does ([upstream-macro](06-upstream-macro/README.md)).
 
+`--recursive` converts a submodule's own submodules too, and the next
+push of the folder above turns them into splices in its upstream
+([nested-submodules](07-nested-submodules/README.md)).
+
 ## Output
 
 <!--

@@ -1,7 +1,7 @@
 # Known bugs and limitations
 
-Some scenarios explore how `git-splice` behaves where it doesn't do what
-we'd want, and show the workarounds. They show it as it is today, so the
+Some scenarios explore how `git-splice` behaves where a reader might
+not expect it, and show the workarounds. They show it as it is today, so the
 output stays real and the page changes when the behaviour does. A banner
 under each one's title says where the problem stands, and the section
 here that lists it:
@@ -29,16 +29,15 @@ A problem without a scenario is only in the
 | [nested-splices: a pull retried after the synced commit below is gone](05-nested-splices/01-nested-splices/gone-below.md) | [#274](https://github.com/roschaefer/git-splice/issues/274) | A retry of a failed pull succeeds, though the splice below still lacks its synced commit. |
 | [nested-splices: spliced elsewhere before the push below](05-nested-splices/01-nested-splices/spliced-elsewhere-before-the-push-below.md) | [#467](https://github.com/roschaefer/git-splice/issues/467) | After a push of the splice above alone, `git splice clone` of its upstream can't make the inner splice's synced commit again. |
 | [nested-splices: a and b swap their `.splice`](05-nested-splices/01-nested-splices/swapped-ids.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | A push sends one splice's files to the other's upstream. |
-| [mirrors: mirrors that swap paths](07-moved-folders/03-mirrors/swapped-paths.md) | [#193](https://github.com/roschaefer/git-splice/issues/193) | After two mirrors swap paths, each path keeps its own history, so a push can publish what a mirror removed. |
+| [cycle](05-nested-splices/04-cycle/README.md) | [#86](https://github.com/roschaefer/git-splice/issues/86) | A splice whose upstream splices the monorepo back in nests the monorepo one level deeper on every pull; nothing refuses it. |
 | [edited-before-push: a change before the pull](06-rewritten-history/01-edited-before-push/change-before-the-pull.md) | [#82](https://github.com/roschaefer/git-splice/issues/82) | The next push publishes the original commit next to its edited version; `pull -s ours` isn't implemented. |
 | [upstream-rewritten-equal-tree: `push --force`](06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) | [#38](https://github.com/roschaefer/git-splice/issues/38) | `push --force`, one of the ways out `merge` prints, publishes the history the upstream rewrote away. |
+| [mirrors: mirrors that swap paths](07-moved-folders/03-mirrors/swapped-paths.md) | [#193](https://github.com/roschaefer/git-splice/issues/193) | After two mirrors swap paths, each path keeps its own history, so a push can publish what a mirror removed. |
 | [jujutsu-named-branch](09-vcs-compatibility/03-jujutsu-named-branch/README.md) | [#41](https://github.com/roschaefer/git-splice/issues/41) | In a colocated jj repository, syncing needs a named Git branch, which jj doesn't keep selected; it has to be selected again for each sync. |
 
 ## Undecided
 
-| Scenario | Issue | What happens today |
-| --- | --- | --- |
-| [cycle](05-nested-splices/04-cycle/README.md) | [#86](https://github.com/roschaefer/git-splice/issues/86) | A splice whose upstream splices the monorepo back in nests the monorepo one level deeper on every pull; nothing refuses it. |
+None at the moment.
 
 ## Limitations
 
@@ -76,7 +75,7 @@ ok 04-upstreams/09-encrypted-upstream/splice-in-plaintext.md limitation
 ok 05-nested-splices/01-nested-splices/gone-below.md bug #274
 ok 05-nested-splices/01-nested-splices/spliced-elsewhere-before-the-push-below.md bug #467
 ok 05-nested-splices/01-nested-splices/swapped-ids.md bug #174
-ok 05-nested-splices/04-cycle/README.md undecided #86
+ok 05-nested-splices/04-cycle/README.md bug #86
 ok 06-rewritten-history/01-edited-before-push/change-before-the-pull.md bug #82
 ok 06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md bug #38
 ok 07-moved-folders/03-mirrors/swapped-paths.md bug #193
@@ -92,7 +91,7 @@ ok 10-platform-compatibility/01-platform-restrictions/windows-paging.md limitati
    chapter, that's `../../99-known-bugs.md`, with one more `../` per
    level below. A known bug or an undecided one names its open issue:
 
-       > **Known bug, [#N](https://github.com/roschaefer/git-splice/issues/N).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
+       > **Known bug, [#N](https://github.com/roschaefer/git-splice/issues/N).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
 
        > **Undecided, [#N](https://github.com/roschaefer/git-splice/issues/N).** This page shows what `git-splice` does today; whether to change it is open. See [known bugs and limitations](../../99-known-bugs.md#undecided).
 

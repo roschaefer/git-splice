@@ -1,6 +1,6 @@
 # Scenario: bumped-on-a-feature-branch, moved after the bump
 
-> **Known bug, [#466](https://github.com/roschaefer/git-splice/issues/466).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
+> **Known bug, [#466](https://github.com/roschaefer/git-splice/issues/466).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
 
 As in [the README](README.md), the library deletes the branch a bump
 recorded, so a fresh clone makes the synced commit again from the
