@@ -63,7 +63,7 @@ So the conversion refuses, and says why:
 ```scrut
 $ git splice clone --from-submodule vendor/a
 ===  vendor/a: fetching https://git.example.com/a.git
-!!   vendor/a: vendor/a/.gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes
+!!   vendor/a: upstream's .gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes, not in vendor/a/
 [1]
 ```
 
@@ -72,7 +72,7 @@ And so does a plain `clone` of the same upstream:
 ```scrut
 $ git splice clone https://git.example.com/a.git vendor/b
 ===  vendor/b: fetching https://git.example.com/a.git
-!!   vendor/b: vendor/b/.gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes
+!!   vendor/b: upstream's .gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes, not in vendor/b/
 [1]
 ```
 

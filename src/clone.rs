@@ -546,7 +546,7 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
         .any(|line| line.trim_start().starts_with("[attr]"))
     {
         return die(format!(
-            "{path}: {path}/.gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes"
+            "{path}: upstream's .gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes, not in {path}/"
         ));
     }
     die(format!(

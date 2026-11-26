@@ -330,7 +330,7 @@ new_upstream() {
   git commit -q -m "binary images"
   run splice clone "$upstream" vendor/a
   [ "$status" -eq 1 ]
-  [[ "$output" == *"!!   vendor/a: vendor/a/.gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes"* ]]
+  [[ "$output" == *"!!   vendor/a: upstream's .gitattributes defines macros, which Git reads only in a repository's top-level .gitattributes, not in vendor/a/"* ]]
   [[ "$output" != *"can't change that"* ]]
   [ ! -e vendor/a ]
 }
