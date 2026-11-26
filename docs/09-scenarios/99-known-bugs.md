@@ -44,6 +44,7 @@ None at the moment.
 | Scenario | What happens | Way out |
 | --- | --- | --- |
 | [clone-from-submodule, with a nested submodule, pushed](02-starting-a-splice/08-clone-from-submodule/07-nested-submodules/README.md) | After `clone --from-submodule --recursive`, the next push of the folder above turns the upstream's own submodules into splices there too. | If that upstream's owners keep their submodules, push to a fork of yours. |
+| [splice-refs: key renamed while fetching](04-upstreams/05-splice-refs/renamed-while-fetching.md) | A `git splice key` in another worktree during a fetch, pull or push leaves the fetched refs under the old key, and the splice looks up to date until the next fetch. | Fetch again, then delete the refs left under the old key. |
 | [splice-refs: two fetches at once](04-upstreams/05-splice-refs/two-fetches-at-once.md) | Two fetches at once, in two worktrees, may both move one ref, and one fails with `cannot lock ref`. | Run it again. |
 | [encrypted-upstream: the `.splice` in plaintext](04-upstreams/09-encrypted-upstream/splice-in-plaintext.md) | The `.splice` stays out of git-crypt's filter, so whoever reads the monorepo reads it, the upstream's URL included. | Keep nothing secret in the URL. |
 | [non-UTF-8 input](10-platform-compatibility/01-platform-restrictions/README.md) | Arguments, repository and splice paths, and author or committer identities that aren't UTF-8 are refused, not changed. | Rename paths, and rewrite identities to UTF-8, before using them with `git-splice`. |
@@ -68,6 +69,7 @@ ok 02-starting-a-splice/08-clone-from-submodule/04-monorepo-line-endings/README.
 ok 02-starting-a-splice/08-clone-from-submodule/06-upstream-macro/README.md bug #311
 ok 02-starting-a-splice/08-clone-from-submodule/07-nested-submodules/README.md limitation
 ok 03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.md bug #466
+ok 04-upstreams/05-splice-refs/renamed-while-fetching.md limitation
 ok 04-upstreams/05-splice-refs/two-fetches-at-once.md limitation
 ok 04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md bug #407
 ok 04-upstreams/08-lfs-upstream/README.md bug #407

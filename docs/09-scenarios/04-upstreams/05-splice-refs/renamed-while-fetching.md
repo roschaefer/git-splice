@@ -1,5 +1,7 @@
 # splice-refs: key renamed while fetching
 
+> **Limitation.** This page shows behaviour `git-splice` keeps on purpose, and the way out. See [known bugs and limitations](../../99-known-bugs.md#limitations).
+
 `git splice key` renames an upstream's key: it moves the refs under
 `refs/splices/<key>/` and the key's entry in the repository's config. A
 `fetch`, `pull` or `push` looks the key up when it starts and writes its
