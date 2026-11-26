@@ -64,6 +64,13 @@ $ git log --oneline -1 splices/a/heads/main
 703b936 pkg-a: a second commit, after the clone
 ```
 
+Rename while no other worktree of the repository fetches, pulls or
+pushes, as with `git remote rename`: one that looked up the old key
+before writes its refs under it, and the renamed key keeps the refs from
+before. A folder under `refs/splices/` with no `splice.<key>.url` in the
+config shows it. Fetch again, then delete the folder's refs
+([key renamed while fetching](../09-scenarios/04-upstreams/05-splice-refs/renamed-while-fetching.md)).
+
 ## Keys
 
 ```scrut

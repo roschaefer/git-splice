@@ -1,7 +1,5 @@
 # splice-refs: key renamed while fetching
 
-> **Known bug, [#61](https://github.com/roschaefer/git-splice/issues/61).** This page shows what `git-splice` does today, bug included. See [all known bugs](../../99-known-bugs.md).
-
 `git splice key` renames an upstream's key: it moves the refs under
 `refs/splices/<key>/` and the key's entry in the repository's config. A
 `fetch`, `pull` or `push` looks the key up when it starts and writes its
@@ -9,7 +7,9 @@ refs under it seconds later, after the network. If a rename in another
 worktree of the same repository falls between the two, the command writes
 under the old key and reports success. A `push` records what it pushed
 there too. `git remote rename` has the
-[same gap](#plain-git-does-the-same).
+[same gap](#plain-git-does-the-same), and Git leaves it to whoever
+renames: rename while no other worktree fetches, pulls or pushes, or
+[repair it](#finding-and-fixing-it) afterwards.
 
 ## Output
 
@@ -104,6 +104,43 @@ On branch main
   up to date  vendor/a
 ```
 
+### Finding and fixing it
+
+A folder under `refs/splices/` with no key in the config is left over
+from such a rename. Here `refs/splices/a/` is, and the config has no
+`splice.a`. Fetching again, without the script, fills the renamed key:
+
+```scrut
+$ git config --unset "url.ext::rename-then-serve %S $UPSTREAM.insteadOf" &&
+>   git config "url.$UPSTREAM.insteadOf" https://git.example.com/a.git
+```
+
+```scrut
+$ git splice fetch
+ok   vendor/a fetched (main moved bde4164..6045a98)
+```
+
+```scrut
+$ git splice status
+On branch main
+
+  behind 1  vendor/a
+```
+
+The refs under the old key belong to no upstream. `refs/splices/` only
+caches what the upstreams have, so they can be deleted:
+
+```scrut
+$ git for-each-ref --format='delete %(refname)' refs/splices/a/ |
+>     git update-ref --stdin
+```
+
+```scrut
+$ git for-each-ref --format='%(refname)' refs/splices
+refs/splices/lib/heads/fix-parser
+refs/splices/lib/heads/main
+```
+
 ### Plain Git does the same
 
 `git remote rename` moves a remote's remote-tracking branches and its
@@ -149,4 +186,21 @@ upstream change refs/remotes/lib/main
 another change refs/remotes/origin/HEAD
 parser fix refs/remotes/origin/fix-parser
 another change refs/remotes/origin/main
+```
+
+The way out is the same: fetch the renamed remote, without the script,
+then delete what's left under `refs/remotes/origin/`:
+
+```scrut
+$ git config --unset "url.ext::remote-rename-then-serve %S $UPSTREAM.insteadOf" &&
+>   git fetch -q lib &&
+>   git for-each-ref --format='delete %(refname)' refs/remotes/origin/ |
+>     git update-ref --no-deref --stdin
+```
+
+```scrut
+$ git for-each-ref --format='%(subject) %(refname)' refs/remotes
+another change refs/remotes/lib/HEAD
+parser fix refs/remotes/lib/fix-parser
+another change refs/remotes/lib/main
 ```
