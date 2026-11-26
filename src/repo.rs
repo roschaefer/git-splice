@@ -989,6 +989,8 @@ impl<'context> Repo<'context> {
 
     /// The splice whose .splice can't be read in the tree of splice <path>:
     /// the outermost splice around <path> and every splice inside it.
+    /// <path> itself if its own can't be read, else the first in discovery
+    /// order.
     /// Commands read the splices around and inside the ones they act on.
     pub fn unreadable_in_tree(&self, path: &str) -> Option<&str> {
         let top = |path: &str| {
@@ -998,10 +1000,13 @@ impl<'context> Repo<'context> {
                 .min_by_key(|above| above.len())
                 .map_or(path.to_string(), String::clone)
         };
+        if let Some((own, _)) = self.unreadable.get_key_value(path) {
+            return Some(own);
+        }
         let tree = top(path);
-        self.unreadable
-            .keys()
-            .find(|unreadable| top(unreadable) == tree)
+        self.all_paths
+            .iter()
+            .find(|other| self.unreadable.contains_key(*other) && top(other) == tree)
             .map(String::as_str)
     }
 

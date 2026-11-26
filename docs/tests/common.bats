@@ -672,6 +672,17 @@ splice_trees_one_unreadable() {
   [[ "${lines[4]}" == *"  vendor/x" ]]
 }
 
+@test "discovery: with two unreadable .splice files in one tree, each shows its own reason, and the others name the outermost" {
+  splice_trees_one_unreadable
+  printf '<<<<<<< HEAD\n' >>vendor/a/.splice
+  git commit -q -am "conflict markers in vendor/a"
+  run splice fetch
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == "!!   vendor/a/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  [[ "${lines[1]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  [ "${lines[2]}" = "!!   vendor/a/c: not used, as vendor/a in its splice tree can't be read" ]
+}
+
 @test "discovery: a command that names a splice in the tree of an unreadable .splice stops with why" {
   splice_trees_one_unreadable
   for command in "status vendor/a" "push vendor/a/c"; do
