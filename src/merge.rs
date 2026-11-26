@@ -778,7 +778,7 @@ impl Repo<'_> {
         while !progress.done() {
             progress.advance(self)?;
         }
-        progress.finish()
+        progress.finish(self)
     }
 
     /// Prepares one descendant's changed .splice for reload after a merge.
@@ -1162,7 +1162,7 @@ impl MergeProgress {
         }
     }
 
-    pub(crate) fn finish(&self) -> Res<()> {
+    pub(crate) fn finish(&self, repo: &mut Repo) -> Res<()> {
         if !self.done() {
             return die("merge still has pending work");
         }
@@ -1179,8 +1179,8 @@ impl MergeProgress {
                 self.skipped.join(" ")
             ));
         }
-        if !self.failures.is_empty() {
-            log_err(format!("Failed: {}", self.failures.join(" ")));
+        for failed in &self.failures {
+            repo.context.leave_out(failed);
         }
         if self.skipped.is_empty() && self.failures.is_empty() {
             Ok(())
@@ -1582,7 +1582,7 @@ mod tests {
             while !progress.done() {
                 progress.advance(&mut repo).unwrap();
             }
-            progress.finish().unwrap();
+            progress.finish(&mut repo).unwrap();
             let head = git(&["rev-parse", "HEAD"]);
             progress.advance(&mut repo).unwrap();
             assert_eq!(git(&["rev-parse", "HEAD"]), head);
@@ -1658,7 +1658,7 @@ mod tests {
             while !progress.done() {
                 progress.advance(&mut repo).unwrap();
             }
-            assert!(progress.finish().is_err());
+            assert!(progress.finish(&mut repo).is_err());
             assert_eq!(progress.failures, ["vendor/a/c"]);
             assert_eq!(
                 splice_config("vendor/a/b", "commit", "HEAD"),
@@ -1723,7 +1723,7 @@ mod tests {
             while !progress.done() {
                 progress.advance(&mut repo).unwrap();
             }
-            assert!(progress.finish().is_err());
+            assert!(progress.finish(&mut repo).is_err());
             assert_eq!(git(&["rev-parse", "HEAD"]), merged_parent);
             assert_eq!(splice_config("vendor/a/b", "commit", "HEAD"), missing);
             assert_eq!(std::fs::read_to_string("vendor/a/b/file").unwrap(), "old\n");
@@ -1794,7 +1794,7 @@ mod tests {
             }
             assert_eq!(progress.failures, ["vendor/a"]);
             assert_eq!(progress.skipped, ["vendor/z"]);
-            assert!(progress.finish().is_err());
+            assert!(progress.finish(&mut repo).is_err());
             assert_eq!(splice_config("vendor/z", "commit", "HEAD"), unchanged);
             assert!(splice_in_progress());
         });

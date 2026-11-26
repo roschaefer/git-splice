@@ -69,7 +69,7 @@ fn dispatch(argv: &[String]) -> Res<i32> {
     };
     let rest = &argv[1..];
     let context = &mut ExecutionContext::new();
-    let code = match command.as_str() {
+    let result = match command.as_str() {
         "-h" | "--help" => {
             say(USAGE.trim_end_matches('\n'));
             Ok(0)
@@ -95,13 +95,13 @@ fn dispatch(argv: &[String]) -> Res<i32> {
             eprint_text(USAGE);
             Ok(1)
         }
-    }?;
+    };
     let left_out = context.left_out();
     // status shows them as rows of their own.
     if !left_out.is_empty() && command != "status" {
         log_err(format!("Failed: {}", left_out.join(" ")));
     }
-    Ok(context.exit_code(code))
+    result.map(|code| context.exit_code(code))
 }
 
 fn main() -> ExitCode {

@@ -182,7 +182,7 @@ impl PullProgress {
                     self.merged = merges.tasks();
                     self.phase = PullPhase::Finalize;
                 } else if merges.done() {
-                    if merges.finish().is_err() {
+                    if merges.finish(repo).is_err() {
                         self.status = 1;
                     }
                     self.merged = merges.tasks();
