@@ -254,7 +254,8 @@ mod tests {
     use crate::util::test_repo::{git, with_repository};
 
     #[test]
-    fn status_on_a_reused_context_skips_a_splice_an_earlier_operation_left_out_for_another_reason() {
+    fn status_on_a_reused_context_skips_a_splice_an_earlier_operation_left_out_for_another_reason()
+    {
         with_repository(|| {
             std::fs::create_dir_all("vendor/a").unwrap();
             std::fs::write(
