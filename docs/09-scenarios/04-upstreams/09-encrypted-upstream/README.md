@@ -57,18 +57,21 @@ ok   cloned.drawio.svg: 3 commits, 3 arrows, 2 boxes, 1 lanes
 ```
 -->
 
-But the filter applies to it, so Git sees it as changed: stored again,
-it would be encrypted.
+But the filter applies to it: stored again, it is encrypted.
+
+```scrut
+$ git add --renormalize vendor/a/.splice
+```
 
 ```scrut
 $ git status --short
- M vendor/a/.splice
+M  vendor/a/.splice
 ```
 
-A commit of everything stores it encrypted:
+A commit stores it encrypted:
 
 ```scrut
-$ git commit -q -a -m "c: commit everything"
+$ git commit -q -m "c: store the .splice again"
 ```
 
 and every command refuses:
