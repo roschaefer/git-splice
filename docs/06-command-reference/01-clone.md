@@ -171,7 +171,7 @@ A submodule's own submodules are converted too, one commit each. Their
 upstream still has them, so the next push of the folder above turns them
 into splices there. If that upstream's owners keep their submodules,
 convert it in a fork of yours instead
-([#153](https://github.com/roschaefer/git-splice/issues/153)).
+([nested submodule, pushed](../09-scenarios/02-starting-a-splice/08-clone-from-submodule/07-nested-submodules/README.md)).
 
 ## Upstream branch
 
