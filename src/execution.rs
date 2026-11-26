@@ -3,9 +3,10 @@
 use crate::repo::{commit_of, Repo};
 use crate::tree::Tasks;
 use crate::util::*;
+use serde::Serialize;
 use std::process::{Command, Stdio};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct FetchedUpstream {
     pub path: String,
     pub upstream: String,
@@ -14,7 +15,8 @@ pub struct FetchedUpstream {
     pub failed: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "name", rename_all = "kebab-case")]
 pub enum ExecutionEvent {
     /// Downloads are done and reported; new upstreams that all failed are forgotten.
     AfterFetch { fetched: Vec<FetchedUpstream> },
@@ -58,55 +60,16 @@ impl ExecutionEvent {
         }
     }
 
-    /// The event as JSON: its name and its fields, by their Rust names.
-    pub fn to_json(&self) -> String {
-        let (name, _, _) = self.hook_values();
-        let strings = |values: &[String]| json_array(values.iter().map(|v| json_string(v)));
-        let fields: Vec<(&str, String)> = match self {
-            Self::AfterFetch { fetched } => vec![(
-                "fetched",
-                json_array(fetched.iter().map(|entry| {
-                    json_object(&[
-                        ("path", json_string(&entry.path)),
-                        ("upstream", json_string(&entry.upstream)),
-                        ("url", json_string(&entry.url)),
-                        ("failed", entry.failed.to_string()),
-                    ])
-                })),
-            )],
-            Self::AfterMerge {
-                path,
-                head_before,
-                head_after,
-            } => vec![
-                ("path", json_string(path)),
-                ("head_before", json_string(head_before)),
-                ("head_after", json_string(head_after)),
-            ],
-            Self::AfterRebuild { path, commit } | Self::AfterPush { path, commit } => {
-                vec![("path", json_string(path)), ("commit", json_string(commit))]
-            }
-            Self::BeforeFold { roots, head } => {
-                vec![("roots", strings(roots)), ("head", json_string(head))]
-            }
-            Self::AfterFold {
-                roots,
-                head_before,
-                head_after,
-            } => vec![
-                ("roots", strings(roots)),
-                ("head_before", json_string(head_before)),
-                ("head_after", json_string(head_after)),
-            ],
-        };
-        json_object(&[vec![("name", json_string(name))], fields].concat())
-    }
-
     fn exec(&self, command: &str, operation: &str, tasks: &Tasks) -> Res<()> {
         let (event, path, commit) = self.hook_values();
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            event: &'a ExecutionEvent,
+            tasks: &'a Tasks,
+        }
         let payload = format!(
             "{}\n",
-            json_object(&[("event", self.to_json()), ("tasks", tasks.to_json())])
+            serde_json::to_string(&Payload { event: self, tasks }).unwrap()
         );
         let child = Command::new("sh")
             .args(["-c", command])
@@ -358,7 +321,7 @@ mod tests {
             }],
         };
         assert_eq!(
-            fetch.to_json(),
+            serde_json::to_string(&fetch).unwrap(),
             r#"{"name":"after-fetch","fetched":[{"path":"vendor/a","upstream":"origin","url":"https://example.com/a \"b\".git","failed":true}]}"#
         );
         let fold = ExecutionEvent::BeforeFold {
@@ -366,7 +329,7 @@ mod tests {
             head: "1234".into(),
         };
         assert_eq!(
-            fold.to_json(),
+            serde_json::to_string(&fold).unwrap(),
             r#"{"name":"before-fold","roots":["a","c"],"head":"1234"}"#
         );
     }

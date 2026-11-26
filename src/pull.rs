@@ -670,7 +670,9 @@ impl Operation for PullProgress {
         // A splice a failed fetch keeps from merging, from the report on.
         let unfetched = |path: &String| match self.not_fetched(path)? {
             NotFetched::Itself => Some(Task::Failed),
-            NotFetched::Above(failed) | NotFetched::Below(failed) => Some(Task::Blocked(failed)),
+            NotFetched::Above(failed) | NotFetched::Below(failed) => {
+                Some(Task::Blocked { by: failed })
+            }
         };
         let with = |merges: &[(String, Task)], or: Task| -> Vec<(String, Task)> {
             let mut tasks: Vec<(String, Task)> = self
@@ -700,12 +702,15 @@ impl Operation for PullProgress {
             PullPhase::Fetch(_) | PullPhase::Fetched(_) => (
                 self.selected
                     .iter()
-                    .map(|path| (path.clone(), Task::Pending(Step::Fetch)))
+                    .map(|path| (path.clone(), Task::Pending { step: Step::Fetch }))
                     .collect(),
                 None,
             ),
-            PullPhase::Reported => (with(&[], Task::Pending(Step::Merge)), None),
-            PullPhase::Merge(merges) => (with(&merges.tasks(), Task::Pending(Step::Merge)), None),
+            PullPhase::Reported => (with(&[], Task::Pending { step: Step::Merge }), None),
+            PullPhase::Merge(merges) => (
+                with(&merges.tasks(), Task::Pending { step: Step::Merge }),
+                None,
+            ),
             // A splice keeps its merge pending unless the merges settled it.
             PullPhase::Finalize
             | PullPhase::Fold { .. }
@@ -718,7 +723,10 @@ impl Operation for PullProgress {
                     PullPhase::Cleanup { .. } => Some("clean up"),
                     _ => None,
                 };
-                (with(&self.merged, Task::Pending(Step::Merge)), next)
+                (
+                    with(&self.merged, Task::Pending { step: Step::Merge }),
+                    next,
+                )
             }
         };
         Tasks { per_splice, next }
