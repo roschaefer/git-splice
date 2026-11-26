@@ -22,7 +22,7 @@ jobs:
   # finish before lint-docs. The Rust tests get one too; they would add more
   # than a minute to a shard.
   test:
-    name: test (${{ matrix.shard }}/3)
+    name: test (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,10 +41,13 @@ jobs:
       - name: test
         env:
           SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ strategy.job-total }}
+        # Its own line, so a failing bats-shard.sh fails the step.
         run: |
+          files="$(.github/bats-shard.sh "$SHARD" "$SHARDS")"
           # The files are split into words on purpose.
-          # shellcheck disable=SC2046
-          nix develop --command just test-bats $(.github/bats-shard.sh "$SHARD" 3)
+          # shellcheck disable=SC2086
+          nix develop --command just test-bats $files
 
   rust-test:
     runs-on: ubuntu-latest
@@ -94,7 +97,7 @@ jobs:
     # after the version under test rather than the nixpkgs revision it comes
     # from. The test step fails first if the label drifts from what the
     # revision ships.
-    name: compat (git 2.40.1, ${{ matrix.shard }}/3)
+    name: compat (git 2.40.1, ${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -113,6 +116,7 @@ jobs:
       - name: test
         env:
           SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ strategy.job-total }}
         run: |
           # The script is single-quoted so it expands inside the nix shell.
           # shellcheck disable=SC2016
@@ -132,8 +136,10 @@ jobs:
                 echo "::error::the job says git 2.40.1, nixos-23.05 has $git_version -- update it in ci.yml"
                 exit 1
               fi
+              # Its own line, so a failing bats-shard.sh fails the step.
+              files="$(.github/bats-shard.sh "$SHARD" "$SHARDS")"
               # The files are split into words on purpose.
-              bats --jobs "$(nproc)" $(.github/bats-shard.sh "$SHARD" 3)
+              bats --jobs "$(nproc)" $files
             '
 
   # Builds and packages a binary on every PR, so a release isn't the first

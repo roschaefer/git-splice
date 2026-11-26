@@ -7,17 +7,22 @@
 # time: on the suite of 2026-11-26 it gave three shards within 5% of each
 # other's time, and it can't go stale like a list of measured times.
 set -euo pipefail
+shopt -s failglob
 
 shard="$1"
 shards="$2"
+# A missing folder fails here rather than leaving its tests out of every shard.
+files=(docs/tests/*.bats check-drawing/tests/*.bats)
 
-grep -c '^@test' docs/tests/*.bats check-drawing/tests/*.bats |
+grep -c '^@test' "${files[@]}" |
   sort -t: -k2,2nr -k1,1 |
   awk -F: -v shard="$shard" -v shards="$shards" '
     {
       least = 1
       for (i = 2; i <= shards; i++) if (tests[i] < tests[least]) least = i
       tests[least] += $2
-      if (least == shard) print $1
+      if (least == shard) { print $1; printed = 1 }
     }
+    # An empty shard means more shards than files, or SHARD above SHARDS.
+    END { if (!printed) { print "bats-shard.sh: shard " shard " of " shards " has no files" > "/dev/stderr"; exit 1 } }
   '
