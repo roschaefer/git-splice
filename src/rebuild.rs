@@ -974,7 +974,18 @@ impl Repo<'_> {
                 .rev()
                 .find_map(|(n, commit)| Some((n, cache.get(&key(hash_of(commit)))?.clone())));
             if let Some((n, copy)) = newest {
-                if let Some(tree) = tree_of(&copy) {
+                // gc may have pruned it: it's rebuilt then, quietly, and not
+                // asked for from a partial clone's promisor remote.
+                let tree = git(&[
+                    "rev-parse",
+                    "--verify",
+                    "--quiet",
+                    &format!("{copy}^{{tree}}"),
+                ])
+                .q()
+                .env("GIT_NO_LAZY_FETCH", "1")
+                .out();
+                if let Some(tree) = tree {
                     done = n + 1;
                     prev = Some(copy);
                     prev_tree = Some(tree);

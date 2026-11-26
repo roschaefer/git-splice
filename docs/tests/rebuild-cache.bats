@@ -53,14 +53,15 @@ commits_written() {
   [ "$(splice rebuild vendor/a)" = "$cached" ]
 }
 
-@test "rebuild cache: a remembered commit that gc pruned is rebuilt" {
+@test "rebuild cache: a remembered commit that gc pruned is rebuilt, without an error" {
   three_unpushed
   local rebuilt object
   rebuilt="$(splice rebuild vendor/a)"
   object=".git/objects/${rebuilt:0:2}/${rebuilt:2}"
   [ -f "$object" ]
   rm "$object"
-  [ "$(splice rebuild vendor/a)" = "$rebuilt" ]
+  [ "$(splice rebuild vendor/a 2>"$BATS_TEST_TMPDIR/stderr")" = "$rebuilt" ]
+  [ ! -s "$BATS_TEST_TMPDIR/stderr" ]
   [ -f "$object" ]
 }
 
