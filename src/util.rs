@@ -118,6 +118,11 @@ pub fn json_string(value: &str) -> String {
     out
 }
 
+/// A JSON array of <items>, each JSON already.
+pub fn json_array(items: impl IntoIterator<Item = String>) -> String {
+    format!("[{}]", items.into_iter().collect::<Vec<_>>().join(","))
+}
+
 /// A JSON object of <fields>, each a key and its value as JSON already.
 pub fn json_object(fields: &[(&str, String)]) -> String {
     let items: Vec<String> = fields
