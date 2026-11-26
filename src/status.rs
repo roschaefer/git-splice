@@ -229,7 +229,9 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         rows.push(classify_row(&mut repo, path, &branch)?);
     }
     for path in repo.context.left_out() {
-        let (unreadable, why) = repo.unreadable_in_tree(path).unwrap();
+        let Some((unreadable, why)) = repo.unreadable_in_tree(path) else {
+            continue;
+        };
         rows.push(Row {
             rank: PROBLEM,
             label: format!("!! can't use {STATE_FILE}"),
@@ -244,4 +246,27 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     say(format!("On branch {branch}\n"));
     print_rows(&rows);
     Ok(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::util::test_repo::{git, with_repository};
+
+    #[test]
+    fn status_on_a_reused_context_skips_a_splice_an_earlier_operation_left_out_for_another_reason() {
+        with_repository(|| {
+            std::fs::create_dir_all("vendor/a").unwrap();
+            std::fs::write(
+                "vendor/a/.splice",
+                "[splice]\n id = test\n[upstream \"origin\"]\n url = ../upstream.git\n",
+            )
+            .unwrap();
+            git(&["add", "."]);
+            git(&["commit", "-qm", "mount"]);
+            let mut context = ExecutionContext::new();
+            context.leave_out("vendor/a");
+            assert_eq!(run(&mut context, &[]).unwrap(), 0);
+        });
+    }
 }
