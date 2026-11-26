@@ -4,6 +4,7 @@
 //! branch without remembering anything about earlier pushes. See
 //! docs/07-design/README.md.
 
+use crate::rebuild_cache::{is_fixed_lower, is_id, Key};
 use crate::repo::*;
 use crate::state::{state_blob_in, tree_with};
 use crate::util::*;
@@ -412,8 +413,8 @@ impl Repo<'_> {
     /// Folder tree <tree> of splice <path> at monorepo commit <rev>, with each
     /// splice inside it recorded at its own rebuild as of <rev>, rather than
     /// at the synced commit the monorepo recorded: what its upstream gets
-    /// with the same push.
-    fn record_children(&mut self, path: &str, rev: &str, tree: &str) -> Res<String> {
+    /// with the same push. Also whether there are splices inside it.
+    fn record_children(&mut self, path: &str, rev: &str, tree: &str) -> Res<(String, bool)> {
         let dirs = self.nested_splices(tree);
         // The splices right inside this one: the ones deeper are inside them,
         // and their rebuilds record those.
@@ -451,7 +452,7 @@ impl Repo<'_> {
             folders.push((dir.clone(), Some(format!("{rebuilt}^{{tree}}"))));
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
-        tree_with(tree, &folders, &files)
+        Ok((tree_with(tree, &folders, &files)?, !dirs.is_empty()))
     }
 
     /// The rebuild of splice <child> at monorepo commit <rev>, for the record
@@ -472,7 +473,7 @@ impl Repo<'_> {
                     Ok(previous)
                 } else {
                     let range = format!("{before}..{rev}");
-                    quietly(|| self.rebuild_walk(child, previous, &range))
+                    quietly(|| self.rebuild_walk(child, previous, &range, false))
                 });
             }
         }
@@ -506,7 +507,7 @@ impl Repo<'_> {
     /// rebuild. What an upstream commit's tree is compared with.
     pub fn published_tree(&mut self, rev: &str, path: &str) -> Res<Option<String>> {
         match self.content_tree(rev, path)? {
-            Some(tree) => Ok(Some(self.record_children(path, rev, &tree)?)),
+            Some(tree) => Ok(Some(self.record_children(path, rev, &tree)?.0)),
             None => Ok(None),
         }
     }
@@ -607,7 +608,7 @@ impl Repo<'_> {
         // or as a root, after init.
         let start = (!previous.is_empty()).then_some(previous);
         let range = format!("{before}..{first}");
-        matches!(self.rebuild_walk(path, start, &range), Ok(Some(made)) if made == synced)
+        matches!(self.rebuild_walk(path, start, &range, false), Ok(Some(made)) if made == synced)
     }
 
     /// The upstream commit that represents the splice as of monorepo commit
@@ -905,9 +906,9 @@ impl Repo<'_> {
             start = Some(mount.mount);
         }
 
-        let mut prev = self.rebuild_walk(&at, prev, &range)?;
+        let mut prev = self.rebuild_walk(&at, prev, &range, true)?;
         for segment in moves.iter().rev() {
-            prev = self.rebuild_walk(&segment.path, prev, &segment.range)?;
+            prev = self.rebuild_walk(&segment.path, prev, &segment.range, true)?;
         }
         Ok((prev, start))
     }
@@ -915,18 +916,16 @@ impl Repo<'_> {
     /// The rebuild of the splice along <range>, on top of upstream commit
     /// <start> (nothing: a new root): one commit per first-parent commit whose
     /// folder differs from the one before. A merge in the monorepo becomes one
-    /// ordinary commit.
+    /// ordinary commit. With <remember>, a later walk goes on from where this
+    /// one ended; one-off walks, such as a splice inside's per commit, aren't.
     fn rebuild_walk(
         &mut self,
         path: &str,
         start: Option<String>,
         range: &str,
+        remember: bool,
     ) -> Res<Option<String>> {
         let mut prev = start;
-        let mut prev_tree = match &prev {
-            Some(commit) => Some(tree_of(commit).ok_or(Fail::Soft)?),
-            None => None,
-        };
         // Every field ends with a NUL; tformat adds a newline after each
         // commit, which then starts the next hash.
         let format = format!("--pretty=tformat:%H%x00{COPY_FORMAT}%x00");
@@ -952,7 +951,55 @@ impl Repo<'_> {
             let hash = commit[0].strip_prefix(b"\n").unwrap_or(commit[0]);
             String::from_utf8_lossy(hash).into_owned()
         };
-        let queries: String = commits
+
+        // The walk goes on from where an earlier one on these commits ended,
+        // if its rebuilt commit is still here.
+        let lower = range.split_once("..").map_or("", |(lower, _)| lower);
+        let key_start = prev.clone().unwrap_or_default();
+        let cached =
+            remember && is_fixed_lower(lower) && (key_start.is_empty() || is_id(&key_start));
+        let key = |commit: String| Key {
+            path: path.to_string(),
+            start: key_start.clone(),
+            lower: lower.to_string(),
+            commit,
+        };
+        let mut done = 0;
+        let mut prev_tree = None;
+        if cached {
+            let cache = self.context.rebuild_cache();
+            let newest = commits
+                .iter()
+                .enumerate()
+                .rev()
+                .find_map(|(n, commit)| Some((n, cache.get(&key(hash_of(commit)))?.clone())));
+            if let Some((n, copy)) = newest {
+                // gc may have pruned it: it's rebuilt then, quietly, and not
+                // asked for from a partial clone's promisor remote.
+                let tree = git(&[
+                    "rev-parse",
+                    "--verify",
+                    "--quiet",
+                    &format!("{copy}^{{tree}}"),
+                ])
+                .q()
+                .env("GIT_NO_LAZY_FETCH", "1")
+                .out();
+                if let Some(tree) = tree {
+                    done = n + 1;
+                    prev = Some(copy);
+                    prev_tree = Some(tree);
+                }
+            }
+        }
+        if done == 0 {
+            prev_tree = match &prev {
+                Some(commit) => Some(tree_of(commit).ok_or(Fail::Soft)?),
+                None => None,
+            };
+        }
+
+        let queries: String = commits[done..]
             .iter()
             .map(|commit| format!("{}:{path}\n", hash_of(commit)))
             .collect();
@@ -960,13 +1007,18 @@ impl Repo<'_> {
             .input(queries)
             .out()
             .ok_or(Fail::Soft)?;
-        for (commit, object) in commits.iter().zip(objects.lines()) {
+        // A splice inside this one gets recorded at its own rebuild, which
+        // depends on more than this walk's commits, e.g. on the objects
+        // fetched: such a walk isn't remembered.
+        let mut nested = false;
+        for (commit, object) in commits[done..].iter().zip(objects.lines()) {
             let mut words = object.split(' ');
             let (Some(folder), Some("tree")) = (words.next(), words.next()) else {
                 continue;
             };
             let tree = self.context.strip_state_tree(folder)?;
-            let tree = self.record_children(path, &hash_of(commit), &tree)?;
+            let (tree, children) = self.record_children(path, &hash_of(commit), &tree)?;
+            nested |= children;
             if Some(&tree) == prev_tree.as_ref() {
                 continue;
             }
@@ -978,6 +1030,13 @@ impl Repo<'_> {
             )?;
             prev = Some(copy);
             prev_tree = Some(tree);
+        }
+        if let (true, false, Some(last), Some(copy)) =
+            (cached, nested, commits[done..].last(), &prev)
+        {
+            self.context
+                .rebuild_cache()
+                .remember(key(hash_of(last)), copy.clone());
         }
         Ok(prev)
     }
