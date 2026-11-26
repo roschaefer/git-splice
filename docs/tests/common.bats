@@ -588,6 +588,25 @@ splices_next_to_unreadable() {
   [ "$(git -C "$upstream-b" rev-parse main)" = "$before" ]
 }
 
+@test "discovery: when every .splice can't be read, each command over every splice names it, does nothing and fails" {
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "seed"
+  init_monorepo "$monorepo"
+  add_splice "$monorepo" "$upstream" vendor/a
+  cd "$monorepo"
+  printf '<<<<<<< HEAD\n' >>vendor/a/.splice
+  git commit -q -am "conflict markers in vendor/a"
+  before="$(git rev-parse HEAD)"
+  for command in fetch diff log "push --all" "merge --all" "pull --all"; do
+    run splice $command
+    [ "$status" -eq 1 ]
+    [[ "${lines[0]}" == "!!   vendor/a/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+    [ "${lines[1]}" = "!!   Failed: vendor/a" ]
+    [ "${#lines[@]}" -eq 2 ]
+  done
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "status: a splice whose .splice can't be read is a problem row with why, the others show as usual, and status fails" {
   splices_next_to_unreadable
   splice fetch vendor/a >/dev/null

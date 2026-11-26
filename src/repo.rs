@@ -1053,9 +1053,6 @@ impl<'context> Repo<'context> {
                 }
                 self.context.leave_out(&path);
             }
-            if self.selected.is_empty() && command != "status" {
-                return Err(Fail::Hard);
-            }
             return Ok(());
         }
         for path in self.args.paths.clone() {
