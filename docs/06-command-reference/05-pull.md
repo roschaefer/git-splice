@@ -280,6 +280,9 @@ its `path` and `task`: `pending` (with `step`, `fetch` or `merge`),
 `failed`, `removed`, or `copy` (with `of`). `tasks.next` names a step
 beyond the splices, like `fold`, or is `null`.
 
+`url` is the upstream's URL as configured, with any credentials in it:
+a hook that logs the payload strips what it shouldn't keep.
+
 A [log](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/log.md)
 of a recursive pull shows the JSON at every checkpoint, and a
 [progress hook](../09-scenarios/05-nested-splices/05-recursion/01-recursive-pull/progress.md)
