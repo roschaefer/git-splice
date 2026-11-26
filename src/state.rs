@@ -211,6 +211,10 @@ impl Repo<'_> {
     }
 }
 
+/// Git's mode for a submodule's entry, a gitlink, as trees and the index
+/// record it.
+pub const GITLINK: &str = "160000";
+
 /// A blob: splice <path>'s state file as committed in <rev>, or a new one, with
 /// each (key, value) set (an empty value unsets it). A key without a section is
 /// in [splice], e.g. "commit"; others are given in full, e.g.
