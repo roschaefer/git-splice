@@ -121,19 +121,16 @@ impl ExecutionEvent {
         };
         // From a thread: a hook that never reads its stdin mustn't block it.
         // One that exits before reading it all just doesn't get the rest.
-        let writer = child.stdin.take().map(|mut stdin| {
+        if let Some(mut stdin) = child.stdin.take() {
             std::thread::spawn(move || {
                 use std::io::Write;
                 let _ = stdin.write_all(payload.as_bytes());
-            })
-        });
+            });
+        }
         let status = match child.wait() {
             Ok(status) => status,
             Err(error) => return die(format!("--exec: could not run command: {error}")),
         };
-        if let Some(writer) = writer {
-            let _ = writer.join();
-        }
         if !status.success() {
             let of = if path.is_empty() {
                 String::new()
