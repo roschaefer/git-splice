@@ -2,7 +2,7 @@
 //! is pending or settled: for a tree drawing, or a test, to show next to
 //! each splice.
 
-use crate::util::{json_object, json_string};
+use crate::util::{json_array, json_object, json_string};
 use std::collections::HashMap;
 
 /// A step an operation still has to take for a splice.
@@ -47,32 +47,23 @@ impl Tasks {
             .per_splice
             .iter()
             .map(|(path, task)| {
-                let mut fields = vec![("path", json_string(path))];
-                let step = |step: &Step| match step {
-                    Step::Fetch => "fetch",
-                    Step::Merge => "merge",
-                };
-                let (name, extra) = match task {
-                    Task::Pending(s) => ("pending", Some(("step", step(s).to_string()))),
+                let (name, detail) = match task {
+                    Task::Pending(Step::Fetch) => ("pending", Some(("step", "fetch"))),
+                    Task::Pending(Step::Merge) => ("pending", Some(("step", "merge"))),
                     Task::Done => ("done", None),
                     Task::Conflict => ("conflict", None),
-                    Task::Blocked(by) => ("blocked", Some(("by", by.clone()))),
+                    Task::Blocked(by) => ("blocked", Some(("by", by.as_str()))),
                     Task::Failed => ("failed", None),
                     Task::Removed => ("removed", None),
-                    Task::Copy(of) => ("copy", Some(("of", of.clone()))),
+                    Task::Copy(of) => ("copy", Some(("of", of.as_str()))),
                 };
-                fields.push(("task", json_string(name)));
-                if let Some((key, value)) = extra {
-                    fields.push((key, json_string(&value)));
-                }
+                let mut fields = vec![("path", json_string(path)), ("task", json_string(name))];
+                fields.extend(detail.map(|(key, value)| (key, json_string(value))));
                 json_object(&fields)
             })
             .collect();
         let next = self.next.map_or("null".to_string(), json_string);
-        json_object(&[
-            ("splices", format!("[{}]", splices.join(","))),
-            ("next", next),
-        ])
+        json_object(&[("splices", json_array(splices)), ("next", next)])
     }
 
     /// Each splice's task as text, by path, naming other splices by their

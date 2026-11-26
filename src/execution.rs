@@ -61,25 +61,19 @@ impl ExecutionEvent {
     /// The event as JSON: its name and its fields, by their Rust names.
     pub fn to_json(&self) -> String {
         let (name, _, _) = self.hook_values();
-        let strings = |values: &[String]| {
-            let items: Vec<String> = values.iter().map(|value| json_string(value)).collect();
-            format!("[{}]", items.join(","))
-        };
+        let strings = |values: &[String]| json_array(values.iter().map(|v| json_string(v)));
         let fields: Vec<(&str, String)> = match self {
-            Self::AfterFetch { fetched } => {
-                let items: Vec<String> = fetched
-                    .iter()
-                    .map(|entry| {
-                        json_object(&[
-                            ("path", json_string(&entry.path)),
-                            ("upstream", json_string(&entry.upstream)),
-                            ("url", json_string(&entry.url)),
-                            ("failed", entry.failed.to_string()),
-                        ])
-                    })
-                    .collect();
-                vec![("fetched", format!("[{}]", items.join(",")))]
-            }
+            Self::AfterFetch { fetched } => vec![(
+                "fetched",
+                json_array(fetched.iter().map(|entry| {
+                    json_object(&[
+                        ("path", json_string(&entry.path)),
+                        ("upstream", json_string(&entry.upstream)),
+                        ("url", json_string(&entry.url)),
+                        ("failed", entry.failed.to_string()),
+                    ])
+                })),
+            )],
             Self::AfterMerge {
                 path,
                 head_before,
@@ -105,9 +99,7 @@ impl ExecutionEvent {
                 ("head_after", json_string(head_after)),
             ],
         };
-        let mut all = vec![("name", json_string(name))];
-        all.extend(fields);
-        json_object(&all)
+        json_object(&[vec![("name", json_string(name))], fields].concat())
     }
 
     fn exec(&self, command: &str, operation: &str, tasks: &Tasks) -> Res<()> {
