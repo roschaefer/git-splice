@@ -656,9 +656,9 @@ splice_trees_one_unreadable() {
   seed_bare_repo "$upstream-x" "x change"
   run splice fetch
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "!!   vendor/a: not used, as vendor/a/b in its splice tree can't be read" ]
+  [ "${lines[0]}" = "!!   vendor/a: in the splice tree of vendor/a/b, whose .splice can't be read" ]
   [[ "${lines[1]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
-  [ "${lines[2]}" = "!!   vendor/a/c: not used, as vendor/a/b in its splice tree can't be read" ]
+  [ "${lines[2]}" = "!!   vendor/a/c: in the splice tree of vendor/a/b, whose .splice can't be read" ]
   [ "$(git rev-parse "refs/splices/$(splice key vendor/x)/heads/main")" = "$(git -C "$upstream-x" rev-parse main)" ]
 }
 
@@ -666,9 +666,9 @@ splice_trees_one_unreadable() {
   splice_trees_one_unreadable
   run splice status
   [ "$status" -eq 1 ]
-  [ "${lines[1]}" = "  !! can't use .splice  vendor/a    not used, as vendor/a/b in its splice tree can't be read" ]
+  [ "${lines[1]}" = "  !! can't use .splice  vendor/a    in the splice tree of vendor/a/b, whose .splice can't be read" ]
   [[ "${lines[2]}" == "  !! can't use .splice  vendor/a/b  vendor/a/b/.splice can't be read (bad config line "*"); fix it and commit it" ]]
-  [ "${lines[3]}" = "  !! can't use .splice  vendor/a/c  not used, as vendor/a/b in its splice tree can't be read" ]
+  [ "${lines[3]}" = "  !! can't use .splice  vendor/a/c  in the splice tree of vendor/a/b, whose .splice can't be read" ]
   [[ "${lines[4]}" == *"  vendor/x" ]]
 }
 
@@ -685,15 +685,15 @@ splice_trees_one_unreadable() {
   run splice clone "$upstream-x" vendor/a/new
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
-  [ "${lines[1]}" = "!!   vendor/a/new: can't clone here, as vendor/a/b in its splice tree can't be read" ]
+  [ "${lines[1]}" = "!!   vendor/a/new: in the splice tree of vendor/a/b, whose .splice can't be read" ]
   mkdir vendor/a/sub && echo x >vendor/a/sub/file.txt
   git add vendor/a/sub && git commit -q -m "a folder to init"
   run splice init vendor/a/sub "$upstream-x"
   [ "$status" -eq 1 ]
-  [ "${lines[1]}" = "!!   vendor/a/sub: can't init here, as vendor/a/b in its splice tree can't be read" ]
+  [ "${lines[1]}" = "!!   vendor/a/sub: in the splice tree of vendor/a/b, whose .splice can't be read" ]
   run splice init vendor "$upstream-x"
   [ "$status" -eq 1 ]
-  [ "${lines[1]}" = "!!   vendor: can't init here, as vendor/a/b in its splice tree can't be read" ]
+  [ "${lines[1]}" = "!!   vendor: in the splice tree of vendor/a/b, whose .splice can't be read" ]
   [ "$(git rev-parse HEAD~1)" = "$before" ]
 }
 
@@ -705,7 +705,7 @@ splice_trees_one_unreadable() {
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == "!!   vendor/a/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
   [[ "${lines[1]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
-  [ "${lines[2]}" = "!!   vendor/a/c: not used, as vendor/a in its splice tree can't be read" ]
+  [ "${lines[2]}" = "!!   vendor/a/c: in the splice tree of vendor/a, whose .splice can't be read" ]
 }
 
 @test "discovery: a command that names a splice in the tree of an unreadable .splice stops with why" {
@@ -714,7 +714,7 @@ splice_trees_one_unreadable() {
     run splice $command
     [ "$status" -eq 1 ]
     [[ "${lines[0]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
-    [ "${lines[1]}" = "!!   ${command#* }: not used, as vendor/a/b in its splice tree can't be read" ]
+    [ "${lines[1]}" = "!!   ${command#* }: in the splice tree of vendor/a/b, whose .splice can't be read" ]
   done
   run splice status vendor/x
   [ "$status" -eq 0 ]

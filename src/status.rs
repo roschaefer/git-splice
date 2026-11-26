@@ -228,16 +228,17 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     for path in &selected {
         rows.push(classify_row(&mut repo, path, &branch)?);
     }
-    for path in repo.context.left_out().to_vec() {
-        let unreadable = repo.unreadable_in_tree(&path).unwrap();
+    for path in repo.context.left_out() {
+        let (unreadable, why) = repo.unreadable_in_tree(path).unwrap();
         rows.push(Row {
             rank: PROBLEM,
             label: format!("!! can't use {STATE_FILE}"),
-            hint: repo
-                .why_unusable(&path, unreadable)
-                .trim_start_matches(&format!("{path}: "))
-                .replacen(" -- ", "; ", 1),
-            path,
+            path: path.clone(),
+            hint: if unreadable == path {
+                why.replacen(" -- ", "; ", 1)
+            } else {
+                in_tree_of(unreadable)
+            },
         });
     }
     say(format!("On branch {branch}\n"));

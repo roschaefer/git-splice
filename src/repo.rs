@@ -101,8 +101,9 @@ pub struct Repo<'context> {
     pub context: &'context mut ExecutionContext,
     pub args: Args,
     pub all_paths: Vec<String>,
-    /// Splices whose committed .splice can't be read, with why.
-    pub unreadable: HashMap<String, String>,
+    /// Splices whose committed .splice can't be read, with why, in
+    /// discovery order.
+    pub unreadable: Vec<(String, String)>,
     pub upstream_lists: HashMap<String, Vec<String>>,
     pub upstream_urls: HashMap<(String, String), String>,
     pub default_upstreams: HashMap<String, String>,
@@ -211,6 +212,11 @@ impl Unreadable {
             format!("{} -- {}", self.fact, self.hint)
         }
     }
+}
+
+/// Why a splice in the tree of <unreadable> isn't used.
+pub fn in_tree_of(unreadable: &str) -> String {
+    format!("in the splice tree of {unreadable}, whose {STATE_FILE} can't be read")
 }
 
 fn unreadable<T>(fact: String, hint: String) -> Result<T, Unreadable> {
@@ -959,7 +965,7 @@ impl<'context> Repo<'context> {
             match splice.state {
                 Ok(state) => self.use_state_file(&splice.path, state)?,
                 Err(why) => {
-                    self.unreadable.insert(splice.path, why.message());
+                    self.unreadable.push((splice.path, why.message()));
                 }
             }
         }
@@ -974,24 +980,15 @@ impl<'context> Repo<'context> {
         if !self.is_splice_path(path) {
             return die(format!("not a splice: {path}"));
         }
-        if let Some(unreadable) = self.unreadable_in_tree(path) {
-            if unreadable != path {
-                log_err(&self.unreadable[unreadable]);
-            }
-            return die(self.why_unusable(path, unreadable));
-        }
-        Ok(())
+        self.refuse_unreadable_tree(path)
     }
 
-    /// The splice whose .splice can't be read in the tree of splice <path>:
-    /// the outermost splice around <path> and every splice inside it.
+    /// The splice whose .splice can't be read in the tree of <path>, and
+    /// why: the outermost splice around <path> and every splice inside it.
     /// <path> itself if its own can't be read, else the first in discovery
-    /// order. <path> may be a folder about to become a splice.
-    /// Commands read the splices around and inside the ones they act on.
-    pub fn unreadable_in_tree(&self, path: &str) -> Option<&str> {
-        if self.unreadable.is_empty() {
-            return None;
-        }
+    /// order. <path> may be a folder about to become a splice. Commands
+    /// read the splices around and inside the ones they act on.
+    pub fn unreadable_in_tree(&self, path: &str) -> Option<(&str, &str)> {
         let top = |path: &str| {
             self.all_paths
                 .iter()
@@ -999,36 +996,24 @@ impl<'context> Repo<'context> {
                 .min_by_key(|above| above.len())
                 .map_or(path.to_string(), String::clone)
         };
-        if let Some((own, _)) = self.unreadable.get_key_value(path) {
-            return Some(own);
-        }
-        let tree = top(path);
-        self.all_paths
-            .iter()
-            .find(|other| {
-                self.unreadable.contains_key(*other)
-                    && (top(other) == tree || other.starts_with(&format!("{path}/")))
-            })
-            .map(String::as_str)
+        let in_tree =
+            |other: &str| top(other) == top(path) || other.starts_with(&format!("{path}/"));
+        let found = self.unreadable.iter().find(|(other, _)| other == path);
+        found
+            .or_else(|| self.unreadable.iter().find(|(other, _)| in_tree(other)))
+            .map(|(other, why)| (other.as_str(), why.as_str()))
     }
 
-    /// Ends a clone or init that would make <path> a splice in the tree of
-    /// an unreadable .splice: every command would leave it out.
-    pub fn refuse_unreadable_tree(&self, path: &str, command: &str) -> Res<()> {
-        if let Some(unreadable) = self.unreadable_in_tree(path) {
-            log_err(&self.unreadable[unreadable]);
-            return die(format!(
-                "{path}: can't {command} here, as {unreadable} in its splice tree can't be read"
-            ));
-        }
-        Ok(())
-    }
-
-    pub fn why_unusable(&self, path: &str, unreadable: &str) -> String {
-        if path == unreadable {
-            self.unreadable[path].clone()
-        } else {
-            format!("{path}: not used, as {unreadable} in its splice tree can't be read")
+    /// Ends the command if <path> is, or would be, in the tree of a .splice
+    /// that can't be read, naming that file's problem first.
+    pub fn refuse_unreadable_tree(&self, path: &str) -> Res<()> {
+        match self.unreadable_in_tree(path) {
+            None => Ok(()),
+            Some((unreadable, why)) if unreadable == path => die(why),
+            Some((unreadable, why)) => {
+                log_err(why);
+                die(format!("{path}: {}", in_tree_of(unreadable)))
+            }
         }
     }
 
@@ -1053,17 +1038,20 @@ impl<'context> Repo<'context> {
                 return die(format!("no splices found -- nothing to {command}"));
             }
             for path in self.all_paths.clone() {
-                match self.unreadable_in_tree(&path) {
-                    None => self.selected.push(path),
-                    Some(unreadable) => {
-                        let why = self.why_unusable(&path, unreadable);
-                        // status shows them as rows of their own.
-                        if command != "status" {
-                            log_err(&why);
-                        }
-                        self.context.leave_out(&path);
+                let Some((unreadable, why)) = self.unreadable_in_tree(&path) else {
+                    self.selected.push(path);
+                    continue;
+                };
+                // status shows them as rows of their own; the unreadable
+                // one says why as it comes up itself.
+                if command != "status" {
+                    if unreadable == path {
+                        log_err(why);
+                    } else {
+                        log_err(format!("{path}: {}", in_tree_of(unreadable)));
                     }
                 }
+                self.context.leave_out(&path);
             }
             if self.selected.is_empty() && command != "status" {
                 return Err(Fail::Hard);
