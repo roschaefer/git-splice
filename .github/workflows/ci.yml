@@ -18,7 +18,8 @@ permissions:
 
 jobs:
   # The bats tests take longer than the other checks together, so they get a
-  # job of their own and the two run side by side.
+  # job of their own, and so do the Rust tests, which would add more than a
+  # minute to it.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +33,22 @@ jobs:
       - uses: ./.github/actions/nix-cache
 
       - name: test
-        run: nix develop --command just test
+        run: nix develop --command just test-bats
+
+  rust-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: DeterminateSystems/nix-installer-action@2559b44fed7d4fc978e8dd0e379661afb8b73590 # main
+      # The dev shell has packages cache.nixos.org lacks, so every job that
+      # enters it needs them.
+      - uses: ./.github/actions/nix-cache
+
+      - name: test
+        run: nix develop --command just test-rust
 
   lint-docs:
     runs-on: ubuntu-latest
@@ -161,7 +177,7 @@ jobs:
   release-please:
     # Needs the binaries too, so a release gets all of them or none: with a
     # target that doesn't build, release-please makes no release yet.
-    needs: [test, lint-docs, compat, binaries]
+    needs: [test, rust-test, lint-docs, compat, binaries]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     # One at a time: two runs could both find a tarball missing, and the

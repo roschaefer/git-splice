@@ -28,7 +28,9 @@ Available recipes:
     scrut-lock             # Update nix/scrut.Cargo.lock after scrut/Cargo.toml changed, e.g. after a pull; scrut upstream commits no Cargo.lock
     site-build             # Build the documentation site into website/build; fails on broken links
     site-serve             # Serve the documentation site locally, reloading on changes
-    test                   # Run the Rust unit tests, then the bats tests, one job per CPU
+    test                   # Run the Rust tests, then the bats tests
+    test-bats              # Run the bats tests, one job per CPU
+    test-rust              # Run the Rust unit and integration tests
 ```
 
 [Writing the docs](02-writing.md) has the markup the documentation uses
