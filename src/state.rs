@@ -215,6 +215,9 @@ impl Repo<'_> {
 /// record it.
 pub const GITLINK: &str = "160000";
 
+/// Git's mode for a regular file, as trees and the index record it.
+pub const REGULAR_FILE: &str = "100644";
+
 /// A blob: splice <path>'s state file as committed in <rev>, or a new one, with
 /// each (key, value) set (an empty value unsets it). A key without a section is
 /// in [splice], e.g. "commit"; others are given in full, e.g.
@@ -253,9 +256,6 @@ pub fn state_blob_in(path: &str, rev: &str, settings: &[(&str, &str)]) -> Res<St
 pub fn state_blob(path: &str, settings: &[(&str, &str)]) -> Res<String> {
     state_blob_in(path, "HEAD", settings)
 }
-
-/// Git's mode for a regular file, as trees and the index record it.
-pub const REGULAR_FILE: &str = "100644";
 
 /// Tree <tree> (or commit <tree>'s) with each (folder, tree) of <folders> in
 /// place of that folder (none: no folder), then each (file, blob) of <files>
