@@ -332,5 +332,40 @@ mod tests {
             serde_json::to_string(&fold).unwrap(),
             r#"{"name":"before-fold","roots":["a","c"],"head":"1234"}"#
         );
+        let others = [
+            (
+                ExecutionEvent::AfterMerge {
+                    path: "a".into(),
+                    head_before: "1".into(),
+                    head_after: "2".into(),
+                },
+                r#"{"name":"after-merge","path":"a","head_before":"1","head_after":"2"}"#,
+            ),
+            (
+                ExecutionEvent::AfterRebuild {
+                    path: "a".into(),
+                    commit: "3".into(),
+                },
+                r#"{"name":"after-rebuild","path":"a","commit":"3"}"#,
+            ),
+            (
+                ExecutionEvent::AfterPush {
+                    path: "a".into(),
+                    commit: "3".into(),
+                },
+                r#"{"name":"after-push","path":"a","commit":"3"}"#,
+            ),
+            (
+                ExecutionEvent::AfterFold {
+                    roots: vec!["a".into()],
+                    head_before: "1".into(),
+                    head_after: "2".into(),
+                },
+                r#"{"name":"after-fold","roots":["a"],"head_before":"1","head_after":"2"}"#,
+            ),
+        ];
+        for (event, json) in others {
+            assert_eq!(serde_json::to_string(&event).unwrap(), json);
+        }
     }
 }
