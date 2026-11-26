@@ -97,11 +97,11 @@ commits_written() {
 
 # Prints the id of a commit like HEAD, with vendor/a/other.txt changed.
 head_with_other_contents() {
-  local tree
-  tree="$(printf 'replaced\n' | git hash-object -w --stdin)"
-  tree="$(git ls-tree HEAD:vendor/a | sed "s/[0-9a-f]\{40,\}\tother.txt\$/$tree\tother.txt/" | git mktree)"
-  tree="$(git ls-tree HEAD | sed "s/[0-9a-f]\{40,\}\tvendor\$/$(printf '040000 tree %s\ta\n' "$tree" | git mktree)\tvendor/" | git mktree)"
-  git commit-tree "$tree" -p HEAD^1 -m three
+  local index="$BATS_TEST_TMPDIR/index" blob
+  blob="$(printf 'replaced\n' | git hash-object -w --stdin)"
+  GIT_INDEX_FILE="$index" git read-tree HEAD
+  GIT_INDEX_FILE="$index" git update-index --cacheinfo "100644,$blob,vendor/a/other.txt"
+  git commit-tree "$(GIT_INDEX_FILE="$index" git write-tree)" -p HEAD^1 -m three
 }
 
 @test "rebuild cache: with replace refs, Git reads other commits under the same ids, so nothing is remembered" {
