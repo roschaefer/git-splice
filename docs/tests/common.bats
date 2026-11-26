@@ -716,6 +716,19 @@ splice_trees_one_unreadable() {
   [ "$(git rev-parse HEAD~1)" = "$before" ]
 }
 
+@test "clone and init: naming a splice whose .splice can't be read says why, not that it is a splice already" {
+  splice_trees_one_unreadable
+  run splice clone "$upstream-x" vendor/a/b
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  run splice init vendor/a/b "$upstream-x"
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == "!!   vendor/a/b/.splice can't be read (bad config line "*") -- fix it and commit it" ]]
+  run splice clone "$upstream-x" vendor/x
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "!!   vendor/x is a splice already" ]
+}
+
 @test "discovery: with two unreadable .splice files in one tree, each shows its own reason, and the others name the outermost" {
   splice_trees_one_unreadable
   printf '<<<<<<< HEAD\n' >>vendor/a/.splice

@@ -46,10 +46,10 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     })?;
     current_branch()?;
     require_no_splice_in_progress()?;
+    repo.refuse_unreadable_tree(&path)?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
     }
-    repo.refuse_unreadable_tree(&path)?;
     if folder_tree("HEAD", &path).is_none() {
         return die(format!(
             "{path}: no committed folder here -- to splice in an existing repository, use 'git splice clone'"

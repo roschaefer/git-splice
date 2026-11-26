@@ -560,10 +560,10 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         ..Message::default()
     })?;
     let branch = current_branch()?;
+    repo.refuse_unreadable_tree(&path)?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
     }
-    repo.refuse_unreadable_tree(&path)?;
     require_no_splice_in_progress()?;
     if is_submodule("HEAD", &path) {
         return die(format!(
@@ -685,10 +685,10 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         ..Message::default()
     })?;
     current_branch()?;
+    repo.refuse_unreadable_tree(&path)?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
     }
-    repo.refuse_unreadable_tree(&path)?;
     require_no_splice_in_progress()?;
     if !is_submodule("HEAD", &path) {
         return die(format!("{path}: no submodule committed here"));
