@@ -91,7 +91,7 @@ bde4164 seed refs/splices/lib/heads/main
 ```
 
 The config has only `lib`, so every command reads those. The splice
-looks up to date, though the upstream moved, and a `pull` would merge
+looks up to date, though the upstream moved, and a `merge` would merge
 nothing:
 
 ```scrut
