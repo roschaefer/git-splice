@@ -905,9 +905,9 @@ impl MergeProgress {
                         } else if let Some(failed) = first_above(path, &self.failures)
                             .or_else(|| first_below(path, &self.failures))
                         {
-                            Task::Blocked(failed)
+                            Task::Blocked { by: failed }
                         } else {
-                            Task::Pending(Step::Merge)
+                            Task::Pending { step: Step::Merge }
                         }
                     });
                 (path.clone(), task)
@@ -948,7 +948,7 @@ impl MergeProgress {
                 if splice_in_progress() {
                     self.skipped.push(path.clone());
                     let waits_on = self.conflict.clone().unwrap_or_default();
-                    self.settle(path, Task::Blocked(waits_on));
+                    self.settle(path, Task::Blocked { by: waits_on });
                     return Ok(None);
                 }
                 // Reading its .splice again after a merge above failed, e.g. the
@@ -967,7 +967,7 @@ impl MergeProgress {
                         past_tense(verb)
                     ));
                     self.failures.push(path.clone());
-                    self.settle(path, Task::Blocked(failed));
+                    self.settle(path, Task::Blocked { by: failed });
                     return Ok(None);
                 }
                 // Its merge could change the .splice of the failed one again: then
@@ -978,7 +978,7 @@ impl MergeProgress {
                         past_tense(verb)
                     ));
                     self.failures.push(path.clone());
-                    self.settle(path, Task::Blocked(failed));
+                    self.settle(path, Task::Blocked { by: failed });
                     return Ok(None);
                 }
                 // A pull of a splice above this one may have removed it.
@@ -1011,7 +1011,7 @@ impl MergeProgress {
                             past_tense(verb)
                         ));
                         let above = above.clone();
-                        self.settle(path, Task::Copy(above));
+                        self.settle(path, Task::Copy { of: above });
                         return Ok(None);
                     }
                 }
@@ -1504,7 +1504,12 @@ mod tests {
                 [
                     ("vendor/a".into(), Task::Done),
                     ("vendor/a/b".into(), Task::Failed),
-                    ("vendor/a/b/c".into(), Task::Blocked("vendor/a/b".into())),
+                    (
+                        "vendor/a/b/c".into(),
+                        Task::Blocked {
+                            by: "vendor/a/b".into()
+                        }
+                    ),
                 ]
             );
             assert_eq!(execution.run().unwrap(), 1);
@@ -1513,7 +1518,12 @@ mod tests {
                 [
                     ("vendor/a".into(), Task::Done),
                     ("vendor/a/b".into(), Task::Failed),
-                    ("vendor/a/b/c".into(), Task::Blocked("vendor/a/b".into())),
+                    (
+                        "vendor/a/b/c".into(),
+                        Task::Blocked {
+                            by: "vendor/a/b".into()
+                        }
+                    ),
                 ]
             );
         });
