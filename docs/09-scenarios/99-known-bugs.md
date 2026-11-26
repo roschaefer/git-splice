@@ -1,10 +1,10 @@
 # Known bugs and limitations
 
 Some scenarios explore how `git-splice` behaves where a reader might
-not expect it, and show the workarounds. They show it as it is today, so the
-output stays real and the page changes when the behaviour does. A banner
-under each one's title says where the problem stands, and the section
-here that lists it:
+not expect it, and show the workarounds. They show it as it is today, so
+the output stays real and the page changes when the behaviour does. A
+banner under each one's title says where the problem stands, and the
+section here that lists it:
 
 - **[Known bug](#known-bugs):** we want to fix it, and an open issue
   tracks the fix.
