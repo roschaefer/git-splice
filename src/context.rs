@@ -16,7 +16,14 @@ pub struct ExecutionContext {
     content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
     rebuild_cache: Option<RebuildCache>,
-    pub(crate) left_out_splices: bool,
+    left_out: Vec<LeftOut>,
+}
+
+/// A splice a command left out, and why.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LeftOut {
+    pub path: String,
+    pub why: String,
 }
 
 impl ExecutionContext {
@@ -24,10 +31,20 @@ impl ExecutionContext {
         Self::default()
     }
 
-    /// Whether a command over every splice left some out, as a .splice in
-    /// their tree can't be read: the command then fails once it is done.
-    pub fn left_out_splices(&self) -> bool {
-        self.left_out_splices
+    /// The splices the operations left out so far, e.g. a command over
+    /// every splice those in the tree of a .splice that can't be read. A
+    /// command that left any out fails once it is done.
+    pub fn left_out(&self) -> &[LeftOut] {
+        &self.left_out
+    }
+
+    pub(crate) fn leave_out(&mut self, path: &str, why: String) {
+        if !self.left_out.iter().any(|left| left.path == path) {
+            self.left_out.push(LeftOut {
+                path: path.to_string(),
+                why,
+            });
+        }
     }
 
     /// Observes completed steps synchronously. No observer is installed by default.

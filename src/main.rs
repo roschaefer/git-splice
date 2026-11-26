@@ -96,7 +96,7 @@ fn dispatch(argv: &[String]) -> Res<i32> {
             Ok(1)
         }
     }?;
-    Ok(if code == 0 && context.left_out_splices() {
+    Ok(if code == 0 && !context.left_out().is_empty() {
         1
     } else {
         code

@@ -103,9 +103,6 @@ pub struct Repo<'context> {
     pub all_paths: Vec<String>,
     /// Splices whose committed .splice can't be read, with why.
     pub unreadable: HashMap<String, String>,
-    /// Splices a command over every splice leaves out: their .splice can't
-    /// be read.
-    pub skipped: Vec<String>,
     pub upstream_lists: HashMap<String, Vec<String>>,
     pub upstream_urls: HashMap<(String, String), String>,
     pub default_upstreams: HashMap<String, String>,
@@ -744,7 +741,6 @@ impl<'context> Repo<'context> {
             args,
             all_paths: Default::default(),
             unreadable: Default::default(),
-            skipped: Default::default(),
             upstream_lists: Default::default(),
             upstream_urls: Default::default(),
             default_upstreams: Default::default(),
@@ -1039,7 +1035,6 @@ impl<'context> Repo<'context> {
     /// Resolves which splices a command acts on, into `selected`.
     pub fn select_paths(&mut self, kind: Kind, command: &str) -> Res<()> {
         self.selected.clear();
-        self.skipped.clear();
         if self.args.all && !self.args.paths.is_empty() {
             return die("give either paths or --all, not both");
         }
@@ -1057,24 +1052,21 @@ impl<'context> Repo<'context> {
             if self.all_paths.is_empty() {
                 return die(format!("no splices found -- nothing to {command}"));
             }
-            let (skipped, selected) = self
-                .all_paths
-                .iter()
-                .cloned()
-                .partition(|path| self.unreadable_in_tree(path).is_some());
-            self.selected = selected;
-            self.skipped = skipped;
-            if !self.skipped.is_empty() {
-                self.context.left_out_splices = true;
+            for path in self.all_paths.clone() {
+                match self.unreadable_in_tree(&path) {
+                    None => self.selected.push(path),
+                    Some(unreadable) => {
+                        let why = self.why_unusable(&path, unreadable);
+                        // status shows them as rows of their own.
+                        if command != "status" {
+                            log_err(&why);
+                        }
+                        self.context.leave_out(&path, why);
+                    }
+                }
             }
-            // status shows them as rows of their own.
-            if command != "status" {
-                for path in &self.skipped {
-                    log_err(self.why_unusable(path, self.unreadable_in_tree(path).unwrap()));
-                }
-                if self.selected.is_empty() {
-                    return Err(Fail::Hard);
-                }
+            if self.selected.is_empty() && command != "status" {
+                return Err(Fail::Hard);
             }
             return Ok(());
         }
