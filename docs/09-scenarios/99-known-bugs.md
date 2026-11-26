@@ -12,6 +12,7 @@ back here.
 | [monorepo-line-endings: attributes added later](02-starting-a-splice/08-clone-from-submodule/04-monorepo-line-endings/README.md) | [#311](https://github.com/roschaefer/git-splice/issues/311) | A `.gitattributes` rule added after the line `clone` asked for applies to the splice's files again, and no command says so. |
 | [upstream-macro](02-starting-a-splice/08-clone-from-submodule/06-upstream-macro/README.md) | [#311](https://github.com/roschaefer/git-splice/issues/311) | `clone` refuses an upstream whose `.gitattributes` defines a macro, without naming it; a copy of the definition in the monorepo's root `.gitattributes` gets past it. |
 | [bumped-on-a-feature-branch: moved after the bump](03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.md) | [#466](https://github.com/roschaefer/git-splice/issues/466) | A synced commit that a bump recorded and the upstream lost isn't made again once the splice moved since. |
+| [splice-refs: key renamed while fetching](04-upstreams/05-splice-refs/renamed-while-fetching.md) | [#61](https://github.com/roschaefer/git-splice/issues/61) | A `git splice key` in another worktree during a fetch or push leaves the new refs under the old key; the command reports success, and the renamed key keeps the old refs. |
 | [lfs-upstream](04-upstreams/08-lfs-upstream/README.md) | [#407](https://github.com/roschaefer/git-splice/issues/407) | `clone` of an upstream that stores files in Git LFS fails; Git LFS isn't supported yet. |
 | [lfs-upstream: retrained-upstream](04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md) | [#407](https://github.com/roschaefer/git-splice/issues/407) | `pull` of a changed Git LFS file fails, as `clone` does. |
 | [nested-splices: a pull retried after the synced commit below is gone](05-nested-splices/01-nested-splices/gone-below.md) | [#274](https://github.com/roschaefer/git-splice/issues/274) | A retry of a failed pull succeeds, though the splice below still lacks its synced commit. |
@@ -49,6 +50,7 @@ ok 01-everyday-sync/02-up-to-date/monorepo-commit-as-synced-commit.md #7
 ok 02-starting-a-splice/08-clone-from-submodule/04-monorepo-line-endings/README.md #311
 ok 02-starting-a-splice/08-clone-from-submodule/06-upstream-macro/README.md #311
 ok 03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.md #466
+ok 04-upstreams/05-splice-refs/renamed-while-fetching.md #61
 ok 04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md #407
 ok 04-upstreams/08-lfs-upstream/README.md #407
 ok 05-nested-splices/01-nested-splices/gone-below.md #274
