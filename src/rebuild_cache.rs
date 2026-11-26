@@ -7,9 +7,9 @@
 //! commit the walk's range starts after, and the monorepo commit it has
 //! reached. Those are the key; the rebuilt commit after that step is the
 //! value. Keys never change meaning, so nothing needs invalidating, except
-//! where Git reads some commits as others, through replace refs or grafts:
-//! then nothing is remembered, as Git doesn't use its commit-graph file then
-//! either. Only a walk's last step is kept, which a later walk on the same
+//! where Git reads some commits as others, through replace refs or grafts,
+//! or hides parents, in a shallow clone: then nothing is remembered, as Git
+//! doesn't use its commit-graph file then either. Only a walk's last step is kept, which a later walk on the same
 //! branch goes on from. Losing the file costs time only: each step is
 //! computed again.
 
@@ -78,9 +78,10 @@ fn parse(data: &[u8]) -> Option<HashMap<Key, String>> {
     )
 }
 
-/// Whether Git may read a commit as another under its id: through replace
-/// refs or grafts. Unsure counts as yes.
-fn commits_swapped() -> bool {
+/// Whether Git may read a commit other than as it was made under its id:
+/// through replace refs, grafts, or a shallow clone's cut-off parents.
+/// Unsure counts as yes.
+fn commits_altered() -> bool {
     let replaced = git(&["replace", "--list"])
         .q()
         .out()
@@ -95,12 +96,16 @@ fn commits_swapped() -> bool {
     .q()
     .bytes()
     .and_then(|path| path_from_output(path).ok());
-    replaced || grafts.is_none_or(|file| file.exists())
+    let shallow = git(&["rev-parse", "--is-shallow-repository"])
+        .q()
+        .out()
+        .is_none_or(|shallow| shallow != "false");
+    replaced || shallow || grafts.is_none_or(|file| file.exists())
 }
 
 impl RebuildCache {
     pub(crate) fn load() -> Self {
-        if commits_swapped() {
+        if commits_altered() {
             return Self::default();
         }
         let Some(dir) = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"])

@@ -159,3 +159,15 @@ head_with_other_contents() {
   run grep -c -x vendor/a/b < <(tr '\0' '\n' <.git/splice-rebuilds)
   [ "$output" -le 1 ]
 }
+
+@test "rebuild cache: in a shallow clone, which hides parents until a deeper fetch, nothing is remembered" {
+  three_unpushed
+  local rebuilt
+  rebuilt="$(splice rebuild vendor/a)"
+  git clone -q --depth 6 "file://$monorepo" "$BATS_TEST_TMPDIR/shallow"
+  cd "$BATS_TEST_TMPDIR/shallow"
+  [ "$(git rev-parse --is-shallow-repository)" = true ]
+  git fetch -q "$monorepo" 'refs/splices/*:refs/splices/*'
+  [ "$(splice rebuild vendor/a)" = "$rebuilt" ]
+  [ ! -e .git/splice-rebuilds ]
+}
