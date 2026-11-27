@@ -2,7 +2,9 @@
 
 `push` of a splice that stores files in Git LFS works: Git LFS's own
 `pre-push` hook runs on the `git push` that `git splice push` runs, and
-uploads the content to the upstream's LFS server.
+uploads the content to the upstream's LFS server. It needs the content
+in the local LFS store: [a push without it](push-without-the-content.md)
+fails until plain Git LFS downloads it.
 
 - **Monorepo (`vendor/a/`)**: [cloned](../README.md) from an upstream
   that stores `model.bin` in Git LFS, and pushed to its own remote.
