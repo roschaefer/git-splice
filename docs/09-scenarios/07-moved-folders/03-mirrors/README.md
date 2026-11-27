@@ -142,7 +142,9 @@ change has an older U(H) than one that pulled it, with the same files
 
 Mirrors are one splice, so the rebuild can't tell them apart: after they
 swap paths, a push can publish what a mirror removed
-([mirrors that swap paths](swapped-paths.md)).
+([mirrors that swap paths](swapped-paths.md)), or undo an upstream
+commit one of them pulled
+([after one pulled](swapped-after-a-pull.md)).
 
 ### Which mirror a move came from
 
