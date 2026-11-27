@@ -12,6 +12,8 @@ pub const STATE_FILE: &str = ".splice";
 /// Name of the one upstream clone and init write into a new .splice.
 pub const DEFAULT_UPSTREAM: &str = "origin";
 const KEY_LOCK_TRIES: u32 = 50;
+/// How many splices a message that asks for paths names.
+const SPLICES_NAMED: usize = 5;
 
 /// What a splice syncs with on the current branch.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -965,10 +967,14 @@ impl<'context> Repo<'context> {
         }
         if self.args.paths.is_empty() {
             if kind == Kind::Explicit && !self.args.all {
-                let splices = if self.all_paths.is_empty() {
-                    "none".to_string()
-                } else {
-                    self.all_paths.join(" ")
+                let splices = match self.all_paths.len() {
+                    0 => "none".to_string(),
+                    n if n <= SPLICES_NAMED => self.all_paths.join(" "),
+                    n => format!(
+                        "{} and {} more -- 'git splice status' lists them",
+                        self.all_paths[..SPLICES_NAMED].join(" "),
+                        n - SPLICES_NAMED
+                    ),
                 };
                 return die(format!(
                     "which splice? -- name one or more paths, or pass --all (splices: {splices})"

@@ -109,6 +109,23 @@ setup() {
   [[ "$(cat "$SPLICE_BLOB_READS")" == *":vendor/a/.splice" ]]
 }
 
+@test "paths: asking for paths names the first five splices and counts the others" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  for path in vendor/c vendor/d vendor/e; do
+    add_splice "$monorepo" "$upstream" "$path"
+  done
+  cd "$monorepo"
+  run splice push
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   which splice? -- name one or more paths, or pass --all (splices: vendor/a vendor/b vendor/c vendor/d vendor/e)" ]
+  add_splice "$monorepo" "$upstream" vendor/f
+  add_splice "$monorepo" "$upstream" vendor/g
+  cd "$monorepo"
+  run splice push
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   which splice? -- name one or more paths, or pass --all (splices: vendor/a vendor/b vendor/c vendor/d vendor/e and 2 more -- 'git splice status' lists them)" ]
+}
+
 @test "paths: splicing in or out needs paths or --all" {
   scenario_shared_remote_url "$monorepo" "$upstream"
   cd "$monorepo"
