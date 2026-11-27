@@ -12,13 +12,12 @@ local change, the splice is `unrelated history`, and `merge` and `pull`
 refuse to guess. Then [keep the upstream's
 version](keep-the-upstream-version.md) and redo the local changes on top
 of it. If the rewrite removed something, like a secret, don't use the
-other ways out that `merge` prints
-([#38](https://github.com/roschaefer/git-splice/issues/38)).
-`git splice push --force` rebuilds on top of the old synced commit, and
-so [publishes the rewritten-away history
-again](push-force-undoes-the-rewrite.md). Keeping both publishes the
-monorepo's own history of the folder, which contains whatever the
-monorepo pulled before the rewrite.
+other ways out that `merge` prints. `git splice push --force` rebuilds on
+top of the old synced commit, and so [publishes the rewritten-away
+history again](push-force-undoes-the-rewrite.md), as a forced push from
+an old clone does in plain Git. Keeping both publishes the monorepo's own
+history of the folder, which contains whatever the monorepo pulled before
+the rewrite.
 
 ## Output
 
