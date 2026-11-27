@@ -22,15 +22,18 @@ new_upstream() {
   cd "$monorepo"
 }
 
-@test "clone, clone --from-submodule and init: a splice operation in progress is refused before a detached HEAD and a .splice that can't be read" {
+@test "clone, clone --from-submodule and init: a cherry-pick, merge or rebase in progress is refused before a detached HEAD and a .splice that can't be read" {
   new_upstream
   add_splice "$monorepo" "$upstream" vendor/b
   printf '<<<<<<< HEAD\n' >>vendor/b/.splice
   git commit -q -am "conflict markers in vendor/b"
   local operation
-  for operation in cherry-pick rebase; do
-    if [ "$operation" = rebase ]; then
+  for operation in cherry-pick merge rebase; do
+    if [ "$operation" = merge ]; then
       git update-ref -d CHERRY_PICK_HEAD
+      git rev-parse HEAD >"$(git rev-parse --git-path MERGE_HEAD)"
+    elif [ "$operation" = rebase ]; then
+      rm "$(git rev-parse --git-path MERGE_HEAD)"
       run git rebase -q --exec false HEAD~1
       [ "$status" -ne 0 ]
       run git symbolic-ref -q HEAD
