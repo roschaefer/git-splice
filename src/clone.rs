@@ -740,6 +740,9 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         ));
     };
     let url = resolve_submodule_url(&url, &base)?;
+    if let Some(why) = repo.is_own_url(&path, &url) {
+        return die(why);
+    }
     if setting("update").as_deref() == Some("none") {
         return die(format!(
             "{path}: update = none keeps the submodule out of every checkout, and a splice's files are always there -- remove the submodule, or unset submodule.{name}.update in {gitmodules} and commit to splice it anyway"
@@ -789,6 +792,9 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     }
     repo.refuse_unreadable_state_files(&path, None, &commit, "clone", "fix it in the upstream")
         .map_err(|_| Fail::Hard)?;
+    if let Some(why) = repo.splices_monorepo_back_in(&path, &commit) {
+        return die(why);
+    }
     if let Some(inner) = upstream_submodule(&commit) {
         if !recursive {
             return die(format!(
