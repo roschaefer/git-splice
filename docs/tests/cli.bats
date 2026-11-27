@@ -8,10 +8,26 @@ setup() {
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
-@test "cli: no args prints usage to stderr and exits 1" {
+@test "cli: no args opens Git's general help outside a repository" {
+  local viewer="$BATS_TEST_TMPDIR/help-viewer"
+  cat >"$viewer" <<'SH'
+#!/bin/sh
+printf 'manual: %s\n' "$@"
+exit "${HELP_EXIT:-0}"
+SH
+  chmod +x "$viewer"
+  export GIT_CONFIG_GLOBAL="$BATS_TEST_TMPDIR/help.gitconfig"
+  git config --global help.format man
+  git config --global man.viewer splice-test
+  git config --global man.splice-test.cmd "$viewer"
+  cd "$BATS_TEST_TMPDIR"
+
   run "$entrypoint"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"usage: git splice"* ]]
+  [ "$status" -eq 0 ]
+  [ "$output" = "manual: git-splice" ]
+
+  HELP_EXIT=7 run "$entrypoint"
+  [ "$status" -eq 7 ]
 }
 
 @test "cli: -h prints usage and exits 0" {

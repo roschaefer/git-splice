@@ -28,8 +28,9 @@ See [known bugs and limitations](../09-scenarios/99-known-bugs.md).
 
 ## Help
 
-`git splice -h` prints a brief command overview. `git splice --help` opens
-an offline general usage manual with command descriptions and examples.
+`git splice` and `git splice --help` open an offline general usage manual
+with command descriptions and examples. `git splice -h` prints a brief
+command overview.
 Use `git splice <command> -h` for detailed help for a particular command.
 
 The Nix package installs the manual. With a release archive or a source

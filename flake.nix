@@ -188,6 +188,8 @@
           MANPAGER=cat git -c help.format=man splice --help >help.txt
           grep -q "COMMANDS" help.txt
           grep -q "EXAMPLES" help.txt
+          MANPAGER=cat git -c help.format=man splice >default-help.txt
+          cmp help.txt default-help.txt
           git splice clone ../upstream.git vendor/a
 
           echo two >>../seed/file.txt

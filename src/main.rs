@@ -64,8 +64,7 @@ fn run_boundary(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 fn dispatch(argv: &[String]) -> Res<i32> {
     require_git_version()?;
     let Some(command) = argv.first() else {
-        eprint_text(USAGE);
-        return Ok(1);
+        return Ok(git(&["help", "splice"]).run());
     };
     let rest = &argv[1..];
     let context = &mut ExecutionContext::new();
