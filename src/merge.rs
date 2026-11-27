@@ -443,35 +443,17 @@ impl Repo<'_> {
             return result;
         }
         refuse_changed_submodule(path, &c.synced, &target)?;
-        let since = format!("{base}..HEAD");
-        let merges = git(&["rev-list", "--min-parents=2", "--count", &since])
-            .out()
-            .unwrap_or_default();
-        if merges != "0" {
-            return fail(format!(
-                "{path}: there's a merge commit since {}, whose own changes --rebase would drop -- {verb} without --rebase",
-                short(&base)
-            ));
-        }
-        // Without merges, a remote-tracking branch that has any of the commits
-        // has the oldest one.
-        let commits = git(&["rev-list", &since]).out().unwrap_or_default();
-        let oldest = commits.lines().last().unwrap_or("");
-        let published = git(&[
-            "for-each-ref",
-            "--count=1",
-            "--contains",
-            oldest,
-            "--format=%(refname:short)",
-            "refs/remotes/",
-        ])
-        .out()
-        .unwrap_or_default();
-        if !published.is_empty() {
-            return fail(format!(
-                "{path}: '{published}' has commits since {}, which --rebase would rewrite -- {verb} on a branch nobody else has, e.g. a pull request's",
-                short(&base)
-            ));
+        if let Some(blocker) = rebase_blocker(&base) {
+            return fail(match blocker {
+                RebaseBlocker::Merge => format!(
+                    "{path}: there's a merge commit since {}, whose own changes --rebase would drop -- {verb} without --rebase",
+                    short(&base)
+                ),
+                RebaseBlocker::Published(published) => format!(
+                    "{path}: '{published}' has commits since {}, which --rebase would rewrite -- {verb} on a branch nobody else has, e.g. a pull request's",
+                    short(&base)
+                ),
+            });
         }
         let blob = state_blob_in(path, &base, &[("commit", &target)])?;
         let theirs = tree_of(&target).ok_or(Fail::Soft)?;
@@ -482,30 +464,21 @@ impl Repo<'_> {
         let pull = git(&["commit-tree", &tree, "-p", &base, "-m", &message])
             .out()
             .ok_or(Fail::Soft)?;
-        let count = git(&["rev-list", "--count", &since])
+        let count = git(&["rev-list", "--count", &format!("{base}..HEAD")])
             .out()
             .unwrap_or_default();
-        let rebased = git(&[
-            "-c",
-            "advice.mergeConflict=false",
-            "rebase",
-            "-q",
-            "--no-update-refs",
-            "--no-autostash",
-            "--onto",
-            &pull,
-            &base,
-        ])
-        .run();
-        if rebased != 0 {
-            if rebase_in_progress() {
+        match rebase_onto(&pull, &base, None) {
+            Rebased::Done => {}
+            Rebased::Conflict => {
                 return fail(format!(
                     "{path}: conflict while rebasing onto the {verb} -- resolve it, then 'git rebase --continue' (or 'git rebase --abort' to give up)"
                 ));
             }
-            return fail(format!(
-                "{path}: git rebase didn't start, see above -- nothing changed"
-            ));
+            Rebased::NotStarted => {
+                return fail(format!(
+                    "{path}: git rebase didn't start, see above -- nothing changed"
+                ));
+            }
         }
         let plural = if count == "1" { "" } else { "s" };
         log_ok(format!(
@@ -551,11 +524,7 @@ impl Repo<'_> {
         if c.target.kind != TargetKind::Branch || is_ancestor(&c.synced, &c.target_ref) {
             return false;
         }
-        let entries = git(&["rev-list", "--walk-reflogs", &c.target_ref])
-            .q()
-            .out()
-            .unwrap_or_default();
-        !entries.lines().any(|entry| is_ancestor(&c.synced, entry))
+        !reflog_had(&c.target_ref, &c.synced)
     }
 
     /// Merging <target> into the rebuild from <base> gives exactly <target>'s
@@ -610,22 +579,7 @@ impl Repo<'_> {
             return Ok(());
         }
         let folder = tree_of(&target).ok_or(Fail::Soft)?;
-        let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
-        let new_blob = state_blob(path, &[("commit", &target)])?;
-        let message =
-            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
-        if splice_in(
-            path,
-            Some(&folder),
-            Some(&base_blob),
-            &folder,
-            &new_blob,
-            &message,
-        )
-        .is_err()
-        {
-            return fail(format!("{path}: {verb} failed"));
-        }
+        self.commit_synced(path, &folder, &target, verb)?;
         log_ok(format!(
             "{path}: recorded {} as the synced commit -- the folder already has its files",
             short(&target)
@@ -655,26 +609,34 @@ impl Repo<'_> {
         let folder = git(&["rev-parse", &format!("HEAD:{path}")])
             .out()
             .ok_or(Fail::Soft)?;
+        self.commit_synced(path, &folder, &target, "bump")?;
+        log_ok(format!(
+            "{path}: bumped the synced commit to {}",
+            short(&target)
+        ));
+        Ok(())
+    }
+
+    /// Commits <target> as the synced commit of splice <path>, with the
+    /// message of <verb>, changing only the state file: <folder> is the
+    /// folder's tree, before and after.
+    fn commit_synced(&mut self, path: &str, folder: &str, target: &str, verb: &str) -> Res<()> {
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
-        let new_blob = state_blob(path, &[("commit", &target)])?;
+        let new_blob = state_blob(path, &[("commit", target)])?;
         let message =
-            self.commit_message(message::DEFAULT, self.message_for("bump", path, &target))?;
+            self.commit_message(message::DEFAULT, self.message_for(verb, path, target))?;
         if splice_in(
             path,
-            Some(&folder),
+            Some(folder),
             Some(&base_blob),
-            &folder,
+            folder,
             &new_blob,
             &message,
         )
         .is_err()
         {
-            return fail(format!("{path}: bump failed"));
+            return fail(format!("{path}: {verb} failed"));
         }
-        log_ok(format!(
-            "{path}: bumped the synced commit to {}",
-            short(&target)
-        ));
         Ok(())
     }
 

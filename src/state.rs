@@ -81,14 +81,7 @@ impl Repo<'_> {
         let here = c.synced.is_empty() || commit_here(&c.synced);
         // A branch whose reflog here shows it had the synced commit was
         // rewritten or rewound upstream: that's not this branch's work.
-        let had = || {
-            git(&["rev-list", "--walk-reflogs", &c.target_ref])
-                .q()
-                .out()
-                .unwrap_or_default()
-                .lines()
-                .any(|entry| is_ancestor(&c.synced, entry))
-        };
+        let had = || reflog_had(&c.target_ref, &c.synced);
         if !c.synced.is_empty()
             && (!here || (!is_ancestor(&c.synced, &c.target_ref) && !had()))
             && remade_early.unwrap_or_else(|| self.remake_synced(path, &c.synced.clone()))

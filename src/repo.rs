@@ -452,6 +452,16 @@ pub fn is_ancestor(ancestor: &str, descendant: &str) -> bool {
     git(&["merge-base", "--is-ancestor", ancestor, descendant]).ok()
 }
 
+/// Some entry in the reflog of <reference> here contains <commit>.
+pub fn reflog_had(reference: &str, commit: &str) -> bool {
+    git(&["rev-list", "--walk-reflogs", reference])
+        .q()
+        .out()
+        .unwrap_or_default()
+        .lines()
+        .any(|entry| is_ancestor(commit, entry))
+}
+
 pub fn commit_of(rev: &str) -> Option<String> {
     git(&[
         "rev-parse",
@@ -728,6 +738,74 @@ pub fn rebase_in_progress() -> bool {
             .out()
             .is_some_and(|path| std::path::Path::new(&path).is_dir())
     })
+}
+
+/// What keeps --rebase from rewriting the commits since <base>.
+pub enum RebaseBlocker {
+    /// A merge commit, whose own changes a rebase would drop.
+    Merge,
+    /// A remote-tracking branch that has commits since <base>.
+    Published(String),
+}
+
+/// For --rebase: what keeps the commits <base>..HEAD from being rewritten,
+/// if anything.
+pub fn rebase_blocker(base: &str) -> Option<RebaseBlocker> {
+    let since = format!("{base}..HEAD");
+    let merges = git(&["rev-list", "--min-parents=2", "--count", &since])
+        .out()
+        .unwrap_or_default();
+    if merges != "0" {
+        return Some(RebaseBlocker::Merge);
+    }
+    // Without merges, a remote-tracking branch that has any of the commits
+    // has the oldest one.
+    let commits = git(&["rev-list", &since]).out().unwrap_or_default();
+    let oldest = commits.lines().last().unwrap_or("");
+    let published = git(&[
+        "for-each-ref",
+        "--count=1",
+        "--contains",
+        oldest,
+        "--format=%(refname:short)",
+        "refs/remotes/",
+    ])
+    .out()
+    .unwrap_or_default();
+    (!published.is_empty()).then_some(RebaseBlocker::Published(published))
+}
+
+/// How a rebase of the commits since <base> onto <onto> ended.
+pub enum Rebased {
+    Done,
+    /// It stopped at a conflict, and waits to be concluded.
+    Conflict,
+    /// It didn't start: Git said why.
+    NotStarted,
+}
+
+/// Rebases the commits since <base> onto <onto>, those of <branch> if given,
+/// else HEAD's.
+pub fn rebase_onto(onto: &str, base: &str, branch: Option<&str>) -> Rebased {
+    let mut args = vec![
+        "-c",
+        "advice.mergeConflict=false",
+        "rebase",
+        "-q",
+        "--no-update-refs",
+        "--no-autostash",
+        "--onto",
+        onto,
+        base,
+    ];
+    args.extend(branch);
+    if git(&args).run() == 0 {
+        Rebased::Done
+    } else if rebase_in_progress() {
+        Rebased::Conflict
+    } else {
+        Rebased::NotStarted
+    }
 }
 
 pub fn require_no_splice_in_progress() -> Res<()> {
