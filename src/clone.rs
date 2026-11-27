@@ -140,6 +140,18 @@ impl Repo<'_> {
             .unwrap_or_default())
     }
 
+    /// Refuses upstream commit <commit> for a new splice at <path> if it has a
+    /// state file at its root, or one that can't be read below.
+    fn refuse_upstream_state_files(&self, path: &str, commit: &str) -> Res<()> {
+        if upstream_has_state_file(commit) {
+            return die(format!(
+                "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
+            ));
+        }
+        self.refuse_unreadable_state_files(path, None, commit, "clone", FIX_UPSTREAM)
+            .map_err(|_| Fail::Hard)
+    }
+
     /// What the splice at <path> of submodule <name>, committed at <commit>,
     /// records to mean what the submodule meant: (default-branch, default-pin,
     /// what's pinned, for the message). Its branch setting names the branch it
@@ -517,6 +529,30 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
     ))
 }
 
+/// The checks every clone starts with: <path> is a usable splice path inside
+/// the repository (<fix> says how to make it one), the repository opens with
+/// --message-template checked against <known>, no splice operation is in
+/// progress in the repository, HEAD is on a branch, no .splice above <path>
+/// is unreadable, and <path> isn't a splice already. Returns <path>
+/// normalized.
+fn start_clone(repo: &mut Repo, path: &str, fix: &str, known: Message) -> Res<String> {
+    let path = normalize_path(path);
+    if path.is_empty() || path == "." || path.starts_with('/') {
+        return die(format!("'{path}' isn't a folder inside the repository"));
+    }
+    require_usable_splice_path(&path, fix)?;
+
+    repo.open()?;
+    repo.require_message_template(known)?;
+    require_no_splice_in_progress()?;
+    current_branch()?;
+    repo.refuse_unreadable_tree(&path)?;
+    if repo.is_splice_path(&path) {
+        return die(format!("{path} is a splice already"));
+    }
+    Ok(path)
+}
+
 fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     let url = repo.args.paths[0].clone();
     if url.is_empty() {
@@ -527,25 +563,18 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         Some(path) => path.clone(),
         None => default_clone_path(&url),
     };
-    let path = normalize_path(&path);
-    if path.is_empty() || path == "." || path.starts_with('/') {
-        return die(format!("'{path}' isn't a folder inside the repository"));
-    }
-    require_usable_splice_path(&path, "choose another folder name")?;
-
-    repo.open()?;
-    repo.require_message_template(Message {
-        command: "clone",
-        upstream: KNOWN,
-        new: KNOWN,
-        ..Message::default()
-    })?;
-    require_no_splice_in_progress()?;
+    let path = start_clone(
+        repo,
+        &path,
+        "choose another folder name",
+        Message {
+            command: "clone",
+            upstream: KNOWN,
+            new: KNOWN,
+            ..Message::default()
+        },
+    )?;
     let branch = current_branch()?;
-    repo.refuse_unreadable_tree(&path)?;
-    if repo.is_splice_path(&path) {
-        return die(format!("{path} is a splice already"));
-    }
     if is_submodule("HEAD", &path) {
         return die(format!(
             "{path} is a submodule -- 'git splice clone --from-submodule {}' turns it into a splice",
@@ -586,13 +615,7 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     }
 
     let target = commit_of(&repo.splice_ref(&path, &upstream_branch)).unwrap_or_default();
-    if upstream_has_state_file(&target) {
-        return die(format!(
-            "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
-        ));
-    }
-    repo.refuse_unreadable_state_files(&path, None, &target, "clone", FIX_UPSTREAM)
-        .map_err(|_| Fail::Hard)?;
+    repo.refuse_upstream_state_files(&path, &target)?;
     if let Some(inner) = upstream_submodule(&target) {
         return die(format!(
             "{path}: upstream has a submodule, {inner}, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
@@ -650,24 +673,16 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
 /// inside a splice -- a folder above with a .splice -- is listed in that
 /// folder's .gitmodules, as in its upstream.
 fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32> {
-    let path = normalize_path(path);
-    if path.is_empty() || path == "." || path.starts_with('/') {
-        return die(format!("'{path}' isn't a folder inside the repository"));
-    }
-    require_usable_splice_path(&path, "rename the submodule's folder")?;
-
-    repo.open()?;
-    repo.require_message_template(Message {
-        command: "clone",
-        new: KNOWN,
-        ..Message::default()
-    })?;
-    require_no_splice_in_progress()?;
-    current_branch()?;
-    repo.refuse_unreadable_tree(&path)?;
-    if repo.is_splice_path(&path) {
-        return die(format!("{path} is a splice already"));
-    }
+    let path = start_clone(
+        repo,
+        path,
+        "rename the submodule's folder",
+        Message {
+            command: "clone",
+            new: KNOWN,
+            ..Message::default()
+        },
+    )?;
     if !is_submodule("HEAD", &path) {
         return die(format!("{path}: no submodule committed here"));
     }
@@ -750,13 +765,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     }
     let (default_branch, pin, pinned_as) =
         repo.submodule_defaults(&path, &gitmodules, &name, &commit)?;
-    if upstream_has_state_file(&commit) {
-        return die(format!(
-            "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
-        ));
-    }
-    repo.refuse_unreadable_state_files(&path, None, &commit, "clone", FIX_UPSTREAM)
-        .map_err(|_| Fail::Hard)?;
+    repo.refuse_upstream_state_files(&path, &commit)?;
     if let Some(inner) = upstream_submodule(&commit) {
         if !recursive {
             return die(format!(
