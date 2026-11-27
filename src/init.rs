@@ -12,19 +12,21 @@ pub const USAGE: &str = include_str!("usage/init.txt");
 /// The branch the HEAD of empty repository <url> names, e.g. "master".
 /// ls-remote shows nothing for an empty repository, but a clone learns its
 /// unborn HEAD -- and there is nothing to download.
-fn empty_upstream_default_branch(url: &str) -> String {
-    let folder = Temp::new();
+fn empty_upstream_default_branch(url: &str) -> Res<String> {
+    let folder = Temp::new()?;
     let probe = folder.str();
     if !git(&["clone", "--quiet", "--bare", "--no-tags", "--", url, &probe])
         .q()
         .ok()
     {
-        return String::new();
+        return Ok(String::new());
     }
-    git(&["-C", &probe, "symbolic-ref", "--quiet", "--short", "HEAD"])
-        .q()
-        .out()
-        .unwrap_or_default()
+    Ok(
+        git(&["-C", &probe, "symbolic-ref", "--quiet", "--short", "HEAD"])
+            .q()
+            .out()
+            .unwrap_or_default(),
+    )
 }
 
 pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
@@ -80,7 +82,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 
     // Map the monorepo's default branch to the upstream's, as clone does. An
     // empty repository has no branch yet, but its HEAD still names one.
-    let upstream_default = empty_upstream_default_branch(&url);
+    let upstream_default = empty_upstream_default_branch(&url)?;
     let container_default = repo.container_default_branch(&path)?;
     let default_branch =
         repo.new_splice_default_branch(&path, &upstream_default, &container_default, &branch)?;
@@ -116,28 +118,6 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
             }
         }
     }
-    // Recorded as a fetch would: the upstream is known to be empty here, unlike
-    // in a fresh clone of the monorepo. Refs fetched from it before name
-    // branches it no longer has.
-    let had_key = !repo.upstream_key(&url)?.is_empty();
-    let key = repo.create_upstream_key(&url)?;
-    let refs = git(&[
-        "for-each-ref",
-        "--format=delete %(refname)",
-        &format!("refs/splices/{key}/"),
-    ])
-    .out();
-    let removed = refs.is_some_and(|refs| {
-        refs.is_empty()
-            || git(&["update-ref", "--stdin"])
-                .input(format!("{refs}\n"))
-                .ok()
-    });
-    if !removed {
-        return die(format!(
-            "{path}: couldn't remove the refs fetched from {url} before"
-        ));
-    }
     let blob = InitialState {
         path: &path,
         url: &url,
@@ -171,6 +151,31 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
             ..Message::default()
         },
     )?;
+    // Recorded as a fetch would: the upstream is known to be empty here, unlike
+    // in a fresh clone of the monorepo. Refs fetched from it before name
+    // branches it no longer has.
+    let had_key = !repo.upstream_key(&url)?.is_empty();
+    let key = repo.create_upstream_key(&url)?;
+    let refs = git(&[
+        "for-each-ref",
+        "--format=delete %(refname)",
+        &format!("refs/splices/{key}/"),
+    ])
+    .out();
+    let removed = refs.is_some_and(|refs| {
+        refs.is_empty()
+            || git(&["update-ref", "--stdin"])
+                .input(format!("{refs}\n"))
+                .ok()
+    });
+    if !removed {
+        if !had_key {
+            repo.forget_upstream_key(&key)?;
+        }
+        return die(format!(
+            "{path}: couldn't remove the refs fetched from {url} before"
+        ));
+    }
     if commit_state_files(&files, &message).is_err() {
         if !had_key {
             repo.forget_upstream_key(&key)?;
