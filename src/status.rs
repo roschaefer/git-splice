@@ -237,7 +237,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
             label: format!("!! can't use {STATE_FILE}"),
             path: path.clone(),
             hint: if unreadable == path {
-                why.replacen(" -- ", "; ", 1)
+                why.joined("; ")
             } else {
                 in_tree_of(unreadable)
             },

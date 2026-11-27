@@ -103,7 +103,7 @@ pub struct Repo<'context> {
     pub all_paths: Vec<String>,
     /// Splices whose committed .splice can't be read, with why, in
     /// discovery order.
-    pub unreadable: Vec<(String, String)>,
+    pub unreadable: Vec<(String, Unreadable)>,
     pub upstream_lists: HashMap<String, Vec<String>>,
     pub upstream_urls: HashMap<(String, String), String>,
     pub default_upstreams: HashMap<String, String>,
@@ -199,17 +199,23 @@ struct StateFile {
 
 /// Why a state file can't be read: the fact, starting with the file's name,
 /// and how to fix it in the monorepo, or nothing.
-struct Unreadable {
+pub struct Unreadable {
     pub fact: String,
     pub hint: String,
 }
 
 impl Unreadable {
-    fn message(&self) -> String {
+    pub fn message(&self) -> String {
+        self.joined(" -- ")
+    }
+
+    /// The fact, then the hint after <separator>: a fact may contain " -- "
+    /// itself, e.g. in an upstream's name.
+    pub fn joined(&self, separator: &str) -> String {
         if self.hint.is_empty() {
             self.fact.clone()
         } else {
-            format!("{} -- {}", self.fact, self.hint)
+            format!("{}{separator}{}", self.fact, self.hint)
         }
     }
 }
@@ -966,7 +972,7 @@ impl<'context> Repo<'context> {
             match splice.state {
                 Ok(state) => self.use_state_file(&splice.path, state)?,
                 Err(why) => {
-                    self.unreadable.push((splice.path, why.message()));
+                    self.unreadable.push((splice.path, why));
                 }
             }
         }
@@ -989,7 +995,7 @@ impl<'context> Repo<'context> {
     /// <path> itself if its own can't be read, else the first in discovery
     /// order. <path> may be a folder about to become a splice. Commands
     /// read the splices around and inside the ones they act on.
-    pub fn unreadable_in_tree(&self, path: &str) -> Option<(&str, &str)> {
+    pub fn unreadable_in_tree(&self, path: &str) -> Option<(&str, &Unreadable)> {
         let top = |path: &str| {
             self.all_paths
                 .iter()
@@ -1002,7 +1008,7 @@ impl<'context> Repo<'context> {
         let found = self.unreadable.iter().find(|(other, _)| other == path);
         found
             .or_else(|| self.unreadable.iter().find(|(other, _)| in_tree(other)))
-            .map(|(other, why)| (other.as_str(), why.as_str()))
+            .map(|(other, why)| (other.as_str(), why))
     }
 
     /// Ends the command if <path> is, or would be, in the tree of a .splice
@@ -1010,9 +1016,9 @@ impl<'context> Repo<'context> {
     pub fn refuse_unreadable_tree(&self, path: &str) -> Res<()> {
         match self.unreadable_in_tree(path) {
             None => Ok(()),
-            Some((unreadable, why)) if unreadable == path => die(why),
+            Some((unreadable, why)) if unreadable == path => die(why.message()),
             Some((unreadable, why)) => {
-                log_err(why);
+                log_err(why.message());
                 die(format!("{path}: {}", in_tree_of(unreadable)))
             }
         }
@@ -1047,7 +1053,7 @@ impl<'context> Repo<'context> {
                 // one says why as it comes up itself.
                 if command != "status" {
                     if unreadable == path {
-                        log_err(why);
+                        log_err(why.message());
                     } else {
                         log_err(format!("{path}: {}", in_tree_of(unreadable)));
                     }

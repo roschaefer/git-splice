@@ -691,6 +691,16 @@ splice_trees_one_unreadable() {
   [[ "${lines[4]}" == *"  vendor/x" ]]
 }
 
+@test "status: an unreadable .splice's row keeps a ' -- ' in its reason and puts '; ' before the hint" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  cd "$monorepo"
+  printf '[upstream "x -- y"]\n url = ../x.git\n' >>vendor/a/b/.splice
+  git commit -q -am "an upstream name with a dash pair"
+  run splice status
+  [ "$status" -eq 1 ]
+  [ "${lines[2]}" = "  !! can't use .splice  vendor/a/b  vendor/a/b/.splice: 'x -- y' isn't supported as an upstream's name; use letters, digits, '.', '_' and '-'" ]
+}
+
 @test "discovery: a folder in the tree of an unreadable .splice that isn't a splice is refused as not a splice" {
   splice_trees_one_unreadable
   run splice push vendor/a/typo
