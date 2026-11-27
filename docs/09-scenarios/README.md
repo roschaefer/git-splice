@@ -156,7 +156,7 @@ ok 06-rewritten-history/04-patch-branch-rebased/01-unpushed-local-commit (1 docu
 ok 06-rewritten-history/04-patch-branch-rebased/02-squash-merged (1 document)
 ok 07-moved-folders/01-moved-with-unpushed-commits (2 documents)
 ok 07-moved-folders/02-swapped-splices (1 document)
-ok 07-moved-folders/03-mirrors (2 documents)
+ok 07-moved-folders/03-mirrors (3 documents)
 ok 09-vcs-compatibility (1 document)
 ok 09-vcs-compatibility/01-sapling-metadata (1 document)
 ok 09-vcs-compatibility/02-sapling-git-index (1 document)
