@@ -118,28 +118,6 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
             }
         }
     }
-    // Recorded as a fetch would: the upstream is known to be empty here, unlike
-    // in a fresh clone of the monorepo. Refs fetched from it before name
-    // branches it no longer has.
-    let had_key = !repo.upstream_key(&url)?.is_empty();
-    let key = repo.create_upstream_key(&url)?;
-    let refs = git(&[
-        "for-each-ref",
-        "--format=delete %(refname)",
-        &format!("refs/splices/{key}/"),
-    ])
-    .out();
-    let removed = refs.is_some_and(|refs| {
-        refs.is_empty()
-            || git(&["update-ref", "--stdin"])
-                .input(format!("{refs}\n"))
-                .ok()
-    });
-    if !removed {
-        return die(format!(
-            "{path}: couldn't remove the refs fetched from {url} before"
-        ));
-    }
     let blob = InitialState {
         path: &path,
         url: &url,
@@ -173,6 +151,28 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
             ..Message::default()
         },
     )?;
+    // Recorded as a fetch would: the upstream is known to be empty here, unlike
+    // in a fresh clone of the monorepo. Refs fetched from it before name
+    // branches it no longer has.
+    let had_key = !repo.upstream_key(&url)?.is_empty();
+    let key = repo.create_upstream_key(&url)?;
+    let refs = git(&[
+        "for-each-ref",
+        "--format=delete %(refname)",
+        &format!("refs/splices/{key}/"),
+    ])
+    .out();
+    let removed = refs.is_some_and(|refs| {
+        refs.is_empty()
+            || git(&["update-ref", "--stdin"])
+                .input(format!("{refs}\n"))
+                .ok()
+    });
+    if !removed {
+        return die(format!(
+            "{path}: couldn't remove the refs fetched from {url} before"
+        ));
+    }
     if commit_state_files(&files, &message).is_err() {
         if !had_key {
             repo.forget_upstream_key(&key)?;
