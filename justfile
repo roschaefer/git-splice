@@ -69,6 +69,7 @@ drawings-check flag="":
 site-build:
     node --experimental-strip-types website/integrations/goatcounter/goatcounter.test.ts
     cd website && pnpm install --frozen-lockfile && pnpm build
+    node --test website/src/built-pages.test.js
 
 # Serve the documentation site locally, reloading on changes
 site-serve:
