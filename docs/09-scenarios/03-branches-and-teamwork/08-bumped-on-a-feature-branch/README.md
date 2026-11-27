@@ -355,5 +355,5 @@ to push, and the second option isn't sent again. Without the bump,
 `main`'s `.splice` would name a commit on the library's `main`, which it
 keeps, and a pull would bring in `a third option` without a conflict.
 
-A splice moved after the bump isn't made again yet
+A splice moved after the bump is made again the same way
 ([moved after the bump](moved-after-the-bump.md)).
