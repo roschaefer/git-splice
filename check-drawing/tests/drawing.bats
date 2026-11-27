@@ -2,6 +2,14 @@
 # drawing as committed passes, and each kind of drift fails with a message
 # that says what to change.
 
+setup_file() {
+  load '../../docs/tests/helpers/fixtures'
+  hermetic_git_config
+  load '../../docs/09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/setup'
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
+  scenario_after_pull "$BATS_FILE_TMPDIR/monorepo" "$BATS_FILE_TMPDIR/upstream.git"
+}
+
 setup() {
   load '../../docs/tests/helpers/fixtures'
   load '../check-drawing'
@@ -12,7 +20,7 @@ setup() {
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
-  scenario_after_pull "$monorepo" "$upstream"
+  copy_file_repositories
   drawing="$BATS_TEST_TMPDIR/after-pull.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/../../docs/09-scenarios/01-everyday-sync/01-sync-model/01-after-pull/after-pull.drawio.svg" >"$drawing" 2>/dev/null

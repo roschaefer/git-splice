@@ -2,6 +2,17 @@
 # drawing: a box tracked(X) points at the upstream branch a splice tracks
 # on monorepo branch X, as fetched.
 
+setup_file() {
+  load '../../docs/tests/helpers/fixtures'
+  hermetic_git_config
+  load '../../docs/09-scenarios/03-branches-and-teamwork/07-tracked-branch/setup'
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
+  scenario_tracked_branch "$BATS_FILE_TMPDIR/monorepo" "$BATS_FILE_TMPDIR/upstream.git"
+  cd "$BATS_FILE_TMPDIR/monorepo"
+  git splice fetch --branch development --track vendor/a >/dev/null 2>&1
+  git splice fetch --branch review --track vendor/b >/dev/null 2>&1
+}
+
 setup() {
   load '../../docs/tests/helpers/fixtures'
   load '../check-drawing'
@@ -9,13 +20,11 @@ setup() {
   load '../../docs/09-scenarios/03-branches-and-teamwork/07-tracked-branch/setup'
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
-  scenario_tracked_branch "$monorepo" "$BATS_TEST_TMPDIR/upstream.git"
+  copy_file_repositories
   drawing="$BATS_TEST_TMPDIR/tracked-branch.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/../../docs/09-scenarios/03-branches-and-teamwork/07-tracked-branch/tracked-branch.drawio.svg" >"$drawing" 2>/dev/null
   cd "$monorepo"
-  git splice fetch --branch development --track vendor/a >/dev/null 2>&1
-  git splice fetch --branch review --track vendor/b >/dev/null 2>&1
 }
 
 edit_drawing() {
