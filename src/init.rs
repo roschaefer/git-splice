@@ -45,7 +45,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         ..Message::default()
     })?;
     require_no_splice_in_progress()?;
-    current_branch()?;
+    let branch = current_branch()?;
     repo.refuse_unreadable_tree(&path)?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
@@ -81,28 +81,16 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     // Map the monorepo's default branch to the upstream's, as clone does. An
     // empty repository has no branch yet, but its HEAD still names one.
     let upstream_default = empty_upstream_default_branch(&url);
-    let monorepo_default = repo.monorepo_default_branch();
     let container_default = repo.container_default_branch(&path)?;
-    let mut default_branch = String::new();
-    if !upstream_default.is_empty() {
-        if monorepo_default.is_empty() && upstream_default != current_branch()? {
-            return die(format!(
-                "{path}: upstream's default branch is '{upstream_default}', and the monorepo's can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}"
-            ));
-        }
-        if !container_default.is_empty() && upstream_default != container_default {
-            default_branch = upstream_default;
-        }
-    }
+    let default_branch =
+        repo.new_splice_default_branch(&path, &upstream_default, &container_default, &branch)?;
 
     // The splices directly inside follow the new splice's default branch from
     // now on. Each upstream of theirs that followed another one records it, so
     // it keeps following that.
-    let new_default = if default_branch.is_empty() {
-        container_default.clone()
-    } else {
-        default_branch.clone()
-    };
+    let new_default = default_branch
+        .clone()
+        .unwrap_or_else(|| container_default.clone());
     let prefix = format!("{path}/");
     let inside: Vec<String> = repo
         .all_paths
@@ -154,7 +142,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         path: &path,
         url: &url,
         commit: None,
-        default_branch: non_empty(&default_branch),
+        default_branch: default_branch.as_deref(),
         pin: None,
     }
     .blob()?;
