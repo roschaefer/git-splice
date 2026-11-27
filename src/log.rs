@@ -89,11 +89,11 @@ fn splice_git_log(
 }
 
 fn log_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
-    repo.classify_splice(path, branch)?;
+    let c = repo.classify_splice(path, branch)?;
     let graph = repo.args.has_flag("--graph");
     let option = repo.upstream_option(path);
-    let label = repo.c.upstream_label.clone();
-    match repo.c.state {
+    let label = c.upstream_label.clone();
+    match c.state {
         State::NeverFetched => {
             log_warn(format!(
                 "{path}: not fetched -- run 'git splice fetch {option}{path}' first"
@@ -101,26 +101,25 @@ fn log_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
             return Err(Fail::Soft);
         }
         State::MissingBranch => {
-            match repo.compare_with_default_branch(path) {
-                Err(Fail::Hard) => return Err(Fail::Hard),
-                Err(_) => {
-                    let name = if repo.d.default_branch.is_empty() {
+            let d = match repo.compare_with_default_branch(path) {
+                Err((Fail::Hard, _)) => return Err(Fail::Hard),
+                Err((_, default_branch)) => {
+                    let name = if default_branch.is_empty() {
                         String::new()
                     } else {
-                        format!(" '{}'", repo.d.default_branch)
+                        format!(" '{}'", default_branch)
                     };
                     return fail(format!(
                         "{path}: upstream has no '{label}' branch, and its default branch{name} can't be compared with"
                     ));
                 }
-                Ok(()) => {}
-            }
-            let d = repo.d.clone();
+                Ok(d) => d,
+            };
             if d.rebuilt.is_empty() {
                 return Ok(());
             }
             if d.default_ref.is_empty() {
-                if d.default_branch == repo.c.upstream_branch {
+                if d.default_branch == c.upstream_branch {
                     log_step(format!("{path} (upstream has no '{label}' branch)"));
                 } else {
                     log_step(format!(
@@ -148,24 +147,26 @@ fn log_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
             );
         }
         State::MissingSynced => {
-            log_warn(format!("{path}: {}", repo.missing_synced_message(path)));
+            log_warn(format!(
+                "{path}: {}",
+                repo.missing_synced_message(path, &c.synced)
+            ));
             return Err(Fail::Soft);
         }
         State::MissingPin => {
             return fail(format!(
                 "{path}: {} isn't here -- run 'git splice fetch {option}{path}', or check that upstream has it",
-                repo.c.target.description()
+                c.target.description()
             ));
         }
-        State::UpToDate if repo.c.rebuilt.is_empty() => return Ok(()),
-        State::UnrelatedHistory if repo.c.rebuilt.is_empty() => {
+        State::UpToDate if c.rebuilt.is_empty() => return Ok(()),
+        State::UnrelatedHistory if c.rebuilt.is_empty() => {
             log_warn(format!("{path}: upstream and the splice share no history"));
             return Err(Fail::Soft);
         }
         _ => {}
     }
     log_step(format!("{path} ({label})"));
-    let c = repo.c.clone();
     let target = commit_of(&c.target_ref).unwrap_or_default();
     let range = format!("{}...{}", c.rebuilt, c.target_ref);
     splice_git_log(

@@ -4,9 +4,9 @@ use crate::repo::*;
 use crate::util::*;
 
 impl Repo<'_> {
-    /// Classifies the splice's sync state while the monorepo is on <branch>,
-    /// into `c`. Status, merge, push, diff and log all need it.
-    pub fn classify_splice(&mut self, path: &str, branch: &str) -> Res<()> {
+    /// Classifies the splice's sync state while the monorepo is on <branch>.
+    /// Status, merge, push, diff and log all need it.
+    pub fn classify_splice(&mut self, path: &str, branch: &str) -> Res<Classified> {
         self.require_splice_upstream(path)?;
         let target = self.resolve_upstream_target(path, branch)?;
         let mut c = Classified {
@@ -16,9 +16,8 @@ impl Repo<'_> {
             target: target.clone(),
             ..Classified::default()
         };
-        let result = self.classify_into(path, &target, &mut c);
-        self.c = c;
-        result
+        self.classify_into(path, &target, &mut c)?;
+        Ok(c)
     }
 
     fn classify_into(&mut self, path: &str, target: &Target, c: &mut Classified) -> Res<()> {
@@ -135,29 +134,35 @@ impl Repo<'_> {
 
     /// For a splice whose upstream lacks the current branch, compares the
     /// rebuild with upstream's default branch instead, as a PR from the branch
-    /// would, into `d`. Commits from the monorepo branch the current one was
-    /// cut from count too: upstream may never have taken them.
-    pub fn compare_with_default_branch(&mut self, path: &str) -> Res<()> {
-        self.d = Compared {
+    /// would. Commits from the monorepo branch the current one was cut from
+    /// count too: upstream may never have taken them. A failure comes with the
+    /// default branch's name, if known, for the message.
+    pub fn compare_with_default_branch(&mut self, path: &str) -> Result<Compared, (Fail, String)> {
+        let mut d = Compared {
             new_commits: "0".to_string(),
             behind_commits: "0".to_string(),
             ..Compared::default()
         };
+        match self.compare_into(path, &mut d) {
+            Ok(()) => Ok(d),
+            Err(failure) => Err((failure, d.default_branch)),
+        }
+    }
+
+    fn compare_into(&mut self, path: &str, d: &mut Compared) -> Res<()> {
         let target = self.resolve_default_target(path, None)?;
-        // Set by the caller's classify_splice for messages of the same splice.
-        self.c.target = target.clone();
         if target.name.is_empty() {
             return Err(Fail::Soft);
         }
-        self.d.default_branch = target.label();
+        d.default_branch = target.label();
         let rebuilt = contained(self.splice_rebuild(path))?;
-        self.d.rebuilt = rebuilt.unwrap_or_default();
-        if self.d.rebuilt.is_empty() {
+        d.rebuilt = rebuilt.unwrap_or_default();
+        if d.rebuilt.is_empty() {
             return Ok(());
         }
-        let rebuilt = self.d.rebuilt.clone();
+        let rebuilt = d.rebuilt.clone();
         if commit_of(&target.reference).is_some() {
-            self.d.default_ref = target.reference.clone();
+            d.default_ref = target.reference.clone();
             let counts = git(&[
                 "rev-list",
                 "--left-right",
@@ -167,15 +172,15 @@ impl Repo<'_> {
             .out()
             .ok_or(Fail::Soft)?;
             let mut counts = counts.split_whitespace();
-            self.d.new_commits = counts.next().unwrap_or("0").to_string();
-            self.d.behind_commits = counts.next().unwrap_or("0").to_string();
+            d.new_commits = counts.next().unwrap_or("0").to_string();
+            d.behind_commits = counts.next().unwrap_or("0").to_string();
             if let Some(base) = git(&["merge-base", &rebuilt, &target.reference]).out() {
                 if tree_of(&rebuilt) == tree_of(&base) {
-                    self.d.no_changes = true;
+                    d.no_changes = true;
                 }
             }
         } else {
-            self.d.new_commits = git(&["rev-list", "--count", &rebuilt])
+            d.new_commits = git(&["rev-list", "--count", &rebuilt])
                 .out()
                 .ok_or(Fail::Soft)?;
         }
@@ -184,10 +189,10 @@ impl Repo<'_> {
 
     /// What's known when the splice's synced commit isn't here: a fetch gets it
     /// unless upstream lacks it.
-    pub fn missing_synced_message(&self, path: &str) -> String {
+    pub fn missing_synced_message(&self, path: &str, synced: &str) -> String {
         format!(
             "synced commit {} isn't here -- run 'git splice fetch {}{path}', or check that upstream has it",
-            short(&self.c.synced),
+            short(synced),
             self.upstream_option(path)
         )
     }

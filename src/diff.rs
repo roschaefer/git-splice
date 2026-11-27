@@ -8,10 +8,10 @@ use crate::util::*;
 pub const USAGE: &str = include_str!("usage/diff.txt");
 
 fn diff_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
-    repo.classify_splice(path, branch)?;
+    let c = repo.classify_splice(path, branch)?;
     let option = repo.upstream_option(path);
     let mut old_tree = None;
-    match repo.c.state {
+    match c.state {
         State::NeverFetched => {
             log_warn(format!(
                 "{path}: not fetched -- run 'git splice fetch {option}{path}' first"
@@ -26,42 +26,44 @@ fn diff_one(repo: &mut Repo, path: &str, branch: &str) -> Res<()> {
             return Err(Fail::Soft);
         }
         State::MissingSynced => {
-            log_warn(format!("{path}: {}", repo.missing_synced_message(path)));
+            log_warn(format!(
+                "{path}: {}",
+                repo.missing_synced_message(path, &c.synced)
+            ));
             return Err(Fail::Soft);
         }
         State::MissingPin => {
             return fail(format!(
                 "{path}: {} isn't here -- run 'git splice fetch {option}{path}', or check that upstream has it",
-                repo.c.target.description()
+                c.target.description()
             ));
         }
         State::MissingBranch => {
-            match repo.compare_with_default_branch(path) {
-                Err(Fail::Hard) => return Err(Fail::Hard),
-                Err(_) => {
-                    let name = if repo.d.default_branch.is_empty() {
+            let d = match repo.compare_with_default_branch(path) {
+                Err((Fail::Hard, _)) => return Err(Fail::Hard),
+                Err((_, default_branch)) => {
+                    let name = if default_branch.is_empty() {
                         String::new()
                     } else {
-                        format!(" '{}'", repo.d.default_branch)
+                        format!(" '{}'", default_branch)
                     };
                     return fail(format!(
                         "{path}: could not compare with upstream's default branch{name}"
                     ));
                 }
-                Ok(()) => {}
-            }
-            if repo.d.no_changes {
+                Ok(d) => d,
+            };
+            if d.no_changes {
                 return Ok(());
             }
             // As a PR shows it: from where R and the default branch meet.
-            if !repo.d.default_ref.is_empty() {
-                if let Some(base) = git(&["merge-base", &repo.d.rebuilt, &repo.d.default_ref]).out()
-                {
+            if !d.default_ref.is_empty() {
+                if let Some(base) = git(&["merge-base", &d.rebuilt, &d.default_ref]).out() {
                     old_tree = tree_of(&base);
                 }
             }
         }
-        State::Push | State::Diverged => old_tree = tree_of(&repo.c.target_ref),
+        State::Push | State::Diverged => old_tree = tree_of(&c.target_ref),
     }
     let new_tree = contained(repo.published_tree("HEAD", path))?.unwrap_or_default();
     let old_tree = old_tree.unwrap_or_else(|| repo.empty_tree());
