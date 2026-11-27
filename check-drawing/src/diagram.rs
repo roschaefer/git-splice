@@ -307,6 +307,7 @@ mod tests {
             "T = U(a note) = main",
             "U(café)",
             "größe = H",
+            "U(a:vendor/a/b) = U(l:b)",
         ] {
             assert!(is_box_label(label), "{label}");
         }
