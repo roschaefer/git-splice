@@ -141,9 +141,9 @@ mod tests {
         with_repository(|| {
             let mut context = ExecutionContext::new();
             context.leave_out("vendor/a");
-            let repo = Repo::new(&mut context, Default::default());
-            assert!(repo.context.left_out().is_empty());
-            assert_eq!(repo.context.exit_code(0), 0);
+            Repo::new(&mut context, Default::default());
+            assert!(context.left_out().is_empty());
+            assert_eq!(context.exit_code(0), 0);
         });
     }
 
