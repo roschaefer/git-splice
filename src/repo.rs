@@ -74,7 +74,7 @@ pub enum State {
     UnrelatedHistory,
 }
 
-/// Results of classify_splice, for the splice classified last.
+/// What classify_splice found.
 #[derive(Clone, Default, Debug)]
 pub struct Classified {
     pub state: State,
@@ -135,8 +135,6 @@ pub struct Repo<'context> {
     message_template: Option<Template>,
     /// The unknown state file keys warned about, as "<file>: <key>".
     warned_keys: HashSet<String>,
-    pub c: Classified,
-    pub d: Compared,
     /// The commit or tree whose state files the splices' upstreams are read
     /// from: HEAD, except while a conflicted pull reads the upstream's.
     pub state_rev: String,
@@ -754,8 +752,6 @@ impl<'context> Repo<'context> {
             merge_no_fork_point: Default::default(),
             message_template: Default::default(),
             warned_keys: Default::default(),
-            c: Default::default(),
-            d: Default::default(),
             state_rev: "HEAD".to_string(),
         }
     }

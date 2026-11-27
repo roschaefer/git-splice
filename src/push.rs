@@ -29,8 +29,7 @@ impl Repo<'_> {
             )),
             Uncommitted::NoChanges => {}
         }
-        self.classify_splice(path, branch)?;
-        let c = self.c.clone();
+        let c = self.classify_splice(path, branch)?;
         let label = c.upstream_label.clone();
         let option = self.upstream_option(path);
         let selection = self.selection_options(path);
@@ -68,7 +67,10 @@ impl Repo<'_> {
             }
             State::Diverged => {}
             State::MissingSynced if !force => {
-                log_warn(format!("{path}: {}", self.missing_synced_message(path)));
+                log_warn(format!(
+                    "{path}: {}",
+                    self.missing_synced_message(path, &c.synced)
+                ));
                 return Err(Fail::Soft);
             }
             State::MissingSynced => rebuilt = self.rebuild_without_synced(path)?,
@@ -82,32 +84,32 @@ impl Repo<'_> {
                 }
             }
             State::MissingBranch => {
-                match self.compare_with_default_branch(path) {
-                    Err(Fail::Hard) => return Err(Fail::Hard),
-                    Err(_) => {
-                        if self.d.default_branch.is_empty() {
+                let d = match self.compare_with_default_branch(path) {
+                    Err((Fail::Hard, _)) => return Err(Fail::Hard),
+                    Err((_, default_branch)) => {
+                        if default_branch.is_empty() {
                             return fail(format!(
                                 "{path}: upstream has no '{label}' branch, and its default branch is unknown -- not creating '{label}'"
                             ));
                         }
                         return fail(format!(
                             "{path}: could not compare with upstream's '{}' -- not creating '{label}'",
-                            self.d.default_branch
+                            default_branch
                         ));
                     }
-                    Ok(()) => {}
-                }
-                rebuilt = self.d.rebuilt.clone();
+                    Ok(d) => d,
+                };
+                rebuilt = d.rebuilt.clone();
                 // A commit given with --rebuilt-commit is pushed even if
                 // upstream's default branch has it: it was asked for, and needs
                 // recording.
                 if !rebuilt.is_empty()
                     && !self.context.supplied_rebuilds.contains_key(path)
-                    && self.d.no_changes
+                    && d.no_changes
                 {
                     log_ok(format!(
                         "{path}: nothing to push (upstream has no '{label}' branch, and a PR to '{}' would show no changes)",
-                        self.d.default_branch
+                        d.default_branch
                     ));
                     return Ok(None);
                 }
@@ -1079,7 +1081,6 @@ vendor/b.git/topic -> B (offline)"#,
             );
             assert!(git(&["--git-dir=vendor/a.git", "for-each-ref"]).is_empty());
             assert!(git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
-            repo.c = Classified::default();
             assert_eq!(
                 progress.advance(&mut repo).unwrap(),
                 Some(ExecutionEvent::AfterPush {

@@ -35,9 +35,8 @@ fn add_hint(hint: &mut String, more: &str) {
 }
 
 fn classify_row(repo: &mut Repo, path: &str, branch: &str) -> Res<Row> {
-    repo.classify_splice(path, branch)?;
+    let c = repo.classify_splice(path, branch)?;
     let option = repo.upstream_option(path);
-    let c = repo.c.clone();
     let column = if c.upstream_label == branch {
         path.to_string()
     } else {
@@ -55,37 +54,37 @@ fn classify_row(repo: &mut Repo, path: &str, branch: &str) -> Res<Row> {
             let compared = quietly(|| repo.compare_with_default_branch(path));
             match compared {
                 // A refusal, which only rebuild errors are quiet for: says why.
-                Err(Fail::Hard) => {
-                    return repo.compare_with_default_branch(path).and(Err(Fail::Hard))
+                Err((Fail::Hard, _)) => {
+                    return repo
+                        .compare_with_default_branch(path)
+                        .map_err(|(failure, _)| failure)
+                        .and(Err(Fail::Hard))
                 }
-                Err(_) => {
-                    let hint = if repo.d.default_branch.is_empty() {
+                Err((_, default_branch)) => {
+                    let hint = if default_branch.is_empty() {
                         "upstream's default branch unknown".to_string()
                     } else {
-                        format!(
-                            "could not compare with upstream's '{}'",
-                            repo.d.default_branch
-                        )
+                        format!("could not compare with upstream's '{}'", default_branch)
                     };
                     (WARNING, "?? no upstream branch".to_string(), hint)
                 }
-                Ok(()) if repo.d.no_changes => {
-                    let label = if repo.d.behind_commits == "0" {
+                Ok(d) if d.no_changes => {
+                    let label = if d.behind_commits == "0" {
                         "unchanged, no upstream branch".to_string()
                     } else {
                         format!(
                             "unchanged, behind {} on {}",
-                            repo.d.behind_commits, repo.d.default_branch
+                            d.behind_commits, d.default_branch
                         )
                     };
                     (UNCHANGED, label, String::new())
                 }
-                Ok(()) => {
-                    let mut label = format!("new, ahead {}", repo.d.new_commits);
-                    if repo.d.behind_commits != "0" {
+                Ok(d) => {
+                    let mut label = format!("new, ahead {}", d.new_commits);
+                    if d.behind_commits != "0" {
                         label.push_str(&format!(
                             ", behind {} on {}",
-                            repo.d.behind_commits, repo.d.default_branch
+                            d.behind_commits, d.default_branch
                         ));
                     }
                     (NEW, label, "push creates the branch".to_string())

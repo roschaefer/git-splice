@@ -135,12 +135,17 @@ impl Repo<'_> {
     /// or pull) only selects the wording of the messages.
     /// What --message-template gets for <command>'s commit that syncs
     /// <path> to <target>.
-    fn message_for<'a>(&'a self, command: &'a str, path: &'a str, target: &'a str) -> Message<'a> {
+    fn message_for<'a>(
+        c: &'a Classified,
+        command: &'a str,
+        path: &'a str,
+        target: &'a str,
+    ) -> Message<'a> {
         Message {
             command,
             path,
-            upstream: Some(&self.c.upstream_label),
-            old: Some(&self.c.synced)
+            upstream: Some(&c.upstream_label),
+            old: Some(&c.synced)
                 .filter(|synced| !synced.is_empty())
                 .map(String::as_str),
             new: Some(target),
@@ -148,10 +153,10 @@ impl Repo<'_> {
     }
 
     fn merge_one(&mut self, path: &str, branch: &str, verb: &str) -> Res<()> {
-        self.classify_splice(path, branch)?;
+        let c = &self.classify_splice(path, branch)?;
         let option = self.upstream_option(path);
-        let label = self.c.upstream_label.clone();
-        match self.c.state {
+        let label = c.upstream_label.clone();
+        match c.state {
             State::NeverFetched => {
                 log_warn(format!(
                     "{path}: not fetched yet -- run 'git splice fetch {option}{path}' first"
@@ -161,7 +166,7 @@ impl Repo<'_> {
             State::MissingPin => {
                 return fail(format!(
                     "{path}: {} isn't here -- run 'git splice fetch {option}{path}', or check that upstream has it",
-                    self.c.target.description()
+                    c.target.description()
                 ));
             }
             State::MissingBranch => {
@@ -186,12 +191,12 @@ impl Repo<'_> {
                     ));
                 }
                 let behind = match quietly(|| self.compare_with_default_branch(path)) {
-                    Ok(()) if self.d.behind_commits != "0" => {
-                        let n = &self.d.behind_commits;
+                    Ok(d) if d.behind_commits != "0" => {
+                        let n = &d.behind_commits;
                         let plural = if n == "1" { "" } else { "s" };
                         format!(
                             " ('{}' has {n} commit{plural} this splice lacks)",
-                            self.d.default_branch
+                            d.default_branch
                         )
                     }
                     _ => String::new(),
@@ -201,10 +206,10 @@ impl Repo<'_> {
                 ));
                 return Ok(());
             }
-            State::UpToDate => return self.record_equal_tree(path, verb),
+            State::UpToDate => return self.record_equal_tree(c, path, verb),
             State::Push => {
                 if self.merge_bump {
-                    return self.bump_synced(path);
+                    return self.bump_synced(c, path);
                 }
                 log_ok(format!("{path}: nothing to {verb}"));
                 return Ok(());
@@ -212,14 +217,17 @@ impl Repo<'_> {
             State::MissingSynced => {
                 // A pull fetched it by its id, if upstream still had it.
                 if verb != "pull" {
-                    log_warn(format!("{path}: {}", self.missing_synced_message(path)));
+                    log_warn(format!(
+                        "{path}: {}",
+                        self.missing_synced_message(path, &c.synced)
+                    ));
                     return Err(Fail::Soft);
                 }
                 // The pull fetched only the upstream it pulls from.
                 if self.several_upstreams(path) {
                     log_err(format!(
                         "{path}: its synced commit {} isn't on {}, the upstream this pull fetched -- 'git splice fetch {}' fetches every upstream",
-                        short(&self.c.synced),
+                        short(&c.synced),
                         self.name_of(path),
                         shell_quote(path)
                     ));
@@ -227,7 +235,7 @@ impl Repo<'_> {
                 }
                 log_err(format!(
                     "{path}: its synced commit {} isn't on its upstream any more",
-                    short(&self.c.synced)
+                    short(&c.synced)
                 ));
                 self.print_unrelated_history_guidance(path);
                 return Err(Fail::Soft);
@@ -239,7 +247,7 @@ impl Repo<'_> {
             State::Pull | State::Diverged => {}
         }
         if self.merge_rebase {
-            return self.rebase_onto_pull(path, branch, verb);
+            return self.rebase_onto_pull(c, path, branch, verb);
         }
 
         // The merge base is the newest upstream commit both sides contain: the
@@ -248,17 +256,17 @@ impl Repo<'_> {
         // Git's merge base is older, and the patches would look like changes on
         // both sides. Like git pull --rebase, the merge then starts at the fork
         // point: where the fetched branch was before the rewrite.
-        let target = commit_of(&self.c.target_ref).unwrap_or_default();
+        let target = commit_of(&c.target_ref).unwrap_or_default();
         if upstream_has_state_file(&target) {
             return fail(format!(
                 "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE}"
             ));
         }
-        let merge_base = if let Some(fork) = self.fork_point() {
+        let merge_base = if let Some(fork) = self.fork_point(c) {
             // Only a folder that ends up with exactly the rewritten branch's
             // files lets the rebuild start there again. Anything else is
             // rebuilt on top of the fork point, and joined in as a merge.
-            if !self.merge_gives(&fork, &target) {
+            if !merge_gives(&c.rebuilt, &fork, &target) {
                 return fail(format!(
                     "{path}: upstream rewrote '{label}' since {}, and the folder has changes '{label}' lacks -- run 'git splice {verb} --rebase {}{}' to redo them on top: a {verb} now would publish the rewritten-away commits again with the next push",
                     short(&fork),
@@ -268,7 +276,7 @@ impl Repo<'_> {
             }
             fork
         } else {
-            git(&["merge-base", &self.c.rebuilt, &target])
+            git(&["merge-base", &c.rebuilt, &target])
                 .out()
                 .unwrap_or_default()
         };
@@ -279,7 +287,7 @@ impl Repo<'_> {
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message =
-            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
+            self.commit_message(message::DEFAULT, Self::message_for(c, verb, path, &target))?;
         if splice_in(
             path,
             Some(&base_folder),
@@ -298,9 +306,8 @@ impl Repo<'_> {
 
     /// For --rebase: the newest first-parent commit since the synced commit
     /// was recorded whose folder has exactly its files.
-    fn sync_point_commit(&mut self, path: &str) -> Res<Option<String>> {
-        let synced = self.c.synced.clone();
-        let synced_tree = tree_of(&synced);
+    fn sync_point_commit(&mut self, path: &str, synced: &str) -> Res<Option<String>> {
+        let synced_tree = tree_of(synced);
         let history = git(&["rev-list", "--first-parent", "HEAD"])
             .out()
             .unwrap_or_default();
@@ -319,11 +326,11 @@ impl Repo<'_> {
     /// branch's own above the newest one its upstream has, which can sit
     /// below the last sync, e.g. the bump that recorded it: replaying them
     /// is left to a plain pull, which merges them.
-    fn refuse_remade(&self, path: &str) -> Res<()> {
+    fn refuse_remade(&self, path: &str, synced: &str) -> Res<()> {
         if let Some(fetched) = self.remade.get(path) {
             return fail(format!(
                 "{path}: synced commit {} was made again here -- --rebase doesn't replay what's above {}; pull without --rebase",
-                short(&self.c.synced),
+                short(synced),
                 short(fetched)
             ));
         }
@@ -413,8 +420,13 @@ impl Repo<'_> {
     /// changes if the upstream branch lacks them, which is wanted only after
     /// the upstream rewrote the branch: it refuses unless the branch's reflog
     /// shows it had them.
-    fn rebase_onto_pull(&mut self, path: &str, branch: &str, verb: &str) -> Res<()> {
-        let c = self.c.clone();
+    fn rebase_onto_pull(
+        &mut self,
+        c: &Classified,
+        path: &str,
+        branch: &str,
+        verb: &str,
+    ) -> Res<()> {
         let target = commit_of(&c.target_ref).unwrap_or_default();
         if upstream_has_state_file(&target) {
             return fail(format!(
@@ -427,9 +439,9 @@ impl Repo<'_> {
             ));
         }
         self.refuse_unreadable_state_files(path, None, &target, verb, FIX_UPSTREAM)?;
-        self.refuse_remade(path)?;
-        self.refuse_lacking_synced(path)?;
-        let base = self.sync_point_commit(path)?;
+        self.refuse_remade(path, &c.synced)?;
+        refuse_lacking_synced(c, path)?;
+        let base = self.sync_point_commit(path, &c.synced)?;
         let Some(base) = base else {
             return fail(format!(
                 "{path}: no commit since the synced commit {} has exactly its files, e.g. after a {verb} that merged local changes -- nothing to rebase onto; {verb} without --rebase",
@@ -478,7 +490,7 @@ impl Repo<'_> {
         let folder = self.in_monorepo_terms(&base, path, &theirs)?;
         let tree = reroot_tree(path, Some(&folder), Some(&blob), &base)?;
         let message =
-            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
+            self.commit_message(message::DEFAULT, Self::message_for(c, verb, path, &target))?;
         let pull = git(&["commit-tree", &tree, "-p", &base, "-m", &message])
             .out()
             .ok_or(Fail::Soft)?;
@@ -520,57 +532,13 @@ impl Repo<'_> {
     /// <path> has something to pull. Refuses as --rebase of the splice alone
     /// would when its upstream branch lacks the synced commit.
     pub fn pull_to_rebase(&mut self, path: &str, branch: &str) -> Res<bool> {
-        self.classify_splice(path, branch)?;
-        if !matches!(self.c.state, State::Pull | State::Diverged) {
+        let c = self.classify_splice(path, branch)?;
+        if !matches!(c.state, State::Pull | State::Diverged) {
             return Ok(false);
         }
-        self.refuse_remade(path)?;
-        self.refuse_lacking_synced(path)?;
+        self.refuse_remade(path, &c.synced)?;
+        refuse_lacking_synced(&c, path)?;
         Ok(true)
-    }
-
-    fn refuse_lacking_synced(&self, path: &str) -> Res<()> {
-        if self.lacks_synced_by_reflog() {
-            return fail(format!(
-                "{path}: '{}' lacks the synced commit {}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes",
-                self.c.upstream_label,
-                short(&self.c.synced)
-            ));
-        }
-        Ok(())
-    }
-
-    /// For --rebase: the upstream branch lacks the synced commit, and its
-    /// reflog doesn't show it had it: taking its files would drop the synced
-    /// commit's changes. That can't tell a branch that never had it from one
-    /// rewritten before this clone's reflog of it starts: nothing records which.
-    /// A tag or a commit that's pinned has no branch history to tell, and
-    /// passes.
-    fn lacks_synced_by_reflog(&self) -> bool {
-        let c = &self.c;
-        if c.target.kind != TargetKind::Branch || is_ancestor(&c.synced, &c.target_ref) {
-            return false;
-        }
-        let entries = git(&["rev-list", "--walk-reflogs", &c.target_ref])
-            .q()
-            .out()
-            .unwrap_or_default();
-        !entries.lines().any(|entry| is_ancestor(&c.synced, entry))
-    }
-
-    /// Merging <target> into the rebuild from <base> gives exactly <target>'s
-    /// files, without a conflict.
-    fn merge_gives(&self, base: &str, target: &str) -> bool {
-        let merged = git(&[
-            "merge-tree",
-            "--write-tree",
-            &format!("--merge-base={base}"),
-            &self.c.rebuilt,
-            target,
-        ])
-        .q()
-        .out();
-        merged.is_some_and(|merged| merged.lines().next().map(str::to_string) == tree_of(target))
     }
 
     /// Where the fetched upstream branch was before a rewrite took the
@@ -578,19 +546,14 @@ impl Repo<'_> {
     /// branch's reflog has that the rebuild has too, if the branch doesn't have
     /// it any more. Nothing without a rewrite, without a reflog, or with
     /// --no-fork-point.
-    fn fork_point(&self) -> Option<String> {
+    fn fork_point(&self, c: &Classified) -> Option<String> {
         if self.merge_no_fork_point {
             return None;
         }
-        let fork = git(&[
-            "merge-base",
-            "--fork-point",
-            &self.c.target_ref,
-            &self.c.rebuilt,
-        ])
-        .q()
-        .out()?;
-        (!is_ancestor(&fork, &self.c.target_ref)).then_some(fork)
+        let fork = git(&["merge-base", "--fork-point", &c.target_ref, &c.rebuilt])
+            .q()
+            .out()?;
+        (!is_ancestor(&fork, &c.target_ref)).then_some(fork)
     }
 
     /// For a splice that's up to date: records the upstream branch as the
@@ -600,11 +563,11 @@ impl Repo<'_> {
     /// squash-merged what this branch pushed, or got the rebuild edited before
     /// the push. Without the record, the rebuild would keep the monorepo's
     /// original commits, and publish them with the next push.
-    fn record_equal_tree(&mut self, path: &str, verb: &str) -> Res<()> {
-        let target = commit_of(&self.c.target_ref).unwrap_or_default();
+    fn record_equal_tree(&mut self, c: &Classified, path: &str, verb: &str) -> Res<()> {
+        let target = commit_of(&c.target_ref).unwrap_or_default();
         if self.equal_tree_outcome(path, &target)? != EqualTree::Record {
             if self.merge_bump {
-                return self.bump_synced(path);
+                return self.bump_synced(c, path);
             }
             log_ok(format!("{path}: nothing to {verb}"));
             return Ok(());
@@ -613,7 +576,7 @@ impl Repo<'_> {
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
         let message =
-            self.commit_message(message::DEFAULT, self.message_for(verb, path, &target))?;
+            self.commit_message(message::DEFAULT, Self::message_for(c, verb, path, &target))?;
         if splice_in(
             path,
             Some(&folder),
@@ -636,19 +599,19 @@ impl Repo<'_> {
     /// For --bump: records the upstream branch as the synced commit, in a commit
     /// that only changes the state file, though it's already part of the
     /// rebuild's history. Never moves the synced commit backwards.
-    fn bump_synced(&mut self, path: &str) -> Res<()> {
-        let target = commit_of(&self.c.target_ref).unwrap_or_default();
-        if target == self.c.synced {
+    fn bump_synced(&mut self, c: &Classified, path: &str) -> Res<()> {
+        let target = commit_of(&c.target_ref).unwrap_or_default();
+        if target == c.synced {
             log_ok(format!(
                 "{path}: nothing to bump -- already synced at {}",
                 short(&target)
             ));
             return Ok(());
         }
-        if !newer_than_synced(&self.c.synced, &target) {
+        if !newer_than_synced(&c.synced, &target) {
             log_ok(format!(
                 "{path}: nothing to bump -- the fetched '{}' is older than the synced commit",
-                self.c.upstream_label
+                c.upstream_label
             ));
             return Ok(());
         }
@@ -657,8 +620,10 @@ impl Repo<'_> {
             .ok_or(Fail::Soft)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
-        let message =
-            self.commit_message(message::DEFAULT, self.message_for("bump", path, &target))?;
+        let message = self.commit_message(
+            message::DEFAULT,
+            Self::message_for(c, "bump", path, &target),
+        )?;
         if splice_in(
             path,
             Some(&folder),
@@ -1188,6 +1153,49 @@ impl MergeProgress {
             Err(Fail::Hard)
         }
     }
+}
+
+fn refuse_lacking_synced(c: &Classified, path: &str) -> Res<()> {
+    if lacks_synced_by_reflog(c) {
+        return fail(format!(
+            "{path}: '{}' lacks the synced commit {}, and its reflog here doesn't show it ever had it -- --rebase would drop that commit's changes",
+            c.upstream_label,
+            short(&c.synced)
+        ));
+    }
+    Ok(())
+}
+
+/// For --rebase: the upstream branch lacks the synced commit, and its
+/// reflog doesn't show it had it: taking its files would drop the synced
+/// commit's changes. That can't tell a branch that never had it from one
+/// rewritten before this clone's reflog of it starts: nothing records which.
+/// A tag or a commit that's pinned has no branch history to tell, and
+/// passes.
+fn lacks_synced_by_reflog(c: &Classified) -> bool {
+    if c.target.kind != TargetKind::Branch || is_ancestor(&c.synced, &c.target_ref) {
+        return false;
+    }
+    let entries = git(&["rev-list", "--walk-reflogs", &c.target_ref])
+        .q()
+        .out()
+        .unwrap_or_default();
+    !entries.lines().any(|entry| is_ancestor(&c.synced, entry))
+}
+
+/// Merging <target> into rebuild <rebuilt> from <base> gives exactly
+/// <target>'s files, without a conflict.
+fn merge_gives(rebuilt: &str, base: &str, target: &str) -> bool {
+    let merged = git(&[
+        "merge-tree",
+        "--write-tree",
+        &format!("--merge-base={base}"),
+        rebuilt,
+        target,
+    ])
+    .q()
+    .out();
+    merged.is_some_and(|merged| merged.lines().next().map(str::to_string) == tree_of(target))
 }
 
 /// The splice's synced commit is here, or it has none.
