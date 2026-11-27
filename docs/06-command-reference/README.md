@@ -80,6 +80,11 @@ $ git splice status -h | check-help section output
     "ahead" is how many 'git splice push' would publish, "behind" how many
     'git splice pull' would bring in. 'git splice diff --stat' shows the
     files.
+
+    For an upstream branch other than the default branch, a hint counts
+    the commits the default branch, as last fetched, has and the splice
+    lacks, which a PR shows as behind: "'main' has 2 commits this splice
+    lacks".
 ```
 
 Each state comes with a small, tested scenario, and `merge`, `pull` and

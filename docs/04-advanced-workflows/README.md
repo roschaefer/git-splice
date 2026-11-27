@@ -63,13 +63,14 @@ $ git -C "$UPSTREAM" log --graph --format=%s main feature
 * k: seed
 ```
 
-`git-splice` compares `feature` with upstream's `feature` only, and
-those match. That the PR is behind `main` is a matter between the two
-branches of each repository:
+`git-splice` syncs `feature` with upstream's `feature`, and those
+match. `status` also counts the commits of upstream's `main`, as last
+fetched, that the splice lacks, which the PR shows as behind. Bringing
+them in is a matter between the two branches of each repository:
 
 ```scrut
 $ git splice status
 On branch feature
 
-  up to date  vendor/a
+  up to date  vendor/a  'main' has 1 commit this splice lacks
 ```

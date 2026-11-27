@@ -39,6 +39,11 @@ OUTPUT
     'git splice pull' would bring in. 'git splice diff --stat' shows the
     files.
 
+    For an upstream branch other than the default branch, a hint counts
+    the commits the default branch, as last fetched, has and the splice
+    lacks, which a PR shows as behind: "'main' has 2 commits this splice
+    lacks".
+
     See also: https://git-splice.roschaefer.de/docs/command-reference/#output
 
 NO UPSTREAM BRANCH
