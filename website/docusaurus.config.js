@@ -9,6 +9,7 @@ const baseUrl = '/';
 const repoFileLinks = require('./src/remark/repo-file-links');
 const siteLinks = require('./src/remark/site-links');
 const drawioPlain = require('./src/remark/drawio-plain');
+const imageText = require('./src/remark/image-text');
 const indexFirst = require('./src/index-first');
 
 /** @type {import('@docusaurus/types').Config} */
@@ -54,7 +55,9 @@ module.exports = {
             [repoFileLinks, {repoUrl, repoRoot: require('path').resolve(__dirname, '..')}],
             [siteLinks, {siteUrl: siteUrl + baseUrl}],
             [drawioPlain, {siteDir: __dirname, repoRoot: require('path').resolve(__dirname, '..')}],
+            imageText.record,
           ],
+          remarkPlugins: [imageText.restore],
         },
         blog: false,
         theme: {customCss: require.resolve('./src/css/custom.css')},
