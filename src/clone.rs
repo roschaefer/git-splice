@@ -64,13 +64,20 @@ fn upstream_submodule(commit: &str) -> Option<String> {
     })
 }
 
-/// What fetching a new upstream found out.
-#[derive(Default)]
-struct NewUpstream {
-    default_branch: String,
-    upstream_default: String,
-    monorepo_default: String,
-    container_default: String,
+/// The upstream branch a clone on <branch> starts from: on <monorepo_default>,
+/// the default branch the splice follows -- <recorded_default> if it records
+/// one, else <container_default>, that of what the splice lives in --, else
+/// the branch named like <branch>.
+fn upstream_branch_to_clone(
+    branch: &str,
+    monorepo_default: &str,
+    recorded_default: Option<&str>,
+    container_default: &str,
+) -> String {
+    if monorepo_default.is_empty() || branch != monorepo_default {
+        return branch.to_string();
+    }
+    recorded_default.unwrap_or(container_default).to_string()
 }
 
 /// Prints the git output of a fetch and fails if it failed.
@@ -103,10 +110,9 @@ impl Repo<'_> {
         fetch_new(url, &self.refs_prefix(path), path)
     }
 
-    /// As register_new_upstream, and works out the default-branch .splice has
-    /// to record: the upstream's default branch where it's named differently
-    /// from the default branch of what the splice lives in, else nothing.
-    fn fetch_new_upstream(&mut self, path: &str, url: &str) -> Res<NewUpstream> {
+    /// As register_new_upstream, and returns the upstream's default branch, if
+    /// it names one.
+    fn fetch_new_upstream(&mut self, path: &str, url: &str) -> Res<String> {
         // Before the fetch: refuses if the splice above leaves it open.
         self.container_default_branch(path)?;
         self.register_new_upstream(path, url)?;
@@ -121,59 +127,45 @@ impl Repo<'_> {
                 shell_quote(url)
             ));
         }
-        // Map the monorepo's default branch to the upstream's, if it differs
-        // from the default branch of what the splice lives in.
         let symref = git(&["ls-remote", "--symref", "--", url, "HEAD"])
             .q()
             .out_anyway();
-        let upstream_default = symref
+        Ok(symref
             .lines()
             .find_map(|line| {
                 line.strip_prefix("ref: refs/heads/")?
                     .strip_suffix("\tHEAD")
                     .map(str::to_string)
             })
-            .unwrap_or_default();
-        let mut found = NewUpstream {
-            monorepo_default: self.monorepo_default_branch(),
-            container_default: self.container_default_branch(path)?,
-            upstream_default,
-            ..NewUpstream::default()
-        };
-        if !found.upstream_default.is_empty() {
-            if found.monorepo_default.is_empty() && found.upstream_default != current_branch()? {
-                // Without the monorepo's default branch, the splice couldn't
-                // map it to upstream's: it would look for the current branch
-                // upstream from the start.
-                return die(format!(
-                    "{path}: upstream's default branch is '{}', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run",
-                    found.upstream_default
-                ));
-            }
-            if !found.container_default.is_empty()
-                && found.upstream_default != found.container_default
-            {
-                found.default_branch = found.upstream_default.clone();
-            }
+            .unwrap_or_default())
+    }
+
+    /// Refuses upstream commit <commit> for a new splice at <path> if it has a
+    /// state file at its root, or one that can't be read below.
+    fn refuse_upstream_state_files(&self, path: &str, commit: &str) -> Res<()> {
+        if upstream_has_state_file(commit) {
+            return die(format!(
+                "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
+            ));
         }
-        Ok(found)
+        self.refuse_unreadable_state_files(path, None, commit, "clone", FIX_UPSTREAM)
+            .map_err(|_| Fail::Hard)
     }
 
     /// What the splice at <path> of submodule <name>, committed at <commit>,
-    /// records to mean what the submodule meant: (default-branch, default-pin,
-    /// what's pinned, for the message). Its branch setting names the branch it
-    /// follows: that one, unless the splice would follow it anyway; "." follows
-    /// the branch named like the current one, which a splice does without a
-    /// default-branch. Without a branch, the submodule stayed at its commit, and
-    /// so does the splice. Inside a splice that pins a tag or a commit, there's
-    /// no such branch: "." stays at its commit too.
-    fn submodule_defaults(
+    /// follows to mean what the submodule meant. Its branch setting names the
+    /// branch it follows: that one, unless the splice would follow it anyway;
+    /// "." follows the branch named like the current one, which a splice does
+    /// without a default-branch. Without a branch, the submodule stayed at its
+    /// commit, and so does the splice. Inside a splice that pins a tag or a
+    /// commit, there's no such branch: "." stays at its commit too.
+    fn submodule_follows(
         &mut self,
         path: &str,
         gitmodules: &str,
         name: &str,
         commit: &str,
-    ) -> Res<(String, String, String)> {
+    ) -> Res<Follows> {
         let branch = git(&[
             "config",
             "--blob",
@@ -183,43 +175,55 @@ impl Repo<'_> {
         .q()
         .out()
         .unwrap_or_default();
-        let mut default_branch = String::new();
-        let mut pin = String::new();
-        let mut pinned_as = "the submodule was".to_string();
         let above = splice_above_in("HEAD", path);
         let mut pinned_above = false;
         if let Some(above) = &above {
             pinned_above = self.resolve_default_target(above, None)?.kind != TargetKind::Branch;
         }
-        match branch.as_str() {
-            "" => pin = commit.to_string(),
-            "." => {
-                if pinned_above {
-                    pin = commit.to_string();
-                    pinned_as = format!("{} is", above.unwrap_or_default());
-                }
+        let follows = match branch.as_str() {
+            "" => Follows::Commit {
+                pinned_as: "the submodule was".to_string(),
+            },
+            "." if pinned_above => Follows::Commit {
+                pinned_as: format!("{} is", above.unwrap_or_default()),
+            },
+            "." => Follows::Usual,
+            _ if pinned_above || branch != self.container_default_branch(path)? => {
+                Follows::Branch(branch)
             }
-            _ => {
-                if pinned_above || branch != self.container_default_branch(path)? {
-                    default_branch = branch;
-                }
-            }
-        }
+            _ => Follows::Usual,
+        };
         if self.monorepo_default_branch().is_empty() {
-            if !pin.is_empty() {
-                return die(format!(
-                    "{path}: the submodule stays at {}, and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run",
-                    short(commit)
-                ));
-            }
-            if !default_branch.is_empty() {
-                return die(format!(
-                    "{path}: the submodule follows '{default_branch}', and a default-branch applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
-                ));
+            match &follows {
+                Follows::Commit { .. } => {
+                    return die(format!(
+                        "{path}: the submodule stays at {}, and a pin applies on the monorepo's default branch, which can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}",
+                        short(commit)
+                    ));
+                }
+                Follows::Branch(branch) => {
+                    return die(format!(
+                        "{path}: the submodule follows '{branch}', and a default-branch applies on the monorepo's default branch, which can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}"
+                    ));
+                }
+                Follows::Usual => {}
             }
         }
-        Ok((default_branch, pin, pinned_as))
+        Ok(follows)
     }
+}
+
+/// What a splice cloned from a submodule follows upstream.
+enum Follows {
+    /// What a splice without a default-branch or default-pin follows: the
+    /// branch named like the current one, or on the monorepo's default branch,
+    /// that of what the splice lives in.
+    Usual,
+    /// This branch, recorded as its default-branch.
+    Branch(String),
+    /// The submodule's commit, recorded as its default-pin; <pinned_as> says
+    /// who pinned it, for the message.
+    Commit { pinned_as: String },
 }
 
 /// The name of the submodule at <path>, relative to the folder of .gitmodules
@@ -279,7 +283,7 @@ fn resolve_submodule_url(url: &str, base: &str) -> Res<String> {
     if !base.starts_with('/') && !base.contains(':') {
         base = format!("{}/{base}", toplevel());
     }
-    let folder = Temp::new();
+    let folder = Temp::new()?;
     let resolved = (|| {
         std::fs::create_dir(&folder.path).ok()?;
         let dir = folder.str();
@@ -536,6 +540,30 @@ fn refuse_monorepo_attributes(path: &str, commit: &str, tree: &str) -> Res<()> {
     ))
 }
 
+/// The checks every clone starts with: <path> is a usable splice path inside
+/// the repository (<fix> says how to make it one), the repository opens with
+/// --message-template checked against <known>, no splice operation is in
+/// progress in the repository, HEAD is on a branch, no .splice above <path>
+/// is unreadable, and <path> isn't a splice already. Returns <path>
+/// normalized.
+fn start_clone(repo: &mut Repo, path: &str, fix: &str, known: Message) -> Res<String> {
+    let path = normalize_path(path);
+    if path.is_empty() || path == "." || path.starts_with('/') {
+        return die(format!("'{path}' isn't a folder inside the repository"));
+    }
+    require_usable_splice_path(&path, fix)?;
+
+    repo.open()?;
+    repo.require_message_template(known)?;
+    require_no_splice_in_progress()?;
+    current_branch()?;
+    repo.refuse_unreadable_tree(&path)?;
+    if repo.is_splice_path(&path) {
+        return die(format!("{path} is a splice already"));
+    }
+    Ok(path)
+}
+
 fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
     let url = repo.args.paths[0].clone();
     if url.is_empty() {
@@ -546,25 +574,18 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         Some(path) => path.clone(),
         None => default_clone_path(&url),
     };
-    let path = normalize_path(&path);
-    if path.is_empty() || path == "." || path.starts_with('/') {
-        return die(format!("'{path}' isn't a folder inside the repository"));
-    }
-    require_usable_splice_path(&path, "choose another folder name")?;
-
-    repo.open()?;
-    repo.require_message_template(Message {
-        command: "clone",
-        upstream: KNOWN,
-        new: KNOWN,
-        ..Message::default()
-    })?;
+    let path = start_clone(
+        repo,
+        &path,
+        "choose another folder name",
+        Message {
+            command: "clone",
+            upstream: KNOWN,
+            new: KNOWN,
+            ..Message::default()
+        },
+    )?;
     let branch = current_branch()?;
-    repo.refuse_unreadable_tree(&path)?;
-    if repo.is_splice_path(&path) {
-        return die(format!("{path} is a splice already"));
-    }
-    require_no_splice_in_progress()?;
     if is_submodule("HEAD", &path) {
         return die(format!(
             "{path} is a submodule -- 'git splice clone --from-submodule {}' turns it into a splice",
@@ -577,39 +598,35 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         return die(format!("{path} is a file, not a folder"));
     }
 
-    let found = repo.fetch_new_upstream(&path, &url)?;
-    let mut upstream_branch = branch.clone();
-    if !found.monorepo_default.is_empty() && branch == found.monorepo_default {
-        upstream_branch = if found.default_branch.is_empty() {
-            found.container_default.clone()
-        } else {
-            found.default_branch.clone()
-        };
-    }
+    let upstream_default = repo.fetch_new_upstream(&path, &url)?;
+    // Map the monorepo's default branch to the upstream's, if it differs from
+    // the default branch of what the splice lives in.
+    let container_default = repo.container_default_branch(&path)?;
+    let default_branch =
+        repo.new_splice_default_branch(&path, &upstream_default, &container_default, &branch)?;
+    let mut upstream_branch = upstream_branch_to_clone(
+        &branch,
+        &repo.monorepo_default_branch(),
+        default_branch.as_deref(),
+        &container_default,
+    );
     if !ref_exists(&repo.splice_ref(&path, &upstream_branch)) {
         // On the monorepo's default branch inside a splice, it's the splice
         // above's default branch. The monorepo's branch name says nothing about
         // this upstream then, so it isn't tried instead.
-        if found.upstream_default.is_empty() {
+        if upstream_default.is_empty() {
             return die(format!(
                 "{path}: upstream has no '{upstream_branch}' branch and names no default branch"
             ));
         }
         log_step(format!(
-            "{path}: upstream has no '{upstream_branch}' branch -- using '{}'",
-            found.upstream_default
+            "{path}: upstream has no '{upstream_branch}' branch -- using '{upstream_default}'"
         ));
-        upstream_branch = found.upstream_default.clone();
+        upstream_branch = upstream_default;
     }
 
     let target = commit_of(&repo.splice_ref(&path, &upstream_branch)).unwrap_or_default();
-    if upstream_has_state_file(&target) {
-        return die(format!(
-            "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
-        ));
-    }
-    repo.refuse_unreadable_state_files(&path, None, &target, "clone", "fix it in the upstream")
-        .map_err(|_| Fail::Hard)?;
+    repo.refuse_upstream_state_files(&path, &target)?;
     if let Some(inner) = upstream_submodule(&target) {
         return die(format!(
             "{path}: upstream has a submodule, {inner}, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
@@ -623,19 +640,14 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         }
     }
 
-    let id = new_splice_id(&path, &url, &target);
-    let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");
-    let branch_key = format!("upstream.{DEFAULT_UPSTREAM}.default-branch");
-    let blob = state_blob(
-        &path,
-        &[
-            ("id", &id),
-            ("commit", &target),
-            (&url_key, &url),
-            (&branch_key, &found.default_branch),
-        ],
-    )
-    .map_err(|_| Fail::Hard)?;
+    let blob = InitialState {
+        path: &path,
+        url: &url,
+        commit: Some(&target),
+        default_branch: default_branch.as_deref(),
+        pin: None,
+    }
+    .blob()?;
     let folder = format!("{target}^{{tree}}");
     let tree = reroot_tree(&path, Some(&folder), Some(&blob), "HEAD").map_err(|_| Fail::Hard)?;
     refuse_monorepo_attributes(&path, &target, &tree)?;
@@ -672,24 +684,16 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
 /// inside a splice -- a folder above with a .splice -- is listed in that
 /// folder's .gitmodules, as in its upstream.
 fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32> {
-    let path = normalize_path(path);
-    if path.is_empty() || path == "." || path.starts_with('/') {
-        return die(format!("'{path}' isn't a folder inside the repository"));
-    }
-    require_usable_splice_path(&path, "rename the submodule's folder")?;
-
-    repo.open()?;
-    repo.require_message_template(Message {
-        command: "clone",
-        new: KNOWN,
-        ..Message::default()
-    })?;
-    current_branch()?;
-    repo.refuse_unreadable_tree(&path)?;
-    if repo.is_splice_path(&path) {
-        return die(format!("{path} is a splice already"));
-    }
-    require_no_splice_in_progress()?;
+    let path = start_clone(
+        repo,
+        path,
+        "rename the submodule's folder",
+        Message {
+            command: "clone",
+            new: KNOWN,
+            ..Message::default()
+        },
+    )?;
     if !is_submodule("HEAD", &path) {
         return die(format!("{path}: no submodule committed here"));
     }
@@ -770,15 +774,8 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             short(&commit)
         ));
     }
-    let (default_branch, pin, pinned_as) =
-        repo.submodule_defaults(&path, &gitmodules, &name, &commit)?;
-    if upstream_has_state_file(&commit) {
-        return die(format!(
-            "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
-        ));
-    }
-    repo.refuse_unreadable_state_files(&path, None, &commit, "clone", "fix it in the upstream")
-        .map_err(|_| Fail::Hard)?;
+    let follows = repo.submodule_follows(&path, &gitmodules, &name, &commit)?;
+    repo.refuse_upstream_state_files(&path, &commit)?;
     if let Some(inner) = upstream_submodule(&commit) {
         if !recursive {
             return die(format!(
@@ -812,22 +809,21 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         }
     }
 
-    let id = new_splice_id(&path, &url, &commit);
-    let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");
-    let branch_key = format!("upstream.{DEFAULT_UPSTREAM}.default-branch");
-    let pin_key = format!("upstream.{DEFAULT_UPSTREAM}.default-pin");
-    let blob = state_blob(
-        &path,
-        &[
-            ("id", &id),
-            ("commit", &commit),
-            (&url_key, &url),
-            (&branch_key, &default_branch),
-            (&pin_key, &pin),
-        ],
-    )
-    .map_err(|_| Fail::Hard)?;
-    let edited = Temp::new();
+    let blob = InitialState {
+        path: &path,
+        url: &url,
+        commit: Some(&commit),
+        default_branch: match &follows {
+            Follows::Branch(branch) => Some(branch),
+            _ => None,
+        },
+        pin: match &follows {
+            Follows::Commit { .. } => Some(&commit),
+            _ => None,
+        },
+    }
+    .blob()?;
+    let edited = Temp::new()?;
     let current = git(&["cat-file", "blob", &in_head])
         .bytes()
         .unwrap_or_default();
@@ -914,12 +910,12 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         "{path}: cloned {} from the submodule",
         short(&commit)
     ));
-    if !pin.is_empty() {
+    if let Follows::Commit { pinned_as } = &follows {
         let tag = tag_naming(&url, &commit)
             .map(|tag| format!(", the tag '{tag}'"))
             .unwrap_or_default();
         log_step(format!(
-            "{path}: pinned at {}{tag}, as {pinned_as} -- pull brings in nothing and push refuses on {} until it follows a branch: git config --file {} --unset {pin_key}",
+            "{path}: pinned at {}{tag}, as {pinned_as} -- pull brings in nothing and push refuses on {} until it follows a branch: git config --file {} --unset upstream.{DEFAULT_UPSTREAM}.default-pin",
             short(&commit),
             repo.monorepo_default_branch(),
             shell_quote(&state_file)
@@ -1016,7 +1012,39 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 
 #[cfg(test)]
 mod tests {
-    use super::clone_path_for;
+    use super::{clone_path_for, upstream_branch_to_clone};
+
+    #[test]
+    fn clone_off_the_monorepos_default_branch_starts_from_the_branch_named_alike() {
+        assert_eq!(
+            upstream_branch_to_clone("topic", "main", Some("trunk"), "main"),
+            "topic"
+        );
+    }
+
+    #[test]
+    fn clone_on_the_monorepos_default_branch_starts_from_the_default_branch_it_records() {
+        assert_eq!(
+            upstream_branch_to_clone("main", "main", Some("trunk"), "develop"),
+            "trunk"
+        );
+    }
+
+    #[test]
+    fn clone_on_the_monorepos_default_branch_recording_none_starts_from_the_containers() {
+        assert_eq!(
+            upstream_branch_to_clone("main", "main", None, "develop"),
+            "develop"
+        );
+    }
+
+    #[test]
+    fn clone_without_the_monorepos_default_branch_starts_from_the_branch_named_alike() {
+        assert_eq!(
+            upstream_branch_to_clone("main", "", Some("trunk"), "develop"),
+            "main"
+        );
+    }
 
     #[test]
     fn default_clone_path_names_the_folder_as_git_clone_does() {

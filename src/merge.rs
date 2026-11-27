@@ -1158,8 +1158,6 @@ pub fn synced_commit_here(path: &str) -> bool {
     synced.is_empty() || commit_here(&synced)
 }
 
-const FIX_UPSTREAM: &str = "fix it in the upstream";
-
 /// Refuses the first submodule upstream commit <target> adds, or moves to
 /// another commit, since upstream commit <base>. One it leaves alone merges
 /// cleanly: the monorepo's side keeps what it has there.
