@@ -12,21 +12,21 @@ pub const USAGE: &str = include_str!("usage/init.txt");
 /// The branch the HEAD of empty repository <url> names, e.g. "master".
 /// ls-remote shows nothing for an empty repository, but a clone learns its
 /// unborn HEAD -- and there is nothing to download.
-fn empty_upstream_default_branch(url: &str) -> String {
-    let Ok(folder) = quietly(Temp::new) else {
-        return String::new();
-    };
+fn empty_upstream_default_branch(url: &str) -> Res<String> {
+    let folder = Temp::new()?;
     let probe = folder.str();
     if !git(&["clone", "--quiet", "--bare", "--no-tags", "--", url, &probe])
         .q()
         .ok()
     {
-        return String::new();
+        return Ok(String::new());
     }
-    git(&["-C", &probe, "symbolic-ref", "--quiet", "--short", "HEAD"])
-        .q()
-        .out()
-        .unwrap_or_default()
+    Ok(
+        git(&["-C", &probe, "symbolic-ref", "--quiet", "--short", "HEAD"])
+            .q()
+            .out()
+            .unwrap_or_default(),
+    )
 }
 
 pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
@@ -82,7 +82,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 
     // Map the monorepo's default branch to the upstream's, as clone does. An
     // empty repository has no branch yet, but its HEAD still names one.
-    let upstream_default = empty_upstream_default_branch(&url);
+    let upstream_default = empty_upstream_default_branch(&url)?;
     let container_default = repo.container_default_branch(&path)?;
     let default_branch =
         repo.new_splice_default_branch(&path, &upstream_default, &container_default, &branch)?;
@@ -169,6 +169,9 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
                 .ok()
     });
     if !removed {
+        if !had_key {
+            repo.forget_upstream_key(&key)?;
+        }
         return die(format!(
             "{path}: couldn't remove the refs fetched from {url} before"
         ));

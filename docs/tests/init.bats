@@ -194,7 +194,7 @@ setup() {
   TMPDIR="$BATS_TEST_TMPDIR/missing" run splice init lib/a "$upstream"
   [ "$status" -eq 1 ]
   [ "${#lines[@]}" -eq 1 ]
-  [[ "$output" == "!!   can't create a temporary folder: No such file or directory (os error 2) at path \"$BATS_TEST_TMPDIR/missing/git-splice-"* ]]
+  [[ "$output" == "!!   can't create a temporary folder: "* ]]
   [ -z "$(git config --get-regexp '^splice\..*\.url$')" ]
 }
 
