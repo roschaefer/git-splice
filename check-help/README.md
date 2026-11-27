@@ -18,7 +18,7 @@ continues it with examples, drawings and links:
 ## Description
 
 ```text
-$ git splice push -h | check-help section description
+$ git splice push --help | check-help section description
     Short explanation for the terminal.
 ```
 ````
@@ -27,7 +27,8 @@ The page's hidden final block passes the whole document to `check-help
 document`. It fails when the help links and level-two headings differ, their
 order differs, a link points to another command's page, or a section has no
 visible extraction command. Scrut checks the extracted text itself against
-the real `--help` output.
+the real `--help` output. Extraction commands must read the help with
+`--help`.
 
 An option with its own `###` expansion puts an indented `See also` link at
 the end of that option and uses `check-help option <anchor>`. `check-help

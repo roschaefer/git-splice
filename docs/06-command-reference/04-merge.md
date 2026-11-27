@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice merge -h | check-help preamble
+$ git splice merge --help | check-help preamble
 NAME
     git-splice-merge - Splice in fetched upstream changes
 
@@ -20,7 +20,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice merge -h | check-help section description
+$ git splice merge --help | check-help section description
     Splices already-fetched upstream changes into each splice, as one ordinary
     commit per splice. Never touches the network: run 'git splice fetch'
     first, or 'git splice pull' to do both.
@@ -58,7 +58,7 @@ monorepo's history stays linear.
 ## Options
 
 ```scrut
-$ git splice merge -h | check-help section options
+$ git splice merge --help | check-help section options
     <path>...
         The splices to merge, by their folders.
 
@@ -69,7 +69,7 @@ $ git splice merge -h | check-help section options
 ### `--upstream`
 
 ```scrut
-$ git splice merge -h | check-help option --upstream
+$ git splice merge --help | check-help option --upstream
         Merges from this one of the upstreams the splice's .splice names,
         instead of its default upstream. A splice without the named upstream
         stops the command before it starts.
@@ -83,7 +83,7 @@ original's fix without switching the default
 ### Branch tracking
 
 ```scrut
-$ git splice merge -h | check-help option branch-tracking
+$ git splice merge --help | check-help option branch-tracking
     --branch <name>
         Merges this upstream branch instead of the usual one (see UPSTREAM
         BRANCH), e.g. the one the default branch follows, on a pull
@@ -117,7 +117,7 @@ sets and unsets one.
 ### `--bump`
 
 ```scrut
-$ git splice merge -h | check-help option --bump
+$ git splice merge --help | check-help option --bump
         Also moves the synced commit up to the upstream branch when there's
         nothing to merge, e.g. right after a push, in a commit that only
         changes the splice's .splice, like a submodule bump. Later rebuilds
@@ -140,7 +140,7 @@ Use it sparingly: on a feature branch, a bump can conflict
 ### `--rebase`
 
 ```scrut
-$ git splice merge -h | check-help option --rebase
+$ git splice merge --help | check-help option --rebase
         Rebases instead, like 'git pull --rebase': takes the upstream branch
         in on top of the newest commit whose folder has exactly the synced
         commit's files, and rebases the monorepo branch's commits since then
@@ -176,7 +176,7 @@ with the other ways to get there.
 ### `--no-fork-point`
 
 ```scrut
-$ git splice merge -h | check-help option --no-fork-point
+$ git splice merge --help | check-help option --no-fork-point
         Merges from Git's merge base instead of the fork point (see
         REWRITTEN UPSTREAM BRANCHES).
 ```
@@ -186,7 +186,7 @@ See [rewritten upstream branches](#rewritten-upstream-branches).
 ### `--rebuilt-commit`
 
 ```scrut
-$ git splice merge -h | check-help option --rebuilt-commit
+$ git splice merge --help | check-help option --rebuilt-commit
         Merges <commit> instead of an upstream branch: one made on top of
         'git splice rebuild <path>', e.g. in a worktree of it, where the
         splice is the whole repository and a splice inside it is one level
@@ -220,7 +220,7 @@ shows the refusal of a pull made there.
 ### `-m`
 
 ```scrut
-$ git splice merge -h | check-help option -m
+$ git splice merge --help | check-help option -m
         Gives the commit this message instead of the default one, which
         names the upstream branch and commit; with --rebase, the commit the
         rebased ones go on top of. It takes one splice: each gets a commit
@@ -247,7 +247,7 @@ pkg-a: take the second commit
 ### `--message-template`
 
 ```scrut
-$ git splice merge -h | check-help option --message-template
+$ git splice merge --help | check-help option --message-template
         Gives each commit a message made from <template>, also with --all.
         Its placeholders are {command} (clone, init, merge, pull or bump),
         {path}, {upstream} (the upstream branch), {old} and {new} (the
@@ -296,7 +296,7 @@ its own values.
 ### `--shortlog`
 
 ```scrut
-$ git splice merge -h | check-help option --shortlog
+$ git splice merge --help | check-help option --shortlog
         Lists at most <n> commits in {shortlog} instead of 20, then "...",
         like 'git merge --log=<n>'; 0 leaves it empty, all lists every
         non-merge commit. It goes with --message-template, as --track goes
@@ -310,7 +310,7 @@ a changelog ([an example](05-pull.md#--shortlog)).
 ## Upstream branch
 
 ```scrut
-$ git splice merge -h | check-help section upstream-branch
+$ git splice merge --help | check-help section upstream-branch
     The upstream branch is the one named like the current branch; on the
     monorepo's default branch, the upstream's default-branch if it has one,
     or the tag or commit its default-pin names. On a branch the upstream
@@ -336,7 +336,7 @@ request ([feature branches](../02-using-git-splice/README.md)).
 ## Order
 
 ```scrut
-$ git splice merge -h | check-help section order
+$ git splice merge --help | check-help section order
     Top-down: a splice is merged before the ones below it, since its merge
     can move their synced commits, and a failure stops them.
 ```
@@ -347,7 +347,7 @@ in it, so `vendor/a/` goes first ([nesting](../03-concepts/04-nesting.md)).
 ## Conflicts
 
 ```scrut
-$ git splice merge -h | check-help section conflicts
+$ git splice merge --help | check-help section conflicts
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
     --abort' to give up), then re-run merge for any splices left. When the
     two sides share no history at all, merge doesn't guess: it prints the
@@ -369,7 +369,7 @@ shows the message.
 ## Rewritten upstream branches
 
 ```scrut
-$ git splice merge -h | check-help section rewritten-upstream-branches
+$ git splice merge --help | check-help section rewritten-upstream-branches
     When the upstream rewrote its branch, e.g. a fork rebased its patch
     branch onto a new release, merge starts at the branch's fork point, like
     'git pull --rebase': the newest commit the fetched branch pointed at, by
@@ -393,6 +393,6 @@ records the old patches, *q*, while T is the rebased one, *n*:
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice merge -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice merge --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->
