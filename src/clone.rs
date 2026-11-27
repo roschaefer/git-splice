@@ -153,20 +153,19 @@ impl Repo<'_> {
     }
 
     /// What the splice at <path> of submodule <name>, committed at <commit>,
-    /// records to mean what the submodule meant: (default-branch, default-pin,
-    /// what's pinned, for the message). Its branch setting names the branch it
-    /// follows: that one, unless the splice would follow it anyway; "." follows
-    /// the branch named like the current one, which a splice does without a
-    /// default-branch. Without a branch, the submodule stayed at its commit, and
-    /// so does the splice. Inside a splice that pins a tag or a commit, there's
-    /// no such branch: "." stays at its commit too.
-    fn submodule_defaults(
+    /// follows to mean what the submodule meant. Its branch setting names the
+    /// branch it follows: that one, unless the splice would follow it anyway;
+    /// "." follows the branch named like the current one, which a splice does
+    /// without a default-branch. Without a branch, the submodule stayed at its
+    /// commit, and so does the splice. Inside a splice that pins a tag or a
+    /// commit, there's no such branch: "." stays at its commit too.
+    fn submodule_follows(
         &mut self,
         path: &str,
         gitmodules: &str,
         name: &str,
         commit: &str,
-    ) -> Res<(String, String, String)> {
+    ) -> Res<Follows> {
         let branch = git(&[
             "config",
             "--blob",
@@ -176,43 +175,55 @@ impl Repo<'_> {
         .q()
         .out()
         .unwrap_or_default();
-        let mut default_branch = String::new();
-        let mut pin = String::new();
-        let mut pinned_as = "the submodule was".to_string();
         let above = splice_above_in("HEAD", path);
         let mut pinned_above = false;
         if let Some(above) = &above {
             pinned_above = self.resolve_default_target(above, None)?.kind != TargetKind::Branch;
         }
-        match branch.as_str() {
-            "" => pin = commit.to_string(),
-            "." => {
-                if pinned_above {
-                    pin = commit.to_string();
-                    pinned_as = format!("{} is", above.unwrap_or_default());
-                }
+        let follows = match branch.as_str() {
+            "" => Follows::Commit {
+                pinned_as: "the submodule was".to_string(),
+            },
+            "." if pinned_above => Follows::Commit {
+                pinned_as: format!("{} is", above.unwrap_or_default()),
+            },
+            "." => Follows::Usual,
+            _ if pinned_above || branch != self.container_default_branch(path)? => {
+                Follows::Branch(branch)
             }
-            _ => {
-                if pinned_above || branch != self.container_default_branch(path)? {
-                    default_branch = branch;
-                }
-            }
-        }
+            _ => Follows::Usual,
+        };
         if self.monorepo_default_branch().is_empty() {
-            if !pin.is_empty() {
-                return die(format!(
-                    "{path}: the submodule stays at {}, and a pin applies on the monorepo's default branch, which can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}",
-                    short(commit)
-                ));
-            }
-            if !default_branch.is_empty() {
-                return die(format!(
-                    "{path}: the submodule follows '{default_branch}', and a default-branch applies on the monorepo's default branch, which can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}"
-                ));
+            match &follows {
+                Follows::Commit { .. } => {
+                    return die(format!(
+                        "{path}: the submodule stays at {}, and a pin applies on the monorepo's default branch, which can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}",
+                        short(commit)
+                    ));
+                }
+                Follows::Branch(branch) => {
+                    return die(format!(
+                        "{path}: the submodule follows '{branch}', and a default-branch applies on the monorepo's default branch, which can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}"
+                    ));
+                }
+                Follows::Usual => {}
             }
         }
-        Ok((default_branch, pin, pinned_as))
+        Ok(follows)
     }
+}
+
+/// What a splice cloned from a submodule follows upstream.
+enum Follows {
+    /// What a splice without a default-branch or default-pin follows: the
+    /// branch named like the current one, or on the monorepo's default branch,
+    /// that of what the splice lives in.
+    Usual,
+    /// This branch, recorded as its default-branch.
+    Branch(String),
+    /// The submodule's commit, recorded as its default-pin; <pinned_as> says
+    /// who pinned it, for the message.
+    Commit { pinned_as: String },
 }
 
 /// The name of the submodule at <path>, relative to the folder of .gitmodules
@@ -763,8 +774,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             short(&commit)
         ));
     }
-    let (default_branch, pin, pinned_as) =
-        repo.submodule_defaults(&path, &gitmodules, &name, &commit)?;
+    let follows = repo.submodule_follows(&path, &gitmodules, &name, &commit)?;
     repo.refuse_upstream_state_files(&path, &commit)?;
     if let Some(inner) = upstream_submodule(&commit) {
         if !recursive {
@@ -803,8 +813,14 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         path: &path,
         url: &url,
         commit: Some(&commit),
-        default_branch: non_empty(&default_branch),
-        pin: non_empty(&pin),
+        default_branch: match &follows {
+            Follows::Branch(branch) => Some(branch),
+            _ => None,
+        },
+        pin: match &follows {
+            Follows::Commit { .. } => Some(&commit),
+            _ => None,
+        },
     }
     .blob()?;
     let edited = Temp::new();
@@ -894,7 +910,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         "{path}: cloned {} from the submodule",
         short(&commit)
     ));
-    if !pin.is_empty() {
+    if let Follows::Commit { pinned_as } = &follows {
         let tag = tag_naming(&url, &commit)
             .map(|tag| format!(", the tag '{tag}'"))
             .unwrap_or_default();
