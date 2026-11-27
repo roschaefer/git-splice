@@ -42,6 +42,228 @@ pub fn fetch_upstream(url: &str, prefix: &str, commits: &[String]) -> (bool, Str
     (true, output)
 }
 
+/// Whether GIT_LFS_SKIP_SMUDGE asks Git LFS to check files out as pointers:
+/// their content isn't needed here then.
+fn lfs_skipped() -> bool {
+    std::env::var("GIT_LFS_SKIP_SMUDGE").is_ok_and(|value| lfs_true(&value))
+}
+
+/// Whether a checkout here replaces Git LFS pointers with their content: Git
+/// LFS is set up, and not with --skip-smudge.
+fn lfs_smudges() -> bool {
+    let setting = |key: &str| git(&["config", "--get", key]).q().out();
+    smudges(
+        setting("filter.lfs.process").as_deref(),
+        setting("filter.lfs.smudge").as_deref(),
+    )
+}
+
+/// Whether Git's filter command for LFS -- filter.lfs.process, else
+/// filter.lfs.smudge -- replaces pointers with their content.
+fn smudges(process: Option<&str>, smudge: Option<&str>) -> bool {
+    process
+        .or(smudge)
+        .is_some_and(|command| !command.split_whitespace().any(|word| word == "--skip"))
+}
+
+/// Whether Git LFS reads <value> as true.
+fn lfs_true(value: &str) -> bool {
+    matches!(
+        value.to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on" | "t"
+    )
+}
+
+/// <url> as Git LFS takes it: Git LFS reads a local path as the name of a
+/// remote, so a path becomes a file:// URL, relative to <current_dir>. A
+/// path is what Git takes for one: no scheme, and no colon before the first
+/// slash unless it's a drive letter.
+fn lfs_url(url: &str, current_dir: &str) -> String {
+    let drive =
+        url.len() >= 2 && url.as_bytes()[0].is_ascii_alphabetic() && url.as_bytes()[1] == b':';
+    let colon = url.find(':');
+    let slash = url.find(['/', '\\']);
+    let local = !url.contains("://")
+        && (drive || colon.is_none() || slash.is_some_and(|slash| slash < colon.unwrap()));
+    if !local {
+        return url.to_string();
+    }
+    let absolute = url.starts_with('/') || drive || url.starts_with('\\');
+    let path = if absolute {
+        url.to_string()
+    } else {
+        format!("{}/{url}", current_dir.trim_end_matches(['/', '\\']))
+    }
+    .replace('\\', "/");
+    if path.starts_with('/') {
+        format!("file://{path}")
+    } else {
+        format!("file:///{path}")
+    }
+}
+
+/// Whether a .gitattributes in <commit> stores files in Git LFS.
+fn uses_lfs(commit: &str) -> bool {
+    git(&[
+        "grep",
+        "--quiet",
+        "--fixed-strings",
+        "filter=lfs",
+        commit,
+        "--",
+        ":(glob)**/.gitattributes",
+    ])
+    .q()
+    .ok()
+}
+
+/// Downloads the Git LFS content of <commit>'s files from upstream <url>'s LFS
+/// server into this repository's LFS store. A checkout of <commit> looks for
+/// it there before it asks the monorepo's own LFS server, which doesn't have it
+/// yet; the monorepo's next push uploads it there. Content that's here already
+/// isn't downloaded again. Where a checkout keeps pointers, nothing is
+/// downloaded, and it returns that as a warning. On failure, returns what to
+/// say.
+pub fn download_lfs(url: &str, commit: &str) -> Result<Option<String>, String> {
+    if commit.is_empty() || lfs_skipped() || !uses_lfs(commit) {
+        return Ok(None);
+    }
+    if !lfs_smudges() {
+        return Ok(Some(format!(
+            "{} stores files in Git LFS, and checkouts here keep them as pointers",
+            short(commit)
+        )));
+    }
+    let current_dir = std::env::current_dir().unwrap_or_default();
+    let url = lfs_url(url, &current_dir.to_string_lossy());
+    // lfs.fetchinclude and lfs.fetchexclude name the monorepo's paths, not the
+    // upstream's; lfs.fetchrecentalways would also fetch the monorepo's recent
+    // branches, from the upstream.
+    let (ok, output) = git_merged_output(&[
+        "-c",
+        "lfs.fetchrecentalways=false",
+        "lfs",
+        "fetch",
+        "--include=",
+        "--exclude=",
+        "--",
+        &url,
+        commit,
+    ]);
+    if ok {
+        return Ok(None);
+    }
+    if !git(&["lfs", "version"]).q().ok() {
+        return Err(format!(
+            "{} stores files in Git LFS, which isn't installed here",
+            short(commit)
+        ));
+    }
+    Err(output)
+}
+
+/// The first file whose Git LFS content a checkout of <target> needs and the
+/// local LFS store lacks. Only files that differ from <base> (none: all of
+/// <target>'s) are checked out, and only where a checkout here replaces
+/// pointers with their content. Err when the files can't be read, as in a
+/// partial clone that lacks a blob: then nobody can tell.
+pub fn lfs_content_missing(base: &str, target: &str) -> Result<Option<String>, String> {
+    if lfs_skipped() || !uses_lfs(target) || !lfs_smudges() {
+        return Ok(None);
+    }
+    let unreadable = |what: &str| format!("can't read {what} of {}", short(target));
+    let listing = if base.is_empty() {
+        git(&["ls-tree", "-r", target]).out()
+    } else {
+        git(&["diff-tree", "-r", "--no-renames", base, target]).out()
+    }
+    .ok_or_else(|| unreadable("the files"))?;
+    // (blob, file) of each regular file a checkout writes.
+    let files: Vec<(&str, &str)> = listing
+        .lines()
+        .filter_map(|line| {
+            let (fields, file) = line.split_once('\t')?;
+            let fields: Vec<&str> = fields.trim_start_matches(':').split(' ').collect();
+            let (mode, blob) = if base.is_empty() {
+                (*fields.first()?, *fields.get(2)?)
+            } else {
+                (*fields.get(1)?, *fields.get(3)?)
+            };
+            matches!(mode, "100644" | "100755").then_some((blob, file))
+        })
+        .collect();
+    if files.is_empty() {
+        return Ok(None);
+    }
+    // A pointer is at most 1024 bytes.
+    let ids: String = files.iter().map(|(blob, _)| format!("{blob}\n")).collect();
+    let sizes = git(&["cat-file", "--batch-check=%(objectsize)"])
+        .input(ids)
+        .out()
+        .ok_or_else(|| unreadable("the file sizes"))?;
+    let mut sizes = sizes.lines();
+    let mut small: Vec<(&str, &str)> = Vec::new();
+    for &(blob, file) in &files {
+        let size: u64 = sizes
+            .next()
+            .and_then(|size| size.parse().ok())
+            .ok_or_else(|| unreadable(file))?;
+        if size <= 1024 {
+            small.push((blob, file));
+        }
+    }
+    let ids: String = small.iter().map(|(blob, _)| format!("{blob}\n")).collect();
+    let contents = git(&["cat-file", "--batch"])
+        .input(ids)
+        .bytes()
+        .ok_or_else(|| unreadable("the files"))?;
+    let store = git(&["lfs", "env"])
+        .q()
+        .out()
+        .and_then(|env| {
+            env.lines()
+                .find_map(|line| line.strip_prefix("LocalMediaDir=").map(str::to_string))
+        })
+        .ok_or_else(|| "can't find the local Git LFS store".to_string())?;
+    let mut rest = contents.as_slice();
+    for (_, file) in small {
+        let content = next_batch_object(&mut rest).ok_or_else(|| unreadable(file))?;
+        let Some(oid) = lfs_pointer_oid(&content) else {
+            continue;
+        };
+        let object = std::path::Path::new(&store)
+            .join(&oid[0..2])
+            .join(&oid[2..4])
+            .join(&oid);
+        if !object.is_file() {
+            return Ok(Some(file.to_string()));
+        }
+    }
+    Ok(None)
+}
+
+/// The content of the next object in `git cat-file --batch` output, which
+/// <rest> then no longer holds. None for a missing object or cut-off output.
+fn next_batch_object(rest: &mut &[u8]) -> Option<String> {
+    let header_end = rest.iter().position(|&byte| byte == b'\n')?;
+    let size: usize = text(&rest[..header_end]).rsplit(' ').next()?.parse().ok()?;
+    let content = rest.get(header_end + 1..header_end + 1 + size)?;
+    let content = text(content);
+    *rest = rest.get(header_end + 2 + size..).unwrap_or_default();
+    Some(content)
+}
+
+/// The SHA-256 a Git LFS pointer names.
+fn lfs_pointer_oid(content: &str) -> Option<String> {
+    if !content.starts_with("version https://git-lfs.github.com/spec/v1\n") {
+        return None;
+    }
+    let oid = content
+        .lines()
+        .find_map(|line| line.strip_prefix("oid sha256:"))?;
+    (oid.len() == 64 && oid.bytes().all(|byte| byte.is_ascii_hexdigit())).then(|| oid.to_string())
+}
+
 pub fn fetch_by_id(url: &str, commit: &str) -> bool {
     // git fetch reads anything else as a refspec, which could write any ref.
     if !is_commit_id(commit) {
@@ -106,6 +328,11 @@ struct Member {
     target_ref: String,
     old_sha: Option<String>,
     tag: String,
+    /// A default-pin that names a commit.
+    pinned_commit: String,
+    /// Whether the splice uses this upstream, so a merge checks out its
+    /// content.
+    in_use: bool,
 }
 
 /// What to print for an entry of a fetch.
@@ -114,6 +341,15 @@ struct Report {
     out: String,
     err: String,
     failed: bool,
+}
+
+/// What to say when a fetch failed: git's <output>, if any, then <label>.
+fn failure(output: &str, label: &str) -> String {
+    if output.is_empty() {
+        format!("!!   {label}")
+    } else {
+        format!("{output}\n!!   {label}")
+    }
 }
 
 /// Fetches an upstream the given splices share, and reports for each whether
@@ -128,17 +364,11 @@ fn fetch_shared_upstream(
     let (ok, output) = fetch_upstream(url, &format!("refs/splices/{key}/heads/"), commits);
     if !ok {
         for member in members {
-            let mut err = String::new();
-            if !output.is_empty() {
-                err.push_str(&output);
-                err.push('\n');
-            }
-            err.push_str(&format!("!!   {}", member.failed_label));
             reports.push((
                 member.index,
                 Report {
                     out: String::new(),
-                    err,
+                    err: failure(&output, &member.failed_label),
                     failed: true,
                 },
             ));
@@ -153,8 +383,43 @@ fn fetch_shared_upstream(
             moved_tags.push((member.tag.clone(), moved));
         }
     }
+    let mut downloaded: Vec<(String, Result<Option<String>, String>)> = Vec::new();
     for (i, member) in members.iter().enumerate() {
         let new_sha = git(&["rev-parse", "--verify", "--quiet", &member.target_ref]).out();
+        // What a merge would check out: the branch, or else the pin.
+        let target = match &new_sha {
+            Some(sha) => sha.clone(),
+            None if !member.tag.is_empty() => {
+                commit_of(&format!("{prefix}tags/{}", member.tag)).unwrap_or_default()
+            }
+            None => member.pinned_commit.clone(),
+        };
+        let download = if !member.in_use {
+            Ok(None)
+        } else {
+            match downloaded.iter().find(|(commit, _)| *commit == target) {
+                Some((_, result)) => result.clone(),
+                None => {
+                    let result = download_lfs(url, &target);
+                    downloaded.push((target.clone(), result.clone()));
+                    result
+                }
+            }
+        };
+        let warning = match download {
+            Ok(warning) => warning,
+            Err(output) => {
+                reports.push((
+                    member.index,
+                    Report {
+                        out: String::new(),
+                        err: failure(&output, &member.failed_label),
+                        failed: true,
+                    },
+                ));
+                continue;
+            }
+        };
         let out = match (&member.old_sha, &new_sha) {
             (Some(old), Some(new)) if old != new => format!(
                 "ok   {} ({} moved {}..{})",
@@ -184,6 +449,9 @@ fn fetch_shared_upstream(
                 short(old),
                 member.tag
             ));
+        }
+        if let Some(warning) = warning {
+            err_lines.push(format!("??   {}: {warning}", member.path));
         }
         reports.push((
             member.index,
@@ -266,11 +534,11 @@ impl Repo<'_> {
                 // fetches it: a feature branch compares with it when upstream
                 // has no branch like it.
                 let pin = self.upstream_setting(path, name, "default-pin");
-                let tag = if is_commit_id(&pin) {
+                let (tag, pinned_commit) = if is_commit_id(&pin) {
                     commits.push(pin.clone());
-                    String::new()
+                    (String::new(), pin.clone())
                 } else {
-                    pin.clone()
+                    (pin.clone(), String::new())
                 };
                 // A splice pinned on this branch has no branch that could move.
                 let follows_branch = pin.is_empty()
@@ -293,6 +561,8 @@ impl Repo<'_> {
                     target_ref,
                     old_sha,
                     tag,
+                    pinned_commit,
+                    in_use: *name == self.name_of(path),
                 });
             }
             jobs.push(FetchJob {
@@ -512,6 +782,80 @@ mod tests {
     use super::*;
     use crate::util::test_repo::{git, with_repository};
 
+    #[test]
+    fn gives_git_lfs_a_local_path_as_a_file_url() {
+        for (url, expected) in [
+            ("../upstream", "file:///work/mono/../upstream"),
+            ("upstream", "file:///work/mono/upstream"),
+            ("/srv/upstream.git", "file:///srv/upstream.git"),
+            ("./a:b", "file:///work/mono/./a:b"),
+            ("C:\\repos\\upstream", "file:///C:/repos/upstream"),
+            ("C:/repos/upstream", "file:///C:/repos/upstream"),
+            ("file:///srv/upstream.git", "file:///srv/upstream.git"),
+            ("https://example.com/up.git", "https://example.com/up.git"),
+            (
+                "ssh://git@example.com/up.git",
+                "ssh://git@example.com/up.git",
+            ),
+            ("git@example.com:up.git", "git@example.com:up.git"),
+            ("example.com:path/up.git", "example.com:path/up.git"),
+        ] {
+            assert_eq!(lfs_url(url, "/work/mono/"), expected, "{url:?}");
+        }
+    }
+
+    #[test]
+    fn tells_a_filter_that_checks_out_content_from_one_that_keeps_pointers() {
+        let install = Some("git-lfs filter-process");
+        let skip = Some("git-lfs filter-process --skip");
+        for (process, smudge, expected) in [
+            (install, Some("git-lfs smudge -- %f"), true),
+            (skip, Some("git-lfs smudge --skip -- %f"), false),
+            (None, Some("git-lfs smudge -- %f"), true),
+            (None, Some("git-lfs smudge --skip -- %f"), false),
+            (install, Some("git-lfs smudge --skip -- %f"), true),
+            (None, None, false),
+        ] {
+            assert_eq!(smudges(process, smudge), expected, "{process:?} {smudge:?}");
+        }
+    }
+
+    #[test]
+    fn reads_the_sha_256_of_a_git_lfs_pointer() {
+        let oid = "6c93425e5465e1c1cfe0a87e974b4930f5899422f82b34d8092f3e148b7d4cc4";
+        let pointer =
+            format!("version https://git-lfs.github.com/spec/v1\noid sha256:{oid}\nsize 19\n");
+        assert_eq!(lfs_pointer_oid(&pointer).as_deref(), Some(oid));
+        assert_eq!(lfs_pointer_oid("weights, version 1\n"), None);
+        assert_eq!(
+            lfs_pointer_oid("version https://git-lfs.github.com/spec/v1\noid sha256:../../x\n"),
+            None
+        );
+    }
+
+    #[test]
+    fn reads_git_lfs_booleans_as_git_lfs_does() {
+        for (value, expected) in [
+            ("1", true),
+            ("true", true),
+            ("TRUE", true),
+            ("yes", true),
+            ("on", true),
+            ("t", true),
+            ("T", true),
+            ("y", false),
+            ("2", false),
+            ("false", false),
+            ("0", false),
+            ("f", false),
+            ("no", false),
+            ("off", false),
+            ("", false),
+        ] {
+            assert_eq!(lfs_true(value), expected, "{value:?}");
+        }
+    }
+
     fn upstream() -> String {
         git(&["config", "user.name", "Test"]);
         git(&["config", "user.email", "test@example.com"]);
@@ -545,6 +889,8 @@ mod tests {
             target_ref: String::new(),
             old_sha: None,
             tag: String::new(),
+            pinned_commit: String::new(),
+            in_use: true,
         };
         let reports = crashed(&[member(0, "vendor/a"), member(2, "vendor/b")]);
         let summary: Vec<_> = reports

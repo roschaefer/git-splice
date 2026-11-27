@@ -1,12 +1,13 @@
-# Scenario: cloned-by-hand
+# Scenario: cloned
 
 `push` of a splice that stores files in Git LFS works: Git LFS's own
 `pre-push` hook runs on the `git push` that `git splice push` runs, and
-uploads the content to the upstream's LFS server.
+uploads the content to the upstream's LFS server. It needs the content
+in the local LFS store: [a push without it](push-without-the-content.md)
+fails until plain Git LFS downloads it.
 
-- **Monorepo (`vendor/a/`)**: [cloned by hand](../clone-by-hand.md)
-  from an upstream that stores `model.bin` in Git LFS, and pushed to its
-  own remote.
+- **Monorepo (`vendor/a/`)**: [cloned](../README.md) from an upstream
+  that stores `model.bin` in Git LFS, and pushed to its own remote.
 - **Upstream** (`file://$UPSTREAM`): as cloned.
 
 ## Output
@@ -20,7 +21,7 @@ $ source "$TESTDIR/../../../readme-setup.sh" && export GIT_CONFIG_GLOBAL="$PWD/.
 [`setup.bash`](setup.bash) builds this state:
 
 ```scrut
-$ build_scenario scenario_cloned_by_hand
+$ build_scenario scenario_cloned
 ```
 
 A new `.bin` file in the splice is stored in Git LFS, as the upstream's

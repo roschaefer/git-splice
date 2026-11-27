@@ -125,6 +125,7 @@ jobs:
             "nixpkgs#bashInteractive" \
             "nixpkgs#bats" \
             "nixpkgs#jq" \
+            "nixpkgs#git-lfs" \
             "nixpkgs#parallel" \
             "nixpkgs#zsh" \
             "nixpkgs#xmlstarlet" \

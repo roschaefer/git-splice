@@ -2,7 +2,7 @@
 
 use crate::args::parse_args;
 use crate::context::ExecutionContext;
-use crate::fetch::{fetch_by_id, fetch_upstream};
+use crate::fetch::{download_lfs, fetch_by_id, fetch_upstream};
 use crate::message::{self, Message, KNOWN};
 use crate::repo::*;
 use crate::state::*;
@@ -71,6 +71,20 @@ struct NewUpstream {
     upstream_default: String,
     monorepo_default: String,
     container_default: String,
+}
+
+/// Downloads the Git LFS content of <commit> from <url>, before <path> gets
+/// it checked out, and fails if that fails.
+fn download_lfs_for(path: &str, url: &str, commit: &str) -> Res<()> {
+    match download_lfs(url, commit) {
+        Ok(Some(warning)) => log_warn(format!("{path}: {warning}")),
+        Ok(None) => {}
+        Err(output) => {
+            eprint_text(&format!("{output}\n"));
+            return die(format!("{path}: Git LFS download failed"));
+        }
+    }
+    Ok(())
 }
 
 /// Prints the git output of a fetch and fails if it failed.
@@ -623,6 +637,7 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         }
     }
 
+    download_lfs_for(&path, &url, &target)?;
     let id = new_splice_id(&path, &url, &target);
     let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");
     let branch_key = format!("upstream.{DEFAULT_UPSTREAM}.default-branch");
@@ -812,6 +827,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         }
     }
 
+    download_lfs_for(&path, &url, &commit)?;
     let id = new_splice_id(&path, &url, &commit);
     let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");
     let branch_key = format!("upstream.{DEFAULT_UPSTREAM}.default-branch");
