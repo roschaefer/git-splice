@@ -24,10 +24,10 @@ impl ExecutionContext {
         Self::default()
     }
 
-    /// The splices the last command failed for or left out, e.g. a command
-    /// over every splice those in the tree of a .splice that can't be read.
-    /// Each says why as it happens; the command fails once it is done,
-    /// naming them all.
+    /// The splices the last command failed for or left out, e.g. the ones a
+    /// command over every splice leaves out because they are in the tree of
+    /// a .splice that can't be read. Each says why as it happens; the
+    /// command fails once it is done, naming them all.
     pub fn left_out(&self) -> &[String] {
         &self.left_out
     }
