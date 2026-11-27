@@ -22,6 +22,23 @@ new_upstream() {
   cd "$monorepo"
 }
 
+@test "clone, clone --from-submodule and init: a splice operation in progress is refused before a .splice that can't be read" {
+  new_upstream
+  add_splice "$monorepo" "$upstream" vendor/b
+  printf '<<<<<<< HEAD\n' >>vendor/b/.splice
+  git commit -q -am "conflict markers in vendor/b"
+  git update-ref CHERRY_PICK_HEAD HEAD
+  run splice clone "$upstream" vendor/b/c
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a cherry-pick, merge or rebase is in progress -- conclude it first" ]
+  run splice clone --from-submodule vendor/b/c
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a cherry-pick, merge or rebase is in progress -- conclude it first" ]
+  run splice init vendor/b/c "$upstream"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   a cherry-pick, merge or rebase is in progress -- conclude it first" ]
+}
+
 @test "clone: splices upstream in as one commit with a .splice" {
   new_upstream
   local before
