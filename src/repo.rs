@@ -742,6 +742,7 @@ pub fn current_branch() -> Res<String> {
 
 impl<'context> Repo<'context> {
     pub fn new(context: &'context mut ExecutionContext, args: Args) -> Self {
+        context.start_command();
         Self {
             context,
             args,

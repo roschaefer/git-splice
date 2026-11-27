@@ -24,10 +24,10 @@ impl ExecutionContext {
         Self::default()
     }
 
-    /// The splices the operations failed for or left out so far, e.g. a
-    /// command over every splice those in the tree of a .splice that can't
-    /// be read. Each says why as it happens; the command fails once it is
-    /// done, naming them all.
+    /// The splices the last command failed for or left out, e.g. a command
+    /// over every splice those in the tree of a .splice that can't be read.
+    /// Each says why as it happens; the command fails once it is done,
+    /// naming them all.
     pub fn left_out(&self) -> &[String] {
         &self.left_out
     }
@@ -39,6 +39,12 @@ impl ExecutionContext {
         } else {
             code.max(1)
         }
+    }
+
+    /// Starts a command: what an earlier one left out is no longer its
+    /// concern.
+    pub(crate) fn start_command(&mut self) {
+        self.left_out.clear();
     }
 
     pub(crate) fn leave_out(&mut self, path: &str) {
@@ -128,6 +134,17 @@ mod tests {
         let mut repo = Repo::new(context, Default::default());
         repo.open().unwrap();
         repo.rebuild_splice("vendor/a", "HEAD").unwrap().unwrap()
+    }
+
+    #[test]
+    fn a_command_on_a_reused_context_starts_with_nothing_left_out() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            context.leave_out("vendor/a");
+            let repo = Repo::new(&mut context, Default::default());
+            assert!(repo.context.left_out().is_empty());
+            assert_eq!(repo.context.exit_code(0), 0);
+        });
     }
 
     #[test]
