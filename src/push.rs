@@ -357,17 +357,27 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 }
 
 /// Whether a synced commit recorded for splice <path> in HEAD's history
-/// contains <tip>: a pull brought it into the monorepo.
+/// contains <tip>: a pull brought it into the monorepo. Moves of the folder
+/// are followed, so a pull recorded at an earlier path counts too.
 fn pulled_here(path: &str, tip: &str) -> bool {
-    let state_file = format!("{path}/{STATE_FILE}");
-    let records = git(&["rev-list", "HEAD", "--", &state_file])
-        .q()
-        .out()
-        .unwrap_or_default();
+    let lineage = crate::rebuild::splice_lineage_to_mount(path, "HEAD");
+    let mut segments: Vec<(String, String)> = lineage
+        .moves
+        .into_iter()
+        .map(|segment| (segment.path, segment.range))
+        .collect();
+    segments.push((lineage.path, lineage.upper));
     let mut seen = std::collections::HashSet::new();
-    records.lines().any(|record| {
-        let synced = splice_config(path, "commit", record);
-        !synced.is_empty() && seen.insert(synced.clone()) && is_ancestor(tip, &synced)
+    segments.iter().any(|(at, range)| {
+        let state_file = format!("{at}/{STATE_FILE}");
+        let records = git(&["rev-list", range, "--", &state_file])
+            .q()
+            .out()
+            .unwrap_or_default();
+        records.lines().any(|record| {
+            let synced = splice_config(at, "commit", record);
+            !synced.is_empty() && seen.insert(synced.clone()) && is_ancestor(tip, &synced)
+        })
     })
 }
 

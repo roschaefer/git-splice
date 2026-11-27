@@ -711,6 +711,18 @@ seed" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$(splice rebuild vendor/a)" ]
 }
 
+@test "push --force-if-includes: replaces an upstream tip the monorepo pulled before the splice moved" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice pull vendor/a >/dev/null
+  git revert --no-edit HEAD >/dev/null
+  git mv vendor/a libs-a
+  git commit -q -m "move vendor/a to libs-a"
+  run splice push --force-if-includes libs-a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$(splice rebuild libs-a)" ]
+}
+
 @test "push --force-if-includes: refuses an upstream tip that was fetched but never pulled or pushed from here" {
   scenario_diverged_common_ancestor "$monorepo" "$upstream"
   cd "$monorepo"
