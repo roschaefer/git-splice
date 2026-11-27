@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice key -h | check-help preamble
+$ git splice key --help | check-help preamble
 NAME
     git-splice-key - Print or rename an upstream's key
 
@@ -18,7 +18,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice key -h | check-help section description
+$ git splice key --help | check-help section description
     Prints the key splice <path>'s upstream has in this repository: its
     fetched branches are refs/splices/<key>/heads/<branch>, e.g. for
     'git log splices/<key>/heads/main'.
@@ -35,7 +35,7 @@ pkg-a
 ## Options
 
 ```scrut
-$ git splice key -h | check-help section options
+$ git splice key --help | check-help section options
     --upstream <name>
         Names the upstream, as <path>/.splice does in [upstream "<name>"].
         Without it, the splice's default upstream.
@@ -44,7 +44,7 @@ $ git splice key -h | check-help section options
 ### `<new-key>`
 
 ```scrut
-$ git splice key -h | check-help option new-key
+$ git splice key --help | check-help option new-key
         Renames the key and moves its refs along. Renaming it also renames
         it in the tracked upstream branches, branch.<branch>.splice =
         <key>:<name>.
@@ -67,7 +67,7 @@ $ git log --oneline -1 splices/a/heads/main
 ## Keys
 
 ```scrut
-$ git splice key -h | check-help section keys
+$ git splice key --help | check-help section keys
     A key belongs to an upstream URL, so splices with the same URL share it.
     The first fetch of an upstream, or the init that creates its splice,
     records its key in the repository's config, as splice.<key>.url, from
@@ -84,6 +84,6 @@ How the commands change these refs, and what they cost:
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice key -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice key --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

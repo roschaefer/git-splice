@@ -64,7 +64,8 @@ complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -a key -d 
 complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -s h -l help -d 'show usage'
 complete -c git-splice -n "not __fish_seen_subcommand_from $commands" -l version -d 'show version'
 
-complete -c git-splice -n "__fish_seen_subcommand_from $commands" -s h -l help -d 'show usage'
+complete -c git-splice -n "__fish_seen_subcommand_from $commands" -s h -d 'show the options'
+complete -c git-splice -n "__fish_seen_subcommand_from $commands" -l help -d 'show the full reference'
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull push status diff log fetch" -a "(__git_splice_paths)" -d splice
 complete -c git-splice -n "__fish_seen_subcommand_from merge pull push" -l all -d 'every splice'
 complete -c git-splice -n "__fish_seen_subcommand_from push" -l force -d "overwrite upstream's branch"

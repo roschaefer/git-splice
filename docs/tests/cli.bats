@@ -26,20 +26,63 @@ setup() {
   [[ "$output" == *"unknown command: bogus"* ]]
 }
 
-@test "cli: each command's -h and --help show the same structured help" {
-  local cmd short_help
+@test "cli: each command's --help prints its full reference" {
+  local cmd
   for cmd in clone init fetch merge pull push status diff log key boundary rebuild; do
-    run "$entrypoint" "$cmd" -h
-    [ "$status" -eq 0 ]
-    [[ "$output" == *$'NAME\n'"    git-splice-$cmd - "* ]]
-    [[ "$output" == *$'\nSYNOPSIS\n'"    git splice $cmd "* ]]
-    [[ "$output" == *$'\nDESCRIPTION\n'* ]]
-    short_help="$output"
-
     run "$entrypoint" "$cmd" --help
     [ "$status" -eq 0 ]
-    [ "$output" = "$short_help" ]
+    [[ "$output" == $'NAME\n'"    git-splice-$cmd - "* ]]
+    [[ "$output" == *$'\nSYNOPSIS\n'"    git splice $cmd "* ]]
+    [[ "$output" == *$'\nDESCRIPTION\n'* ]]
+    [[ "$output" == *"See also: https://git-splice.roschaefer.de/docs/command-reference/"* ]]
   done
+}
+
+@test "cli: each command's -h prints its synopsis as usage lines and every option of its --help, without the reference" {
+  local cmd full option
+  for cmd in clone init fetch merge pull push status diff log key boundary rebuild; do
+    full="$("$entrypoint" "$cmd" --help)"
+    run "$entrypoint" "$cmd" -h
+    [ "$status" -eq 0 ]
+    [[ "$output" == "usage: git splice $cmd "* ]]
+    [[ "$output" == *$'\n'"'git splice $cmd --help' prints the full reference." ]]
+    [[ "$output" != *"DESCRIPTION"* ]]
+    [[ "$output" != *"See also:"* ]]
+    while IFS= read -r option; do
+      [[ "$output" == *$'\n'"$option"$'\n'* ]]
+    done < <(sed -n '/^OPTIONS$/,/^[A-Z]/{/^    [^ ]/p}' <<<"$full" | grep -v '^    See also: ')
+    [ "${#output}" -lt "${#full}" ]
+  done
+}
+
+@test "cli: -h cuts each option's description after its first sentence" {
+  run "$entrypoint" push -h
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\n    --force\n        Overwrites the upstream branch with the monorepo\'s side: when the\n        two share no history, or to discard commits only upstream has.\n    --rebuilt-commit <commit>\n'* ]]
+}
+
+@test "cli: a second synopsis line continues the usage as an 'or:' line" {
+  run "$entrypoint" push -h
+  [[ "${lines[1]}" == "   or: git splice push "*" --rebuilt-commit <commit> <path>" ]]
+}
+
+@test "cli: -h and --help work after a command's other arguments" {
+  run "$entrypoint" push vendor/a -h
+  [ "$status" -eq 0 ]
+  [[ "$output" == "usage: git splice push "* ]]
+  run "$entrypoint" push vendor/a --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == $'NAME\n'* ]]
+}
+
+@test "cli: top-level -h and --help print the same command list, as 'git -h' and 'git --help' do" {
+  run "$entrypoint" --help
+  [ "$status" -eq 0 ]
+  local full="$output"
+  run "$entrypoint" -h
+  [ "$status" -eq 0 ]
+  [ "$output" = "$full" ]
+  [[ "$output" == *"'git splice <command> -h' for a command's options"* ]]
 }
 
 @test "cli: top-level help lists every command" {
