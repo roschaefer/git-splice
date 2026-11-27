@@ -829,6 +829,42 @@ pub fn require_no_splice_in_progress() -> Res<()> {
     Ok(())
 }
 
+/// How to fix a monorepo default branch that can't be determined.
+pub const SET_MONOREPO_DEFAULT_BRANCH: &str =
+    "set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run";
+
+/// How to fix a .splice that an upstream commit brings in.
+pub const FIX_UPSTREAM: &str = "fix it in the upstream";
+
+/// A new splice would need the monorepo's default branch to map it to
+/// upstream's, but it can't be determined.
+#[derive(Debug, PartialEq)]
+pub struct MonorepoDefaultUnknown;
+
+/// The default-branch a new splice records for an upstream whose default
+/// branch is <upstream_default> (empty: none): that one where it's named
+/// differently from <container_default>, the default branch of what the
+/// splice lives in, else none. Without <monorepo_default>, the splice couldn't
+/// map it to upstream's: it would look for <current_branch> upstream from the
+/// start, so that is refused unless the two are the same.
+pub fn default_branch_to_record(
+    upstream_default: &str,
+    container_default: &str,
+    monorepo_default: &str,
+    current_branch: &str,
+) -> Result<Option<String>, MonorepoDefaultUnknown> {
+    if upstream_default.is_empty() {
+        return Ok(None);
+    }
+    if monorepo_default.is_empty() && upstream_default != current_branch {
+        return Err(MonorepoDefaultUnknown);
+    }
+    Ok(
+        (!container_default.is_empty() && upstream_default != container_default)
+            .then(|| upstream_default.to_string()),
+    )
+}
+
 /// The current local branch; ends the command on detached HEAD, since every
 /// splice syncs with the upstream branch named like the current one.
 pub fn current_branch() -> Res<String> {
@@ -1794,6 +1830,28 @@ impl<'context> Repo<'context> {
                 .is_empty()
     }
 
+    /// The default-branch a new splice at <path> records, as in
+    /// default_branch_to_record; ends the command if it is refused.
+    pub fn new_splice_default_branch(
+        &self,
+        path: &str,
+        upstream_default: &str,
+        container_default: &str,
+        current_branch: &str,
+    ) -> Res<Option<String>> {
+        default_branch_to_record(
+            upstream_default,
+            container_default,
+            &self.monorepo_default_branch(),
+            current_branch,
+        )
+        .or_else(|MonorepoDefaultUnknown| {
+            die(format!(
+                "{path}: upstream's default branch is '{upstream_default}', and the monorepo's can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}"
+            ))
+        })
+    }
+
     /// The monorepo's default branch: the target of origin/HEAD, else
     /// init.defaultBranch if the monorepo has that branch, locally or as
     /// origin's, else nothing.
@@ -2053,6 +2111,51 @@ impl<'context> Repo<'context> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_splice_records_no_default_branch_for_an_upstream_without_one() {
+        assert_eq!(default_branch_to_record("", "main", "", "topic"), Ok(None));
+    }
+
+    #[test]
+    fn new_splice_records_no_default_branch_named_like_the_containers() {
+        assert_eq!(
+            default_branch_to_record("main", "main", "main", "topic"),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn new_splice_records_upstreams_default_branch_named_otherwise_than_the_containers() {
+        assert_eq!(
+            default_branch_to_record("trunk", "main", "main", "topic"),
+            Ok(Some("trunk".to_string()))
+        );
+    }
+
+    #[test]
+    fn new_splice_records_no_default_branch_where_the_container_has_none() {
+        assert_eq!(
+            default_branch_to_record("trunk", "", "main", "topic"),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn new_splice_without_the_monorepos_default_branch_is_refused_off_upstreams_default_branch() {
+        assert_eq!(
+            default_branch_to_record("trunk", "main", "", "topic"),
+            Err(MonorepoDefaultUnknown)
+        );
+    }
+
+    #[test]
+    fn new_splice_without_the_monorepos_default_branch_maps_on_upstreams_default_branch() {
+        assert_eq!(
+            default_branch_to_record("trunk", "main", "", "trunk"),
+            Ok(Some("trunk".to_string()))
+        );
+    }
 
     #[test]
     fn syntax_error_names_requested_revision_even_after_head_moves() {
