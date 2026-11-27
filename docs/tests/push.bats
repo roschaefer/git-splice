@@ -246,6 +246,14 @@ setup() {
   [ "$output" = "!!   --upstream needs a value, but the next argument is '-m' -- give the value, or --upstream=-m if it is one" ]
 }
 
+@test "push: the --option=value it suggests for a value that looks like an option is quoted, so it can be pasted as one argument" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice push --exec '-x foo' vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --exec needs a value, but the next argument is '-x foo' -- give the value, or '--exec=-x foo' if it is one" ]
+}
+
 @test "push: creates a missing upstream branch for commits from the branch it was cut from that upstream lacks" {
   load '../09-scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"

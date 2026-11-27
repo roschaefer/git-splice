@@ -102,8 +102,9 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                     let value = argv.get(i).cloned().unwrap_or_default();
                     // Most likely the value was left out, e.g. `--branch --all`.
                     if value.starts_with('-') {
+                        let joined = shell_quote(&format!("{option}={value}"));
                         return die(format!(
-                            "{option} needs a value, but the next argument is '{value}' -- give the value, or {option}={value} if it is one"
+                            "{option} needs a value, but the next argument is '{value}' -- give the value, or {joined} if it is one"
                         ));
                     }
                     value
