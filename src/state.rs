@@ -216,7 +216,7 @@ pub const REGULAR_FILE: &str = "100644";
 /// in [splice], e.g. "commit"; others are given in full, e.g.
 /// "upstream.origin.url".
 pub fn state_blob_in(path: &str, rev: &str, settings: &[(&str, &str)]) -> Res<String> {
-    let file = Temp::new();
+    let file = contained(Temp::new())?;
     let current = git(&["cat-file", "blob", &format!("{rev}:{path}/{STATE_FILE}")])
         .q()
         .bytes()
@@ -262,7 +262,7 @@ pub fn tree_with(
     if folders.is_empty() && files.is_empty() {
         return Ok(tree.to_string());
     }
-    let index = Temp::new();
+    let index = contained(Temp::new())?;
     let indexed = |args: &[&str]| git(args).env("GIT_INDEX_FILE", &index.path);
     let mut ok = indexed(&["read-tree", tree]).ok();
     for (folder, content) in folders {
