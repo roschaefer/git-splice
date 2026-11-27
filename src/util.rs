@@ -3,7 +3,7 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// How a step failed, after it printed why.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -260,61 +260,34 @@ pub fn nul_fields(bytes: &[u8]) -> Vec<String> {
     fields
 }
 
-static TEMP_COUNTER: AtomicU32 = AtomicU32::new(0);
-const TEMP_TRIES: u32 = 100;
-
 /// A path for a temporary file or folder, removed when it's dropped. Nothing
 /// is there yet: it is inside a folder only this process created, so no other
 /// user can have put a file or a symbolic link there first.
 pub struct Temp {
-    folder: PathBuf,
+    _folder: tempfile::TempDir,
     pub path: PathBuf,
 }
 
 impl Temp {
     pub fn new() -> Res<Temp> {
-        let mut builder = std::fs::DirBuilder::new();
+        let mut builder = tempfile::Builder::new();
+        builder.prefix("git-splice-");
         #[cfg(unix)]
         {
-            use std::os::unix::fs::DirBuilderExt;
-            builder.mode(0o700);
+            use std::os::unix::fs::PermissionsExt;
+            builder.permissions(std::fs::Permissions::from_mode(0o700));
         }
-        let base = std::env::temp_dir();
-        let mut error = None;
-        for _ in 0..TEMP_TRIES {
-            let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-            let folder = base.join(format!("git-splice-{}-{number}", std::process::id()));
-            // Fails if anything is there already, a link included.
-            match builder.create(&folder) {
-                Ok(()) => {
-                    return Ok(Temp {
-                        path: folder.join("tmp"),
-                        folder,
-                    })
-                }
-                // Another name helps only if this one is taken.
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => error = Some(e),
-                Err(e) => {
-                    error = Some(e);
-                    break;
-                }
-            }
+        match builder.tempdir() {
+            Ok(folder) => Ok(Temp {
+                path: folder.path().join("tmp"),
+                _folder: folder,
+            }),
+            Err(e) => die(format!("can't create a temporary folder: {e}")),
         }
-        die(format!(
-            "can't create a temporary folder in {}: {}",
-            base.display(),
-            error.map_or_else(String::new, |e| e.to_string())
-        ))
     }
 
     pub fn str(&self) -> String {
         self.path.to_string_lossy().into_owned()
-    }
-}
-
-impl Drop for Temp {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.folder);
     }
 }
 
@@ -423,34 +396,16 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn temp_skips_names_another_user_planted_a_link_at_and_writes_only_in_its_own_folder() {
+    fn temp_writes_only_in_a_folder_of_its_own_that_no_other_user_can_open() {
         use std::os::unix::fs::PermissionsExt;
-        let target =
-            std::env::temp_dir().join(format!("git-splice-test-target-{}", std::process::id()));
-        std::fs::create_dir_all(&target).unwrap();
-        let next = TEMP_COUNTER.load(Ordering::Relaxed);
-        let planted: Vec<PathBuf> = (next..next + 5)
-            .map(|n| std::env::temp_dir().join(format!("git-splice-{}-{n}", std::process::id())))
-            .collect();
-        for link in &planted {
-            let _ = std::os::unix::fs::symlink(&target, link);
-        }
         let temp = Temp::new().unwrap();
         assert!(!temp.path.exists());
-        let mode = std::fs::metadata(temp.path.parent().unwrap())
-            .unwrap()
-            .permissions()
-            .mode();
+        let folder = temp.path.parent().unwrap().to_path_buf();
+        let mode = std::fs::metadata(&folder).unwrap().permissions().mode();
         assert_eq!(mode & 0o777, 0o700);
         std::fs::write(&temp.path, "content").unwrap();
-        let folder = temp.path.parent().unwrap().to_path_buf();
         drop(temp);
         assert!(!folder.exists());
-        assert_eq!(std::fs::read_dir(&target).unwrap().count(), 0);
-        for link in &planted {
-            let _ = std::fs::remove_file(link);
-        }
-        std::fs::remove_dir(&target).unwrap();
     }
 
     #[test]
