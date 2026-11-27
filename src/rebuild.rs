@@ -334,6 +334,56 @@ pub fn splice_lineage(path: &str, upper: &str) -> Lineage {
     }
 }
 
+/// The monorepo commit that first recorded a synced commit, and where.
+struct Record {
+    commit: String,
+    /// The splice's folder in the commit.
+    path: String,
+    /// Its folder in the commit's first parent: another one after a move.
+    before_path: String,
+}
+
+/// The oldest commit in <upper>'s history whose state file of splice <path>
+/// records <synced>. A move that carried the record along isn't it: the walk
+/// goes on at the path the splice had before.
+fn first_record(path: &str, upper: &str, synced: &str) -> Option<Record> {
+    let mut path = path.to_string();
+    let mut upper = upper.to_string();
+    loop {
+        let spec = format!(":(top,literal){path}/{STATE_FILE}");
+        let recorded = git(&[
+            "log",
+            "--reverse",
+            "--format=%H",
+            &format!("-S{synced}"),
+            &upper,
+            "--",
+            &spec,
+        ])
+        .out()
+        .unwrap_or_default();
+        let commit = recorded.lines().next()?.to_string();
+        let moved = moved_from(&commit, &path);
+        if moved.from.is_empty() {
+            return Some(Record {
+                before_path: path.clone(),
+                path,
+                commit,
+            });
+        }
+        let parent = format!("{commit}^1");
+        if splice_config(&moved.from, "commit", &parent) != synced {
+            return Some(Record {
+                commit,
+                path,
+                before_path: moved.from,
+            });
+        }
+        path = moved.from;
+        upper = parent;
+    }
+}
+
 /// Continues the walk back to the splice's mount: the newest first-parent
 /// commit whose first parent had no state file at the splice's path then, or
 /// another splice's, and that's no move. Only the history from there on is
@@ -578,37 +628,35 @@ impl Repo<'_> {
     /// it, or of that commit itself, as the rebuild of the splice around it
     /// records it. True if either gives the same commit.
     pub fn remake_synced(&mut self, path: &str, synced: &str) -> bool {
-        let spec = format!(":(top,literal){path}/{STATE_FILE}");
-        let recorded = git(&[
-            "log",
-            "--reverse",
-            "--format=%H",
-            &format!("-S{synced}"),
-            "HEAD",
-            "--",
-            &spec,
-        ])
-        .out()
-        .unwrap_or_default();
-        let Some(first) = recorded.lines().next() else {
+        self.remake_synced_from(path, "HEAD", synced, path)
+    }
+
+    /// remake_synced for splice <path> at monorepo commit <upper>; <name> is
+    /// its path in HEAD.
+    fn remake_synced_from(&mut self, path: &str, upper: &str, synced: &str, name: &str) -> bool {
+        let Some(record) = first_record(path, upper, synced) else {
             return false;
         };
-        let before = format!("{first}^");
+        let before = format!("{}^", record.commit);
         // The rebuild starts at the synced commit recorded before, which an
         // earlier push and bump may have lost the same way.
-        let previous = splice_config(path, "commit", &before);
-        if !previous.is_empty() && !commit_here(&previous) && !self.remake_synced(path, &previous) {
+        let previous = splice_config(&record.before_path, "commit", &before);
+        if !previous.is_empty()
+            && !commit_here(&previous)
+            && !self.remake_synced_from(&record.before_path, &before, &previous, name)
+        {
             return false;
         }
-        if matches!(self.rebuild_splice(path, &before), Ok(Some(made)) if made == synced) {
+        if matches!(self.rebuild_with_start(&record.before_path, &before, name), Ok((Some(made), _)) if made == synced)
+        {
             return true;
         }
         // The rebuild of the splice around it records it in the commit that
         // changed its files: that commit, on the synced commit recorded before,
         // or as a root, after init.
         let start = (!previous.is_empty()).then_some(previous);
-        let range = format!("{before}..{first}");
-        matches!(self.rebuild_walk(path, start, &range, false), Ok(Some(made)) if made == synced)
+        let range = format!("{before}..{}", record.commit);
+        matches!(self.rebuild_walk(&record.path, start, &range, false), Ok(Some(made)) if made == synced)
     }
 
     /// The upstream commit that represents the splice as of monorepo commit

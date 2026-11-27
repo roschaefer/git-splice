@@ -1,13 +1,11 @@
 # Scenario: bumped-on-a-feature-branch, moved after the bump
 
-> **Known bug, [#466](https://github.com/roschaefer/git-splice/issues/466).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
-
 As in [the README](README.md), the library deletes the branch a bump
 recorded, so a fresh clone makes the synced commit again from the
-monorepo's history. Here the monorepo moved the splice after the bump,
-and the clone doesn't find the commit that recorded it: it looks for it
-at the splice's path now, where the move is the first commit to name
-it.
+monorepo's history. Here the monorepo moved the splice after the bump.
+At the splice's path now, the move is the first commit to name the
+synced commit; the clone follows the splice back through the move to
+the bump, which recorded it, and makes it again from the commit before.
 
 ## Output
 
@@ -68,7 +66,8 @@ ok   libs/a fetched
 
 ```scrut
 $ git splice status libs/a
+??   libs/a: synced commit c625212 isn't on main -- made it again here: e859a6b and 1 commit of this branch's own
 On branch main
 
-  ?? synced commit c625212 isn't here  libs/a  run 'git splice fetch libs/a', or check that upstream has it
+  ahead 1  libs/a
 ```
