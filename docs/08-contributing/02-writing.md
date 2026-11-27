@@ -33,7 +33,7 @@ everywhere.
 | A commit, named as a drawing names it, or a variable for one | *italic* | *a*, *d'*, *X* |
 | A role: our name for whichever commit plays a part, as `HEAD` names the checked-out one | plain capitals | H, B, T, R |
 | Git's name for a part in a three-way merge, which the README uses for a role | *italic*, lowercase | *boundary*, *base*, *ours*, *theirs* |
-| A formula | plain, nothing inside marked up | U(H), U(X^), U(e), tracked(feature) |
+| A formula | plain, nothing inside marked up | U(H), U(X^), U(e), U(l:b), tracked(feature) |
 | A splice | its folder, with a trailing slash | `vendor/a/` |
 | A repository | words, never a letter | the monorepo, the upstream of `vendor/a/` |
 | A term, where it's defined | *italic*, only there | a splice's history starts at its *mount* |

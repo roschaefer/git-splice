@@ -54,7 +54,8 @@ read once, when the command starts
 
 The nested `.splice` is a file of the splice above, so it travels with
 it. In the drawing, commit *l* of the upstream above has the `.splice` of
-the splice below, which records *m*: U(l) = *m*. That ties the splices
+the splice below, which records *m*: U(l:b) = U(a:vendor/a/b) = *m*,
+the same splice seen from each repository. That ties the splices
 together in three ways:
 
 - **Pull top-down.** Pulling the splice above brings in the nested
