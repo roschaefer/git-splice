@@ -87,7 +87,7 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     if !upstream_default.is_empty() {
         if monorepo_default.is_empty() && upstream_default != current_branch()? {
             return die(format!(
-                "{path}: upstream's default branch is '{upstream_default}', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+                "{path}: upstream's default branch is '{upstream_default}', and the monorepo's can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}"
             ));
         }
         if !container_default.is_empty() && upstream_default != container_default {
@@ -150,18 +150,14 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
             "{path}: couldn't remove the refs fetched from {url} before"
         ));
     }
-    let id = new_splice_id(&path, &url, "");
-    let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");
-    let branch_key = format!("upstream.{DEFAULT_UPSTREAM}.default-branch");
-    let blob = state_blob(
-        &path,
-        &[
-            ("id", &id),
-            (&url_key, &url),
-            (&branch_key, &default_branch),
-        ],
-    )
-    .map_err(|_| Fail::Hard)?;
+    let blob = InitialState {
+        path: &path,
+        url: &url,
+        commit: None,
+        default_branch: non_empty(&default_branch),
+        pin: None,
+    }
+    .blob()?;
     let mut files = vec![(state_file.clone(), blob)];
     for inner in &inside {
         let keys: Vec<(String, &str)> = kept

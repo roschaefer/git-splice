@@ -829,6 +829,13 @@ pub fn require_no_splice_in_progress() -> Res<()> {
     Ok(())
 }
 
+/// How to fix a monorepo default branch that can't be determined.
+pub const SET_MONOREPO_DEFAULT_BRANCH: &str =
+    "set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run";
+
+/// How to fix a .splice that an upstream commit brings in.
+pub const FIX_UPSTREAM: &str = "fix it in the upstream";
+
 /// The current local branch; ends the command on detached HEAD, since every
 /// splice syncs with the upstream branch named like the current one.
 pub fn current_branch() -> Res<String> {

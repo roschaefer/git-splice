@@ -146,7 +146,7 @@ impl Repo<'_> {
                 // map it to upstream's: it would look for the current branch
                 // upstream from the start.
                 return die(format!(
-                    "{path}: upstream's default branch is '{}', and the monorepo's can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run",
+                    "{path}: upstream's default branch is '{}', and the monorepo's can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}",
                     found.upstream_default
                 ));
             }
@@ -208,13 +208,13 @@ impl Repo<'_> {
         if self.monorepo_default_branch().is_empty() {
             if !pin.is_empty() {
                 return die(format!(
-                    "{path}: the submodule stays at {}, and a pin applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run",
+                    "{path}: the submodule stays at {}, and a pin applies on the monorepo's default branch, which can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}",
                     short(commit)
                 ));
             }
             if !default_branch.is_empty() {
                 return die(format!(
-                    "{path}: the submodule follows '{default_branch}', and a default-branch applies on the monorepo's default branch, which can't be determined -- set it (git config init.defaultBranch <branch>, or git remote set-head origin --auto) and re-run"
+                    "{path}: the submodule follows '{default_branch}', and a default-branch applies on the monorepo's default branch, which can't be determined -- {SET_MONOREPO_DEFAULT_BRANCH}"
                 ));
             }
         }
@@ -608,7 +608,7 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
             "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
         ));
     }
-    repo.refuse_unreadable_state_files(&path, None, &target, "clone", "fix it in the upstream")
+    repo.refuse_unreadable_state_files(&path, None, &target, "clone", FIX_UPSTREAM)
         .map_err(|_| Fail::Hard)?;
     if let Some(inner) = upstream_submodule(&target) {
         return die(format!(
@@ -623,19 +623,14 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         }
     }
 
-    let id = new_splice_id(&path, &url, &target);
-    let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");
-    let branch_key = format!("upstream.{DEFAULT_UPSTREAM}.default-branch");
-    let blob = state_blob(
-        &path,
-        &[
-            ("id", &id),
-            ("commit", &target),
-            (&url_key, &url),
-            (&branch_key, &found.default_branch),
-        ],
-    )
-    .map_err(|_| Fail::Hard)?;
+    let blob = InitialState {
+        path: &path,
+        url: &url,
+        commit: Some(&target),
+        default_branch: non_empty(&found.default_branch),
+        pin: None,
+    }
+    .blob()?;
     let folder = format!("{target}^{{tree}}");
     let tree = reroot_tree(&path, Some(&folder), Some(&blob), "HEAD").map_err(|_| Fail::Hard)?;
     refuse_monorepo_attributes(&path, &target, &tree)?;
@@ -777,7 +772,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             "{path}: upstream has a {STATE_FILE} at its root, which would replace {path}/{STATE_FILE} -- splice a folder of it instead"
         ));
     }
-    repo.refuse_unreadable_state_files(&path, None, &commit, "clone", "fix it in the upstream")
+    repo.refuse_unreadable_state_files(&path, None, &commit, "clone", FIX_UPSTREAM)
         .map_err(|_| Fail::Hard)?;
     if let Some(inner) = upstream_submodule(&commit) {
         if !recursive {
@@ -812,21 +807,14 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         }
     }
 
-    let id = new_splice_id(&path, &url, &commit);
-    let url_key = format!("upstream.{DEFAULT_UPSTREAM}.url");
-    let branch_key = format!("upstream.{DEFAULT_UPSTREAM}.default-branch");
-    let pin_key = format!("upstream.{DEFAULT_UPSTREAM}.default-pin");
-    let blob = state_blob(
-        &path,
-        &[
-            ("id", &id),
-            ("commit", &commit),
-            (&url_key, &url),
-            (&branch_key, &default_branch),
-            (&pin_key, &pin),
-        ],
-    )
-    .map_err(|_| Fail::Hard)?;
+    let blob = InitialState {
+        path: &path,
+        url: &url,
+        commit: Some(&commit),
+        default_branch: non_empty(&default_branch),
+        pin: non_empty(&pin),
+    }
+    .blob()?;
     let edited = Temp::new();
     let current = git(&["cat-file", "blob", &in_head])
         .bytes()
@@ -919,7 +907,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
             .map(|tag| format!(", the tag '{tag}'"))
             .unwrap_or_default();
         log_step(format!(
-            "{path}: pinned at {}{tag}, as {pinned_as} -- pull brings in nothing and push refuses on {} until it follows a branch: git config --file {} --unset {pin_key}",
+            "{path}: pinned at {}{tag}, as {pinned_as} -- pull brings in nothing and push refuses on {} until it follows a branch: git config --file {} --unset upstream.{DEFAULT_UPSTREAM}.default-pin",
             short(&commit),
             repo.monorepo_default_branch(),
             shell_quote(&state_file)

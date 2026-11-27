@@ -18,6 +18,11 @@ pub enum Fail {
 
 pub type Res<T> = Result<T, Fail>;
 
+/// <value>, unless it's empty.
+pub fn non_empty(value: &str) -> Option<&str> {
+    (!value.is_empty()).then_some(value)
+}
+
 /// Ends the command with a message.
 pub fn die<T>(message: impl AsRef<str>) -> Res<T> {
     log_err(message);
