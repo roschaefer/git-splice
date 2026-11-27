@@ -81,8 +81,11 @@ pub fn download_lfs(url: &str, commit: &str) -> Result<(), String> {
         return Ok(());
     }
     // lfs.fetchinclude and lfs.fetchexclude name the monorepo's paths, not the
-    // upstream's.
+    // upstream's; lfs.fetchrecentalways would also fetch the monorepo's recent
+    // branches, from the upstream.
     let (ok, output) = git_merged_output(&[
+        "-c",
+        "lfs.fetchrecentalways=false",
         "lfs",
         "fetch",
         "--include=",

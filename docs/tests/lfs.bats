@@ -32,6 +32,21 @@ lfs_oid() {
   [ -f "$(lfs_object .git/lfs "$oid")" ]
 }
 
+@test "fetch: lfs.fetchrecentalways doesn't ask the upstream for the monorepo's content" {
+  scenario_retrained_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo "weights, edited here" >vendor/a/model.bin
+  git commit -qam "edit the model here"
+  local oid
+  oid="$(lfs_oid HEAD vendor/a/model.bin)"
+  rm "$(lfs_object .git/lfs "$oid")"
+  git config lfs.fetchrecentalways true
+  GIT_TRACE="$BATS_TEST_TMPDIR/trace" run splice fetch vendor/a
+  [ "$status" -eq 0 ]
+  grep -q "git-lfs" "$BATS_TEST_TMPDIR/trace"
+  ! grep -q "$oid" "$BATS_TEST_TMPDIR/trace"
+}
+
 @test "fetch: an upstream without Git LFS files runs no git lfs" {
   load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
