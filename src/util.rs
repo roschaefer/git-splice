@@ -266,24 +266,45 @@ pub fn nul_fields(bytes: &[u8]) -> Vec<String> {
 }
 
 static TEMP_COUNTER: AtomicU32 = AtomicU32::new(0);
+const TEMP_TRIES: u32 = 100;
 
-/// A path for a temporary file or folder, removed when it's dropped.
+/// A path for a temporary file or folder, removed when it's dropped. Nothing
+/// is there yet: it is inside a folder only this process created, so no other
+/// user can have put a file or a symbolic link there first.
 pub struct Temp {
+    folder: PathBuf,
     pub path: PathBuf,
 }
 
-impl Default for Temp {
-    fn default() -> Temp {
-        Temp::new()
-    }
-}
-
 impl Temp {
-    pub fn new() -> Temp {
-        let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-        Temp {
-            path: std::env::temp_dir().join(format!("git-splice-{}-{number}", std::process::id())),
+    pub fn new() -> Res<Temp> {
+        let mut builder = std::fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
         }
+        let base = std::env::temp_dir();
+        let mut error = None;
+        for _ in 0..TEMP_TRIES {
+            let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let folder = base.join(format!("git-splice-{}-{number}", std::process::id()));
+            // Fails if anything is there already, a link included.
+            match builder.create(&folder) {
+                Ok(()) => {
+                    return Ok(Temp {
+                        path: folder.join("tmp"),
+                        folder,
+                    })
+                }
+                Err(e) => error = Some(e),
+            }
+        }
+        die(format!(
+            "can't create a temporary folder in {}: {}",
+            base.display(),
+            error.map_or_else(String::new, |e| e.to_string())
+        ))
     }
 
     pub fn str(&self) -> String {
@@ -293,8 +314,7 @@ impl Temp {
 
 impl Drop for Temp {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-        let _ = std::fs::remove_dir_all(&self.path);
+        let _ = std::fs::remove_dir_all(&self.folder);
     }
 }
 
@@ -401,6 +421,38 @@ mod tests {
 
     use super::*;
 
+    #[cfg(unix)]
+    #[test]
+    fn temp_skips_names_another_user_planted_a_link_at_and_writes_only_in_its_own_folder() {
+        use std::os::unix::fs::PermissionsExt;
+        let target =
+            std::env::temp_dir().join(format!("git-splice-test-target-{}", std::process::id()));
+        std::fs::create_dir_all(&target).unwrap();
+        let next = TEMP_COUNTER.load(Ordering::Relaxed);
+        let planted: Vec<PathBuf> = (next..next + 5)
+            .map(|n| std::env::temp_dir().join(format!("git-splice-{}-{n}", std::process::id())))
+            .collect();
+        for link in &planted {
+            let _ = std::os::unix::fs::symlink(&target, link);
+        }
+        let temp = Temp::new().unwrap();
+        assert!(!temp.path.exists());
+        let mode = std::fs::metadata(temp.path.parent().unwrap())
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o700);
+        std::fs::write(&temp.path, "content").unwrap();
+        let folder = temp.path.parent().unwrap().to_path_buf();
+        drop(temp);
+        assert!(!folder.exists());
+        assert_eq!(std::fs::read_dir(&target).unwrap().count(), 0);
+        for link in &planted {
+            let _ = std::fs::remove_file(link);
+        }
+        std::fs::remove_dir(&target).unwrap();
+    }
+
     #[test]
     fn shell_quote_leaves_words_without_special_characters_as_they_are() {
         assert_eq!(shell_quote("vendor/lib-a"), "vendor/lib-a");
@@ -479,7 +531,7 @@ pub(crate) mod test_repo {
     const PARENT_PID: &str = "GIT_SPLICE_TEST_PARENT_PID";
 
     fn isolated_test(name: &str) -> Output {
-        let directory = Temp::new();
+        let directory = Temp::new().unwrap();
         let home = directory.path.join("home");
         std::fs::create_dir_all(&home).unwrap();
         let mut command = Command::new(std::env::current_exe().unwrap());
@@ -515,6 +567,8 @@ pub(crate) mod test_repo {
         command.output().unwrap()
     }
 
+    static REPOSITORIES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
     struct RestoreDirectory(std::path::PathBuf);
 
     impl Drop for RestoreDirectory {
@@ -548,13 +602,14 @@ pub(crate) mod test_repo {
             .name()
             .expect("repository fixtures run on a named test thread");
         if std::env::var(CHILD_TEST).as_deref() == Ok(name) {
-            let mut directory = Temp::new();
-            directory.path = std::env::current_dir()
+            // In the isolated test's own folder, which its parent removes.
+            let number = REPOSITORIES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let directory = std::env::current_dir()
                 .unwrap()
-                .join(directory.path.file_name().unwrap());
-            std::fs::create_dir_all(&directory.path).unwrap();
+                .join(format!("repository-{number}"));
+            std::fs::create_dir(&directory).unwrap();
             let _restore = RestoreDirectory(std::env::current_dir().unwrap());
-            std::env::set_current_dir(&directory.path).unwrap();
+            std::env::set_current_dir(&directory).unwrap();
             git(&["init", "-q", "--initial-branch=main"]);
             git(&["config", "init.defaultBranch", "main"]);
             git(&["config", "user.name", "Test"]);
@@ -611,7 +666,7 @@ pub(crate) mod test_repo {
                 });
                 return;
             }
-            let directory = Temp::new();
+            let directory = Temp::new().unwrap();
             std::fs::create_dir_all(&directory.path).unwrap();
             let config = directory.path.join("inherited.config");
             let original_config = "[user]\n\temail = inherited@example.com\n";

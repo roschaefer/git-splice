@@ -260,7 +260,7 @@ fn resolve_submodule_url(url: &str, base: &str) -> Res<String> {
     if !base.starts_with('/') && !base.contains(':') {
         base = format!("{}/{base}", toplevel());
     }
-    let folder = Temp::new();
+    let folder = Temp::new()?;
     let resolved = (|| {
         std::fs::create_dir(&folder.path).ok()?;
         let dir = folder.str();
@@ -798,7 +798,7 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         pin: non_empty(&pin),
     }
     .blob()?;
-    let edited = Temp::new();
+    let edited = Temp::new()?;
     let current = git(&["cat-file", "blob", &in_head])
         .bytes()
         .unwrap_or_default();
