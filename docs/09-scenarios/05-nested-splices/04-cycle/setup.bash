@@ -8,10 +8,11 @@ scenario_cycle() {
   init_monorepo "$monorepo"
   git -C "$monorepo" config "url.$upstream.insteadOf" https://git.example.com/a.git
   add_splice "$monorepo" https://git.example.com/a.git vendor/a
-  # The monorepo is published too, as m.
+  # The monorepo is published too, as m, its remote origin.
   make_bare_repo "$upstream-m"
   git -C "$monorepo" config "url.$upstream-m.insteadOf" https://git.example.com/m.git
-  git -C "$monorepo" push -q https://git.example.com/m.git main
+  git -C "$monorepo" remote add origin https://git.example.com/m.git
+  git -C "$monorepo" push -q origin main
   # a's upstream splices the monorepo in at i/.
   splice_into_upstream "$upstream" https://git.example.com/m.git "$upstream-m" i
 }

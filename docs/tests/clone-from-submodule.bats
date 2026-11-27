@@ -1038,3 +1038,33 @@ TABLE
   splice clone --from-submodule vendor/a 2>"$BATS_TEST_TMPDIR/stderr"
   diff /dev/null "$BATS_TEST_TMPDIR/stderr"
 }
+
+@test "clone --from-submodule: refuses a submodule whose URL is the monorepo's own" {
+  add_submodule
+  git remote add origin "$upstream"
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice clone --from-submodule vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: $upstream is this monorepo's own, remote origin here -- splicing it in would nest another copy on each pull"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
+@test "clone --from-submodule: refuses a submodule whose upstream splices the monorepo back in" {
+  local own="$BATS_TEST_TMPDIR/m.git" own_url=https://git.example.com/m.git
+  make_bare_repo "$own"
+  git config "url.$own.insteadOf" "$own_url"
+  git remote add origin "$own_url"
+  echo "m" >m.txt
+  git add m.txt
+  git commit -q -m "m"
+  git push -q origin main
+  splice_into_upstream "$upstream" "$own_url" "$own" i
+  add_submodule
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice clone --from-submodule vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"vendor/a: its upstream splices this monorepo back in, at vendor/a/i from $own_url, remote origin here -- each pull would nest another copy"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}

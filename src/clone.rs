@@ -577,6 +577,9 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         return die(format!("{path} is a file, not a folder"));
     }
 
+    if let Some(why) = repo.is_own_url(&path, &url) {
+        return die(why);
+    }
     let found = repo.fetch_new_upstream(&path, &url)?;
     let mut upstream_branch = branch.clone();
     if !found.monorepo_default.is_empty() && branch == found.monorepo_default {
@@ -614,6 +617,9 @@ fn clone_url(repo: &mut Repo, merge: bool) -> Res<i32> {
         return die(format!(
             "{path}: upstream has a submodule, {inner}, which nobody could check out in the monorepo -- turn it into a splice in the upstream first"
         ));
+    }
+    if let Some(why) = repo.splices_monorepo_back_in(&path, &target) {
+        return die(why);
     }
     if let Some(local) = folder_tree("HEAD", &path) {
         if Some(&local) != tree_of(&target).as_ref() && !merge {
@@ -730,6 +736,9 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
         ));
     };
     let url = resolve_submodule_url(&url, &base)?;
+    if let Some(why) = repo.is_own_url(&path, &url) {
+        return die(why);
+    }
     if setting("update").as_deref() == Some("none") {
         return die(format!(
             "{path}: update = none keeps the submodule out of every checkout, and a splice's files are always there -- remove the submodule, or unset submodule.{name}.update in {gitmodules} and commit to splice it anyway"
@@ -779,6 +788,9 @@ fn clone_from_submodule(repo: &mut Repo, path: &str, recursive: bool) -> Res<i32
     }
     repo.refuse_unreadable_state_files(&path, None, &commit, "clone", "fix it in the upstream")
         .map_err(|_| Fail::Hard)?;
+    if let Some(why) = repo.splices_monorepo_back_in(&path, &commit) {
+        return die(why);
+    }
     if let Some(inner) = upstream_submodule(&commit) {
         if !recursive {
             return die(format!(
