@@ -99,7 +99,14 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
                     value.to_string()
                 } else {
                     i += 1;
-                    argv.get(i).cloned().unwrap_or_default()
+                    let value = argv.get(i).cloned().unwrap_or_default();
+                    // Most likely the value was left out, e.g. `--branch --all`.
+                    if value.starts_with('-') {
+                        return die(format!(
+                            "{option} needs a value, but the next argument is '{value}' -- give the value, or {option}={value} if it is one"
+                        ));
+                    }
+                    value
                 };
                 match option {
                     "--exec" => {

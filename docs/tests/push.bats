@@ -234,6 +234,18 @@ setup() {
   [ "$output" = "!!   --branch needs an upstream branch's name" ]
 }
 
+@test "push: --branch refuses a next argument that looks like an option, as when the name was left out" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice push --branch --all vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --branch needs a value, but the next argument is '--all' -- give the value, or --branch=--all if it is one" ]
+  ! git -C "$upstream" show-ref --verify --quiet refs/heads/--all
+  run splice push --upstream -m x vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   --upstream needs a value, but the next argument is '-m' -- give the value, or --upstream=-m if it is one" ]
+}
+
 @test "push: creates a missing upstream branch for commits from the branch it was cut from that upstream lacks" {
   load '../09-scenarios/03-branches-and-teamwork/02-feature-branch-from-main/setup'
   scenario_feature_branch_from_main "$monorepo" "$upstream"
