@@ -193,7 +193,8 @@ setup() {
   cd "$monorepo"
   TMPDIR="$BATS_TEST_TMPDIR/missing" run splice init lib/a "$upstream"
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   can't create a temporary folder in $BATS_TEST_TMPDIR/missing: No such file or directory (os error 2)" ]
+  [ "${#lines[@]}" -eq 1 ]
+  [[ "$output" == "!!   can't create a temporary folder: No such file or directory (os error 2) at path \"$BATS_TEST_TMPDIR/missing/git-splice-"* ]]
 }
 
 @test "init: refuses a detached HEAD and a conflict in progress" {
