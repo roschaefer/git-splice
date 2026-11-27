@@ -186,16 +186,19 @@ setup() {
   ! git -C "$upstream" rev-parse --verify --quiet main
 }
 
-@test "init: without a temporary folder, says so once and keeps no upstream key" {
+@test "init: without a temporary folder, says so once and writes nothing" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   rm -rf "$upstream"
   make_bare_repo "$upstream" master
   cd "$monorepo"
+  head="$(git rev-parse HEAD)"
   TMPDIR="$BATS_TEST_TMPDIR/missing" run splice init lib/a "$upstream"
   [ "$status" -eq 1 ]
   [ "${#lines[@]}" -eq 1 ]
   [[ "$output" == "!!   can't create a temporary folder: "* ]]
   [ -z "$(git config --get-regexp '^splice\..*\.url$')" ]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  [ ! -e lib/a/.splice ]
 }
 
 @test "init: refuses a detached HEAD and a conflict in progress" {
