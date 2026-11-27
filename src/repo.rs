@@ -452,7 +452,7 @@ pub fn is_ancestor(ancestor: &str, descendant: &str) -> bool {
     git(&["merge-base", "--is-ancestor", ancestor, descendant]).ok()
 }
 
-/// The reflog of <reference> here shows it had <commit>.
+/// Some entry in the reflog of <reference> here contains <commit>.
 pub fn reflog_had(reference: &str, commit: &str) -> bool {
     git(&["rev-list", "--walk-reflogs", reference])
         .q()
