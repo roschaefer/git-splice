@@ -44,8 +44,8 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         command: "init",
         ..Message::default()
     })?;
-    current_branch()?;
     require_no_splice_in_progress()?;
+    current_branch()?;
     repo.refuse_unreadable_tree(&path)?;
     if repo.is_splice_path(&path) {
         return die(format!("{path} is a splice already"));
