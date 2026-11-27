@@ -44,6 +44,7 @@ None at the moment.
 | Scenario | What happens | Way out |
 | --- | --- | --- |
 | [clone-from-submodule, with a nested submodule, pushed](02-starting-a-splice/08-clone-from-submodule/07-nested-submodules/README.md) | After `clone --from-submodule --recursive`, the next push of the folder above turns the upstream's own submodules into splices there too. | If that upstream's owners keep their submodules, push to a fork of yours. |
+| [squash-merged-pull: feature branch deleted upstream](03-branches-and-teamwork/03-squash-merged-pull/feature-branch-deleted.md) | Once the upstream deletes the branch that has the synced commit, `fetch` prunes its ref, no ref reaches the commit, and `git gc` deletes it; `status`, `push` and the rest stop until a fetch brings it back, which works only while the upstream still has it. | Keep a ref on the synced commit, e.g. a tag. |
 | [splice-refs: key renamed while fetching](04-upstreams/05-splice-refs/renamed-while-fetching.md) | A `git splice key` in another worktree during a fetch, pull or push leaves the fetched refs under the old key, and the splice looks up to date until the next fetch. | Fetch again, then delete the refs left under the old key. |
 | [splice-refs: two fetches at once](04-upstreams/05-splice-refs/two-fetches-at-once.md) | Two fetches at once, in two worktrees, may both move one ref, and one fails with `cannot lock ref`. | Run it again. |
 | [encrypted-upstream: the `.splice` in plaintext](04-upstreams/09-encrypted-upstream/splice-in-plaintext.md) | The `.splice` stays out of git-crypt's filter, so whoever reads the monorepo reads it, the upstream's URL included. | Keep nothing secret in the URL. |
@@ -68,6 +69,7 @@ ok 01-everyday-sync/02-up-to-date/monorepo-commit-as-synced-commit.md bug #7
 ok 02-starting-a-splice/08-clone-from-submodule/04-monorepo-line-endings/README.md bug #311
 ok 02-starting-a-splice/08-clone-from-submodule/06-upstream-macro/README.md bug #311
 ok 02-starting-a-splice/08-clone-from-submodule/07-nested-submodules/README.md limitation
+ok 03-branches-and-teamwork/03-squash-merged-pull/feature-branch-deleted.md limitation
 ok 03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.md bug #466
 ok 04-upstreams/05-splice-refs/renamed-while-fetching.md limitation
 ok 04-upstreams/05-splice-refs/two-fetches-at-once.md limitation

@@ -10,6 +10,10 @@ A squash merge keeps the content and drops the history. With `git subtree`,
 that lost the sync point. Here *s* itself changed `.splice`, so it is B, and
 the rebuild starts at *f*.
 
+Only the upstream's `feature` has *f*. If the upstream deletes it
+before the next push, `git gc` can delete *f*:
+[feature branch deleted upstream](feature-branch-deleted.md).
+
 ## Output
 
 <!--

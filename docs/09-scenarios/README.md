@@ -121,7 +121,7 @@ ok 03-branches-and-teamwork/01-feature-branch-unchanged/01-feature-branch-change
 ok 03-branches-and-teamwork/01-feature-branch-unchanged/02-merge-in-monorepo (2 documents)
 ok 03-branches-and-teamwork/01-feature-branch-unchanged/03-default-branch-moved (1 document)
 ok 03-branches-and-teamwork/02-feature-branch-from-main (1 document)
-ok 03-branches-and-teamwork/03-squash-merged-pull (1 document)
+ok 03-branches-and-teamwork/03-squash-merged-pull (2 documents)
 ok 03-branches-and-teamwork/03-squash-merged-pull/01-local-edit-in-the-squash (1 document)
 ok 03-branches-and-teamwork/04-concurrent-pulls (3 documents)
 ok 03-branches-and-teamwork/05-bisect-into-a-pull (1 document)
