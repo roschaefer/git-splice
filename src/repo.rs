@@ -311,7 +311,10 @@ fn read_state_file(
     // value could write a ref of the monorepo's.
     if let Some(commit) = bad_commit {
         return unreadable(
-            format!("{file}: commit '{commit}' isn't a full commit id"),
+            format!(
+                "{file}: commit '{}' isn't a full commit id in lowercase hex",
+                commit.escape_debug()
+            ),
             format!("set the upstream commit it synced: git config --file {q_file} splice.commit <commit id>"),
         );
     }

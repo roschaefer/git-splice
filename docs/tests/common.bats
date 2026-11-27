@@ -514,13 +514,30 @@ assert_candidates() {
   git commit -q -am "a refspec as the synced commit"
   run splice fetch vendor/a
   [ "$status" -eq 1 ]
-  [ "$output" = "!!   vendor/a/.splice: commit '+refs/heads/main:refs/heads/planted' isn't a full commit id -- set the upstream commit it synced: git config --file vendor/a/.splice splice.commit <commit id>" ]
+  [ "$output" = "!!   vendor/a/.splice: commit '+refs/heads/main:refs/heads/planted' isn't a full commit id in lowercase hex -- set the upstream commit it synced: git config --file vendor/a/.splice splice.commit <commit id>" ]
   ! git show-ref --verify --quiet refs/heads/planted
   git config --file vendor/a/.splice splice.commit "$(git -C "$upstream" rev-parse --short main)"
   git commit -q -am "an abbreviated synced commit"
   run splice status
   [ "$status" -eq 1 ]
   [[ "$output" == *"isn't a full commit id"* ]]
+}
+
+@test "discovery: names a commit in uppercase hex as what is refused, and escapes a newline in it" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  upper="$(git -C "$upstream" rev-parse main | tr a-f A-F)"
+  git config --file vendor/a/.splice splice.commit "$upper"
+  git commit -q -am "an uppercase synced commit"
+  run splice status vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a/.splice: commit '$upper' isn't a full commit id in lowercase hex -- set the upstream commit it synced: git config --file vendor/a/.splice splice.commit <commit id>" ]
+  git config --file vendor/a/.splice splice.commit "$(printf 'x\n!!   all good')"
+  git commit -q -am "a newline in the synced commit"
+  run splice status vendor/a
+  [ "$status" -eq 1 ]
+  [ "${#lines[@]}" -eq 1 ]
+  [[ "$output" == *"commit 'x\\n!!   all good' isn't"* ]]
 }
 
 @test "discovery: refuses a .splice without an upstream, or with an empty URL" {
@@ -796,5 +813,5 @@ splice_trees_one_unreadable() {
   git commit -q -am "a synced commit edited by hand"
   run splice status
   [ "$status" -eq 1 ]
-  [[ "$output" == *"vendor/a/.splice: commit 'abcdefäöü' isn't a full commit id"* ]]
+  [[ "$output" == *"vendor/a/.splice: commit 'abcdefäöü' isn't a full commit id in lowercase hex"* ]]
 }
