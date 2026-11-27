@@ -250,6 +250,47 @@ pub fn state_blob(path: &str, settings: &[(&str, &str)]) -> Res<String> {
     state_blob_in(path, "HEAD", settings)
 }
 
+/// The state file a new splice at <path> starts with: of upstream <url>,
+/// synced at <commit>, if upstream has one yet, with the default upstream's
+/// <default_branch> and <pin>, where it has them.
+pub struct InitialState<'a> {
+    pub path: &'a str,
+    pub url: &'a str,
+    pub commit: Option<&'a str>,
+    pub default_branch: Option<&'a str>,
+    pub pin: Option<&'a str>,
+}
+
+impl InitialState<'_> {
+    /// The state file as a blob, under a new splice id. Like state_blob, it
+    /// starts from <path>/.splice at HEAD, which a new splice has none of.
+    pub fn blob(&self) -> Res<String> {
+        let id = new_splice_id(self.path, self.url, self.commit.unwrap_or_default());
+        let settings = self.settings(&id);
+        let settings: Vec<(&str, &str)> = settings
+            .iter()
+            .map(|(key, value)| (key.as_str(), *value))
+            .collect();
+        state_blob(self.path, &settings).map_err(|_| Fail::Hard)
+    }
+
+    /// The state file's settings, as state_blob takes them: only those with a
+    /// value.
+    fn settings<'a>(&'a self, id: &'a str) -> Vec<(String, &'a str)> {
+        let upstream = |key: &str| format!("upstream.{DEFAULT_UPSTREAM}.{key}");
+        [
+            ("id".to_string(), Some(id)),
+            ("commit".to_string(), self.commit),
+            (upstream("url"), Some(self.url)),
+            (upstream("default-branch"), self.default_branch),
+            (upstream("default-pin"), self.pin),
+        ]
+        .into_iter()
+        .filter_map(|(key, value)| Some((key, value?)))
+        .collect()
+    }
+}
+
 /// Tree <tree> (or commit <tree>'s) with each (folder, tree) of <folders> in
 /// place of that folder (none: no folder), then each (file, blob) of <files>
 /// written as a regular file. Uses a temporary index, so neither the worktree
@@ -424,4 +465,81 @@ pub fn new_splice_id(path: &str, url: &str, commit: &str) -> String {
         .out()
         .unwrap_or_default();
     id[..id.len().min(16)].to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn initial_state<'a>() -> InitialState<'a> {
+        InitialState {
+            path: "vendor/lib",
+            url: "https://example.com/lib.git",
+            commit: None,
+            default_branch: None,
+            pin: None,
+        }
+    }
+
+    #[test]
+    fn initial_state_without_commit_default_branch_or_pin_leaves_those_keys_out() {
+        let state = initial_state();
+        let settings = state.settings("0123456789abcdef");
+        assert_eq!(
+            settings,
+            [
+                ("id".to_string(), "0123456789abcdef"),
+                (
+                    format!("upstream.{DEFAULT_UPSTREAM}.url"),
+                    "https://example.com/lib.git"
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn initial_state_records_its_commit_default_branch_and_pin_for_the_default_upstream() {
+        let state = InitialState {
+            commit: Some("c0ffee"),
+            default_branch: Some("trunk"),
+            pin: Some("v1.0"),
+            ..initial_state()
+        };
+        let settings = state.settings("0123456789abcdef");
+        assert_eq!(
+            settings[1..],
+            [
+                ("commit".to_string(), "c0ffee"),
+                (
+                    format!("upstream.{DEFAULT_UPSTREAM}.url"),
+                    "https://example.com/lib.git"
+                ),
+                (
+                    format!("upstream.{DEFAULT_UPSTREAM}.default-branch"),
+                    "trunk"
+                ),
+                (format!("upstream.{DEFAULT_UPSTREAM}.default-pin"), "v1.0"),
+            ]
+        );
+    }
+
+    #[test]
+    fn initial_state_blob_holds_only_the_keys_it_has_values_for() {
+        use crate::util::test_repo::{git, with_repository};
+        with_repository(|| {
+            git(&["commit", "-q", "--allow-empty", "-m", "start"]);
+            let state = InitialState {
+                commit: Some("c0ffee"),
+                ..initial_state()
+            };
+            let blob = state.blob().unwrap();
+            let file = Temp::new();
+            std::fs::write(&file.path, git(&["cat-file", "blob", &blob])).unwrap();
+            let keys = git(&["config", "--file", &file.str(), "--name-only", "--list"]);
+            assert_eq!(
+                keys,
+                format!("splice.id\nsplice.commit\nupstream.{DEFAULT_UPSTREAM}.url")
+            );
+        });
+    }
 }
