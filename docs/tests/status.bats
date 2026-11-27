@@ -226,6 +226,36 @@ EOF
   [ "${lines[1]}" = "  unchanged, behind 1 on main  vendor/a" ]
 }
 
+@test "status: an up-to-date upstream branch names the commits upstream's default branch has and the splice lacks" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice push vendor/a
+  seed_bare_repo "$upstream" "upstream change"
+  seed_bare_repo "$upstream" "another upstream change"
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  run splice status
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(cat <<'EOF'
+On branch feature
+
+  up to date  vendor/a  'main' has 2 commits this splice lacks
+EOF
+  )" ]
+}
+
+@test "status: an up-to-date upstream branch with every commit of upstream's default branch says nothing about it" {
+  scenario_feature_branch_changed "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice push vendor/a
+  run splice status
+  [ "$output" = "$(cat <<'EOF'
+On branch feature
+
+  up to date  vendor/a
+EOF
+  )" ]
+}
+
 @test "status: says how to start without splices" {
   init_monorepo "$monorepo"
   cd "$monorepo"

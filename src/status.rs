@@ -146,6 +146,14 @@ fn classify_row(repo: &mut Repo, path: &str, branch: &str) -> Res<Row> {
             format!("see 'git splice merge {option}{path}' for options"),
         ),
     };
+    if matches!(
+        c.state,
+        State::UpToDate | State::Push | State::Pull | State::Diverged
+    ) {
+        if let Some(lacking) = default_branch_lacking(repo, path, &c) {
+            add_hint(&mut hint, &lacking);
+        }
+    }
     if !repo.tracked_branch(path, branch).is_empty() {
         add_hint(&mut hint, &format!("tracked on {branch}, local"));
     }
@@ -165,6 +173,43 @@ fn classify_row(repo: &mut Repo, path: &str, branch: &str) -> Res<Row> {
         path: column,
         hint,
     })
+}
+
+/// For a splice synced with an upstream branch other than upstream's default
+/// branch: the commits of the default branch, as fetched, that the splice
+/// lacks, as a PR from that branch would show them behind.
+fn default_branch_lacking(repo: &mut Repo, path: &str, c: &Classified) -> Option<String> {
+    if c.target.kind != TargetKind::Branch {
+        return None;
+    }
+    let default = quietly(|| repo.resolve_default_target(path, None)).ok()?;
+    if default.kind != TargetKind::Branch
+        || default.name.is_empty()
+        || default.name == c.target.name
+    {
+        return None;
+    }
+    commit_of(&default.reference)?;
+    let ours = if c.rebuilt.is_empty() {
+        &c.target_ref
+    } else {
+        &c.rebuilt
+    };
+    let n = git(&[
+        "rev-list",
+        "--count",
+        &format!("{ours}..{}", default.reference),
+    ])
+    .q()
+    .out()?;
+    if n == "0" {
+        return None;
+    }
+    let plural = if n == "1" { "" } else { "s" };
+    Some(format!(
+        "'{}' has {n} commit{plural} this splice lacks",
+        default.label()
+    ))
 }
 
 fn print_rows(rows: &[Row]) {
