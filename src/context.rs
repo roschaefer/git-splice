@@ -16,11 +16,41 @@ pub struct ExecutionContext {
     content_trees: HashMap<String, String>,
     pub(crate) supplied_rebuilds: HashMap<String, String>,
     rebuild_cache: Option<RebuildCache>,
+    left_out: Vec<String>,
 }
 
 impl ExecutionContext {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The splices the last command failed for or left out, e.g. the ones a
+    /// command over every splice leaves out because they are in the tree of
+    /// a .splice that can't be read. Each says why as it happens; the
+    /// command fails once it is done, naming them all.
+    pub fn left_out(&self) -> &[String] {
+        &self.left_out
+    }
+
+    /// <code>, or a failure if an operation left a splice out.
+    pub fn exit_code(&self, code: i32) -> i32 {
+        if self.left_out.is_empty() {
+            code
+        } else {
+            code.max(1)
+        }
+    }
+
+    /// Starts a command: what an earlier one left out is no longer its
+    /// concern.
+    pub(crate) fn start_command(&mut self) {
+        self.left_out.clear();
+    }
+
+    pub(crate) fn leave_out(&mut self, path: &str) {
+        if !self.left_out.iter().any(|left| left == path) {
+            self.left_out.push(path.to_string());
+        }
     }
 
     /// Observes completed steps synchronously. No observer is installed by default.
@@ -104,6 +134,17 @@ mod tests {
         let mut repo = Repo::new(context, Default::default());
         repo.open().unwrap();
         repo.rebuild_splice("vendor/a", "HEAD").unwrap().unwrap()
+    }
+
+    #[test]
+    fn a_command_on_a_reused_context_starts_with_nothing_left_out() {
+        with_repository(|| {
+            let mut context = ExecutionContext::new();
+            context.leave_out("vendor/a");
+            Repo::new(&mut context, Default::default());
+            assert!(context.left_out().is_empty());
+            assert_eq!(context.exit_code(0), 0);
+        });
     }
 
     #[test]

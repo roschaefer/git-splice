@@ -95,6 +95,8 @@ It's refused, rather than read for the default upstream only:
 $ git config --file vendor/a/.splice splice.default-branch master &&
 >   git commit -q -m "the earlier format" -- vendor/a/.splice &&
 >   git splice status
-!!   vendor/a/.splice has default-branch in [splice], from an earlier version -- it belongs to an upstream now: upstream.<name>.default-branch
+On branch main
+
+  !! can't use .splice  vendor/a  vendor/a/.splice has default-branch in [splice], from an earlier version; it belongs to an upstream now: upstream.<name>.default-branch
 [1]
 ```

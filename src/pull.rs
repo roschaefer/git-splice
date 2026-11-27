@@ -182,7 +182,7 @@ impl PullProgress {
                     self.merged = merges.tasks();
                     self.phase = PullPhase::Finalize;
                 } else if merges.done() {
-                    if merges.finish().is_err() {
+                    if merges.finish(repo).is_err() {
                         self.status = 1;
                     }
                     self.merged = merges.tasks();
@@ -267,9 +267,9 @@ impl PullProgress {
         // from it: not after the branch was reset past it, e.g. after an abort.
         let fold = self.recursive;
         let tops: Vec<String> = if repo.args.all {
-            repo.all_paths
+            repo.selected
                 .iter()
-                .filter(|path| first_above(path, &repo.all_paths).is_none())
+                .filter(|path| first_above(path, &repo.selected).is_none())
                 .cloned()
                 .collect()
         } else {

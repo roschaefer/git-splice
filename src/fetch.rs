@@ -466,7 +466,9 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         repo.every_upstream_entry(&selected)?
     };
     let fetch_failures = repo.fetch_all(&branch, &entries)?;
-    let mut failures = fetch_failures.clone();
+    for path in &fetch_failures {
+        repo.context.leave_out(path);
+    }
 
     for path in &selected {
         if fetch_failures.contains(path) {
@@ -481,26 +483,22 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
             {
                 match repo.track_branch(path, &branch, &wanted) {
                     Err(Fail::Hard) => return Err(Fail::Hard),
-                    Err(_) => failures.push(path.clone()),
+                    Err(_) => repo.context.leave_out(path),
                     Ok(()) => {}
                 }
             } else {
                 log_err(format!(
                     "{path}: upstream has no '{wanted}' branch to track"
                 ));
-                failures.push(path.clone());
+                repo.context.leave_out(path);
             }
         } else if no_track {
             match repo.untrack_branch(path, &branch) {
                 Err(Fail::Hard) => return Err(Fail::Hard),
-                Err(_) => failures.push(path.clone()),
+                Err(_) => repo.context.leave_out(path),
                 Ok(()) => {}
             }
         }
-    }
-    if !failures.is_empty() {
-        log_err(format!("Failed: {}", failures.join(" ")));
-        return Ok(1);
     }
     Ok(0)
 }

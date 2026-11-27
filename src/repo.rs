@@ -101,6 +101,9 @@ pub struct Repo<'context> {
     pub context: &'context mut ExecutionContext,
     pub args: Args,
     pub all_paths: Vec<String>,
+    /// Splices whose committed .splice can't be read, with why, in
+    /// discovery order.
+    pub unreadable: Vec<(String, Unreadable)>,
     pub upstream_lists: HashMap<String, Vec<String>>,
     pub upstream_urls: HashMap<(String, String), String>,
     pub default_upstreams: HashMap<String, String>,
@@ -196,9 +199,30 @@ struct StateFile {
 
 /// Why a state file can't be read: the fact, starting with the file's name,
 /// and how to fix it in the monorepo, or nothing.
-struct Unreadable {
+pub struct Unreadable {
     pub fact: String,
     pub hint: String,
+}
+
+impl Unreadable {
+    pub fn message(&self) -> String {
+        self.joined(" -- ")
+    }
+
+    /// The fact, then the hint after <separator>: a fact may contain " -- "
+    /// itself, e.g. in an upstream's name.
+    pub fn joined(&self, separator: &str) -> String {
+        if self.hint.is_empty() {
+            self.fact.clone()
+        } else {
+            format!("{}{separator}{}", self.fact, self.hint)
+        }
+    }
+}
+
+/// Why a splice in the tree of <unreadable> isn't used.
+pub fn in_tree_of(unreadable: &str) -> String {
+    format!("in the splice tree of {unreadable}, whose {STATE_FILE} can't be read")
 }
 
 fn unreadable<T>(fact: String, hint: String) -> Result<T, Unreadable> {
@@ -724,10 +748,12 @@ pub fn current_branch() -> Res<String> {
 
 impl<'context> Repo<'context> {
     pub fn new(context: &'context mut ExecutionContext, args: Args) -> Self {
+        context.start_command();
         Self {
             context,
             args,
             all_paths: Default::default(),
+            unreadable: Default::default(),
             upstream_lists: Default::default(),
             upstream_urls: Default::default(),
             default_upstreams: Default::default(),
@@ -940,8 +966,15 @@ impl<'context> Repo<'context> {
             require_usable_splice_path(path, "rename the folder")?;
             self.all_paths.push(path.to_string());
         }
+        self.unreadable.clear();
         for splice in splices.read() {
-            self.load_read_splice(splice)?;
+            self.warn_unknown_keys(&splice.warnings);
+            match splice.state {
+                Ok(state) => self.use_state_file(&splice.path, state)?,
+                Err(why) => {
+                    self.unreadable.push((splice.path, why));
+                }
+            }
         }
         Ok(())
     }
@@ -951,10 +984,44 @@ impl<'context> Repo<'context> {
     }
 
     pub fn require_splice(&self, path: &str) -> Res<()> {
-        if self.is_splice_path(path) {
-            return Ok(());
+        if !self.is_splice_path(path) {
+            return die(format!("not a splice: {path}"));
         }
-        die(format!("not a splice: {path}"))
+        self.refuse_unreadable_tree(path)
+    }
+
+    /// The splice whose .splice can't be read in the tree of <path>, and
+    /// why: the outermost splice around <path> and every splice inside it.
+    /// <path> itself if its own can't be read, else the first in discovery
+    /// order. <path> may be a folder about to become a splice. Commands
+    /// read the splices around and inside the ones they act on.
+    pub fn unreadable_in_tree(&self, path: &str) -> Option<(&str, &Unreadable)> {
+        let top = |path: &str| {
+            self.all_paths
+                .iter()
+                .filter(|above| path.starts_with(&format!("{above}/")))
+                .min_by_key(|above| above.len())
+                .map_or(path.to_string(), String::clone)
+        };
+        let in_tree =
+            |other: &str| top(other) == top(path) || other.starts_with(&format!("{path}/"));
+        let found = self.unreadable.iter().find(|(other, _)| other == path);
+        found
+            .or_else(|| self.unreadable.iter().find(|(other, _)| in_tree(other)))
+            .map(|(other, why)| (other.as_str(), why))
+    }
+
+    /// Ends the command if <path> is, or would be, in the tree of a .splice
+    /// that can't be read, naming that file's problem first.
+    pub fn refuse_unreadable_tree(&self, path: &str) -> Res<()> {
+        match self.unreadable_in_tree(path) {
+            None => Ok(()),
+            Some((unreadable, why)) if unreadable == path => die(why.message()),
+            Some((unreadable, why)) => {
+                log_err(why.message());
+                die(format!("{path}: {}", in_tree_of(unreadable)))
+            }
+        }
     }
 
     /// Resolves which splices a command acts on, into `selected`.
@@ -974,9 +1041,24 @@ impl<'context> Repo<'context> {
                     "which splice? -- name one or more paths, or pass --all (splices: {splices})"
                 ));
             }
-            self.selected = self.all_paths.clone();
-            if self.selected.is_empty() {
+            if self.all_paths.is_empty() {
                 return die(format!("no splices found -- nothing to {command}"));
+            }
+            for path in self.all_paths.clone() {
+                let Some((unreadable, why)) = self.unreadable_in_tree(&path) else {
+                    self.selected.push(path);
+                    continue;
+                };
+                // status shows them as rows of their own; the unreadable
+                // one says why as it comes up itself.
+                if command != "status" {
+                    if unreadable == path {
+                        log_err(why.message());
+                    } else {
+                        log_err(format!("{path}: {}", in_tree_of(unreadable)));
+                    }
+                }
+                self.context.leave_out(&path);
             }
             return Ok(());
         }
@@ -1057,21 +1139,29 @@ impl<'context> Repo<'context> {
     }
 
     fn load_read_splice(&mut self, splice: ReadSplice) -> Res<()> {
-        for warning in splice.warnings {
+        self.warn_unknown_keys(&splice.warnings);
+        match splice.state {
+            Ok(state) => self.use_state_file(&splice.path, state),
+            Err(why) => die(why.message()),
+        }
+    }
+
+    fn warn_unknown_keys(&mut self, warnings: &[String]) {
+        for warning in warnings {
             if self.warned_keys.insert(warning.clone()) {
                 log_warn(format!("{warning} -- the keys are {}", state_keys()));
             }
         }
+    }
+
+    /// Makes commands use the upstreams of splice <path> as read from its
+    /// state file, and its default one.
+    fn use_state_file(&mut self, path: &str, state: StateFile) -> Res<()> {
         let StateFile {
             names,
             urls,
             default,
-        } = match splice.state {
-            Ok(state) => state,
-            Err(Unreadable { fact, hint }) if hint.is_empty() => return die(fact),
-            Err(Unreadable { fact, hint }) => return die(format!("{fact} -- {hint}")),
-        };
-        let path = splice.path.as_str();
+        } = state;
         for (name, url) in names.iter().zip(&urls) {
             self.upstream_urls
                 .insert((path.to_string(), name.clone()), url.clone());

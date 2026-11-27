@@ -101,8 +101,8 @@ CONFLICT (content): Merge conflict in vendor/a/b/c/file.txt
 !!   vendor/a/b/c: conflict -- resolve it, then 'git commit' (or 'git cherry-pick --abort' to give up)
 !!   vendor/a/b/c: pull failed
 !!   Not pulled yet: vendor/a/d -- resolve the conflict, run 'git commit', then re-run pull
-!!   Failed: vendor/a/b/c
 !!   The pulls are on a detached HEAD, 'main' is as it was -- re-run pull to go on, or 'git switch main' to give up
+!!   Failed: vendor/a/b/c
 [1]
 ```
 

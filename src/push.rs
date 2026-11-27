@@ -318,7 +318,6 @@ enum PushPhase {
 
 struct PushProgress {
     paths: std::collections::VecDeque<String>,
-    failures: Vec<String>,
     branch: String,
     force: bool,
     tracked_branch: Option<String>,
@@ -341,7 +340,6 @@ impl PushProgress {
         repo.load_uncommitted_changes(&selected);
         Ok(Self {
             paths: splices_in_order(true, &selected).into(),
-            failures: Vec::new(),
             branch: repo.monorepo_branch.clone(),
             force,
             tracked_branch: repo
@@ -364,17 +362,17 @@ impl PushProgress {
                     return Ok(None);
                 };
                 self.phase = PushPhase::Prepare;
-                if let Some(failed) = first_below(&path, &self.failures) {
+                if let Some(failed) = first_below(&path, repo.context.left_out()) {
                     log_err(format!(
                         "{path}: not pushed, since {failed} below it failed"
                     ));
-                    self.failures.push(path);
+                    repo.context.leave_out(&path);
                     return Ok(None);
                 }
                 match repo.prepare_push(&path, &self.branch, self.force) {
                     Err(Fail::Hard) => Err(Fail::Hard),
                     Err(_) => {
-                        self.failures.push(path);
+                        repo.context.leave_out(&path);
                         Ok(None)
                     }
                     Ok(None) => self.track(repo, &path).map(|()| None),
@@ -393,7 +391,7 @@ impl PushProgress {
                 match repo.publish_push(&prepared, self.force) {
                     Err(Fail::Hard) => Err(Fail::Hard),
                     Err(_) => {
-                        self.failures.push(prepared.path);
+                        repo.context.leave_out(&prepared.path);
                         Ok(None)
                     }
                     Ok(()) => {
@@ -421,11 +419,11 @@ impl PushProgress {
             log_err(format!(
                 "{path}: upstream has no '{wanted}' branch to track -- the push didn't create it"
             ));
-            self.failures.push(path.to_string());
+            repo.context.leave_out(path);
         } else {
             match repo.track_branch(path, &self.branch, wanted) {
                 Err(Fail::Hard) => return Err(Fail::Hard),
-                Err(_) => self.failures.push(path.to_string()),
+                Err(_) => repo.context.leave_out(path),
                 Ok(()) => {}
             }
         }
@@ -436,12 +434,7 @@ impl PushProgress {
         if !self.done() {
             return die("push still has pending work");
         }
-        if self.failures.is_empty() {
-            Ok(0)
-        } else {
-            log_err(format!("Failed: {}", self.failures.join(" ")));
-            Ok(1)
-        }
+        Ok(0)
     }
 }
 
@@ -1134,12 +1127,11 @@ vendor/b.git/topic -> B (offline)"#,
             assert!(matches!(progress.phase, PushPhase::Publish(_)));
             std::fs::rename("vendor/a.git", "vendor/a.offline").unwrap();
             progress.advance(&mut repo).unwrap();
-            assert_eq!(progress.failures, ["vendor/a"]);
+            assert_eq!(repo.context.left_out(), ["vendor/a"]);
             while !progress.done() {
                 progress.advance(&mut repo).unwrap();
             }
-            assert_eq!(progress.finish().unwrap(), 1);
-            assert_eq!(progress.failures, ["vendor/a", "vendor"]);
+            assert_eq!(repo.context.left_out(), ["vendor/a", "vendor"]);
             assert!(!git(&["--git-dir=vendor/b.git", "for-each-ref"]).is_empty());
         });
     }

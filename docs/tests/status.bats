@@ -172,6 +172,13 @@ assert_state() {
   [ "${lines[*]:1}" = "  up to date  vendor/b" ]
 }
 
+@test "status: shows the paths it is given in the order given" {
+  scenario_shared_remote_url "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice status vendor/b vendor/a
+  [ "${lines[*]:1}" = "  up to date  vendor/b   up to date  vendor/a" ]
+}
+
 @test "status: missing branch, unchanged and changed" {
   scenario_feature_branch_changed "$monorepo" "$upstream"
   cd "$monorepo"
