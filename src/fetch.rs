@@ -45,12 +45,15 @@ pub fn fetch_upstream(url: &str, prefix: &str, commits: &[String]) -> (bool, Str
 /// Whether GIT_LFS_SKIP_SMUDGE asks Git LFS to check files out as pointers:
 /// their content isn't needed here then.
 fn lfs_skipped() -> bool {
-    std::env::var("GIT_LFS_SKIP_SMUDGE").is_ok_and(|value| {
-        matches!(
-            value.to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    })
+    std::env::var("GIT_LFS_SKIP_SMUDGE").is_ok_and(|value| lfs_true(&value))
+}
+
+/// Whether Git LFS reads <value> as true.
+fn lfs_true(value: &str) -> bool {
+    matches!(
+        value.to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on" | "t"
+    )
 }
 
 /// Whether a .gitattributes in <commit> stores files in Git LFS.
@@ -596,6 +599,29 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
 mod tests {
     use super::*;
     use crate::util::test_repo::{git, with_repository};
+
+    #[test]
+    fn reads_git_lfs_booleans_as_git_lfs_does() {
+        for (value, expected) in [
+            ("1", true),
+            ("true", true),
+            ("TRUE", true),
+            ("yes", true),
+            ("on", true),
+            ("t", true),
+            ("T", true),
+            ("y", false),
+            ("2", false),
+            ("false", false),
+            ("0", false),
+            ("f", false),
+            ("no", false),
+            ("off", false),
+            ("", false),
+        ] {
+            assert_eq!(lfs_true(value), expected, "{value:?}");
+        }
+    }
 
     fn upstream() -> String {
         git(&["config", "user.name", "Test"]);
