@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.24.0](https://github.com/roschaefer/git-splice/compare/v0.23.1...v0.24.0) (2026-11-27)
+
+
+### Features
+
+* **discovery:** keep working with other splices when one .splice can't be read ([#546](https://github.com/roschaefer/git-splice/issues/546)) ([572c017](https://github.com/roschaefer/git-splice/commit/572c01752363516c6ab6c7b3de26b8124a2c0458)), closes [#57](https://github.com/roschaefer/git-splice/issues/57)
+* **execution:** give --exec hooks each checkpoint as JSON on stdin ([#547](https://github.com/roschaefer/git-splice/issues/547)) ([b48510f](https://github.com/roschaefer/git-splice/commit/b48510f1591de97f8e83cd564fe4f6823db23602)), closes [#533](https://github.com/roschaefer/git-splice/issues/533)
+
+
+### Bug Fixes
+
+* **clone:** say when upstream's macros make clone refuse ([#541](https://github.com/roschaefer/git-splice/issues/541)) ([18127d8](https://github.com/roschaefer/git-splice/commit/18127d883d5b675f3d2f9c55f9b194848ca0defb))
+
+
+### Performance Improvements
+
+* **rebuild:** remember rebuilt commits between runs ([#557](https://github.com/roschaefer/git-splice/issues/557)) ([47ad22e](https://github.com/roschaefer/git-splice/commit/47ad22e4778117887695c0991ba23fbe9bf0beac)), closes [#245](https://github.com/roschaefer/git-splice/issues/245)
+
 ## [0.23.1](https://github.com/roschaefer/git-splice/compare/v0.23.0...v0.23.1) (2026-11-24)
 
 
