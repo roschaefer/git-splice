@@ -355,9 +355,7 @@ impl Repo<'_> {
                 continue;
             };
             let monorepo_then = splice_config(&format!("{path}/{dir}"), "commit", y);
-            let Ok(blob) = state_blob_in(&dir, &tree, &[("commit", &monorepo_then)]) else {
-                continue;
-            };
+            let blob = state_blob_in(&dir, &tree, &[("commit", &monorepo_then)])?;
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
         tree_with(&tree, &[], &files)

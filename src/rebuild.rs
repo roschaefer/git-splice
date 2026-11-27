@@ -446,9 +446,7 @@ impl Repo<'_> {
             {
                 continue;
             }
-            let Ok(blob) = state_blob_in(&child, rev, &[("commit", &rebuilt)]) else {
-                continue;
-            };
+            let blob = state_blob_in(&child, rev, &[("commit", &rebuilt)])?;
             folders.push((dir.clone(), Some(format!("{rebuilt}^{{tree}}"))));
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
@@ -532,9 +530,7 @@ impl Repo<'_> {
             if published.is_empty() || theirs != splice_config(&dir, "commit", published) {
                 continue;
             }
-            let Ok(blob) = state_blob_in(&dir, tree, &[("commit", &own)]) else {
-                continue;
-            };
+            let blob = state_blob_in(&dir, tree, &[("commit", &own)])?;
             files.push((format!("{dir}/{STATE_FILE}"), blob));
         }
         tree_with(tree, &[], &files)
