@@ -16,10 +16,33 @@ struct PreparedPush {
     label: String,
     rebuilt_commit: String,
     fetched_ref: String,
+    /// With --force-if-includes, the commit the upstream branch must still
+    /// be at, as Git's --force-with-lease takes it: empty for none.
+    lease: Option<String>,
 }
 
+/// How far push may overwrite the upstream branch.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Force {
+    No,
+    /// --force: whatever the upstream has.
+    Always,
+    /// --force-if-includes: only an upstream tip that is still where the
+    /// last fetch saw it, and that the monorepo pulled or this clone pushed.
+    IfIncludes,
+}
+
+/// The reflog message of the splice ref a push moves, which tells a commit
+/// this clone pushed from one a fetch brought.
+const PUSH_REFLOG_MESSAGE: &str = "git splice push";
+
 impl Repo<'_> {
-    fn prepare_push(&mut self, path: &str, branch: &str, force: bool) -> Res<Option<PreparedPush>> {
+    fn prepare_push(
+        &mut self,
+        path: &str,
+        branch: &str,
+        force: Force,
+    ) -> Res<Option<PreparedPush>> {
         match self.has_uncommitted_changes(path) {
             Uncommitted::Changes => log_warn(format!(
                 "{path}: uncommitted changes aren't pushed -- commit them first"
@@ -56,23 +79,26 @@ impl Repo<'_> {
                 self.remind_pull(path, &selection)?;
                 return Ok(None);
             }
-            State::Pull if !force => {
+            State::Pull if force == Force::No => {
                 log_ok(format!(
                     "{path}: nothing to push (upstream is ahead -- 'git splice pull {selection}{path}' brings it in)"
                 ));
                 return Ok(None);
             }
+            State::Pull | State::Diverged if force == Force::IfIncludes => {
+                self.require_upstream_tip_included(path, &c.target_ref)?;
+            }
             State::Pull => {}
-            State::Diverged if !force => {
+            State::Diverged if force == Force::No => {
                 return fail(format!("{path}: upstream has commits this branch lacks"));
             }
             State::Diverged => {}
-            State::MissingSynced if !force => {
+            State::MissingSynced if force != Force::Always => {
                 log_warn(format!("{path}: {}", self.missing_synced_message(path)));
                 return Err(Fail::Soft);
             }
             State::MissingSynced => rebuilt = self.rebuild_without_synced(path)?,
-            State::UnrelatedHistory if !force => {
+            State::UnrelatedHistory if force != Force::Always => {
                 self.print_unrelated_history_guidance(path);
                 return Err(Fail::Soft);
             }
@@ -129,17 +155,42 @@ impl Repo<'_> {
         // Before the push, so a failure to record the key can't follow a push
         // that already happened.
         self.ensure_splice_key(path)?;
+        let fetched_ref = self.splice_ref(path, &c.upstream_branch);
+        let lease =
+            (force == Force::IfIncludes).then(|| commit_of(&fetched_ref).unwrap_or_default());
         Ok(Some(PreparedPush {
             path: path.to_string(),
             url,
             branch: c.upstream_branch.clone(),
             label,
             rebuilt_commit: rebuilt,
-            fetched_ref: self.splice_ref(path, &c.upstream_branch),
+            fetched_ref,
+            lease,
         }))
     }
 
-    fn publish_push(&mut self, prepared: &PreparedPush, force: bool) -> Res<()> {
+    /// Refuses unless the upstream tip the last fetch saw is part of the
+    /// monorepo's work: a synced commit in HEAD's history contains it, or this
+    /// clone pushed it. Git's --force-if-includes asks the same of the local
+    /// branch's reflog.
+    fn require_upstream_tip_included(&mut self, path: &str, fetched_ref: &str) -> Res<()> {
+        let tip = commit_of(fetched_ref).unwrap_or_default();
+        let pushed_here = git(&["reflog", "show", "--format=%H %gs", fetched_ref])
+            .q()
+            .out()
+            .unwrap_or_default()
+            .lines()
+            .any(|entry| entry == format!("{tip} {PUSH_REFLOG_MESSAGE}"));
+        if pushed_here || pulled_here(path, &tip) {
+            return Ok(());
+        }
+        fail(format!(
+            "{path}: upstream's {} was fetched, but neither pulled nor pushed from here -- pull it first, or discard it with --force",
+            short(&tip)
+        ))
+    }
+
+    fn publish_push(&mut self, prepared: &PreparedPush, force: Force) -> Res<()> {
         let path = &prepared.path;
         let rebuilt = &prepared.rebuilt_commit;
         let url = &prepared.url;
@@ -147,17 +198,52 @@ impl Repo<'_> {
         let option = self.upstream_option(path);
         let selection = self.selection_options(path);
         let refspec = format!("{rebuilt}:refs/heads/{}", prepared.branch);
+        let lease_option = prepared.lease.as_ref().map(|expected| {
+            format!(
+                "--force-with-lease=refs/heads/{}:{expected}",
+                prepared.branch
+            )
+        });
         let mut args = vec!["push"];
-        if force {
+        if force == Force::Always {
             args.push("--force");
+        }
+        if let Some(option) = &lease_option {
+            args.push(option);
         }
         args.extend_from_slice(&["--quiet", "--", url, &refspec]);
         if git(&args).run() != 0 {
+            if let Some(expected) = &prepared.lease {
+                let remote_branch = format!("refs/heads/{}", prepared.branch);
+                let now = git(&["ls-remote", "--", url, &remote_branch])
+                    .q()
+                    .out()
+                    .map(|line| {
+                        line.split_whitespace()
+                            .next()
+                            .unwrap_or_default()
+                            .to_string()
+                    });
+                if now.is_some_and(|now| now != *expected) {
+                    return fail(format!(
+                        "{path}: upstream's {label} moved since the last fetch -- run 'git splice fetch {option}{path}' and check what it brings"
+                    ));
+                }
+            }
             return fail(format!("{path}: push failed"));
         }
         // Pushing to a URL updates no ref here, so record what upstream has now.
         let fetched = &prepared.fetched_ref;
-        if !git(&["update-ref", "--create-reflog", fetched, rebuilt]).ok() {
+        if !git(&[
+            "update-ref",
+            "--create-reflog",
+            "-m",
+            PUSH_REFLOG_MESSAGE,
+            fetched,
+            rebuilt,
+        ])
+        .ok()
+        {
             return fail(format!(
                 "{path}: pushed, but couldn't record it in {fetched} -- run 'git splice fetch {option}{path}'"
             ));
@@ -270,6 +356,31 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
     start(context, argv)?.run()
 }
 
+/// Whether a synced commit recorded for splice <path> in HEAD's history
+/// contains <tip>: a pull brought it into the monorepo. Moves of the folder
+/// are followed, so a pull recorded at an earlier path counts too.
+fn pulled_here(path: &str, tip: &str) -> bool {
+    let lineage = crate::rebuild::splice_lineage_to_mount(path, "HEAD");
+    let mut segments: Vec<(String, String)> = lineage
+        .moves
+        .into_iter()
+        .map(|segment| (segment.path, segment.range))
+        .collect();
+    segments.push((lineage.path, lineage.upper));
+    let mut seen = std::collections::HashSet::new();
+    segments.iter().any(|(at, range)| {
+        let state_file = format!("{at}/{STATE_FILE}");
+        let records = git(&["rev-list", range, "--", &state_file])
+            .q()
+            .out()
+            .unwrap_or_default();
+        records.lines().any(|record| {
+            let synced = splice_config(at, "commit", record);
+            !synced.is_empty() && seen.insert(synced.clone()) && is_ancestor(tip, &synced)
+        })
+    })
+}
+
 /// Starts a push whose progress remains owned by the returned execution.
 pub fn start<'context>(
     context: &'context mut ExecutionContext,
@@ -277,7 +388,7 @@ pub fn start<'context>(
 ) -> Res<PushExecution<'context>> {
     let args = parse_args(
         USAGE,
-        "--force --upstream --branch --track --rebuilt-commit --exec",
+        "--force --force-if-includes --upstream --branch --track --rebuilt-commit --exec",
         argv,
     )?;
     args.require_branch_for_track()?;
@@ -319,7 +430,7 @@ enum PushPhase {
 struct PushProgress {
     paths: std::collections::VecDeque<String>,
     branch: String,
-    force: bool,
+    force: Force,
     tracked_branch: Option<String>,
     phase: PushPhase,
 }
@@ -327,14 +438,22 @@ struct PushProgress {
 impl PushProgress {
     fn new(repo: &mut Repo) -> Res<Self> {
         repo.select_splices(Kind::Explicit, "push")?;
-        let force = repo.args.has_flag("--force");
+        let force = match (
+            repo.args.has_flag("--force"),
+            repo.args.has_flag("--force-if-includes"),
+        ) {
+            (true, true) => return die("--force and --force-if-includes exclude each other"),
+            (true, false) => Force::Always,
+            (false, true) => Force::IfIncludes,
+            (false, false) => Force::No,
+        };
         let rebuilt_commit = repo.args.rebuilt_commit.clone();
         if !rebuilt_commit.is_empty() {
             if repo.args.all || repo.selected.len() != 1 {
                 return die("--rebuilt-commit takes exactly one splice");
             }
             let path = repo.selected[0].clone();
-            repo.give_rebuild(&path, &rebuilt_commit, force)?;
+            repo.give_rebuild(&path, &rebuilt_commit, force == Force::Always)?;
         }
         let selected = repo.selected.clone();
         repo.load_uncommitted_changes(&selected);

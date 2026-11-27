@@ -676,3 +676,104 @@ rebuilt_commit_shape() {
   [ "$output" = "!!   vendor/a: this shallow clone may cut off where its rebuild starts, at $(git rev-parse --short=7 HEAD) -- run 'git fetch --unshallow'" ]
   [ "$(git -C "$upstream" rev-parse main)" = "$before" ]
 }
+
+@test "push --force-if-includes: replaces commits this clone pushed, after a rebase rewrote them" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice push vendor/a >/dev/null
+  git commit -q --amend -m "local change, reworded"
+  echo "second" >>vendor/a/file.txt
+  git commit -q -am "second change"
+  run splice push vendor/a
+  [ "$status" -eq 1 ]
+  local rebuilt
+  rebuilt="$(splice rebuild vendor/a)"
+  run splice push --force-if-includes vendor/a
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   vendor/a: pushed ${rebuilt:0:7} to main" ]
+  [ "$(git -C "$upstream" log --format=%s main)" = "second change
+local change, reworded
+seed" ]
+}
+
+@test "push --force-if-includes: replaces an upstream tip the monorepo pulled" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice pull vendor/a >/dev/null
+  local pulled
+  pulled="$(git -C "$upstream" rev-parse main)"
+  git revert --no-edit HEAD >/dev/null
+  [ "$(splice_config vendor/a commit)" != "$pulled" ]
+  run splice push vendor/a
+  [[ "$output" == *"nothing to push (upstream is ahead"* ]]
+  run splice push --force-if-includes vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$(splice rebuild vendor/a)" ]
+}
+
+@test "push --force-if-includes: replaces an upstream tip the monorepo pulled before the splice moved" {
+  scenario_pull_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice pull vendor/a >/dev/null
+  git revert --no-edit HEAD >/dev/null
+  git mv vendor/a libs-a
+  git commit -q -m "move vendor/a to libs-a"
+  run splice push --force-if-includes libs-a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$(splice rebuild libs-a)" ]
+}
+
+@test "push --force-if-includes: refuses an upstream tip that was fetched but never pulled or pushed from here" {
+  scenario_diverged_common_ancestor "$monorepo" "$upstream"
+  cd "$monorepo"
+  local tip
+  tip="$(git -C "$upstream" rev-parse main)"
+  run splice push --force-if-includes vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a: upstream's ${tip:0:7} was fetched, but neither pulled nor pushed from here -- pull it first, or discard it with --force
+!!   Failed: vendor/a" ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$tip" ]
+}
+
+@test "push --force-if-includes: refuses when the upstream branch moved since the last fetch" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice push vendor/a >/dev/null
+  git commit -q --amend -m "local change, reworded"
+  echo "second" >>vendor/a/file.txt
+  git commit -q -am "second change"
+  seed_bare_repo "$upstream" "someone else's change"
+  local theirs
+  theirs="$(git -C "$upstream" rev-parse main)"
+  run splice push --force-if-includes vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a: upstream's main moved since the last fetch -- run 'git splice fetch vendor/a' and check what it brings"* ]]
+  [ "$(git -C "$upstream" rev-parse main)" = "$theirs" ]
+}
+
+@test "push --force-if-includes: refuses unrelated history, which only --force overwrites" {
+  scenario_diverged_unrelated_history "$monorepo" "$upstream"
+  cd "$monorepo"
+  local tip
+  tip="$(git -C "$upstream" rev-parse main)"
+  run splice push --force-if-includes vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"pick a side"* ]]
+  [ "$(git -C "$upstream" rev-parse main)" = "$tip" ]
+}
+
+@test "push --force-if-includes: pushes like a plain push when nothing is overwritten" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice push --force-if-includes vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse main)" = "$(splice rebuild vendor/a)" ]
+}
+
+@test "push: --force and --force-if-includes exclude each other" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice push --force --force-if-includes vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"--force and --force-if-includes exclude each other"* ]]
+}

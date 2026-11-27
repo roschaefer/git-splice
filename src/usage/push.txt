@@ -2,8 +2,8 @@ NAME
     git-splice-push - Publish local splice changes upstream
 
 SYNOPSIS
-    git splice push [--upstream <name>] [--branch <name> [--track]] [--force] [--exec <command>] (<path>... | --all)
-    git splice push [--upstream <name>] [--branch <name>] [--force] [--exec <command>] --rebuilt-commit <commit> <path>
+    git splice push [--upstream <name>] [--branch <name> [--track]] [--force | --force-if-includes] [--exec <command>] (<path>... | --all)
+    git splice push [--upstream <name>] [--branch <name>] [--force | --force-if-includes] [--exec <command>] --rebuilt-commit <commit> <path>
 
 DESCRIPTION
     Publishes each splice's local changes: rebuilds the commits that changed
@@ -44,6 +44,17 @@ OPTIONS
         two share no history, or to discard commits only upstream has.
 
         See also: https://git-splice.roschaefer.de/docs/command-reference/push/#--force
+
+    --force-if-includes
+        Overwrites the upstream branch only where it has nothing the
+        monorepo lacks: the branch must still be where the last fetch or
+        push saw it, and that commit must be one a pull recorded in HEAD's
+        history, or one this clone pushed -- e.g. after a rebase rewrote
+        pushed commits. Like 'git push --force-with-lease
+        --force-if-includes'. A commit the upstream got elsewhere is
+        refused: pull it, or discard it with --force.
+
+        See also: https://git-splice.roschaefer.de/docs/command-reference/push/#--force-if-includes
 
     --rebuilt-commit <commit>
         Pushes <commit> instead of the rebuild, e.g. one whose history was

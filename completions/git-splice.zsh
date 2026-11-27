@@ -95,7 +95,8 @@ _git-splice() {
         '--branch=[upstream branch, for this command only]:upstream branch:' \
         '--track[track --branch on the current branch]' \
         '--all[every splice]' \
-        '--force[overwrite upstream'\''s branch]' \
+        '(--force-if-includes)--force[overwrite upstream'\''s branch]' \
+        '(--force)--force-if-includes[overwrite only what the monorepo pulled or pushed]' \
         '--rebuilt-commit=[push this commit instead of the rebuild]:commit:__git_splice_branches' \
         '(-h --help)'{-h,--help}'[show usage]' \
         '*:splice:__git_splice_paths'

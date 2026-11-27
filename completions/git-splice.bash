@@ -126,7 +126,7 @@ _git_splice() {
       if [[ "$cmd" == push ]] && __git_splice_completing_value --rebuilt-commit; then
         __git_splice_reply "$value_prefix" < <(__git_splice_branches)
       elif [[ "$cmd" == push ]]; then
-        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --rebuilt-commit --exec -h --help
+        __git_splice_paths_or_options "$cur" --upstream --branch --track --all --force --force-if-includes --rebuilt-commit --exec -h --help
       else
         __git_splice_paths_or_options "$cur" --upstream -h --help
       fi

@@ -74,7 +74,7 @@ ok   lib: pushed 0fd98a6 to main
 $ sed -n 's/.*trace: built-in: //p' ../trace |
 >     grep -E '^git (commit-tree|push|update-ref) '
 git push --quiet -- https://git.example.com/lib.git 0fd98a6c01e5ee8559e8c043c4593ed9d8dd6271:refs/heads/main
-git update-ref --create-reflog refs/splices/lib/heads/main 0fd98a6c01e5ee8559e8c043c4593ed9d8dd6271
+git update-ref --create-reflog -m 'git splice push' refs/splices/lib/heads/main 0fd98a6c01e5ee8559e8c043c4593ed9d8dd6271
 ```
 
 The list has more than `git-splice`'s own commands: Git adds the ones it runs
