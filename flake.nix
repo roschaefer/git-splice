@@ -34,6 +34,7 @@
               ./check-help/Cargo.toml
               ./check-help/src
               ./completions
+              ./man
               ./LICENSE
             ];
           };
@@ -47,6 +48,7 @@
 
           # It runs the Git you have, as `git splice` does.
           postInstall = ''
+            installManPage man/git-splice.1
             install -Dm644 LICENSE $out/share/licenses/git-splice/LICENSE
             installShellCompletion --cmd git-splice \
               --bash completions/git-splice.bash \
@@ -166,7 +168,7 @@
         # Runs the installed package the way users do, through `git splice`,
         # against a splice whose upstream got a new commit.
         checks.default = pkgs.runCommand "git-splice-smoke"
-          { nativeBuildInputs = [ git-splice git ]; } ''
+          { nativeBuildInputs = [ git-splice git pkgs.man ]; } ''
           export HOME=$TMPDIR
           git config --global user.name smoke
           git config --global user.email smoke@example.com
@@ -183,6 +185,9 @@
           cd monorepo
           git commit -q --allow-empty -m initial
           git splice --version
+          MANPAGER=cat git -c help.format=man splice --help >help.txt
+          grep -q "COMMANDS" help.txt
+          grep -q "EXAMPLES" help.txt
           git splice clone ../upstream.git vendor/a
 
           echo two >>../seed/file.txt

@@ -1,0 +1,120 @@
+.TH GIT-SPLICE 1 "" "git-splice" "Git Manual"
+.SH NAME
+git-splice \- keep folders in sync with their own upstream repositories
+.SH SYNOPSIS
+.nf
+git splice <command> [<args>]
+git splice -h
+git splice --version
+.fi
+.SH DESCRIPTION
+A splice is a folder of a repository that has its own upstream repository,
+recorded in a committed .splice file in that folder.
+Edit and commit spliced files alongside the rest of the monorepo, then
+sync changes in either direction with the upstream repository.
+The repositories keep separate histories; only file changes cross the splice.
+.PP
+By default, each splice syncs with the upstream branch named like the
+monorepo's current branch. Commands read splices and their content from
+the last commit; commit local edits before pushing them upstream.
+.SH COMMANDS
+.SS Splicing in or out
+These commands require splice paths, or --all where supported.
+.TP
+.B clone [--merge] <url> [<path>]
+Splice an existing repository into the monorepo.
+.TP
+.B clone --from-submodule [--recursive] <path>
+Turn a submodule into a splice.
+.TP
+.B init <path> <url>
+Make an existing folder a splice of an empty upstream repository.
+.TP
+.B merge [--upstream <name>] (<path>... | --all)
+Bring already-fetched upstream changes into the monorepo.
+.TP
+.B pull [--upstream <name>] (<path>... | --all)
+Fetch upstream changes, then merge them.
+.TP
+.B push [--upstream <name>] [--force] (<path>... | --all)
+Publish committed local changes upstream.
+.SS Inspecting splices
+These commands select every splice unless paths are given.
+.TP
+.B status [--upstream <name>] [<path>...]
+Show each splice's sync state. Run fetch first for current upstream results.
+.TP
+.B diff [--upstream <name>] [--stat] [<path>...]
+Show the file changes push would send.
+.TP
+.B log [--upstream <name>] [--graph] [<path>...]
+Show the commits push and pull would move.
+.TP
+.B fetch [--upstream <name>] [<path>...]
+Fetch the upstream repositories.
+.SS Working with splice history
+.TP
+.B boundary <path>
+Print the monorepo commit where the rebuild of a splice starts.
+.TP
+.B rebuild <path>
+Print the upstream commit push would send.
+.TP
+.B key [--upstream <name>] <path> [<new-key>]
+Print or rename the key of a splice's fetched refs.
+.SH OPTIONS
+.TP
+.B -h
+Print a brief usage summary and the command list.
+.TP
+.B --help
+When invoked as git splice --help, Git opens this manual.
+Invoking git-splice --help directly prints the brief usage summary.
+.TP
+.B --version
+Print the installed version.
+.PP
+Command options follow the command name. Use
+.B git splice <command> -h
+for the full options and help for that command.
+Use this form also when no manual viewer is installed.
+.PP
+The shared command option
+.B --upstream <name>
+selects one of the upstreams named in .splice; without it, commands use
+the splice's default upstream.
+.SH EXAMPLES
+Splice a library into the current repository:
+.PP
+.nf
+    git splice clone https://example.com/library.git vendor/library
+.fi
+.PP
+Inspect incoming changes and bring them into the monorepo:
+.PP
+.nf
+    git splice fetch vendor/library
+    git splice status vendor/library
+    git splice pull vendor/library
+.fi
+.PP
+After editing and committing files in vendor/library, inspect and publish them:
+.PP
+.nf
+    git splice diff vendor/library
+    git splice push vendor/library
+.fi
+.PP
+Show detailed help for a command:
+.PP
+.nf
+    git splice push -h
+.fi
+.SH SEE ALSO
+.BR git (1)
+.PP
+Documentation and walkthrough:
+https://git-splice.roschaefer.de/docs/getting-started/
+.PP
+Command reference:
+https://git-splice.roschaefer.de/docs/command-reference/
