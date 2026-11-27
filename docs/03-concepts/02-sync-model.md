@@ -59,6 +59,13 @@ R is *d'*, the rebuilt copy of *d*: it keeps the original commit subject.
 A monorepo commit *X* has a sync point U(X): the upstream commit recorded
 in *X*'s `.splice`.
 
+A commit can have several `.splice` files: one for each splice, and in
+an upstream commit, those of the [splices inside it](04-nesting.md).
+U(X:path) is the commit that `X:path/.splice` records, path being the
+splice's folder in *X*'s repository, as Git names a file in a commit.
+U(X) is short for it where only one splice is in question, as on this
+page, where U(H) is U(H:lib), and in a drawing's lane.
+
 The sync point changes only when `.splice` changes, for example in a pull.
 The monorepo commits between two such changes share the same sync point. A
 pull commit *X* normally brought in U(X^)..U(X), the range between the
