@@ -9,7 +9,8 @@ A converted submodule and a plain `clone` alike would lose the macro's
 attributes, and no line above the folder can bring them back: both
 refuse. A copy of the definition in the monorepo's root
 `.gitattributes` brings them back, and upstream's own file stays as it
-is.
+is. A macro that a later pull brings in isn't checked: its files are
+checked out and stored as upstream's attributes wouldn't have them.
 
 - **Monorepo, on `main`**: no `.gitattributes`. `vendor/a/` is a
   submodule of the upstream, checked out at `add run.bat`.
@@ -126,4 +127,101 @@ Nothing shows as changed:
 ```scrut
 $ git status --short
 [attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1
+```
+
+## A macro a later pull brings in
+
+The copy in the root covers the macros upstream defines at the clone.
+`pull` doesn't check the attributes again, a known bug
+([#311](https://github.com/roschaefer/git-splice/issues/311)). To pull,
+the splice follows `main` instead of the submodule's pin:
+
+```scrut
+$ git config --file vendor/a/.splice --unset upstream.origin.default-pin &&
+>   git commit -q -m "vendor/a: follow main" vendor/a/.splice
+[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1 (equal+)
+```
+
+Upstream defines a second macro, and gives it to `.cmd` files:
+
+```scrut
+$ git clone -q -c user.name=Test -c user.email=test@example.com https://git.example.com/a.git ../a-dev &&
+>   printf '[attr]crlf-cmd text eol=crlf\n*.cmd crlf-cmd\n' >>../a-dev/.gitattributes &&
+>   printf 'echo start\n' >../a-dev/start.cmd &&
+>   git -C ../a-dev add .gitattributes start.cmd &&
+>   git -C ../a-dev commit -q -m "add start.cmd" &&
+>   git -C ../a-dev push -q
+warning: in the working copy of 'start.cmd', LF will be replaced by CRLF the next time Git touches it
+```
+
+In upstream's checkout, `start.cmd` has CRLF:
+
+```scrut
+$ rm ../a-dev/start.cmd && git -C ../a-dev checkout -- start.cmd && cat -A ../a-dev/start.cmd
+echo start^M$
+```
+
+and is stored with LF (`i/lf`):
+
+```scrut
+$ git -C ../a-dev ls-files --eol start.cmd
+i/lf    w/crlf  attr/text eol=crlf    \tstart.cmd (escaped)
+```
+
+The pull goes through:
+
+```scrut
+$ git splice pull vendor/a
+[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1 (equal+)
+ok   vendor/a fetched (main moved 374055d..45de624)
+[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1 (equal+)
+ok   vendor/a: pulled 45de624
+```
+
+In the monorepo, the new macro's attributes are gone:
+
+```scrut
+$ git check-attr text eol -- vendor/a/start.cmd
+[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1
+[attr]crlf-cmd text eol=crlf not allowed: vendor/a/.gitattributes:3
+vendor/a/start.cmd: text: unspecified
+vendor/a/start.cmd: eol: unspecified
+```
+
+and `start.cmd` is checked out with LF:
+
+```scrut
+$ cat -A vendor/a/start.cmd
+echo start$
+```
+
+A one-line change to `start.cmd`, made with CRLF as in upstream's
+checkout:
+
+```scrut
+$ printf 'echo start\r\necho test\r\n' >vendor/a/start.cmd && git commit -q -a -m "test in start.cmd"
+[attr]crlf-text text eol=crlf not allowed: vendor/a/.gitattributes:1
+[attr]crlf-cmd text eol=crlf not allowed: vendor/a/.gitattributes:3
+```
+
+`status` shows nothing but the commit to push:
+
+```scrut
+$ git splice status
+On branch main
+
+  ahead 1  vendor/a
+```
+
+```scrut
+$ git splice push vendor/a
+ok   vendor/a: pushed 40de4e8 to main
+```
+
+The push stores `start.cmd` with CRLF (`i/crlf`), which upstream's own
+attributes would have stored with LF:
+
+```scrut
+$ git -C ../a-dev pull -q && git -C ../a-dev ls-files --eol start.cmd
+i/crlf  w/crlf  attr/text eol=crlf    \tstart.cmd (escaped)
 ```

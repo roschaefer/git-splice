@@ -8,6 +8,8 @@ would apply to its files too. Where they would change a checkout --
 `text` and `eol` for line endings, as here, `filter`, `ident`,
 `working-tree-encoding` and Git's older `crlf` -- the conversion refuses, and names the line
 that unsets them for the folder. With that line committed, it converts.
+A rule added after the line applies to the folder again, and a push
+then stores line endings the upstream doesn't have.
 
 - **Monorepo, on `main`**: `.gitattributes` wants `.bat` files with
   CRLF. `vendor/a/` is a submodule of the upstream, checked out at
@@ -83,28 +85,6 @@ Nothing shows as changed:
 $ git status --short
 ```
 
-## Attributes added later
-
-The line wins over the lines before it in the same file. A rule added
-after it applies to the splice again, a known gap ([#311](https://github.com/roschaefer/git-splice/issues/311)):
-
-```scrut
-$ printf '*.txt text eol=crlf\n' >>.gitattributes && git check-attr eol -- vendor/a/file.txt
-vendor/a/file.txt: eol: crlf
-```
-
-So does one in a `.gitattributes` deeper than the line's, between the
-root and the splice:
-
-```scrut
-$ git checkout -q -- .gitattributes && printf '*.txt text eol=crlf\n' >vendor/.gitattributes && git check-attr eol -- vendor/a/file.txt
-vendor/a/file.txt: eol: crlf
-```
-
-```scrut
-$ rm vendor/.gitattributes
-```
-
 ## Without the line
 
 With the `.gitattributes` from before the line, Git stores `build.bat`
@@ -123,4 +103,99 @@ CRLF instead (`^M`):
 ```scrut
 $ rm vendor/a/run.bat && git checkout -- vendor/a/run.bat && cat -A vendor/a/run.bat
 echo run^M$
+```
+
+Back to the line:
+
+```scrut
+$ git reset -q --hard
+```
+
+## Attributes added later
+
+The line wins over the lines before it in the same file. A rule
+appended after it applies to the splice's files again, a known bug
+([#311](https://github.com/roschaefer/git-splice/issues/311)). So does
+one in a `.gitattributes` deeper than the line's, between the root and
+the splice:
+
+```scrut
+$ printf '*.bat text eol=crlf\n' >vendor/.gitattributes && git check-attr text eol -- vendor/a/build.bat
+vendor/a/build.bat: text: set
+vendor/a/build.bat: eol: crlf
+```
+
+```scrut
+$ rm vendor/.gitattributes
+```
+
+Here the rule from before the line comes back at the end, and is
+committed:
+
+```scrut
+$ printf '*.bat text eol=crlf\n' >>.gitattributes && git commit -q -m "CRLF for .bat, again" .gitattributes
+```
+
+```scrut
+$ git check-attr text eol -- vendor/a/build.bat
+vendor/a/build.bat: text: set
+vendor/a/build.bat: eol: crlf
+```
+
+No command runs at that moment. The upstream's checkout has `build.bat`
+with CRLF (`^M`):
+
+```scrut
+$ git clone -q https://git.example.com/a.git ../a-dev && cat -A ../a-dev/build.bat
+echo build^M$
+```
+
+A checkout in the monorepo now gives `run.bat`, which the upstream has
+with LF, CRLF instead:
+
+```scrut
+$ rm vendor/a/run.bat && git checkout -- vendor/a/run.bat && cat -A vendor/a/run.bat
+echo run^M$
+```
+
+To push, the splice follows `main` instead of the submodule's pin:
+
+```scrut
+$ git config --file vendor/a/.splice --unset upstream.origin.default-pin &&
+>   git commit -q -m "vendor/a: follow main" vendor/a/.splice
+```
+
+A one-line change to `build.bat`, keeping its CRLF:
+
+```scrut
+$ printf 'echo test\r\n' >>vendor/a/build.bat && git commit -q -a -m "test in build.bat"
+```
+
+`status` shows nothing but the commit to push:
+
+```scrut
+$ git splice status
+On branch main
+
+  ahead 1  vendor/a
+```
+
+```scrut
+$ git splice push vendor/a
+ok   vendor/a: pushed 8f5490f to main
+```
+
+The upstream gets every line of `build.bat` changed, its CRLF stored as
+LF:
+
+```scrut
+$ git -C ../a-dev pull -q && git -C ../a-dev diff --stat HEAD~
+ build.bat | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+```
+
+```scrut
+$ cat -A ../a-dev/build.bat
+echo build$
+echo test$
 ```
