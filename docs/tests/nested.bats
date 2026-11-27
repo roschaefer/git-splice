@@ -28,6 +28,23 @@ b_changed_in_upstream_a() {
   git push -q origin HEAD:main
 }
 
+# Makes git fail to write the .splice it writes anew from the one in
+# <rev>:<folder>, the <nth> time it reads that one for it (the first by
+# default), as on a full disk.
+fail_writing_splice_from() {
+  local spec="$1/.splice" nth="${2:-1}" reads="$BATS_TEST_TMPDIR/splice-reads"
+  stub_git "$(printf '%s\n' \
+    "if [[ \$1 == cat-file && \$2 == blob && \$3 == $(printf %q "$spec") ]]; then" \
+    "  echo >>$(printf %q "$reads")" \
+    "  [[ \$(wc -l <$(printf %q "$reads")) -eq $nth ]] && touch $(printf %q "$reads.armed")" \
+    "fi" \
+    "if [[ \$1 == hash-object && -e $(printf %q "$reads.armed") ]]; then" \
+    "  rm $(printf %q "$reads.armed")" \
+    "  echo 'error: unable to write the object' >&2" \
+    "  exit 1" \
+    "fi")"
+}
+
 @test "nested: status shows a splice and the one below it" {
   scenario_nested_splices "$monorepo" "$upstream"
   cd "$monorepo"
@@ -2081,4 +2098,57 @@ records_agree() {
   seed_bare_repo "$upstream_b" "b upstream" main other.txt
   splice pull vendor/a/b >/dev/null
   records_agree
+}
+
+@test "nested: push of the splice above fails, and pushes nothing, when the .splice recording the one below at its rebuild can't be written" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b local"
+  cd "$monorepo"
+  local before
+  before="$(git -C "$upstream" rev-parse main)"
+  fail_writing_splice_from "$(git rev-parse HEAD):vendor/a/b"
+  run splice push vendor/a
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unable to write the object"* ]]
+  [ "$(git -C "$upstream" rev-parse main)" = "$before" ]
+}
+
+# In the three-level scenario, after a push of all three, b's upstream
+# pulls c further, and the monorepo then pulls b: the merge base is the
+# copy of the monorepo's commit that the push made.
+pull_of_b_after_its_upstream_pulled_c() {
+  scenario_three_levels "$monorepo" "$upstream"
+  upstream_c="$BATS_TEST_TMPDIR/upstream-c.git"
+  commit_local "$monorepo" vendor/a/b/c "c local"
+  cd "$monorepo"
+  splice push --all >/dev/null
+  seed_bare_repo "$upstream_c" "c upstream" main other.txt
+  local b_work="$BATS_TEST_TMPDIR/b-work"
+  git clone -q "$upstream_b" "$b_work"
+  (cd "$b_work" && git config user.name Test && git config user.email test@example.com &&
+    splice pull c >/dev/null && git push -q origin main)
+}
+
+@test "nested: pull of the splice above fails, and commits nothing, when the .splice of the one below can't be written in the monorepo's terms, to compare the merge base with the folder" {
+  pull_of_b_after_its_upstream_pulled_c
+  local before
+  before="$(git rev-parse HEAD)"
+  fail_writing_splice_from "$(git -C "$upstream_b" rev-parse 'main^^{tree}'):c"
+  run splice pull vendor/a/b
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unable to write the object"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "nested: pull of the splice above fails, and commits nothing, when the .splice of the one below can't be written with the monorepo's record into the merge base" {
+  pull_of_b_after_its_upstream_pulled_c
+  local before
+  before="$(git rev-parse HEAD)"
+  fail_writing_splice_from "$(git -C "$upstream_b" rev-parse 'main^^{tree}'):c" 2
+  run splice pull vendor/a/b
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unable to write the object"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -z "$(git status --porcelain)" ]
 }
