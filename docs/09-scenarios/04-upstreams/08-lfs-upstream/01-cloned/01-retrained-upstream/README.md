@@ -3,7 +3,9 @@
 The upstream changed a file it stores in Git LFS. `pull` fetches the new
 commit, downloads the new content from the upstream's LFS server, and
 merges. [Step by step](step-by-step.md) shows each part, and
-[without the content](without-content.md) how to leave it out.
+[without the content](without-content.md) how to leave it out. A
+[merge without the content](merge-without-content.md) refuses, and
+[without Git LFS set up](without-git-lfs.md) the files stay pointers.
 
 - **Monorepo (`vendor/a/`)**: [cloned](../README.md), with version 1 of
   `model.bin`.

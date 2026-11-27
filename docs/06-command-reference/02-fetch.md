@@ -139,14 +139,18 @@ $ git splice fetch -h | check-help section git-lfs
     Where the commit a merge would take stores files in Git LFS, also
     downloads their content from the upstream's LFS server, which the
     monorepo's doesn't have yet; clone and pull do so too. The monorepo's
-    next push uploads it to the monorepo's. With GIT_LFS_SKIP_SMUDGE=1,
-    files stay pointers and nothing is downloaded.
+    next push uploads it to the monorepo's. With GIT_LFS_SKIP_SMUDGE=1, or
+    where Git LFS isn't set up to check out content, files stay pointers
+    and nothing is downloaded. merge downloads nothing: it refuses when
+    content it would check out isn't here.
 ```
 
 The [lfs-upstream scenario](../09-scenarios/04-upstreams/08-lfs-upstream/README.md)
 clones, pulls and pushes an upstream that stores a file in Git LFS, and
 [step by step](../09-scenarios/04-upstreams/08-lfs-upstream/01-cloned/01-retrained-upstream/step-by-step.md)
-shows where the content goes.
+shows where the content goes. [Merge without the content](../09-scenarios/04-upstreams/08-lfs-upstream/01-cloned/01-retrained-upstream/merge-without-content.md)
+shows the refusal, and [without Git LFS set up](../09-scenarios/04-upstreams/08-lfs-upstream/01-cloned/01-retrained-upstream/without-git-lfs.md)
+the pointers.
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut

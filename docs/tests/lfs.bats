@@ -115,6 +115,63 @@ lfs_oid() {
   [ ! -e vendor/a ]
 }
 
+@test "clone: without Git LFS set up, says so and checks out pointers" {
+  scenario_lfs_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  local bin="$BATS_TEST_TMPDIR/no-lfs"
+  mkdir "$bin"
+  ln -s "$(command -v git)" "$bin/git"
+  GIT_CONFIG_GLOBAL=/dev/null PATH="$bin" run "$ENTRYPOINT" clone "file://$upstream" vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"??   vendor/a: "*" stores files in Git LFS, and checkouts here keep them as pointers"* ]]
+  [[ "$(cat vendor/a/model.bin)" == "version https://git-lfs.github.com/spec/v1"* ]]
+}
+
+@test "pull: Git LFS set up with --skip-smudge downloads no Git LFS content" {
+  scenario_retrained_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  git lfs install --skip-repo --skip-smudge >/dev/null
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"??   vendor/a: "*" stores files in Git LFS, and checkouts here keep them as pointers"* ]]
+  local oid
+  oid="$(lfs_oid HEAD vendor/a/model.bin)"
+  [ ! -e "$(lfs_object .git/lfs "$oid")" ]
+}
+
+@test "merge: refuses before the checkout when the Git LFS content isn't here" {
+  scenario_retrained_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  GIT_LFS_SKIP_SMUDGE=1 splice fetch vendor/a
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice merge vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: the Git LFS content of vendor/a/model.bin in "*" isn't here -- 'git splice fetch vendor/a' downloads it"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -z "$(git status --porcelain)" ]
+  splice fetch vendor/a
+  run splice merge vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/model.bin)" = "weights, version 2" ]
+}
+
+@test "merge --rebase: refuses before the rebase when the Git LFS content isn't here" {
+  scenario_retrained_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  echo local >vendor/a/local.txt
+  git add vendor/a/local.txt
+  git commit -q -m "a local change"
+  GIT_LFS_SKIP_SMUDGE=1 splice fetch vendor/a
+  local before
+  before="$(git rev-parse HEAD)"
+  run splice merge --rebase vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"isn't here -- 'git splice fetch vendor/a' downloads it"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
 @test "clone --from-submodule: downloads the Git LFS content of a submodule that was never checked out" {
   scenario_lfs_upstream "$monorepo" "$upstream"
   cd "$monorepo"

@@ -275,6 +275,7 @@ impl Repo<'_> {
         refuse_changed_submodule(path, &merge_base, &target)?;
         let since = Some(merge_base.as_str()).filter(|base| !base.is_empty());
         self.refuse_unreadable_state_files(path, since, &target, verb, FIX_UPSTREAM)?;
+        self.refuse_missing_lfs_content(path, &merge_base, &target)?;
         let base_folder = self.own_records_in(path, &merge_base, &target)?;
         let base_blob = state_file_blob("HEAD", path).ok_or(Fail::Soft)?;
         let new_blob = state_blob(path, &[("commit", &target)])?;
@@ -455,6 +456,7 @@ impl Repo<'_> {
                 ),
             });
         }
+        self.refuse_missing_lfs_content(path, &c.synced, &target)?;
         let blob = state_blob_in(path, &base, &[("commit", &target)])?;
         let theirs = tree_of(&target).ok_or(Fail::Soft)?;
         let folder = self.in_monorepo_terms(&base, path, &theirs)?;
@@ -487,6 +489,22 @@ impl Repo<'_> {
             short(&target)
         ));
         Ok(())
+    }
+
+    /// Refuses before the checkout starts when it would need Git LFS content
+    /// that isn't here: Git LFS would ask the monorepo's LFS server, which
+    /// gets it only with the push of this merge. Merge downloads nothing; fetch
+    /// does.
+    fn refuse_missing_lfs_content(&self, path: &str, base: &str, target: &str) -> Res<()> {
+        let Some(file) = crate::fetch::lfs_content_missing(base, target) else {
+            return Ok(());
+        };
+        fail(format!(
+            "{path}: the Git LFS content of {path}/{file} in {} isn't here -- 'git splice fetch {}{}' downloads it",
+            short(target),
+            self.upstream_option(path),
+            shell_quote(path)
+        ))
     }
 
     /// For pull --rebase --recursive, before it moves anywhere: whether splice

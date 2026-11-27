@@ -76,9 +76,13 @@ struct NewUpstream {
 /// Downloads the Git LFS content of <commit> from <url>, before <path> gets
 /// it checked out, and fails if that fails.
 fn download_lfs_for(path: &str, url: &str, commit: &str) -> Res<()> {
-    if let Err(output) = download_lfs(url, commit) {
-        eprint_text(&format!("{output}\n"));
-        return die(format!("{path}: Git LFS download failed"));
+    match download_lfs(url, commit) {
+        Ok(Some(warning)) => log_warn(format!("{path}: {warning}")),
+        Ok(None) => {}
+        Err(output) => {
+            eprint_text(&format!("{output}\n"));
+            return die(format!("{path}: Git LFS download failed"));
+        }
     }
     Ok(())
 }
