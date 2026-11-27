@@ -43,6 +43,10 @@ pub fn fetch_upstream(url: &str, prefix: &str, commits: &[String]) -> (bool, Str
 }
 
 pub fn fetch_by_id(url: &str, commit: &str) -> bool {
+    // git fetch reads anything else as a refspec, which could write any ref.
+    if !is_commit_id(commit) {
+        return false;
+    }
     git(&[
         "fetch",
         "--quiet",

@@ -1134,6 +1134,19 @@ unreadable_splice_added_in_upstream() {
   splice status
 }
 
+@test "nested: pull refuses an upstream change that brings a .splice with a refspec as its commit, and writes no ref" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  seed_bare_repo "$upstream" "$(printf '[splice]\n\tid = x\n\tcommit = +refs/heads/main:refs/heads/planted\n[upstream "origin"]\n\turl = %s\n' "$upstream")" main extra/.splice
+  cd "$monorepo"
+  head="$(git rev-parse HEAD)"
+  run splice pull vendor/a
+  [ "$status" -ne 0 ]
+  short="$(git -C "$upstream" rev-parse --short main)"
+  [[ "$output" == *"vendor/a: in $short, extra/.splice: commit '+refs/heads/main:refs/heads/planted' isn't a full commit id -- a pull would commit a .splice no command can read; fix it in the upstream"* ]]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  ! git show-ref --verify --quiet refs/heads/planted
+}
+
 @test "nested: pull refuses an upstream change that brings a .splice that can't be read, and commits nothing" {
   scenario_up_to_date "$monorepo" "$upstream"
   unreadable_splice_added_in_upstream

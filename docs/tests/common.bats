@@ -507,6 +507,22 @@ assert_candidates() {
   [ "$output" = "!!   vendor/a/.splice has no id" ]
 }
 
+@test "discovery: refuses a .splice whose commit isn't a full commit id, and fetch writes no ref" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config --file vendor/a/.splice splice.commit "+refs/heads/main:refs/heads/planted"
+  git commit -q -am "a refspec as the synced commit"
+  run splice fetch vendor/a
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   vendor/a/.splice: commit '+refs/heads/main:refs/heads/planted' isn't a full commit id -- set the upstream commit it synced: git config --file vendor/a/.splice splice.commit <commit id>" ]
+  ! git show-ref --verify --quiet refs/heads/planted
+  git config --file vendor/a/.splice splice.commit "$(git -C "$upstream" rev-parse --short main)"
+  git commit -q -am "an abbreviated synced commit"
+  run splice status
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"isn't a full commit id"* ]]
+}
+
 @test "discovery: refuses a .splice without an upstream, or with an empty URL" {
   scenario_up_to_date "$monorepo" "$upstream"
   cd "$monorepo"
@@ -773,12 +789,12 @@ splice_trees_one_unreadable() {
   [[ "$output" == *"isn't valid UTF-8"* ]]
 }
 
-@test "state file: a synced commit with multibyte characters is reported, not a crash" {
+@test "state file: a synced commit with multibyte characters is refused, not a crash" {
   scenario_push_ahead "$monorepo" "$upstream"
   cd "$monorepo"
   git config --file vendor/a/.splice splice.commit "abcdefäöü"
   git commit -q -am "a synced commit edited by hand"
   run splice status
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"synced commit abcdefä isn't here"* ]]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"vendor/a/.splice: commit 'abcdefäöü' isn't a full commit id"* ]]
 }
