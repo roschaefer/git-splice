@@ -1,12 +1,10 @@
 # Scenario: nested-splices, a pull retried after the synced commit below is gone
 
-> **Known bug, [#274](https://github.com/roschaefer/git-splice/issues/274).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
-
 As in [dropped below](dropped-below.md), a pull of `vendor/a/` moves
 `vendor/a/b/` to a synced commit the inner upstream dropped from its
 `main`. Here, the inner upstream has also deleted it, so no fetch can
-get it any more. The pull fails, but a second try of the same command
-succeeds without a word about `vendor/a/b/`.
+get it any more. The pull fails, and a second try of the same command
+fails the same way.
 
 ## Output
 
@@ -81,19 +79,24 @@ $ git log -1 --format=%s
 splice: pull vendor/a from main at * (glob)
 ```
 
-## The retry succeeds
+## The retry fails the same way
 
-The same command again. Only a `.splice` that changed in this run gets
-checked, and the one of `vendor/a/b/` changed in the first:
+The same command again. The pull of `vendor/a/` has nothing left to
+pull, but `vendor/a/b/` still lacks its synced commit, so the retry
+fetches it again and reports it again:
 
 ```scrut
 $ git splice pull vendor/a
 ok   vendor/a fetched
 ok   vendor/a/b fetched
 ok   vendor/a: nothing to pull
+ok   vendor/a/b fetched
+!!   vendor/a/b: its synced commit 95165ad, from a pull above, isn't on its upstream any more
+!!   Failed: vendor/a/b
+[1]
 ```
 
-Nothing is fixed. `status` still finds the synced commit missing:
+`status` finds the synced commit missing, too:
 
 ```scrut
 $ git splice status

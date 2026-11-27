@@ -2082,3 +2082,45 @@ records_agree() {
   splice pull vendor/a/b >/dev/null
   records_agree
 }
+
+@test "nested: a pull of the splice above makes the synced commit below again when its upstream lost it, instead of failing" {
+  scenario_nested_splices "$monorepo" "$upstream"
+  commit_local "$monorepo" vendor/a/b "b option"
+  cd "$monorepo"
+  splice push vendor/a/b >/dev/null 2>&1
+  splice pull --bump vendor/a/b >/dev/null
+  git -C "$upstream_b" update-ref refs/heads/main "$(git -C "$upstream_b" rev-parse main^)"
+  git -C "$upstream_b" reflog expire --expire=now --all
+  git -C "$upstream_b" gc -q --prune=now
+  clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q --no-local "$monorepo" "$clone"
+  cd "$clone"
+  git config user.name "Test"
+  git config user.email "test@example.com"
+  run splice pull vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"isn't on its upstream any more"* ]]
+}
+
+@test "nested: pull --all reports a synced commit gone from the upstream three levels deep once, and doesn't pull the splice around it" {
+  scenario_three_levels "$monorepo" "$upstream"
+  local upstream_c="$BATS_TEST_TMPDIR/upstream-c.git" work
+  seed_bare_repo "$upstream_c" "c change" main other.txt
+  work="$BATS_TEST_TMPDIR/b-work"
+  git clone -q "$upstream_b" "$work"
+  git -C "$work" config user.name "Test"
+  git -C "$work" config user.email "test@example.com"
+  (cd "$work" && splice pull c >/dev/null && git push -q origin HEAD:main)
+  work_in_upstream_a
+  splice pull b >/dev/null
+  git push -q origin HEAD:main
+  git -C "$upstream_c" update-ref refs/heads/main "$(git -C "$upstream_c" rev-parse main^)"
+  git -C "$upstream_c" reflog expire --expire=now --all
+  git -C "$upstream_c" gc -q --prune=now
+  cd "$monorepo"
+  run splice pull --all
+  [ "$status" -eq 1 ]
+  [ "$(grep -c "vendor/a/b/c: its synced commit .*, from a pull above, isn't on its upstream any more" <<<"$output")" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a/b: not pulled, since vendor/a/b/c below it failed"* ]]
+  [ "${lines[-1]}" = "!!   Failed: vendor/a/b/c vendor/a/b" ]
+}
