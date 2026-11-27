@@ -28,22 +28,18 @@ impl Repo<'_> {
         // Made again before anything compares with it: a branch the upstream
         // doesn't have yet compares with its default branch, and an upstream
         // that's still empty has nothing to compare with, from the same
-        // synced commit. An upstream never fetched has no key yet: a fetch
-        // comes first.
-        let fetch_tried = pin_here || !self.key_of(path).is_empty();
+        // synced commit. For an upstream never fetched, a fetch comes first.
+        let fetched = pin_here || self.upstream_fetched(path);
         let mut remade_early = None;
-        if fetch_tried && !c.synced.is_empty() && !commit_here(&c.synced) {
+        if fetched && !c.synced.is_empty() && !commit_here(&c.synced) {
             remade_early = Some(self.remake_synced(path, &c.synced.clone()));
         }
         if !self.splice_fetched(path) && !pin_here {
-            // Without a synced commit, the splice came from init, which
-            // records the key of its empty upstream: with a key, a fetch that
-            // brings nothing is the expected state. Without one, e.g. in a
-            // fresh clone of the monorepo, the upstream is unknown here. With
-            // a synced commit that's here, a fetch happened, and the upstream
-            // has no branches left. A pin that isn't here then is missing, not
-            // a branch.
-            c.state = if (c.synced.is_empty() && fetch_tried) || commit_here(&c.synced) {
+            // An upstream fetched without branches has none, e.g. an empty
+            // one after init. Without a fetch, e.g. in a fresh clone of the
+            // monorepo, the upstream is unknown here. A pin that isn't here
+            // then is missing, not a branch.
+            c.state = if fetched {
                 if pinned {
                     State::MissingPin
                 } else {

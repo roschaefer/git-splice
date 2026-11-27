@@ -43,6 +43,7 @@ ok   vendor/a fetched
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices/
+refs/splices/upstream/fetched
 refs/splices/upstream/heads/main
 refs/splices/upstream/tags/v1
 ```

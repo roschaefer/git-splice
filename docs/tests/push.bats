@@ -173,6 +173,19 @@ setup() {
   [[ "$output" == *"not fetched"* ]]
 }
 
+@test "push: asks for a fetch first in a local clone of the monorepo, which has the upstream's commits but didn't fetch it" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  local clone="$BATS_TEST_TMPDIR/clone" before
+  git clone -q "$monorepo" "$clone"
+  before="$(git -C "$upstream" rev-parse main)"
+  cd "$clone"
+  run splice push vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not fetched"* ]]
+  [[ "$output" != *"creates it"* ]]
+  [ "$(git -C "$upstream" rev-parse main)" = "$before" ]
+}
+
 @test "push: creates a missing upstream branch only if it has commits upstream's default branch lacks" {
   scenario_feature_branch_unchanged "$monorepo" "$upstream"
   cd "$monorepo"

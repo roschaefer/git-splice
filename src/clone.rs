@@ -81,8 +81,8 @@ fn upstream_branch_to_clone(
 }
 
 /// Prints the git output of a fetch and fails if it failed.
-fn fetch_new(url: &str, prefix: &str, path: &str) -> Res<()> {
-    let (ok, output) = fetch_upstream(url, prefix, &[]);
+fn fetch_new(url: &str, key: &str, path: &str) -> Res<()> {
+    let (ok, output) = fetch_upstream(url, key, &[]);
     if !output.is_empty() {
         eprint_text(&format!("{output}\n"));
     }
@@ -107,7 +107,7 @@ impl Repo<'_> {
             .insert(path.to_string(), DEFAULT_UPSTREAM.to_string());
         self.use_upstream(path, DEFAULT_UPSTREAM)?;
         log_step(format!("{path}: fetching {url}"));
-        fetch_new(url, &self.refs_prefix(path), path)
+        fetch_new(url, &self.key_of(path), path)
     }
 
     /// As register_new_upstream, and returns the upstream's default branch, if

@@ -499,9 +499,10 @@ mod tests {
             )
             .unwrap();
             // As init records it: the empty upstream reads as known here.
-            Repo::new(&mut ExecutionContext::new(), Default::default())
+            let key = Repo::new(&mut ExecutionContext::new(), Default::default())
                 .create_upstream_key(splice.upstream)
                 .unwrap();
+            assert!(record_fetch(&key));
             git(&["add", "--", splice.path]);
         }
         git(&["commit", "-qm", "mount splices"]);
@@ -1117,9 +1118,10 @@ vendor/b.git/topic -> B (offline)"#,
                 "[splice]\n id = parent\n[upstream \"origin\"]\n url = upstream.git\n",
             )
             .unwrap();
-            Repo::new(&mut context, Default::default())
+            let key = Repo::new(&mut context, Default::default())
                 .create_upstream_key("upstream.git")
                 .unwrap();
+            assert!(record_fetch(&key));
             git(&["add", "vendor/.splice"]);
             git(&["commit", "-qm", "mount parent"]);
             let (mut repo, mut progress) = progress(&mut context);

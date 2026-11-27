@@ -84,8 +84,10 @@ from before the fetch:
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(subject) %(refname)' refs/splices
+4b825dc  refs/splices/a/fetched
 530decc parser fix refs/splices/a/heads/fix-parser
 6045a98 upstream change refs/splices/a/heads/main
+4b825dc  refs/splices/lib/fetched
 530decc parser fix refs/splices/lib/heads/fix-parser
 bde4164 seed refs/splices/lib/heads/main
 ```
@@ -140,6 +142,7 @@ $ git for-each-ref --format='delete %(refname)' refs/splices/a/ |
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
+refs/splices/lib/fetched
 refs/splices/lib/heads/fix-parser
 refs/splices/lib/heads/main
 ```

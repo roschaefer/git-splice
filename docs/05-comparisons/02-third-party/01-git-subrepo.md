@@ -426,8 +426,10 @@ Each upstream has its own refs, so `main`'s stay as they were:
 
 ```scrut
 $ git for-each-ref --format='%(refname) %(subject)' refs/splices
+refs/splices/lib/fetched 
 refs/splices/lib/heads/feature fix 3
 refs/splices/lib/heads/main fix 4
+refs/splices/other/fetched 
 refs/splices/other/heads/main other library
 ```
 
@@ -474,8 +476,10 @@ ok   libs/lib fetched
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
+refs/splices/lib/fetched
 refs/splices/lib/heads/feature
 refs/splices/lib/heads/main
+refs/splices/other/fetched
 refs/splices/other/heads/main
 ```
 

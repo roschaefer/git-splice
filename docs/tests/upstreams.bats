@@ -231,6 +231,7 @@ known_keys="the keys are splice.id, splice.commit, splice.default-upstream, upst
   add_upstream vendor/a mirror "$mirror" origin
   echo "local" >>vendor/a/file.txt
   git commit -q -am "a local change"
+  splice fetch --upstream mirror vendor/a >/dev/null
   splice push --upstream mirror vendor/a
   target="$(git -C "$mirror" rev-parse main)"
   run splice merge --upstream mirror --bump vendor/a

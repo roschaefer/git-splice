@@ -86,7 +86,10 @@ $ git splice fetch --help | check-help section refs
     The branches go to refs/splices/<key>/heads/*, where <key> is the
     upstream's key in this repository, e.g. lib for
     https://github.com/x/lib.git -- by URL, there is no Git remote; 'git
-    splice key' prints and renames keys.
+    splice key' prints and renames keys. refs/splices/<key>/fetched
+    records that the upstream was fetched here, even if it has no
+    branches: its commits can get here without a fetch, e.g. in a local
+    clone of the monorepo.
 ```
 
 Fetched branches are ordinary Git refs under `refs/splices/<key>/heads/`

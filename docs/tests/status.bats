@@ -128,6 +128,54 @@ assert_state() {
   [ "$(splice_state lib/a)" = never-fetched ]
 }
 
+@test "state: never-fetched, not missing-branch, in a local clone of the monorepo, which hard-links the upstream's commits along with its own" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  local clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q "$monorepo" "$clone"
+  cd "$clone"
+  git cat-file -e "$(splice_config vendor/a commit)^{commit}"
+  [ -z "$(git for-each-ref refs/splices/)" ]
+  [ "$(splice_state vendor/a)" = never-fetched ]
+}
+
+@test "state: never-fetched, not missing-branch, after a plain git fetch brought the upstream's commits but no fetch of the splice" {
+  scenario_never_fetched "$monorepo" "$upstream"
+  cd "$monorepo"
+  git fetch -q "$upstream" main
+  git cat-file -e "$(splice_config vendor/a commit)^{commit}"
+  [ "$(splice_state vendor/a)" = never-fetched ]
+  splice fetch vendor/a >/dev/null
+  [ "$(splice_state vendor/a)" = up-to-date ]
+}
+
+@test "state: never-fetched, not missing-branch, for an upstream under a second URL, though its key is recorded and the first URL's fetch brought the synced commit" {
+  scenario_up_to_date "$monorepo" "$upstream"
+  cd "$monorepo"
+  git config url."$upstream".insteadOf https://mirror.example.com/a.git
+  cp -r vendor/a vendor/b
+  git config --file vendor/b/.splice upstream.origin.url https://mirror.example.com/a.git
+  git add vendor/b
+  git commit -q -m "add vendor/b from the mirror"
+  [ "$(splice_state vendor/b)" = never-fetched ]
+  git config --local splice.mirror.url https://mirror.example.com/a.git
+  [ "$(splice_state vendor/b)" = never-fetched ]
+  splice fetch vendor/b >/dev/null
+  [ "$(splice_state vendor/b)" = up-to-date ]
+}
+
+@test "state: missing-branch, not never-fetched, after a fetch of an upstream that has no branches" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  git -C "$upstream" symbolic-ref HEAD refs/heads/gone
+  git -C "$upstream" branch -D main >/dev/null
+  local clone="$BATS_TEST_TMPDIR/clone"
+  git clone -q --no-local "$monorepo" "$clone"
+  cd "$clone"
+  [ "$(splice_state vendor/a)" = never-fetched ]
+  splice fetch vendor/a >/dev/null
+  [ -z "$(git for-each-ref --format='%(refname)' refs/splices/ | grep /heads/)" ]
+  [ "$(splice_state vendor/a)" = missing-branch ]
+}
+
 @test "status: counts what push would publish and pull would bring in" {
   scenario_push_ahead "$monorepo" "$upstream"
   commit_local "$monorepo" vendor/a "second local change"
@@ -239,7 +287,7 @@ EOF
   git -C "$upstream" branch -D main >/dev/null
   cd "$monorepo"
   splice fetch vendor/a >/dev/null
-  [ -z "$(git for-each-ref refs/splices/)" ]
+  [ -z "$(git for-each-ref --format='%(refname)' refs/splices/ | grep /heads/)" ]
   [ "$(splice_state vendor/a)" = missing-branch ]
   run splice push vendor/a
   [ "$status" -eq 0 ]

@@ -20,7 +20,9 @@ is the upstream's short name in this repository, from its URL, so
 The first fetch, or `git splice init`, records it in the repository's
 config, and `git splice key` prints and renames it. A rename while
 another worktree fetches [leaves stale refs](renamed-while-fetching.md)
-until the next fetch.
+until the next fetch. Next to `heads/`, each fetch sets
+`refs/splices/<key>/fetched`, which names the empty tree, no commit: it
+tells an upstream without branches from one never fetched here.
 
 A ref costs one line in `.git/packed-refs`, or a small file. The commits it
 names, and their trees and files, are what cost space.
@@ -60,6 +62,7 @@ ok   vendor/a: cloned bde4164 from main
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)'
 a909201 refs/heads/main
+4b825dc refs/splices/a/fetched
 530decc refs/splices/a/heads/fix-parser
 bde4164 refs/splices/a/heads/main
 ```
@@ -131,6 +134,7 @@ ok   vendor/a fetched (main moved bde4164..6045a98)
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
+4b825dc refs/splices/a/fetched
 530decc refs/splices/a/heads/fix-parser
 6045a98 refs/splices/a/heads/main
 ```
@@ -161,6 +165,7 @@ ok   vendor/a: pushed eda2ac7 to main
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(subject) %(refname)' refs/splices
+4b825dc  refs/splices/a/fetched
 530decc parser fix refs/splices/a/heads/fix-parser
 eda2ac7 local change refs/splices/a/heads/main
 ```
@@ -200,6 +205,7 @@ ok   vendor/a: pushed af0b42b to rename-helper
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
+refs/splices/a/fetched
 refs/splices/a/heads/fix-parser
 refs/splices/a/heads/main
 refs/splices/a/heads/rename-helper
@@ -225,6 +231,7 @@ ok   vendor/a fetched
 
 ```scrut
 $ git for-each-ref --format='%(refname)' refs/splices
+refs/splices/a/fetched
 refs/splices/a/heads/main
 refs/splices/a/heads/rename-helper
 ```
@@ -303,6 +310,7 @@ On branch main
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
+4b825dc refs/splices/a/fetched
 eda2ac7 refs/splices/a/heads/main
 af0b42b refs/splices/a/heads/rename-helper
 ```
