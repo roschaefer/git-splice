@@ -266,7 +266,7 @@ assert_candidates() {
     record_upstream_key "$url"
     echo "$url -> $UPSTREAM_KEY, expected $expected" >&2
     [ "$UPSTREAM_KEY" = "$expected" ]
-    git update-ref "refs/splices/$UPSTREAM_KEY" HEAD
+    git update-ref "refs/splices/$UPSTREAM_KEY/heads/taken" HEAD
     git config --local --remove-section "splice.$UPSTREAM_KEY"
   done
   git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin

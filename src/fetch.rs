@@ -10,13 +10,15 @@ use std::sync::Mutex;
 
 pub const USAGE: &str = include_str!("usage/fetch.txt");
 
-/// Fetches every branch of upstream <url> into <prefix>*, pruning those that
-/// are gone, with a reflog for each, as Git keeps for refs/remotes/: merge finds
-/// a rewritten branch's fork point in it. The rebuild starts at a splice's
-/// synced commit; any commit given that no branch upstream has any more is
-/// fetched by id. Returns whether it worked, and what git printed.
-pub fn fetch_upstream(url: &str, prefix: &str, commits: &[String]) -> (bool, String) {
-    let refspec = format!("+refs/heads/*:{prefix}*");
+/// Fetches every branch of upstream <url>, whose key is <key>, into
+/// refs/splices/<key>/heads/*, pruning those that are gone, with a reflog for
+/// each, as Git keeps for refs/remotes/: merge finds a rewritten branch's fork
+/// point in it. Records the fetch, even when upstream has no branches. The
+/// rebuild starts at a splice's synced commit; any commit given that no branch
+/// upstream has any more is fetched by id. Returns whether it worked, and what
+/// git printed.
+pub fn fetch_upstream(url: &str, key: &str, commits: &[String]) -> (bool, String) {
+    let refspec = format!("+refs/heads/*:refs/splices/{key}/heads/*");
     let (ok, output) = git_merged_output(&[
         "-c",
         "core.logAllRefUpdates=always",
@@ -31,6 +33,15 @@ pub fn fetch_upstream(url: &str, prefix: &str, commits: &[String]) -> (bool, Str
         &refspec,
     ]);
     if !ok {
+        return (false, output);
+    }
+    if !record_fetch(key) {
+        let note = format!("couldn't record the fetch in {}", fetch_record(key));
+        let output = if output.is_empty() {
+            note
+        } else {
+            format!("{output}\n{note}")
+        };
         return (false, output);
     }
     for commit in commits {
@@ -125,7 +136,7 @@ fn fetch_shared_upstream(
     members: &[Member],
 ) -> Vec<(usize, Report)> {
     let mut reports = Vec::new();
-    let (ok, output) = fetch_upstream(url, &format!("refs/splices/{key}/heads/"), commits);
+    let (ok, output) = fetch_upstream(url, key, commits);
     if !ok {
         for member in members {
             let mut err = String::new();

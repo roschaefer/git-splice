@@ -182,6 +182,13 @@ pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
         }
         return fail(format!("{path}: init failed"));
     }
+    if !record_fetch(&key) {
+        return fail(format!(
+            "{path}: initialized, but couldn't record in {} that {url} is empty -- run 'git splice fetch {}'",
+            fetch_record(&key),
+            shell_quote(&path)
+        ));
+    }
     log_ok(format!(
         "{path}: initialized -- 'git splice push {}' publishes it",
         shell_quote(&path)

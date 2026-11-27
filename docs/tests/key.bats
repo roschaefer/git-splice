@@ -34,7 +34,7 @@ setup() {
   run splice key vendor/a lib
   [ "$status" -eq 0 ]
   [ "$output" = "ok   vendor/a: renamed key 'upstream' to 'lib'" ]
-  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = "refs/splices/lib/heads/feature/x"$'\n'"refs/splices/lib/heads/main" ]
+  [ "$(git for-each-ref --format='%(refname)' refs/splices/)" = "refs/splices/lib/fetched"$'\n'"refs/splices/lib/heads/feature/x"$'\n'"refs/splices/lib/heads/main" ]
   [ "$(git config --local splice.lib.url)" = "$upstream" ]
   [ -z "$(git config --local splice.upstream.url || true)" ]
   run "$ENTRYPOINT" status vendor/a

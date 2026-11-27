@@ -80,6 +80,7 @@ The refs move with the key:
 
 ```scrut
 $ git for-each-ref --format='%(objectname:short) %(refname)' refs/splices
+4b825dc refs/splices/shared-lib/fetched
 bde4164 refs/splices/shared-lib/heads/main
 ```
 

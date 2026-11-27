@@ -109,13 +109,15 @@ upstream_refs() {
   printf 'refs/splices/%s/heads/\n' "$key"
 }
 
-# Fetches every branch of upstream $2 into monorepo $1's refs, like `git
-# splice fetch` does for a splice with that URL. ($3, the splice's path,
-# doesn't matter: refs are keyed by URL.)
+# Fetches every branch of upstream $2 into monorepo $1's refs, and records
+# the fetch, like `git splice fetch` does for a splice with that URL. ($3, the
+# splice's path, doesn't matter: refs are keyed by URL.)
 fetch_splice() {
-  local monorepo="$1" url="$2" prefix
+  local monorepo="$1" url="$2" prefix empty_tree
   prefix="$(cd "$monorepo" && upstream_refs "$url")"
   git -C "$monorepo" -c core.logAllRefUpdates=always fetch -q --no-tags --prune -- "$url" "+refs/heads/*:$prefix*"
+  empty_tree="$(git -C "$monorepo" hash-object -w -t tree --stdin </dev/null)"
+  git -C "$monorepo" update-ref "${prefix%heads/}fetched" "$empty_tree"
 }
 
 # Splices branch $4 (default: main) of upstream $2 into $3 inside monorepo

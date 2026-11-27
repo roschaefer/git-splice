@@ -351,6 +351,7 @@ ok   vendor/lib: pushed 6b3df25 to feature
 
 ```scrut
 $ cd ../splice-monorepo && git for-each-ref --format='%(refname)' refs/splices
+refs/splices/lib/fetched
 refs/splices/lib/heads/feature
 refs/splices/lib/heads/main
 ```

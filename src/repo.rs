@@ -494,6 +494,21 @@ pub fn ref_exists(reference: &str) -> bool {
     git(&["show-ref", "--verify", "--quiet", reference]).ok()
 }
 
+/// The ref that records a fetch of the upstream with key <key>, whatever
+/// branches it brought. It points at the empty tree: it names no commit, and
+/// an upstream without branches has one too.
+pub fn fetch_record(key: &str) -> String {
+    format!("refs/splices/{key}/fetched")
+}
+
+/// Records a fetch of the upstream with key <key>.
+pub fn record_fetch(key: &str) -> bool {
+    git(&["hash-object", "-w", "-t", "tree", "--stdin"])
+        .input("")
+        .out()
+        .is_some_and(|tree| git(&["update-ref", &fetch_record(key), &tree]).ok())
+}
+
 /// Succeeds if <path> would be valid in a ref name. Splice paths were part of
 /// their refs' names before refs were keyed by URL, and are still limited to
 /// these until every command is tested with the others.
@@ -1819,6 +1834,14 @@ impl<'context> Repo<'context> {
             self.keys.insert(path.to_string(), key);
         }
         Ok(())
+    }
+
+    /// Splice <path>'s upstream was fetched here, whatever branches that
+    /// brought. Its commits being here doesn't tell: they get here other ways
+    /// too, e.g. in a local clone of the monorepo.
+    pub fn upstream_fetched(&self, path: &str) -> bool {
+        let key = self.key_of(path);
+        !key.is_empty() && ref_exists(&fetch_record(&key))
     }
 
     /// Any upstream branch of the splice has been fetched.

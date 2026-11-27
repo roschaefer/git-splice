@@ -50,8 +50,9 @@ git commit -m "follow the fork's patches" -- vendor/a/.splice
 	default-branch = patches
 ```
 
-From then on, `git splice push vendor/a` sends your changes to the
-fork's `patches`, and `git splice pull vendor/a` brings that branch in.
+Fetch it with `git splice fetch vendor/a`. From then on,
+`git splice push vendor/a` sends your changes to the fork's `patches`,
+and `git splice pull vendor/a` brings that branch in.
 
 ## Open a pull request per change
 

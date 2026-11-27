@@ -59,6 +59,15 @@ $ echo "how the parser works" >vendor/a/parser.md &&
 >   git commit -q -m "document the parser"
 ```
 
+The fork has the original's commits, but they don't tell which branches
+it has: a fetch comes first.
+
+```scrut
+$ git splice fetch vendor/a
+ok   vendor/a fetched from origin
+ok   vendor/a fetched from fork
+```
+
 The fork has no `patches` yet, so the first push creates it:
 
 ```scrut
