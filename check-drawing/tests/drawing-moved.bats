@@ -2,6 +2,17 @@
 # moved-with-unpushed-commits drawing: U(x) of a commit from before the
 # move is read from the folder the splice had then.
 
+setup_file() {
+  load '../../docs/tests/helpers/fixtures'
+  hermetic_git_config
+  load '../../docs/09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/setup'
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
+  scenario_moved_with_unpushed_commits "$BATS_FILE_TMPDIR/monorepo" "$BATS_FILE_TMPDIR/upstream.git"
+  cd "$BATS_FILE_TMPDIR/monorepo"
+  git mv vendor/a libs/a
+  git commit -q -m "reorganize folders"
+}
+
 setup() {
   load '../../docs/tests/helpers/fixtures'
   load '../check-drawing'
@@ -10,10 +21,8 @@ setup() {
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
-  scenario_moved_with_unpushed_commits "$monorepo" "$upstream"
+  copy_file_repositories
   cd "$monorepo"
-  git mv vendor/a libs/a
-  git commit -q -m "reorganize folders"
   drawing="$BATS_TEST_TMPDIR/moved-with-unpushed-commits.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/../../docs/09-scenarios/07-moved-folders/01-moved-with-unpushed-commits/moved-with-unpushed-commits.drawio.svg" >"$drawing" 2>/dev/null

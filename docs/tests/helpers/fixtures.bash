@@ -178,6 +178,22 @@ hermetic_git_config() {
   export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 }
 
+# For setup: copies the repositories setup_file built once in
+# BATS_FILE_TMPDIR into BATS_TEST_TMPDIR. Each copy reaches the others'
+# copies by their original URLs, so what a test fetches, pushes or commits
+# stays its own, and the originals stay as built for the next test. A
+# worktree doesn't survive the copy: its links are absolute paths.
+copy_file_repositories() {
+  local name
+  cp -a "$BATS_FILE_TMPDIR/." "$BATS_TEST_TMPDIR/"
+  for name in "$BATS_FILE_TMPDIR"/*; do
+    name="${name##*/}"
+    git -C "$BATS_TEST_TMPDIR/$name" rev-parse --git-dir >/dev/null 2>&1 || continue
+    git -C "$BATS_TEST_TMPDIR/$name" config \
+      "url.$BATS_TEST_TMPDIR/.insteadOf" "$BATS_FILE_TMPDIR/"
+  done
+}
+
 # Prints value <key> of the [splice] section of <path>'s committed state
 # file in <rev> (default: HEAD), or nothing.
 splice_config() {

@@ -2,6 +2,14 @@
 # each splice's upstream commits and boxes sit in a lane labelled with its
 # folder.
 
+setup_file() {
+  load '../../docs/tests/helpers/fixtures'
+  hermetic_git_config
+  load '../../docs/09-scenarios/05-nested-splices/01-nested-splices/setup'
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
+  scenario_nested_splices "$BATS_FILE_TMPDIR/monorepo" "$BATS_FILE_TMPDIR/upstream.git"
+}
+
 setup() {
   load '../../docs/tests/helpers/fixtures'
   load '../check-drawing'
@@ -10,7 +18,7 @@ setup() {
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
-  scenario_nested_splices "$monorepo" "$upstream"
+  copy_file_repositories
   drawing="$BATS_TEST_TMPDIR/nested-splices.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/../../docs/09-scenarios/05-nested-splices/01-nested-splices/nested-splices.drawio.svg" >"$drawing" 2>/dev/null

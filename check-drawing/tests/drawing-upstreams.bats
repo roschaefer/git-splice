@@ -3,6 +3,21 @@
 # names the upstream whose commits it holds, and a commit both have is
 # drawn on each side.
 
+setup_file() {
+  load '../../docs/tests/helpers/fixtures'
+  hermetic_git_config
+  load '../../docs/09-scenarios/04-upstreams/02-several-upstreams/setup'
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
+  scenario_several_upstreams "$BATS_FILE_TMPDIR/monorepo" "$BATS_FILE_TMPDIR/upstream.git"
+  git -C "$BATS_FILE_TMPDIR/upstream-fork.git" branch -m main trunk
+  cd "$BATS_FILE_TMPDIR/monorepo"
+  git config --file vendor/a/.splice upstream.fork.url "$BATS_FILE_TMPDIR/upstream-fork.git"
+  git config --file vendor/a/.splice upstream.fork.default-branch trunk
+  git config --file vendor/a/.splice splice.default-upstream origin
+  git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
+  splice fetch >/dev/null
+}
+
 setup() {
   load '../../docs/tests/helpers/fixtures'
   load '../check-drawing'
@@ -12,14 +27,8 @@ setup() {
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
   fork="$BATS_TEST_TMPDIR/upstream-fork.git"
-  scenario_several_upstreams "$monorepo" "$upstream"
-  git -C "$fork" branch -m main trunk
+  copy_file_repositories
   cd "$monorepo"
-  git config --file vendor/a/.splice upstream.fork.url "$fork"
-  git config --file vendor/a/.splice upstream.fork.default-branch trunk
-  git config --file vendor/a/.splice splice.default-upstream origin
-  git commit -q -m "vendor/a: add the company fork" -- vendor/a/.splice
-  splice fetch >/dev/null
   drawing="$BATS_TEST_TMPDIR/fork-default-branch.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
     "$BATS_TEST_DIRNAME/../../docs/09-scenarios/04-upstreams/02-several-upstreams/fork-default-branch.drawio.svg" >"$drawing" 2>/dev/null

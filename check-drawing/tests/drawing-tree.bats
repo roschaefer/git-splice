@@ -2,6 +2,15 @@
 # and check_drawing on a tree, which compares it with what the repository
 # gives, against the three-levels scenario.
 
+setup_file() {
+  load '../../docs/tests/helpers/fixtures'
+  hermetic_git_config
+  load '../../docs/09-scenarios/05-nested-splices/01-nested-splices/setup'
+  load '../../docs/09-scenarios/05-nested-splices/01-nested-splices/02-three-levels/setup'
+  PATH="$(dirname "$ENTRYPOINT"):$PATH"
+  scenario_three_levels "$BATS_FILE_TMPDIR/monorepo" "$BATS_FILE_TMPDIR/upstream.git"
+}
+
 setup() {
   load '../../docs/tests/helpers/fixtures'
   load '../check-drawing'
@@ -11,7 +20,7 @@ setup() {
   PATH="$(dirname "$ENTRYPOINT"):$PATH"
   monorepo="$BATS_TEST_TMPDIR/monorepo"
   upstream="$BATS_TEST_TMPDIR/upstream.git"
-  scenario_three_levels "$monorepo" "$upstream"
+  copy_file_repositories
   cd "$monorepo"
   drawing="$BATS_TEST_TMPDIR/tree.drawio"
   xmlstarlet sel -T -N s=http://www.w3.org/2000/svg -t -v '/s:svg/@content' \
