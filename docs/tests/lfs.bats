@@ -156,6 +156,21 @@ lfs_oid() {
   [ "$(cat vendor/a/model.bin)" = "weights, version 2" ]
 }
 
+@test "merge: refuses when it can't read the Git LFS pointers it would check out" {
+  scenario_retrained_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  splice fetch vendor/a
+  local blob before
+  blob="$(git rev-parse "$(upstream_refs "file://$upstream")main:model.bin")"
+  rm ".git/objects/${blob:0:2}/${blob:2}"
+  before="$(git rev-parse HEAD)"
+  run splice merge vendor/a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   vendor/a: can't read model.bin of "*", so can't tell whether its Git LFS content is here"* ]]
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -z "$(git status --porcelain)" ]
+}
+
 @test "merge --rebase: refuses before the rebase when the Git LFS content isn't here" {
   scenario_retrained_upstream "$monorepo" "$upstream"
   cd "$monorepo"

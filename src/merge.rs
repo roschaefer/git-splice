@@ -496,8 +496,14 @@ impl Repo<'_> {
     /// gets it only with the push of this merge. Merge downloads nothing; fetch
     /// does.
     fn refuse_missing_lfs_content(&self, path: &str, base: &str, target: &str) -> Res<()> {
-        let Some(file) = crate::fetch::lfs_content_missing(base, target) else {
-            return Ok(());
+        let file = match crate::fetch::lfs_content_missing(base, target) {
+            Ok(Some(file)) => file,
+            Ok(None) => return Ok(()),
+            Err(reason) => {
+                return fail(format!(
+                    "{path}: {reason}, so can't tell whether its Git LFS content is here"
+                ))
+            }
         };
         fail(format!(
             "{path}: the Git LFS content of {path}/{file} in {} isn't here -- 'git splice fetch {}{}' downloads it",

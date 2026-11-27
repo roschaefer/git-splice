@@ -165,16 +165,19 @@ pub fn download_lfs(url: &str, commit: &str) -> Result<Option<String>, String> {
 /// The first file whose Git LFS content a checkout of <target> needs and the
 /// local LFS store lacks. Only files that differ from <base> (none: all of
 /// <target>'s) are checked out, and only where a checkout here replaces
-/// pointers with their content.
-pub fn lfs_content_missing(base: &str, target: &str) -> Option<String> {
+/// pointers with their content. Err when the files can't be read, as in a
+/// partial clone that lacks a blob: then nobody can tell.
+pub fn lfs_content_missing(base: &str, target: &str) -> Result<Option<String>, String> {
     if lfs_skipped() || !uses_lfs(target) || !lfs_smudges() {
-        return None;
+        return Ok(None);
     }
+    let unreadable = |what: &str| format!("can't read {what} of {}", short(target));
     let listing = if base.is_empty() {
-        git(&["ls-tree", "-r", target]).out()?
+        git(&["ls-tree", "-r", target]).out()
     } else {
-        git(&["diff-tree", "-r", "--no-renames", base, target]).out()?
-    };
+        git(&["diff-tree", "-r", "--no-renames", base, target]).out()
+    }
+    .ok_or_else(|| unreadable("the files"))?;
     // (blob, file) of each regular file a checkout writes.
     let files: Vec<(&str, &str)> = listing
         .lines()
@@ -190,32 +193,41 @@ pub fn lfs_content_missing(base: &str, target: &str) -> Option<String> {
         })
         .collect();
     if files.is_empty() {
-        return None;
+        return Ok(None);
     }
     // A pointer is at most 1024 bytes.
     let ids: String = files.iter().map(|(blob, _)| format!("{blob}\n")).collect();
     let sizes = git(&["cat-file", "--batch-check=%(objectsize)"])
         .input(ids)
-        .out()?;
-    let small: Vec<(&str, &str)> = files
-        .iter()
-        .zip(sizes.lines())
-        .filter(|(_, size)| size.parse::<u64>().is_ok_and(|size| size <= 1024))
-        .map(|(file, _)| *file)
-        .collect();
+        .out()
+        .ok_or_else(|| unreadable("the file sizes"))?;
+    let mut sizes = sizes.lines();
+    let mut small: Vec<(&str, &str)> = Vec::new();
+    for &(blob, file) in &files {
+        let size: u64 = sizes
+            .next()
+            .and_then(|size| size.parse().ok())
+            .ok_or_else(|| unreadable(file))?;
+        if size <= 1024 {
+            small.push((blob, file));
+        }
+    }
     let ids: String = small.iter().map(|(blob, _)| format!("{blob}\n")).collect();
-    let contents = git(&["cat-file", "--batch"]).input(ids).bytes()?;
+    let contents = git(&["cat-file", "--batch"])
+        .input(ids)
+        .bytes()
+        .ok_or_else(|| unreadable("the files"))?;
     let store = git(&["lfs", "env"])
         .q()
-        .out()?
-        .lines()
-        .find_map(|line| line.strip_prefix("LocalMediaDir=").map(str::to_string))?;
+        .out()
+        .and_then(|env| {
+            env.lines()
+                .find_map(|line| line.strip_prefix("LocalMediaDir=").map(str::to_string))
+        })
+        .ok_or_else(|| "can't find the local Git LFS store".to_string())?;
     let mut rest = contents.as_slice();
     for (_, file) in small {
-        let header_end = rest.iter().position(|&byte| byte == b'\n')?;
-        let size: usize = text(&rest[..header_end]).rsplit(' ').next()?.parse().ok()?;
-        let content = text(&rest[header_end + 1..header_end + 1 + size]);
-        rest = &rest[(header_end + 2 + size).min(rest.len())..];
+        let content = next_batch_object(&mut rest).ok_or_else(|| unreadable(file))?;
         let Some(oid) = lfs_pointer_oid(&content) else {
             continue;
         };
@@ -224,10 +236,21 @@ pub fn lfs_content_missing(base: &str, target: &str) -> Option<String> {
             .join(&oid[2..4])
             .join(&oid);
         if !object.is_file() {
-            return Some(file.to_string());
+            return Ok(Some(file.to_string()));
         }
     }
-    None
+    Ok(None)
+}
+
+/// The content of the next object in `git cat-file --batch` output, which
+/// <rest> then no longer holds. None for a missing object or cut-off output.
+fn next_batch_object(rest: &mut &[u8]) -> Option<String> {
+    let header_end = rest.iter().position(|&byte| byte == b'\n')?;
+    let size: usize = text(&rest[..header_end]).rsplit(' ').next()?.parse().ok()?;
+    let content = rest.get(header_end + 1..header_end + 1 + size)?;
+    let content = text(content);
+    *rest = rest.get(header_end + 2 + size..).unwrap_or_default();
+    Some(content)
 }
 
 /// The SHA-256 a Git LFS pointer names.
