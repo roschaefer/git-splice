@@ -249,6 +249,12 @@ impl Checker<'_> {
             }
             if is_term(&term, "U") {
                 let k = argument(&term, "U");
+                if matches!(k, "T" | "R") {
+                    self.errors.push(format!(
+                        "{shown}: {k} is no commit of the monorepo, whose .splice U reads: U takes H, B or a drawn commit"
+                    ));
+                    continue;
+                }
                 if matches!(k, "H" | "B") {
                     let drawn = self.boxes.iter().any(|&cell| {
                         self.value(cell).split(" = ").any(|label| {
