@@ -13,7 +13,7 @@ pub const USAGE: &str = include_str!("usage/init.txt");
 /// ls-remote shows nothing for an empty repository, but a clone learns its
 /// unborn HEAD -- and there is nothing to download.
 fn empty_upstream_default_branch(url: &str) -> String {
-    let Ok(folder) = Temp::new() else {
+    let Ok(folder) = quietly(Temp::new) else {
         return String::new();
     };
     let probe = folder.str();
