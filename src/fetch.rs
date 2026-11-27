@@ -56,6 +56,34 @@ fn lfs_true(value: &str) -> bool {
     )
 }
 
+/// <url> as Git LFS takes it: Git LFS reads a local path as the name of a
+/// remote, so a path becomes a file:// URL, relative to <current_dir>. A
+/// path is what Git takes for one: no scheme, and no colon before the first
+/// slash unless it's a drive letter.
+fn lfs_url(url: &str, current_dir: &str) -> String {
+    let drive =
+        url.len() >= 2 && url.as_bytes()[0].is_ascii_alphabetic() && url.as_bytes()[1] == b':';
+    let colon = url.find(':');
+    let slash = url.find(['/', '\\']);
+    let local = !url.contains("://")
+        && (drive || colon.is_none() || slash.is_some_and(|slash| slash < colon.unwrap()));
+    if !local {
+        return url.to_string();
+    }
+    let absolute = url.starts_with('/') || drive || url.starts_with('\\');
+    let path = if absolute {
+        url.to_string()
+    } else {
+        format!("{}/{url}", current_dir.trim_end_matches(['/', '\\']))
+    }
+    .replace('\\', "/");
+    if path.starts_with('/') {
+        format!("file://{path}")
+    } else {
+        format!("file:///{path}")
+    }
+}
+
 /// Whether a .gitattributes in <commit> stores files in Git LFS.
 fn uses_lfs(commit: &str) -> bool {
     git(&[
@@ -80,6 +108,8 @@ pub fn download_lfs(url: &str, commit: &str) -> Result<(), String> {
     if commit.is_empty() || lfs_skipped() || !uses_lfs(commit) {
         return Ok(());
     }
+    let current_dir = std::env::current_dir().unwrap_or_default();
+    let url = lfs_url(url, &current_dir.to_string_lossy());
     // lfs.fetchinclude and lfs.fetchexclude name the monorepo's paths, not the
     // upstream's; lfs.fetchrecentalways would also fetch the monorepo's recent
     // branches, from the upstream.
@@ -91,7 +121,7 @@ pub fn download_lfs(url: &str, commit: &str) -> Result<(), String> {
         "--include=",
         "--exclude=",
         "--",
-        url,
+        &url,
         commit,
     ]);
     if ok {
@@ -168,6 +198,9 @@ struct Member {
     tag: String,
     /// A default-pin that names a commit.
     pinned_commit: String,
+    /// Whether the splice uses this upstream, so a merge checks out its
+    /// content.
+    in_use: bool,
 }
 
 /// What to print for an entry of a fetch.
@@ -176,6 +209,15 @@ struct Report {
     out: String,
     err: String,
     failed: bool,
+}
+
+/// What to say when a fetch failed: git's <output>, if any, then <label>.
+fn failure(output: &str, label: &str) -> String {
+    if output.is_empty() {
+        format!("!!   {label}")
+    } else {
+        format!("{output}\n!!   {label}")
+    }
 }
 
 /// Fetches an upstream the given splices share, and reports for each whether
@@ -190,17 +232,11 @@ fn fetch_shared_upstream(
     let (ok, output) = fetch_upstream(url, &format!("refs/splices/{key}/heads/"), commits);
     if !ok {
         for member in members {
-            let mut err = String::new();
-            if !output.is_empty() {
-                err.push_str(&output);
-                err.push('\n');
-            }
-            err.push_str(&format!("!!   {}", member.failed_label));
             reports.push((
                 member.index,
                 Report {
                     out: String::new(),
-                    err,
+                    err: failure(&output, &member.failed_label),
                     failed: true,
                 },
             ));
@@ -226,12 +262,16 @@ fn fetch_shared_upstream(
             }
             None => member.pinned_commit.clone(),
         };
-        let download = match downloaded.iter().find(|(commit, _)| *commit == target) {
-            Some((_, result)) => result.clone(),
-            None => {
-                let result = download_lfs(url, &target);
-                downloaded.push((target.clone(), result.clone()));
-                result
+        let download = if !member.in_use {
+            Ok(())
+        } else {
+            match downloaded.iter().find(|(commit, _)| *commit == target) {
+                Some((_, result)) => result.clone(),
+                None => {
+                    let result = download_lfs(url, &target);
+                    downloaded.push((target.clone(), result.clone()));
+                    result
+                }
             }
         };
         if let Err(output) = download {
@@ -239,7 +279,7 @@ fn fetch_shared_upstream(
                 member.index,
                 Report {
                     out: String::new(),
-                    err: format!("{output}\n!!   {}", member.failed_label),
+                    err: failure(&output, &member.failed_label),
                     failed: true,
                 },
             ));
@@ -384,6 +424,7 @@ impl Repo<'_> {
                     old_sha,
                     tag,
                     pinned_commit,
+                    in_use: *name == self.name_of(path),
                 });
             }
             jobs.push(FetchJob {
@@ -604,6 +645,28 @@ mod tests {
     use crate::util::test_repo::{git, with_repository};
 
     #[test]
+    fn gives_git_lfs_a_local_path_as_a_file_url() {
+        for (url, expected) in [
+            ("../upstream", "file:///work/mono/../upstream"),
+            ("upstream", "file:///work/mono/upstream"),
+            ("/srv/upstream.git", "file:///srv/upstream.git"),
+            ("./a:b", "file:///work/mono/./a:b"),
+            ("C:\\repos\\upstream", "file:///C:/repos/upstream"),
+            ("C:/repos/upstream", "file:///C:/repos/upstream"),
+            ("file:///srv/upstream.git", "file:///srv/upstream.git"),
+            ("https://example.com/up.git", "https://example.com/up.git"),
+            (
+                "ssh://git@example.com/up.git",
+                "ssh://git@example.com/up.git",
+            ),
+            ("git@example.com:up.git", "git@example.com:up.git"),
+            ("example.com:path/up.git", "example.com:path/up.git"),
+        ] {
+            assert_eq!(lfs_url(url, "/work/mono/"), expected, "{url:?}");
+        }
+    }
+
+    #[test]
     fn reads_git_lfs_booleans_as_git_lfs_does() {
         for (value, expected) in [
             ("1", true),
@@ -660,6 +723,7 @@ mod tests {
             old_sha: None,
             tag: String::new(),
             pinned_commit: String::new(),
+            in_use: true,
         };
         let reports = crashed(&[member(0, "vendor/a"), member(2, "vendor/b")]);
         let summary: Vec<_> = reports

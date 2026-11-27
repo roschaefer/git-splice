@@ -47,6 +47,25 @@ lfs_oid() {
   ! grep -q "$oid" "$BATS_TEST_TMPDIR/trace"
 }
 
+@test "fetch: downloads only from the upstream the splice uses" {
+  scenario_retrained_upstream "$monorepo" "$upstream"
+  git clone -q --bare "file://$upstream" "$BATS_TEST_TMPDIR/fork.git"
+  cd "$monorepo"
+  git config --file vendor/a/.splice upstream.fork.url "file://$BATS_TEST_TMPDIR/fork.git"
+  git commit -q -m "vendor/a: add a fork without Git LFS content" -- vendor/a/.splice
+  run splice fetch vendor/a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok   vendor/a fetched from fork"* ]]
+}
+
+@test "clone: downloads the Git LFS content of an upstream given as a path" {
+  scenario_lfs_upstream "$monorepo" "$upstream"
+  cd "$monorepo"
+  run splice clone "$(realpath --relative-to=. "$upstream")" vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(cat vendor/a/model.bin)" = "weights, version 1" ]
+}
+
 @test "fetch: an upstream without Git LFS files runs no git lfs" {
   load '../09-scenarios/01-everyday-sync/02-up-to-date/setup'
   scenario_up_to_date "$monorepo" "$upstream"
