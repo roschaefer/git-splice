@@ -1,5 +1,6 @@
 //! Parsing the arguments every command shares.
 
+use crate::help;
 use crate::message::Shortlog;
 use crate::util::*;
 
@@ -57,7 +58,8 @@ impl Args {
 }
 
 /// Parses the arguments of a command. <allowed> names the options it takes,
-/// e.g. "--merge -m". -h and --help print <usage> and end the command.
+/// e.g. "--merge -m". --help prints <usage> and ends the command, -h its
+/// summary.
 /// Everything after `--` is a path.
 pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
     let allowed: Vec<&str> = allowed.split_whitespace().collect();
@@ -73,7 +75,11 @@ pub fn parse_args(usage: &str, allowed: &str, argv: &[String]) -> Res<Args> {
     while i < argv.len() {
         let arg = argv[i].as_str();
         match arg {
-            "-h" | "--help" => {
+            "-h" => {
+                say(help::concise(usage).trim_end_matches('\n'));
+                std::process::exit(0);
+            }
+            "--help" => {
                 say(usage.trim_end_matches('\n'));
                 std::process::exit(0);
             }

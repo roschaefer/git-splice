@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice fetch -h | check-help preamble
+$ git splice fetch --help | check-help preamble
 NAME
     git-splice-fetch - Fetch splice upstreams
 
@@ -17,7 +17,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice fetch -h | check-help section description
+$ git splice fetch --help | check-help section description
     Fetches every branch of each splice's upstreams, in parallel (at most
     8 at a time) and each upstream once, and reports when the branch a
     splice syncs with has moved. Branches deleted upstream are pruned.
@@ -41,7 +41,7 @@ ok   vendor/pkg-a fetched (main moved 703b936..5099edf)
 ## Options
 
 ```scrut
-$ git splice fetch -h | check-help section options
+$ git splice fetch --help | check-help section options
     <path>...
         Fetches only the upstreams of these splices, by their folders.
         Without paths, every splice's.
@@ -50,7 +50,7 @@ $ git splice fetch -h | check-help section options
 ### `--upstream`
 
 ```scrut
-$ git splice fetch -h | check-help option --upstream
+$ git splice fetch --help | check-help option --upstream
         Fetches only this one of the upstreams the splice's .splice names.
         Without it, a splice with several upstreams has each fetched.
 ```
@@ -62,7 +62,7 @@ A splice with a fork and the original as upstreams fetches both, unless
 ### Branch tracking
 
 ```scrut
-$ git splice fetch -h | check-help option branch-tracking
+$ git splice fetch --help | check-help option branch-tracking
     --branch <name> --track
         Also tracks that upstream branch on the current branch, without a
         pull or push: from then on, every command syncs the splice with it
@@ -82,7 +82,7 @@ locally](../03-concepts/01-upstreams.md#tracking-another-upstream-branch-locally
 ## Refs
 
 ```scrut
-$ git splice fetch -h | check-help section refs
+$ git splice fetch --help | check-help section refs
     The branches go to refs/splices/<key>/heads/*, where <key> is the
     upstream's key in this repository, e.g. lib for
     https://github.com/x/lib.git -- by URL, there is no Git remote; 'git
@@ -134,6 +134,6 @@ Upstreams are fetched and pushed by URL, with no Git remote, so a plain
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice fetch -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice fetch --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

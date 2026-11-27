@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice init -h | check-help preamble
+$ git splice init --help | check-help preamble
 NAME
     git-splice-init - Make an existing folder a splice of an empty repository
 
@@ -17,7 +17,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice init -h | check-help section description
+$ git splice init --help | check-help section description
     Makes the existing folder <path> a splice, to be published to <url>: an
     empty repository you created for it. Commits <path>/.splice and nothing
     else. Your first 'git splice push <path>' then starts the upstream with
@@ -60,7 +60,7 @@ In a fresh clone of the monorepo, the upstream needs a `fetch` first
 ### `-m`
 
 ```scrut
-$ git splice init -h | check-help option -m
+$ git splice init --help | check-help option -m
         Gives the commit this message instead of the default one.
 ```
 
@@ -69,7 +69,7 @@ It works as for [`merge`](04-merge.md#-m).
 ### `--message-template`
 
 ```scrut
-$ git splice init -h | check-help option --message-template
+$ git splice init --help | check-help option --message-template
         Gives the commit a message made from <template> instead of the
         default 'splice: init {path}'; see 'git splice merge --help'.
 ```
@@ -79,6 +79,6 @@ It works as for [`merge`](04-merge.md#--message-template), with only
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice init -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice init --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

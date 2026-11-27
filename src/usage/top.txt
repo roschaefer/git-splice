@@ -33,5 +33,6 @@ New to git splice -- one splice each:
 --upstream names one of a splice's upstreams in .splice; without it, the
 splice's default upstream.
 
-Run 'git splice <command> -h' for command-specific help, and
-'git splice --version' for the version.
+Run 'git splice <command> -h' for a command's options, 'git splice
+<command> --help' for its full reference, and 'git splice --version' for
+the version.

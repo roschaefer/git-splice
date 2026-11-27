@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice rebuild -h | check-help preamble
+$ git splice rebuild --help | check-help preamble
 NAME
     git-splice-rebuild - Print the commit push would send
 
@@ -18,7 +18,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice rebuild -h | check-help section description
+$ git splice rebuild --help | check-help section description
     Prints the commit 'git splice push <path>' would send: the splice's
     history rebuilt without its .splice file, on top of the upstream commit
     it last synced with. If nothing changed since, that's the synced commit
@@ -49,7 +49,7 @@ $ git log --oneline "$(git splice rebuild vendor/pkg-a)"
 ## Using the rebuild
 
 ```scrut
-$ git splice rebuild -h | check-help section using-the-rebuild
+$ git splice rebuild --help | check-help section using-the-rebuild
     Push it to an upstream branch other than the one named like the current
     one, e.g. a release branch:
 
@@ -95,6 +95,6 @@ where it can do the job.
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice rebuild -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice rebuild --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->
