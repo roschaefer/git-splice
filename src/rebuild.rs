@@ -627,8 +627,29 @@ impl Repo<'_> {
     /// one that first recorded it, as a push and then a pull --bump record
     /// it, or of that commit itself, as the rebuild of the splice around it
     /// records it. True if either gives the same commit.
+    ///
+    /// A clone or pull of a splice above squashed the history that recorded
+    /// it into one commit here: then it's made again from the history of
+    /// that splice's upstream, at the synced commit of the splice above.
     pub fn remake_synced(&mut self, path: &str, synced: &str) -> bool {
-        self.remake_synced_from(path, "HEAD", synced, path)
+        if self.remake_synced_from(path, "HEAD", synced, path) {
+            return true;
+        }
+        let mut dir = path.to_string();
+        while let Some(above) = splice_above_in("HEAD", &dir) {
+            dir = above.clone();
+            let above_synced = splice_config(&above, "commit", "HEAD");
+            if above_synced.is_empty() || !commit_here(&above_synced) {
+                continue;
+            }
+            let inner = &path[above.len() + 1..];
+            if splice_config(inner, "commit", &above_synced) == synced
+                && self.remake_synced_from(inner, &above_synced, synced, path)
+            {
+                return true;
+            }
+        }
+        false
     }
 
     /// remake_synced for splice <path> at monorepo commit <upper>; <name> is

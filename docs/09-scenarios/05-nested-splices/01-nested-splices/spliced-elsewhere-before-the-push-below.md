@@ -1,16 +1,17 @@
 # Scenario: nested-splices, spliced elsewhere before the push below
 
-> **Known bug, [#467](https://github.com/roschaefer/git-splice/issues/467).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
-
 As in [spliced elsewhere](spliced-elsewhere.md), another monorepo
 splices the outer upstream in, but the monorepo pushed only `vendor/a/`,
 not the change in `vendor/a/b/`. The outer upstream then records a
 commit of the inner one that the inner upstream doesn't have. A clone of
-the outer upstream makes such a commit again from its history, but
+the outer upstream makes such a commit again from its history.
 `git splice clone` squashes that history into one commit, so the other
-monorepo can't: it reports the commit missing. Its files are all there,
-as the outer upstream has them; pushing `vendor/a/b/` from the first
-monorepo puts the commit upstream.
+monorepo makes it again from the outer upstream's history instead, at
+the commit it cloned, as the rebuild reads the inner splice's history
+from there too. A push of `vendor/a/b/` from either monorepo then puts
+the commit upstream. With a change, its revert and another change in
+`vendor/a/b/`, it can't yet
+([spliced elsewhere after a revert below](spliced-elsewhere-after-a-revert-below.md)).
 
 ## Output
 
@@ -107,9 +108,9 @@ ok   vendor/a fetched
 ok   vendor/a/b fetched
 ```
 
-*o* clones the outer upstream at *p*, so `vendor/a/b/` is at *c'*, which neither the inner upstream nor this monorepo has:
+*o* clones the outer upstream at *p*, so `vendor/a/b/` is at *c'*, which the inner upstream doesn't have:
 
-![The tree: the other monorepo at o; vendor/a/ at p; b/ at c', which this clone can't make again](elsewhere-cloned-before-the-push-below.drawio.svg)
+![The tree: the other monorepo at o; vendor/a/ at p; b/ at c', which this clone makes again from the outer upstream's history](elsewhere-cloned-before-the-push-below.drawio.svg)
 
 <!--
 ```scrut
@@ -124,12 +125,37 @@ b seed
 b local
 ```
 
+It makes *c'* again from the outer upstream's history, on *m*, the inner upstream's commit that *l* records:
+
 ```scrut
 $ git splice status
+??   vendor/a/b: synced commit f47c373 isn't on main -- made it again here: 1879be4 and 1 commit of this branch's own
 On branch main
 
-  ?? synced commit f47c373 isn't here  vendor/a/b  run 'git splice fetch vendor/a/b', or check that upstream has it
+  ahead 1     vendor/a/b
 
-  up to date                           vendor/a
+  up to date  vendor/a
 ```
 
+A push from this monorepo sends *c'* with its hash:
+
+```scrut
+$ git splice push vendor/a/b
+??   vendor/a/b: synced commit f47c373 isn't on main -- made it again here: 1879be4 and 1 commit of this branch's own
+ok   vendor/a/b: pushed f47c373 to main
+```
+
+```scrut
+$ git -C "$UPSTREAM-b.git" log --format="%h %s" main
+f47c373 b local
+1879be4 b seed
+```
+
+```scrut
+$ git splice fetch vendor/a/b && git splice status
+ok   vendor/a/b fetched
+On branch main
+
+  up to date  vendor/a
+  up to date  vendor/a/b
+```
