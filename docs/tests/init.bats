@@ -186,6 +186,16 @@ setup() {
   ! git -C "$upstream" rev-parse --verify --quiet main
 }
 
+@test "init: without a temporary folder, says so once" {
+  scenario_init_new_upstream "$monorepo" "$upstream"
+  rm -rf "$upstream"
+  make_bare_repo "$upstream" master
+  cd "$monorepo"
+  TMPDIR="$BATS_TEST_TMPDIR/missing" run splice init lib/a "$upstream"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   can't create a temporary folder in $BATS_TEST_TMPDIR/missing: No such file or directory (os error 2)" ]
+}
+
 @test "init: refuses a detached HEAD and a conflict in progress" {
   scenario_init_new_upstream "$monorepo" "$upstream"
   cd "$monorepo"

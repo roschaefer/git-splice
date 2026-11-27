@@ -297,7 +297,12 @@ impl Temp {
                         folder,
                     })
                 }
-                Err(e) => error = Some(e),
+                // Another name helps only if this one is taken.
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => error = Some(e),
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
             }
         }
         die(format!(
