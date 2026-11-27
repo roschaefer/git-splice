@@ -193,3 +193,46 @@ edit_drawing() {
   [ "$status" -eq 1 ]
   [ "$output" = "!!   B(vendor/a/) points at m, the code says a" ]
 }
+
+@test "drawing lanes: U(x:path) reads x's .splice in the folder path, in x's repository" {
+  edit_drawing -u '//mxCell[@id="box1"]/@value' -v 'U(l:b) = U(a:vendor/a/b)' \
+    -u '//mxCell[@id="box3"]/@value' -v 'T = R = U(H:vendor/a/b)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok   nested-splices.drawio: 4 commits, 5 arrows, 4 boxes, 2 lanes" ]
+}
+
+@test "drawing lanes: U(x:path) names the splice at path, whatever lane the box is in" {
+  edit_drawing -u '//mxCell[@id="box1"]/@value' -v 'U(a:vendor/a)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(a:vendor/a) points at m, the code says l" ]
+}
+
+@test "drawing lanes: U(x:path) without a .splice at path names nothing" {
+  edit_drawing -u '//mxCell[@id="box1"]/@value' -v 'U(l:vendor/a/b)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(l:vendor/a/b) points at m, but there's no U(l:vendor/a/b)" ]
+}
+
+@test "drawing lanes: U(x:path) needs a drawn commit x" {
+  edit_drawing -u '//mxCell[@id="box1"]/@value' -v 'U(z:b)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(z:b) points at m, but no commit z is drawn" ]
+}
+
+@test "drawing lanes: U(B:path) reads the .splice of the B drawn for the box's lane" {
+  edit_drawing -u '//mxCell[@id="box0"]/@value' -v 'H = B(vendor/a/b/)' \
+    -u '//mxCell[@id="box1"]/@value' -v 'U(B:vendor/a/b)'
+  run check_drawing "$drawing" "${revs[@]}"
+  [ "$status" -eq 0 ]
+}
+
+@test "drawing lanes: an alias works as the x of U(x:path)" {
+  edit_drawing -u '//mxCell[@id="box0"]/@value' -v 'HEAD' \
+    -u '//mxCell[@id="box1"]/@value' -v 'U(HEAD:vendor/a/b)'
+  run check_drawing "$drawing" --alias HEAD=H "${revs[@]}"
+  [ "$status" -eq 0 ]
+}

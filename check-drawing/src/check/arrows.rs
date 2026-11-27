@@ -2,7 +2,10 @@
 //! its child, from a box to the commit it names, and, in drawings of other
 //! tools, from a commit to the one its message or one of its files names.
 
-use super::{argument, is_branch_term, is_term, names_commit, names_commit_on_line, Checker, Kind};
+use super::{
+    argument, is_branch_term, is_term, names_commit, names_commit_on_line, u_argument, Checker,
+    Kind,
+};
 use std::collections::{HashMap, HashSet};
 
 /// The two shapes an arrow joins, what they are, and their labels.
@@ -240,15 +243,19 @@ impl Checker<'_> {
         for shown in vs.split(" = ") {
             let mut term = aliases.get(shown).cloned().unwrap_or(shown.to_string());
             if is_term(&term, "U") {
-                let k = argument(&term, "U");
-                term = format!("U({})", aliases.get(k).map_or(k, String::as_str));
+                let (k, path) = u_argument(&term);
+                let k = aliases.get(k).map_or(k, String::as_str);
+                term = match path {
+                    Some(path) => format!("U({k}:{path})"),
+                    None => format!("U({k})"),
+                };
             }
             if term == "B" && splice.is_empty() && self.common_boundary().is_none() {
                 self.errors.push("the splices have different boundaries: qualify B with its folder, e.g. B(vendor/a/)".to_string());
                 continue;
             }
             if is_term(&term, "U") {
-                let k = argument(&term, "U");
+                let (k, _) = u_argument(&term);
                 if matches!(k, "H" | "B") {
                     let drawn = self.boxes.iter().any(|&cell| {
                         self.value(cell).split(" = ").any(|label| {

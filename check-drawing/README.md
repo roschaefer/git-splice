@@ -13,7 +13,7 @@ splices, it [writes](#splice-trees) from the repositories instead.
 It's made for drawings of [`git-splice`](../README.md) histories: a
 monorepo, the upstreams of its splices, and the names of
 `git-splice`'s [sync model](../docs/03-concepts/02-sync-model.md),
-H, B, T, R, U(x) and tracked(x).
+H, B, T, R, U(x), U(x:path) and tracked(x).
 
 ## Usage
 
@@ -128,8 +128,12 @@ does.
   and T have in common. Several
   names
   are joined by ` = `, e.g. `U(H) = U(B)`: each must name that commit.
-  Every `U(x)` needs a drawn label for `x`: a box term for H or B
-  (including an alias), or the commit label for a drawn commit.
+  `U(x:path)` is the commit that `x:path/.splice` records, path being
+  the splice's folder in *x*'s repository, e.g. `U(l:b)`, or
+  `U(a:vendor/a/b)` for the same splice in the monorepo.
+  Every `U(x)` and `U(x:path)` needs a drawn label for `x`: a box term
+  for H or B (including an alias), or the commit label for a drawn
+  commit.
   Plain `B` is enough for one splice, or when all splices share the same
   boundary commit. When their boundaries differ, qualify the boundary box
   as `B(vendor/a/)`: it identifies B for `U(B)` in that folder's lane.
@@ -149,7 +153,8 @@ does.
     splice, a box outside every lane is that splice's.
   - U(x) reads *x*'s `.splice` of the splice whose lane the box is in: in
     a nested drawing, U(l) in the lane of `vendor/a/b/` reads the
-    `b/.splice` of l, a commit of `vendor/a/`'s upstream.
+    `b/.splice` of l, a commit of `vendor/a/`'s upstream. U(x:path)
+    reads `x:path/.splice`, whatever the lane.
 - **Separator**: a dashed vertical line (draw.io's line shape,
   `direction=south`) splits a lane for a splice with several upstreams,
   side by side. A text on each side names the upstream whose commits

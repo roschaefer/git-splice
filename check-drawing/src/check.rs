@@ -67,6 +67,16 @@ fn argument<'a>(term: &'a str, function: &str) -> &'a str {
     &term[function.len() + 1..term.len() - 1]
 }
 
+/// The commit and the folder of `U(x)` or `U(x:path)`, the commit that
+/// `x:path/.splice` records.
+fn u_argument(term: &str) -> (&str, Option<&str>) {
+    let inner = argument(term, "U");
+    match inner.split_once(':') {
+        Some((commit, path)) => (commit, Some(path)),
+        None => (inner, None),
+    }
+}
+
 /// Whether box term <term> is a branch name, not H, B, T, R, U(x),
 /// tracked(b) or merge-base(R,T).
 fn is_branch_term(term: &str) -> bool {
@@ -1210,10 +1220,24 @@ impl<'a> Checker<'a> {
                 }
             }
             _ if !is_term(term, "U") => branch(term),
-            _ => match argument(term, "U") {
-                "H" => truth.u.clone(),
-                "B" => truth.s.clone(),
-                label => {
+            _ => match u_argument(term) {
+                (x, Some(path)) => {
+                    let commit = match x {
+                        "H" | "B" => self.resolve_term(x, splice, side_key, ""),
+                        label => match self.id_of_label.get(label) {
+                            Some(&cell) => self.commit(cell),
+                            None => return String::new(),
+                        },
+                    };
+                    if commit.is_empty() || path.is_empty() {
+                        return String::new();
+                    }
+                    self.git
+                        .config(&format!("{commit}:{path}/.splice"), "splice.commit")
+                }
+                ("H", None) => truth.u.clone(),
+                ("B", None) => truth.s.clone(),
+                (label, None) => {
                     let Some(&cell) = self.id_of_label.get(label) else {
                         return String::new();
                     };
