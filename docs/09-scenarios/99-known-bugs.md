@@ -26,7 +26,6 @@ A problem without a scenario is only in the
 | [bumped-on-a-feature-branch: moved after the bump](03-branches-and-teamwork/08-bumped-on-a-feature-branch/moved-after-the-bump.md) | [#466](https://github.com/roschaefer/git-splice/issues/466) | A synced commit that a bump recorded and the upstream lost isn't made again once the splice moved since. |
 | [lfs-upstream](04-upstreams/08-lfs-upstream/README.md) | [#407](https://github.com/roschaefer/git-splice/issues/407) | `clone` of an upstream that stores files in Git LFS fails; Git LFS isn't supported yet. |
 | [lfs-upstream: retrained-upstream](04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md) | [#407](https://github.com/roschaefer/git-splice/issues/407) | `pull` of a changed Git LFS file fails, as `clone` does. |
-| [nested-splices: a pull retried after the synced commit below is gone](05-nested-splices/01-nested-splices/gone-below.md) | [#274](https://github.com/roschaefer/git-splice/issues/274) | A retry of a failed pull succeeds, though the splice below still lacks its synced commit. |
 | [nested-splices: spliced elsewhere before the push below](05-nested-splices/01-nested-splices/spliced-elsewhere-before-the-push-below.md) | [#467](https://github.com/roschaefer/git-splice/issues/467) | After a push of the splice above alone, `git splice clone` of its upstream can't make the inner splice's synced commit again. |
 | [nested-splices: a and b swap their `.splice`](05-nested-splices/01-nested-splices/swapped-ids.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | A push sends one splice's files to the other's upstream. |
 | [cycle](05-nested-splices/04-cycle/README.md) | [#86](https://github.com/roschaefer/git-splice/issues/86) | A splice whose upstream splices the monorepo back in nests the monorepo one level deeper on every pull; nothing refuses it. |
@@ -74,7 +73,6 @@ ok 04-upstreams/05-splice-refs/two-fetches-at-once.md limitation
 ok 04-upstreams/08-lfs-upstream/01-cloned-by-hand/01-retrained-upstream/README.md bug #407
 ok 04-upstreams/08-lfs-upstream/README.md bug #407
 ok 04-upstreams/09-encrypted-upstream/splice-in-plaintext.md limitation
-ok 05-nested-splices/01-nested-splices/gone-below.md bug #274
 ok 05-nested-splices/01-nested-splices/spliced-elsewhere-before-the-push-below.md bug #467
 ok 05-nested-splices/01-nested-splices/swapped-ids.md bug #174
 ok 05-nested-splices/04-cycle/README.md bug #86

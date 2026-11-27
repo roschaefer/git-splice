@@ -761,7 +761,9 @@ impl Repo<'_> {
         let last = loaded
             .entry(path.to_string())
             .or_insert_with(|| state_file_blob(before, path));
-        if blob.is_none() || *last == blob {
+        // An unchanged .splice whose synced commit is missing was reported
+        // by an earlier run, whose merge above is committed: report it again.
+        if blob.is_none() || (*last == blob && synced_commit_here(path)) {
             return Ok(None);
         }
         loaded.insert(path.to_string(), blob);
