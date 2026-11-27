@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice status -h | check-help preamble
+$ git splice status --help | check-help preamble
 NAME
     git-splice-status - Show each splice's sync state
 
@@ -17,7 +17,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice status -h | check-help section description
+$ git splice status --help | check-help section description
     Shows the sync state of every splice. Purely local -- run 'git splice
     fetch' first for up-to-date results. Like every command, status reads
     splices from the last commit. It warns about uncommitted changes in a
@@ -42,7 +42,7 @@ What `status` compares to tell the states apart: the
 ### `<path>...`
 
 ```scrut
-$ git splice status -h | check-help option path
+$ git splice status --help | check-help option path
         Shows only these splices, by their folders. Without paths, every
         splice.
 ```
@@ -57,7 +57,7 @@ On branch main
 ### `--upstream`
 
 ```scrut
-$ git splice status -h | check-help option --upstream
+$ git splice status --help | check-help option --upstream
         Compares with this one of the upstreams the splice's .splice names,
         instead of its default upstream. A splice without the named
         upstream stops the command before it starts. A splice with several
@@ -71,7 +71,7 @@ line compares with
 ## Output
 
 ```scrut
-$ git splice status -h | check-help section output
+$ git splice status --help | check-help section output
     Every splice gets a line: the splices that need something come first,
     most urgent first -- "!!" and "??" mark problems -- and those that are
     up to date or unchanged come last.
@@ -100,7 +100,7 @@ upstream branch yet ([sync model](../03-concepts/02-sync-model.md)).
 ## No upstream branch
 
 ```scrut
-$ git splice status -h | check-help section no-upstream-branch
+$ git splice status --help | check-help section no-upstream-branch
     For a splice whose upstream has no branch named like the current one,
     the comparison is with upstream's default branch, as for a PR: "new"
     counts the commits the push that creates the branch would publish, and
@@ -134,7 +134,7 @@ in that case
 ## Tracked branches
 
 ```scrut
-$ git splice status -h | check-help section tracked-branches
+$ git splice status --help | check-help section tracked-branches
     A splice that tracks an upstream branch on the current branch, by
     'git splice fetch --track' (or push, pull, merge), says so: "tracked on
     <branch>, local". It's in this repository's config only, so another
@@ -147,6 +147,6 @@ names it, with `tracked on <branch>, local`
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice status -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice status --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

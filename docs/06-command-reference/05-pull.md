@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice pull -h | check-help preamble
+$ git splice pull --help | check-help preamble
 NAME
     git-splice-pull - Fetch and splice in upstream changes
 
@@ -19,7 +19,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice pull -h | check-help section description
+$ git splice pull --help | check-help section description
     'git splice fetch' followed by 'git splice merge': fetches the splices'
     upstreams in parallel, then splices their changes in, as one ordinary
     commit per splice.
@@ -63,7 +63,7 @@ ebe3b2b initial commit
 ## Options
 
 ```scrut
-$ git splice pull -h | check-help section options
+$ git splice pull --help | check-help section options
     <path>...
         The splices to pull, by their folders.
 
@@ -82,7 +82,7 @@ $ git splice pull -h | check-help section options
 ### Merge options
 
 ```scrut
-$ git splice pull -h | check-help option merge-options
+$ git splice pull --help | check-help option merge-options
     --branch <name>
         Pulls this upstream branch, for this pull only; see 'git splice
         merge --help'.
@@ -111,7 +111,7 @@ They work as for [`merge`](04-merge.md#options), after the fetch.
 ### `-m`
 
 ```scrut
-$ git splice pull -h | check-help option -m
+$ git splice pull --help | check-help option -m
         Gives the commit this message, for one splice; see 'git splice merge
         --help'.
 ```
@@ -140,7 +140,7 @@ take pkg-b's fix for the release
 ### `--message-template`
 
 ```scrut
-$ git splice pull -h | check-help option --message-template
+$ git splice pull --help | check-help option --message-template
         Gives each commit a message made from <template>, also with --all;
         see 'git splice merge --help'.
 ```
@@ -170,7 +170,7 @@ chore(deps): pull vendor/pkg-b to 24c1958
 ### `--shortlog`
 
 ```scrut
-$ git splice pull -h | check-help option --shortlog
+$ git splice pull --help | check-help option --shortlog
         Lists at most <n> commits in {shortlog}, or all with --shortlog=all;
         requires --message-template; see 'git splice merge --help'.
 ```
@@ -210,7 +210,7 @@ chore(deps): pull vendor/pkg-b (3 commits)
 ### `--recursive`
 
 ```scrut
-$ git splice pull -h | check-help option --recursive
+$ git splice pull --help | check-help option --recursive
         Also pulls every splice below each one given, and any a pull above
         adds, and makes one commit of each given splice's pulls, with the
         message of its own pull. A conflict stops it: resolve it, commit,
@@ -241,7 +241,7 @@ of the splices above it too
 ### `--exec`
 
 ```scrut
-$ git splice pull -h | check-help option --exec
+$ git splice pull --help | check-help option --exec
         Runs <command> through sh from the repository root at each execution
         checkpoint. GIT_SPLICE_EVENT names the checkpoint; GIT_SPLICE_PATH
         names its splice, and GIT_SPLICE_COMMIT its prepared or published
@@ -291,7 +291,7 @@ counts the splices done.
 ## Order
 
 ```scrut
-$ git splice pull -h | check-help section order
+$ git splice pull --help | check-help section order
     Also fetches the splices below each, and any its pull brings in:
     pulling a splice can move their synced commits. Top-down: a splice is
     pulled before the ones below it, and a failed fetch stops the splices
@@ -306,7 +306,7 @@ splice it brings in: `--recursive` does.
 ## Conflicts
 
 ```scrut
-$ git splice pull -h | check-help section conflicts
+$ git splice pull --help | check-help section conflicts
     On a conflict, resolve it and run 'git commit' (or 'git cherry-pick
     --abort' to give up), then re-run pull for any splices left. With
     --rebase, it's 'git rebase --continue' (or 'git rebase --abort'); with
@@ -325,7 +325,7 @@ you pull a splice
 ## Read more
 
 ```scrut
-$ git splice pull -h | check-help section read-more
+$ git splice pull --help | check-help section read-more
 
 ```
 
@@ -337,6 +337,6 @@ $ git splice pull -h | check-help section read-more
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice pull -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice pull --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

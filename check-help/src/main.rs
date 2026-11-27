@@ -288,13 +288,16 @@ fn validate_document(help: &str, path: &str, markdown: &str) -> Result<(), Strin
         if section.url.split_once('#').map(|(page, _)| page) != Some(&expected_page) {
             return Err(format!("{} links outside {expected_page}", section.url));
         }
-        if !section_body(help, &section)?.is_empty() {
-            require_extraction(
-                &parsed,
-                section.anchor,
-                command,
-                &format!("section {}", section.anchor),
-            )?;
+        let command_line = format!(
+            "$ git splice {command} --help | check-help section {}",
+            section.anchor
+        );
+        if !section_body(help, &section)?.is_empty()
+            && !parsed
+                .commands
+                .contains(&(section.anchor.to_string(), command_line.clone()))
+        {
+            return Err(format!("missing command: {command_line}"));
         }
     }
     let option_headings = &parsed.options;
@@ -305,32 +308,25 @@ fn validate_document(help: &str, path: &str, markdown: &str) -> Result<(), Strin
         if !option_headings.iter().any(|anchor| anchor == option.anchor) {
             return Err(format!("{} has no ### heading", option.url));
         }
-        require_extraction(
-            &parsed,
-            option.anchor,
-            command,
-            &format!("option {}", option.anchor),
-        )?;
+        let command_line = format!(
+            "$ git splice {command} --help | check-help option {}",
+            option.anchor
+        );
+        if !parsed
+            .commands
+            .contains(&(option.anchor.to_string(), command_line.clone()))
+        {
+            return Err(format!("missing command: {command_line}"));
+        }
     }
-    require_extraction(&parsed, "", command, "preamble")
-}
-
-/// The page shows, below the heading <anchor>, the command that extracts
-/// <extraction> from <command>'s help, printed by --help or -h.
-fn require_extraction(
-    parsed: &Markdown,
-    anchor: &str,
-    command: &str,
-    extraction: &str,
-) -> Result<(), String> {
-    let line = |flag: &str| format!("$ git splice {command} {flag} | check-help {extraction}");
-    if ["--help", "-h"]
-        .iter()
-        .any(|flag| parsed.commands.contains(&(anchor.to_string(), line(flag))))
+    let preamble_command = format!("$ git splice {command} --help | check-help preamble");
+    if !parsed
+        .commands
+        .contains(&(String::new(), preamble_command.clone()))
     {
-        return Ok(());
+        return Err(format!("missing command: {preamble_command}"));
     }
-    Err(format!("missing command: {}", line("--help")))
+    Ok(())
 }
 
 fn run() -> Result<(), String> {
@@ -405,7 +401,7 @@ mod tests {
     use super::*;
 
     const HELP: &str = "NAME\n    x\n\nDESCRIPTION\n    Explain x.\n\n    See also: https://git-splice.roschaefer.de/docs/command-reference/x/#description\n\nOPTIONS\n    --one\n        Does one.\n\n        See also: https://git-splice.roschaefer.de/docs/command-reference/x/#--one\n\n    See also: https://git-splice.roschaefer.de/docs/command-reference/x/#options\n";
-    const PAGE: &str = "# x\n```scrut\n$ git splice x -h | check-help preamble\n```\n## Description\n```scrut\n$ git splice x -h | check-help section description\n```\n## Options\n### `--one`\n```scrut\n$ git splice x -h | check-help option --one\n```\n";
+    const PAGE: &str = "# x\n```scrut\n$ git splice x --help | check-help preamble\n```\n## Description\n```scrut\n$ git splice x --help | check-help section description\n```\n## Options\n### `--one`\n```scrut\n$ git splice x --help | check-help option --one\n```\n";
 
     #[test]
     fn option_links_must_point_to_the_current_page() {
@@ -418,7 +414,7 @@ mod tests {
     #[test]
     fn hidden_or_misplaced_extraction_commands_do_not_satisfy_the_page() {
         assert!(validate_document(HELP, "x.md", PAGE).is_ok());
-        let block = "```scrut\n$ git splice x -h | check-help section description\n```";
+        let block = "```scrut\n$ git splice x --help | check-help section description\n```";
         let hidden = PAGE.replace(block, &format!("<!--\n{block}\n-->"));
         assert!(validate_document(HELP, "x.md", &hidden).is_err());
         let misplaced = PAGE
@@ -428,14 +424,18 @@ mod tests {
     }
 
     #[test]
-    fn extraction_commands_may_read_the_full_help_from_long_help() {
-        let long = PAGE.replace(" -h |", " --help |");
-        assert!(validate_document(HELP, "x.md", &long).is_ok());
-        let without_preamble = long.replace("$ git splice x --help | check-help preamble\n", "");
-        assert_eq!(
-            validate_document(HELP, "x.md", &without_preamble).unwrap_err(),
-            "missing command: $ git splice x --help | check-help preamble"
-        );
+    fn extraction_commands_require_long_help() {
+        assert!(validate_document(HELP, "x.md", PAGE).is_ok());
+        for extraction in ["preamble", "section description", "option --one"] {
+            let command = format!("$ git splice x --help | check-help {extraction}");
+            for replacement in [command.replace(" --help |", " -h |"), String::new()] {
+                let page = PAGE.replace(&command, &replacement);
+                assert_eq!(
+                    validate_document(HELP, "x.md", &page).unwrap_err(),
+                    format!("missing command: {command}")
+                );
+            }
+        }
     }
 
     #[test]
