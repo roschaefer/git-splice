@@ -18,6 +18,12 @@ each command refuses such a `.splice` in the monorepo, and `clone`,
 `merge` and `pull` one in what they bring in. Two URLs are the same if
 they are equal as Git reaches them, after `url.<base>.insteadOf`.
 
+Any remote counts, even one that is another project, e.g. one kept from
+a `git subtree` workflow for the upstream that is now a splice. After
+upgrading, a monorepo with such a remote stops at every command until
+the remote is removed, `git remote remove <name>`, or the `.splice`
+upstream, with the command the refusal names.
+
 - **Monorepo** (remote `origin`, `https://git.example.com/m.git`):
   `vendor/a/`, a splice of the upstream below.
 - **Upstream of `vendor/a/`** (`https://git.example.com/a.git`): `seed`,
