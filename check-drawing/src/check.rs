@@ -295,6 +295,7 @@ impl<'a> Checker<'a> {
             }
         }
         self.check_parent_arrows_drawn(&arrows.drawn_edges);
+        self.check_box_shapes();
 
         if !self.errors.is_empty() {
             for error in &self.errors {
@@ -362,6 +363,20 @@ impl<'a> Checker<'a> {
             };
             list.push(i);
             self.kind.insert(i, kind);
+        }
+    }
+
+    /// A box is a rounded rectangle, as a circle is a commit: another shape
+    /// would read as a box only by its label. A text, e.g. a note, still may.
+    fn check_box_shapes(&mut self) {
+        for &cell in &self.boxes {
+            let style = &self.d.cells[cell].style;
+            if !style.is_text() && !style.has("rounded=1") {
+                self.errors.push(format!(
+                    "{} is a box, but not drawn as one: give it rounded corners, rounded=1",
+                    self.value(cell)
+                ));
+            }
         }
     }
 
