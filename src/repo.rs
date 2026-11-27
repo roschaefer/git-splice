@@ -259,6 +259,7 @@ fn read_state_file(
     let mut defaults: Vec<String> = Vec::new();
     let mut id = String::new();
     let mut default = String::new();
+    let mut bad_commit = None;
     for record in nul_fields(&output) {
         // <key>, a newline, and the value -- or only <key>, for a key
         // without "= <value>", which git config --get reads as empty.
@@ -290,6 +291,8 @@ fn read_state_file(
             }
         } else if key == "splice.id" {
             id = value.to_string();
+        } else if key == "splice.commit" && !value.is_empty() && !is_commit_id(value) {
+            bad_commit = Some(value.to_string());
         } else if key == "splice.default-upstream" {
             default = value.to_string();
         } else if key == "splice.default-branch" {
@@ -304,6 +307,17 @@ fn read_state_file(
         }
     }
     let q_file = shell_quote(file);
+    // Fetch passes the synced commit to git fetch as a refspec: any other
+    // value could write a ref of the monorepo's.
+    if let Some(commit) = bad_commit {
+        return unreadable(
+            format!(
+                "{file}: commit '{}' isn't a full commit id in lowercase hex",
+                commit.escape_debug()
+            ),
+            format!("set the upstream commit it synced: git config --file {q_file} splice.commit <commit id>"),
+        );
+    }
     defaults.sort();
     if let Some(name) = defaults.windows(2).find(|pair| pair[0] == pair[1]) {
         let name = &name[0];
