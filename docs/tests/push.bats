@@ -156,6 +156,46 @@ setup() {
   [ "$(git -C "$upstream" log -1 --format=%s main)" = "local change" ]
 }
 
+@test "push --force: without the synced commit here, the rebuild starts from nothing, and push says to record what it pushed with pull --bump" {
+  scenario_push_ahead "$monorepo" "$upstream"
+  rm -rf "$upstream"
+  make_bare_repo "$upstream"
+  seed_bare_repo "$upstream" "brand new unrelated history"
+  cd "$monorepo"
+  git for-each-ref --format='delete %(refname)' refs/splices/ | git update-ref --stdin
+  git reflog expire --expire=now --all && git gc -q --prune=now
+  fetch_splice "$monorepo" "$upstream" vendor/a
+  local synced head pushed
+  synced="$(splice_config vendor/a commit)"
+  head="$(git rev-parse HEAD)"
+  [ "$(splice_state vendor/a)" = missing-synced ]
+  run splice push --force vendor/a
+  [ "$status" -eq 0 ]
+  pushed="$(git -C "$upstream" rev-parse main)"
+  [ "$output" = "$(printf '%s\n' "ok   vendor/a: pushed ${pushed:0:7} to main" "??   vendor/a: run 'git splice pull --bump vendor/a' before the next change to it -- that records ${pushed:0:7} as the synced commit")" ]
+  [ "$(git rev-parse HEAD)" = "$head" ]
+  [ "$(splice_config vendor/a commit)" = "$synced" ]
+  run splice pull --bump vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(splice_config vendor/a commit)" = "$pushed" ]
+  commit_local "$monorepo" vendor/a "next change"
+  run splice push vendor/a
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$upstream" rev-parse main^)" = "$pushed" ]
+}
+
+@test "push --force: says nothing about pull --bump when the rebuild builds on the synced commit, which the monorepo's record still names" {
+  scenario_diverged_unrelated_history "$monorepo" "$upstream"
+  cd "$monorepo"
+  local synced pushed
+  synced="$(splice_config vendor/a commit)"
+  run splice push --force vendor/a
+  [ "$status" -eq 0 ]
+  pushed="$(git -C "$upstream" rev-parse main)"
+  git merge-base --is-ancestor "$synced" "$pushed"
+  [ "$output" = "ok   vendor/a: pushed ${pushed:0:7} to main" ]
+}
+
 @test "push: --branch to a branch with unrelated history suggests the --force push with the same --branch" {
   scenario_diverged_unrelated_history "$monorepo" "$upstream"
   cd "$monorepo"
