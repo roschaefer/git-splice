@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.2](https://github.com/roschaefer/git-splice/compare/v0.24.1...v0.24.2) (2026-11-28)
+
+
+### Bug Fixes
+
+* **help:** show the general usage manual by default ([#611](https://github.com/roschaefer/git-splice/issues/611)) ([07b6c3e](https://github.com/roschaefer/git-splice/commit/07b6c3e2a05946b911e571617db7d0e754935ae2))
+
 ## [0.24.1](https://github.com/roschaefer/git-splice/compare/v0.24.0...v0.24.1) (2026-11-27)
 
 
