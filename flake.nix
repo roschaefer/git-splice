@@ -233,6 +233,7 @@
             pkgs.shfmt
             pkgs.bashInteractive
             pkgs.just
+            pkgs.man
             pkgs.hyperfine
             # Edits the diagrams embedded in the .drawio.svg drawings, in check-drawing/tests/*.bats.
             pkgs.xmlstarlet
