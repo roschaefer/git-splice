@@ -154,6 +154,12 @@ fn classify_row(repo: &mut Repo, path: &str, branch: &str) -> Res<Row> {
         Uncommitted::Failed => "could not check for uncommitted changes (git status failed)",
         Uncommitted::NoChanges => "",
     };
+    let mirrors = repo.mirror_difference(path)?;
+    if !mirrors.is_empty() {
+        add_hint(&mut hint, &mirrors);
+        // Mirrors that differ need the user even where the splice doesn't.
+        rank = rank.min(QUIET_RANK - 1);
+    }
     if !uncommitted.is_empty() {
         add_hint(&mut hint, uncommitted);
         // Uncommitted changes need the user even where the splice doesn't.

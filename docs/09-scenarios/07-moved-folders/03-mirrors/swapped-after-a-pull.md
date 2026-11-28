@@ -10,6 +10,8 @@ The rebuild still follows each path:
 - **A push undoes an upstream commit**: `vendor/a/` now has the files of
   the mirror that never pulled *u*, so the swap's copy takes *u*'s change
   out again, and the push is a fast-forward.
+- **A warning, not a stop**: `status` and `push` say that the mirrors'
+  files and `.splice` differ, and the push still goes through.
 - **The change stays lost**: once the other mirror pulled and pushed
   too, the upstream's files still lack it, and nothing says so.
 
@@ -79,8 +81,8 @@ $ echo "copy change" >vendor/a-copy/copy.txt &&
 $ git splice status
 On branch main
 
-  ahead 1, behind 1  vendor/a-copy
-  ahead 1            vendor/a
+  ahead 1, behind 1  vendor/a-copy  files and .splice differ from mirror vendor/a
+  ahead 1            vendor/a       files and .splice differ from mirror vendor/a-copy
 ```
 
 ![The tree: the monorepo at c; vendor/a/ at u, then dashed s'; vendor/a-copy/ at seed, then dashed c'](swapped-after-a-pull-before.drawio.svg)
@@ -89,7 +91,6 @@ On branch main
 ```scrut
 $ check_drawing "$TESTDIR/swapped-after-a-pull-before.drawio.svg" s=HEAD~1 c=HEAD
 ok   swapped-after-a-pull-before.drawio.svg: a tree of 3 rows
-[0]
 ```
 -->
 
@@ -121,8 +122,8 @@ path's history, which has it:
 $ git splice status
 On branch main
 
-  ahead 2  vendor/a-copy
-  ahead 2  vendor/a
+  ahead 2  vendor/a-copy  files and .splice differ from mirror vendor/a
+  ahead 2  vendor/a       files and .splice differ from mirror vendor/a-copy
 ```
 
 ```scrut
@@ -136,6 +137,7 @@ $ git splice log vendor/a
 
 ```scrut
 $ git splice push vendor/a
+??   vendor/a: files and .splice differ from mirror vendor/a-copy
 ok   vendor/a: pushed bb65449 to main
 ```
 
@@ -164,6 +166,7 @@ as in [mirrors that swap paths](swapped-paths.md):
 
 ```scrut
 $ git splice push vendor/a-copy
+??   vendor/a-copy: files and .splice differ from mirror vendor/a
 !!   vendor/a-copy: upstream has commits this branch lacks
 !!   Failed: vendor/a-copy
 [1]
@@ -177,6 +180,7 @@ ok   vendor/a-copy: pulled bb65449
 
 ```scrut
 $ git splice push vendor/a-copy
+??   vendor/a-copy: files and .splice differ from mirror vendor/a
 ok   vendor/a-copy: pushed b8e03f6 to main
 ```
 
@@ -211,6 +215,5 @@ seed
 ```scrut
 $ check_drawing "$TESTDIR/swapped-after-a-pull-end.drawio.svg" p=HEAD
 ok   swapped-after-a-pull-end.drawio.svg: a tree of 3 rows
-[0]
 ```
 -->

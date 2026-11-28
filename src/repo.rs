@@ -120,6 +120,9 @@ pub struct Repo<'context> {
     monorepo_default: OnceCell<String>,
     empty_tree: OnceCell<String>,
     pub uncommitted: HashMap<String, Uncommitted>,
+    /// Each readable splice's id in HEAD: splices with the same id are
+    /// mirrors.
+    pub splice_ids: HashMap<String, String>,
     /// Splices whose synced commit was made again here, with the newest
     /// commit in its history that the upstream branch has.
     pub remade: HashMap<String, String>,
@@ -192,6 +195,7 @@ pub fn upstream_has_state_file(commit: &str) -> bool {
 /// What a state file names: its upstreams' names and URLs, in order, and the
 /// default upstream, empty with several upstreams and none named.
 struct StateFile {
+    pub id: String,
     pub names: Vec<String>,
     pub urls: Vec<String>,
     pub default: String,
@@ -350,6 +354,7 @@ fn read_state_file(
         default = names[0].clone();
     }
     Ok(StateFile {
+        id,
         names,
         urls,
         default,
@@ -402,6 +407,18 @@ pub fn folder_tree(rev: &str, path: &str) -> Option<String> {
         .q()
         .out()?;
     (git(&["cat-file", "-t", &object]).out().as_deref() == Some("tree")).then_some(object)
+}
+
+/// The blob of splice <path>'s state file in HEAD, if it has one.
+fn state_file_blob(path: &str) -> Option<String> {
+    git(&[
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        &format!("HEAD:{path}/{STATE_FILE}"),
+    ])
+    .q()
+    .out()
 }
 
 /// Value <key> of splice <path>'s state file as committed in <rev>, or nothing.
@@ -898,6 +915,7 @@ impl<'context> Repo<'context> {
             monorepo_default: Default::default(),
             empty_tree: Default::default(),
             uncommitted: Default::default(),
+            splice_ids: Default::default(),
             remade: Default::default(),
             child_rebuilds: Default::default(),
             unrebuilt_child: Default::default(),
@@ -1095,10 +1113,15 @@ impl<'context> Repo<'context> {
             self.all_paths.push(path.to_string());
         }
         self.unreadable.clear();
+        self.splice_ids.clear();
         for splice in splices.read() {
             self.warn_unknown_keys(&splice.warnings);
             match splice.state {
-                Ok(state) => self.use_state_file(&splice.path, state)?,
+                Ok(state) => {
+                    self.splice_ids
+                        .insert(splice.path.clone(), state.id.clone());
+                    self.use_state_file(&splice.path, state)?
+                }
                 Err(why) => {
                     self.unreadable.push((splice.path, why));
                 }
@@ -1289,6 +1312,7 @@ impl<'context> Repo<'context> {
             names,
             urls,
             default,
+            ..
         } = state;
         for (name, url) in names.iter().zip(&urls) {
             self.upstream_urls
@@ -2024,6 +2048,49 @@ impl<'context> Repo<'context> {
             let name = self.upstream_branch_for(path, branch, None)?;
             Ok(self.resolve_branch(path, &name))
         }
+    }
+
+    /// How splice <path> differs from its mirrors in HEAD, the other
+    /// splices with its id: in the files of their folders, without the
+    /// state files, or in their state files. Empty if they're alike or it
+    /// has none.
+    pub fn mirror_difference(&mut self, path: &str) -> Res<String> {
+        let Some(id) = self.splice_ids.get(path).cloned() else {
+            return Ok(String::new());
+        };
+        let mirrors: Vec<String> = self
+            .all_paths
+            .iter()
+            .filter(|other| *other != path && self.splice_ids.get(*other) == Some(&id))
+            .cloned()
+            .collect();
+        if mirrors.is_empty() {
+            return Ok(String::new());
+        }
+        let files = self.content_tree("HEAD", path)?;
+        let record = state_file_blob(path);
+        let mut differing: Vec<(String, Vec<String>)> = Vec::new();
+        for mirror in mirrors {
+            let other_files = self.content_tree("HEAD", &mirror)?;
+            let what = match (other_files != files, state_file_blob(&mirror) != record) {
+                (true, true) => format!("files and {STATE_FILE} differ"),
+                (true, false) => "files differ".to_string(),
+                (false, true) => format!("{STATE_FILE} differs"),
+                (false, false) => continue,
+            };
+            match differing.iter_mut().find(|(known, _)| *known == what) {
+                Some((_, list)) => list.push(mirror),
+                None => differing.push((what, vec![mirror])),
+            }
+        }
+        let clauses: Vec<String> = differing
+            .into_iter()
+            .map(|(what, list)| {
+                let noun = if list.len() == 1 { "mirror" } else { "mirrors" };
+                format!("{what} from {noun} {}", list.join(", "))
+            })
+            .collect();
+        Ok(clauses.join("; "))
     }
 
     /// Whether the splice's folder has uncommitted changes.

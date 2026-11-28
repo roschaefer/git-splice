@@ -23,7 +23,9 @@ $ git splice push --help | check-help section description
     Publishes each splice's local changes: rebuilds the commits that changed
     it since its boundary, without its .splice file, and pushes them to its
     upstream URL. Nothing is written to the monorepo. Only committed changes
-    are pushed; push warns about uncommitted ones in a splice's folder.
+    are pushed; push warns about uncommitted ones in a splice's folder, and
+    about mirrors, splices with the same id, whose files or .splice differ
+    from the one it pushes.
 ```
 
 In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `vendor/pkg-a/` starts
