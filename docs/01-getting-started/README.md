@@ -2,7 +2,7 @@
 
 With [Nix](https://nixos.org/download/) and
 [flakes](https://wiki.nixos.org/wiki/Flakes) enabled, which brings the shell
-completions:
+completions and manual:
 
     nix profile install github:roschaefer/git-splice
     nix run github:roschaefer/git-splice -- status   # or try it first
@@ -11,7 +11,7 @@ Otherwise, download a binary for Linux or macOS, x86-64 or ARM, or for
 Windows, x86-64, from the
 [releases](https://github.com/roschaefer/git-splice/releases), and put
 `git-splice` (`git-splice.exe` on Windows) on your `PATH`. The archive also
-has the shell completions.
+has the shell completions and `man/git-splice.1`.
 
 Or build it with [Rust](https://rustup.rs):
 
@@ -25,6 +25,9 @@ Requires:
 - Git >= 2.40. `git subtree` isn't needed.
 
 See [known bugs and limitations](../09-scenarios/99-known-bugs.md).
+
+For usage and help, run `git splice` or see the
+[general command reference](../06-command-reference/00-git-splice.md).
 
 ## Shell completions
 

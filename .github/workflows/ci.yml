@@ -186,7 +186,7 @@ jobs:
         run: |
           mkdir git-splice
           cp "target/$TARGET/release/git-splice$EXE" LICENSE git-splice/
-          cp -R completions git-splice/
+          cp -R completions man git-splice/
           if [[ "$ARCHIVE" == *.zip ]]; then
             7z a -tzip -bso0 "$ARCHIVE" git-splice
           else
