@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.24.1](https://github.com/roschaefer/git-splice/compare/v0.24.0...v0.24.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **clone,init:** refuse a splice operation in progress before any other problem ([#586](https://github.com/roschaefer/git-splice/issues/586)) ([62e048b](https://github.com/roschaefer/git-splice/commit/62e048b031d480203e2a4dd02aefd8ee76fb1660))
+* **state:** refuse a .splice whose synced commit isn't a full commit id ([#581](https://github.com/roschaefer/git-splice/issues/581)) ([77510a7](https://github.com/roschaefer/git-splice/commit/77510a7f91fdd1dac78783011dd58749370f9749))
+* **util:** keep temporary files in a private folder with a random name ([#582](https://github.com/roschaefer/git-splice/issues/582)) ([9ed2de6](https://github.com/roschaefer/git-splice/commit/9ed2de63cbcef1a7a63dd0fd4bd487c9fd8d5114))
+
 ## [0.24.0](https://github.com/roschaefer/git-splice/compare/v0.23.1...v0.24.0) (2026-11-27)
 
 
