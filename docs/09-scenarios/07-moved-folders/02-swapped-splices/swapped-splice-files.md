@@ -1,15 +1,13 @@
 # swapped-splices: only the `.splice` files trade places
 
-> **Known bug, [#174](https://github.com/roschaefer/git-splice/issues/174).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
-
 As in the [README](README.md), but only the two `.splice` files trade
-places, and the folders' other files stay where they are. Each splice
-follows its id to the other's path, as across the move of a whole
-folder, but there it finds the other splice's files:
+places, and the folders' other files stay where they are. A splice
+keeps its id for good, so the two splices traded places:
 
-- **Nothing refuses it.** `status` reads both as an ordinary push.
-- **So a push sends each upstream the other splice's files**, and
-  deletes its own.
+- **Each splice's history continues at its new folder**, as across the
+  move of a whole folder.
+- **A push sends the files now in that folder**: each upstream gets the
+  files of the other's old folder, and loses its own.
 
 [Nested splices](../../05-nested-splices/01-nested-splices/swapped-ids.md)
 that trade their `.splice` files do the same.

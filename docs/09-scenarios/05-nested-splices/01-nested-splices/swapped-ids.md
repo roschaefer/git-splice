@@ -1,7 +1,5 @@
 # Scenario: nested-splices, the two splices swap their `.splice`
 
-> **Known bug, [#174](https://github.com/roschaefer/git-splice/issues/174).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
-
 The outer splice contains the inner one, as in the [README](README.md).
 Then the two `.splice` files trade places, ids and URLs included, and
 the folder `vendor/a/` names the inner upstream, `vendor/a/b/` the outer
@@ -12,24 +10,24 @@ before:  vendor/a    id a, a's upstream      after:  vendor/a    id b, b's upstr
            b/        id b, b's upstream                b/        id a, a's upstream
 ```
 
-Nobody planned for this; this page records what `git-splice` does:
+A splice keeps its id for good, so the two splices traded places:
 
-- **Nothing refuses it.** No id repeats in one line of nesting, so it
-  isn't a cycle either, a splice that contains itself
+- **Each splice's history continues at its new folder**, as across a
+  `git mv`
+  ([swapped-splices](../../07-moved-folders/02-swapped-splices/README.md)).
+  No id repeats in one line of nesting, so it isn't a cycle, a splice
+  that contains itself
   ([#86](https://github.com/roschaefer/git-splice/issues/86)).
-- **Each splice follows its id across the swap**, as across a `git mv`
-  ([swapped-splices](../../07-moved-folders/02-swapped-splices/README.md)),
-  but its files stay behind.
-- **So a push replaces the upstream's files.** `clone` refuses a folder
-  whose files differ from the upstream's, without `--merge`; a
-  hand-edited `.splice` skips that check.
+- **A push sends the files now in that folder.** The splice of the
+  inner upstream sits at `vendor/a/` now, so its push sends the files
+  there, the outer upstream's, to the inner upstream.
 
-A push of both splices leaves each upstream with the other's files
-([both pushed](swapped-ids-both-pushed.md)). Where only the ids trade
-places, a push publishes the inner upstream's history to the outer one
-([only the ids](swapped-ids-only.md)). Splices side by side that trade
-their `.splice` files do the same as nested ones
+A push of both splices leaves each upstream with the files of the
+other's old folder ([both pushed](swapped-ids-both-pushed.md)).
+Splices side by side that trade their `.splice` files do the same
 ([swapped `.splice` files](../../07-moved-folders/02-swapped-splices/swapped-splice-files.md)).
+Where only the ids trade places, and the URLs stay, the push is a
+limitation instead ([only the ids](swapped-ids-only.md)).
 
 ## Output
 
@@ -115,7 +113,7 @@ $ git splice log
 < 69e827c s: swap the .splice files  (Test <test@example.com>)
 ```
 
-## A push replaces the inner upstream's files
+## A push sends the folder's files to the inner upstream
 
 The inner upstream before:
 
@@ -140,8 +138,8 @@ ok   swapped-ids-pushed.drawio.svg: a tree of 3 rows
 ```
 -->
 
-With it, the inner upstream got the outer upstream's files, and a
-nested splice of the outer upstream:
+With it, the inner upstream got the files of `vendor/a/`, the outer
+upstream's, with the splice of the inner upstream at `b/`:
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main

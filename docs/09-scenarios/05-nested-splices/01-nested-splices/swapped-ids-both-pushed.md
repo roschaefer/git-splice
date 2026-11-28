@@ -1,16 +1,16 @@
 # Scenario: nested-splices, both pushed after the swap of their `.splice`
 
-> **Known bug, [#174](https://github.com/roschaefer/git-splice/issues/174).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
-
 The two nested splices [trade their `.splice` files](swapped-ids.md),
-ids and URLs included. There, a push of `vendor/a` sends the outer
-upstream's files to the inner upstream. Here both splices are pushed:
+ids and URLs included. A splice keeps its id for good, so the two
+splices traded places, and each push sends the files now in its
+folder. Here both splices are pushed:
 
-- **Each upstream gets the other's files.** Both pushes are
-  fast-forwards.
-- **The outer upstream loses its splice of the inner one**: `b/.splice`
-  and `b/file.txt` are gone from it, and the inner upstream has them.
-- **Afterwards, nothing tells.** `status` reads both as up to date.
+- **Each upstream gets the files of its splice's new folder**, the
+  other upstream's. Both pushes are fast-forwards.
+- **The splice of the inner upstream moves with `b/`**: the outer
+  upstream's `b/.splice` and `b/file.txt` go to the inner upstream,
+  whose splice sits at `vendor/a/` now.
+- **Afterwards, both are up to date.**
 
 ## Output
 
@@ -79,8 +79,8 @@ ok   vendor/a/b: pushed 69e827c to main
 ok   vendor/a: pushed 36c9c93 to main
 ```
 
-The outer upstream has the inner upstream's `file.txt` now, and no
-`b/`:
+The outer upstream has the files of `vendor/a/b/`, the inner
+upstream's `file.txt`, and no `b/`:
 
 ```scrut
 $ git -C "$UPSTREAM" ls-tree -r --name-only main
@@ -99,8 +99,8 @@ add b
 a seed
 ```
 
-The inner upstream has the outer upstream's files, with its splice of
-the inner upstream at `b/`:
+The inner upstream has the files of `vendor/a/`, the outer upstream's,
+with the splice of the inner upstream at `b/`:
 
 ```scrut
 $ git -C "$UPSTREAM-b.git" ls-tree -r --name-only main

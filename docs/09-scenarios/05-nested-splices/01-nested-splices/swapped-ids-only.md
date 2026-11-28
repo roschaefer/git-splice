@@ -1,6 +1,6 @@
 # Scenario: nested-splices, the two splices swap only their ids
 
-> **Known bug, [#174](https://github.com/roschaefer/git-splice/issues/174).** This page shows what `git-splice` does today, bug included. See [known bugs and limitations](../../99-known-bugs.md#known-bugs).
+> **Limitation.** This page shows behaviour `git-splice` keeps on purpose, and the way out. See [known bugs and limitations](../../99-known-bugs.md#limitations).
 
 The outer splice contains the inner one, as in the [README](README.md).
 Then the two `.splice` files trade their ids, and keep their URLs, as
@@ -14,12 +14,21 @@ before:  vendor/a    id a, a's upstream      after:  vendor/a    id b, a's upstr
            b/        id b, b's upstream                b/        id a, b's upstream
 ```
 
+A splice keeps its id for good, so `vendor/a/` is now the splice that
+was at `b/`, but its `.splice` names the outer upstream, and a synced
+commit that isn't part of that splice's history:
+
 - **Nothing refuses it.** `status` reads it as an ordinary push.
-- **The outer splice follows the inner one's id** back to `b/`, where
-  that id was, and builds on the inner upstream's history.
+- **The splice's history continues at `vendor/a/`**, from `b/`, where
+  its id was, so it builds on the inner upstream's history.
 - **So a push publishes the inner upstream's history to the outer
   upstream**, merged with the outer upstream's own. The files stay
   the outer upstream's.
+- **A `.splice` like this is the editor's to keep right.** A check that
+  the synced commit is part of the splice's own history, as
+  [#7](https://github.com/roschaefer/git-splice/issues/7) asks for, would
+  catch it. Until then, the way out is to give each `.splice` back its
+  own id before the push.
 
 ## Output
 

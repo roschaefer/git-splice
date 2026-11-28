@@ -21,7 +21,8 @@ the path where its id was before the swap, and continues there. See
 [the design notes](../../../07-design/README.md#principles).
 
 Where only the `.splice` files trade places, and the other files stay,
-a push sends each upstream the other splice's files
+the splices trade places all the same, and a push sends each upstream
+the files now in its splice's folder
 ([swapped `.splice` files](swapped-splice-files.md)).
 
 ## Output
