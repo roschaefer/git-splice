@@ -20,6 +20,10 @@ it moves with the `.splice`. So the rebuild follows each splice back to
 the path where its id was before the swap, and continues there. See
 [the design notes](../../../07-design/README.md#principles).
 
+Where only the `.splice` files trade places, and the other files stay,
+a push sends each upstream the other splice's files
+([swapped `.splice` files](swapped-splice-files.md)).
+
 ## Output
 
 <!--

@@ -29,9 +29,12 @@ A problem without a scenario is only in the
 | [nested-splices: a pull retried after the synced commit below is gone](05-nested-splices/01-nested-splices/gone-below.md) | [#274](https://github.com/roschaefer/git-splice/issues/274) | A retry of a failed pull succeeds, though the splice below still lacks its synced commit. |
 | [nested-splices: spliced elsewhere before the push below](05-nested-splices/01-nested-splices/spliced-elsewhere-before-the-push-below.md) | [#467](https://github.com/roschaefer/git-splice/issues/467) | After a push of the splice above alone, `git splice clone` of its upstream can't make the inner splice's synced commit again. |
 | [nested-splices: a and b swap their `.splice`](05-nested-splices/01-nested-splices/swapped-ids.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | A push sends one splice's files to the other's upstream. |
+| [nested-splices: both pushed after the swap of their `.splice`](05-nested-splices/01-nested-splices/swapped-ids-both-pushed.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | After a push of both, each upstream has the other's files, the outer one without its splice of the inner one, and `status` reads both as up to date. |
+| [nested-splices: the two splices swap only their ids](05-nested-splices/01-nested-splices/swapped-ids-only.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | A push of the outer splice publishes the inner upstream's history to the outer upstream. |
 | [cycle](05-nested-splices/04-cycle/README.md) | [#86](https://github.com/roschaefer/git-splice/issues/86) | A splice whose upstream splices the monorepo back in nests the monorepo one level deeper on every pull; nothing refuses it. |
 | [edited-before-push: a change before the pull](06-rewritten-history/01-edited-before-push/change-before-the-pull.md) | [#82](https://github.com/roschaefer/git-splice/issues/82) | The next push publishes the original commit next to its edited version; `pull -s ours` isn't implemented. |
 | [upstream-rewritten-equal-tree: `push --force`](06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md) | [#38](https://github.com/roschaefer/git-splice/issues/38) | `push --force`, one of the ways out `merge` prints, publishes the history the upstream rewrote away. |
+| [swapped-splices: only the `.splice` files trade places](07-moved-folders/02-swapped-splices/swapped-splice-files.md) | [#174](https://github.com/roschaefer/git-splice/issues/174) | Two splices side by side that trade their `.splice` files: a push sends each upstream the other's files. |
 | [mirrors: mirrors that swap paths](07-moved-folders/03-mirrors/swapped-paths.md) | [#193](https://github.com/roschaefer/git-splice/issues/193) | After two mirrors swap paths, each path keeps its own history, so a push can publish what a mirror removed. |
 | [jujutsu-named-branch](09-vcs-compatibility/03-jujutsu-named-branch/README.md) | [#41](https://github.com/roschaefer/git-splice/issues/41) | In a colocated jj repository, syncing needs a named Git branch, which jj doesn't keep selected; it has to be selected again for each sync. |
 
@@ -76,10 +79,13 @@ ok 04-upstreams/08-lfs-upstream/README.md bug #407
 ok 04-upstreams/09-encrypted-upstream/splice-in-plaintext.md limitation
 ok 05-nested-splices/01-nested-splices/gone-below.md bug #274
 ok 05-nested-splices/01-nested-splices/spliced-elsewhere-before-the-push-below.md bug #467
+ok 05-nested-splices/01-nested-splices/swapped-ids-both-pushed.md bug #174
+ok 05-nested-splices/01-nested-splices/swapped-ids-only.md bug #174
 ok 05-nested-splices/01-nested-splices/swapped-ids.md bug #174
 ok 05-nested-splices/04-cycle/README.md bug #86
 ok 06-rewritten-history/01-edited-before-push/change-before-the-pull.md bug #82
 ok 06-rewritten-history/02-upstream-rewritten-equal-tree/push-force-undoes-the-rewrite.md bug #38
+ok 07-moved-folders/02-swapped-splices/swapped-splice-files.md bug #174
 ok 07-moved-folders/03-mirrors/swapped-paths.md bug #193
 ok 09-vcs-compatibility/03-jujutsu-named-branch/README.md bug #41
 ok 10-platform-compatibility/01-platform-restrictions/README.md limitation

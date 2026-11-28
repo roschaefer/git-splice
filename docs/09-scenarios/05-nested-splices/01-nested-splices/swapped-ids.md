@@ -24,6 +24,13 @@ Nobody planned for this; this page records what `git-splice` does:
   whose files differ from the upstream's, without `--merge`; a
   hand-edited `.splice` skips that check.
 
+A push of both splices leaves each upstream with the other's files
+([both pushed](swapped-ids-both-pushed.md)). Where only the ids trade
+places, a push publishes the inner upstream's history to the outer one
+([only the ids](swapped-ids-only.md)). Splices side by side that trade
+their `.splice` files do the same as nested ones
+([swapped `.splice` files](../../07-moved-folders/02-swapped-splices/swapped-splice-files.md)).
+
 ## Output
 
 <!--
