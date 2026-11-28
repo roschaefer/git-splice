@@ -8,7 +8,7 @@ setup() {
   upstream="$BATS_TEST_TMPDIR/upstream.git"
 }
 
-@test "cli: no args opens Git's general help outside a repository" {
+@test "cli: no args opens its manual outside a repository without git-splice on PATH" {
   local viewer="$BATS_TEST_TMPDIR/help-viewer"
   cat >"$viewer" <<'SH'
 #!/bin/sh
@@ -20,13 +20,16 @@ SH
   git config --global help.format man
   git config --global man.viewer splice-test
   git config --global man.splice-test.cmd "$viewer"
+  local bindir="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$bindir"
+  ln -s "$(command -v git)" "$bindir/git"
   cd "$BATS_TEST_TMPDIR"
 
-  run "$entrypoint"
+  run env PATH="$bindir" "$entrypoint"
   [ "$status" -eq 0 ]
   [ "$output" = "manual: git-splice" ]
 
-  HELP_EXIT=7 run "$entrypoint"
+  HELP_EXIT=7 run env PATH="$bindir" "$entrypoint"
   [ "$status" -eq 7 ]
 }
 
