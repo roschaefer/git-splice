@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice diff -h | check-help preamble
+$ git splice diff --help | check-help preamble
 NAME
     git-splice-diff - Show the changes push would send
 
@@ -18,7 +18,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice diff -h | check-help section description
+$ git splice diff --help | check-help section description
     Shows the file changes 'git splice push' would send to each splice's
     upstream, with paths as the upstream sees them. Purely local -- run
     'git splice fetch' first for up-to-date results.
@@ -54,7 +54,7 @@ index 1b6c064..15c0cbd 100644
 ## Options
 
 ```scrut
-$ git splice diff -h | check-help section options
+$ git splice diff --help | check-help section options
     <path>...
         Shows only these splices, by their folders. Without paths, every
         splice.
@@ -68,7 +68,7 @@ $ git splice diff -h | check-help section options
 ### `--stat`
 
 ```scrut
-$ git splice diff -h | check-help option --stat
+$ git splice diff --help | check-help option --stat
         Summarizes the changes per file instead, like 'git diff --stat'.
 ```
 
@@ -84,7 +84,7 @@ $ git splice diff --stat
 ## No upstream branch
 
 ```scrut
-$ git splice diff -h | check-help section no-upstream-branch
+$ git splice diff --help | check-help section no-upstream-branch
     For a splice whose upstream has no branch named like the current one, the
     diff is against upstream's default branch, from where the two meet, as a
     PR from the new branch would show it. Without a default branch upstream,
@@ -97,6 +97,6 @@ into the upstream's default branch would show
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice diff -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice diff --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

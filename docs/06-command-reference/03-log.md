@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice log -h | check-help preamble
+$ git splice log --help | check-help preamble
 NAME
     git-splice-log - Show commits push and pull would move
 
@@ -17,7 +17,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice log -h | check-help section description
+$ git splice log --help | check-help section description
     Shows the commits between each splice and the upstream branch it syncs
     with, in both directions. Purely local -- run 'git splice fetch' first.
 ```
@@ -41,7 +41,7 @@ $ git splice log
 ## Options
 
 ```scrut
-$ git splice log -h | check-help section options
+$ git splice log --help | check-help section options
     <path>...
         Shows only these splices, by their folders. Without paths, every
         splice.
@@ -50,7 +50,7 @@ $ git splice log -h | check-help section options
 ### `--upstream`
 
 ```scrut
-$ git splice log -h | check-help option --upstream
+$ git splice log --help | check-help option --upstream
         Compares with this one of the upstreams the splice's .splice names,
         instead of its default upstream. A splice without the named
         upstream stops the command before it starts.
@@ -62,7 +62,7 @@ either ([scenario](../09-scenarios/04-upstreams/02-several-upstreams/README.md))
 ### `--graph`
 
 ```scrut
-$ git splice log -h | check-help option --graph
+$ git splice log --help | check-help option --graph
         Draws both sides as a graph, like 'git log --graph', with the marks
         as its nodes, and the commit both sides build on as 'o'. The
         rebuild of the splice's commits is labeled (R), the upstream branch
@@ -85,7 +85,7 @@ o 9bb866a pkg-a: seed  (Walkthrough <walkthrough@example.com>)
 ## Output
 
 ```scrut
-$ git splice log -h | check-help section output
+$ git splice log --help | check-help section output
     Each commit gets a mark:
 
       <  a commit 'git splice push' would publish
@@ -101,7 +101,7 @@ $ git splice log -h | check-help section output
 ## No upstream branch
 
 ```scrut
-$ git splice log -h | check-help section no-upstream-branch
+$ git splice log --help | check-help section no-upstream-branch
     If the upstream has no branch named like the current one, the other side
     is upstream's default branch, as for a PR from the branch push would
     create. If it lacks that one too, push would publish every commit.
@@ -113,6 +113,6 @@ upstream's default branch, as for a PR
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice log -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice log --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

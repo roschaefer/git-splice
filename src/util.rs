@@ -3,7 +3,7 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// How a step failed, after it printed why.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -17,11 +17,6 @@ pub enum Fail {
 }
 
 pub type Res<T> = Result<T, Fail>;
-
-/// <value>, unless it's empty.
-pub fn non_empty(value: &str) -> Option<&str> {
-    (!value.is_empty()).then_some(value)
-}
 
 /// Ends the command with a message.
 pub fn die<T>(message: impl AsRef<str>) -> Res<T> {
@@ -265,36 +260,34 @@ pub fn nul_fields(bytes: &[u8]) -> Vec<String> {
     fields
 }
 
-static TEMP_COUNTER: AtomicU32 = AtomicU32::new(0);
-
-/// A path for a temporary file or folder, removed when it's dropped.
+/// A path for a temporary file or folder, removed when it's dropped. Nothing
+/// is there yet: it is inside a folder only this process created, so no other
+/// user can have put a file or a symbolic link there first.
 pub struct Temp {
+    _folder: tempfile::TempDir,
     pub path: PathBuf,
 }
 
-impl Default for Temp {
-    fn default() -> Temp {
-        Temp::new()
-    }
-}
-
 impl Temp {
-    pub fn new() -> Temp {
-        let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-        Temp {
-            path: std::env::temp_dir().join(format!("git-splice-{}-{number}", std::process::id())),
+    pub fn new() -> Res<Temp> {
+        let mut builder = tempfile::Builder::new();
+        builder.prefix("git-splice-");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            builder.permissions(std::fs::Permissions::from_mode(0o700));
+        }
+        match builder.tempdir() {
+            Ok(folder) => Ok(Temp {
+                path: folder.path().join("tmp"),
+                _folder: folder,
+            }),
+            Err(e) => die(format!("can't create a temporary folder: {e}")),
         }
     }
 
     pub fn str(&self) -> String {
         self.path.to_string_lossy().into_owned()
-    }
-}
-
-impl Drop for Temp {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-        let _ = std::fs::remove_dir_all(&self.path);
     }
 }
 
@@ -401,6 +394,20 @@ mod tests {
 
     use super::*;
 
+    #[cfg(unix)]
+    #[test]
+    fn temp_writes_only_in_a_folder_of_its_own_that_no_other_user_can_open() {
+        use std::os::unix::fs::PermissionsExt;
+        let temp = Temp::new().unwrap();
+        assert!(!temp.path.exists());
+        let folder = temp.path.parent().unwrap().to_path_buf();
+        let mode = std::fs::metadata(&folder).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
+        std::fs::write(&temp.path, "content").unwrap();
+        drop(temp);
+        assert!(!folder.exists());
+    }
+
     #[test]
     fn shell_quote_leaves_words_without_special_characters_as_they_are() {
         assert_eq!(shell_quote("vendor/lib-a"), "vendor/lib-a");
@@ -479,7 +486,7 @@ pub(crate) mod test_repo {
     const PARENT_PID: &str = "GIT_SPLICE_TEST_PARENT_PID";
 
     fn isolated_test(name: &str) -> Output {
-        let directory = Temp::new();
+        let directory = Temp::new().unwrap();
         let home = directory.path.join("home");
         std::fs::create_dir_all(&home).unwrap();
         let mut command = Command::new(std::env::current_exe().unwrap());
@@ -515,6 +522,8 @@ pub(crate) mod test_repo {
         command.output().unwrap()
     }
 
+    static REPOSITORIES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
     struct RestoreDirectory(std::path::PathBuf);
 
     impl Drop for RestoreDirectory {
@@ -548,13 +557,14 @@ pub(crate) mod test_repo {
             .name()
             .expect("repository fixtures run on a named test thread");
         if std::env::var(CHILD_TEST).as_deref() == Ok(name) {
-            let mut directory = Temp::new();
-            directory.path = std::env::current_dir()
+            // In the isolated test's own folder, which its parent removes.
+            let number = REPOSITORIES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let directory = std::env::current_dir()
                 .unwrap()
-                .join(directory.path.file_name().unwrap());
-            std::fs::create_dir_all(&directory.path).unwrap();
+                .join(format!("repository-{number}"));
+            std::fs::create_dir(&directory).unwrap();
             let _restore = RestoreDirectory(std::env::current_dir().unwrap());
-            std::env::set_current_dir(&directory.path).unwrap();
+            std::env::set_current_dir(&directory).unwrap();
             git(&["init", "-q", "--initial-branch=main"]);
             git(&["config", "init.defaultBranch", "main"]);
             git(&["config", "user.name", "Test"]);
@@ -611,7 +621,7 @@ pub(crate) mod test_repo {
                 });
                 return;
             }
-            let directory = Temp::new();
+            let directory = Temp::new().unwrap();
             std::fs::create_dir_all(&directory.path).unwrap();
             let config = directory.path.join("inherited.config");
             let original_config = "[user]\n\temail = inherited@example.com\n";
