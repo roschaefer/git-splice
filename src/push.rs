@@ -29,6 +29,10 @@ impl Repo<'_> {
             )),
             Uncommitted::NoChanges => {}
         }
+        let mirrors = self.mirror_difference(path)?;
+        if !mirrors.is_empty() {
+            log_warn(format!("{path}: {mirrors}"));
+        }
         self.classify_splice(path, branch)?;
         let c = self.c.clone();
         let label = c.upstream_label.clone();

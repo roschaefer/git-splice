@@ -21,7 +21,8 @@ $ git splice status --help | check-help section description
     Shows the sync state of every splice. Purely local -- run 'git splice
     fetch' first for up-to-date results. Like every command, status reads
     splices from the last commit. It warns about uncommitted changes in a
-    splice's folder, which push leaves out.
+    splice's folder, which push leaves out, and about mirrors, splices with
+    the same id, whose files or .splice differ.
 ```
 
 In the [walkthrough's repositories](../01-getting-started/02-walkthrough.md), `vendor/pkg-a/`'s upstream

@@ -15,8 +15,9 @@ After a swap:
 - **The other mirror is then behind and ahead**: its push is refused,
   and a pull merges the two histories.
 
-With different `.splice` files, the push also undoes an upstream commit
-([swapped after a pull](swapped-after-a-pull.md)).
+`status` and `push` say that the mirrors' files differ, and the push
+still goes through. With different `.splice` files, the push also undoes
+an upstream commit ([swapped after a pull](swapped-after-a-pull.md)).
 
 ## Output
 
@@ -92,14 +93,15 @@ M vendor/a/file.txt
 ```
 
 `vendor/a/` no longer has the secret, and `vendor/a-copy/` has it. Each
-path still has its own history, and both read as an ordinary push:
+path still has its own history. Both read as an ordinary push, and
+`status` says that the mirrors' files differ:
 
 ```scrut
 $ git splice status
 On branch main
 
-  ahead 2  vendor/a-copy
-  ahead 2  vendor/a
+  ahead 2  vendor/a-copy  files differ from mirror vendor/a
+  ahead 2  vendor/a       files differ from mirror vendor/a-copy
 ```
 
 ```scrut
@@ -114,8 +116,11 @@ $ git splice log
 
 ### The push of `vendor/a/`
 
+The push says so too, and pushes:
+
 ```scrut
 $ git splice push vendor/a
+??   vendor/a: files differ from mirror vendor/a-copy
 ok   vendor/a: pushed 80aeed5 to main
 ```
 
@@ -147,13 +152,13 @@ around:
 $ git splice status
 On branch main
 
-  ahead 2, behind 2  vendor/a-copy
-
-  up to date         vendor/a
+  ahead 2, behind 2  vendor/a-copy  files differ from mirror vendor/a
+  up to date         vendor/a       files differ from mirror vendor/a-copy
 ```
 
 ```scrut
 $ git splice push vendor/a-copy
+??   vendor/a-copy: files differ from mirror vendor/a
 !!   vendor/a-copy: upstream has commits this branch lacks
 !!   Failed: vendor/a-copy
 [1]
@@ -175,6 +180,7 @@ secret.txt
 
 ```scrut
 $ git splice push vendor/a-copy
+??   vendor/a-copy: files and .splice differ from mirror vendor/a
 ok   vendor/a-copy: pushed 173fba7 to main
 ```
 
@@ -204,9 +210,8 @@ it back:
 $ git splice status
 On branch main
 
-  behind 3    vendor/a
-
-  up to date  vendor/a-copy
+  behind 3    vendor/a       files and .splice differ from mirror vendor/a-copy
+  up to date  vendor/a-copy  files and .splice differ from mirror vendor/a
 ```
 
 ![The tree: the monorepo at p; vendor/a/ at seed, then w', solid; vendor/a-copy/ at w', then p', solid](swapped-paths-end.drawio.svg)

@@ -22,11 +22,11 @@ and its limits.
   that selection. Supporting [Jujutsu and Sapling](03-git-compatible-vcs.md)
   also requires handling Git's detached `HEAD`.
 - **Check mirror semantics.** Copies with the same splice id should have
-  the same files. `git-splice` cannot enforce this today; it could report
-  when those semantics are violated. [Mirrors](01-mirrors.md) explains
-  the limits of enforcement, particularly for nested copies.
+  the same files. `git-splice` cannot enforce this; `status` and `push`
+  report when those semantics are violated. [Mirrors](01-mirrors.md)
+  explains the limits of enforcement, particularly for nested copies.
 
-The stored branch default and mirror check are not implemented.
+The stored branch default is not implemented.
 
 ## What the VCS could provide
 

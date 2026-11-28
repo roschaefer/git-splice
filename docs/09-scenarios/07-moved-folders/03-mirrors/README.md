@@ -8,8 +8,9 @@ and `third_party/a/`, cloned from the same upstream, stays independent.
 
 ## Keeping mirrors alike
 
-Edit one copy, push it, and pull every mirror before merging. Compare
-mirrors in CI without their `.splice` files, using
+Edit one copy, push it, and pull every mirror before merging.
+`git splice status` and `git splice push` say when mirrors' files or
+`.splice` differ. Compare mirrors in CI without their `.splice` files, using
 `git diff --quiet HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice'`.
 It exits nonzero when the copies differ. The
 [drift example](#a-mirror-drifts) below shows the difference and checks
@@ -106,14 +107,13 @@ $ git splice status
 On branch main
 
   behind 1    third_party/a
-  behind 1    vendor/a-copy
-
-  up to date  vendor/a
+  behind 1    vendor/a-copy  files and .splice differ from mirror vendor/a
+  up to date  vendor/a       files and .splice differ from mirror vendor/a-copy
 ```
 
 `status` says `vendor/a-copy/` is behind, the same as for `third_party/a/`,
-which may stay behind. To see drift, compare the two paths in `HEAD` without
-their `.splice`:
+which may stay behind, and that the two mirrors differ. To see how,
+compare the two paths in `HEAD` without their `.splice`:
 
 ```scrut
 $ git diff --stat HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice'
@@ -134,9 +134,21 @@ $ git diff --quiet HEAD:vendor/a HEAD:vendor/a-copy -- ':!.splice' && echo "mirr
 mirrors
 ```
 
-Only the files count. A push doesn't move U(H), so a mirror that pushed a
-change has an older U(H) than one that pulled it, with the same files
-([diamond](../../05-nested-splices/03-diamond/README.md)).
+```scrut
+$ git splice status
+On branch main
+
+  behind 1    third_party/a
+
+  up to date  vendor/a-copy
+  up to date  vendor/a
+```
+
+A push doesn't move U(H), so a mirror that pushed a change has an older
+U(H) than one that pulled it, with the same files
+([diamond](../../05-nested-splices/03-diamond/README.md)). `status`
+reports their `.splice` as different until `git splice pull --bump`
+records the push in the mirror that made it.
 
 ### Mirrors that swap paths
 

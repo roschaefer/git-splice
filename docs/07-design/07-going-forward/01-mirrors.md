@@ -2,11 +2,13 @@
 
 Mirrors are folders with the same splice
 [id](../../03-concepts/03-splice-identity.md), meant to have the same
-files. `git-splice` syncs each path independently today.
+files. `git-splice` syncs each path independently.
 
-The proposed [mirror check](README.md#extensions-to-syncing) would report
-violations of those semantics. Nesting limits what it could enforce.
-A different upstream URL could also be flagged, though it can mean the
+`git splice status` and `git splice push` report when mirrors' files or
+`.splice` differ in `HEAD`, naming the other mirrors; push still pushes.
+Git can't keep the copies alike, and nesting limits what `git-splice`
+could enforce, so it states the fact and refuses nothing. A different
+upstream URL shows as a different `.splice`, though it can mean the
 repository moved.
 
 ## Nested mirrors can lag behind
@@ -36,8 +38,10 @@ copies from differing while work is in progress.
 
 ## Meanwhile: discipline
 
-Edit one copy, push it, then pull the others. Clone a copy that should
-have its own history. The [mirrors scenario](../../09-scenarios/07-moved-folders/03-mirrors/README.md)
+Edit one copy, push it, then pull the others, and record the push in
+the copy that made it with `git splice pull --bump`; `status` then
+reports no difference. Clone a copy that should have its own history. The
+[mirrors scenario](../../09-scenarios/07-moved-folders/03-mirrors/README.md)
 shows how to compare copies and resolve drift, and why
 [swapping their paths](../../09-scenarios/07-moved-folders/03-mirrors/swapped-paths.md)
-can send unexpected history upstream.
+can send unexpected history upstream: the push warns, and still sends it.
