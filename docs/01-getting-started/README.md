@@ -26,22 +26,8 @@ Requires:
 
 See [known bugs and limitations](../09-scenarios/99-known-bugs.md).
 
-## Help
-
-`git splice` and `git splice --help` open an offline general usage manual
-with command descriptions and examples. `git splice -h` prints a brief
-command overview.
-Use `git splice <command> -h` for detailed help for a particular command.
-
-The Nix package installs the manual. With a release archive or a source
-checkout, install it into a directory your `man` searches, for example:
-
-    mkdir -p ~/.local/share/man/man1
-    install -m644 man/git-splice.1 ~/.local/share/man/man1/git-splice.1
-
-`cargo install` installs the executable only; install the manual from a
-matching source checkout separately. Viewing the manual requires `man`;
-`git splice -h` and command-specific `-h` work without it.
+For usage and help, run `git splice` or see the
+[general command reference](../06-command-reference/00-git-splice.md).
 
 ## Shell completions
 
