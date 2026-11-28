@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice boundary -h | check-help preamble
+$ git splice boundary --help | check-help preamble
 NAME
     git-splice-boundary - Print where a splice's rebuild starts
 
@@ -18,7 +18,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice boundary -h | check-help section description
+$ git splice boundary --help | check-help section description
     Prints the commit the rebuild of splice <path> starts from, B. Usually
     B is the last pull, merge, clone or init. After a pull that merged
     commits that were never pushed, it's an earlier one, where the folder
@@ -45,7 +45,7 @@ $ git show -s --oneline "$(git splice boundary vendor/pkg-a)"
 ## The rebuilt commits
 
 ```scrut
-$ git splice boundary -h | check-help section the-rebuilt-commits
+$ git splice boundary --help | check-help section the-rebuilt-commits
     The rebuild copies the commits after B on the current branch's
     first-parent history that change the folder's files:
 
@@ -73,7 +73,7 @@ $ git log --first-parent --oneline "$(git splice boundary vendor/pkg-a)"..HEAD -
 ## Nested splices
 
 ```scrut
-$ git splice boundary -h | check-help section nested-splices
+$ git splice boundary --help | check-help section nested-splices
     For a nested splice, run it in a worktree of a fetched commit of the
     upstream above, with the path there, to get where that upstream's
     rebuild of it starts:
@@ -89,6 +89,6 @@ rebuild starts.
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice boundary -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice boundary --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

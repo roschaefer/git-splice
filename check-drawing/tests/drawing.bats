@@ -463,6 +463,34 @@ git_names=(--alias HEAD=H --alias BOUNDARY=B --alias OURS=R --alias THEIRS=T --a
   [ "$output" = "!!   U(z) points at n, but no commit z is drawn" ]
 }
 
+@test "drawing: a box U(T) or U(R) names no commit with a .splice of the monorepo's" {
+  edit_drawing -u '//mxCell[@id="refT"]/@value' -v 'U(T)'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(T): T is no commit of the monorepo, whose .splice U reads: U takes H, B or a drawn commit" ]
+}
+
+@test "drawing: a box U(ours) is U(R) through its alias" {
+  edit_drawing -u '//mxCell[@id="refT"]/@value' -v 'U(ours)'
+  run check_drawing "$drawing" --alias ours=R a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   U(ours): R is no commit of the monorepo, whose .splice U reads: U takes H, B or a drawn commit" ]
+}
+
+@test "drawing: a box drawn with square corners is to be rounded" {
+  edit_drawing -u '//mxCell[@id="refT"]/@style' -v 'whiteSpace=wrap;fillColor=none;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [ "$output" = "!!   T = U(H) is a box, but not drawn as one: give it rounded corners, rounded=1" ]
+}
+
+@test "drawing: a box drawn as a circle is a commit, named by its label" {
+  edit_drawing -u '//mxCell[@id="refT"]/@style' -v 'ellipse;aspect=fixed;'
+  run check_drawing "$drawing" a=HEAD~4 e=HEAD
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"!!   T = U(H): no such commit"* ]]
+}
+
 @test "drawing: a box U(X) names a commit whose label has spaces" {
   edit_drawing -u '//mxCell[@id="refT"]/@value' -v 'U(a note)'
   run check_drawing "$drawing" a=HEAD~4 e=HEAD

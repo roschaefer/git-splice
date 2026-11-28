@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice push -h | check-help preamble
+$ git splice push --help | check-help preamble
 NAME
     git-splice-push - Publish local splice changes upstream
 
@@ -19,7 +19,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice push -h | check-help section description
+$ git splice push --help | check-help section description
     Publishes each splice's local changes: rebuilds the commits that changed
     it since its boundary, without its .splice file, and pushes them to its
     upstream URL. Nothing is written to the monorepo. Only committed changes
@@ -70,7 +70,7 @@ On branch main
 ## Options
 
 ```scrut
-$ git splice push -h | check-help section options
+$ git splice push --help | check-help section options
     <path>...
         The splices to push, by their folders.
 
@@ -86,7 +86,7 @@ $ git splice push -h | check-help section options
 ### Branch tracking
 
 ```scrut
-$ git splice push -h | check-help option branch-tracking
+$ git splice push --help | check-help option branch-tracking
     --branch <name>
         Pushes to this upstream branch, for this push only, as 'git splice
         pull --branch' pulls from one: with the same checks, and created
@@ -104,7 +104,7 @@ to that upstream branch instead.
 ### `--force`
 
 ```scrut
-$ git splice push -h | check-help option --force
+$ git splice push --help | check-help option --force
         Overwrites the upstream branch with the monorepo's side: when the
         two share no history, or to discard commits only upstream has.
 ```
@@ -117,7 +117,7 @@ keeps the monorepo's
 ### `--rebuilt-commit`
 
 ```scrut
-$ git splice push -h | check-help option --rebuilt-commit
+$ git splice push --help | check-help option --rebuilt-commit
         Pushes <commit> instead of the rebuild, e.g. one whose history was
         edited after 'git splice rebuild <path>' printed it: messages
         reworded, commits squashed. Only the history: its files must be the
@@ -192,7 +192,7 @@ brings work committed in such a worktree into the monorepo.
 ### `--exec`
 
 ```scrut
-$ git splice push -h | check-help option --exec
+$ git splice push --help | check-help option --exec
         Runs <command> through sh from the repository root at each execution
         checkpoint. GIT_SPLICE_EVENT names the checkpoint; GIT_SPLICE_PATH
         names its splice, and GIT_SPLICE_COMMIT its prepared or published
@@ -218,7 +218,7 @@ See the [drawing-checked push scenario](../09-scenarios/01-everyday-sync/01-sync
 ## Upstream branch
 
 ```scrut
-$ git splice push -h | check-help section upstream-branch
+$ git splice push --help | check-help section upstream-branch
     If the upstream has no branch named like the current one, push creates
     it -- but only if a PR from it to upstream's default branch would show
     changes, so working on a feature branch doesn't spawn empty branches
@@ -237,7 +237,7 @@ but only for the splices that changed on it
 ## Order
 
 ```scrut
-$ git splice push -h | check-help section order
+$ git splice push --help | check-help section order
     Bottom-up: a splice below another is pushed first, since the rebuild of
     the one above records it at the commit its push sends, and a failed
     push stops the splices above it.
@@ -254,7 +254,7 @@ that moved on since is pulled first, as before any push
 ## Read more
 
 ```scrut
-$ git splice push -h | check-help section read-more
+$ git splice push --help | check-help section read-more
 
 ```
 
@@ -273,6 +273,6 @@ $ git splice push -h | check-help section read-more
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice push -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice push --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->

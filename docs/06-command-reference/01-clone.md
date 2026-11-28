@@ -7,7 +7,7 @@ $ source "$TESTDIR/../tests/walkthrough/scrut-setup.sh"
 -->
 
 ```scrut
-$ git splice clone -h | check-help preamble
+$ git splice clone --help | check-help preamble
 NAME
     git-splice-clone - Splice an existing repository into the monorepo
 
@@ -18,7 +18,7 @@ SYNOPSIS
 ## Description
 
 ```scrut
-$ git splice clone -h | check-help section description
+$ git splice clone --help | check-help section description
     Splices an existing upstream repository into <path> (default: the
     repository's name), as one ordinary commit with a new <path>/.splice,
     and fetches the splices the upstream has inside it. With
@@ -68,7 +68,7 @@ publish a folder of the monorepo to a new, empty repository, use
 ## Options
 
 ```scrut
-$ git splice clone -h | check-help section options
+$ git splice clone --help | check-help section options
     -m <message>
         Gives the commit this message instead of the default one, which
         names the upstream branch and commit. Nothing reads the message
@@ -83,7 +83,7 @@ $ git splice clone -h | check-help section options
 ### `--merge`
 
 ```scrut
-$ git splice clone -h | check-help option --merge
+$ git splice clone --help | check-help option --merge
         If <path> already exists with exactly the upstream's content, clone
         only adds .splice. If its content differs, clone refuses, unless
         --merge is given: then every file that differs becomes a conflict to
@@ -99,7 +99,7 @@ A folder with exactly the upstream's files needs no `--merge`
 ### `--from-submodule`
 
 ```scrut
-$ git splice clone -h | check-help option --from-submodule
+$ git splice clone --help | check-help option --from-submodule
         <path> is a submodule committed in HEAD, and clone turns it into a
         splice of the same upstream, at the same commit: the upstream is
         the submodule's URL in .gitmodules, and the folder gets the files of
@@ -153,7 +153,7 @@ splice: clone vendor/pkg-b from submodule at 9b3cb02
 ### `--recursive`
 
 ```scrut
-$ git splice clone -h | check-help option --recursive
+$ git splice clone --help | check-help option --recursive
         With --from-submodule, converts a submodule whose commit has
         submodules of its own, which is refused without it: clone converts
         those too, one commit each, top-down. Their URLs and settings come
@@ -176,7 +176,7 @@ convert it in a fork of yours instead
 ## Upstream branch
 
 ```scrut
-$ git splice clone -h | check-help section upstream-branch
+$ git splice clone --help | check-help section upstream-branch
     The upstream branch is the one named like the current branch, else the
     upstream's default branch; a push creates the missing branch once a PR
     from it would show changes. If the upstream's default branch is named
@@ -194,7 +194,7 @@ splice changed by then
 ## Attributes
 
 ```scrut
-$ git splice clone -h | check-help section attributes
+$ git splice clone --help | check-help section attributes
     In upstream, and in a submodule, only upstream's own .gitattributes
     apply to its files. Where text, eol, filter, ident,
     working-tree-encoding or Git's older crlf set above <path> would change
@@ -216,7 +216,7 @@ An upstream that encrypts its files, e.g. with git-crypt, leaves the
 ## Submodules
 
 ```scrut
-$ git splice clone -h | check-help section submodules
+$ git splice clone --help | check-help section submodules
     Upstream must serve the submodule's commit, on a branch, a tag or by
     id, and a checkout of the submodule must be at that commit without
     changes; clone refuses otherwise. It asks git status for those changes,
@@ -285,6 +285,6 @@ splice in the upstream first.
 
 <!-- Checks that every linked help section appears above, in order.
 ```scrut
-$ git splice clone -h | check-help document "$TESTDIR/$TESTFILE"
+$ git splice clone --help | check-help document "$TESTDIR/$TESTFILE"
 ```
 -->
