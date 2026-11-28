@@ -71,3 +71,6 @@ ok   vendor/a fetched
 !!   Failed: vendor/a
 [1]
 ```
+
+The clone can still keep its version: see
+[`push --force` from a fresh clone](push-force-from-a-fresh-clone.md).

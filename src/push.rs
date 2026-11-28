@@ -16,6 +16,7 @@ struct PreparedPush {
     label: String,
     rebuilt_commit: String,
     fetched_ref: String,
+    without_synced: bool,
 }
 
 impl Repo<'_> {
@@ -44,6 +45,7 @@ impl Repo<'_> {
             ));
         }
         let mut rebuilt = c.rebuilt.clone();
+        let mut without_synced = false;
         match c.state {
             State::NeverFetched => {
                 log_warn(format!(
@@ -71,7 +73,10 @@ impl Repo<'_> {
                 log_warn(format!("{path}: {}", self.missing_synced_message(path)));
                 return Err(Fail::Soft);
             }
-            State::MissingSynced => rebuilt = self.rebuild_without_synced(path)?,
+            State::MissingSynced => {
+                rebuilt = self.rebuild_without_synced(path)?;
+                without_synced = true;
+            }
             State::UnrelatedHistory if !force => {
                 self.print_unrelated_history_guidance(path);
                 return Err(Fail::Soft);
@@ -79,6 +84,7 @@ impl Repo<'_> {
             State::UnrelatedHistory => {
                 if rebuilt.is_empty() {
                     rebuilt = self.rebuild_without_synced(path)?;
+                    without_synced = true;
                 }
             }
             State::MissingBranch => {
@@ -136,6 +142,7 @@ impl Repo<'_> {
             label,
             rebuilt_commit: rebuilt,
             fetched_ref: self.splice_ref(path, &c.upstream_branch),
+            without_synced,
         }))
     }
 
@@ -163,6 +170,10 @@ impl Repo<'_> {
             ));
         }
         log_ok(format!("{path}: pushed {} to {label}", short(rebuilt)));
+        if prepared.without_synced && !self.context.supplied_rebuilds.contains_key(path) {
+            remind_bump(path, &selection, rebuilt);
+            return Ok(());
+        }
         self.remind_pull(path, &selection)
     }
 
@@ -187,10 +198,7 @@ impl Repo<'_> {
             return Ok(());
         };
         if !self.given_is_rebuild(path, &given)? {
-            log_warn(format!(
-                "{path}: run 'git splice pull --bump {selection}{path}' before the next change to it -- that records {} as the synced commit",
-                short(&given)
-            ));
+            remind_bump(path, selection, &given);
         }
         Ok(())
     }
@@ -264,6 +272,16 @@ impl Repo<'_> {
             .insert(path.to_string(), rebuilt);
         Ok(())
     }
+}
+
+/// The monorepo's record names another commit than <pushed>, the rebuild
+/// builds on that record, and a push writes nothing to the monorepo: the
+/// bump records <pushed>.
+fn remind_bump(path: &str, selection: &str, pushed: &str) {
+    log_warn(format!(
+        "{path}: run 'git splice pull --bump {selection}{path}' before the next change to it -- that records {} as the synced commit",
+        short(pushed)
+    ));
 }
 
 pub fn run(context: &mut ExecutionContext, argv: &[String]) -> Res<i32> {
